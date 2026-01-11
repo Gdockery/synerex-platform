@@ -1,0 +1,274 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>License Receipt - Synerex Platform</title>
+    <style>
+      @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      /* Navigation Styles */
+      .nav-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid #1f2937;
+        height: 56px;
+      }
+      .nav-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 24px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+      }
+      .nav-logo img {
+        height: 48px;
+        width: auto;
+        filter: brightness(0) invert(1);
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        font-size: 14px;
+      }
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: #a855f7; /* purple-400 */
+      }
+      
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        padding-top: 80px; /* Add padding for fixed nav */
+        background: linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #111827 100%);
+        background-size: 400% 400%;
+        animation: gradientMove 15s ease infinite;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 800px;
+        margin: 40px auto;
+        background: white;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .logo-container {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .logo-container img {
+        height: 60px;
+        max-width: 250px;
+      }
+      h1 {
+        color: #2e7d32;
+        margin-top: 0;
+      }
+      .success-badge {
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 24px;
+        font-weight: 500;
+      }
+      .info-box {
+        background: #f5f5f5;
+        padding: 16px;
+        border-radius: 4px;
+        margin: 16px 0;
+      }
+      .info-box strong {
+        display: inline-block;
+        min-width: 140px;
+        color: #666;
+      }
+      pre {
+        background: #263238;
+        color: #aed581;
+        padding: 16px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .btn {
+        display: inline-block;
+        background: #1976d2;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        text-decoration: none;
+        margin: 8px 8px 8px 0;
+      }
+      .btn:hover {
+        background: #1565c0;
+      }
+      .btn-secondary {
+        background: #757575;
+      }
+      .btn-secondary:hover {
+        background: #616161;
+      }
+      .warning {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 12px;
+        margin: 16px 0;
+        color: #e65100;
+      }
+      .section {
+        margin: 24px 0;
+      }
+      .section h2 {
+        color: #333;
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav-header">
+      <div class="nav-container">
+        <a href="{{ (website_url or 'http://localhost:5173') }}/" class="nav-logo">
+          <img src="/static/synerex_logo_color.png" alt="Synerex Laboratories, LLC" />
+        </a>
+        <div class="nav-links">
+          <a href="{{ (website_url or 'http://localhost:5173') }}/">Home</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/licensing">Licensing</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/my-account">My Account</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/contact">Contact</a>
+        </div>
+      </div>
+    </nav>
+    
+    <div class="container">
+      <div class="logo-container">
+        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+      </div>
+      <h1>✓ License Receipt</h1>
+      
+      {% if resend_message %}
+      <div class="success-badge" style="background: {% if 'successfully' in resend_message %}#e8f5e9{% else %}#ffebee{% endif %}; color: {% if 'successfully' in resend_message %}#2e7d32{% else %}#c62828{% endif %};">
+        {{ resend_message }}
+      </div>
+      {% else %}
+      <div class="success-badge">
+        Your organization has been created and your license has been issued.
+      </div>
+      {% endif %}
+      
+      <div class="section">
+        <h2>Organization Details</h2>
+        <div class="info-box">
+          <div id="receipt-org-id"><strong>Organization ID:</strong> {{ org_id }}</div>
+          <div id="receipt-org-name"><strong>Organization Name:</strong> {{ org_name }}</div>
+          <div id="receipt-program"><strong>Program:</strong> {{ program|upper }}</div>
+          <div id="receipt-plan"><strong>Plan:</strong> {{ plan|title }}</div>
+          <div id="receipt-license-id" style="display: none;">{{ license_id }}</div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Your Software License Serial Number</h2>
+        <div style="background: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 24px; margin: 20px 0; text-align: center;">
+          <div style="color: #666; font-size: 14px; margin-bottom: 8px; font-weight: 500;">SOFTWARE LICENSE SERIAL NUMBER</div>
+          <div id="license-serial" style="font-size: 24px; font-weight: 700; color: #1976d2; font-family: 'Courier New', monospace; letter-spacing: 1px; margin: 12px 0;">{{ license_id }}</div>
+          <button class="btn" onclick="copySerialNumber()" style="margin-top: 16px;">📋 Copy Serial Number</button>
+        </div>
+      </div>
+      
+      <div class="warning">
+        <strong>⚠️ Important:</strong> Save your Software License Serial Number! You will need to enter this serial number into the login page of your {{ program|upper }} software.
+      </div>
+      
+      <div class="section">
+        <h2>How to Use Your License Serial Number</h2>
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 16px 0;">
+          <p style="color: #333; font-size: 15px; line-height: 1.8; margin: 0 0 16px 0;">
+            <strong>When to enter your Serial Number:</strong>
+          </p>
+          <ol style="color: #333; line-height: 2; margin: 0; padding-left: 24px;">
+            <li><strong>First-time login:</strong> When you first access the {{ program|upper }} software login page, you will be prompted to enter your Software License Serial Number.</li>
+            <li><strong>License expiration:</strong> When your license expires, you will need to enter a new Serial Number after renewing your license.</li>
+          </ol>
+          <p style="color: #333; font-size: 15px; line-height: 1.8; margin: 16px 0 0 0;">
+            <strong>Where to enter it:</strong> Enter the Serial Number above into the license field on the {{ program|upper }} software login page. The software will validate your license and grant you access.
+          </p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>Next Steps</h2>
+        <ol style="line-height: 1.8; color: #666;">
+          <li><strong>Save your Serial Number:</strong> Copy the Serial Number above and store it securely</li>
+          <li><strong>Access your software:</strong> Go to the {{ program|upper }} software login page</li>
+          <li><strong>Enter Serial Number:</strong> When prompted, enter your Software License Serial Number</li>
+          <li><strong>Start using:</strong> Once validated, you can begin using the {{ program|upper }} software</li>
+        </ol>
+      </div>
+      
+      <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
+        <div style="background: #e8f5e9; color: #2e7d32; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <strong>✓ Receipt Emailed</strong><br>
+          <span style="font-size: 14px;">Your License Receipt has been sent to your email address. Please check your inbox.</span>
+        </div>
+        <div style="margin: 16px 0;">
+          <p style="color: #666; font-size: 14px; margin-bottom: 8px;">Didn't receive the email?</p>
+          <form method="post" action="/register/resend-receipt" style="display: inline-block;">
+            <input type="hidden" name="order_id" value="{{ order_id }}">
+            <button type="submit" class="btn" style="background: #757575;">📧 Resend Receipt</button>
+          </form>
+        </div>
+        <a href="/register" class="btn btn-secondary">Register Another Organization</a>
+      </div>
+    </div>
+    
+    <script>
+      function copySerialNumber() {
+        const serialNumber = document.getElementById('license-serial').textContent.trim();
+        navigator.clipboard.writeText(serialNumber).then(function() {
+          const btn = event.target;
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Copied!';
+          btn.style.background = '#2e7d32';
+          setTimeout(function() {
+            btn.textContent = originalText;
+            btn.style.background = '#1976d2';
+          }, 2000);
+        }).catch(function(err) {
+          alert('Failed to copy. Please select and copy manually.');
+        });
+      }
+      
+    </script>
+  </body>
+</html>
+

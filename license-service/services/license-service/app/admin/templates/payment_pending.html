@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Payment Processing - Synerex Platform</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 700px;
+        margin: 40px auto;
+        background: white;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .logo-container {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .logo-container img {
+        height: 60px;
+        max-width: 250px;
+      }
+      h1 {
+        color: #1976d2;
+        margin-top: 0;
+      }
+      .status-pending {
+        background: #fff3e0;
+        color: #e65100;
+        padding: 16px;
+        border-radius: 4px;
+        margin-bottom: 24px;
+        font-weight: 500;
+        border-left: 4px solid #ff9800;
+      }
+      .order-summary {
+        background: #f7fafc;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        border: 1px solid #e2e8f0;
+      }
+      .order-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .order-row:last-child {
+        border-bottom: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #1976d2;
+      }
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #1976d2;
+        padding: 1rem;
+        border-radius: 4px;
+        margin: 1.5rem 0;
+        color: #1565c0;
+      }
+      .warning-box {
+        background: #ffebee;
+        border-left: 4px solid #f44336;
+        padding: 1rem;
+        border-radius: 4px;
+        margin: 1.5rem 0;
+        color: #c62828;
+      }
+      .btn {
+        background: #1976d2;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 1rem;
+      }
+      .btn:hover {
+        background: #1565c0;
+      }
+      .spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(25, 118, 210, 0.3);
+        border-radius: 50%;
+        border-top-color: #1976d2;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo-container">
+        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+      </div>
+      <h1>Payment Processing</h1>
+      
+      <div class="status-pending">
+        <span class="spinner"></span>
+        <strong>Payment Pending Verification:</strong> Your payment is being processed. Your license will be issued once payment is verified and cleared.
+      </div>
+      
+      <div class="order-summary">
+        <h3 style="margin-top: 0;">Order Summary</h3>
+        <div class="order-row">
+          <span>Order ID:</span>
+          <span><strong>{{ order.order_id }}</strong></span>
+        </div>
+        <div class="order-row">
+          <span>Organization:</span>
+          <span><strong>{{ org.org_name }}</strong></span>
+        </div>
+        <div class="order-row">
+          <span>Program:</span>
+          <span>{{ order.program_id|upper }}</span>
+        </div>
+        <div class="order-row">
+          <span>Plan:</span>
+          <span>{{ order.plan|title }}</span>
+        </div>
+        <div class="order-row">
+          <span>Total Amount:</span>
+          <span>${{ order.amount_total }} {{ order.currency }}</span>
+        </div>
+        {% if payment %}
+        <div class="order-row">
+          <span>Payment Status:</span>
+          <span><strong>{{ payment_status|upper }}</strong></span>
+        </div>
+        <div class="order-row">
+          <span>Payment Method:</span>
+          <span>{{ payment.payment_method|upper if payment.payment_method else 'N/A' }}</span>
+        </div>
+        {% endif %}
+      </div>
+      
+      <div class="info-box">
+        <strong>📋 What Happens Next:</strong>
+        <ol style="margin: 0.5rem 0 0 1.5rem; padding-left: 1.5rem;">
+          <li>Your payment is being verified by the payment processor</li>
+          <li>Once payment is confirmed and cleared, your license will be automatically issued</li>
+          <li>You will receive an email notification with your Software License Serial Number</li>
+          <li>Processing typically takes a few minutes for credit card payments, or 1-3 business days for EFT transfers</li>
+        </ol>
+      </div>
+      
+      <div class="warning-box">
+        <strong>⚠️ Important:</strong> Please do not close this page or navigate away. You will be automatically redirected once your payment is verified and your license is ready. If you need to check your order status later, please contact support with your Order ID: <strong>{{ order.order_id }}</strong>
+      </div>
+      
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee; text-align: center;">
+        <a href="/register" class="btn">← Back to Registration</a>
+      </div>
+    </div>
+    
+    <script>
+      // Auto-refresh page every 10 seconds to check payment status
+      setTimeout(function() {
+        window.location.reload();
+      }, 10000);
+    </script>
+  </body>
+</html>
+
+

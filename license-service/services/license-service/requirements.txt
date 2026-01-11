@@ -1,0 +1,24 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.8.2
+pydantic-settings==2.4.0
+jinja2==3.1.4
+python-multipart==0.0.9
+cryptography==43.0.0
+sqlalchemy==2.0.32
+
+starlette==0.38.2
+
+reportlab==4.2.2
+
+PyPDF2==3.0.1
+
+requests==2.32.3
+
+PyJWT==2.9.0
+
+# New dependencies for enterprise features
+stripe==10.0.0  # Payment processing
+paypalrestsdk==1.13.3  # PayPal integration
+alembic==1.13.0  # Database migrations
+openpyxl==3.1.2  # Excel export support

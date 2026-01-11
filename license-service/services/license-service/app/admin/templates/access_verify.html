@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Access {{ program_name }} Program - Synerex Platform</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: white;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .logo-container {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .logo-container img {
+        height: 60px;
+        max-width: 250px;
+      }
+      h1 {
+        color: #1976d2;
+        margin-top: 0;
+        text-align: center;
+      }
+      .error-box {
+        background: #ffebee;
+        color: #c62828;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 24px;
+        border-left: 4px solid #c62828;
+      }
+      .info-box {
+        background: #e3f2fd;
+        padding: 16px;
+        border-radius: 4px;
+        margin: 16px 0;
+        border-left: 4px solid #1976d2;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-color: #1976d2;
+      }
+      .btn {
+        background: #1976d2;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 8px;
+      }
+      .btn:hover {
+        background: #1565c0;
+      }
+      .btn:active {
+        background: #0d47a1;
+      }
+      .help-text {
+        color: #666;
+        font-size: 14px;
+        margin-top: 8px;
+      }
+      .back-link {
+        text-align: center;
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid #eee;
+      }
+      .back-link a {
+        color: #1976d2;
+        text-decoration: none;
+      }
+      .back-link a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo-container">
+        <img src="/static/synerex_logo_color.png" alt="Synerex Logo"/>
+      </div>
+      
+      <h1>Access {{ program_name }} Program</h1>
+      
+      {% if error %}
+      <div class="error-box">
+        <strong>Error:</strong> {{ error }}
+      </div>
+      {% endif %}
+      
+      <div class="info-box">
+        <strong>Enter your License Serial Number</strong>
+        <p style="margin: 8px 0 0 0;">Please enter the Software License Serial Number you received in your email receipt.</p>
+      </div>
+      
+      <form method="post" action="/access/{{ program_id }}/verify">
+        <div class="form-group">
+          <label for="license_id">License Serial Number</label>
+          <input 
+            type="text" 
+            id="license_id" 
+            name="license_id" 
+            value="{{ license_id }}"
+            placeholder="SYX-LIC-2025-XXXXXXXXXX"
+            required
+            autofocus
+          />
+          <div class="help-text">
+            This is the serial number found in your license receipt email.
+          </div>
+        </div>
+        
+        <button type="submit" class="btn">Continue to {{ program_name }} Program</button>
+      </form>
+      
+      <div class="back-link">
+        <a href="/register">← Back to Registration</a>
+      </div>
+    </div>
+  </body>
+</html>
+
+

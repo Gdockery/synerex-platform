@@ -1,0 +1,199 @@
+{
+  "documents": [
+    {
+      "id": "master_index",
+      "filename": "Synerex_Master_Governance_Index.pdf",
+      "category": "governance",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "allowed_roles": [
+        "investor",
+        "utility",
+        "oem",
+        "customer_admin",
+        "oem_engineer",
+        "regulator"
+      ],
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "watermark": true,
+      "required_entitlements": []
+    },
+    {
+      "id": "investor_dd",
+      "filename": "Synerex_Investor_Due_Diligence.pdf",
+      "category": "investor",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "allowed_roles": [
+        "investor",
+        "utility",
+        "oem",
+        "customer_admin",
+        "oem_engineer",
+        "regulator"
+      ],
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "watermark": true,
+      "required_entitlements": []
+    },
+    {
+      "id": "utility_rfp",
+      "filename": "Synerex_Utility_RFP_Response.pdf",
+      "category": "utility",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "allowed_roles": [
+        "investor",
+        "utility",
+        "oem",
+        "customer_admin",
+        "oem_engineer",
+        "regulator"
+      ],
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "watermark": true,
+      "required_entitlements": []
+    },
+    {
+      "id": "patent_mapping",
+      "filename": "Synerex_Patent_Claim_Mapping.pdf",
+      "category": "legal",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "allowed_roles": [
+        "investor",
+        "utility",
+        "oem",
+        "customer_admin",
+        "oem_engineer",
+        "regulator"
+      ],
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "watermark": true,
+      "required_entitlements": []
+    },
+    {
+      "id": "oem_playbook",
+      "filename": "Synerex_OEM_Onboarding_Playbook.pdf",
+      "category": "oem",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "allowed_roles": [
+        "investor",
+        "utility",
+        "oem",
+        "customer_admin",
+        "oem_engineer",
+        "regulator"
+      ],
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "watermark": true,
+      "required_entitlements": []
+    },
+    {
+      "id": "cloud_login_flow",
+      "filename": "Synerex_Cloud_Login_Flow.pdf",
+      "category": "architecture",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "allowed_roles": [
+        "admin",
+        "synerex_admin",
+        "oem",
+        "oem_engineer",
+        "customer_admin",
+        "utility",
+        "regulator"
+      ],
+      "required_entitlements": [],
+      "watermark": true
+    },
+    {
+      "id": "license_access_authorization",
+      "filename": "Synerex_License_As_Access_Authorization.pdf",
+      "category": "legal",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "allowed_roles": [
+        "admin",
+        "synerex_admin",
+        "oem",
+        "oem_engineer",
+        "customer_admin",
+        "utility",
+        "regulator",
+        "investor"
+      ],
+      "required_entitlements": [],
+      "watermark": true
+    },
+    {
+      "id": "payment_gated_meter_based",
+      "filename": "Synerex_Payment_Gated_Issuance_and_Meter_Based_Tracking.pdf",
+      "category": "legal",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "allowed_roles": [
+        "admin",
+        "synerex_admin",
+        "oem",
+        "oem_engineer",
+        "customer_admin",
+        "utility",
+        "regulator",
+        "investor"
+      ],
+      "required_entitlements": [],
+      "watermark": true
+    },
+    {
+      "id": "renewal_grace_matrix",
+      "filename": "Synerex_Renewal_and_Grace_Policy_Matrix.pdf",
+      "category": "policy",
+      "version": "1.0",
+      "lifecycle": "approved",
+      "programs": [
+        "emv",
+        "tracking"
+      ],
+      "allowed_roles": [
+        "admin",
+        "synerex_admin",
+        "oem",
+        "oem_engineer",
+        "customer_admin",
+        "utility",
+        "regulator"
+      ],
+      "required_entitlements": [],
+      "watermark": true
+    }
+  ]
+}

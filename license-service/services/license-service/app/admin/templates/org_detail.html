@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+      <h3 style="margin: 0 0 0.5rem 0;">{{ org.org_name }}</h3>
+      <p style="color: #718096; margin: 0;">
+        <span class="badge {% if org.org_type == 'oem' %}badge-info{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% else %}Licensee{% endif %}</span>
+        <span style="margin-left: 1rem;">ID: {{ org.org_id }}</span>
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/admin/orgs/{{ org.org_id }}/edit" class="btn" style="background: #667eea;">✏️ Edit</a>
+      <a href="/admin/orgs" class="btn btn-secondary">← Back to Organizations</a>
+    </div>
+  </div>
+
+  {% if request.query_params.get("message") %}
+  <div class="{% if request.query_params.get('message_type') == 'error' %}error{% else %}ok{% endif %}" style="margin-bottom: 1.5rem;">
+    {{ request.query_params.get("message") }}
+  </div>
+  {% endif %}
+
+  <!-- Quick Stats -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Licenses</div>
+      <div style="font-size: 2rem; font-weight: 700;">{{ stats.licenses_total }}</div>
+      <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">{{ stats.licenses_active }} active</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Authorizations</div>
+      <div style="font-size: 2rem; font-weight: 700;">{{ stats.authorizations_total }}</div>
+      <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">{{ stats.authorizations_active }} active</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">API Keys</div>
+      <div style="font-size: 2rem; font-weight: 700;">{{ stats.api_keys_total }}</div>
+      <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">{{ stats.api_keys_active }} active</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Billing Orders</div>
+      <div style="font-size: 2rem; font-weight: 700;">{{ stats.billing_orders_total }}</div>
+      <div style="font-size: 0.75rem; opacity: 0.8; margin-top: 0.25rem;">{{ stats.billing_orders_paid }} paid</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem;">
+    <div style="display: flex; gap: 0.5rem;">
+      <a href="/admin/orgs/{{ org.org_id }}?tab=overview" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'overview' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'overview' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'overview' %}600{% else %}400{% endif %};">
+        Overview
+      </a>
+      <a href="/admin/orgs/{{ org.org_id }}?tab=licenses" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'licenses' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'licenses' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'licenses' %}600{% else %}400{% endif %};">
+        Licenses ({{ stats.licenses_total }})
+      </a>
+      <a href="/admin/orgs/{{ org.org_id }}?tab=authorizations" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'authorizations' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'authorizations' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'authorizations' %}600{% else %}400{% endif %};">
+        Authorizations ({{ stats.authorizations_total }})
+      </a>
+      <a href="/admin/orgs/{{ org.org_id }}?tab=api-keys" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'api-keys' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'api-keys' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'api-keys' %}600{% else %}400{% endif %};">
+        API Keys ({{ stats.api_keys_total }})
+      </a>
+      <a href="/admin/orgs/{{ org.org_id }}?tab=billing" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'billing' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'billing' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'billing' %}600{% else %}400{% endif %};">
+        Billing ({{ stats.billing_orders_total }})
+      </a>
+      <a href="/admin/orgs/{{ org.org_id }}?tab=activity" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'activity' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'activity' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'activity' %}600{% else %}400{% endif %};">
+        Activity
+      </a>
+    </div>
+  </div>
+
+  <!-- Tab Content -->
+  {% if tab == "overview" %}
+  <div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Basic Information</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Organization ID</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem; font-family: monospace;">{{ org.org_id }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Organization Name</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ org.org_name }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Type</span>
+            <div style="margin-top: 0.25rem;">
+              <span class="badge {% if org.org_type == 'oem' %}badge-info{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% else %}Licensee{% endif %}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Contact Information</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Email</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ org.email or "—" }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Contact Name</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ org.contact_name or "—" }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Phone</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ org.phone or "—" }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Billing Email</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ org.billing_email or "—" }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Address</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem; white-space: pre-line;">{{ org.address or "—" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; border-radius: 6px; margin-bottom: 2rem;">
+      <strong style="color: #e65100;">Quick Actions:</strong>
+      <div style="display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap;">
+        <a href="/admin/authorizations/new?org_id={{ org.org_id }}" class="btn" style="background: #4facfe;">➕ Create Authorization</a>
+        <a href="/admin/api-keys?org_id={{ org.org_id }}" class="btn" style="background: #43e97b;">🔑 Issue API Key</a>
+        <form method="post" action="/admin/orgs/{{ org.org_id }}/delete" style="display: inline-block;" onsubmit="return confirm('⚠️ Are you sure you want to delete this organization? This action cannot be undone.');">
+          <button type="submit" class="btn btn-danger">🗑️ Delete Organization</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% elif tab == "licenses" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Licenses ({{ stats.licenses_total }})</h4>
+    {% if licenses %}
+    <table>
+      <thead>
+        <tr>
+          <th>License ID</th>
+          <th>Program</th>
+          <th>Issued</th>
+          <th>Expires</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lic in licenses %}
+        <tr>
+          <td><a href="/admin/licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ lic.license_id }}</a></td>
+          <td><span class="badge badge-info">{{ lic.program_id|upper }}</span></td>
+          <td style="color: #718096; font-size: 0.9rem;">{{ lic.issued_at.strftime('%Y-%m-%d') if lic.issued_at else 'N/A' }}</td>
+          <td style="color: #718096; font-size: 0.9rem;">{{ lic.expires_at.strftime('%Y-%m-%d') if lic.expires_at else 'N/A' }}</td>
+          <td>
+            {% if lic.revoked %}
+            <span class="badge badge-danger">Revoked</span>
+            {% elif lic.suspended %}
+            <span class="badge badge-warning">Suspended</span>
+            {% else %}
+            <span class="badge badge-success">Active</span>
+            {% endif %}
+          </td>
+          <td><a href="/admin/licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none;">View →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No licenses found for this organization.</p>
+    {% endif %}
+  </div>
+
+  {% elif tab == "authorizations" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Authorizations ({{ stats.authorizations_total }})</h4>
+    {% if authorizations %}
+    <table>
+      <thead>
+        <tr>
+          <th>Authorization ID</th>
+          <th>Program</th>
+          <th>Template</th>
+          <th>Status</th>
+          <th>Term</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for auth in authorizations %}
+        <tr>
+          <td><a href="/admin/authorizations/{{ auth.authorization_id }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ auth.authorization_id }}</a></td>
+          <td><span class="badge badge-info">{{ auth.program_id|upper }}</span></td>
+          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ auth.template_id }}</code></td>
+          <td>
+            {% if auth.status == "active" %}
+            <span class="badge badge-success">Active</span>
+            {% elif auth.status == "suspended" %}
+            <span class="badge badge-warning">Suspended</span>
+            {% else %}
+            <span class="badge badge-danger">{{ auth.status|title }}</span>
+            {% endif %}
+          </td>
+          <td style="color: #718096; font-size: 0.9rem;">{{ auth.starts_at }} to {{ auth.ends_at }}</td>
+          <td><a href="/admin/authorizations/{{ auth.authorization_id }}" style="color: #667eea; text-decoration: none;">View →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No authorizations found for this organization.</p>
+    {% endif %}
+  </div>
+
+  {% elif tab == "api-keys" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">API Keys ({{ stats.api_keys_total }})</h4>
+    {% if api_keys %}
+    <table>
+      <thead>
+        <tr>
+          <th>Key ID</th>
+          <th>Scopes</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key in api_keys %}
+        <tr>
+          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ key.key_id }}</code></td>
+          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ key.scopes }}</code></td>
+          <td>
+            {% if key.is_active %}
+            <span class="badge badge-success">Active</span>
+            {% else %}
+            <span class="badge badge-danger">Disabled</span>
+            {% endif %}
+          </td>
+          <td><a href="/admin/api-keys" style="color: #667eea; text-decoration: none;">View →</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No API keys found for this organization.</p>
+    {% endif %}
+  </div>
+
+  {% elif tab == "billing" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Billing Orders ({{ stats.billing_orders_total }})</h4>
+    {% if billing_orders %}
+    <table>
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Program</th>
+          <th>Plan</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in billing_orders %}
+        <tr>
+          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ order.order_id }}</code></td>
+          <td><span class="badge badge-info">{{ order.program_id|upper }}</span></td>
+          <td>{{ order.plan|title }}</td>
+          <td style="font-weight: 500;">${{ order.amount_total }} {{ order.currency }}</td>
+          <td>
+            {% if order.status == "paid" %}
+            <span class="badge badge-success">Paid</span>
+            {% elif order.status == "pending" %}
+            <span class="badge badge-warning">Pending</span>
+            {% elif order.status == "overdue" %}
+            <span class="badge badge-danger">Overdue</span>
+            {% else %}
+            <span class="badge">{{ order.status|title }}</span>
+            {% endif %}
+          </td>
+          <td style="color: #718096; font-size: 0.9rem;">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else 'N/A' }}</td>
+          <td>
+            {% if order.license_id %}
+            <a href="/admin/licenses/{{ order.license_id }}" style="color: #667eea; text-decoration: none;">View License →</a>
+            {% else %}
+            <span style="color: #718096;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No billing orders found for this organization.</p>
+    {% endif %}
+  </div>
+
+  {% elif tab == "activity" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Activity Log</h4>
+    {% if audit_events %}
+    <div style="background: #f7fafc; padding: 1rem; border-radius: 8px; max-height: 600px; overflow-y: auto;">
+      {% for event in audit_events %}
+      <div style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0; {% if not loop.last %}margin-bottom: 0.5rem;{% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div>
+            <div style="font-weight: 500; color: #2d3748;">{{ event.action }}</div>
+            <div style="font-size: 0.85rem; color: #718096; margin-top: 0.25rem;">Actor: {{ event.actor }}</div>
+            {% if event.detail %}
+            <div style="font-size: 0.8rem; color: #a0aec0; margin-top: 0.25rem; font-family: monospace;">{{ event.detail[:100] }}{% if event.detail|length > 100 %}...{% endif %}</div>
+            {% endif %}
+          </div>
+          <div style="font-size: 0.8rem; color: #718096; white-space: nowrap; margin-left: 1rem;">
+            {{ event.at.strftime('%Y-%m-%d %H:%M') if event.at else 'N/A' }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No activity found for this organization.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+

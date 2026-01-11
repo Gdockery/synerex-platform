@@ -1,0 +1,41 @@
+{
+  "template_id": "tracking_basic",
+  "policy_version": "tracking-2026.01",
+  "products": {
+    "emv": {
+      "enabled": false
+    },
+    "tracking": {
+      "enabled": true,
+      "audit_export": false
+    }
+  },
+  "roles": [
+    "customer_admin",
+    "customer_viewer"
+  ],
+  "entitlements": {
+    "features": [
+      "continuous_tracking",
+      "dashboard_kpis",
+      "savings_reporting",
+      "report_generator_pdf"
+    ],
+    "limits": {
+      "site_limit": 1,
+      "meter_limit": 50,
+      "seat_limit": 10
+    },
+    "data_retention_days": 365,
+    "api_access": false,
+    "support_tier": "standard",
+    "audit_export": false
+  },
+  "bindings": {
+    "tenant_id": null,
+    "allowed_domains": [],
+    "project_ids": [],
+    "site_ids": [],
+    "meter_ids": []
+  }
+}

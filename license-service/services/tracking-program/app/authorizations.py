@@ -1,0 +1,1 @@
+# Builds Tracking authorization objects (scaffold).

@@ -1,0 +1,342 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Complete Payment - Synerex Platform</title>
+    <style>
+      @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      /* Navigation Styles */
+      .nav-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid #1f2937;
+        height: 56px;
+      }
+      .nav-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 24px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+      }
+      .nav-logo img {
+        height: 48px;
+        width: auto;
+        filter: brightness(0) invert(1);
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        font-size: 14px;
+      }
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: #a855f7; /* purple-400 */
+      }
+      
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        padding-top: 80px; /* Add padding for fixed nav */
+        background: linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #111827 100%);
+        background-size: 400% 400%;
+        animation: gradientMove 15s ease infinite;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 700px;
+        margin: 40px auto;
+        background: white;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .logo-container {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .logo-container img {
+        height: 60px;
+        max-width: 250px;
+      }
+      h1 {
+        color: #1976d2;
+        margin-top: 0;
+      }
+      .order-summary {
+        background: #f7fafc;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        border: 1px solid #e2e8f0;
+      }
+      .order-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .order-row:last-child {
+        border-bottom: none;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #1976d2;
+      }
+      .payment-methods {
+        margin: 2rem 0;
+      }
+      .payment-method {
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      .payment-method:hover {
+        border-color: #1976d2;
+        background: #f7fafc;
+      }
+      .payment-method.selected {
+        border-color: #1976d2;
+        background: #e3f2fd;
+      }
+      .payment-method input[type="radio"] {
+        margin-right: 0.75rem;
+      }
+      .btn {
+        background: #1976d2;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 10px;
+      }
+      .btn:hover {
+        background: #1565c0;
+      }
+      .btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .info-box {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 1rem;
+        border-radius: 4px;
+        margin: 1.5rem 0;
+        color: #5d4037;
+      }
+      .error {
+        color: #b00020;
+        background: #ffebee;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav-header">
+      <div class="nav-container">
+        <a href="{{ (website_url or 'http://localhost:5173') }}/" class="nav-logo">
+          <img src="/static/synerex_logo_color.png" alt="Synerex Laboratories, LLC" />
+        </a>
+        <div class="nav-links">
+          <a href="{{ (website_url or 'http://localhost:5173') }}/">Home</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/licensing">Licensing</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/my-account">My Account</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/contact">Contact</a>
+        </div>
+      </div>
+    </nav>
+    
+    <div class="container">
+      <div class="logo-container">
+        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+      </div>
+      <h1>Complete Your Payment</h1>
+      
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+      
+      <div class="order-summary">
+        <h3 style="margin-top: 0;">Order Summary</h3>
+        <div class="order-row">
+          <span>Organization:</span>
+          <span><strong>{{ org.org_name }}</strong></span>
+        </div>
+        <div class="order-row">
+          <span>Program:</span>
+          <span>{{ order.program_id|upper }}</span>
+        </div>
+        <div class="order-row">
+          <span>Plan:</span>
+          <span>{{ order.plan|title }}</span>
+        </div>
+        <div class="order-row">
+          <span>Term:</span>
+          <span>{{ order.term_start }} to {{ order.term_end }}</span>
+        </div>
+        <div class="order-row">
+          <span>Seats:</span>
+          <span>{{ order.seat_count }}</span>
+        </div>
+        <div class="order-row">
+          <span>Meters:</span>
+          <span>{{ order.meter_count }}</span>
+        </div>
+        <div class="order-row">
+          <span>Total Amount:</span>
+          <span>${{ order.amount_total }} {{ order.currency }}</span>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <strong>⚠️ Important:</strong> Your license will be issued immediately after successful payment. 
+        Please ensure all information is correct before proceeding.
+      </div>
+      
+      <form method="post" action="/register/payment/process" id="paymentForm">
+        <input type="hidden" name="order_id" value="{{ order.order_id }}">
+        {% if return_url %}
+        <input type="hidden" name="return_url" value="{{ return_url }}">
+        {% endif %}
+        
+        <div class="payment-methods">
+          <h3>Select Payment Method</h3>
+          
+          {% if stripe_enabled %}
+          <div class="payment-method" onclick="selectPayment('stripe')">
+            <input type="radio" name="payment_method" value="stripe" id="stripe" required>
+            <label for="stripe" style="cursor: pointer; font-weight: 500;">
+              💳 Credit/Debit Card (Stripe)
+            </label>
+            <p style="color: #666; font-size: 0.9rem; margin: 0.5rem 0 0 1.75rem;">
+              Secure payment processing via Stripe
+            </p>
+          </div>
+          {% endif %}
+          
+          {% if paypal_enabled %}
+          <div class="payment-method" onclick="selectPayment('paypal')">
+            <input type="radio" name="payment_method" value="paypal" id="paypal" required>
+            <label for="paypal" style="cursor: pointer; font-weight: 500;">
+              🅿️ PayPal
+            </label>
+            <p style="color: #666; font-size: 0.9rem; margin: 0.5rem 0 0 1.75rem;">
+              Pay with your PayPal account
+            </p>
+          </div>
+          {% endif %}
+          
+          <div class="payment-method" onclick="selectPayment('eft')">
+            <input type="radio" name="payment_method" value="eft" id="eft" required>
+            <label for="eft" style="cursor: pointer; font-weight: 500;">
+              🏦 Electronic Funds Transfer (EFT)
+            </label>
+            <p style="color: #666; font-size: 0.9rem; margin: 0.5rem 0 0 1.75rem;">
+              Bank transfer for large amounts. License will be issued after payment verification.
+            </p>
+          </div>
+          
+          {% if not stripe_enabled and not paypal_enabled %}
+          <div class="info-box">
+            <strong>Note:</strong> Payment gateways are not configured. This is a demo mode.
+            Clicking "Complete Payment" will simulate a successful payment.
+          </div>
+          <div class="payment-method" onclick="selectPayment('demo')">
+            <input type="radio" name="payment_method" value="demo" id="demo" checked required>
+            <label for="demo" style="cursor: pointer; font-weight: 500;">
+              🧪 Demo Payment (No actual charge)
+            </label>
+            <p style="color: #666; font-size: 0.9rem; margin: 0.5rem 0 0 1.75rem;">
+              For testing purposes only
+            </p>
+          </div>
+          {% endif %}
+        </div>
+        
+        <button type="submit" class="btn" id="submitBtn">
+          Complete Payment - ${{ order.amount_total }} {{ order.currency }}
+        </button>
+      </form>
+      
+      <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #eee; text-align: center;">
+        <a href="/register" style="color: #1976d2; text-decoration: none;">← Back to Registration</a>
+      </div>
+    </div>
+    
+    <script>
+      function selectPayment(method) {
+        document.getElementById(method).checked = true;
+        document.querySelectorAll('.payment-method').forEach(el => {
+          el.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+      }
+      
+      let isSubmitting = false;
+      
+      document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        // Prevent double submission
+        if (isSubmitting) {
+          e.preventDefault();
+          return false;
+        }
+        
+        const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+        if (!selectedMethod) {
+          e.preventDefault();
+          alert('Please select a payment method');
+          return false;
+        }
+        
+        // Mark as submitting and show loading state
+        isSubmitting = true;
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = 'Processing Payment...';
+        
+        // Re-enable after 10 seconds as a safety measure (in case of error)
+        setTimeout(function() {
+          if (isSubmitting) {
+            isSubmitting = false;
+            btn.disabled = false;
+            btn.textContent = 'Complete Payment - ${{ order.amount_total }} {{ order.currency }}';
+          }
+        }, 10000);
+      });
+    </script>
+  </body>
+</html>
+

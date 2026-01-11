@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+      <h3 style="margin: 0 0 0.5rem 0;">Edit Organization</h3>
+      <p style="color: #718096; margin: 0;">{{ org.org_id }}</p>
+    </div>
+    <a href="/admin/orgs/{{ org.org_id }}" class="btn btn-secondary">← Back to Organization</a>
+  </div>
+
+  {% if message %}
+  <div class="{% if message_type == 'error' %}error{% else %}ok{% endif %}" style="margin-bottom: 1.5rem;">
+    {{ message }}
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/orgs/{{ org.org_id }}/edit">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Basic Information</h4>
+        <div class="form-group">
+          <label for="org_id">Organization ID</label>
+          <input type="text" id="org_id" value="{{ org.org_id }}" disabled style="background: #edf2f7; cursor: not-allowed;">
+          <div class="info" style="font-size: 0.8rem; color: #718096; margin-top: 0.25rem;">Organization ID cannot be changed</div>
+        </div>
+        <div class="form-group">
+          <label for="org_name">Organization Name *</label>
+          <input type="text" id="org_name" name="org_name" value="{{ org.org_name }}" required>
+        </div>
+        <div class="form-group">
+          <label for="org_type">Organization Type *</label>
+          <select id="org_type" name="org_type" required>
+            <option value="oem" {% if org.org_type == 'oem' %}selected{% endif %}>OEM (Original Equipment Manufacturer)</option>
+            <option value="customer" {% if org.org_type == 'customer' %}selected{% endif %}>Licensee</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Contact Information</h4>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ org.email or '' }}" placeholder="contact@example.com">
+        </div>
+        <div class="form-group">
+          <label for="contact_name">Contact Name</label>
+          <input type="text" id="contact_name" name="contact_name" value="{{ org.contact_name or '' }}" placeholder="John Doe">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" name="phone" value="{{ org.phone or '' }}" placeholder="+1 (555) 123-4567">
+        </div>
+        <div class="form-group">
+          <label for="billing_email">Billing Email</label>
+          <input type="email" id="billing_email" name="billing_email" value="{{ org.billing_email or '' }}" placeholder="billing@example.com">
+        </div>
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" name="address" rows="3" placeholder="123 Main St, City, State, ZIP">{{ org.address or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+      <a href="/admin/orgs/{{ org.org_id }}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn">💾 Save Changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+

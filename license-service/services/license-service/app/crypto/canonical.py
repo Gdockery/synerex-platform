@@ -1,0 +1,5 @@
+import json
+from typing import Any, Dict
+
+def canonical_json_bytes(obj: Dict[str, Any]) -> bytes:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")

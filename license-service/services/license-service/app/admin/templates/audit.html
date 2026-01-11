@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Audit Events</h3>
+<table>
+  <tr><th>at</th><th>actor</th><th>action</th><th>ref_id</th><th>detail</th></tr>
+  {% for e in events %}
+  <tr>
+    <td>{{ e.at }}</td>
+    <td>{{ e.actor }}</td>
+    <td>{{ e.action }}</td>
+    <td>{{ e.ref_id }}</td>
+    <td><pre>{{ e.detail }}</pre></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

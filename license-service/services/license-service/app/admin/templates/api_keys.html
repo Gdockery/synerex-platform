@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>API Keys</h3>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  
+  {% if issued %}
+  <div class="ok">
+    <strong>✓ API Key Issued (shown once - save this now!)</strong>
+    <pre style="margin-top: 1rem;">key_id: {{ issued.key_id }}
+api_key: {{ issued.api_key }}</pre>
+  </div>
+  {% endif %}
+
+  <form method="post" action="/admin/api-keys/issue" style="margin-bottom: 2rem;">
+    <div class="row">
+      <div class="form-group">
+        <label for="org_id">Organization ID</label>
+        <input type="text" id="org_id" name="org_id" required placeholder="e.g., OEM-ACME-001">
+      </div>
+      <div class="form-group">
+        <label for="scopes_csv">Scopes (comma-separated)</label>
+        <input type="text" id="scopes_csv" name="scopes_csv" value="baseline:seal,license:verify" required placeholder="baseline:seal, license:verify">
+        <div class="small">Example scopes: baseline:seal, baseline:read, license:verify, license:read, authz:write</div>
+      </div>
+    </div>
+    <button class="btn" type="submit">Issue API Key</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3>All API Keys</h3>
+  {% if keys %}
+  <table>
+    <thead>
+      <tr>
+        <th>Key ID</th>
+        <th>Organization ID</th>
+        <th>Scopes</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for k in keys %}
+      <tr>
+        <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ k.key_id }}</code></td>
+        <td>{{ k.org_id }}</td>
+        <td><span style="font-size: 0.85rem; color: #718096;">{{ k.scopes }}</span></td>
+        <td>
+          {% if k.is_active %}
+          <span class="badge badge-success">Active</span>
+          {% else %}
+          <span class="badge badge-danger">Disabled</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if k.is_active %}
+          <form method="post" action="/admin/api-keys/{{k.key_id}}/disable" style="display: inline;">
+            <button class="btn btn-danger btn-small" type="submit" onclick="return confirm('Are you sure you want to disable this API key?')">Disable</button>
+          </form>
+          {% else %}
+          <span style="color: #cbd5e0;">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color: #718096; padding: 2rem; text-align: center;">No API keys found. Issue one above to get started.</p>
+  {% endif %}
+</div>
+{% endblock %}

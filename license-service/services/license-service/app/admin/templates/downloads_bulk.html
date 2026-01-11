@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Bulk Edit Downloads</h3>
+<p class="small">
+Apply changes to multiple documents at once. Leave a field blank to keep current values.
+</p>
+
+<form method="post">
+  <label>Target Document IDs (CSV)</label><br/>
+  <input type="text" name="doc_ids" style="width:520px" placeholder="investor_dd,utility_rfp,patent_mapping"/><br/><br/>
+
+  <label>Set Lifecycle (optional)</label><br/>
+  <select name="lifecycle">
+    <option value="">(no change)</option>
+    <option value="draft">draft</option>
+    <option value="approved">approved</option>
+    <option value="retired">retired</option>
+  </select><br/><br/>
+
+  <label>Set Programs CSV (optional)</label><br/>
+  <input type="text" name="programs" style="width:520px" placeholder="emv,tracking"/><br/><br/>
+
+  <label>Set Allowed Roles CSV (optional)</label><br/>
+  <input type="text" name="allowed_roles" style="width:520px" placeholder="oem_engineer,customer_admin"/><br/><br/>
+
+  <label>Set Required Entitlements CSV (optional)</label><br/>
+  <input type="text" name="required_entitlements" style="width:520px" placeholder="baseline_creation,continuous_tracking"/><br/><br/>
+
+  <label>Set Version (optional)</label><br/>
+  <input type="text" name="version" style="width:200px" placeholder="1.1"/><br/><br/>
+
+  <label>Watermark (optional)</label><br/>
+  <select name="watermark">
+    <option value="">(no change)</option>
+    <option value="true">true</option>
+    <option value="false">false</option>
+  </select><br/><br/>
+
+  <button type="submit">Apply Bulk Changes</button>
+  <a href="/admin/downloads">Cancel</a>
+</form>
+
+<hr/>
+<details>
+  <summary>Current registry JSON</summary>
+  <pre>{{ registry | tojson(indent=2) }}</pre>
+</details>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Create Download Document</h3>
+<form method="post">
+  <label>Document ID</label><br/>
+  <input type="text" name="id" value="{{ doc_id }}" style="width:420px"/><br/><br/>
+
+  <label>Filename (must exist under governance/pdfs)</label><br/>
+  <input type="text" name="filename" value="" style="width:420px"/><br/><br/>
+
+  <label>Category</label><br/>
+  <input type="text" name="category" value="governance" style="width:420px"/><br/><br/>
+
+  <label>Version</label><br/>
+  <input type="text" name="version" value="1.0" style="width:160px"/><br/><br/>
+
+  <label>Lifecycle</label><br/>
+  <select name="lifecycle">
+    <option value="draft">draft</option>
+    <option value="approved" selected>approved</option>
+    <option value="retired">retired</option>
+  </select><br/><br/>
+
+  <label>Programs (CSV)</label><br/>
+  <input type="text" name="programs" value="emv,tracking" style="width:420px"/><br/><br/>
+
+  <label>Allowed Roles (CSV)</label><br/>
+  <input type="text" name="allowed_roles" value="" style="width:420px"/><br/><br/>
+
+  <label>Required Entitlements / Features (CSV)</label><br/>
+  <input type="text" name="required_entitlements" value="" style="width:420px"/><br/><br/>
+
+  <label>Watermark</label>
+  <input type="checkbox" name="watermark" value="1" checked/><br/><br/>
+
+  <button type="submit">Create</button>
+  <a href="/admin/downloads">Cancel</a>
+</form>
+{% endblock %}

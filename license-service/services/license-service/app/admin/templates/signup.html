@@ -1,0 +1,409 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Sign Up - Synerex Platform</title>
+    <style>
+      @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      /* Navigation Styles */
+      .nav-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid #1f2937;
+        height: 56px;
+      }
+      .nav-container {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 0 24px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .nav-logo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+      }
+      .nav-logo img {
+        height: 48px;
+        width: auto;
+        filter: brightness(0) invert(1);
+      }
+      .nav-links {
+        display: flex;
+        gap: 24px;
+        font-size: 14px;
+      }
+      .nav-links a {
+        color: white;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+      .nav-links a:hover {
+        color: #a855f7; /* purple-400 */
+      }
+      
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 24px;
+        padding-top: 80px; /* Add padding for fixed nav */
+        background: linear-gradient(135deg, #111827 0%, #1e3a8a 50%, #111827 100%);
+        background-size: 400% 400%;
+        animation: gradientMove 15s ease infinite;
+        min-height: 100vh;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background: white;
+        padding: 32px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .logo-container {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+      }
+      .logo-container img {
+        height: 60px;
+        max-width: 250px;
+      }
+      h1 {
+        color: #1976d2;
+        margin-top: 0;
+        font-size: 1.25rem;
+        line-height: 1.3;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #333;
+      }
+      input[type="text"],
+      input[type="email"],
+      select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+      input:focus, select:focus {
+        outline: none;
+        border-color: #1976d2;
+      }
+      .btn {
+        background: #1976d2;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 10px;
+      }
+      .btn:hover {
+        background: #1565c0;
+      }
+      .error {
+        color: #b00020;
+        background: #ffebee;
+        padding: 12px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+      .info {
+        color: #666;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .help-text {
+        color: #666;
+        font-size: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+      a {
+        color: #1976d2;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="nav-header">
+      <div class="nav-container">
+        <a href="{{ (website_url or 'http://localhost:5173') }}/" class="nav-logo">
+          <img src="/static/synerex_logo_color.png" alt="Synerex Laboratories, LLC" />
+        </a>
+        <div class="nav-links">
+          <a href="{{ (website_url or 'http://localhost:5173') }}/">Home</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/licensing">Licensing</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/my-account">My Account</a>
+          <a href="{{ (website_url or 'http://localhost:5173') }}/contact">Contact</a>
+        </div>
+      </div>
+    </nav>
+    
+    <div class="container">
+      <div class="logo-container">
+        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+      </div>
+      <h1 style="text-align: center;">
+        Software Registration & Licensing Form
+      </h1>
+      <p style="color: #666; text-align: center;">Create your organization and get started with Synerex EM&V or Tracking services.</p>
+      
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+      
+      <form method="post" action="/register">
+        <div class="form-group">
+          <label for="org_name">Organization Name *</label>
+          <input type="text" id="org_name" name="org_name" required placeholder="e.g., ACME Power Solutions"/>
+          <div class="info">Your organization's display name</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="org_type">Organization Type *</label>
+          <select id="org_type" name="org_type" required>
+            <option value="">Select type...</option>
+            <option value="oem">OEM (Original Equipment Manufacturer)</option>
+            <option value="customer">Licensee</option>
+          </select>
+          <div class="info">OEM: For organizations creating baselines. Licensee: For organizations using tracking services.</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="program">Program *</label>
+          <select id="program" name="program" required>
+            <option value="">Select program...</option>
+            <option value="emv">EM&V (Evaluation, Measurement & Verification)</option>
+            <option value="tracking">Tracking (Continuous Monitoring)</option>
+          </select>
+          <div class="info">EM&V: For baseline creation and sealing. Tracking: For continuous monitoring and reporting. <strong>Note:</strong> Tracking licenses require a valid EM&V baseline lineage to be fully functional.</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="plan">Plan *</label>
+          <select id="plan" name="plan" required>
+            <option value="">Select plan...</option>
+            <option value="single_report" data-program="emv" data-base-price="4200" data-one-time="true">Single Report License (EM&V) - $4,200 (One-time)</option>
+            <option value="annual" data-program="emv" data-base-price="53000" data-one-time="false">Annual License Fee (EM&V) - $53,000/year (Unlimited)</option>
+            <option value="basic" data-program="tracking" data-base-price="495" data-per-meter="750" data-users="5">Basic (Tracking) - 5 Users, Read Only Version - $495 + $750/meter/year</option>
+            <option value="pro" data-program="tracking" data-base-price="950" data-per-meter="795" data-users="15">Pro (Tracking) - 15 Users, Equipment Scheduling - $950 + $795/meter/year</option>
+            <option value="enterprise" data-program="tracking" data-base-price="1495" data-per-meter="750" data-users="Unlimited">Enterprise (Tracking) - Unlimited Users, Full Scheduling/Reporting - $1,495 + $750/meter/year</option>
+          </select>
+          <div class="info">Choose the plan tier that best fits your needs. Pricing shown is annual.</div>
+        </div>
+        
+        <div class="form-group" id="meter-count-group" style="display: none;">
+          <label for="meter_count">Number of Meters *</label>
+          <select id="meter_count" name="meter_count">
+            <option value="1">1 meter</option>
+            <option value="2">2 meters</option>
+            <option value="3">3 meters</option>
+            <option value="4">4 meters</option>
+            <option value="5">5 meters</option>
+            <option value="6">6 meters</option>
+            <option value="7">7 meters</option>
+            <option value="8">8 meters</option>
+            <option value="9">9 meters</option>
+            <option value="10">10 meters</option>
+            <option value="11">11 meters</option>
+            <option value="12">12 meters</option>
+            <option value="13">13 meters</option>
+            <option value="14">14 meters</option>
+            <option value="15">15 meters</option>
+            <option value="16">16 meters</option>
+            <option value="17">17 meters</option>
+            <option value="18">18 meters</option>
+            <option value="19">19 meters</option>
+            <option value="20">20 meters</option>
+            <option value="21">21 meters</option>
+            <option value="22">22 meters</option>
+            <option value="23">23 meters</option>
+            <option value="24">24 meters</option>
+            <option value="25">25 meters</option>
+            <option value="26">26 meters</option>
+            <option value="27">27 meters</option>
+            <option value="28">28 meters</option>
+            <option value="29">29 meters</option>
+            <option value="30">30 meters</option>
+          </select>
+          <div class="info">Select the number of meters for your license.</div>
+        </div>
+        
+        <div class="form-group" id="pricing-display" style="display: none; background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
+          <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px;">Estimated Annual Cost:</div>
+          <div id="pricing-breakdown" style="color: #333; font-size: 14px;"></div>
+          <div id="pricing-total" style="font-size: 18px; font-weight: 700; color: #1976d2; margin-top: 8px;"></div>
+        </div>
+        
+        <div class="form-group">
+          <label for="email">Email (Optional)</label>
+          <input type="email" id="email" name="email" placeholder="your.email@example.com"/>
+          <div class="info">Optional: For account notifications</div>
+        </div>
+        
+        <div class="form-group" style="margin-top: 24px; padding: 16px; background: #f5f5f5; border-radius: 4px; border: 1px solid #ddd;">
+          <h3 style="margin-top: 0; color: #1976d2; font-size: 16px;">Software License Agreement</h3>
+          
+          <div style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px; font-size: 13px; line-height: 1.6;">
+            <p><strong>SYNEREX LABORATORIES, LLC SOFTWARE LICENSE AGREEMENT</strong></p>
+            <p><strong>Version 2026.01</strong></p>
+            
+            <p><strong>1. GRANT OF LICENSE</strong></p>
+            <p>Subject to the terms and conditions of this Agreement, Synerex Laboratories, LLC ("Licensor") grants to you ("Licensee") a non-exclusive, non-transferable license to use the Synerex software products (the "Software") in accordance with the terms of this Agreement.</p>
+            
+            <p><strong>2. RESTRICTIONS</strong></p>
+            <p>Licensee shall not: (a) copy, modify, or create derivative works of the Software; (b) reverse engineer, decompile, or disassemble the Software; (c) rent, lease, or sublicense the Software; (d) remove or alter any proprietary notices on the Software.</p>
+            
+            <p><strong>3. TERM AND TERMINATION</strong></p>
+            <p>This Agreement is effective until terminated. Licensor may terminate this Agreement immediately if Licensee breaches any term. Upon termination, Licensee must cease all use of the Software.</p>
+            
+            <p><strong>4. WARRANTY DISCLAIMER</strong></p>
+            <p>THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. LICENSOR DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+            
+            <p><strong>5. LIMITATION OF LIABILITY</strong></p>
+            <p>IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATED TO THIS AGREEMENT.</p>
+            
+            <p><strong>6. GOVERNING LAW</strong></p>
+            <p>This Agreement shall be governed by the laws of the State of Texas, United States, without regard to conflict of law principles.</p>
+            
+            <p><strong>7. ENTIRE AGREEMENT</strong></p>
+            <p>This Agreement constitutes the entire agreement between the parties regarding the Software and supersedes all prior agreements.</p>
+            
+            <p style="margin-top: 16px;"><em>By checking the box below, you acknowledge that you have read, understood, and agree to be bound by the terms of this Software License Agreement.</em></p>
+          </div>
+          
+          <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: 500;">
+            <input 
+              type="checkbox" 
+              id="agreement_accepted" 
+              name="agreement_accepted" 
+              required
+              style="margin-right: 8px; margin-top: 4px; flex-shrink: 0;"
+            />
+            <span>I have read and agree to the Software License Agreement above. <strong style="color: #b00020;">*</strong></span>
+          </label>
+        </div>
+        
+        <button type="submit" class="btn">Register & Get License</button>
+      </form>
+      
+      <div class="help-text">
+        <p><strong>What happens next?</strong></p>
+        <ul style="margin: 8px 0; padding-left: 20px; color: #666;">
+          <li>Your organization will be created automatically</li>
+          <li>A billing order will be created for your selected plan</li>
+          <li>You'll be redirected to complete payment</li>
+          <li>After successful payment, a signed license will be issued immediately</li>
+          <li>You'll receive your Software License Serial Number to enter into the EM&V or Tracking software login page</li>
+        </ul>
+        <p style="margin-top: 16px;">
+          <a href="/admin/login">Admin Login</a> | 
+          <a href="/docs">API Documentation</a>
+        </p>
+      </div>
+    </div>
+    
+    <script>
+      // Filter plan options based on selected program
+      const programSelect = document.getElementById('program');
+      const planSelect = document.getElementById('plan');
+      const meterCountGroup = document.getElementById('meter-count-group');
+      const meterCountSelect = document.getElementById('meter_count');
+      const pricingDisplay = document.getElementById('pricing-display');
+      const pricingBreakdown = document.getElementById('pricing-breakdown');
+      const pricingTotal = document.getElementById('pricing-total');
+      
+      function updatePricing() {
+        const selectedPlan = planSelect.options[planSelect.selectedIndex];
+        const program = selectedPlan.getAttribute('data-program');
+        const basePrice = selectedPlan.getAttribute('data-base-price');
+        const perMeter = selectedPlan.getAttribute('data-per-meter');
+        const users = selectedPlan.getAttribute('data-users');
+        
+        if (program === 'tracking' && perMeter) {
+          meterCountGroup.style.display = 'block';
+          meterCountSelect.required = true;
+          
+          const meterCount = parseInt(meterCountSelect.value) || 1;
+          const basePriceNum = parseFloat(basePrice) || 0;
+          const perMeterPrice = parseFloat(perMeter);
+          const meterCost = meterCount * perMeterPrice;
+          const totalCost = basePriceNum + meterCost;
+          
+          pricingDisplay.style.display = 'block';
+          pricingBreakdown.innerHTML = `
+            <div>Plan: ${selectedPlan.textContent.split(' - ')[0]}</div>
+            <div>Users: ${users}</div>
+            <div>Base Price: $${basePriceNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div>Meters: ${meterCount} × $${perMeterPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/meter = $${meterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+          `;
+          pricingTotal.textContent = `Total: $${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/year`;
+        } else {
+          meterCountGroup.style.display = 'none';
+          meterCountSelect.required = false;
+          pricingDisplay.style.display = 'none';
+        }
+      }
+      
+      programSelect.addEventListener('change', function() {
+        const selectedProgram = this.value;
+        const options = planSelect.querySelectorAll('option');
+        
+        options.forEach(option => {
+          if (option.value === '') {
+            option.style.display = 'block';
+            return;
+          }
+          
+          const optionProgram = option.getAttribute('data-program');
+          if (optionProgram === selectedProgram) {
+            option.style.display = 'block';
+          } else {
+            option.style.display = 'none';
+          }
+        });
+        
+        // Reset plan selection and hide meter count
+        planSelect.value = '';
+        meterCountGroup.style.display = 'none';
+        pricingDisplay.style.display = 'none';
+      });
+      
+      planSelect.addEventListener('change', updatePricing);
+      meterCountSelect.addEventListener('change', updatePricing);
+    </script>
+  </body>
+</html>
+

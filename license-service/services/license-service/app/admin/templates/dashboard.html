@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>Dashboard Overview</h3>
+  <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin: 0; padding: 1.5rem;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Organizations</div>
+      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.orgs }}</div>
+    </div>
+    <div class="card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; margin: 0; padding: 1.5rem;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">API Keys</div>
+      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.api_keys }}</div>
+    </div>
+    <div class="card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; margin: 0; padding: 1.5rem;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Authorizations</div>
+      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.authorizations }}</div>
+    </div>
+    <div class="card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; margin: 0; padding: 1.5rem;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Licenses</div>
+      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.licenses }}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

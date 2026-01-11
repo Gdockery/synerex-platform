@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>Software Packages (Read-only)</h3>
+  <p style="color: #718096; margin-top: 0.5rem; margin-bottom: 2rem;">View and explore available license tier templates for EM&V and Tracking programs.</p>
+  
+  <div style="margin-top: 2rem;">
+    <details open style="margin-bottom: 2rem;">
+      <summary style="cursor: pointer; color: #4a5568; font-size: 1.2rem; font-weight: 600; padding: 1rem; background: #f7fafc; border-radius: 8px; border: 2px solid #e2e8f0; list-style: none; user-select: none;" onmouseover="this.style.background='#edf2f7'; this.style.borderColor='#cbd5e0'" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='#e2e8f0'">
+        <span style="display: flex; align-items: center; justify-content: space-between;">
+          <span>EM&V Templates <span style="color: #718096; font-size: 0.875rem; font-weight: normal;">({{ emv|length }} templates)</span></span>
+          <span class="arrow-icon" style="color: #667eea; font-size: 0.875rem; display: inline-block; transition: transform 0.2s;">▼</span>
+        </span>
+      </summary>
+      <div style="margin-top: 1.5rem; padding-left: 0.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+      {% for t in emv %}
+      <a href="/admin/templates/emv/{{ t.name }}" style="display: block; padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); border-radius: 8px; text-decoration: none; color: #2d3748; border: 2px solid #e2e8f0; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)'">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+          <h5 style="margin: 0; color: #667eea; font-size: 1.25rem; font-weight: 600;">{{ t.tier_name }}</h5>
+          <span style="background: #edf2f7; color: #4a5568; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">{{ t.policy_version }}</span>
+        </div>
+        {% if t.error %}
+        <p style="color: #e53e3e; font-size: 0.875rem; margin: 0;">Error loading template</p>
+        {% else %}
+        <div style="margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            {% for product in t.enabled_products %}
+            <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">{{ product }}</span>
+            {% endfor %}
+          </div>
+          <div style="color: #718096; font-size: 0.875rem; line-height: 1.6;">
+            <div style="margin-bottom: 0.25rem;"><strong style="color: #4a5568;">Features:</strong> {{ t.feature_count }} enabled</div>
+            {% if t.limits %}
+            <div style="margin-bottom: 0.25rem;">
+              <strong style="color: #4a5568;">Limits:</strong>
+              {% if t.limits.seat_limit %}<span>Seats: {{ t.limits.seat_limit }}</span>{% endif %}
+              {% if t.limits.meter_limit %}<span> • Meters: {{ t.limits.meter_limit }}</span>{% endif %}
+              {% if t.limits.project_limit %}<span> • Projects: {{ t.limits.project_limit }}</span>{% endif %}
+              {% if t.limits.site_limit %}<span> • Sites: {{ t.limits.site_limit }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if t.support_tier %}
+            <div style="margin-bottom: 0.25rem;"><strong style="color: #4a5568;">Support:</strong> {{ t.support_tier|title }}</div>
+            {% endif %}
+            {% if t.api_access %}
+            <div><span style="background: #bee3f8; color: #2c5282; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">API Access</span></div>
+            {% endif %}
+          </div>
+        </div>
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #667eea; font-size: 0.875rem; font-weight: 500;">
+          Click to view full details →
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+        </div>
+      </div>
+    </details>
+  </div>
+  
+  <div style="margin-top: 2rem;">
+    <details open>
+      <summary style="cursor: pointer; color: #4a5568; font-size: 1.2rem; font-weight: 600; padding: 1rem; background: #f7fafc; border-radius: 8px; border: 2px solid #e2e8f0; list-style: none; user-select: none;" onmouseover="this.style.background='#edf2f7'; this.style.borderColor='#cbd5e0'" onmouseout="this.style.background='#f7fafc'; this.style.borderColor='#e2e8f0'">
+        <span style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Tracking Templates <span style="color: #718096; font-size: 0.875rem; font-weight: normal;">({{ tracking|length }} templates)</span></span>
+          <span class="arrow-icon" style="color: #667eea; font-size: 0.875rem; display: inline-block; transition: transform 0.2s;">▼</span>
+        </span>
+      </summary>
+      <div style="margin-top: 1.5rem; padding-left: 0.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem;">
+      {% for t in tracking %}
+      <a href="/admin/templates/tracking/{{ t.name }}" style="display: block; padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); border-radius: 8px; text-decoration: none; color: #2d3748; border: 2px solid #e2e8f0; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)'">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+          <h5 style="margin: 0; color: #667eea; font-size: 1.25rem; font-weight: 600;">{{ t.tier_name }}</h5>
+          <span style="background: #edf2f7; color: #4a5568; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 500;">{{ t.policy_version }}</span>
+        </div>
+        {% if t.error %}
+        <p style="color: #e53e3e; font-size: 0.875rem; margin: 0;">Error loading template</p>
+        {% else %}
+        <div style="margin-bottom: 1rem;">
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+            {% for product in t.enabled_products %}
+            <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500;">{{ product }}</span>
+            {% endfor %}
+          </div>
+          <div style="color: #718096; font-size: 0.875rem; line-height: 1.6;">
+            <div style="margin-bottom: 0.25rem;"><strong style="color: #4a5568;">Features:</strong> {{ t.feature_count }} enabled</div>
+            {% if t.limits %}
+            <div style="margin-bottom: 0.25rem;">
+              <strong style="color: #4a5568;">Limits:</strong>
+              {% if t.limits.seat_limit %}<span>Seats: {{ t.limits.seat_limit }}</span>{% endif %}
+              {% if t.limits.meter_limit %}<span> • Meters: {{ t.limits.meter_limit }}</span>{% endif %}
+              {% if t.limits.project_limit %}<span> • Projects: {{ t.limits.project_limit }}</span>{% endif %}
+              {% if t.limits.site_limit %}<span> • Sites: {{ t.limits.site_limit }}</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if t.support_tier %}
+            <div style="margin-bottom: 0.25rem;"><strong style="color: #4a5568;">Support:</strong> {{ t.support_tier|title }}</div>
+            {% endif %}
+            {% if t.api_access %}
+            <div><span style="background: #bee3f8; color: #2c5282; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">API Access</span></div>
+            {% endif %}
+          </div>
+        </div>
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #667eea; font-size: 0.875rem; font-weight: 500;">
+          Click to view full details →
+        </div>
+        {% endif %}
+      </a>
+      {% endfor %}
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<style>
+  details summary::-webkit-details-marker {
+    display: none;
+  }
+  details summary::marker {
+    display: none;
+  }
+  details[open] summary .arrow-icon {
+    transform: rotate(180deg);
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+      <h3 style="margin: 0 0 0.5rem 0;">Template Details</h3>
+      <p style="color: #718096; margin: 0;">{{ program_id|upper }} / {{ filename }}</p>
+    </div>
+    <a href="/admin/templates" style="padding: 0.5rem 1rem; background: #edf2f7; color: #4a5568; text-decoration: none; border-radius: 6px; font-size: 0.875rem;">← Back to Templates</a>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Template Information</h4>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Template ID</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ data.template_id }}</div>
+        </div>
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Policy Version</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ data.policy_version }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Products</h4>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        {% if data.products.emv.enabled %}
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">EM&V</span>
+          {% if data.products.emv.offline_allowed %}<span style="color: #718096; font-size: 0.75rem;">(Offline Allowed)</span>{% endif %}
+        </div>
+        {% endif %}
+        {% if data.products.tracking.enabled %}
+        <div>
+          <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">Tracking</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Roles</h4>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+        {% for role in data.roles %}
+        <span style="background: #bee3f8; color: #2c5282; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem;">{{ role }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem;">
+    <h4 style="margin: 0 0 1.5rem 0; color: #4a5568; font-size: 1.1rem;">Entitlements</h4>
+    
+    <div style="margin-bottom: 2rem;">
+      <h5 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 0.95rem; font-weight: 600;">Features ({{ data.entitlements.features|length }})</h5>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem;">
+        {% for feature in data.entitlements.features %}
+        <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.875rem; color: #2d3748;">{{ feature }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="margin-bottom: 2rem;">
+      <h5 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 0.95rem; font-weight: 600;">Limits</h5>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        {% if data.entitlements.limits.seat_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Seat Limit</span>
+          <div style="color: #2d3748; font-weight: 600; font-size: 1.25rem; margin-top: 0.25rem;">{{ data.entitlements.limits.seat_limit }}</div>
+        </div>
+        {% endif %}
+        {% if data.entitlements.limits.meter_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Meter Limit</span>
+          <div style="color: #2d3748; font-weight: 600; font-size: 1.25rem; margin-top: 0.25rem;">{{ data.entitlements.limits.meter_limit }}</div>
+        </div>
+        {% endif %}
+        {% if data.entitlements.limits.project_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Project Limit</span>
+          <div style="color: #2d3748; font-weight: 600; font-size: 1.25rem; margin-top: 0.25rem;">{{ data.entitlements.limits.project_limit }}</div>
+        </div>
+        {% endif %}
+        {% if data.entitlements.limits.site_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Site Limit</span>
+          <div style="color: #2d3748; font-weight: 600; font-size: 1.25rem; margin-top: 0.25rem;">{{ data.entitlements.limits.site_limit }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+      <div>
+        <span style="color: #718096; font-size: 0.875rem;">Data Retention</span>
+        <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ data.entitlements.data_retention_days }} days</div>
+      </div>
+      <div>
+        <span style="color: #718096; font-size: 0.875rem;">API Access</span>
+        <div style="margin-top: 0.25rem;">
+          {% if data.entitlements.api_access %}
+          <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">Enabled</span>
+          {% else %}
+          <span style="background: #fed7d7; color: #742a2a; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">Disabled</span>
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <span style="color: #718096; font-size: 0.875rem;">Support Tier</span>
+        <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ data.entitlements.support_tier|title }}</div>
+      </div>
+      <div>
+        <span style="color: #718096; font-size: 0.875rem;">Audit Export</span>
+        <div style="margin-top: 0.25rem;">
+          {% if data.entitlements.audit_export %}
+          <span style="background: #c6f6d5; color: #22543d; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">Enabled</span>
+          {% else %}
+          <span style="background: #fed7d7; color: #742a2a; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.875rem; font-weight: 500;">Disabled</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1.1rem;">Bindings</h4>
+    <div style="color: #718096; font-size: 0.875rem;">
+      <div style="margin-bottom: 0.5rem;"><strong style="color: #4a5568;">Tenant ID:</strong> {{ data.bindings.tenant_id or "None" }}</div>
+      <div style="margin-bottom: 0.5rem;"><strong style="color: #4a5568;">Allowed Domains:</strong> {{ data.bindings.allowed_domains|length }} configured</div>
+      <div style="margin-bottom: 0.5rem;"><strong style="color: #4a5568;">Project IDs:</strong> {{ data.bindings.project_ids|length }} configured</div>
+      <div style="margin-bottom: 0.5rem;"><strong style="color: #4a5568;">Site IDs:</strong> {{ data.bindings.site_ids|length }} configured</div>
+      <div><strong style="color: #4a5568;">Meter IDs:</strong> {{ data.bindings.meter_ids|length }} configured</div>
+    </div>
+  </div>
+
+  <details style="margin-top: 2rem; background: #f7fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <summary style="cursor: pointer; color: #667eea; font-weight: 500; font-size: 0.875rem;">View Raw JSON</summary>
+    <pre style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 6px; overflow-x: auto; font-size: 0.75rem; line-height: 1.5;">{{ data | tojson(indent=2) }}</pre>
+  </details>
+</div>
+{% endblock %}

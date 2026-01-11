@@ -1,0 +1,43 @@
+{
+  "template_id": "emv_baseline",
+  "policy_version": "emv-2026.01",
+  "products": {
+    "emv": {
+      "enabled": true,
+      "offline_allowed": true,
+      "audit_export": true
+    },
+    "tracking": {
+      "enabled": false
+    }
+  },
+  "roles": [
+    "oem_engineer"
+  ],
+  "entitlements": {
+    "features": [
+      "baseline_creation",
+      "raw_data_import",
+      "calc_parameter_lock",
+      "report_generator_pdf",
+      "offline_mode",
+      "seal_sync_queue"
+    ],
+    "limits": {
+      "project_limit": 3,
+      "meter_limit": 50,
+      "seat_limit": 5
+    },
+    "data_retention_days": 365,
+    "api_access": false,
+    "support_tier": "standard",
+    "audit_export": false
+  },
+  "bindings": {
+    "tenant_id": null,
+    "allowed_domains": [],
+    "project_ids": [],
+    "site_ids": [],
+    "meter_ids": []
+  }
+}

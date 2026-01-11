@@ -1,0 +1,1 @@
+# Calls to license-service would live here (scaffold).

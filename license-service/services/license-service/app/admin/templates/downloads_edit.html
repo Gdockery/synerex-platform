@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Edit Download Document</h3>
+<form method="post">
+  <label>Document ID</label><br/>
+  <input type="text" name="id" value="{{ doc.id }}" readonly style="width:420px"/><br/><br/>
+
+  <label>Filename</label><br/>
+  <input type="text" name="filename" value="{{ doc.filename }}" style="width:420px"/><br/><br/>
+
+  <label>Category</label><br/>
+  <input type="text" name="category" value="{{ doc.category }}" style="width:420px"/><br/><br/>
+
+  <label>Version</label><br/>
+  <input type="text" name="version" value="{{ doc.version }}" style="width:160px"/><br/><br/>
+
+  <label>Lifecycle</label><br/>
+  <select name="lifecycle">
+    <option value="draft" {% if doc.lifecycle == "draft" %}selected{% endif %}>draft</option>
+    <option value="approved" {% if doc.lifecycle == "approved" %}selected{% endif %}>approved</option>
+    <option value="retired" {% if doc.lifecycle == "retired" %}selected{% endif %}>retired</option>
+  </select><br/><br/>
+
+  <label>Programs (CSV)</label><br/>
+  <input type="text" name="programs" value="{{ doc.programs | join(',') }}" style="width:420px"/><br/><br/>
+
+  <label>Allowed Roles (CSV)</label><br/>
+  <input type="text" name="allowed_roles" value="{{ doc.allowed_roles | join(',') }}" style="width:420px"/><br/><br/>
+
+  <label>Required Entitlements / Features (CSV)</label><br/>
+  <input type="text" name="required_entitlements" value="{{ doc.required_entitlements | join(',') }}" style="width:420px"/><br/><br/>
+
+  <label>Watermark</label>
+  <input type="checkbox" name="watermark" value="1" {% if doc.watermark %}checked{% endif %}/><br/><br/>
+
+  <button type="submit">Save</button>
+  <a href="/admin/downloads">Cancel</a>
+</form>
+
+<p class="small">
+<b>Behavior:</b> <br/>
+- <code>draft</code>: admin-only visibility, not downloadable via /downloads <br/>
+- <code>approved</code>: downloadable if role + entitlements match <br/>
+- <code>retired</code>: downloadable via /downloads <i>admin only</i> (roles include admin/synerex_admin)
+</p>
+{% endblock %}

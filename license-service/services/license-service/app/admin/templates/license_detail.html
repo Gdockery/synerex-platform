@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <div>
+      <h3 style="margin: 0 0 0.5rem 0;">{{ lic.license_id }}</h3>
+      <p style="color: #718096; margin: 0;">
+        <span class="badge badge-info">{{ lic.program_id|upper }}</span>
+        <span style="margin-left: 1rem;">Organization: <a href="/admin/orgs/{{ lic.org_id }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a></span>
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <a href="/admin/licenses" class="btn btn-secondary">← Back to Licenses</a>
+    </div>
+  </div>
+
+  {% if request.query_params.get("message") %}
+  <div class="{% if request.query_params.get('message_type') == 'error' %}error{% else %}ok{% endif %}" style="margin-bottom: 1.5rem;">
+    {{ request.query_params.get("message") }}
+  </div>
+  {% endif %}
+
+  <!-- Quick Stats -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Status</div>
+      <div style="font-size: 1.5rem; font-weight: 700;">
+        {% if lic.revoked %}
+        <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 4px;">Revoked</span>
+        {% elif lic.suspended %}
+        <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 4px;">Suspended</span>
+        {% else %}
+        <span style="background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 4px;">Active</span>
+        {% endif %}
+      </div>
+    </div>
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Issued</div>
+      <div style="font-size: 1rem; font-weight: 500; margin-top: 0.5rem;">{{ lic.issued_at.strftime('%Y-%m-%d') if lic.issued_at else 'N/A' }}</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Expires</div>
+      <div style="font-size: 1rem; font-weight: 500; margin-top: 0.5rem;">{{ lic.expires_at.strftime('%Y-%m-%d') if lic.expires_at else 'N/A' }}</div>
+    </div>
+    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 1rem; border-radius: 8px;">
+      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Authorization</div>
+      <div style="font-size: 0.9rem; font-weight: 500; margin-top: 0.5rem;">
+        {% if auth %}
+        <a href="/admin/authorizations/{{ lic.authorization_id }}" style="color: white; text-decoration: underline;">{{ lic.authorization_id }}</a>
+        {% else %}
+        {{ lic.authorization_id }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Actions -->
+  <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; border-radius: 6px; margin-bottom: 2rem;">
+    <strong style="color: #e65100;">Quick Actions:</strong>
+    <div style="display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap;">
+      {% if not lic.revoked and not lic.suspended %}
+      <form method="post" action="/admin/licenses/{{ lic.license_id }}/suspend" style="display: inline-block;">
+        <input type="hidden" name="reason" value="admin_action">
+        <button type="submit" class="btn" style="background: #ff9800;">⏸️ Suspend</button>
+      </form>
+      <form method="post" action="/admin/licenses/{{ lic.license_id }}/revoke" style="display: inline-block;" onsubmit="return confirm('⚠️ Are you sure you want to revoke this license? This action cannot be undone.');">
+        <button type="submit" class="btn btn-danger">🛑 Revoke</button>
+      </form>
+      {% elif lic.suspended %}
+      <form method="post" action="/admin/licenses/{{ lic.license_id }}/unsuspend" style="display: inline-block;">
+        <button type="submit" class="btn" style="background: #43e97b;">▶️ Unsuspend</button>
+      </form>
+      <form method="post" action="/admin/licenses/{{ lic.license_id }}/revoke" style="display: inline-block;" onsubmit="return confirm('⚠️ Are you sure you want to revoke this license? This action cannot be undone.');">
+        <button type="submit" class="btn btn-danger">🛑 Revoke</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div style="border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem;">
+    <div style="display: flex; gap: 0.5rem;">
+      <a href="/admin/licenses/{{ lic.license_id }}?tab=overview" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'overview' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'overview' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'overview' %}600{% else %}400{% endif %};">
+        Overview
+      </a>
+      <a href="/admin/licenses/{{ lic.license_id }}?tab=authorization" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'authorization' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'authorization' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'authorization' %}600{% else %}400{% endif %};">
+        Authorization
+      </a>
+      <a href="/admin/licenses/{{ lic.license_id }}?tab=payload" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'payload' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'payload' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'payload' %}600{% else %}400{% endif %};">
+        License Payload
+      </a>
+      <a href="/admin/licenses/{{ lic.license_id }}?tab=activity" 
+         style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'activity' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'activity' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'activity' %}600{% else %}400{% endif %};">
+        Activity
+      </a>
+    </div>
+  </div>
+
+  <!-- Tab Content -->
+  {% if tab == "overview" %}
+  <div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Basic Information</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">License ID</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem; font-family: monospace;">{{ lic.license_id }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Program</span>
+            <div style="margin-top: 0.25rem;">
+              <span class="badge badge-info">{{ lic.program_id|upper }}</span>
+            </div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Organization</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
+              <a href="/admin/orgs/{{ lic.org_id }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a>
+            </div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Status</span>
+            <div style="margin-top: 0.25rem;">
+              {% if lic.revoked %}
+              <span class="badge badge-danger">Revoked</span>
+              {% elif lic.suspended %}
+              <span class="badge badge-warning">Suspended</span>
+              {% else %}
+              <span class="badge badge-success">Active</span>
+              {% endif %}
+            </div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Issued At</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ lic.issued_at.strftime('%Y-%m-%d %H:%M:%S') if lic.issued_at else 'N/A' }}</div>
+          </div>
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Expires At</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ lic.expires_at.strftime('%Y-%m-%d %H:%M:%S') if lic.expires_at else 'N/A' }}</div>
+          </div>
+          {% if lic.revoked and lic.revoked_at %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Revoked At</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ lic.revoked_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+          </div>
+          {% endif %}
+          {% if lic.suspended and lic.suspended_at %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Suspended At</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ lic.suspended_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+          </div>
+          {% if lic.suspended_reason %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Suspension Reason</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ lic.suspended_reason }}</div>
+          </div>
+          {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">License Details</h4>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          {% if template_id %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Template ID</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
+              <code style="background: #edf2f7; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ template_id }}</code>
+            </div>
+          </div>
+          {% endif %}
+          {% if program_info.policy_version %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Policy Version</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ program_info.policy_version }}</div>
+          </div>
+          {% endif %}
+          {% if term_info.start %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Term Start</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ term_info.start }}</div>
+          </div>
+          {% endif %}
+          {% if term_info.end %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Term End</span>
+            <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ term_info.end }}</div>
+          </div>
+          {% endif %}
+          {% if lic.is_trial %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Trial License</span>
+            <div style="margin-top: 0.25rem;">
+              <span class="badge badge-info">Yes</span>
+            </div>
+          </div>
+          {% endif %}
+          {% if lic.auto_renew %}
+          <div>
+            <span style="color: #718096; font-size: 0.875rem;">Auto Renew</span>
+            <div style="margin-top: 0.25rem;">
+              <span class="badge badge-success">Enabled</span>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if entitlements %}
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 2rem;">
+      <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Entitlements & Limits</h4>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% if limits.seat_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Seat Limit</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ limits.seat_limit }}</div>
+        </div>
+        {% endif %}
+        {% if limits.meter_limit %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Meter Limit</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ limits.meter_limit }}</div>
+        </div>
+        {% endif %}
+        {% if entitlements.support_tier %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Support Tier</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ entitlements.support_tier|title }}</div>
+        </div>
+        {% endif %}
+        {% if entitlements.data_retention_days %}
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Data Retention</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ entitlements.data_retention_days }} days</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% elif tab == "authorization" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Source Authorization</h4>
+    {% if auth %}
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Authorization ID</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
+            <a href="/admin/authorizations/{{ auth.authorization_id }}" style="color: #667eea; text-decoration: none; font-family: monospace;">{{ auth.authorization_id }}</a>
+          </div>
+        </div>
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Program</span>
+          <div style="margin-top: 0.25rem;">
+            <span class="badge badge-info">{{ auth.program_id|upper }}</span>
+          </div>
+        </div>
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Status</span>
+          <div style="margin-top: 0.25rem;">
+            {% if auth.status == 'active' %}
+            <span class="badge badge-success">Active</span>
+            {% elif auth.status == 'suspended' %}
+            <span class="badge badge-warning">Suspended</span>
+            {% else %}
+            <span class="badge badge-danger">Terminated</span>
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Template</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
+            <code style="background: #edf2f7; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ auth.template_id }}</code>
+          </div>
+        </div>
+        <div>
+          <span style="color: #718096; font-size: 0.875rem;">Term</span>
+          <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">{{ auth.starts_at }} to {{ auth.ends_at }}</div>
+        </div>
+      </div>
+      <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;">
+        <a href="/admin/authorizations/{{ auth.authorization_id }}" class="btn">View Full Authorization →</a>
+      </div>
+    </div>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">Authorization not found or has been deleted.</p>
+    {% endif %}
+  </div>
+
+  {% elif tab == "payload" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Full License Payload</h4>
+    <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+      <div style="background: white; padding: 1rem; border-radius: 6px; border: 1px solid #e2e8f0; max-height: 600px; overflow-y: auto;">
+        <pre style="margin: 0; font-size: 0.85rem; color: #4a5568; font-family: 'Courier New', monospace;">{{ payload | tojson(indent=2) }}</pre>
+      </div>
+    </div>
+  </div>
+
+  {% elif tab == "activity" %}
+  <div>
+    <h4 style="margin-bottom: 1rem;">Activity Log</h4>
+    {% if audit_events %}
+    <div style="background: #f7fafc; padding: 1rem; border-radius: 8px; max-height: 600px; overflow-y: auto;">
+      {% for event in audit_events %}
+      <div style="padding: 0.75rem; border-bottom: 1px solid #e2e8f0; {% if not loop.last %}margin-bottom: 0.5rem;{% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div>
+            <div style="font-weight: 500; color: #2d3748;">{{ event.action }}</div>
+            <div style="font-size: 0.85rem; color: #718096; margin-top: 0.25rem;">Actor: {{ event.actor }}</div>
+            {% if event.detail %}
+            <div style="font-size: 0.8rem; color: #a0aec0; margin-top: 0.25rem; font-family: monospace;">{{ event.detail[:100] }}{% if event.detail|length > 100 %}...{% endif %}</div>
+            {% endif %}
+          </div>
+          <div style="font-size: 0.8rem; color: #718096; white-space: nowrap; margin-left: 1rem;">
+            {{ event.at.strftime('%Y-%m-%d %H:%M') if event.at else 'N/A' }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: #718096; padding: 2rem; text-align: center;">No activity found for this license.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

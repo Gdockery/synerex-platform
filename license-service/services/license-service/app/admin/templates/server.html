@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>Server Management</h3>
+  
+  <div style="background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%); padding: 1.5rem; border-radius: 8px; margin: 1.5rem 0;">
+    <h4 style="margin: 0 0 1rem 0; color: #2d3748;">Server Status</h4>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+      <div>
+        <strong style="color: #718096; font-size: 0.85rem; text-transform: uppercase;">Status</strong>
+        <div style="color: #38a169; font-weight: 600; margin-top: 0.25rem;">● Running</div>
+      </div>
+      <div>
+        <strong style="color: #718096; font-size: 0.85rem; text-transform: uppercase;">Uptime</strong>
+        <div style="color: #2d3748; font-weight: 600; margin-top: 0.25rem;">{{ uptime }}</div>
+      </div>
+      <div>
+        <strong style="color: #718096; font-size: 0.85rem; text-transform: uppercase;">Python Version</strong>
+        <div style="color: #2d3748; font-weight: 600; margin-top: 0.25rem;">{{ python_version }}</div>
+      </div>
+      <div>
+        <strong style="color: #718096; font-size: 0.85rem; text-transform: uppercase;">FastAPI Version</strong>
+        <div style="color: #2d3748; font-weight: 600; margin-top: 0.25rem;">{{ fastapi_version }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if message %}
+  <div class="{% if message_type == 'error' %}error{% else %}ok{% endif %}" style="margin: 1.5rem 0;">
+    {{ message }}
+  </div>
+  {% endif %}
+
+  <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; border-radius: 6px; margin: 1.5rem 0;">
+    <strong style="color: #e65100;">⚠️ Important Notes:</strong>
+    <ul style="margin: 0.75rem 0 0 1.5rem; color: #5d4037;">
+      <li><strong>Reload:</strong> Triggers uvicorn's auto-reload (requires --reload flag). This will restart the server to pick up code changes.</li>
+      <li><strong>Restart:</strong> Manually restarts the server by stopping and starting the process. Works on Windows and requires proper permissions.</li>
+      <li><strong>Shutdown:</strong> Stops the server gracefully. Requires an external process manager to restart it.</li>
+      <li>For production, use a process manager like systemd, supervisor, or Docker restart policies.</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-top: 2rem;">
+    <h4 style="margin: 0 0 1.5rem 0; color: #2d3748;">Server Actions</h4>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+      <form method="post" action="/admin/server/reload" style="display: inline-block;">
+        <button type="submit" class="btn" 
+                onclick="return confirm('This will reload the server (if --reload is enabled). Continue?');">
+          🔄 Reload Server
+        </button>
+      </form>
+      
+      <form method="post" action="/admin/server/reload" style="display: inline-block;">
+        <button type="submit" class="btn" style="background: #ed8936;"
+                onclick="return confirm('⚠️ This will restart the server (via reload). The page will disconnect. Continue?');">
+          🔁 Restart Server
+        </button>
+      </form>
+      
+      <form method="post" action="/admin/server/shutdown" style="display: inline-block;">
+        <button type="submit" class="btn btn-danger" 
+                onclick="return confirm('⚠️ WARNING: This will stop the server! Only use if you have a process manager to restart it. Continue?');">
+          🛑 Shutdown Server
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 2rem;">
+    <h4 style="margin: 0 0 1rem 0; color: #2d3748;">System Information</h4>
+    <pre style="background: #1a202c; color: #e2e8f0; padding: 1.25rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; margin: 0;">{{ system_info }}</pre>
+  </div>
+</div>
+{% endblock %}

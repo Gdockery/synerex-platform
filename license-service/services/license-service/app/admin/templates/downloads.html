@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Downloads Registry</h3>
+<p>
+  <a href="/admin/downloads/new">Create New</a> |
+  <a href="/admin/downloads/bulk">Bulk Edit</a>
+</p>
+<p class="small">Registry file: services/license-service/downloads/registry.json</p>
+
+<table>
+  <tr>
+    <th>id</th><th>filename</th><th>version</th><th>lifecycle</th><th>programs</th><th>roles</th><th>required entitlements</th><th>watermark</th><th></th>
+  </tr>
+  {% for d in registry.documents %}
+  <tr>
+    <td>{{ d.id }}</td>
+    <td>{{ d.filename }}</td>
+    <td>{{ d.version }}</td>
+    <td>{{ d.lifecycle }}</td>
+    <td>{{ d.programs | join(',') }}</td>
+    <td>{{ d.allowed_roles | join(',') }}</td>
+    <td>{{ d.required_entitlements | join(',') }}</td>
+    <td>{{ d.watermark }}</td>
+    <td><a href="/admin/downloads/edit/{{ d.id }}">Edit</a></td>
+  </tr>
+  {% endfor %}
+</table>
+
+<hr/>
+<details>
+  <summary>Raw registry JSON</summary>
+  <pre>{{ registry | tojson(indent=2) }}</pre>
+</details>
+{% endblock %}

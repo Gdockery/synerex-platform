@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>Create New Authorization</h3>
+  <form method="post" action="/admin/authorizations">
+    <div class="row">
+      <div class="form-group">
+        <label for="authorization_id">Authorization ID</label>
+        <input type="text" id="authorization_id" name="authorization_id" required placeholder="e.g., AUTH-EMV-0001">
+      </div>
+      <div class="form-group">
+        <label for="program_id">Program</label>
+        <select id="program_id" name="program_id" required>
+          <option value="emv">EM&V</option>
+          <option value="tracking">Tracking</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="form-group">
+        <label for="org_id">Organization ID</label>
+        <input type="text" id="org_id" name="org_id" required placeholder="e.g., OEM-ACME-001">
+      </div>
+      <div class="form-group">
+        <label for="template_id">Template ID</label>
+        <input type="text" id="template_id" name="template_id" placeholder="emv_pro / tracking_pro" required>
+      </div>
+    </div>
+    <div class="row">
+      <div class="form-group">
+        <label for="starts_at">Start Date (YYYY-MM-DD)</label>
+        <input type="date" id="starts_at" name="starts_at" required>
+      </div>
+      <div class="form-group">
+        <label for="ends_at">End Date (YYYY-MM-DD)</label>
+        <input type="date" id="ends_at" name="ends_at" required>
+      </div>
+    </div>
+    <div class="row">
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" name="status" required>
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+          <option value="terminated">Terminated</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="issued_by">Issued By</label>
+        <input type="text" id="issued_by" name="issued_by" value="admin">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="scope_json">Scope JSON</label>
+      <textarea id="scope_json" name="scope_json" rows="4" style="font-family: 'Courier New', monospace;">{"project_ids":[],"site_ids":[],"meter_ids":[]}</textarea>
+    </div>
+    <div class="form-group">
+      <label for="bindings_override_json">Bindings Override JSON</label>
+      <textarea id="bindings_override_json" name="bindings_override_json" rows="3" style="font-family: 'Courier New', monospace;">{"tenant_id":null,"allowed_domains":[]}</textarea>
+    </div>
+    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+      <button class="btn" type="submit">Create Authorization</button>
+      <a href="/admin/authorizations" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
