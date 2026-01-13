@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import platform
+import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import case
 
 from ..config import settings
 from ..db import SessionLocal
@@ -54,18 +56,21 @@ def require_admin(request: Request):
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     """Display login page. Never redirects - always shows the form."""
+    # Get return_url from query params to preserve it
+    return_url = request.query_params.get("return_url", "")
     # Explicitly return the template without any redirects or checks
     # This ensures the page always loads without looping
     try:
-        return templates.TemplateResponse("login.html", {"request": request, "error": None})
+        return templates.TemplateResponse("login.html", {"request": request, "error": None, "return_url": return_url})
     except Exception as e:
         # If template rendering fails, return a simple HTML response
+        return_url_param = f'?return_url={return_url}' if return_url else ''
         return HTMLResponse(f"""
         <html>
         <body>
             <h1>Admin Login</h1>
             <p>Error loading template: {str(e)}</p>
-            <form method="post" action="/admin/login">
+            <form method="post" action="/admin/login{return_url_param}">
                 <label>Username:</label><br/>
                 <input name="username" required /><br/><br/>
                 <label>Password:</label><br/>
@@ -78,13 +83,34 @@ def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
-    # If already logged in, redirect to dashboard
+    # Get return_url from query params (passed from website)
+    return_url = request.query_params.get("return_url")
+    
+    # If already logged in, redirect appropriately
     if _is_logged_in(request):
+        if return_url:
+            # Generate a simple session token for external use
+            import uuid
+            session_token = str(uuid.uuid4())
+            request.session["session_token"] = session_token
+            separator = "&" if "?" in return_url else "?"
+            return RedirectResponse(f"{return_url}{separator}token={session_token}", status_code=303)
         return RedirectResponse("/admin", status_code=303)
     
     if username == settings.admin_username and password == settings.admin_password:
         request.session["admin_logged_in"] = True
         request.session["admin_username"] = username
+        
+        # If return_url is provided (from website), redirect there with token
+        if return_url:
+            # Generate a session token for external use
+            import uuid
+            session_token = str(uuid.uuid4())
+            request.session["session_token"] = session_token
+            separator = "&" if "?" in return_url else "?"
+            return RedirectResponse(f"{return_url}{separator}token={session_token}", status_code=303)
+        
+        # Otherwise, redirect to License Service admin dashboard
         return RedirectResponse("/admin", status_code=303)
     return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"}, status_code=401)
 
@@ -104,6 +130,155 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
     return templates.TemplateResponse("dashboard.html", {"request": request, "counts": counts})
 
 # ---- Orgs ----
+@router.get("/pe-registrations", response_class=HTMLResponse)
+def pe_registrations_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Page to view and manage PE registrations."""
+    status_filter = request.query_params.get("status", "").strip()  # pending, approved, rejected
+    
+    query = db.query(Organization).filter(Organization.org_type == "pe")
+    
+    if status_filter in ("pending", "approved", "rejected"):
+        query = query.filter(Organization.pe_approval_status == status_filter)
+    elif status_filter == "":
+        # Default: show pending first
+        query = query.order_by(
+            case(
+                (Organization.pe_approval_status == "pending", 1),
+                (Organization.pe_approval_status == "approved", 2),
+                (Organization.pe_approval_status == "rejected", 3),
+                else_=4
+            )
+        )
+    
+    pe_orgs = query.order_by(Organization.org_id.asc()).all()
+    
+    # Count by status
+    pending_count = db.query(Organization).filter(
+        Organization.org_type == "pe",
+        Organization.pe_approval_status == "pending"
+    ).count()
+    approved_count = db.query(Organization).filter(
+        Organization.org_type == "pe",
+        Organization.pe_approval_status == "approved"
+    ).count()
+    rejected_count = db.query(Organization).filter(
+        Organization.org_type == "pe",
+        Organization.pe_approval_status == "rejected"
+    ).count()
+    
+    return templates.TemplateResponse("pe_registrations.html", {
+        "request": request,
+        "pe_orgs": pe_orgs,
+        "status_filter": status_filter,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "rejected_count": rejected_count
+    })
+
+@router.post("/pe-registrations/{org_id}/approve")
+def approve_pe(request: Request, org_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Approve a PE registration and sync to EMV."""
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+    
+    if org.org_type != "pe":
+        raise HTTPException(400, "Organization is not a Licensed PE")
+    
+    if org.pe_approval_status == "approved":
+        return RedirectResponse(f"/admin/pe-registrations?status=approved&message=PE+already+approved&message_type=info", status_code=303)
+    
+    # Update approval status
+    org.pe_approval_status = "approved"
+    db.commit()
+    
+    # Sync to EMV
+    try:
+        sync_pe_to_emv(org)
+        log_event(db, actor="admin", action="pe.approve", ref_id=org_id,
+                 detail={"pe_license_number": org.pe_license_number, "pe_license_state": org.pe_license_state, "synced_to_emv": True})
+    except Exception as e:
+        # Log error but don't fail the approval
+        log_event(db, actor="admin", action="pe.approve", ref_id=org_id,
+                 detail={"pe_license_number": org.pe_license_number, "pe_license_state": org.pe_license_state, "synced_to_emv": False, "error": str(e)})
+        # Still approve even if sync fails - admin can manually sync later
+    
+    return RedirectResponse(f"/admin/pe-registrations?status=approved&message=PE+approved+and+synced+to+EMV&message_type=success", status_code=303)
+
+@router.post("/pe-registrations/{org_id}/reject")
+def reject_pe(request: Request, org_id: str, reason: str = Form(None), _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Reject a PE registration."""
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+    
+    if org.org_type != "pe":
+        raise HTTPException(400, "Organization is not a Licensed PE")
+    
+    # Update approval status
+    org.pe_approval_status = "rejected"
+    db.commit()
+    
+    log_event(db, actor="admin", action="pe.reject", ref_id=org_id,
+             detail={"pe_license_number": org.pe_license_number, "pe_license_state": org.pe_license_state, "reason": reason})
+    
+    return RedirectResponse(f"/admin/pe-registrations?status=rejected&message=PE+registration+rejected&message_type=success", status_code=303)
+
+@router.post("/pe-registrations/{org_id}/sync")
+def sync_pe_to_emv_endpoint(request: Request, org_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Manually sync a PE to EMV."""
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+    
+    if org.org_type != "pe":
+        raise HTTPException(400, "Organization is not a Licensed PE")
+    
+    if org.pe_approval_status != "approved":
+        return RedirectResponse(f"/admin/pe-registrations?message=PE+must+be+approved+before+syncing&message_type=error", status_code=303)
+    
+    try:
+        sync_pe_to_emv(org)
+        log_event(db, actor="admin", action="pe.sync", ref_id=org_id,
+                 detail={"pe_license_number": org.pe_license_number, "pe_license_state": org.pe_license_state, "synced_to_emv": True})
+        return RedirectResponse(f"/admin/pe-registrations?message=PE+synced+to+EMV+successfully&message_type=success", status_code=303)
+    except Exception as e:
+        log_event(db, actor="admin", action="pe.sync", ref_id=org_id,
+                 detail={"pe_license_number": org.pe_license_number, "pe_license_state": org.pe_license_state, "synced_to_emv": False, "error": str(e)})
+        return RedirectResponse(f"/admin/pe-registrations?message=Sync+failed%3A+{str(e).replace(' ', '+')[:50]}&message_type=error", status_code=303)
+
+def sync_pe_to_emv(org: Organization):
+    """Sync PE organization data to EMV's pe_certifications table."""
+    
+    if not org.pe_license_number or not org.pe_license_state:
+        raise ValueError("PE license number and state are required")
+    
+    # Prepare data for EMV API
+    emv_data = {
+        "name": org.org_name or org.contact_name or "Unknown",
+        "license_number": org.pe_license_number,
+        "state": org.pe_license_state,
+        "discipline": None,  # Not stored in Organization model
+        "expiration_date": None,  # Not stored in Organization model
+        "email": org.email,
+        "phone": org.phone
+    }
+    
+    # Call EMV's PE registration endpoint
+    emv_url = f"{settings.emv_program_url}/api/pe/register"
+    
+    try:
+        response = requests.post(
+            emv_url,
+            json=emv_data,
+            timeout=10,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Failed to sync to EMV: {str(e)}")
+
 @router.get("/orgs", response_class=HTMLResponse)
 def orgs_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     search = request.query_params.get("search", "").strip()
@@ -117,7 +292,7 @@ def orgs_page(request: Request, _=Depends(require_admin), db: Session = Depends(
             (Organization.org_name.ilike(f"%{search}%"))
         )
     
-    if org_type_filter and org_type_filter in ("oem", "customer"):
+    if org_type_filter and org_type_filter in ("oem", "customer", "pe"):
         query = query.filter(Organization.org_type == org_type_filter)
     
     orgs = query.order_by(Organization.org_id.asc()).all()
@@ -150,8 +325,8 @@ def orgs_page(request: Request, _=Depends(require_admin), db: Session = Depends(
 
 @router.post("/orgs")
 def orgs_create(request: Request, org_id: str = Form(...), org_name: str = Form(...), org_type: str = Form(...), _=Depends(require_admin), db: Session = Depends(db_session)):
-    if org_type not in ("oem","customer"):
-        raise HTTPException(400, "org_type must be oem or customer")
+    if org_type not in ("oem", "customer", "pe"):
+        raise HTTPException(400, "org_type must be oem, customer, or pe")
     if db.get(Organization, org_id):
         return templates.TemplateResponse("orgs.html", {"request": request, "orgs_with_stats": [], "error": "org_id already exists"}, status_code=409)
     db.add(Organization(org_id=org_id, org_name=org_name, org_type=org_type))
@@ -232,7 +407,7 @@ def org_update(org_id: str, request: Request,
     if not org:
         raise HTTPException(404, "Organization not found")
     
-    if org_type and org_type not in ("oem", "customer"):
+    if org_type and org_type not in ("oem", "customer", "pe"):
         return RedirectResponse(f"/admin/orgs/{org_id}/edit?message=Invalid+org_type&message_type=error", status_code=303)
     
     # Update fields if provided

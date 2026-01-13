@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from pathlib import Path
@@ -31,6 +32,20 @@ from .admin.ui import router as admin_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="License Service")
+
+# Add CORS middleware BEFORE other middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Website dev server
+        "http://localhost:3000",  # Alternative dev port
+        # Add production origins when deployed
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
 # Add usage tracking and rate limiting middleware
@@ -77,6 +92,58 @@ app.include_router(analytics_router)
 app.include_router(exports_router)
 app.include_router(access_router)
 
+# Auth endpoint for website MyAccount page
+@app.get("/auth/api/check-session")
+def check_session(request: Request):
+    """
+    Check session and return user info.
+    Used by website MyAccount page.
+    Does NOT modify token/payload structures - only reads organization data.
+    """
+    from .db import SessionLocal
+    from .models.org import Organization
+    
+    db = SessionLocal()
+    try:
+        # Check if user has a session (could be from license lookup, admin login, etc.)
+        # For now, check if there's an org_id in session or from query params
+        org_id = request.session.get("org_id") or request.query_params.get("org_id")
+        
+        if not org_id:
+            return JSONResponse(
+                status_code=401,
+                content={"authenticated": False, "message": "No session found"}
+            )
+        
+        # Get organization
+        org = db.get(Organization, org_id)
+        if not org:
+            return JSONResponse(
+                status_code=404,
+                content={"authenticated": False, "message": "Organization not found"}
+            )
+        
+        # Build response based on org_type
+        response = {
+            "authenticated": True,
+            "org_id": org.org_id,
+            "org_name": org.org_name,
+            "org_type": org.org_type,
+            "email": org.email
+        }
+        
+        # Add PE-specific fields if org_type is 'pe'
+        if org.org_type == "pe":
+            response["user_type"] = "licensed_pe"
+            response["pe_approval_status"] = org.pe_approval_status or "pending"
+            response["pe_license_number"] = org.pe_license_number
+            response["pe_license_state"] = org.pe_license_state
+            response["pe_linked_org_id"] = org.pe_linked_org_id
+        
+        return response
+    finally:
+        db.close()
+
 @app.get("/")
 def root():
     """Root endpoint - redirects to admin login."""
@@ -111,6 +178,63 @@ def debug_eft_config():
         "config_file_path": str(Path(__file__).parent / "config.py"),
     }
 
+@app.post("/api/server/restart")
+def api_server_restart(request: Request):
+    """
+    API endpoint to restart the License Service. Returns JSON for cross-origin calls.
+    Uses session-based authentication only (same as other admin endpoints).
+    Does NOT modify tokens or payloads - only reads session and returns simple JSON response.
+    """
+    # Check admin authentication via session (read-only, no modifications)
+    try:
+        is_admin = bool(request.session.get("admin_logged_in", False))
+    except (AttributeError, KeyError, RuntimeError):
+        is_admin = False
+    
+    if not is_admin:
+        return JSONResponse(
+            status_code=401,
+            content={"success": False, "message": "Not authenticated. Please log in as admin at /admin/login first."}
+        )
+    
+    from .db import SessionLocal
+    from .admin.ui import log_event
+    import platform
+    import subprocess
+    from pathlib import Path
+    
+    db = SessionLocal()
+    try:
+        log_event(db, actor="admin", action="server.restart", ref_id="server", detail={"method": "api_call", "source": "website_dashboard"})
+        
+        script_path = Path(__file__).resolve().parents[1] / "restart_server.ps1"
+        if platform.system() == "Windows" and script_path.exists():
+            subprocess.Popen(
+                ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+                cwd=str(script_path.parent)
+            )
+            message = "Server restart initiated! The service will restart in a few seconds."
+        else:
+            # Fallback: touch main.py to trigger reload if --reload is enabled
+            main_py = Path(__file__).resolve()
+            if main_py.exists():
+                main_py.touch()
+            message = "Server reload triggered. If --reload is enabled, the server will restart."
+        
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": message}
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Restart failed: {str(e)}"}
+        )
+    finally:
+        db.close()
+
 @app.get("/api/stats")
 def get_stats():
     """Get system statistics and counts."""
@@ -124,20 +248,94 @@ def get_stats():
     
     db = SessionLocal()
     try:
+        # Wrap queries in try/except to handle potential database errors gracefully
+        try:
+            organizations = db.query(Organization).count()
+        except Exception as e:
+            print(f"Error querying organizations: {e}")
+            organizations = 0
+        
+        try:
+            api_keys = db.query(ApiKey).count()
+            api_keys_active = db.query(ApiKey).filter(ApiKey.is_active == True).count()
+        except Exception as e:
+            print(f"Error querying api_keys: {e}")
+            api_keys = 0
+            api_keys_active = 0
+        
+        try:
+            authorizations = db.query(ProgramAuthorization).count()
+            authorizations_active = db.query(ProgramAuthorization).filter(ProgramAuthorization.status == "active").count()
+        except Exception as e:
+            print(f"Error querying authorizations: {e}")
+            authorizations = 0
+            authorizations_active = 0
+        
+        try:
+            licenses = db.query(License).count()
+            licenses_revoked = db.query(License).filter(License.revoked == True).count()
+            licenses_suspended = db.query(License).filter(License.suspended == True).count()
+        except Exception as e:
+            print(f"Error querying licenses: {e}")
+            licenses = 0
+            licenses_revoked = 0
+            licenses_suspended = 0
+        
+        try:
+            seat_assignments = db.query(SeatAssignment).filter(SeatAssignment.is_active == True).count()
+        except Exception as e:
+            print(f"Error querying seat_assignments: {e}")
+            seat_assignments = 0
+        
+        try:
+            billing_orders = db.query(BillingOrder).count()
+            billing_orders_pending = db.query(BillingOrder).filter(BillingOrder.status == "pending").count()
+            billing_orders_paid = db.query(BillingOrder).filter(BillingOrder.status == "paid").count()
+        except Exception as e:
+            print(f"Error querying billing_orders: {e}")
+            billing_orders = 0
+            billing_orders_pending = 0
+            billing_orders_paid = 0
+        
         return {
-            "organizations": db.query(Organization).count(),
-            "api_keys": db.query(ApiKey).count(),
-            "api_keys_active": db.query(ApiKey).filter(ApiKey.is_active == True).count(),
-            "authorizations": db.query(ProgramAuthorization).count(),
-            "authorizations_active": db.query(ProgramAuthorization).filter(ProgramAuthorization.status == "active").count(),
-            "licenses": db.query(License).count(),
-            "licenses_revoked": db.query(License).filter(License.revoked == True).count(),
-            "licenses_suspended": db.query(License).filter(License.suspended == True).count(),
-            "seat_assignments": db.query(SeatAssignment).filter(SeatAssignment.is_active == True).count(),
-            "billing_orders": db.query(BillingOrder).count(),
-            "billing_orders_pending": db.query(BillingOrder).filter(BillingOrder.status == "pending").count(),
-            "billing_orders_paid": db.query(BillingOrder).filter(BillingOrder.status == "paid").count(),
+            "organizations": organizations,
+            "api_keys": api_keys,
+            "api_keys_active": api_keys_active,
+            "authorizations": authorizations,
+            "authorizations_active": authorizations_active,
+            "licenses": licenses,
+            "licenses_revoked": licenses_revoked,
+            "licenses_suspended": licenses_suspended,
+            "seat_assignments": seat_assignments,
+            "billing_orders": billing_orders,
+            "billing_orders_pending": billing_orders_pending,
+            "billing_orders_paid": billing_orders_paid,
         }
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"Unexpected error in /api/stats: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a response with error info (this will have CORS headers)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Failed to load statistics",
+                "message": str(e),
+                "organizations": 0,
+                "api_keys": 0,
+                "api_keys_active": 0,
+                "authorizations": 0,
+                "authorizations_active": 0,
+                "licenses": 0,
+                "licenses_revoked": 0,
+                "licenses_suspended": 0,
+                "seat_assignments": 0,
+                "billing_orders": 0,
+                "billing_orders_pending": 0,
+                "billing_orders_paid": 0,
+            }
+        )
     finally:
         db.close()
 

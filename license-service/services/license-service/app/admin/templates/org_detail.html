@@ -5,7 +5,7 @@
     <div>
       <h3 style="margin: 0 0 0.5rem 0;">{{ org.org_name }}</h3>
       <p style="color: #718096; margin: 0;">
-        <span class="badge {% if org.org_type == 'oem' %}badge-info{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% else %}Licensee{% endif %}</span>
+        <span class="badge {% if org.org_type == 'oem' %}badge-info{% elif org.org_type == 'pe' %}badge-warning{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% elif org.org_type == 'pe' %}Licensed PE{% else %}Licensee{% endif %}</span>
         <span style="margin-left: 1rem;">ID: {{ org.org_id }}</span>
       </p>
     </div>
@@ -93,7 +93,7 @@
           <div>
             <span style="color: #718096; font-size: 0.875rem;">Type</span>
             <div style="margin-top: 0.25rem;">
-              <span class="badge {% if org.org_type == 'oem' %}badge-info{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% else %}Licensee{% endif %}</span>
+              <span class="badge {% if org.org_type == 'oem' %}badge-info{% elif org.org_type == 'pe' %}badge-warning{% else %}badge-success{% endif %}">{% if org.org_type == 'oem' %}OEM{% elif org.org_type == 'pe' %}Licensed PE{% else %}Licensee{% endif %}</span>
             </div>
           </div>
         </div>

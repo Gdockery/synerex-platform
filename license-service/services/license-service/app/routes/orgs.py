@@ -28,8 +28,8 @@ def list_orgs(
     """List all organizations with optional filtering."""
     query = db.query(Organization)
     if org_type:
-        if org_type not in ("oem", "customer"):
-            raise HTTPException(400, "org_type must be 'oem' or 'customer'")
+        if org_type not in ("oem", "customer", "pe"):
+            raise HTTPException(400, "org_type must be 'oem', 'customer', or 'pe'")
         query = query.filter(Organization.org_type == org_type)
     
     total = query.count()
@@ -53,8 +53,8 @@ def get_org(org_id: str, db: Session = Depends(db_session)):
 @router.post("/orgs")
 def create_org(org_id: str, org_name: str, org_type: str, db: Session = Depends(db_session)):
     """Create a new organization."""
-    if org_type not in ("oem","customer"):
-        raise HTTPException(400, "org_type must be oem or customer")
+    if org_type not in ("oem", "customer", "pe"):
+        raise HTTPException(400, "org_type must be oem, customer, or pe")
     if db.get(Organization, org_id):
         raise HTTPException(409, "org_id exists")
     db.add(Organization(org_id=org_id, org_name=org_name, org_type=org_type))
@@ -75,8 +75,8 @@ def update_org(
         raise HTTPException(404, "Organization not found")
     
     if org_type is not None:
-        if org_type not in ("oem", "customer"):
-            raise HTTPException(400, "org_type must be oem or customer")
+        if org_type not in ("oem", "customer", "pe"):
+            raise HTTPException(400, "org_type must be oem, customer, or pe")
         org.org_type = org_type
     
     if org_name is not None:

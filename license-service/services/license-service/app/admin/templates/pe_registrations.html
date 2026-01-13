@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <h3 style="margin: 0;">Licensed PE Registrations</h3>
+  </div>
+
+  {% if request.query_params.get("message") %}
+  <div class="{% if request.query_params.get('message_type') == 'error' %}error{% elif request.query_params.get('message_type') == 'info' %}info{% else %}ok{% endif %}" style="margin-bottom: 1.5rem;">
+    {{ request.query_params.get("message") }}
+  </div>
+  {% endif %}
+
+  <!-- Status Filter Tabs -->
+  <div style="display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 2px solid #e1e8ed; padding-bottom: 1rem;">
+    <a href="/admin/pe-registrations" 
+       class="{% if not status_filter %}btn{% else %}btn-secondary{% endif %}" 
+       style="text-decoration: none;">
+      All ({{ pending_count + approved_count + rejected_count }})
+    </a>
+    <a href="/admin/pe-registrations?status=pending" 
+       class="{% if status_filter == 'pending' %}btn{% else %}btn-secondary{% endif %}" 
+       style="text-decoration: none;">
+      Pending ({{ pending_count }})
+    </a>
+    <a href="/admin/pe-registrations?status=approved" 
+       class="{% if status_filter == 'approved' %}btn{% else %}btn-secondary{% endif %}" 
+       style="text-decoration: none;">
+      Approved ({{ approved_count }})
+    </a>
+    <a href="/admin/pe-registrations?status=rejected" 
+       class="{% if status_filter == 'rejected' %}btn{% else %}btn-secondary{% endif %}" 
+       style="text-decoration: none;">
+      Rejected ({{ rejected_count }})
+    </a>
+  </div>
+
+  {% if pe_orgs %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem;">
+    {% for org in pe_orgs %}
+    <div style="padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); border-radius: 8px; border: 2px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+      <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 1rem;">
+        <div style="flex: 1;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #2d3748; font-size: 1.1rem;">{{ org.org_name }}</h4>
+          <div style="font-size: 0.85rem; color: #718096; font-family: monospace; margin-bottom: 0.5rem;">{{ org.org_id }}</div>
+          <span class="badge {% if org.pe_approval_status == 'approved' %}badge-success{% elif org.pe_approval_status == 'rejected' %}badge-danger{% else %}badge-warning{% endif %}">
+            {% if org.pe_approval_status == 'approved' %}✓ Approved
+            {% elif org.pe_approval_status == 'rejected' %}✗ Rejected
+            {% else %}⏳ Pending{% endif %}
+          </span>
+        </div>
+      </div>
+      
+      <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
+        <div style="margin-bottom: 0.5rem;">
+          <strong style="color: #4a5568;">PE License:</strong> 
+          <span style="color: #2d3748;">{{ org.pe_license_number or 'N/A' }}</span>
+        </div>
+        <div style="margin-bottom: 0.5rem;">
+          <strong style="color: #4a5568;">State:</strong> 
+          <span style="color: #2d3748;">{{ org.pe_license_state or 'N/A' }}</span>
+        </div>
+        {% if org.email %}
+        <div style="margin-bottom: 0.5rem;">
+          <strong style="color: #4a5568;">Email:</strong> 
+          <span style="color: #2d3748;">{{ org.email }}</span>
+        </div>
+        {% endif %}
+        {% if org.contact_name %}
+        <div style="margin-bottom: 0.5rem;">
+          <strong style="color: #4a5568;">Contact:</strong> 
+          <span style="color: #2d3748;">{{ org.contact_name }}</span>
+        </div>
+        {% endif %}
+        {% if org.phone %}
+        <div style="margin-bottom: 0.5rem;">
+          <strong style="color: #4a5568;">Phone:</strong> 
+          <span style="color: #2d3748;">{{ org.phone }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        {% if org.pe_approval_status == 'pending' %}
+        <form method="post" action="/admin/pe-registrations/{{ org.org_id }}/approve" style="display: inline;">
+          <button type="submit" class="btn" style="background: #28a745;">✓ Approve</button>
+        </form>
+        <form method="post" action="/admin/pe-registrations/{{ org.org_id }}/reject" style="display: inline;">
+          <button type="submit" class="btn" style="background: #dc3545;" onclick="return confirm('Are you sure you want to reject this PE registration?');">✗ Reject</button>
+        </form>
+        {% elif org.pe_approval_status == 'approved' %}
+        <form method="post" action="/admin/pe-registrations/{{ org.org_id }}/sync" style="display: inline;">
+          <button type="submit" class="btn" style="background: #17a2b8;">🔄 Sync to EMV</button>
+        </form>
+        <a href="/admin/orgs/{{ org.org_id }}" class="btn btn-secondary" style="text-decoration: none;">View Details</a>
+        {% else %}
+        <form method="post" action="/admin/pe-registrations/{{ org.org_id }}/approve" style="display: inline;">
+          <button type="submit" class="btn" style="background: #28a745;">✓ Approve</button>
+        </form>
+        <a href="/admin/orgs/{{ org.org_id }}" class="btn btn-secondary" style="text-decoration: none;">View Details</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align: center; padding: 3rem; color: #718096;">
+    <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">No PE registrations found</p>
+    <p style="color: #a0aec0;">{% if status_filter %}Try a different filter{% else %}PE registrations will appear here once submitted{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

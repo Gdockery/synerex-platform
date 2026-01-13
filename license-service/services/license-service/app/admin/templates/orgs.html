@@ -51,6 +51,7 @@
             <option value="">Select type...</option>
             <option value="oem">OEM (Original Equipment Manufacturer)</option>
             <option value="customer">Licensee</option>
+            <option value="pe">Licensed PE (Professional Engineer)</option>
           </select>
         </div>
         <div class="form-group" style="display: flex; align-items: flex-end;">
@@ -72,7 +73,7 @@
         <div style="flex: 1;">
           <h4 style="margin: 0 0 0.5rem 0; color: #2d3748; font-size: 1.1rem;">{{ o.org_name }}</h4>
           <div style="font-size: 0.85rem; color: #718096; font-family: monospace; margin-bottom: 0.5rem;">{{ o.org_id }}</div>
-          <span class="badge {% if o.org_type == 'oem' %}badge-info{% else %}badge-success{% endif %}">{% if o.org_type == 'oem' %}OEM{% else %}Licensee{% endif %}</span>
+          <span class="badge {% if o.org_type == 'oem' %}badge-info{% elif o.org_type == 'pe' %}badge-warning{% else %}badge-success{% endif %}">{% if o.org_type == 'oem' %}OEM{% elif o.org_type == 'pe' %}Licensed PE{% else %}Licensee{% endif %}</span>
         </div>
       </div>
       

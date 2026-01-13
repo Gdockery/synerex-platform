@@ -197,11 +197,80 @@
             <option value="">Select type...</option>
             <option value="oem">OEM (Original Equipment Manufacturer)</option>
             <option value="customer">Licensee</option>
+            <option value="pe">Licensed PE (Professional Engineer)</option>
           </select>
-          <div class="info">OEM: For organizations creating baselines. Licensee: For organizations using tracking services.</div>
+          <div class="info">OEM: For organizations creating baselines. Licensee: For organizations using tracking services. Licensed PE: For Professional Engineers reviewing utility submissions.</div>
         </div>
         
-        <div class="form-group">
+        <!-- PE-specific fields (shown conditionally) -->
+        <div id="pe-fields" style="display: none;">
+          <div class="form-group">
+            <label for="pe_license_number">PE License Number *</label>
+            <input type="text" id="pe_license_number" name="pe_license_number" placeholder="e.g., PE12345-CA">
+            <div class="info">Your Professional Engineer license number</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="pe_license_state">PE License State *</label>
+            <select id="pe_license_state" name="pe_license_state">
+              <option value="">Select State</option>
+              <option value="AL">Alabama</option>
+              <option value="AK">Alaska</option>
+              <option value="AZ">Arizona</option>
+              <option value="AR">Arkansas</option>
+              <option value="CA">California</option>
+              <option value="CO">Colorado</option>
+              <option value="CT">Connecticut</option>
+              <option value="DE">Delaware</option>
+              <option value="FL">Florida</option>
+              <option value="GA">Georgia</option>
+              <option value="HI">Hawaii</option>
+              <option value="ID">Idaho</option>
+              <option value="IL">Illinois</option>
+              <option value="IN">Indiana</option>
+              <option value="IA">Iowa</option>
+              <option value="KS">Kansas</option>
+              <option value="KY">Kentucky</option>
+              <option value="LA">Louisiana</option>
+              <option value="ME">Maine</option>
+              <option value="MD">Maryland</option>
+              <option value="MA">Massachusetts</option>
+              <option value="MI">Michigan</option>
+              <option value="MN">Minnesota</option>
+              <option value="MS">Mississippi</option>
+              <option value="MO">Missouri</option>
+              <option value="MT">Montana</option>
+              <option value="NE">Nebraska</option>
+              <option value="NV">Nevada</option>
+              <option value="NH">New Hampshire</option>
+              <option value="NJ">New Jersey</option>
+              <option value="NM">New Mexico</option>
+              <option value="NY">New York</option>
+              <option value="NC">North Carolina</option>
+              <option value="ND">North Dakota</option>
+              <option value="OH">Ohio</option>
+              <option value="OK">Oklahoma</option>
+              <option value="OR">Oregon</option>
+              <option value="PA">Pennsylvania</option>
+              <option value="RI">Rhode Island</option>
+              <option value="SC">South Carolina</option>
+              <option value="SD">South Dakota</option>
+              <option value="TN">Tennessee</option>
+              <option value="TX">Texas</option>
+              <option value="UT">Utah</option>
+              <option value="VT">Vermont</option>
+              <option value="VA">Virginia</option>
+              <option value="WA">Washington</option>
+              <option value="WV">West Virginia</option>
+              <option value="WI">Wisconsin</option>
+              <option value="WY">Wyoming</option>
+              <option value="DC">District of Columbia</option>
+            </select>
+            <div class="info">State where your PE license is issued</div>
+          </div>
+        </div>
+        
+        <div class="form-group" id="program-group">
           <label for="program">Program *</label>
           <select id="program" name="program" required>
             <option value="">Select program...</option>
@@ -336,7 +405,10 @@
     </div>
     
     <script>
-      // Filter plan options based on selected program
+      // Show/hide PE fields based on org_type selection
+      const orgTypeSelect = document.getElementById('org_type');
+      const peFields = document.getElementById('pe-fields');
+      const programGroup = document.getElementById('program-group');
       const programSelect = document.getElementById('program');
       const planSelect = document.getElementById('plan');
       const meterCountGroup = document.getElementById('meter-count-group');
@@ -344,6 +416,32 @@
       const pricingDisplay = document.getElementById('pricing-display');
       const pricingBreakdown = document.getElementById('pricing-breakdown');
       const pricingTotal = document.getElementById('pricing-total');
+      const peLicenseNumber = document.getElementById('pe_license_number');
+      const peLicenseState = document.getElementById('pe_license_state');
+      
+      orgTypeSelect.addEventListener('change', function() {
+        if (this.value === 'pe') {
+          peFields.style.display = 'block';
+          peLicenseNumber.required = true;
+          peLicenseState.required = true;
+          // Hide program/plan for PE (they don't get licenses)
+          programGroup.style.display = 'none';
+          programSelect.required = false;
+          planSelect.required = false;
+          meterCountGroup.style.display = 'none';
+          pricingDisplay.style.display = 'none';
+        } else {
+          peFields.style.display = 'none';
+          peLicenseNumber.required = false;
+          peLicenseState.required = false;
+          // Show program/plan for non-PE
+          programGroup.style.display = 'block';
+          programSelect.required = true;
+          planSelect.required = true;
+        }
+      });
+      
+      // Filter plan options based on selected program
       
       function updatePricing() {
         const selectedPlan = planSelect.options[planSelect.selectedIndex];

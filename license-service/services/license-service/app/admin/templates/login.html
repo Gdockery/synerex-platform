@@ -102,7 +102,7 @@
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
-      <form method="post" action="/admin/login" id="loginForm">
+      <form method="post" action="/admin/login{% if return_url %}?return_url={{ return_url|urlencode }}{% endif %}" id="loginForm">
         <label for="username">Username</label>
         <input type="text" name="username" id="username" required autocomplete="username" />
         
