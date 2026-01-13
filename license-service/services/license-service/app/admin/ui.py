@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import case
+from sqlalchemy import case, or_, func
 
 from ..config import settings
 from ..db import SessionLocal
@@ -133,47 +133,75 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
 @router.get("/pe-registrations", response_class=HTMLResponse)
 def pe_registrations_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     """Page to view and manage PE registrations."""
-    status_filter = request.query_params.get("status", "").strip()  # pending, approved, rejected
-    
-    query = db.query(Organization).filter(Organization.org_type == "pe")
-    
-    if status_filter in ("pending", "approved", "rejected"):
-        query = query.filter(Organization.pe_approval_status == status_filter)
-    elif status_filter == "":
-        # Default: show pending first
-        query = query.order_by(
-            case(
-                (Organization.pe_approval_status == "pending", 1),
-                (Organization.pe_approval_status == "approved", 2),
-                (Organization.pe_approval_status == "rejected", 3),
-                else_=4
+    try:
+        status_filter = request.query_params.get("status", "").strip()  # pending, approved, rejected
+        
+        query = db.query(Organization).filter(Organization.org_type == "pe")
+        
+        if status_filter in ("pending", "approved", "rejected"):
+            query = query.filter(Organization.pe_approval_status == status_filter)
+            query = query.order_by(Organization.org_id.asc())
+        elif status_filter == "":
+            # Default: show pending first (including None), then sort by org_id
+            # Handle None values explicitly - treat None as "pending" for sorting
+            # Use coalesce to convert None to "pending" for sorting
+            query = query.order_by(
+                case(
+                    (func.coalesce(Organization.pe_approval_status, "pending") == "pending", 1),
+                    (func.coalesce(Organization.pe_approval_status, "pending") == "approved", 2),
+                    (func.coalesce(Organization.pe_approval_status, "pending") == "rejected", 3),
+                    else_=4
+                ),
+                Organization.org_id.asc()  # Secondary sort by org_id
             )
-        )
-    
-    pe_orgs = query.order_by(Organization.org_id.asc()).all()
-    
-    # Count by status
-    pending_count = db.query(Organization).filter(
-        Organization.org_type == "pe",
-        Organization.pe_approval_status == "pending"
-    ).count()
-    approved_count = db.query(Organization).filter(
-        Organization.org_type == "pe",
-        Organization.pe_approval_status == "approved"
-    ).count()
-    rejected_count = db.query(Organization).filter(
-        Organization.org_type == "pe",
-        Organization.pe_approval_status == "rejected"
-    ).count()
-    
-    return templates.TemplateResponse("pe_registrations.html", {
-        "request": request,
-        "pe_orgs": pe_orgs,
-        "status_filter": status_filter,
-        "pending_count": pending_count,
-        "approved_count": approved_count,
-        "rejected_count": rejected_count
-    })
+        else:
+            # Invalid status filter, just sort by org_id
+            query = query.order_by(Organization.org_id.asc())
+        
+        pe_orgs = query.all()
+        
+        # Count by status - handle None values explicitly
+        pending_count = db.query(Organization).filter(
+            Organization.org_type == "pe",
+            or_(
+                Organization.pe_approval_status == "pending",
+                Organization.pe_approval_status.is_(None)
+            )
+        ).count()
+        approved_count = db.query(Organization).filter(
+            Organization.org_type == "pe",
+            Organization.pe_approval_status == "approved"
+        ).count()
+        rejected_count = db.query(Organization).filter(
+            Organization.org_type == "pe",
+            Organization.pe_approval_status == "rejected"
+        ).count()
+        
+        return templates.TemplateResponse("pe_registrations.html", {
+            "request": request,
+            "pe_orgs": pe_orgs,
+            "status_filter": status_filter,
+            "pending_count": pending_count,
+            "approved_count": approved_count,
+            "rejected_count": rejected_count
+        })
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback.print_exc()
+        # Log the error and return a user-friendly error page
+        error_html = f"""
+        <html>
+        <head><title>Error</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 2rem;">
+            <h1>Internal Server Error</h1>
+            <p>An error occurred while loading PE registrations:</p>
+            <pre style="background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto;">{error_msg}</pre>
+            <p><a href="/admin" style="color: #1976d2; text-decoration: none;">← Back to Admin Dashboard</a></p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=error_html, status_code=500)
 
 @router.post("/pe-registrations/{org_id}/approve")
 def approve_pe(request: Request, org_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):

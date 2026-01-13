@@ -675,47 +675,84 @@ def resend_receipt(
 def register_submit(
     request: Request,
     org_name: str = Form(...),
+    org_type: str = Form(...),
     email: str = Form(...),
-    pe_license_number: str = Form(...),
-    pe_license_state: str = Form(...),
+    program: str = Form(None),  # Optional for PE
+    plan: str = Form(None),  # Optional for PE
+    meter_count: Optional[int] = Form(None),
+    pe_license_number: Optional[str] = Form(None),
+    pe_license_state: Optional[str] = Form(None),
     agreement_accepted: Optional[str] = Form(None),  # Checkbox returns "on" if checked
     return_url: Optional[str] = Form(None),
     db: Session = Depends(db_session)
 ):
-    """Handle Licensed PE registration submission."""
+    """Handle registration submission for PE or Licensee."""
     try:
+        # Validate org_type
+        if org_type not in ("pe", "customer"):
+            return templates.TemplateResponse(
+                "signup.html",
+                {"request": request, "error": "Registration type must be 'pe' or 'customer'", "success": None, "website_url": settings.website_url},
+                status_code=400
+            )
+        
         # Validate agreement acceptance
         if not agreement_accepted or agreement_accepted != "on":
+            agreement_type = "Licensed PE Registration Agreement" if org_type == "pe" else "Software License Agreement"
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "You must accept the Licensed PE Registration Agreement to proceed.", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": f"You must accept the {agreement_type} to proceed.", "success": None, "website_url": settings.website_url},
                 status_code=400
             )
         
-        # Validate PE-specific fields
-        if not pe_license_number or not pe_license_number.strip():
-            return templates.TemplateResponse(
-                "signup.html",
-                {"request": request, "error": "PE License Number is required", "success": None, "website_url": settings.website_url},
-                status_code=400
-            )
+        # Validate PE-specific fields if PE registration
+        if org_type == "pe":
+            if not pe_license_number or not pe_license_number.strip():
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "PE License Number is required", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
+            if not pe_license_state or not pe_license_state.strip():
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "PE License State is required", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
+            program = None
+            plan = None
+        else:
+            # Validate Licensee-specific fields
+            if not program or program not in ("emv", "tracking"):
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "Program must be 'emv' or 'tracking'", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
+            
+            # Map plan to template_id
+            template_mapping = {
+                "emv": {
+                    "single_report": "emv_single_report",
+                    "annual": "emv_annual"
+                },
+                "tracking": {
+                    "basic": "tracking_basic",
+                    "pro": "tracking_pro",
+                    "enterprise": "tracking_enterprise"
+                }
+            }
+            
+            template_id = template_mapping.get(program, {}).get(plan)
+            if not template_id:
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": f"Invalid plan '{plan}' for program '{program}'", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
         
-        if not pe_license_state or not pe_license_state.strip():
-            return templates.TemplateResponse(
-                "signup.html",
-                {"request": request, "error": "PE License State is required", "success": None, "website_url": settings.website_url},
-                status_code=400
-            )
-        
-        if not email or not email.strip():
-            return templates.TemplateResponse(
-                "signup.html",
-                {"request": request, "error": "Email is required", "success": None, "website_url": settings.website_url},
-                status_code=400
-            )
-        
-        # Generate org_id (always PE type)
-        org_id = _generate_org_id(org_name, "pe")
+        # Generate org_id
+        org_id = _generate_org_id(org_name, org_type)
         
         # Check if org_id already exists
         if db.get(Organization, org_id):
@@ -725,31 +762,106 @@ def register_submit(
                 status_code=409
             )
         
-        # Create PE organization
-        org = Organization(
-            org_id=org_id,
-            org_name=org_name,
-            org_type="pe",
-            email=email.strip(),
-            pe_license_number=pe_license_number.strip(),
-            pe_license_state=pe_license_state.strip().upper(),
-            pe_approval_status="pending"
-        )
+        # Create organization
+        org_data = {
+            "org_id": org_id,
+            "org_name": org_name,
+            "org_type": org_type,
+            "email": email.strip()
+        }
+        
+        if org_type == "pe":
+            org_data["pe_license_number"] = pe_license_number.strip() if pe_license_number else None
+            org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
+            org_data["pe_approval_status"] = "pending"
+        
+        org = Organization(**org_data)
         db.add(org)
         db.commit()
         log_event(db, actor="self_service", action="org.create", ref_id=org_id, 
-                 detail={"org_type": "pe", "email": email, "pe_license_number": pe_license_number})
+                 detail={"org_type": org_type, "email": email, "pe_license_number": pe_license_number if org_type == "pe" else None})
         
-        # Show success message
-        return templates.TemplateResponse(
-            "signup.html",
-            {
-                "request": request,
-                "error": None,
-                "success": f"Licensed PE registration submitted successfully! Your registration is pending admin approval. You will be notified via email at {email} once your registration is reviewed.",
-                "website_url": settings.website_url
-            }
+        # For PE registration, skip billing/license creation - just show success message
+        if org_type == "pe":
+            return templates.TemplateResponse(
+                "signup.html",
+                {
+                    "request": request,
+                    "error": None,
+                    "success": f"Licensed PE registration submitted successfully! Your registration is pending admin approval. You will be notified via email at {email} once your registration is reviewed.",
+                    "website_url": settings.website_url
+                }
+            )
+        
+        # For Licensee, continue with billing/license creation
+        # Calculate pricing
+        term_days = 365  # Default 1 year
+        today = datetime.utcnow().date()
+        term_start = today.isoformat()
+        term_end = (today + timedelta(days=term_days)).isoformat()
+        
+        # Get default seat/meter counts from template
+        template = load_template(program, template_id)
+        entitlements = template.get("entitlements", {})
+        limits = entitlements.get("limits", {})
+        default_seats = limits.get("seat_limit", 0)
+        default_meters = limits.get("meter_limit", 0)
+        
+        # For Tracking programs, use meter_count from form if provided, otherwise default to 1
+        if program == "tracking":
+            if meter_count is None or meter_count < 1:
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "Number of meters is required for Tracking licenses", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
+            if meter_count > 30:
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "Maximum 30 meters allowed per license", "success": None, "website_url": settings.website_url},
+                    status_code=400
+                )
+            actual_meter_count = meter_count
+        else:
+            # For EM&V, use default from template
+            actual_meter_count = default_meters
+        
+        pricing = calculate_price(program, plan, term_days, default_seats, actual_meter_count)
+        
+        # Create billing order with shorter ID
+        short_hash = hashlib.md5(f"{program}{org_id}{datetime.utcnow().isoformat()}".encode()).hexdigest()[:8].upper()
+        program_abbrev = "EMV" if program == "emv" else "TRK"
+        order_id = f"ORD-{program_abbrev}-{short_hash}"
+        order = BillingOrder(
+            order_id=order_id,
+            org_id=org_id,
+            program_id=program,
+            plan=plan,
+            term_start=term_start,
+            term_end=term_end,
+            seat_count=default_seats,
+            meter_count=actual_meter_count,
+            unit_price=pricing["base_price"],
+            amount_total=pricing["amount_total"],
+            currency=pricing["currency"],
+            status="pending",
+            due_at=datetime.utcnow() + timedelta(days=7),  # 7 days to pay
+            agreement_accepted=True,
+            agreement_version=settings.software_license_agreement_version,
+            agreement_accepted_at=datetime.utcnow(),
+            agreement_accepted_by=email or org_id
         )
+        db.add(order)
+        db.commit()
+        
+        log_event(db, actor="self_service", action="billing.order.create", ref_id=order_id,
+                 detail={"org_id": org_id, "program": program, "plan": plan, "amount": pricing["amount_total"]})
+        
+        # Redirect to payment page
+        redirect_url = f"/register/payment?order_id={order_id}"
+        if return_url:
+            redirect_url += f"&return_url={return_url}"
+        return RedirectResponse(redirect_url, status_code=303)
         
     except Exception as e:
         db.rollback()
@@ -762,50 +874,92 @@ def register_submit(
 @router.post("/api", response_class=JSONResponse)
 def register_api(
     org_name: str = Form(...),
+    org_type: str = Form(...),
     email: str = Form(...),
-    pe_license_number: str = Form(...),
-    pe_license_state: str = Form(...),
+    program: str = Form(None),  # Optional for PE
+    plan: str = Form(None),  # Optional for PE
+    pe_license_number: str = Form(None),
+    pe_license_state: str = Form(None),
     db: Session = Depends(db_session)
 ):
-    """API endpoint for Licensed PE registration."""
+    """API endpoint for PE or Licensee registration."""
     try:
-        # Validate PE-specific fields
-        if not pe_license_number or not pe_license_number.strip():
-            raise HTTPException(400, "pe_license_number is required")
+        # Validate org_type
+        if org_type not in ("pe", "customer"):
+            raise HTTPException(400, "org_type must be 'pe' or 'customer'")
         
-        if not pe_license_state or not pe_license_state.strip():
-            raise HTTPException(400, "pe_license_state is required")
+        # Validate PE-specific fields if PE registration
+        if org_type == "pe":
+            if not pe_license_number or not pe_license_number.strip():
+                raise HTTPException(400, "pe_license_number is required for PE registration")
+            if not pe_license_state or not pe_license_state.strip():
+                raise HTTPException(400, "pe_license_state is required for PE registration")
+            program = None
+            plan = None
+        else:
+            # Validate Licensee-specific fields
+            if not program or program not in ("emv", "tracking"):
+                raise HTTPException(400, "program must be 'emv' or 'tracking'")
+            
+            # Map plan to template_id
+            template_mapping = {
+                "emv": {
+                    "single_report": "emv_single_report",
+                    "annual": "emv_annual"
+                },
+                "tracking": {
+                    "basic": "tracking_basic",
+                    "pro": "tracking_pro",
+                    "enterprise": "tracking_enterprise"
+                }
+            }
+            
+            template_id = template_mapping.get(program, {}).get(plan)
+            if not template_id:
+                raise HTTPException(400, f"Invalid plan '{plan}' for program '{program}'")
         
-        if not email or not email.strip():
-            raise HTTPException(400, "email is required")
-        
-        # Generate org_id (always PE type)
-        org_id = _generate_org_id(org_name, "pe")
+        # Generate org_id
+        org_id = _generate_org_id(org_name, org_type)
         
         # Check if org_id already exists
         if db.get(Organization, org_id):
             raise HTTPException(409, "Organization ID already exists")
         
-        # Create PE organization
-        org = Organization(
-            org_id=org_id,
-            org_name=org_name,
-            org_type="pe",
-            email=email.strip(),
-            pe_license_number=pe_license_number.strip(),
-            pe_license_state=pe_license_state.strip().upper(),
-            pe_approval_status="pending"
-        )
+        # Create organization
+        org_data = {
+            "org_id": org_id,
+            "org_name": org_name,
+            "org_type": org_type,
+            "email": email.strip()
+        }
+        
+        if org_type == "pe":
+            org_data["pe_license_number"] = pe_license_number.strip() if pe_license_number else None
+            org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
+            org_data["pe_approval_status"] = "pending"
+        
+        org = Organization(**org_data)
         db.add(org)
         db.commit()
         log_event(db, actor="self_service", action="org.create", ref_id=org_id, 
-                 detail={"org_type": "pe", "email": email, "pe_license_number": pe_license_number})
+                 detail={"org_type": org_type, "email": email, "pe_license_number": pe_license_number if org_type == "pe" else None})
         
+        # For PE registration, skip billing/license creation
+        if org_type == "pe":
+            return {
+                "status": "success",
+                "message": "Licensed PE registration submitted successfully. Registration is pending admin approval.",
+                "org_id": org_id,
+                "pe_approval_status": "pending"
+            }
+        
+        # For Licensee, return order info (billing order creation would happen separately)
         return {
             "status": "success",
-            "message": "Licensed PE registration submitted successfully. Registration is pending admin approval.",
+            "message": "Licensee registration submitted successfully. Please proceed with billing order creation.",
             "org_id": org_id,
-            "pe_approval_status": "pending"
+            "program": program,
+            "plan": plan
         }
         
     except HTTPException:
