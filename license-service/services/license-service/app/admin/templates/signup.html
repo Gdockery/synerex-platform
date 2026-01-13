@@ -186,191 +186,114 @@
       
       <form method="post" action="/register">
         <div class="form-group">
-          <label for="org_name">Organization Name *</label>
-          <input type="text" id="org_name" name="org_name" required placeholder="e.g., ACME Power Solutions"/>
-          <div class="info">Your organization's display name</div>
+          <label for="org_name">Name *</label>
+          <input type="text" id="org_name" name="org_name" required placeholder="e.g., John Smith, PE"/>
+          <div class="info">Your name or organization name</div>
         </div>
         
         <div class="form-group">
-          <label for="org_type">Organization Type *</label>
-          <select id="org_type" name="org_type" required>
-            <option value="">Select type...</option>
-            <option value="oem">OEM (Original Equipment Manufacturer)</option>
-            <option value="customer">Licensee</option>
-            <option value="pe">Licensed PE (Professional Engineer)</option>
-          </select>
-          <div class="info">OEM: For organizations creating baselines. Licensee: For organizations using tracking services. Licensed PE: For Professional Engineers reviewing utility submissions.</div>
-        </div>
-        
-        <!-- PE-specific fields (shown conditionally) -->
-        <div id="pe-fields" style="display: none;">
-          <div class="form-group">
-            <label for="pe_license_number">PE License Number *</label>
-            <input type="text" id="pe_license_number" name="pe_license_number" placeholder="e.g., PE12345-CA">
-            <div class="info">Your Professional Engineer license number</div>
-          </div>
-          
-          <div class="form-group">
-            <label for="pe_license_state">PE License State *</label>
-            <select id="pe_license_state" name="pe_license_state">
-              <option value="">Select State</option>
-              <option value="AL">Alabama</option>
-              <option value="AK">Alaska</option>
-              <option value="AZ">Arizona</option>
-              <option value="AR">Arkansas</option>
-              <option value="CA">California</option>
-              <option value="CO">Colorado</option>
-              <option value="CT">Connecticut</option>
-              <option value="DE">Delaware</option>
-              <option value="FL">Florida</option>
-              <option value="GA">Georgia</option>
-              <option value="HI">Hawaii</option>
-              <option value="ID">Idaho</option>
-              <option value="IL">Illinois</option>
-              <option value="IN">Indiana</option>
-              <option value="IA">Iowa</option>
-              <option value="KS">Kansas</option>
-              <option value="KY">Kentucky</option>
-              <option value="LA">Louisiana</option>
-              <option value="ME">Maine</option>
-              <option value="MD">Maryland</option>
-              <option value="MA">Massachusetts</option>
-              <option value="MI">Michigan</option>
-              <option value="MN">Minnesota</option>
-              <option value="MS">Mississippi</option>
-              <option value="MO">Missouri</option>
-              <option value="MT">Montana</option>
-              <option value="NE">Nebraska</option>
-              <option value="NV">Nevada</option>
-              <option value="NH">New Hampshire</option>
-              <option value="NJ">New Jersey</option>
-              <option value="NM">New Mexico</option>
-              <option value="NY">New York</option>
-              <option value="NC">North Carolina</option>
-              <option value="ND">North Dakota</option>
-              <option value="OH">Ohio</option>
-              <option value="OK">Oklahoma</option>
-              <option value="OR">Oregon</option>
-              <option value="PA">Pennsylvania</option>
-              <option value="RI">Rhode Island</option>
-              <option value="SC">South Carolina</option>
-              <option value="SD">South Dakota</option>
-              <option value="TN">Tennessee</option>
-              <option value="TX">Texas</option>
-              <option value="UT">Utah</option>
-              <option value="VT">Vermont</option>
-              <option value="VA">Virginia</option>
-              <option value="WA">Washington</option>
-              <option value="WV">West Virginia</option>
-              <option value="WI">Wisconsin</option>
-              <option value="WY">Wyoming</option>
-              <option value="DC">District of Columbia</option>
-            </select>
-            <div class="info">State where your PE license is issued</div>
-          </div>
-        </div>
-        
-        <div class="form-group" id="program-group">
-          <label for="program">Program *</label>
-          <select id="program" name="program" required>
-            <option value="">Select program...</option>
-            <option value="emv">EM&V (Evaluation, Measurement & Verification)</option>
-            <option value="tracking">Tracking (Continuous Monitoring)</option>
-          </select>
-          <div class="info">EM&V: For baseline creation and sealing. Tracking: For continuous monitoring and reporting. <strong>Note:</strong> Tracking licenses require a valid EM&V baseline lineage to be fully functional.</div>
+          <label for="pe_license_number">PE License Number *</label>
+          <input type="text" id="pe_license_number" name="pe_license_number" required placeholder="e.g., PE12345-CA">
+          <div class="info">Your Professional Engineer license number</div>
         </div>
         
         <div class="form-group">
-          <label for="plan">Plan *</label>
-          <select id="plan" name="plan" required>
-            <option value="">Select plan...</option>
-            <option value="single_report" data-program="emv" data-base-price="4200" data-one-time="true">Single Report License (EM&V) - $4,200 (One-time)</option>
-            <option value="annual" data-program="emv" data-base-price="53000" data-one-time="false">Annual License Fee (EM&V) - $53,000/year (Unlimited)</option>
-            <option value="basic" data-program="tracking" data-base-price="495" data-per-meter="750" data-users="5">Basic (Tracking) - 5 Users, Read Only Version - $495 + $750/meter/year</option>
-            <option value="pro" data-program="tracking" data-base-price="950" data-per-meter="795" data-users="15">Pro (Tracking) - 15 Users, Equipment Scheduling - $950 + $795/meter/year</option>
-            <option value="enterprise" data-program="tracking" data-base-price="1495" data-per-meter="750" data-users="Unlimited">Enterprise (Tracking) - Unlimited Users, Full Scheduling/Reporting - $1,495 + $750/meter/year</option>
+          <label for="pe_license_state">PE License State *</label>
+          <select id="pe_license_state" name="pe_license_state" required>
+            <option value="">Select State</option>
+            <option value="AL">Alabama</option>
+            <option value="AK">Alaska</option>
+            <option value="AZ">Arizona</option>
+            <option value="AR">Arkansas</option>
+            <option value="CA">California</option>
+            <option value="CO">Colorado</option>
+            <option value="CT">Connecticut</option>
+            <option value="DE">Delaware</option>
+            <option value="FL">Florida</option>
+            <option value="GA">Georgia</option>
+            <option value="HI">Hawaii</option>
+            <option value="ID">Idaho</option>
+            <option value="IL">Illinois</option>
+            <option value="IN">Indiana</option>
+            <option value="IA">Iowa</option>
+            <option value="KS">Kansas</option>
+            <option value="KY">Kentucky</option>
+            <option value="LA">Louisiana</option>
+            <option value="ME">Maine</option>
+            <option value="MD">Maryland</option>
+            <option value="MA">Massachusetts</option>
+            <option value="MI">Michigan</option>
+            <option value="MN">Minnesota</option>
+            <option value="MS">Mississippi</option>
+            <option value="MO">Missouri</option>
+            <option value="MT">Montana</option>
+            <option value="NE">Nebraska</option>
+            <option value="NV">Nevada</option>
+            <option value="NH">New Hampshire</option>
+            <option value="NJ">New Jersey</option>
+            <option value="NM">New Mexico</option>
+            <option value="NY">New York</option>
+            <option value="NC">North Carolina</option>
+            <option value="ND">North Dakota</option>
+            <option value="OH">Ohio</option>
+            <option value="OK">Oklahoma</option>
+            <option value="OR">Oregon</option>
+            <option value="PA">Pennsylvania</option>
+            <option value="RI">Rhode Island</option>
+            <option value="SC">South Carolina</option>
+            <option value="SD">South Dakota</option>
+            <option value="TN">Tennessee</option>
+            <option value="TX">Texas</option>
+            <option value="UT">Utah</option>
+            <option value="VT">Vermont</option>
+            <option value="VA">Virginia</option>
+            <option value="WA">Washington</option>
+            <option value="WV">West Virginia</option>
+            <option value="WI">Wisconsin</option>
+            <option value="WY">Wyoming</option>
+            <option value="DC">District of Columbia</option>
           </select>
-          <div class="info">Choose the plan tier that best fits your needs. Pricing shown is annual.</div>
-        </div>
-        
-        <div class="form-group" id="meter-count-group" style="display: none;">
-          <label for="meter_count">Number of Meters *</label>
-          <select id="meter_count" name="meter_count">
-            <option value="1">1 meter</option>
-            <option value="2">2 meters</option>
-            <option value="3">3 meters</option>
-            <option value="4">4 meters</option>
-            <option value="5">5 meters</option>
-            <option value="6">6 meters</option>
-            <option value="7">7 meters</option>
-            <option value="8">8 meters</option>
-            <option value="9">9 meters</option>
-            <option value="10">10 meters</option>
-            <option value="11">11 meters</option>
-            <option value="12">12 meters</option>
-            <option value="13">13 meters</option>
-            <option value="14">14 meters</option>
-            <option value="15">15 meters</option>
-            <option value="16">16 meters</option>
-            <option value="17">17 meters</option>
-            <option value="18">18 meters</option>
-            <option value="19">19 meters</option>
-            <option value="20">20 meters</option>
-            <option value="21">21 meters</option>
-            <option value="22">22 meters</option>
-            <option value="23">23 meters</option>
-            <option value="24">24 meters</option>
-            <option value="25">25 meters</option>
-            <option value="26">26 meters</option>
-            <option value="27">27 meters</option>
-            <option value="28">28 meters</option>
-            <option value="29">29 meters</option>
-            <option value="30">30 meters</option>
-          </select>
-          <div class="info">Select the number of meters for your license.</div>
-        </div>
-        
-        <div class="form-group" id="pricing-display" style="display: none; background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
-          <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px;">Estimated Annual Cost:</div>
-          <div id="pricing-breakdown" style="color: #333; font-size: 14px;"></div>
-          <div id="pricing-total" style="font-size: 18px; font-weight: 700; color: #1976d2; margin-top: 8px;"></div>
+          <div class="info">State where your PE license is issued</div>
         </div>
         
         <div class="form-group">
-          <label for="email">Email (Optional)</label>
-          <input type="email" id="email" name="email" placeholder="your.email@example.com"/>
-          <div class="info">Optional: For account notifications</div>
+          <label for="email">Email *</label>
+          <input type="email" id="email" name="email" required placeholder="your.email@example.com"/>
+          <div class="info">Required for registration notifications and approval updates</div>
         </div>
         
         <div class="form-group" style="margin-top: 24px; padding: 16px; background: #f5f5f5; border-radius: 4px; border: 1px solid #ddd;">
-          <h3 style="margin-top: 0; color: #1976d2; font-size: 16px;">Software License Agreement</h3>
+          <h3 style="margin-top: 0; color: #1976d2; font-size: 16px;">Licensed Professional Engineer Registration Agreement</h3>
           
           <div style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px; font-size: 13px; line-height: 1.6;">
-            <p><strong>SYNEREX LABORATORIES, LLC SOFTWARE LICENSE AGREEMENT</strong></p>
+            <p><strong>SYNEREX LABORATORIES, LLC LICENSED PE REGISTRATION AGREEMENT</strong></p>
             <p><strong>Version 2026.01</strong></p>
             
-            <p><strong>1. GRANT OF LICENSE</strong></p>
-            <p>Subject to the terms and conditions of this Agreement, Synerex Laboratories, LLC ("Licensor") grants to you ("Licensee") a non-exclusive, non-transferable license to use the Synerex software products (the "Software") in accordance with the terms of this Agreement.</p>
+            <p><strong>1. REGISTRATION PURPOSE</strong></p>
+            <p>By registering as a Licensed Professional Engineer ("PE") with Synerex Laboratories, LLC ("Synerex"), you are requesting access to review utility submission reports for rebate programs. This registration does not grant you a software license, but rather authorizes you to review and evaluate utility submission reports submitted through the Synerex platform.</p>
             
-            <p><strong>2. RESTRICTIONS</strong></p>
-            <p>Licensee shall not: (a) copy, modify, or create derivative works of the Software; (b) reverse engineer, decompile, or disassemble the Software; (c) rent, lease, or sublicense the Software; (d) remove or alter any proprietary notices on the Software.</p>
+            <p><strong>2. PE CREDENTIALS</strong></p>
+            <p>You represent and warrant that: (a) you hold a valid Professional Engineer license in the state indicated; (b) your license is current and in good standing; (c) you will maintain your PE license in good standing throughout your registration period; and (d) you will notify Synerex immediately if your PE license status changes.</p>
             
-            <p><strong>3. TERM AND TERMINATION</strong></p>
-            <p>This Agreement is effective until terminated. Licensor may terminate this Agreement immediately if Licensee breaches any term. Upon termination, Licensee must cease all use of the Software.</p>
+            <p><strong>3. REVIEW RESPONSIBILITIES</strong></p>
+            <p>As a registered Licensed PE, you agree to: (a) review utility submission reports in accordance with applicable professional engineering standards; (b) maintain confidentiality of all information accessed through the Synerex platform; (c) use the platform solely for the purpose of reviewing utility submissions; and (d) comply with all applicable laws and regulations governing professional engineering practice.</p>
             
-            <p><strong>4. WARRANTY DISCLAIMER</strong></p>
-            <p>THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. LICENSOR DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+            <p><strong>4. ADMINISTRATIVE APPROVAL</strong></p>
+            <p>Your registration is subject to administrative approval by Synerex. Synerex reserves the right to approve or reject any PE registration at its sole discretion. Upon approval, you will be notified via email and granted access to review utility submission reports.</p>
             
-            <p><strong>5. LIMITATION OF LIABILITY</strong></p>
-            <p>IN NO EVENT SHALL LICENSOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATED TO THIS AGREEMENT.</p>
+            <p><strong>5. TERM AND TERMINATION</strong></p>
+            <p>This registration is effective until terminated by either party. Synerex may terminate your registration immediately if: (a) your PE license is revoked or suspended; (b) you breach any term of this Agreement; or (c) Synerex determines, in its sole discretion, that termination is necessary.</p>
             
-            <p><strong>6. GOVERNING LAW</strong></p>
+            <p><strong>6. CONFIDENTIALITY</strong></p>
+            <p>You agree to maintain the confidentiality of all utility submission reports and related information accessed through the Synerex platform. You shall not disclose, copy, or distribute any such information without prior written authorization from Synerex and the applicable utility or organization.</p>
+            
+            <p><strong>7. LIMITATION OF LIABILITY</strong></p>
+            <p>IN NO EVENT SHALL SYNEREX BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATED TO YOUR USE OF THE PLATFORM FOR REVIEWING UTILITY SUBMISSIONS.</p>
+            
+            <p><strong>8. GOVERNING LAW</strong></p>
             <p>This Agreement shall be governed by the laws of the State of Texas, United States, without regard to conflict of law principles.</p>
             
-            <p><strong>7. ENTIRE AGREEMENT</strong></p>
-            <p>This Agreement constitutes the entire agreement between the parties regarding the Software and supersedes all prior agreements.</p>
-            
-            <p style="margin-top: 16px;"><em>By checking the box below, you acknowledge that you have read, understood, and agree to be bound by the terms of this Software License Agreement.</em></p>
+            <p style="margin-top: 16px;"><em>By checking the box below, you acknowledge that you have read, understood, and agree to be bound by the terms of this Licensed PE Registration Agreement.</em></p>
           </div>
           
           <label style="display: flex; align-items: flex-start; cursor: pointer; font-weight: 500;">
@@ -381,21 +304,19 @@
               required
               style="margin-right: 8px; margin-top: 4px; flex-shrink: 0;"
             />
-            <span>I have read and agree to the Software License Agreement above. <strong style="color: #b00020;">*</strong></span>
+            <span>I have read and agree to the Licensed PE Registration Agreement above. <strong style="color: #b00020;">*</strong></span>
           </label>
         </div>
         
-        <button type="submit" class="btn">Register & Get License</button>
+        <button type="submit" class="btn">Register as Licensed PE</button>
       </form>
       
       <div class="help-text">
         <p><strong>What happens next?</strong></p>
         <ul style="margin: 8px 0; padding-left: 20px; color: #666;">
-          <li>Your organization will be created automatically</li>
-          <li>A billing order will be created for your selected plan</li>
-          <li>You'll be redirected to complete payment</li>
-          <li>After successful payment, a signed license will be issued immediately</li>
-          <li>You'll receive your Software License Serial Number to enter into the EM&V or Tracking software login page</li>
+          <li>Your Licensed PE registration will be submitted for admin approval</li>
+          <li>You'll be notified via email once your registration is reviewed</li>
+          <li>Once approved, you'll be able to review utility submission reports for rebate programs</li>
         </ul>
         <p style="margin-top: 16px;">
           <a href="/admin/login">Admin Login</a> | 
@@ -405,102 +326,7 @@
     </div>
     
     <script>
-      // Show/hide PE fields based on org_type selection
-      const orgTypeSelect = document.getElementById('org_type');
-      const peFields = document.getElementById('pe-fields');
-      const programGroup = document.getElementById('program-group');
-      const programSelect = document.getElementById('program');
-      const planSelect = document.getElementById('plan');
-      const meterCountGroup = document.getElementById('meter-count-group');
-      const meterCountSelect = document.getElementById('meter_count');
-      const pricingDisplay = document.getElementById('pricing-display');
-      const pricingBreakdown = document.getElementById('pricing-breakdown');
-      const pricingTotal = document.getElementById('pricing-total');
-      const peLicenseNumber = document.getElementById('pe_license_number');
-      const peLicenseState = document.getElementById('pe_license_state');
-      
-      orgTypeSelect.addEventListener('change', function() {
-        if (this.value === 'pe') {
-          peFields.style.display = 'block';
-          peLicenseNumber.required = true;
-          peLicenseState.required = true;
-          // Hide program/plan for PE (they don't get licenses)
-          programGroup.style.display = 'none';
-          programSelect.required = false;
-          planSelect.required = false;
-          meterCountGroup.style.display = 'none';
-          pricingDisplay.style.display = 'none';
-        } else {
-          peFields.style.display = 'none';
-          peLicenseNumber.required = false;
-          peLicenseState.required = false;
-          // Show program/plan for non-PE
-          programGroup.style.display = 'block';
-          programSelect.required = true;
-          planSelect.required = true;
-        }
-      });
-      
-      // Filter plan options based on selected program
-      
-      function updatePricing() {
-        const selectedPlan = planSelect.options[planSelect.selectedIndex];
-        const program = selectedPlan.getAttribute('data-program');
-        const basePrice = selectedPlan.getAttribute('data-base-price');
-        const perMeter = selectedPlan.getAttribute('data-per-meter');
-        const users = selectedPlan.getAttribute('data-users');
-        
-        if (program === 'tracking' && perMeter) {
-          meterCountGroup.style.display = 'block';
-          meterCountSelect.required = true;
-          
-          const meterCount = parseInt(meterCountSelect.value) || 1;
-          const basePriceNum = parseFloat(basePrice) || 0;
-          const perMeterPrice = parseFloat(perMeter);
-          const meterCost = meterCount * perMeterPrice;
-          const totalCost = basePriceNum + meterCost;
-          
-          pricingDisplay.style.display = 'block';
-          pricingBreakdown.innerHTML = `
-            <div>Plan: ${selectedPlan.textContent.split(' - ')[0]}</div>
-            <div>Users: ${users}</div>
-            <div>Base Price: $${basePriceNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-            <div>Meters: ${meterCount} × $${perMeterPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/meter = $${meterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-          `;
-          pricingTotal.textContent = `Total: $${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/year`;
-        } else {
-          meterCountGroup.style.display = 'none';
-          meterCountSelect.required = false;
-          pricingDisplay.style.display = 'none';
-        }
-      }
-      
-      programSelect.addEventListener('change', function() {
-        const selectedProgram = this.value;
-        const options = planSelect.querySelectorAll('option');
-        
-        options.forEach(option => {
-          if (option.value === '') {
-            option.style.display = 'block';
-            return;
-          }
-          
-          const optionProgram = option.getAttribute('data-program');
-          if (optionProgram === selectedProgram) {
-            option.style.display = 'block';
-          } else {
-            option.style.display = 'none';
-          }
-        });
-        
-        // Reset plan selection and hide meter count
-        planSelect.value = '';
-        meterCountGroup.style.display = 'none';
-        pricingDisplay.style.display = 'none';
-      });
-      
-      planSelect.addEventListener('change', updatePricing);
-      meterCountSelect.addEventListener('change', updatePricing);
+      // No JavaScript needed - form is PE-only
     </script>
   </body>
 </html>
