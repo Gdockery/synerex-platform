@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESG Case Study Report - Synerex Power Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: white;
+            color: #333;
+            padding: 10px 20px 15px 20px;
+            text-align: center;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .content {
+            padding: 5px 30px 25px 30px;
+        }
+        
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        
+        /* Reduce spacing for PDF printing */
+        @media print {
+            h1, h2, h3, h4 {
+                margin-top: 0.2em;
+                margin-bottom: 0.1em;
+                page-break-after: avoid;
+            }
+            
+            .section {
+                margin-bottom: 0.1em;
+            }
+            
+            .card {
+                margin-bottom: 0.3em;
+            }
+            
+            .compliance-note {
+                margin-top: 0.05em;
+                margin-bottom: 0.05em;
+                padding: 6px;
+            }
+            
+            .statistical-summary {
+                margin-bottom: 0.3em;
+            }
+            
+            table {
+                margin-bottom: 0.3em;
+            }
+            /* ESG Framework Alignment table - make compact for print */
+            .esg-framework-table {
+                margin-top: 0.5em !important;
+                margin-bottom: 0.5em !important;
+                font-size: 9pt !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            .esg-framework-table th {
+                padding: 8px 6px !important;
+                font-size: 9pt !important;
+                word-wrap: break-word !important;
+                white-space: normal !important;
+                overflow-wrap: break-word !important;
+            }
+            .esg-framework-table td {
+                padding: 6px !important;
+                font-size: 9pt !important;
+                line-height: 1.3 !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                white-space: normal !important;
+            }
+            /* Set column widths for ESG Framework Alignment table - allow wrapping */
+            .esg-framework-table th:nth-child(1),
+            .esg-framework-table td:nth-child(1) {
+                width: 20% !important;
+                white-space: normal !important;
+            }
+            .esg-framework-table th:nth-child(2),
+            .esg-framework-table td:nth-child(2) {
+                width: 18% !important;
+                white-space: normal !important;
+            }
+            .esg-framework-table th:nth-child(3),
+            .esg-framework-table td:nth-child(3) {
+                width: 36% !important;
+                white-space: normal !important;
+            }
+            .esg-framework-table th:nth-child(4),
+            .esg-framework-table td:nth-child(4) {
+                width: 26% !important;
+                max-width: 26% !important;
+                white-space: normal !important;
+            }
+            /* Reduce h3 spacing before ESG Framework Alignment */
+            .content h3 {
+                margin-top: 1em !important;
+                margin-bottom: 0.4em !important;
+                font-size: 13pt !important;
+            }
+            /* Regulatory Standards Compliance table - make compact for print */
+            .compliance-table {
+                margin-top: 0.5em !important;
+                margin-bottom: 0.5em !important;
+                font-size: 8pt !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+            }
+            .compliance-table th {
+                padding: 6px 4px !important;
+                font-size: 8pt !important;
+                word-wrap: break-word !important;
+                white-space: normal !important;
+                overflow-wrap: break-word !important;
+                line-height: 1.2 !important;
+            }
+            .compliance-table td {
+                padding: 5px 4px !important;
+                font-size: 8pt !important;
+                line-height: 1.2 !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                white-space: normal !important;
+            }
+            .compliance-table th:first-child,
+            .compliance-table td:first-child {
+                white-space: normal !important;
+                min-width: auto !important;
+            }
+            /* Override white-space: nowrap for ESG Framework table to allow wrapping */
+            .esg-framework-table th:first-child,
+            .esg-framework-table td:first-child {
+                white-space: normal !important;
+            }
+            /* Comprehensive Engineering Report section - ensure it fits on one page */
+            .comprehensive-engineering-page {
+                page-break-inside: avoid !important;
+                padding: 10px 15px !important;
+            }
+            .comprehensive-engineering-page[style] {
+                padding: 10px 15px !important;
+            }
+            /* Reduce logo size if present */
+            .comprehensive-engineering-page img {
+                max-width: 150px !important;
+                max-height: 75px !important;
+                margin-bottom: 10px !important;
+            }
+            .comprehensive-engineering-page h1 {
+                font-size: 16pt !important;
+                margin-bottom: 8px !important;
+                padding-bottom: 4px !important;
+                margin-top: 0 !important;
+            }
+            .comprehensive-engineering-page h1[style] {
+                margin-bottom: 8px !important;
+                padding-bottom: 4px !important;
+                margin-top: 0 !important;
+            }
+            .comprehensive-engineering-page > div[style*="max-width"] {
+                margin: 0 auto !important;
+            }
+            .project-info-table {
+                margin: 8px 0 !important;
+                font-size: 9pt !important;
+            }
+            .project-info-table[style] {
+                margin: 8px 0 !important;
+            }
+            .project-info-table td {
+                padding: 3px 4px !important;
+                font-size: 9pt !important;
+                line-height: 1.2 !important;
+            }
+            .project-info-table td[style] {
+                padding: 3px 4px !important;
+                font-size: 9pt !important;
+            }
+            .iso-compliance-box {
+                page-break-inside: avoid !important;
+                margin-top: 6px !important;
+                padding: 4px !important;
+            }
+            .iso-compliance-box[style] {
+                margin-top: 6px !important;
+                padding: 4px !important;
+            }
+            .iso-compliance-box h2 {
+                font-size: 7pt !important;
+                margin-bottom: 2px !important;
+                margin-top: 0 !important;
+            }
+            .iso-compliance-box h2[style] {
+                font-size: 7pt !important;
+                margin-bottom: 2px !important;
+                margin-top: 0 !important;
+            }
+            .iso-compliance-box p {
+                font-size: 4.5px !important; /* 6pt = 4.5px at 72 DPI, but px works better for print */
+                line-height: 1.2 !important;
+                margin: 0 !important;
+            }
+            .iso-compliance-box p[style] {
+                font-size: 4.5px !important; /* Override inline styles */
+                line-height: 1.2 !important;
+                margin: 0 !important;
+            }
+            .iso-compliance-box p strong {
+                font-size: 4.5px !important;
+            }
+            .iso-compliance-box p strong[style] {
+                font-size: 4.5px !important;
+            }
+            /* First page compact styling - header and content */
+            .header-section {
+                padding: 25px 30px 20px 30px !important;
+            }
+            .header-section h1 {
+                font-size: 20pt !important;
+                margin-bottom: 8px !important;
+            }
+            .header-section h2 {
+                font-size: 13pt !important;
+                margin-bottom: 10px !important;
+            }
+            .header-section .meta {
+                margin-top: 10px !important;
+                padding-top: 10px !important;
+                font-size: 9pt !important;
+            }
+            .content {
+                padding: 15px 20px !important;
+            }
+            .content h2 {
+                font-size: 16pt !important;
+                margin-top: 1em !important;
+                margin-bottom: 0.5em !important;
+                padding-bottom: 5px !important;
+            }
+            /* Metric cards grid - reduce spacing */
+            .metric-grid {
+                gap: 10px !important;
+                margin: 0.8em 0 !important;
+            }
+            .metric-card {
+                padding: 10px 12px !important;
+                margin: 6px 0 !important;
+            }
+            .metric-card h3 {
+                font-size: 11pt !important;
+                margin-bottom: 5px !important;
+            }
+            .metric-value {
+                font-size: 18pt !important;
+                margin: 5px 0 !important;
+            }
+            .metric-label {
+                font-size: 9pt !important;
+                margin-top: 3px !important;
+            }
+            .metric-card-detail {
+                margin-top: 8px !important;
+                font-size: 8pt !important;
+                line-height: 1.4 !important;
+            }
+            /* Info box - reduce spacing */
+            .info-box {
+                padding: 12px 15px !important;
+                margin: 1em 0 !important;
+            }
+            .info-box h3 {
+                font-size: 12pt !important;
+                margin-bottom: 0.3em !important;
+            }
+            .esg-achievements-list {
+                margin: 0.3em 0 0.3em 1.2em !important;
+                line-height: 1.3 !important;
+            }
+            .esg-achievements-list[style] {
+                margin-left: 1.2em !important;
+                margin-top: 0.3em !important;
+                margin-bottom: 0.3em !important;
+                line-height: 1.3 !important;
+            }
+            .info-box li {
+                margin-bottom: 0.2em !important;
+                font-size: 8.5pt !important;
+                line-height: 1.3 !important;
+            }
+            /* Further reduce info-box spacing for first page */
+            .content:first-of-type .info-box {
+                padding: 10px 12px !important;
+                margin: 0.8em 0 !important;
+            }
+            .content:first-of-type .info-box h3 {
+                font-size: 11pt !important;
+                margin-bottom: 0.2em !important;
+                margin-top: 0 !important;
+            }
+        }
+        
+        h2 {
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            font-size: 1.5em;
+        }
+        
+        .card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .compliance-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .compliance-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .compliance-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .compliance-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .compliance-table th:first-child,
+        .compliance-table td:first-child {
+            white-space: nowrap;
+            min-width: 200px;
+        }
+        
+        .compliant {
+            color: #27ae60;
+            font-weight: 600;
+        }
+        
+        .non-compliant {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .value-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .compliance-note {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .statistical-summary {
+            background: #f8f9fa;
+            padding: 0px 8px 8px 8px;
+            border-radius: 8px;
+            margin: 0 0 5px 0;
+            border-left: 4px solid #28a745;
+        }
+        
+        /* Cover page styles */
+        .cover-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 60px 40px 40px 40px;
+            background: white;
+            text-align: center;
+        }
+        
+        .cover-logo {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            margin-bottom: 60px;
+        }
+        
+        .cover-logo img {
+            max-width: 500px;
+            max-height: 300px;
+            width: auto;
+            height: auto;
+        }
+        
+        .cover-title {
+            font-size: 2.5em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+        }
+        
+        .cover-info {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: left;
+            font-size: 1.1em;
+            line-height: 2;
+        }
+        
+        .cover-info strong {
+            color: #2c3e50;
+            min-width: 150px;
+            display: inline-block;
+        }
+        
+        /* Table of Contents */
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .toc li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Add dots/leader between text and page number using a pseudo-element */
+        .toc a::before {
+            content: '';
+            flex: 1;
+            border-bottom: 1px dotted #ccc;
+            margin: 0 10px;
+            order: 2;
+        }
+        
+        .toc-page-number {
+            order: 3;
+            margin-left: auto;
+            padding-left: 10px;
+            color: #666;
+            font-weight: normal;
+        }
+        
+        /* CSS target-counter for browsers that support it (print/PDF) */
+        @media print {
+            /* Use ::after for CSS-generated page numbers with leader */
+            .toc a::after {
+                content: leader('.') target-counter(attr(href url), page);
+                order: 3;
+                margin-left: auto;
+                padding-left: 10px;
+            }
+            /* Hide the dotted line in print if CSS target-counter is used */
+            .toc a::before {
+                display: none;
+            }
+            /* Hide JavaScript-generated page numbers if CSS target-counter works */
+            .toc-page-number {
+                display: none;
+            }
+        }
+        
+        /* Print styles for Table of Contents - ensure it fits on one page */
+        @media print {
+            .toc {
+                page-break-inside: avoid;
+                page-break-after: avoid;
+                font-size: 8pt !important;
+                line-height: 1.3 !important;
+                padding: 10px !important;
+                margin: 10px 0 !important;
+            }
+            .toc h2 {
+                font-size: 12pt !important;
+                margin-top: 0.5em !important;
+                margin-bottom: 0.5em !important;
+                padding-bottom: 5px !important;
+            }
+            .toc ul {
+                margin: 0 !important;
+                padding-left: 0 !important;
+            }
+            .toc li {
+                padding: 3px 0 !important;
+                margin: 0 !important;
+                font-size: 8pt !important;
+                line-height: 1.3 !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            .toc a {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+            }
+            .toc a::after {
+                content: '' !important;
+                flex: 1 !important;
+                border-bottom: 1px dotted #ccc !important;
+                margin: 0 10px !important;
+                order: 2 !important;
+            }
+            .toc-page-number {
+                order: 3 !important;
+                margin-left: auto !important;
+                padding-left: 10px !important;
+                color: #666 !important;
+                font-weight: normal !important;
+            }
+            .toc ul ul {
+                padding-left: 15px !important;
+            }
+            .toc ul ul li {
+                padding: 2px 0 !important;
+                font-size: 7pt !important;
+            }
+        }
+        
+        /* Page numbers and footer for print */
+        @page {
+            @bottom-center {
+                content: "Page " counter(page) " of " counter(pages);
+                font-size: 9pt;
+                color: #666;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            }
+        }
+        
+        /* Footer with copyright - visible on screen and print */
+        .report-footer {
+            margin-top: 3em;
+            padding-top: 1.5em;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #777;
+            font-size: 9pt;
+            page-break-inside: avoid;
+        }
+        
+        .report-footer .copyright {
+            margin: 10px 0;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .report-footer .page-number {
+            margin: 10px 0;
+            color: #999;
+            font-size: 8pt;
+        }
+        
+        @media print {
+            .report-footer {
+                position: fixed;
+                bottom: 20px;
+                left: 0;
+                right: 0;
+                width: 100%;
+                padding-top: 10px;
+                border-top: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ESG Executive Summary -->
+        {{ESG_EXECUTIVE_SUMMARY}}
+        
+        <!-- Table of Contents - REMOVED -->
+        
+        <!-- Environmental Impact Section -->
+        <div id="environmental">
+            {{ENVIRONMENTAL_IMPACT}}
+        </div>
+        
+        <!-- Financial Impact Section -->
+        <div id="financial-impact">
+            {{FINANCIAL_IMPACT}}
+        </div>
+        
+        <!-- Power Quality Impact Section -->
+        <div id="power-quality-impact">
+            {{POWER_QUALITY_IMPACT}}
+        </div>
+        
+        <!-- Social Impact Section - REMOVED -->
+        
+        <!-- Governance Section - REMOVED (pages 9-47) -->
+        
+        <!-- Case Study Narrative - REMOVED (pages 9-47) -->
+        
+        <!-- Complete Client HTML Report Content -->
+        <div id="client-report" style="page-break-before: always;">
+            {{CLIENT_HTML_REPORT_CONTENT}}
+        </div>
+        
+        <!-- Appendices - REMOVED (pages 9-47) -->
+        <!--
+        <div class="content" style="page-break-before: always;">
+            <h2 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 30px;">
+                Appendices
+            </h2>
+            
+            <h3 style="color: #2c3e50; margin-top: 30px;">Appendix A: ESG Calculation Methodologies</h3>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h4>Carbon Footprint Calculation</h4>
+                <p style="color: #555; line-height: 1.8;">
+                    CO2 emissions reduction is calculated using the formula:<br/>
+                    <strong>CO2 (tons) = Annual kWh Savings x Grid Emissions Factor (lbs/kWh) x 0.0005</strong>
+                </p>
+                <p style="color: #555; line-height: 1.8;">
+                    Grid emissions factors vary by region and are based on the energy mix of the local grid.
+                    Factors are sourced from EPA eGRID data and regional grid operator reports.
+                </p>
+                
+                <h4 style="margin-top: 20px;">Social Impact Estimation</h4>
+                <p style="color: #555; line-height: 1.8;">
+                    Job creation estimates are based on industry standards:<br/>
+                    <strong>Direct Jobs = kW Savings / 100</strong><br/>
+                    <strong>Indirect Jobs = Direct Jobs x 2</strong>
+                </p>
+                <p style="color: #555; line-height: 1.8;">
+                    Economic impact is estimated at $50,000 per job per year, representing wages,
+                    spending, and economic multiplier effects.
+                </p>
+            </div>
+            
+            <h3 style="color: #2c3e50; margin-top: 30px;">Appendix B: Grid Emissions Factors by Region</h3>
+            <table class="compliance-table" style="margin: 20px 0;">
+                <thead>
+                    <tr>
+                        <th>Region</th>
+                        <th style="text-align: right;">Emissions Factor (lbs CO2/kWh)</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>US Average</td>
+                        <td class="value-cell">0.818</td>
+                        <td>EPA eGRID 2023 average</td>
+                    </tr>
+                    <tr>
+                        <td>Texas (ERCOT)</td>
+                        <td class="value-cell">1.108</td>
+                        <td>Higher due to natural gas and coal</td>
+                    </tr>
+                    <tr>
+                        <td>California (CAISO)</td>
+                        <td class="value-cell">0.425</td>
+                        <td>Lower due to renewable energy</td>
+                    </tr>
+                    <tr>
+                        <td>New York (NYISO)</td>
+                        <td class="value-cell">0.400</td>
+                        <td>Lower due to hydro and nuclear</td>
+                    </tr>
+                    <tr>
+                        <td>PJM</td>
+                        <td class="value-cell">0.850</td>
+                        <td>Mid-Atlantic region</td>
+                    </tr>
+                    <tr>
+                        <td>MISO</td>
+                        <td class="value-cell">0.950</td>
+                        <td>Midwest region</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3 style="color: #2c3e50; margin-top: 30px;">Appendix C: ESG Framework References</h3>
+            <ul style="line-height: 2; color: #555;">
+                <li><strong>GRI Standards:</strong> Global Reporting Initiative Sustainability Reporting Standards</li>
+                <li><strong>SASB Standards:</strong> Sustainability Accounting Standards Board Industry Standards</li>
+                <li><strong>TCFD Recommendations:</strong> Task Force on Climate-related Financial Disclosures</li>
+                <li><strong>CDP:</strong> Carbon Disclosure Project Reporting Framework</li>
+                <li><strong>UN SDGs:</strong> United Nations Sustainable Development Goals</li>
+            </ul>
+            
+            <h3 style="color: #2c3e50; margin-top: 30px;">Appendix D: Glossary of Terms</h3>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <dl style="line-height: 2; color: #555;">
+                    <dt><strong>CO2 Equivalent (CO2e):</strong></dt>
+                    <dd>A metric used to compare emissions from different greenhouse gases based on their global warming potential</dd>
+                    
+                    <dt><strong>Grid Emissions Factor:</strong></dt>
+                    <dd>The average amount of CO2 emitted per unit of electricity generated in a specific grid region</dd>
+                    
+                    <dt><strong>Scope 2 Emissions:</strong></dt>
+                    <dd>Indirect greenhouse gas emissions from purchased electricity, steam, heating, and cooling</dd>
+                    
+                    <dt><strong>ESG:</strong></dt>
+                    <dd>Environmental, Social, and Governance - a framework for evaluating corporate sustainability</dd>
+                    
+                    <dt><strong>GRI:</strong></dt>
+                    <dd>Global Reporting Initiative - international standards for sustainability reporting</dd>
+                    
+                    <dt><strong>SASB:</strong></dt>
+                    <dd>Sustainability Accounting Standards Board - industry-specific sustainability standards</dd>
+                    
+                    <dt><strong>TCFD:</strong></dt>
+                    <dd>Task Force on Climate-related Financial Disclosures - framework for climate risk reporting</dd>
+                </dl>
+            </div>
+        </div>
+        -->
+        
+    </div>
+    
+    <!-- Table of Contents JavaScript - REMOVED (TOC section removed) -->
+</body>
+</html>
+

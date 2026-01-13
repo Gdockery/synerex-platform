@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNEREX Power Analysis - Executive Summary</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+        
+        .layman-report {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            text-align: center;
+            padding: 80px 40px;
+            background: linear-gradient(135deg, #2c5aa0 0%, #1e3a5f 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 20s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.3; }
+        }
+        
+        .hero-title {
+            font-size: 32px;
+            font-weight: 300;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero-savings {
+            font-size: 96px;
+            font-weight: bold;
+            margin: 30px 0;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero-subtitle {
+            font-size: 28px;
+            opacity: 0.95;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .hero-monthly {
+            font-size: 22px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            padding: 40px;
+            background: white;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #dee2e6;
+            border-radius: 15px;
+            padding: 35px 25px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .metric-icon {
+            font-size: 56px;
+            margin-bottom: 15px;
+        }
+        
+        .metric-value {
+            font-size: 52px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 15px 0;
+            line-height: 1.2;
+        }
+        
+        .metric-label {
+            font-size: 18px;
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .metric-description {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+        
+        /* Trust Badges */
+        .trust-section {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .trust-title {
+            font-size: 24px;
+            color: #2c5aa0;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        
+        .trust-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        .badge {
+            background: white;
+            padding: 14px 24px;
+            border-radius: 30px;
+            border: 2px solid #28a745;
+            font-weight: 600;
+            color: #28a745;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .badge::before {
+            content: "✓";
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        /* Verification Box */
+        .verification-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border: 3px solid #ffc107;
+            border-radius: 15px;
+            padding: 35px;
+            text-align: center;
+            margin: 30px 40px;
+            box-shadow: 0 4px 15px rgba(255,193,7,0.3);
+        }
+        
+        .verification-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .verification-code {
+            font-size: 42px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            color: #2c5aa0;
+            margin: 20px 0;
+            letter-spacing: 4px;
+            background: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .verification-link {
+            display: block;
+            margin-top: 15px;
+            font-size: 18px;
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .verification-link:hover {
+            text-decoration: underline;
+        }
+        
+        .verification-note {
+            margin-top: 20px;
+            color: #856404;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        /* Section Styling */
+        .section {
+            margin: 0;
+            padding: 50px 40px;
+            background: white;
+        }
+        
+        .section:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .section-title {
+            font-size: 32px;
+            color: #2c5aa0;
+            margin-bottom: 30px;
+            border-bottom: 4px solid #2c5aa0;
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .section-icon {
+            font-size: 36px;
+        }
+        
+        /* Comparison Chart */
+        .comparison-chart {
+            background: #f8f9fa;
+            padding: 40px;
+            border-radius: 15px;
+            margin: 30px 0;
+        }
+        
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 25px;
+            height: 250px;
+            margin: 40px 0;
+            padding: 20px;
+        }
+        
+        .bar {
+            flex: 1;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 15px;
+            color: white;
+            font-weight: bold;
+            min-height: 60px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .bar-before {
+            background: linear-gradient(to top, #dc3545, #e74c3c);
+            height: 100%;
+        }
+        
+        .bar-after {
+            background: linear-gradient(to top, #6c757d, #868e96);
+            height: 85%;
+        }
+        
+        .bar-savings {
+            background: linear-gradient(to top, #28a745, #20c997);
+            height: 15%;
+        }
+        
+        .bar-label {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .bar-value {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        
+        /* Savings Breakdown */
+        .savings-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .breakdown-item {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid #2196f3;
+        }
+        
+        .breakdown-value {
+            font-size: 38px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 15px 0;
+        }
+        
+        .breakdown-label {
+            color: #1976d2;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .breakdown-total {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+            border: 3px solid #28a745;
+            padding: 30px;
+        }
+        
+        .breakdown-total .breakdown-value {
+            font-size: 48px;
+        }
+        
+        .breakdown-total .breakdown-label {
+            font-size: 20px;
+            color: #2e7d32;
+        }
+        
+        /* Real-World Comparisons */
+        .real-world-comparisons {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 35px;
+            border-radius: 15px;
+            border-left: 6px solid #2196f3;
+            margin: 30px 0;
+        }
+        
+        .comparison-item {
+            margin: 20px 0;
+            font-size: 20px;
+            color: #1565c0;
+            line-height: 1.8;
+        }
+        
+        .comparison-item::before {
+            content: "🌍 ";
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        
+        /* Investment Growth */
+        .growth-timeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .growth-year {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .growth-year:hover {
+            border-color: #28a745;
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(40,167,69,0.2);
+        }
+        
+        .growth-year-label {
+            font-size: 18px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .growth-year-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #28a745;
+            margin: 10px 0;
+        }
+        
+        .growth-year-multiplier {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 10px;
+        }
+        
+        /* Technical Details (Collapsible) */
+        details.section {
+            border-top: 3px solid #dee2e6;
+        }
+        
+        details summary {
+            font-size: 22px;
+            font-weight: 600;
+            color: #2c5aa0;
+            cursor: pointer;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            user-select: none;
+        }
+        
+        details summary:hover {
+            background: #e9ecef;
+        }
+        
+        details[open] summary {
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        
+        .technical-content {
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .technical-content h3 {
+            color: #2c5aa0;
+            margin: 20px 0 15px 0;
+            font-size: 20px;
+        }
+        
+        .technical-content ul {
+            margin-left: 30px;
+            line-height: 2;
+        }
+        
+        .technical-content li {
+            margin: 10px 0;
+            color: #495057;
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .layman-report {
+                box-shadow: none;
+            }
+            
+            .section {
+                page-break-inside: avoid;
+            }
+            
+            .hero-section {
+                page-break-after: always;
+            }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-savings {
+                font-size: 64px;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .bar-chart {
+                flex-direction: column;
+                height: auto;
+            }
+            
+            .bar {
+                width: 100%;
+                height: 80px !important;
+            }
+            
+            .savings-breakdown {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layman-report">
+        <!-- PAGE 1: Hero Section -->
+        <div class="hero-section">
+            <div style="margin-bottom: 30px; position: relative; z-index: 1;">
+                <img src="{{SYNEREX_LOGO}}" alt="Synerex Logo" style="max-width: 400px; height: auto; filter: brightness(0) invert(1);">
+            </div>
+            <div class="hero-title">POWER ANALYSIS REPORT</div>
+            <div class="hero-savings">{{TOTAL_ANNUAL_SAVINGS_FORMATTED}}</div>
+            <div class="hero-subtitle">Your Annual Savings</div>
+            <div class="hero-monthly">That's {{MONTHLY_SAVINGS_FORMATTED}} every month</div>
+        </div>
+        
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">⏱️</div>
+                <div class="metric-value">{{SIMPLE_PAYBACK_MONTHS}}</div>
+                <div class="metric-label">Months to Payback</div>
+                <div class="metric-description">Your investment pays for itself in less than a year!</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">📈</div>
+                <div class="metric-value">{{ROI_PERCENT}}%</div>
+                <div class="metric-label">Return on Investment</div>
+                <div class="metric-description">Every $1 you invest returns {{ROI_MULTIPLIER}} per year</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">⚡</div>
+                <div class="metric-value">{{ANNUAL_KWH_SAVINGS_FORMATTED}}</div>
+                <div class="metric-label">kWh Saved Annually</div>
+                <div class="metric-description">Enough to power {{HOMES_EQUIVALENT}} average homes</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">🔌</div>
+                <div class="metric-value">{{KW_SAVINGS_FORMATTED}}</div>
+                <div class="metric-label">kW Reduction</div>
+                <div class="metric-description">Like turning off {{LIGHTBULBS_EQUIVALENT}} light bulbs 24/7</div>
+            </div>
+        </div>
+        
+        <!-- Trust Badges -->
+        <div class="trust-section">
+            <div class="trust-title">✅ VERIFIED & PROTECTED</div>
+            <div class="trust-badges">
+                <div class="badge">Professional Engineer Verified</div>
+                <div class="badge">Meets Utility Audit Requirements</div>
+                <div class="badge">Accepted for Rebate Applications</div>
+                <div class="badge">Standards Compliant</div>
+            </div>
+            
+            <!-- Verification Code -->
+            <div class="verification-box">
+                <div class="verification-title">Verify These Results Online</div>
+                <div class="verification-code">{{VERIFICATION_CODE}}</div>
+                <a href="http://localhost:8082/verify/{{VERIFICATION_CODE}}" class="verification-link" target="_blank">
+                    Verify at: localhost:8082/verify/{{VERIFICATION_CODE}}
+                </a>
+                <div class="verification-note">
+                    Anyone can verify these results - your utility, accountant, or board members.<br>
+                    All data is permanently stored and auditable.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Before/After Chart -->
+        <div class="section">
+            <div class="section-title">
+                <span class="section-icon">📊</span>
+                <span>Your Power Usage Dropped</span>
+            </div>
+            <div class="comparison-chart">
+                <div class="bar-chart">
+                    <div class="bar bar-before" style="height: 100%;">
+                        <div class="bar-value">100%</div>
+                        <div class="bar-label">BEFORE<br/>{{BEFORE_COST_FORMATTED}}/year</div>
+                    </div>
+                    <div class="bar bar-after" style="height: {{AFTER_PERCENT}}%;">
+                        <div class="bar-value">{{AFTER_PERCENT}}%</div>
+                        <div class="bar-label">AFTER<br/>{{AFTER_COST_FORMATTED}}/year</div>
+                    </div>
+                    <div class="bar bar-savings" style="height: {{SAVINGS_PERCENT}}%;">
+                        <div class="bar-value">{{SAVINGS_PERCENT}}%</div>
+                        <div class="bar-label">SAVINGS<br/>{{TOTAL_ANNUAL_SAVINGS_FORMATTED}}/year</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PAGE 2: What This Means -->
+        <div class="section">
+            <div class="section-title">
+                <span class="section-icon">💵</span>
+                <span>Monthly Savings Breakdown</span>
+            </div>
+            <div class="savings-breakdown">
+                <div class="breakdown-item">
+                    <div class="breakdown-value">{{ENERGY_MONTHLY_SAVINGS}}</div>
+                    <div class="breakdown-label">Energy Savings</div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-value">{{DEMAND_MONTHLY_SAVINGS}}</div>
+                    <div class="breakdown-label">Demand Savings</div>
+                </div>
+                <div class="breakdown-item">
+                    <div class="breakdown-value">{{NETWORK_MONTHLY_SAVINGS}}</div>
+                    <div class="breakdown-label">Network Savings</div>
+                </div>
+                <div class="breakdown-item breakdown-total">
+                    <div class="breakdown-value">{{MONTHLY_SAVINGS_FORMATTED}}</div>
+                    <div class="breakdown-label">Total Monthly Savings</div>
+                    <div style="margin-top: 15px; font-size: 18px; color: #2e7d32;">
+                        That's {{DAILY_SAVINGS}} saved every single day!
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Investment Growth -->
+        <div class="section">
+            <div class="section-title">
+                <span class="section-icon">📈</span>
+                <span>Your Investment Grows Over Time</span>
+            </div>
+            <div class="growth-timeline">
+                <div class="growth-year">
+                    <div class="growth-year-label">Year 1</div>
+                    <div class="growth-year-value">{{YEAR_1_SAVINGS}}</div>
+                    <div class="growth-year-multiplier">Investment recovered + {{YEAR_1_PROFIT}}</div>
+                </div>
+                <div class="growth-year">
+                    <div class="growth-year-label">Year 5</div>
+                    <div class="growth-year-value">{{YEAR_5_SAVINGS}}</div>
+                    <div class="growth-year-multiplier">{{YEAR_5_MULTIPLIER}}x your investment</div>
+                </div>
+                <div class="growth-year">
+                    <div class="growth-year-label">Year 10</div>
+                    <div class="growth-year-value">{{YEAR_10_SAVINGS}}</div>
+                    <div class="growth-year-multiplier">{{YEAR_10_MULTIPLIER}}x your investment</div>
+                </div>
+                <div class="growth-year">
+                    <div class="growth-year-label">Year 15</div>
+                    <div class="growth-year-value">{{YEAR_15_SAVINGS}}</div>
+                    <div class="growth-year-multiplier">{{YEAR_15_MULTIPLIER}}x your investment</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Real-World Impact -->
+        <div class="section">
+            <div class="section-title">
+                <span class="section-icon">🌍</span>
+                <span>Real-World Impact</span>
+            </div>
+            <div class="real-world-comparisons">
+                <div class="comparison-item">
+                    Powering {{HOMES_EQUIVALENT}} average homes for a year
+                </div>
+                <div class="comparison-item">
+                    Removing {{CARS_EQUIVALENT}} cars from the road for a year
+                </div>
+                <div class="comparison-item">
+                    Planting {{TREES_EQUIVALENT}} trees and letting them grow for 10 years
+                </div>
+            </div>
+        </div>
+        
+        <!-- Technical Details (Collapsible) -->
+        <details class="section">
+            <summary>Technical Details (For Engineers & Auditors)</summary>
+            <div class="technical-content">
+                <h3>Standards Compliance:</h3>
+                <ul>
+                    <li>IEEE 519-2014/2022: Harmonic limits verified</li>
+                    <li>ASHRAE Guideline 14-2014: Statistical validation</li>
+                    <li>IPMVP Volume I: Measurement & Verification protocol</li>
+                    <li>NEMA MG1: Voltage unbalance standards</li>
+                </ul>
+                <h3>Methodology:</h3>
+                <ul>
+                    <li>Weather normalization: ASHRAE Guideline 14-2014</li>
+                    <li>Power factor normalization: Utility billing standard</li>
+                    <li>Statistical analysis: 95% confidence intervals</li>
+                    <li>Data source: Utility-grade metering equipment</li>
+                </ul>
+                <h3>Verification:</h3>
+                <ul>
+                    <li>Verification Code: {{VERIFICATION_CODE}}</li>
+                    <li>Analysis Session ID: {{ANALYSIS_SESSION_ID}}</li>
+                    <li>Report Date: {{REPORT_DATE}}</li>
+                    <li>Full audit trail available upon request</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+</body>
+</html>
+
+

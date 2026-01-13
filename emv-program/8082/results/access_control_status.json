@@ -1,0 +1,23 @@
+{
+  "sensitive_directories": {
+    "results": "restricted",
+    "files": "restricted",
+    "keys": "restricted",
+    "templates": "restricted",
+    "uploads": "restricted",
+    "reports": "restricted"
+  },
+  "database_files": {
+    "app.db": "read_only",
+    "synerex_oneform.db": "read_only",
+    "app_backup_20250929_140230.db": "read_only",
+    "app_backup_20250930_095841.db": "read_only",
+    "app_backup_20251005_000718.db": "read_only",
+    "app_latest.db": "read_only"
+  },
+  "backup_files": {
+    "total_backups": 17,
+    "secured_backups": 17,
+    "access_controlled_backups": 17
+  }
+}

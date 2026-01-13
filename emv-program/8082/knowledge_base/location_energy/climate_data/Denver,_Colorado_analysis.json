@@ -1,0 +1,64 @@
+{
+  "location_analysis": {
+    "location": "Denver, Colorado",
+    "climate_zone": "zone_3",
+    "zone_description": "Hot, Dry (Arizona, Nevada)",
+    "temperature_analysis": {
+      "current_temperature": 45,
+      "climate_zone_range": [
+        50,
+        105
+      ],
+      "temperature_analysis": {
+        "above_normal": false,
+        "below_normal": true,
+        "optimal_range": false,
+        "cooling_load_impact": 0,
+        "heating_load_impact": 20
+      }
+    },
+    "energy_characteristics": {
+      "primary_concern": "Cooling loads, solar gain",
+      "energy_intensity": 20,
+      "peak_demand": "Summer afternoons",
+      "efficiency_focus": "Solar shading, thermal mass"
+    }
+  },
+  "regional_energy_data": {
+    "utility_rates": {
+      "peak_rate": 0.2,
+      "off_peak_rate": 0.12,
+      "demand_charge": 10.0
+    },
+    "renewable_percentage": 25,
+    "incentives": [
+      "Federal tax credits",
+      "State rebates"
+    ],
+    "energy_trends": [
+      "Renewable growth",
+      "Efficiency improvements"
+    ]
+  },
+  "recommendations": [
+    "Optimize HVAC systems for cooling efficiency",
+    "Consider solar shading and thermal mass",
+    "Implement demand response for peak cooling",
+    "Evaluate chiller efficiency and controls",
+    "High heating load detected - focus on heating optimization",
+    "Consider heat recovery and cogeneration",
+    "Evaluate building insulation upgrades"
+  ],
+  "energy_opportunities": [
+    {
+      "type": "Heating Optimization",
+      "description": "High heating load presents efficiency opportunities",
+      "potential_savings": "20-30%",
+      "technologies": [
+        "High-efficiency boilers",
+        "Heat recovery",
+        "Cogeneration"
+      ]
+    }
+  ]
+}

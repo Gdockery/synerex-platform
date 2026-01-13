@@ -1,0 +1,72 @@
+{
+  "rate_structures": {
+    "time_of_use": {
+      "description": "Rates vary by time of day and season",
+      "peak_hours": {
+        "summer": "12:00 PM - 6:00 PM",
+        "winter": "6:00 PM - 9:00 PM"
+      },
+      "off_peak_hours": "All other hours",
+      "rate_multiplier": "Peak rates 2-3x higher than off-peak"
+    },
+    "demand_charges": {
+      "description": "Charges based on maximum demand",
+      "calculation_method": "Highest 15-minute demand in billing period",
+      "rate_structure": "$/kW per month",
+      "optimization_strategies": [
+        "Load shifting to off-peak hours",
+        "Peak shaving with energy storage",
+        "Demand response participation"
+      ]
+    },
+    "energy_charges": {
+      "description": "Charges based on energy consumption",
+      "rate_components": [
+        "Generation charges",
+        "Transmission charges",
+        "Distribution charges",
+        "Regulatory charges"
+      ]
+    }
+  },
+  "regional_variations": {
+    "california": {
+      "characteristics": "High renewable energy, complex rate structures",
+      "major_utilities": [
+        "PG&E",
+        "SCE",
+        "SDG&E"
+      ],
+      "rate_features": [
+        "Time-of-use",
+        "Tiered rates",
+        "Net metering"
+      ]
+    },
+    "texas": {
+      "characteristics": "Deregulated market, competitive rates",
+      "major_utilities": [
+        "Oncor",
+        "CenterPoint",
+        "AEP"
+      ],
+      "rate_features": [
+        "Competitive rates",
+        "Choice of providers"
+      ]
+    },
+    "new_york": {
+      "characteristics": "High demand charges, time-of-use rates",
+      "major_utilities": [
+        "ConEd",
+        "National Grid",
+        "NYSEG"
+      ],
+      "rate_features": [
+        "Time-of-use",
+        "Demand charges",
+        "Incentives"
+      ]
+    }
+  }
+}

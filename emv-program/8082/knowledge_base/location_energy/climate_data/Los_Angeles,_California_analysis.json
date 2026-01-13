@@ -1,0 +1,57 @@
+{
+  "location_analysis": {
+    "location": "Los Angeles, California",
+    "climate_zone": "zone_2",
+    "zone_description": "Hot, Humid (Texas, Louisiana)",
+    "temperature_analysis": {
+      "current_temperature": 75,
+      "climate_zone_range": [
+        60,
+        90
+      ],
+      "temperature_analysis": {
+        "above_normal": false,
+        "below_normal": false,
+        "optimal_range": true,
+        "cooling_load_impact": 0,
+        "heating_load_impact": 0
+      }
+    },
+    "energy_characteristics": {
+      "primary_concern": "Cooling and humidity",
+      "energy_intensity": 22,
+      "peak_demand": "Summer afternoons",
+      "efficiency_focus": "Dehumidification, ventilation"
+    }
+  },
+  "regional_energy_data": {
+    "utility_rates": {
+      "peak_rate": 0.45,
+      "off_peak_rate": 0.25,
+      "demand_charge": 15.5,
+      "time_of_use": true,
+      "renewable_percentage": 60
+    },
+    "renewable_percentage": 60,
+    "incentives": [
+      "SGIP",
+      "Self-Generation Incentive Program",
+      "Rebates up to $1,000/kW"
+    ],
+    "energy_trends": [
+      "High renewable adoption",
+      "Grid modernization",
+      "Storage growth"
+    ]
+  },
+  "recommendations": [
+    "Optimize HVAC systems for cooling efficiency",
+    "Consider solar shading and thermal mass",
+    "Implement demand response for peak cooling",
+    "Evaluate chiller efficiency and controls",
+    "High renewable energy availability - consider grid-tied systems",
+    "Evaluate time-of-use rate optimization",
+    "Consider energy storage for grid services"
+  ],
+  "energy_opportunities": []
+}

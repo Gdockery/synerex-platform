@@ -1,0 +1,321 @@
+{
+  "federal": [
+    {
+      "name": "Residential Clean Energy Credit (ITC)",
+      "type": "tax_credit",
+      "amount": "30%",
+      "description": "30% federal tax credit for solar, wind, geothermal, battery storage, and other clean energy systems. Applies to installation costs.",
+      "expires": "2032",
+      "eligibility": ["residential", "commercial"],
+      "equipment": ["solar", "wind", "geothermal", "battery_storage", "fuel_cells", "microturbines"],
+      "application_form": "IRS Form 5695",
+      "website": "https://www.energy.gov/eere/solar/homeowners-guide-federal-tax-credit-solar-photovoltaics",
+      "requirements": ["System must be installed and operational", "Must be primary or secondary residence", "Equipment must meet efficiency standards"]
+    },
+    {
+      "name": "Energy Efficient Home Improvement Credit",
+      "type": "tax_credit",
+      "amount": "up to $3,200/year",
+      "description": "Tax credit for energy-efficient home improvements including HVAC, insulation, windows, doors, heat pumps, and energy audits.",
+      "expires": "2032",
+      "eligibility": ["residential"],
+      "equipment": ["hvac", "insulation", "windows", "doors", "heat_pumps", "energy_audits", "water_heaters"],
+      "application_form": "IRS Form 5695",
+      "website": "https://www.energy.gov/energysaver/energy-efficient-home-improvement-credit",
+      "breakdown": {
+        "heat_pumps": "$2,000",
+        "heat_pump_water_heaters": "$2,000",
+        "biomass_stoves": "$2,000",
+        "insulation": "$1,200",
+        "windows_doors": "$600",
+        "energy_audits": "$150"
+      }
+    },
+    {
+      "name": "Commercial Energy Investment Tax Credit (ITC)",
+      "type": "tax_credit",
+      "amount": "30%",
+      "description": "30% federal tax credit for commercial solar, wind, geothermal, fuel cells, and combined heat and power systems.",
+      "expires": "2032",
+      "eligibility": ["commercial", "industrial"],
+      "equipment": ["solar", "wind", "geothermal", "fuel_cells", "chp", "microturbines"],
+      "application_form": "IRS Form 3468",
+      "website": "https://www.energy.gov/eere/solar/investment-tax-credit-itc"
+    },
+    {
+      "name": "Modified Accelerated Cost Recovery System (MACRS)",
+      "type": "tax_deduction",
+      "amount": "5-year depreciation",
+      "description": "Accelerated depreciation for commercial energy efficiency and renewable energy equipment.",
+      "expires": "Ongoing",
+      "eligibility": ["commercial", "industrial"],
+      "equipment": ["solar", "wind", "geothermal", "energy_efficiency", "hvac", "lighting"],
+      "application_form": "IRS Form 4562",
+      "website": "https://www.irs.gov/publications/p946"
+    }
+  ],
+  "state": {
+    "california": [
+      {
+        "name": "California Solar Initiative (CSI)",
+        "type": "rebate",
+        "amount": "Varies by utility and system size",
+        "description": "State-wide solar rebate program administered by utilities. Performance-based incentives for residential and commercial systems.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar"],
+        "website": "https://www.californiasolarinitiative.org/",
+        "utilities": ["PG&E", "SCE", "SDG&E"]
+      },
+      {
+        "name": "Self-Generation Incentive Program (SGIP)",
+        "type": "rebate",
+        "amount": "Up to $1,000/kWh for battery storage",
+        "description": "Rebate program for energy storage systems, fuel cells, and other distributed energy resources.",
+        "eligibility": ["residential", "commercial", "industrial"],
+        "equipment": ["battery_storage", "fuel_cells", "microturbines"],
+        "website": "https://www.cpuc.ca.gov/sgip"
+      },
+      {
+        "name": "California Energy Commission (CEC) Rebates",
+        "type": "rebate",
+        "amount": "Varies",
+        "description": "Various rebate programs for energy efficiency, HVAC, and renewable energy systems.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "energy_efficiency", "solar", "heat_pumps"],
+        "website": "https://www.energy.ca.gov/"
+      }
+    ],
+    "texas": [
+      {
+        "name": "Texas Property Tax Exemption for Solar",
+        "type": "tax_exemption",
+        "amount": "100% property tax exemption",
+        "description": "Property tax exemption for solar and wind energy systems installed on residential and commercial properties.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar", "wind"],
+        "website": "https://comptroller.texas.gov/taxes/property-tax/exemptions/solar-wind.php"
+      },
+      {
+        "name": "Oncor Energy Efficiency Rebates",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "Rebates for energy-efficient HVAC, lighting, insulation, and appliances.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "lighting", "insulation", "appliances"],
+        "website": "https://www.oncor.com/en-us/Pages/Energy-Efficiency.aspx",
+        "utility": "Oncor"
+      }
+    ],
+    "new_york": [
+      {
+        "name": "NY-Sun Program",
+        "type": "rebate",
+        "amount": "Varies by region and system size",
+        "description": "State-wide solar incentive program providing rebates and financing options.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar"],
+        "website": "https://www.nyserda.ny.gov/All-Programs/Programs/NY-Sun"
+      },
+      {
+        "name": "Con Edison Energy Efficiency Rebates",
+        "type": "rebate",
+        "amount": "Varies by equipment",
+        "description": "Rebates for energy-efficient HVAC, lighting, insulation, and appliances.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "lighting", "insulation", "appliances", "heat_pumps"],
+        "website": "https://www.coned.com/en/save-energy-money/rebates-incentives",
+        "utility": "ConEd"
+      }
+    ],
+    "florida": [
+      {
+        "name": "Florida Property Tax Exemption for Solar",
+        "type": "tax_exemption",
+        "amount": "100% property tax exemption",
+        "description": "Property tax exemption for solar and renewable energy systems.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar", "renewable_energy"],
+        "website": "https://www.floridarevenue.com/property/Pages/TaxExemptions.aspx"
+      },
+      {
+        "name": "FPL Energy Efficiency Rebates",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "Rebates for energy-efficient HVAC, water heaters, insulation, and appliances.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "water_heaters", "insulation", "appliances"],
+        "website": "https://www.fpl.com/energy-saving/rebates.html",
+        "utility": "FPL"
+      }
+    ],
+    "colorado": [
+      {
+        "name": "Colorado Solar Tax Credit",
+        "type": "tax_credit",
+        "amount": "Up to $1,000",
+        "description": "State tax credit for residential solar installations.",
+        "eligibility": ["residential"],
+        "equipment": ["solar"],
+        "website": "https://www.colorado.gov/pacific/dora/energy-office"
+      },
+      {
+        "name": "Xcel Energy Rebates",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "Rebates for energy-efficient HVAC, lighting, and appliances.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "lighting", "appliances", "heat_pumps"],
+        "website": "https://www.xcelenergy.com/save_money_energy/rebates_and_programs",
+        "utility": "Xcel Energy"
+      }
+    ],
+    "massachusetts": [
+      {
+        "name": "Massachusetts Solar Incentive Program (SMART)",
+        "type": "rebate",
+        "amount": "Performance-based incentives",
+        "description": "Solar Massachusetts Renewable Target (SMART) program providing performance-based incentives.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar"],
+        "website": "https://www.mass.gov/smart"
+      },
+      {
+        "name": "Mass Save Rebates",
+        "type": "rebate",
+        "amount": "Varies by equipment",
+        "description": "Comprehensive rebate program for energy efficiency improvements.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["hvac", "insulation", "windows", "heat_pumps", "water_heaters"],
+        "website": "https://www.masssave.com/",
+        "utility": "Multiple utilities"
+      }
+    ],
+    "arizona": [
+      {
+        "name": "Arizona Solar Tax Credit",
+        "type": "tax_credit",
+        "amount": "25% of system cost, up to $1,000",
+        "description": "State tax credit for residential solar installations.",
+        "eligibility": ["residential"],
+        "equipment": ["solar"],
+        "website": "https://www.azcommerce.com/"
+      }
+    ],
+    "georgia": [
+      {
+        "name": "Georgia Power Solar Rebates",
+        "type": "rebate",
+        "amount": "Varies by system size",
+        "description": "Rebates for residential and commercial solar installations.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar"],
+        "website": "https://www.georgiapower.com/solar",
+        "utility": "Georgia Power"
+      }
+    ],
+    "north_carolina": [
+      {
+        "name": "Duke Energy Solar Rebates",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "Rebates for solar and energy efficiency improvements.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar", "energy_efficiency"],
+        "website": "https://www.duke-energy.com/home/products/rebates",
+        "utility": "Duke Energy"
+      }
+    ],
+    "washington": [
+      {
+        "name": "Washington State Solar Incentives",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "State and utility rebates for solar and energy efficiency.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar", "energy_efficiency"],
+        "website": "https://www.commerce.wa.gov/"
+      }
+    ],
+    "oregon": [
+      {
+        "name": "Energy Trust of Oregon",
+        "type": "rebate",
+        "amount": "Varies by program",
+        "description": "Rebates for energy efficiency and renewable energy systems.",
+        "eligibility": ["residential", "commercial"],
+        "equipment": ["solar", "energy_efficiency", "hvac", "heat_pumps"],
+        "website": "https://www.energytrust.org/"
+      }
+    ]
+  },
+  "utility_programs": {
+    "pge": {
+      "name": "PG&E Energy Efficiency Rebates",
+      "rebates": [
+        {"equipment": "hvac", "amount": "Up to $1,500"},
+        {"equipment": "heat_pumps", "amount": "Up to $3,000"},
+        {"equipment": "insulation", "amount": "Up to $1,200"},
+        {"equipment": "water_heaters", "amount": "Up to $500"}
+      ],
+      "website": "https://www.pge.com/en/save/rebates-and-incentives"
+    },
+    "sce": {
+      "name": "SCE Energy Efficiency Rebates",
+      "rebates": [
+        {"equipment": "hvac", "amount": "Up to $1,000"},
+        {"equipment": "heat_pumps", "amount": "Up to $2,500"},
+        {"equipment": "insulation", "amount": "Up to $1,000"}
+      ],
+      "website": "https://www.sce.com/residential/rebates-savings"
+    },
+    "coned": {
+      "name": "Con Edison Energy Efficiency Rebates",
+      "rebates": [
+        {"equipment": "hvac", "amount": "Up to $2,000"},
+        {"equipment": "heat_pumps", "amount": "Up to $3,000"},
+        {"equipment": "insulation", "amount": "Up to $1,500"}
+      ],
+      "website": "https://www.coned.com/en/save-energy-money/rebates-incentives"
+    },
+    "fpl": {
+      "name": "FPL Energy Efficiency Rebates",
+      "rebates": [
+        {"equipment": "hvac", "amount": "Up to $1,200"},
+        {"equipment": "water_heaters", "amount": "Up to $400"},
+        {"equipment": "insulation", "amount": "Up to $800"}
+      ],
+      "website": "https://www.fpl.com/energy-saving/rebates.html"
+    }
+  },
+  "equipment_categories": {
+    "solar": {
+      "description": "Solar photovoltaic systems",
+      "common_incentives": ["federal_itc", "state_rebates", "utility_rebates", "property_tax_exemptions"]
+    },
+    "battery_storage": {
+      "description": "Energy storage systems",
+      "common_incentives": ["federal_itc", "state_rebates", "utility_rebates"]
+    },
+    "hvac": {
+      "description": "Heating, ventilation, and air conditioning systems",
+      "common_incentives": ["federal_tax_credit", "state_rebates", "utility_rebates"]
+    },
+    "heat_pumps": {
+      "description": "Heat pump systems",
+      "common_incentives": ["federal_tax_credit", "state_rebates", "utility_rebates"]
+    },
+    "insulation": {
+      "description": "Building insulation",
+      "common_incentives": ["federal_tax_credit", "state_rebates", "utility_rebates"]
+    },
+    "windows": {
+      "description": "Energy-efficient windows",
+      "common_incentives": ["federal_tax_credit", "state_rebates"]
+    },
+    "lighting": {
+      "description": "Energy-efficient lighting",
+      "common_incentives": ["utility_rebates", "state_rebates"]
+    }
+  }
+}
+

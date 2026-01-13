@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Clipping Interface - Synerex</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .dashboard-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px 0;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo {
+            height: 40px;
+            width: auto;
+        }
+        
+        .logo-section h1 {
+            margin: 0;
+            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+        }
+        
+        .dashboard-content {
+            flex: 1;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .dashboard-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .section-header h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .section-header p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .search-files {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .files-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .file-item {
+            padding: 15px;
+            border-bottom: 1px solid #f8f9fa;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .file-details {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .csv-table-container {
+            max-height: 500px;
+            overflow: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .csv-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .csv-table th,
+        .csv-table td {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            text-align: left;
+        }
+        
+        .csv-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .csv-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .visible {
+            display: block !important;
+        }
+        
+        .notification {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .notification.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .notification.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .notification.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="/static/synerex_logo.png" alt="Synerex Logo" class="logo">
+                    <h1>CSV Clipping Interface</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="csv-editor-guide-btn" class="btn btn-primary" onclick="window.open('/csv-editor-guide', '_blank')" title="Open CSV Editor Guide">📖 CSV Editor Guide</button>
+                    <button id="back-to-dashboard" class="btn btn-secondary">← Back to Dashboard</button>
+                    <button id="logout-btn" class="btn btn-danger">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- File Selection Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>📁 Select File for Clipping</h2>
+                    <p>Choose a raw meter data file to edit and clip</p>
+                </div>
+                <div class="search-files">
+                    <input type="text" id="file-search" placeholder="Search files..." class="search-input">
+                    <button id="refresh-files" class="btn btn-secondary">🔄 Refresh</button>
+                </div>
+                <div class="files-list" id="files-list">
+                    <div class="loading">Loading files...</div>
+                </div>
+            </div>
+
+            <!-- CSV Editor Section -->
+            <div class="dashboard-section hidden" id="editor-section">
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>✂️ CSV Editor</h2>
+                        <p>Edit and clip your CSV data</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="window.open('/csv-editor-guide', '_blank')" title="Open CSV Editor Guide" style="margin-left: 20px;">📖 Guide</button>
+                </div>
+                <div id="file-info"></div>
+                
+                <!-- Row Selection Controls -->
+                <div class="dashboard-section" style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                    <h3>📊 Select Data Range</h3>
+                    <p>Choose which rows to include in your analysis:</p>
+                    <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <label for="start-row" style="display: block; margin-bottom: 5px; font-weight: 600;">Start Row:</label>
+                            <input type="number" id="start-row" min="1" placeholder="1" style="padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 4px; width: 100px;">
+                        </div>
+                        <div>
+                            <label for="end-row" style="display: block; margin-bottom: 5px; font-weight: 600;">End Row:</label>
+                            <input type="number" id="end-row" min="1" placeholder="100" style="padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 4px; width: 100px;">
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: end;">
+                            <button class="btn btn-primary" onclick="previewRange()">👁️ Preview</button>
+                            <button class="btn btn-success" onclick="applyRange()">✅ Apply Range</button>
+                            <button class="btn btn-secondary" onclick="clearRange()">🗑️ Clear</button>
+                        </div>
+                    </div>
+                    <div id="range-preview" style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #dee2e6;">
+                        <strong>Range Preview:</strong> <span id="range-preview-text">No range selected</span>
+                    </div>
+                </div>
+                
+                <div id="csv-table-container"></div>
+                <div style="margin-top: 20px;">
+                    <button id="save-changes" class="btn btn-success" onclick="saveChanges()">💾 Save Changes</button>
+                    <button id="discard-changes" class="btn btn-secondary" onclick="discardChanges()">🗑️ Discard Changes</button>
+                    <button id="preview-changes" class="btn btn-primary" onclick="previewChanges()">👁️ Preview Changes</button>
+                    <button class="btn btn-secondary" onclick="hideEditor()">❌ Cancel</button>
+                </div>
+            </div>
+            
+            <!-- Modification Reason Form Section -->
+            <div class="dashboard-section hidden" id="selection-summary-section" style="display: none;">
+                <div class="section-header">
+                    <h2>📝 Document Modification Reason</h2>
+                    <p>Please provide a reason for modifying this file. This information will be recorded in the audit trail.</p>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <form id="modification-reason-form">
+                        <div style="margin-bottom: 20px;">
+                            <label for="modification-reason" style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                                Modification Reason <span style="color: #dc3545;">*</span>
+                            </label>
+                            <select id="modification-reason" name="modification-reason" required 
+                                    style="width: 100%; padding: 10px 12px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px; background: white;">
+                                <option value="">-- Select a reason --</option>
+                                <option value="data_correction">Data Correction</option>
+                                <option value="outlier_removal">Outlier Removal</option>
+                                <option value="range_clipping">Range Clipping (Time Period Selection)</option>
+                                <option value="data_cleaning">Data Cleaning</option>
+                                <option value="format_standardization">Format Standardization</option>
+                                <option value="missing_data_handling">Missing Data Handling</option>
+                                <option value="calibration_adjustment">Calibration Adjustment</option>
+                                <option value="re_verification">Re-verification / File Review (No Data Changes)</option>
+                                <option value="other">Other (Please specify)</option>
+                            </select>
+                            <div style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                                Select the primary reason for modifying this data file
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <label for="modification-details" style="display: block; margin-bottom: 8px; font-weight: 600; color: #495057;">
+                                Modification Details
+                            </label>
+                            <textarea id="modification-details" name="modification-details" 
+                                      rows="4" 
+                                      placeholder="Provide additional details about the modifications made (e.g., specific rows changed, values corrected, time period selected, etc.)"
+                                      style="width: 100%; padding: 10px 12px; border: 2px solid #e9ecef; border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical; background: white;"></textarea>
+                            <div style="font-size: 12px; color: #6c757d; margin-top: 5px;">
+                                Optional: Add specific details about what was changed and why
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                            <strong style="color: #856404;">⚠️ Audit Trail Notice:</strong>
+                            <p style="margin: 8px 0 0 0; color: #856404; font-size: 13px;">
+                                This modification will be permanently recorded in the audit trail with your user information, timestamp, and the reason provided above. The original file will be preserved as a backup, and a new fingerprint will be generated for the modified file.
+                            </p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button type="button" id="cancel-modification" class="btn btn-secondary" onclick="hideModificationReasonForm()" style="padding: 10px 20px;">
+                                Cancel
+                            </button>
+                            <button type="button" id="apply-modifications" class="btn btn-success" onclick="performSave()" style="padding: 10px 20px;">
+                                ✅ Apply Modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Debug Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>🧪 Debug Info</h2>
+                </div>
+                <div id="debug-info">Page loaded successfully</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Fixed clipping interface script loaded');
+        
+        // Test: Verify script is running
+        try {
+            console.log('Script execution test: OK');
+        } catch(e) {
+            console.error('Script execution error:', e);
+        }
+        
+        // Global variables
+        let currentFile = null;
+        let originalData = null;
+        let modifiedData = null;
+        
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, initializing...');
+            loadFiles();
+            initializeEventListeners();
+        });
+        
+        // Check if data has actually changed
+        function hasDataChanged() {
+            if (!originalData || !modifiedData) return false;
+            
+            // Quick check: compare lengths first
+            if (originalData.length !== modifiedData.length) return true;
+            
+            // Deep comparison: compare JSON strings (simple but effective)
+            return JSON.stringify(originalData) !== JSON.stringify(modifiedData);
+        }
+        
+        // Update Save button visual state based on whether there are changes
+        function updateSaveButtonState() {
+            const saveBtn = document.getElementById('save-changes');
+            if (saveBtn) {
+                if (hasDataChanged()) {
+                    // Button is enabled and fully visible when changes exist
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.style.cursor = 'pointer';
+                    saveBtn.title = 'Save changes to file (will re-verify and fingerprint)';
+                } else {
+                    // Button is still clickable - allows re-verification even without changes
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '0.8';
+                    saveBtn.style.cursor = 'pointer';
+                    saveBtn.title = 'Re-verify and fingerprint file (no data changes detected)';
+                }
+            }
+        }
+        
+        // Show modification reason form (always show, even if no data changes - for re-verification)
+        function showModificationReasonForm() {
+            // Always show the form - allows re-verification even without data changes
+            const formSection = document.getElementById('selection-summary-section');
+            if (formSection) {
+                formSection.style.display = 'block';
+                formSection.classList.remove('hidden');
+                
+                // If no changes, show a note
+                if (!hasDataChanged()) {
+                    const debugInfo = document.getElementById('debug-info');
+                    if (debugInfo) {
+                        debugInfo.innerHTML = 
+                            '<div class="notification info">ℹ️ No data changes detected. File will be re-verified and re-fingerprinted.</div>';
+                    }
+                }
+                
+                // Scroll to form
+                formSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        
+        // Hide modification reason form
+        function hideModificationReasonForm() {
+            const formSection = document.getElementById('selection-summary-section');
+            if (formSection) {
+                formSection.style.display = 'none';
+                formSection.classList.add('hidden');
+            }
+        }
+        
+        function initializeEventListeners() {
+            // Back to dashboard
+            const backBtn = document.getElementById('back-to-dashboard');
+            if (backBtn) {
+                backBtn.addEventListener('click', function() {
+                    window.location.href = '/main-dashboard';
+                });
+            }
+            
+            // Logout
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function() {
+                    localStorage.removeItem('session_token');
+                    window.location.href = '/main-dashboard';
+                });
+            }
+            
+            // Refresh files
+            const refreshBtn = document.getElementById('refresh-files');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    loadFiles();
+                });
+            }
+            
+            // File search
+            const searchInput = document.getElementById('file-search');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    filterFiles(this.value);
+                });
+            }
+        }
+        
+        async function loadFiles() {
+            const filesList = document.getElementById('files-list');
+            filesList.innerHTML = '<div class="loading">Loading files...</div>';
+            
+            try {
+                const response = await fetch('/api/original-files');
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    let html = '';
+                    data.files.forEach(file => {
+                        html += `
+                            <div class="file-item" onclick="openFile(${file.id})">
+                                <div class="file-name">${file.file_name}</div>
+                                <div class="file-details">Size: ${file.file_size} bytes | Uploaded: ${file.created_at}</div>
+                            </div>
+                        `;
+                    });
+                    filesList.innerHTML = html;
+                } else {
+                    filesList.innerHTML = '<div class="loading">No files found</div>';
+                }
+            } catch (error) {
+                filesList.innerHTML = '<div class="loading" style="color: red;">Error loading files: ' + error.message + '</div>';
+            }
+        }
+        
+        function filterFiles(searchTerm) {
+            const fileItems = document.querySelectorAll('.file-item');
+            fileItems.forEach(item => {
+                const fileName = item.querySelector('.file-name').textContent.toLowerCase();
+                if (fileName.includes(searchTerm.toLowerCase())) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        async function openFile(fileId) {
+            const editorSection = document.getElementById('editor-section');
+            const fileInfo = document.getElementById('file-info');
+            const csvContainer = document.getElementById('csv-table-container');
+            
+            showEditor();
+            fileInfo.innerHTML = '<div class="loading">Loading file ' + fileId + '...</div>';
+            csvContainer.innerHTML = '<div class="loading">Loading CSV data...</div>';
+            
+            try {
+                const response = await fetch('/api/original-files/' + fileId + '/clipping');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    currentFile = data.file;
+                    originalData = data.content;
+                    modifiedData = JSON.parse(JSON.stringify(originalData));
+                    
+                    fileInfo.innerHTML = `
+                        <div class="notification info">
+                            <strong>File:</strong> ${data.file.file_name}<br>
+                            <strong>Rows:</strong> ${data.content.length}<br>
+                            <strong>Size:</strong> ${data.file.file_size} bytes
+                        </div>
+                    `;
+                    
+                    renderCSVTable();
+                    
+                    // Update Save button state (initially disabled since no changes yet)
+                    updateSaveButtonState();
+                } else {
+                    csvContainer.innerHTML = '<div class="loading" style="color: red;">Error loading file</div>';
+                }
+            } catch (error) {
+                csvContainer.innerHTML = '<div class="loading" style="color: red;">Error: ' + error.message + '</div>';
+            }
+        }
+        
+        function renderCSVTable() {
+            const csvContainer = document.getElementById('csv-table-container');
+            
+            if (!modifiedData || modifiedData.length === 0) {
+                csvContainer.innerHTML = '<div class="loading">No data available</div>';
+                return;
+            }
+            
+            // Show first 50 rows for performance
+            const displayData = modifiedData.slice(0, 50);
+            const headers = Object.keys(displayData[0]);
+            
+            let tableHtml = '<table class="csv-table"><thead><tr>';
+            
+            // Add row number header
+            tableHtml += '<th>Row #</th>';
+            
+            // Add data headers
+            headers.forEach(header => {
+                tableHtml += '<th>' + header + '</th>';
+            });
+            tableHtml += '</tr></thead><tbody>';
+            
+            // Add data rows
+            displayData.forEach((row, index) => {
+                tableHtml += '<tr>';
+                tableHtml += '<td>' + (index + 1) + '</td>';
+                headers.forEach(header => {
+                    tableHtml += '<td>' + (row[header] || '') + '</td>';
+                });
+                tableHtml += '</tr>';
+            });
+            
+            tableHtml += '</tbody></table>';
+            
+            if (modifiedData.length > 50) {
+                tableHtml += '<div class="notification info">Showing first 50 rows of ' + modifiedData.length + ' total rows</div>';
+            } else {
+                tableHtml += '<div class="notification info">Showing all ' + modifiedData.length + ' rows</div>';
+            }
+            
+            csvContainer.innerHTML = tableHtml;
+        }
+        
+        function showEditor() {
+            const editorSection = document.getElementById('editor-section');
+            editorSection.classList.remove('hidden');
+            editorSection.classList.add('visible');
+            document.getElementById('debug-info').innerHTML = 
+                '<div class="notification success">✅ Editor section is now visible!</div>';
+        }
+        
+        function hideEditor() {
+            const editorSection = document.getElementById('editor-section');
+            editorSection.classList.remove('visible');
+            editorSection.classList.add('hidden');
+            document.getElementById('debug-info').innerHTML = 
+                '<div class="notification info">🟡 Editor section hidden</div>';
+        }
+        
+        function previewRange() {
+            const startRow = parseInt(document.getElementById('start-row').value);
+            const endRow = parseInt(document.getElementById('end-row').value);
+            const totalRows = modifiedData ? modifiedData.length : 0;
+            
+            if (!startRow || !endRow) {
+                document.getElementById('range-preview-text').textContent = 'Please enter both start and end row numbers';
+                return;
+            }
+            
+            if (startRow > endRow) {
+                document.getElementById('range-preview-text').textContent = 'Start row must be less than or equal to end row';
+                return;
+            }
+            
+            if (startRow < 1 || endRow > totalRows) {
+                document.getElementById('range-preview-text').textContent = `Row numbers must be between 1 and ${totalRows}`;
+                return;
+            }
+            
+            const includedRows = endRow - startRow + 1;
+            const excludedBefore = startRow - 1;
+            const excludedAfter = totalRows - endRow;
+            
+            document.getElementById('range-preview-text').innerHTML = 
+                `Rows ${startRow}-${endRow}: <strong>${includedRows} rows included</strong>, ${excludedBefore} before, ${excludedAfter} after`;
+        }
+        
+        function applyRange() {
+            console.log('applyRange() function called');
+            try {
+                const startRow = parseInt(document.getElementById('start-row').value);
+                const endRow = parseInt(document.getElementById('end-row').value);
+            
+            if (!startRow || !endRow) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ Please enter both start and end row numbers</div>';
+                return;
+            }
+            
+            if (startRow > endRow) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ Start row must be less than or equal to end row</div>';
+                return;
+            }
+            
+            if (!modifiedData || startRow < 1 || endRow > modifiedData.length) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ Invalid row range</div>';
+                return;
+            }
+            
+            // Apply the range selection (0-based indexing)
+            const startIndex = startRow - 1;
+            const endIndex = endRow - 1;
+            const selectedData = modifiedData.slice(startIndex, endIndex + 1);
+            
+            // Update modifiedData with filtered data
+            modifiedData = selectedData;
+            
+            // Also update JS class if it exists (for compatibility)
+            if (window.clippingInterface && window.clippingInterface.modifiedData) {
+                window.clippingInterface.modifiedData = JSON.parse(JSON.stringify(selectedData));
+                window.clippingInterface.selectedRows.clear();
+                for (let i = 0; i < selectedData.length; i++) {
+                    window.clippingInterface.selectedRows.add(i);
+                }
+            }
+            
+            // Re-render the table with the selected data
+            renderCSVTable();
+            
+            // Update Save button state
+            updateSaveButtonState();
+            
+            const includedRows = endRow - startRow + 1;
+            document.getElementById('debug-info').innerHTML = 
+                `<div class="notification success">✅ Range applied! Now showing ${includedRows} rows (${startRow}-${endRow})</div>`;
+            } catch(error) {
+                console.error('Error in applyRange:', error);
+                document.getElementById('debug-info').innerHTML = 
+                    `<div class="notification error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        function clearRange() {
+            document.getElementById('start-row').value = '';
+            document.getElementById('end-row').value = '';
+            document.getElementById('range-preview-text').textContent = 'No range selected';
+            
+            // Restore original data
+            if (originalData) {
+                modifiedData = JSON.parse(JSON.stringify(originalData));
+                renderCSVTable();
+                
+                // Update Save button state
+                updateSaveButtonState();
+            }
+            
+            document.getElementById('debug-info').innerHTML = 
+                '<div class="notification info">🟡 Range cleared, showing all data</div>';
+        }
+        
+        // Show modification form when Save Changes is clicked
+        function saveChanges() {
+            if (!modifiedData || modifiedData.length === 0) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ No data to save</div>';
+                return;
+            }
+            
+            if (!currentFile || !currentFile.id) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ No file selected</div>';
+                return;
+            }
+            
+            // Always show the form - allows saving even without data changes (for re-verification)
+            // The form will show a note if no changes are detected
+            showModificationReasonForm();
+        }
+        
+        // Actually perform the save using form values
+        async function performSave() {
+            if (!modifiedData || modifiedData.length === 0) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ No data to save</div>';
+                return;
+            }
+            
+            if (!currentFile || !currentFile.id) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ No file selected</div>';
+                return;
+            }
+            
+            // Get form values
+            const reasonSelect = document.getElementById('modification-reason');
+            const detailsTextarea = document.getElementById('modification-details');
+            
+            if (!reasonSelect || !reasonSelect.value) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ Please select a modification reason</div>';
+                return;
+            }
+            
+            const modificationReason = reasonSelect.value;
+            const modificationDetails = detailsTextarea ? detailsTextarea.value.trim() : '';
+            
+            // Build human-readable reason text
+            const reasonText = reasonSelect.options[reasonSelect.selectedIndex].text;
+            let reasonDisplay = reasonText;
+            if (modificationReason === 'other' && modificationDetails) {
+                reasonDisplay = `Other: ${modificationDetails}`;
+            } else if (modificationDetails) {
+                reasonDisplay = `${reasonText} - ${modificationDetails}`;
+            }
+            
+            // Show saving message
+            document.getElementById('debug-info').innerHTML = 
+                '<div class="notification info">💾 Saving changes to server...</div>';
+            
+            try {
+                // Convert modified data back to CSV format
+                const csvContent = convertDataToCSV(modifiedData);
+                
+                // Get session token
+                const sessionToken = localStorage.getItem('session_token');
+                console.log('Session token:', sessionToken ? 'Found' : 'Not found');
+                
+                if (!sessionToken) {
+                    document.getElementById('debug-info').innerHTML = 
+                        '<div class="notification error">❌ No session token found. Please log in again.</div>';
+                    return;
+                }
+                
+                // Build modification details text
+                let detailsText = `Applied range selection, reduced from ${originalData.length} to ${modifiedData.length} rows`;
+                if (modificationDetails) {
+                    detailsText = `${modificationDetails}. ${detailsText}`;
+                }
+                
+                // Send to server
+                const response = await fetch(`/api/original-files/${currentFile.id}/apply-clipping`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${sessionToken}`
+                    },
+                    body: JSON.stringify({
+                        modified_content: csvContent,
+                        modification_reason: reasonDisplay,
+                        modification_details: detailsText
+                    })
+                });
+                
+                // Check if response is OK
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server error:', response.status, errorText);
+                    document.getElementById('debug-info').innerHTML = 
+                        `<div class="notification error">❌ Server error (${response.status}): ${errorText || 'Unknown error'}</div>`;
+                    return;
+                }
+                
+                const result = await response.json();
+                console.log('Save response:', result);
+                
+                if (result.status === 'success') {
+                    // Update originalData to match modifiedData (changes are now saved)
+                    originalData = JSON.parse(JSON.stringify(modifiedData));
+                    
+                    // Hide the form
+                    hideModificationReasonForm();
+                    
+                    // Clear form
+                    if (reasonSelect) reasonSelect.value = '';
+                    if (detailsTextarea) detailsTextarea.value = '';
+                    
+                    // Update button state
+                    updateSaveButtonState();
+                    
+                    document.getElementById('debug-info').innerHTML = 
+                        `<div class="notification success">✅ Changes saved! ${modifiedData.length} rows of data processed and saved to file.</div>`;
+                } else {
+                    document.getElementById('debug-info').innerHTML = 
+                        `<div class="notification error">❌ Error saving: ${result.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                console.error('Error saving changes:', error);
+                document.getElementById('debug-info').innerHTML = 
+                    `<div class="notification error">❌ Error saving changes: ${error.message}</div>`;
+            }
+        }
+        
+        function convertDataToCSV(data) {
+            if (!data || data.length === 0) return '';
+            
+            // Get headers from first row
+            const headers = Object.keys(data[0]);
+            console.log('CSV conversion - Headers found:', headers);
+            console.log('CSV conversion - Data length:', data.length);
+            
+            // Create CSV content
+            let csv = headers.join(',') + '\n';
+            
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    // Escape values that contain commas or quotes
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                });
+                csv += values.join(',') + '\n';
+            }
+            
+            return csv;
+        }
+        
+        function discardChanges() {
+            if (confirm('Are you sure you want to discard all changes? This cannot be undone.')) {
+                // Restore original data
+                if (originalData) {
+                    modifiedData = JSON.parse(JSON.stringify(originalData));
+                    renderCSVTable();
+                    
+                    // Hide modification form if visible
+                    hideModificationReasonForm();
+                    
+                    // Update Save button state
+                    updateSaveButtonState();
+                    
+                    document.getElementById('debug-info').innerHTML = 
+                        '<div class="notification info">🟡 Changes discarded, showing original data</div>';
+                } else {
+                    document.getElementById('debug-info').innerHTML = 
+                        '<div class="notification error">❌ No original data to restore</div>';
+                }
+            }
+        }
+        
+        function previewChanges() {
+            if (!modifiedData || modifiedData.length === 0) {
+                document.getElementById('debug-info').innerHTML = 
+                    '<div class="notification error">❌ No data to preview</div>';
+                return;
+            }
+            
+            // Show preview of changes
+            const originalCount = originalData ? originalData.length : 0;
+            const modifiedCount = modifiedData.length;
+            const removedCount = originalCount - modifiedCount;
+            
+            let previewText = `<strong>Preview of Changes:</strong><br>`;
+            previewText += `Original rows: ${originalCount}<br>`;
+            previewText += `Modified rows: ${modifiedCount}<br>`;
+            if (removedCount > 0) {
+                previewText += `Rows removed: ${removedCount}<br>`;
+            }
+            previewText += `<br>First 5 rows of modified data:<br>`;
+            previewText += `<pre style="background: #f8f9fa; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto;">`;
+            
+            const headers = Object.keys(modifiedData[0]);
+            previewText += headers.join('\t') + '\n';
+            for (let i = 0; i < Math.min(5, modifiedData.length); i++) {
+                previewText += headers.map(h => modifiedData[i][h]).join('\t') + '\n';
+            }
+            previewText += `</pre>`;
+            
+            document.getElementById('debug-info').innerHTML = 
+                `<div class="notification info">${previewText}</div>`;
+        }
+        
+        // Make functions globally accessible
+        window.applyRange = applyRange;
+        window.clearRange = clearRange;
+        window.previewRange = previewRange;
+        window.openFile = openFile;
+        window.saveChanges = saveChanges;
+        window.performSave = performSave;
+        window.discardChanges = discardChanges;
+        window.previewChanges = previewChanges;
+        window.showModificationReasonForm = showModificationReasonForm;
+        window.hideModificationReasonForm = hideModificationReasonForm;
+        window.hasDataChanged = hasDataChanged;
+        window.updateSaveButtonState = updateSaveButtonState;
+    </script>
+</body>
+</html>

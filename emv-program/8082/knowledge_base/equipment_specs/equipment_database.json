@@ -1,0 +1,51 @@
+{
+  "motors": {
+    "efficiency_standards": {
+      "ie1": {
+        "description": "Standard efficiency",
+        "efficiency_range": "75-85%",
+        "applications": "General purpose"
+      },
+      "ie2": {
+        "description": "High efficiency",
+        "efficiency_range": "85-90%",
+        "applications": "Commercial, light industrial"
+      },
+      "ie3": {
+        "description": "Premium efficiency",
+        "efficiency_range": "90-95%",
+        "applications": "Industrial, continuous duty"
+      },
+      "ie4": {
+        "description": "Super premium efficiency",
+        "efficiency_range": "95-97%",
+        "applications": "High-efficiency applications"
+      }
+    },
+    "performance_characteristics": {
+      "efficiency_curves": "Efficiency vs load percentage",
+      "power_factor": "Power factor vs load",
+      "starting_characteristics": "Starting current and torque"
+    }
+  },
+  "transformers": {
+    "efficiency_standards": "DOE 2016 efficiency standards",
+    "loss_calculations": {
+      "no_load_losses": "Core losses (constant)",
+      "load_losses": "Copper losses (load dependent)"
+    },
+    "loading_guidelines": "Optimal loading for efficiency"
+  },
+  "lighting": {
+    "efficacy_standards": {
+      "led": "100+ lumens per watt",
+      "fluorescent": "80-90 lumens per watt",
+      "incandescent": "10-15 lumens per watt"
+    },
+    "control_systems": {
+      "dimming": "0-100% dimming capability",
+      "sensors": "Occupancy and daylight sensors",
+      "scheduling": "Time-based control"
+    }
+  }
+}

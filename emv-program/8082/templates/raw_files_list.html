@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Raw Files List - Synerex</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main_dashboard.css') }}?v={{ cache_bust }}">
+    <link rel="icon" href="{{ url_for('static', filename='synerex_logo.png') }}" type="image/png">
+</head>
+<body>
+    <!-- Raw Files List Container -->
+    <div id="raw-files-list" class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-left">
+                <img src="{{ url_for('static', filename='synerex_logo.png') }}" alt="Synerex" class="logo">
+                <h1>Raw Files List</h1>
+            </div>
+            <div class="header-right">
+                <button id="back-to-dashboard" class="btn-secondary">← Back to Dashboard</button>
+                <button id="upload-new-files" class="btn-primary">📤 Upload New Files</button>
+                <div id="user-info" class="user-info">
+                    <span id="current-user-name">Welcome, User</span>
+                    <button id="logout-btn" class="btn-logout">Logout</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Files List Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>📋 Raw Meter Data Files</h2>
+                    <p>View and manage all uploaded raw meter data files</p>
+                </div>
+                <div class="section-content">
+                    <!-- Filters and Search -->
+                    <div class="filters-section">
+                        <div class="search-box">
+                            <input type="text" id="search-input" placeholder="Search files...">
+                            <button id="search-btn" class="btn-search">🔍</button>
+                        </div>
+                        <div class="filter-options">
+                            <select id="sort-by">
+                                <option value="name">Sort by Name</option>
+                                <option value="date">Sort by Date</option>
+                                <option value="size">Sort by Size</option>
+                            </select>
+                            <select id="filter-type">
+                                <option value="all">All Files</option>
+                                <option value="csv">CSV Files</option>
+                                <option value="recent">Recent (7 days)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Files Table -->
+                    <div class="files-table-container">
+                        <div class="table-header">
+                            <div class="col-checkbox">
+                                <input type="checkbox" id="select-all">
+                            </div>
+                            <div class="col-name">File Name</div>
+                            <div class="col-size">Size</div>
+                            <div class="col-date">Uploaded</div>
+                            <div class="col-fingerprint">Fingerprint</div>
+                            <div class="col-actions">Actions</div>
+                        </div>
+                        <div class="table-body" id="files-table-body">
+                            <div class="loading">Loading files...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                        <div class="selected-count">
+                            <span id="selected-count">0</span> files selected
+                        </div>
+                        <div class="bulk-buttons">
+                            <button id="bulk-download" class="btn-secondary">📥 Download Selected</button>
+                            <button id="bulk-delete" class="btn-danger">🗑️ Delete Selected</button>
+                            <button id="bulk-assign" class="btn-primary">📋 Assign to Project</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination" id="pagination">
+                        <button id="prev-page" class="btn-pagination">← Previous</button>
+                        <span id="page-info">Page 1 of 1</span>
+                        <button id="next-page" class="btn-pagination">Next →</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>📊 File Statistics</h2>
+                    <p>Overview of uploaded files and storage usage</p>
+                </div>
+                <div class="section-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3 id="total-files">0</h3>
+                            <p>Total Files</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="total-size">0 MB</h3>
+                            <p>Total Size</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="recent-uploads">0</h3>
+                            <p>Recent Uploads</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3 id="avg-file-size">0 KB</h3>
+                            <p>Average File Size</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="dashboard-footer">
+            <div class="footer-content">
+                <p>&copy; 2024 Synerex - CSV Tamper-Proofing System</p>
+                <div class="footer-links">
+                    <a href="#" id="system-status">System Status</a>
+                    <a href="#" id="audit-compliance">Audit Compliance</a>
+                    <a href="#" id="documentation">Documentation</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notification-banner" class="notification-banner" style="display: none;">
+        <div class="notification-content">
+            <span id="notification-text"></span>
+            <button id="notification-close" class="btn-close">x</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='raw_files_list.js') }}?v={{ cache_bust }}"></script>
+</body>
+</html>

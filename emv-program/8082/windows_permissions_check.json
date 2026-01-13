@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-10-09T08:49:00.382162",
+  "secure_files": 8,
+  "insecure_files": 0,
+  "secure_file_list": [
+    {
+      "file": "results/app.db",
+      "permissions": "results/app.db LAPTOP-2S78R9HV\\Admin:(F)\n               BUILTIN\\Administrators:(F)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/synerex_oneform.db",
+      "permissions": "results/synerex_oneform.db LAPTOP-2S78R9HV\\Admin:(F)\n                           BUILTIN\\Administrators:(F)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/backups/app_backup_20250929_140230.db",
+      "permissions": "results/backups/app_backup_20250929_140230.db LAPTOP-2S78R9HV\\Admin:(F)\n                                              BUILTIN\\Administrators:(F)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/backups/app_backup_20250930_095841.db",
+      "permissions": "results/backups/app_backup_20250930_095841.db LAPTOP-2S78R9HV\\Admin:(F)\n                                              BUILTIN\\Administrators:(F)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/backups/app_backup_20251005_000718.db",
+      "permissions": "results/backups/app_backup_20251005_000718.db LAPTOP-2S78R9HV\\Admin:(F)\n                                              BUILTIN\\Administrators:(F)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/backups/app_latest.db",
+      "permissions": "results/backups/app_latest.db \nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/backup_security_status.json",
+      "permissions": "results/backup_security_status.json LAPTOP-2S78R9HV\\Admin:(F)\n                                    NT AUTHORITY\\SYSTEM:(F)\n                                    NT AUTHORITY\\LogonSessionId_0_870379:(RX)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    },
+    {
+      "file": "results/comprehensive_backup_security.json",
+      "permissions": "results/comprehensive_backup_security.json LAPTOP-2S78R9HV\\Admin:(F)\n                                           NT AUTHORITY\\SYSTEM:(F)\n                                           NT AUTHORITY\\LogonSessionId_0_870379:(RX)\n\nSuccessfully processed 1 files; Failed processing 0 files",
+      "status": "SECURE"
+    }
+  ],
+  "insecure_file_list": []
+}

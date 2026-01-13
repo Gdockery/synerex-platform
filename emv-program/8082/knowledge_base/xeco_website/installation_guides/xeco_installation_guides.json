@@ -1,0 +1,282 @@
+[
+  {
+    "product_model": "XECO-HF",
+    "title": "XECO Harmonic Filter Series Installation Guide",
+    "steps": [
+      "Review installation requirements and specifications",
+      "Verify electrical connections and voltage ratings",
+      "Ensure proper grounding and bonding",
+      "Install mounting hardware and brackets",
+      "Connect power and control wiring",
+      "Test all connections and verify operation",
+      "Configure settings and parameters",
+      "Perform final testing and commissioning",
+      "Document installation and settings",
+      "Provide user training and documentation"
+    ],
+    "requirements": [
+      "Qualified electrician required",
+      "Proper electrical permits and inspections",
+      "Adequate ventilation and clearance (minimum 3 feet)",
+      "Correct voltage and current ratings",
+      "Proper grounding system",
+      "Appropriate electrical protection",
+      "Safety equipment and procedures",
+      "Installation tools and materials"
+    ],
+    "tools_needed": [
+      "Multimeter for voltage and current testing",
+      "Wire strippers and crimpers",
+      "Screwdrivers (various sizes)",
+      "Electrical tape and connectors",
+      "Safety equipment (PPE, lockout/tagout)",
+      "Installation hardware and brackets",
+      "Cable management materials",
+      "Testing and commissioning equipment"
+    ],
+    "safety_notes": [
+      "De-energize all circuits before installation",
+      "Follow lockout/tagout procedures",
+      "Use appropriate personal protective equipment (PPE)",
+      "Verify voltage ratings before connection",
+      "Ensure proper grounding and bonding",
+      "Follow all local electrical codes",
+      "Test all connections before energizing",
+      "Document all safety procedures"
+    ],
+    "troubleshooting": [
+      "Check all electrical connections for tightness",
+      "Verify proper grounding and bonding",
+      "Test voltage and current levels",
+      "Check for loose connections or damaged wiring",
+      "Verify proper operation settings and parameters",
+      "Test communication connections if applicable",
+      "Check for proper ventilation and cooling",
+      "Verify all safety systems are operational"
+    ]
+  },
+  {
+    "product_model": "XECO-PFC",
+    "title": "XECO Power Factor Correction Installation Guide",
+    "steps": [
+      "Review installation requirements and specifications",
+      "Verify electrical connections and voltage ratings",
+      "Ensure proper grounding and bonding",
+      "Install mounting hardware and brackets",
+      "Connect power and control wiring",
+      "Test all connections and verify operation",
+      "Configure settings and parameters",
+      "Perform final testing and commissioning",
+      "Document installation and settings",
+      "Provide user training and documentation"
+    ],
+    "requirements": [
+      "Qualified electrician required",
+      "Proper electrical permits and inspections",
+      "Adequate ventilation and clearance (minimum 3 feet)",
+      "Correct voltage and current ratings",
+      "Proper grounding system",
+      "Appropriate electrical protection",
+      "Safety equipment and procedures",
+      "Installation tools and materials"
+    ],
+    "tools_needed": [
+      "Multimeter for voltage and current testing",
+      "Wire strippers and crimpers",
+      "Screwdrivers (various sizes)",
+      "Electrical tape and connectors",
+      "Safety equipment (PPE, lockout/tagout)",
+      "Installation hardware and brackets",
+      "Cable management materials",
+      "Testing and commissioning equipment"
+    ],
+    "safety_notes": [
+      "De-energize all circuits before installation",
+      "Follow lockout/tagout procedures",
+      "Use appropriate personal protective equipment (PPE)",
+      "Verify voltage ratings before connection",
+      "Ensure proper grounding and bonding",
+      "Follow all local electrical codes",
+      "Test all connections before energizing",
+      "Document all safety procedures"
+    ],
+    "troubleshooting": [
+      "Check all electrical connections for tightness",
+      "Verify proper grounding and bonding",
+      "Test voltage and current levels",
+      "Check for loose connections or damaged wiring",
+      "Verify proper operation settings and parameters",
+      "Test communication connections if applicable",
+      "Check for proper ventilation and cooling",
+      "Verify all safety systems are operational"
+    ]
+  },
+  {
+    "product_model": "XECO-VR",
+    "title": "XECO Voltage Regulator Installation Guide",
+    "steps": [
+      "Review installation requirements and specifications",
+      "Verify electrical connections and voltage ratings",
+      "Ensure proper grounding and bonding",
+      "Install mounting hardware and brackets",
+      "Connect power and control wiring",
+      "Test all connections and verify operation",
+      "Configure settings and parameters",
+      "Perform final testing and commissioning",
+      "Document installation and settings",
+      "Provide user training and documentation"
+    ],
+    "requirements": [
+      "Qualified electrician required",
+      "Proper electrical permits and inspections",
+      "Adequate ventilation and clearance (minimum 3 feet)",
+      "Correct voltage and current ratings",
+      "Proper grounding system",
+      "Appropriate electrical protection",
+      "Safety equipment and procedures",
+      "Installation tools and materials"
+    ],
+    "tools_needed": [
+      "Multimeter for voltage and current testing",
+      "Wire strippers and crimpers",
+      "Screwdrivers (various sizes)",
+      "Electrical tape and connectors",
+      "Safety equipment (PPE, lockout/tagout)",
+      "Installation hardware and brackets",
+      "Cable management materials",
+      "Testing and commissioning equipment"
+    ],
+    "safety_notes": [
+      "De-energize all circuits before installation",
+      "Follow lockout/tagout procedures",
+      "Use appropriate personal protective equipment (PPE)",
+      "Verify voltage ratings before connection",
+      "Ensure proper grounding and bonding",
+      "Follow all local electrical codes",
+      "Test all connections before energizing",
+      "Document all safety procedures"
+    ],
+    "troubleshooting": [
+      "Check all electrical connections for tightness",
+      "Verify proper grounding and bonding",
+      "Test voltage and current levels",
+      "Check for loose connections or damaged wiring",
+      "Verify proper operation settings and parameters",
+      "Test communication connections if applicable",
+      "Check for proper ventilation and cooling",
+      "Verify all safety systems are operational"
+    ]
+  },
+  {
+    "product_model": "XECO-EM",
+    "title": "XECO Energy Monitor Installation Guide",
+    "steps": [
+      "Review installation requirements and specifications",
+      "Verify electrical connections and voltage ratings",
+      "Ensure proper grounding and bonding",
+      "Install mounting hardware and brackets",
+      "Connect power and control wiring",
+      "Test all connections and verify operation",
+      "Configure settings and parameters",
+      "Perform final testing and commissioning",
+      "Document installation and settings",
+      "Provide user training and documentation"
+    ],
+    "requirements": [
+      "Qualified electrician required",
+      "Proper electrical permits and inspections",
+      "Adequate ventilation and clearance (minimum 3 feet)",
+      "Correct voltage and current ratings",
+      "Proper grounding system",
+      "Appropriate electrical protection",
+      "Safety equipment and procedures",
+      "Installation tools and materials"
+    ],
+    "tools_needed": [
+      "Multimeter for voltage and current testing",
+      "Wire strippers and crimpers",
+      "Screwdrivers (various sizes)",
+      "Electrical tape and connectors",
+      "Safety equipment (PPE, lockout/tagout)",
+      "Installation hardware and brackets",
+      "Cable management materials",
+      "Testing and commissioning equipment"
+    ],
+    "safety_notes": [
+      "De-energize all circuits before installation",
+      "Follow lockout/tagout procedures",
+      "Use appropriate personal protective equipment (PPE)",
+      "Verify voltage ratings before connection",
+      "Ensure proper grounding and bonding",
+      "Follow all local electrical codes",
+      "Test all connections before energizing",
+      "Document all safety procedures"
+    ],
+    "troubleshooting": [
+      "Check all electrical connections for tightness",
+      "Verify proper grounding and bonding",
+      "Test voltage and current levels",
+      "Check for loose connections or damaged wiring",
+      "Verify proper operation settings and parameters",
+      "Test communication connections if applicable",
+      "Check for proper ventilation and cooling",
+      "Verify all safety systems are operational"
+    ]
+  },
+  {
+    "product_model": "XECO-MC",
+    "title": "XECO Motor Controller Installation Guide",
+    "steps": [
+      "Review installation requirements and specifications",
+      "Verify electrical connections and voltage ratings",
+      "Ensure proper grounding and bonding",
+      "Install mounting hardware and brackets",
+      "Connect power and control wiring",
+      "Test all connections and verify operation",
+      "Configure settings and parameters",
+      "Perform final testing and commissioning",
+      "Document installation and settings",
+      "Provide user training and documentation"
+    ],
+    "requirements": [
+      "Qualified electrician required",
+      "Proper electrical permits and inspections",
+      "Adequate ventilation and clearance (minimum 3 feet)",
+      "Correct voltage and current ratings",
+      "Proper grounding system",
+      "Appropriate electrical protection",
+      "Safety equipment and procedures",
+      "Installation tools and materials"
+    ],
+    "tools_needed": [
+      "Multimeter for voltage and current testing",
+      "Wire strippers and crimpers",
+      "Screwdrivers (various sizes)",
+      "Electrical tape and connectors",
+      "Safety equipment (PPE, lockout/tagout)",
+      "Installation hardware and brackets",
+      "Cable management materials",
+      "Testing and commissioning equipment"
+    ],
+    "safety_notes": [
+      "De-energize all circuits before installation",
+      "Follow lockout/tagout procedures",
+      "Use appropriate personal protective equipment (PPE)",
+      "Verify voltage ratings before connection",
+      "Ensure proper grounding and bonding",
+      "Follow all local electrical codes",
+      "Test all connections before energizing",
+      "Document all safety procedures"
+    ],
+    "troubleshooting": [
+      "Check all electrical connections for tightness",
+      "Verify proper grounding and bonding",
+      "Test voltage and current levels",
+      "Check for loose connections or damaged wiring",
+      "Verify proper operation settings and parameters",
+      "Test communication connections if applicable",
+      "Check for proper ventilation and cooling",
+      "Verify all safety systems are operational"
+    ]
+  }
+]

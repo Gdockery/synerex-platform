@@ -1,0 +1,79 @@
+services:
+  main_app:
+    name: "Main App"
+    port: 8082
+    script: "main_hardened_ready_refactored.py"
+    directory: "8082"
+    dependencies: ["weather"]  # Ensure weather service starts before main app
+    health_endpoint: "/health"
+    startup_timeout: 30
+    
+  pdf_generator:
+    name: "PDF Generator"
+    port: 8083
+    script: "enhanced_pdf_service.py"
+    directory: "8083"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 20
+    
+  html_reports:
+    name: "HTML Reports"
+    port: 8084
+    script: "html_report_service.py"
+    directory: "8084"
+    dependencies: ["main_app"]
+    health_endpoint: "/health"
+    startup_timeout: 20
+    
+  weather:
+    name: "Weather"
+    port: 8200
+    script: "weather_service.py"
+    directory: "8085"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 20
+    
+  charts:
+    name: "Charts"
+    port: 8086
+    script: "chart_service.py"
+    directory: "8086"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 20
+
+  ollama_ai:
+    name: "Ollama AI Backend"
+    port: 8090
+    script: "ollama_ai_backend.py"
+    directory: "8082"
+    dependencies: ["main_app"]
+    health_endpoint: "/health"
+    startup_timeout: 15
+
+  utility_rate:
+    name: "Utility Rate Service"
+    port: 8202
+    script: "utility_rate_service.py"
+    directory: "8085"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 20
+
+  utility_incentive:
+    name: "Utility Incentive Service"
+    port: 8203
+    script: "utility_incentive_service.py"
+    directory: "8085"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 20
+
+service_manager:
+  port: 9000
+  health_check_interval: 30
+  restart_attempts: 3
+  restart_delay: 5
+  startup_grace_period: 15

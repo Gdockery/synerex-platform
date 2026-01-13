@@ -1,0 +1,195 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audit Compliance - SYNEREX</title>
+    <link rel="stylesheet" href="/static/main_dashboard.css?v=1759794676">
+    <style>
+        .audit-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .audit-header {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .audit-section {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .compliance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .compliance-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .btn-audit {
+            background: linear-gradient(135deg, #28a745, #218838);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        .btn-audit:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="audit-container">
+        <div class="audit-header">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <img src="/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
+                <h1 style="margin: 0;">🔍 Audit Compliance & Documentation</h1>
+            </div>
+            <p>Comprehensive audit trail and compliance verification for power analysis</p>
+        </div>
+
+        <div class="audit-section">
+            <h2>📋 Audit Package Generation</h2>
+            <p>Generate comprehensive audit packages containing all analysis data, methodologies, and compliance documentation.</p>
+            <button class="btn-audit" onclick="generateAuditPackage()">Generate Audit Package</button>
+            <button class="btn-audit" onclick="exportCalculationAudit()">📊 Export Calculation Audit to Excel</button>
+            <button class="btn-audit" onclick="window.location.href='/main-dashboard'">Back to Dashboard</button>
+        </div>
+
+        <div class="audit-section">
+            <h2>✅ Standards Compliance</h2>
+            <div class="compliance-grid">
+                <div class="compliance-item">
+                    <h4>IEEE 519-2014/2022</h4>
+                    <p>Harmonic distortion limits and power quality standards compliance verification.</p>
+                </div>
+                <div class="compliance-item">
+                    <h4>ASHRAE Guideline 14</h4>
+                    <p>Statistical validation and measurement uncertainty analysis.</p>
+                </div>
+                <div class="compliance-item">
+                    <h4>ANSI C12.1 & C12.20</h4>
+                    <p>Meter accuracy class verification and compliance documentation.</p>
+                </div>
+                <div class="compliance-item">
+                    <h4>IEC 61000 Standards</h4>
+                    <p>Electromagnetic compatibility and power quality measurement standards.</p>
+                </div>
+                <div class="compliance-item">
+                    <h4>NEMA MG1</h4>
+                    <p>Motor and generator voltage unbalance limits and derating calculations.</p>
+                </div>
+                <div class="compliance-item">
+                    <h4>IPMVP</h4>
+                    <p>International Performance Measurement and Verification Protocol statistical validation.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="audit-section">
+            <h2>📊 Audit Trail Features</h2>
+            <ul>
+                <li><strong>Data Integrity:</strong> Cryptographic fingerprints and chain of custody tracking</li>
+                <li><strong>Methodology Verification:</strong> Complete calculation methodologies and assumptions</li>
+                <li><strong>Standards Compliance:</strong> Automated compliance checking against industry standards</li>
+                <li><strong>Professional Review:</strong> PE review workflow and signature verification</li>
+                <li><strong>Regulatory Documentation:</strong> Complete documentation for regulatory submissions</li>
+            </ul>
+        </div>
+
+        <div class="audit-section">
+            <h2>🔒 Security & Integrity</h2>
+            <p>The SYNEREX system maintains the highest standards of data integrity and security:</p>
+            <ul>
+                <li>All data modifications are logged with timestamps and user identification</li>
+                <li>Cryptographic hashing ensures data integrity throughout the analysis process</li>
+                <li>Professional Engineer review and approval workflow</li>
+                <li>Complete audit trail for regulatory compliance</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function generateAuditPackage() {
+            alert('Audit package generation is available from the main dashboard. Please go back to the dashboard and use the "Generate Audit Package" button.');
+            window.location.href = '/main-dashboard';
+        }
+
+        function exportCalculationAudit() {
+            // Show loading message
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '📊 Generating Excel...';
+            button.disabled = true;
+            
+            // Get project name (you can modify this to get from a form field or use a default)
+            const projectName = prompt('Enter project name for the audit report:', 'SYNEREX Analysis');
+            if (!projectName) {
+                button.textContent = originalText;
+                button.disabled = false;
+                return;
+            }
+            
+            // Call the API endpoint
+            fetch('/api/export/calculation-audit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    project_name: projectName
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `SYNEREX_Calculation_Audit_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Show success message
+                alert('✅ Excel calculation audit exported successfully!');
+            })
+            .catch(error => {
+                console.error('Error exporting calculation audit:', error);
+                alert('❌ Error exporting calculation audit: ' + error.message);
+            })
+            .finally(() => {
+                // Restore button
+                button.textContent = originalText;
+                button.disabled = false;
+            });
+        }
+    </script>
+<style>.legal-footer{position:fixed;left:0;right:0;bottom:8px;text-align:center;font-size:11px;line-height:1.2;color:#000000;opacity:.85;pointer-events:none;padding:0 12px}body{padding-bottom:44px}</style><footer class="legal-footer">Copyright © 2025-Present. Synerex Laboratories, LLC. All rights reserved. This software is protected by U.S. and international copyright laws. Reproduction and distribution of this software without written permission from Synerex Laboratories, LLC is prohibited.</footer></body>
+</html>
+        

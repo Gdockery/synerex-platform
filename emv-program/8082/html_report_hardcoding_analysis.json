@@ -1,0 +1,3384 @@
+{
+  "timestamp": "2025-10-09T09:57:05.113151",
+  "total_issues": 482,
+  "html_hardcoded_values": 321,
+  "html_hardcoded_content": 46,
+  "css_hardcoded_values": 73,
+  "hardcoded_urls": 42,
+  "issues": [
+    {
+      "type": "html_hardcoded_value",
+      "line": 13319,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$0.05",
+      "fix": "Replace hardcoded value '$0.05' on line 13319 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13375,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 13375 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13522,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 13522 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13648,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$467.95",
+      "fix": "Replace hardcoded value '$467.95' on line 13648 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13679,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$467.95",
+      "fix": "Replace hardcoded value '$467.95' on line 13679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14551,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$0.05",
+      "fix": "Replace hardcoded value '$0.05' on line 14551 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14552,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$20.62",
+      "fix": "Replace hardcoded value '$20.62' on line 14552 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14558,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$40,444.14",
+      "fix": "Replace hardcoded value '$40,444.14' on line 14558 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14559,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$24,076.55",
+      "fix": "Replace hardcoded value '$24,076.55' on line 14559 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14560,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$12,681.56",
+      "fix": "Replace hardcoded value '$12,681.56' on line 14560 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14561,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$3,618.70",
+      "fix": "Replace hardcoded value '$3,618.70' on line 14561 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14562,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$57.94",
+      "fix": "Replace hardcoded value '$57.94' on line 14562 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14563,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$9.40",
+      "fix": "Replace hardcoded value '$9.40' on line 14563 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14564,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$10,000.00",
+      "fix": "Replace hardcoded value '$10,000.00' on line 14564 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14566,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$540,599.81",
+      "fix": "Replace hardcoded value '$540,599.81' on line 14566 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14649,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$467.95",
+      "fix": "Replace hardcoded value '$467.95' on line 14649 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14705,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 14705 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14713,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 14713 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14721,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 14721 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14728,
+      "pattern": "\\$[\\d,]+\\.\\d{2}",
+      "value": "$610,057.00",
+      "fix": "Replace hardcoded value '$610,057.00' on line 14728 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 13 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 1880,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.3%",
+      "fix": "Replace hardcoded value '8.3%' on line 1880 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 1880,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.8%",
+      "fix": "Replace hardcoded value '5.8%' on line 1880 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3500,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 3500 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3619,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 3619 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3619,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 3619 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3619,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 3619 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3620,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.3%",
+      "fix": "Replace hardcoded value '2.3%' on line 3620 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3620,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.0%",
+      "fix": "Replace hardcoded value '8.0%' on line 3620 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3620,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 3620 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3621,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.05%",
+      "fix": "Replace hardcoded value '0.05%' on line 3621 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3622,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 3622 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3649,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.22%",
+      "fix": "Replace hardcoded value '8.22%' on line 3649 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3649,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.10%",
+      "fix": "Replace hardcoded value '6.10%' on line 3649 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3650,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.1%",
+      "fix": "Replace hardcoded value '2.1%' on line 3650 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3650,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.8%",
+      "fix": "Replace hardcoded value '1.8%' on line 3650 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3651,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "99.2%",
+      "fix": "Replace hardcoded value '99.2%' on line 3651 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3651,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "98.8%",
+      "fix": "Replace hardcoded value '98.8%' on line 3651 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3679,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.55%",
+      "fix": "Replace hardcoded value '2.55%' on line 3679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3679,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 3679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3679,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 3679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3679,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.115%",
+      "fix": "Replace hardcoded value '0.115%' on line 3679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3680,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "3.2%",
+      "fix": "Replace hardcoded value '3.2%' on line 3680 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3680,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.1%",
+      "fix": "Replace hardcoded value '1.1%' on line 3680 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3680,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "10.0%",
+      "fix": "Replace hardcoded value '10.0%' on line 3680 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3735,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 3735 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3745,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 3745 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3755,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 3755 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3771,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 3771 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3781,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.3%",
+      "fix": "Replace hardcoded value '0.3%' on line 3781 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3796,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "3.2%",
+      "fix": "Replace hardcoded value '3.2%' on line 3796 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3805,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.8%",
+      "fix": "Replace hardcoded value '2.8%' on line 3805 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3841,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.1%",
+      "fix": "Replace hardcoded value '2.1%' on line 3841 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3843,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.2%",
+      "fix": "Replace hardcoded value '2.2%' on line 3843 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3845,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.2%",
+      "fix": "Replace hardcoded value '8.2%' on line 3845 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3846,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.1%",
+      "fix": "Replace hardcoded value '6.1%' on line 3846 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3887,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 3887 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3887,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 3887 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3888,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.3%",
+      "fix": "Replace hardcoded value '2.3%' on line 3888 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3888,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.0%",
+      "fix": "Replace hardcoded value '8.0%' on line 3888 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3889,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.1%",
+      "fix": "Replace hardcoded value '6.1%' on line 3889 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3890,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.8%",
+      "fix": "Replace hardcoded value '1.8%' on line 3890 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3891,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 3891 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3937,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "99.2%",
+      "fix": "Replace hardcoded value '99.2%' on line 3937 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3937,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "98.8%",
+      "fix": "Replace hardcoded value '98.8%' on line 3937 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3937,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 3937 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3938,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.22%",
+      "fix": "Replace hardcoded value '8.22%' on line 3938 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3938,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.10%",
+      "fix": "Replace hardcoded value '6.10%' on line 3938 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3938,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 3938 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3939,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.1%",
+      "fix": "Replace hardcoded value '2.1%' on line 3939 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3939,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.8%",
+      "fix": "Replace hardcoded value '1.8%' on line 3939 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3939,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.3%",
+      "fix": "Replace hardcoded value '0.3%' on line 3939 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3940,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.3%",
+      "fix": "Replace hardcoded value '0.3%' on line 3940 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3940,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 3940 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3940,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 3940 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3941,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.2%",
+      "fix": "Replace hardcoded value '1.2%' on line 3941 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3941,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.0%",
+      "fix": "Replace hardcoded value '1.0%' on line 3941 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 3941,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 3941 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4232,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 4232 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4233,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.05%",
+      "fix": "Replace hardcoded value '0.05%' on line 4233 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4234,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 4234 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4235,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 4235 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4258,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "99.2%",
+      "fix": "Replace hardcoded value '99.2%' on line 4258 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 4259,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "98.8%",
+      "fix": "Replace hardcoded value '98.8%' on line 4259 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6012,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 6012 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6012,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.0%",
+      "fix": "Replace hardcoded value '1.0%' on line 6012 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6012,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.0%",
+      "fix": "Replace hardcoded value '2.0%' on line 6012 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6044,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 6044 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6046,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.0%",
+      "fix": "Replace hardcoded value '8.0%' on line 6046 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6048,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "12.0%",
+      "fix": "Replace hardcoded value '12.0%' on line 6048 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6050,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "15.0%",
+      "fix": "Replace hardcoded value '15.0%' on line 6050 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6052,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "20.0%",
+      "fix": "Replace hardcoded value '20.0%' on line 6052 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6072,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 6072 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6141,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 6141 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6142,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 6142 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6143,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 6143 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6146,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6146 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6147,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6147 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6148,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6148 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6149,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6149 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6151,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6151 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6152,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 6152 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 8952,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "20.0%",
+      "fix": "Replace hardcoded value '20.0%' on line 8952 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 8954,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "15.0%",
+      "fix": "Replace hardcoded value '15.0%' on line 8954 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 8956,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "12.0%",
+      "fix": "Replace hardcoded value '12.0%' on line 8956 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 8958,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.0%",
+      "fix": "Replace hardcoded value '8.0%' on line 8958 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 8960,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 8960 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9056,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 9056 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9056,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 9056 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9056,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 9056 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9060,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 9060 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9124,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 9124 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9125,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 9125 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9453,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.75%",
+      "fix": "Replace hardcoded value '5.75%' on line 9453 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9763,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 9763 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9827,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 9827 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9827,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.2%",
+      "fix": "Replace hardcoded value '0.2%' on line 9827 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9827,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 9827 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 9827,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.0%",
+      "fix": "Replace hardcoded value '1.0%' on line 9827 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12665,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 12665 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12669,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 12669 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12676,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 12676 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12682,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 12682 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12708,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 12708 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12709,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 12709 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12722,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 12722 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12723,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 12723 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12726,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 12726 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12755,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 12755 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12758,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.50%",
+      "fix": "Replace hardcoded value '0.50%' on line 12758 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12759,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.50%",
+      "fix": "Replace hardcoded value '0.50%' on line 12759 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12774,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.5%",
+      "fix": "Replace hardcoded value '1.5%' on line 12774 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12775,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.8%",
+      "fix": "Replace hardcoded value '2.8%' on line 12775 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12805,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 12805 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12816,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.88%",
+      "fix": "Replace hardcoded value '1.88%' on line 12816 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12817,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.24%",
+      "fix": "Replace hardcoded value '0.24%' on line 12817 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12821,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 12821 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12824,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.50%",
+      "fix": "Replace hardcoded value '0.50%' on line 12824 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12825,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.50%",
+      "fix": "Replace hardcoded value '0.50%' on line 12825 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12840,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.5%",
+      "fix": "Replace hardcoded value '1.5%' on line 12840 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12841,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.8%",
+      "fix": "Replace hardcoded value '2.8%' on line 12841 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12869,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "19.0%",
+      "fix": "Replace hardcoded value '19.0%' on line 12869 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12870,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 12870 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12871,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 12871 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12872,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 12872 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12991,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.00%",
+      "fix": "Replace hardcoded value '0.00%' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12991,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "100.0%",
+      "fix": "Replace hardcoded value '100.0%' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12991,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12994,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12994,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12994,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12994,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.55%",
+      "fix": "Replace hardcoded value '2.55%' on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12994,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13378,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 13378 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13392,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.2%",
+      "fix": "Replace hardcoded value '5.2%' on line 13392 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13393,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.1%",
+      "fix": "Replace hardcoded value '2.1%' on line 13393 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13433,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.22%",
+      "fix": "Replace hardcoded value '8.22%' on line 13433 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13434,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.10%",
+      "fix": "Replace hardcoded value '6.10%' on line 13434 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13483,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "17.3%",
+      "fix": "Replace hardcoded value '17.3%' on line 13483 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13486,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 13486 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13489,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 13489 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13492,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "11.2%",
+      "fix": "Replace hardcoded value '11.2%' on line 13492 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13493,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13493 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13494,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13494 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13495,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 13495 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13501,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 13501 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13504,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 13504 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13507,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 13507 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13508,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13508 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13508,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13508 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13508,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 13508 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13509,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 13509 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13512,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 13512 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13519,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 13519 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13520,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "19.0%",
+      "fix": "Replace hardcoded value '19.0%' on line 13520 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13522,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 13522 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13570,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.2%",
+      "fix": "Replace hardcoded value '1.2%' on line 13570 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13571,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 13571 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13571,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "11.2%",
+      "fix": "Replace hardcoded value '11.2%' on line 13571 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13574,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13574 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13574,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13574 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13574,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 13574 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13576,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.88%",
+      "fix": "Replace hardcoded value '1.88%' on line 13576 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13577,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.24%",
+      "fix": "Replace hardcoded value '0.24%' on line 13577 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13578,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "87.2%",
+      "fix": "Replace hardcoded value '87.2%' on line 13578 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13614,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.55%",
+      "fix": "Replace hardcoded value '2.55%' on line 13614 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13615,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 13615 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13616,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 13616 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13624,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13624 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13625,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13625 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13628,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.55%",
+      "fix": "Replace hardcoded value '2.55%' on line 13628 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13629,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 13629 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13630,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 13630 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13636,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.55%",
+      "fix": "Replace hardcoded value '2.55%' on line 13636 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13637,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.87%",
+      "fix": "Replace hardcoded value '0.87%' on line 13637 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13638,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.0%",
+      "fix": "Replace hardcoded value '5.0%' on line 13638 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13653,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13653 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13654,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13654 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13671,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 13671 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13672,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 13672 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13720,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "59.5%",
+      "fix": "Replace hardcoded value '59.5%' on line 13720 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13721,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "21.7%",
+      "fix": "Replace hardcoded value '21.7%' on line 13721 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13725,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "15.1%",
+      "fix": "Replace hardcoded value '15.1%' on line 13725 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13726,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "21.4%",
+      "fix": "Replace hardcoded value '21.4%' on line 13726 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13730,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "96.6%",
+      "fix": "Replace hardcoded value '96.6%' on line 13730 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13731,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "87.2%",
+      "fix": "Replace hardcoded value '87.2%' on line 13731 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13735,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "98.6%",
+      "fix": "Replace hardcoded value '98.6%' on line 13735 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13736,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "88.0%",
+      "fix": "Replace hardcoded value '88.0%' on line 13736 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13820,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.00%",
+      "fix": "Replace hardcoded value '0.00%' on line 13820 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14119,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "5.75%",
+      "fix": "Replace hardcoded value '5.75%' on line 14119 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14195,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.00%",
+      "fix": "Replace hardcoded value '0.00%' on line 14195 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14206,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14206 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14206,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14206 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14217,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14217 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14218,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14218 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14231,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.00%",
+      "fix": "Replace hardcoded value '0.00%' on line 14231 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14232,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.00%",
+      "fix": "Replace hardcoded value '0.00%' on line 14232 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14238,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14238 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14239,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14239 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14245,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14245 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14246,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14246 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14261,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14261 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14262,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14262 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14265,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14265 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14364,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "67.4%",
+      "fix": "Replace hardcoded value '67.4%' on line 14364 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14366,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "67.4%",
+      "fix": "Replace hardcoded value '67.4%' on line 14366 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14555,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "3.0%",
+      "fix": "Replace hardcoded value '3.0%' on line 14555 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14565,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "406.44%",
+      "fix": "Replace hardcoded value '406.44%' on line 14565 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14618,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "19.0%",
+      "fix": "Replace hardcoded value '19.0%' on line 14618 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14619,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 14619 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14620,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 14620 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14621,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 14621 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14622,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 14622 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14623,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14623 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14627,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "19.0%",
+      "fix": "Replace hardcoded value '19.0%' on line 14627 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14627,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "19.0%",
+      "fix": "Replace hardcoded value '19.0%' on line 14627 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14628,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 14628 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14628,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 14628 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14629,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 14629 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14629,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 14629 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14630,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 14630 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14630,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 14630 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14631,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 14631 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14631,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 14631 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14632,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14632 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14632,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14632 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14641,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 14641 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14642,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 14642 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14678,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "18.8%",
+      "fix": "Replace hardcoded value '18.8%' on line 14678 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14679,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 14679 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14680,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 14680 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14681,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 14681 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14684,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "44.5%",
+      "fix": "Replace hardcoded value '44.5%' on line 14684 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14685,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 14685 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14685,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 14685 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14685,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "33.7%",
+      "fix": "Replace hardcoded value '33.7%' on line 14685 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14686,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "91.9%",
+      "fix": "Replace hardcoded value '91.9%' on line 14686 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14707,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14707 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14716,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14716 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14723,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14723 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14730,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.0%",
+      "fix": "Replace hardcoded value '0.0%' on line 14730 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14744,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.9%",
+      "fix": "Replace hardcoded value '2.9%' on line 14744 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14752,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.9%",
+      "fix": "Replace hardcoded value '1.9%' on line 14752 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16837,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "2.3%",
+      "fix": "Replace hardcoded value '2.3%' on line 16837 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16838,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.2%",
+      "fix": "Replace hardcoded value '8.2%' on line 16838 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16839,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.8%",
+      "fix": "Replace hardcoded value '0.8%' on line 16839 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16840,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.3%",
+      "fix": "Replace hardcoded value '0.3%' on line 16840 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16842,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "6.2%",
+      "fix": "Replace hardcoded value '6.2%' on line 16842 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16844,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.3%",
+      "fix": "Replace hardcoded value '0.3%' on line 16844 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 16845,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "8.2%",
+      "fix": "Replace hardcoded value '8.2%' on line 16845 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 17879,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 17879 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 17880,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "1.0%",
+      "fix": "Replace hardcoded value '1.0%' on line 17880 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 17982,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 17982 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18172,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 18172 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18193,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 18193 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18242,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 18242 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18322,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.01%",
+      "fix": "Replace hardcoded value '0.01%' on line 18322 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18323,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.5%",
+      "fix": "Replace hardcoded value '0.5%' on line 18323 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18327,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "99.9%",
+      "fix": "Replace hardcoded value '99.9%' on line 18327 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 18329,
+      "pattern": "\\d+\\.\\d+%",
+      "value": "0.1%",
+      "fix": "Replace hardcoded value '0.1%' on line 18329 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13377,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 13377 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13522,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 13522 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14567,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.3 years",
+      "fix": "Replace hardcoded value '0.3 years' on line 14567 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14706,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 14706 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14715,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 14715 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14722,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 14722 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14729,
+      "pattern": "\\d+\\.\\d+ years",
+      "value": "0.000 years",
+      "fix": "Replace hardcoded value '0.000 years' on line 14729 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6468,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "0.75 kW",
+      "fix": "Replace hardcoded value '0.75 kW' on line 6468 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 6476,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "7.5 kW",
+      "fix": "Replace hardcoded value '7.5 kW' on line 6476 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12863,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "246.8 kW",
+      "fix": "Replace hardcoded value '246.8 kW' on line 12863 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 12864,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "200.4 kW",
+      "fix": "Replace hardcoded value '200.4 kW' on line 12864 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13373,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "46.40 kW",
+      "fix": "Replace hardcoded value '46.40 kW' on line 13373 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13424,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "179.35 kW",
+      "fix": "Replace hardcoded value '179.35 kW' on line 13424 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13424,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "1.73 kW",
+      "fix": "Replace hardcoded value '1.73 kW' on line 13424 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13425,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "210.35 kW",
+      "fix": "Replace hardcoded value '210.35 kW' on line 13425 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13425,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "1.60 kW",
+      "fix": "Replace hardcoded value '1.60 kW' on line 13425 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13426,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "30.990 kW",
+      "fix": "Replace hardcoded value '30.990 kW' on line 13426 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13426,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "28.64 kW",
+      "fix": "Replace hardcoded value '28.64 kW' on line 13426 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13481,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "179.35 kW",
+      "fix": "Replace hardcoded value '179.35 kW' on line 13481 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13482,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "210.35 kW",
+      "fix": "Replace hardcoded value '210.35 kW' on line 13482 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13515,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "246.8 kW",
+      "fix": "Replace hardcoded value '246.8 kW' on line 13515 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13516,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "200.4 kW",
+      "fix": "Replace hardcoded value '200.4 kW' on line 13516 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13571,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "246.8 kW",
+      "fix": "Replace hardcoded value '246.8 kW' on line 13571 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13571,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "200.4 kW",
+      "fix": "Replace hardcoded value '200.4 kW' on line 13571 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13645,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "0.946 kW",
+      "fix": "Replace hardcoded value '0.946 kW' on line 13645 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13646,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "0.051 kW",
+      "fix": "Replace hardcoded value '0.051 kW' on line 13646 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 13647,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "0.013 kW",
+      "fix": "Replace hardcoded value '0.013 kW' on line 13647 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14656,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "246.8 kW",
+      "fix": "Replace hardcoded value '246.8 kW' on line 14656 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14657,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "200.4 kW",
+      "fix": "Replace hardcoded value '200.4 kW' on line 14657 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14664,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "246.8 kW",
+      "fix": "Replace hardcoded value '246.8 kW' on line 14664 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14665,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "200.4 kW",
+      "fix": "Replace hardcoded value '200.4 kW' on line 14665 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14703,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "46.40 kW",
+      "fix": "Replace hardcoded value '46.40 kW' on line 14703 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14711,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "46.40 kW",
+      "fix": "Replace hardcoded value '46.40 kW' on line 14711 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14719,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "46.40 kW",
+      "fix": "Replace hardcoded value '46.40 kW' on line 14719 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14726,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "46.40 kW",
+      "fix": "Replace hardcoded value '46.40 kW' on line 14726 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14735,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "179.35 kW",
+      "fix": "Replace hardcoded value '179.35 kW' on line 14735 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14735,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "1.73 kW",
+      "fix": "Replace hardcoded value '1.73 kW' on line 14735 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14736,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "210.35 kW",
+      "fix": "Replace hardcoded value '210.35 kW' on line 14736 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14736,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "1.60 kW",
+      "fix": "Replace hardcoded value '1.60 kW' on line 14736 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14737,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "31.00 kW",
+      "fix": "Replace hardcoded value '31.00 kW' on line 14737 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_value",
+      "line": 14737,
+      "pattern": "\\d+\\.\\d+ kW",
+      "value": "28.64 kW",
+      "fix": "Replace hardcoded value '28.64 kW' on line 14737 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 16176,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>Analysis #ANALYSIS_001</h4>...",
+      "fix": "Replace hardcoded HTML content on line 16176 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 16183,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>Analysis #ANALYSIS_002</h4>...",
+      "fix": "Replace hardcoded HTML content on line 16183 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 17142,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>IEEE 519-2014/2022</h4>...",
+      "fix": "Replace hardcoded HTML content on line 17142 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 17146,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>ASHRAE Guideline 14</h4>...",
+      "fix": "Replace hardcoded HTML content on line 17146 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 17150,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>ANSI C12.1 & C12.20</h4>...",
+      "fix": "Replace hardcoded HTML content on line 17150 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 17154,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>IEC 61000 Standards</h4>...",
+      "fix": "Replace hardcoded HTML content on line 17154 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 17158,
+      "pattern": "<h[1-6][^>]*>[^<]*\\d+[^<]*</h[1-6]>",
+      "content": "<h4>NEMA MG1</h4>...",
+      "fix": "Replace hardcoded HTML content on line 17158 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12942,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">{ashrae_precision_value:.1f}%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12942 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12954,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Data Completeness \u2265 95% & Outliers \u2264 5%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12954 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12956,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">Completeness: {completeness_percent:.1f}%, Outliers: {outlier_percent:.1f}%</...",
+      "fix": "Replace hardcoded HTML content on line 12956 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12970,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">p = {p_value:.3f}</td>...",
+      "fix": "Replace hardcoded HTML content on line 12970 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12982,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"{ieee_c57_status_class}\">{ieee_c57_status_symbol}</td>...",
+      "fix": "Replace hardcoded HTML content on line 12982 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12983,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">{ieee_c57_110_method}</td>...",
+      "fix": "Replace hardcoded HTML content on line 12983 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>ASHRAE Guideline 14</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">0.00%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Data Completeness \u2265 95% & Outliers \u2264 5%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">Completeness: 100.0%, Outliers: 0.0%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">p = 0.000</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12991,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>IEEE C57.110</td>...",
+      "fix": "Replace hardcoded HTML content on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>IEEE 519-2014</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">2.9%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">1.9%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>NEMA MG1</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">2.55%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 12994,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\">0.87%</td>...",
+      "fix": "Replace hardcoded HTML content on line 12994 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 13196,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\" style=\"text-align: center;\">\"\"\" + str(round(delta_kw_avg, 2)) + \"\"\" kW</td>...",
+      "fix": "Replace hardcoded HTML content on line 13196 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 13268,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>$12085</td>...",
+      "fix": "Replace hardcoded HTML content on line 13268 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 13274,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>$12085</td>...",
+      "fix": "Replace hardcoded HTML content on line 13274 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 13512,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\" style=\"text-align: center;\">480.0 V</td>...",
+      "fix": "Replace hardcoded HTML content on line 13512 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 13512,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td class=\"value-cell\" style=\"text-align: center;\">0.0%', str(voltage_before) + ' V</td>...",
+      "fix": "Replace hardcoded HTML content on line 13512 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14726,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Total power reduction', f'{kw_savings:.2f} kW</td>...",
+      "fix": "Replace hardcoded HTML content on line 14726 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14726,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Total power reduction')\n            html_content = html_content.replace('414743 kWh</td>...",
+      "fix": "Replace hardcoded HTML content on line 14726 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14727,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Total annual energy', f'{energy_kwh:,.0f} kWh</td>...",
+      "fix": "Replace hardcoded HTML content on line 14727 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14727,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Total annual energy')\n            html_content = html_content.replace('$610,057.00</td>...",
+      "fix": "Replace hardcoded HTML content on line 14727 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14728,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Net Present Value', f'${npv:,.2f}</td>...",
+      "fix": "Replace hardcoded HTML content on line 14728 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14728,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Net Present Value')\n            html_content = html_content.replace('0.000 years</td>...",
+      "fix": "Replace hardcoded HTML content on line 14728 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14729,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Simple payback', f'{payback:.3f} years</td>...",
+      "fix": "Replace hardcoded HTML content on line 14729 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14729,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Simple payback')\n            html_content = html_content.replace('0.0%</td>...",
+      "fix": "Replace hardcoded HTML content on line 14729 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14730,
+      "pattern": "<td[^>]*>[^<]*\\d+[^<]*</td>",
+      "content": "<td>Internal Rate', f'{irr:.1f}%</td>...",
+      "fix": "Replace hardcoded HTML content on line 14730 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14507,
+      "pattern": "<span[^>]*>[^<]*\\d+[^<]*</span>",
+      "content": "<span style=\"color: #155724; font-size: 14px;\">Version 3.0 - Audit Compliant | Compliance Level: 95%...",
+      "fix": "Replace hardcoded HTML content on line 14507 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 16179,
+      "pattern": "<span[^>]*>[^<]*\\d+[^<]*</span>",
+      "content": "<span class=\"deadline\">2025-02-02</span>...",
+      "fix": "Replace hardcoded HTML content on line 16179 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14293,
+      "pattern": "<div[^>]*>[^<]*\\d+[^<]*</div>",
+      "content": "<div class=\"chart-svg\">', start_pos)\n                        if chart_start != -1:\n                 ...",
+      "fix": "Replace hardcoded HTML content on line 14293 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14307,
+      "pattern": "<div[^>]*>[^<]*\\d+[^<]*</div>",
+      "content": "<div class=\"chart-svg\">', start_pos)\n                        if chart_start != -1:\n                 ...",
+      "fix": "Replace hardcoded HTML content on line 14307 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14321,
+      "pattern": "<div[^>]*>[^<]*\\d+[^<]*</div>",
+      "content": "<div class=\"chart-svg\">', start_pos)\n                        if chart_start != -1:\n                 ...",
+      "fix": "Replace hardcoded HTML content on line 14321 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14335,
+      "pattern": "<div[^>]*>[^<]*\\d+[^<]*</div>",
+      "content": "<div class=\"chart-svg\">', start_pos)\n                        if chart_start != -1:\n                 ...",
+      "fix": "Replace hardcoded HTML content on line 14335 with dynamic placeholder"
+    },
+    {
+      "type": "html_hardcoded_content",
+      "line": 14350,
+      "pattern": "<div[^>]*>[^<]*\\d+[^<]*</div>",
+      "content": "<div class=\"chart-svg\">', start_pos)\n                if chart_start != -1:\n                    chart...",
+      "fix": "Replace hardcoded HTML content on line 14350 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 15997,
+      "pattern": "width:\\s*\\d+px",
+      "value": "width: 1200px",
+      "fix": "Replace hardcoded CSS value 'width: 1200px' on line 15997 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16314,
+      "pattern": "width:\\s*\\d+px",
+      "value": "width: 600px",
+      "fix": "Replace hardcoded CSS value 'width: 600px' on line 16314 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17072,
+      "pattern": "width:\\s*\\d+px",
+      "value": "width: 1200px",
+      "fix": "Replace hardcoded CSS value 'width: 1200px' on line 17072 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17285,
+      "pattern": "width:\\s*\\d+px",
+      "value": "width: 1200px",
+      "fix": "Replace hardcoded CSS value 'width: 1200px' on line 17285 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17465,
+      "pattern": "width:\\s*\\d+px",
+      "value": "width: 1200px",
+      "fix": "Replace hardcoded CSS value 'width: 1200px' on line 17465 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 13221,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 60px",
+      "fix": "Replace hardcoded CSS value 'height: 60px' on line 13221 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 15999,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 60px",
+      "fix": "Replace hardcoded CSS value 'height: 60px' on line 15999 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16017,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 100px",
+      "fix": "Replace hardcoded CSS value 'height: 100px' on line 16017 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17124,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 44px",
+      "fix": "Replace hardcoded CSS value 'height: 44px' on line 17124 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17345,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 44px",
+      "fix": "Replace hardcoded CSS value 'height: 44px' on line 17345 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17526,
+      "pattern": "height:\\s*\\d+px",
+      "value": "height: 40px",
+      "fix": "Replace hardcoded CSS value 'height: 40px' on line 17526 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12914,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 8px",
+      "fix": "Replace hardcoded CSS value 'margin: 8px' on line 12914 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12991,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 8px",
+      "fix": "Replace hardcoded CSS value 'margin: 8px' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16001,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 5px",
+      "fix": "Replace hardcoded CSS value 'margin: 5px' on line 16001 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16009,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 5px",
+      "fix": "Replace hardcoded CSS value 'margin: 5px' on line 16009 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16024,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 16024 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16025,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 16025 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17095,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 20px",
+      "fix": "Replace hardcoded CSS value 'margin: 20px' on line 17095 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17111,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 17111 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17308,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 20px",
+      "fix": "Replace hardcoded CSS value 'margin: 20px' on line 17308 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17332,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 17332 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17488,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 20px",
+      "fix": "Replace hardcoded CSS value 'margin: 20px' on line 17488 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17504,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 17504 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17517,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 10px",
+      "fix": "Replace hardcoded CSS value 'margin: 10px' on line 17517 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 21478,
+      "pattern": "margin:\\s*\\d+px",
+      "value": "margin: 20px",
+      "fix": "Replace hardcoded CSS value 'margin: 20px' on line 21478 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12914,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 12px",
+      "fix": "Replace hardcoded CSS value 'padding: 12px' on line 12914 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12991,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 12px",
+      "fix": "Replace hardcoded CSS value 'padding: 12px' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 14498,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 14498 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 14502,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 14502 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 14505,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 14505 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 15996,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 15996 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 15997,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 15997 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16003,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 16003 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16005,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 4px",
+      "fix": "Replace hardcoded CSS value 'padding: 4px' on line 16005 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16009,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 16009 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16016,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 8px",
+      "fix": "Replace hardcoded CSS value 'padding: 8px' on line 16016 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16018,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 15px",
+      "fix": "Replace hardcoded CSS value 'padding: 15px' on line 16018 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16019,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 15px",
+      "fix": "Replace hardcoded CSS value 'padding: 15px' on line 16019 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16023,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 16023 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16024,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 16024 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16025,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 16025 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16314,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 30px",
+      "fix": "Replace hardcoded CSS value 'padding: 30px' on line 16314 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16320,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 8px",
+      "fix": "Replace hardcoded CSS value 'padding: 8px' on line 16320 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16325,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 8px",
+      "fix": "Replace hardcoded CSS value 'padding: 8px' on line 16325 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16335,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 8px",
+      "fix": "Replace hardcoded CSS value 'padding: 8px' on line 16335 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16339,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 16339 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16340,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 10px",
+      "fix": "Replace hardcoded CSS value 'padding: 10px' on line 16340 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17074,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17074 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17079,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 30px",
+      "fix": "Replace hardcoded CSS value 'padding: 30px' on line 17079 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17086,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 25px",
+      "fix": "Replace hardcoded CSS value 'padding: 25px' on line 17086 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17099,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17099 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17107,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 12px",
+      "fix": "Replace hardcoded CSS value 'padding: 12px' on line 17107 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17287,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17287 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17292,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 30px",
+      "fix": "Replace hardcoded CSS value 'padding: 30px' on line 17292 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17299,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 25px",
+      "fix": "Replace hardcoded CSS value 'padding: 25px' on line 17299 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17312,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17312 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17328,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 12px",
+      "fix": "Replace hardcoded CSS value 'padding: 12px' on line 17328 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17467,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17467 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17472,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 30px",
+      "fix": "Replace hardcoded CSS value 'padding: 30px' on line 17472 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17479,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 25px",
+      "fix": "Replace hardcoded CSS value 'padding: 25px' on line 17479 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17492,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 17492 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17500,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 12px",
+      "fix": "Replace hardcoded CSS value 'padding: 12px' on line 17500 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17515,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 15px",
+      "fix": "Replace hardcoded CSS value 'padding: 15px' on line 17515 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 21479,
+      "pattern": "padding:\\s*\\d+px",
+      "value": "padding: 20px",
+      "fix": "Replace hardcoded CSS value 'padding: 20px' on line 21479 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 11718,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size:11px",
+      "fix": "Replace hardcoded CSS value 'font-size:11px' on line 11718 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12914,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 14px",
+      "fix": "Replace hardcoded CSS value 'font-size: 14px' on line 12914 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 12991,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 14px",
+      "fix": "Replace hardcoded CSS value 'font-size: 14px' on line 12991 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 14503,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 12px",
+      "fix": "Replace hardcoded CSS value 'font-size: 12px' on line 14503 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 14507,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 14px",
+      "fix": "Replace hardcoded CSS value 'font-size: 14px' on line 14507 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 16005,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 12px",
+      "fix": "Replace hardcoded CSS value 'font-size: 12px' on line 16005 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17110,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 16px",
+      "fix": "Replace hardcoded CSS value 'font-size: 16px' on line 17110 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17331,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 16px",
+      "fix": "Replace hardcoded CSS value 'font-size: 16px' on line 17331 with dynamic placeholder"
+    },
+    {
+      "type": "css_hardcoded_value",
+      "line": 17503,
+      "pattern": "font-size:\\s*\\d+px",
+      "value": "font-size: 16px",
+      "fix": "Replace hardcoded CSS value 'font-size: 16px' on line 17503 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 94,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://127.0.0.1:8200",
+      "fix": "Replace hardcoded URL 'http://127.0.0.1:8200' on line 94 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 1085,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://www.w3.org/2000/svg",
+      "fix": "Replace hardcoded URL 'http://www.w3.org/2000/svg' on line 1085 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11554,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://www.w3.org/2000/svg",
+      "fix": "Replace hardcoded URL 'http://www.w3.org/2000/svg' on line 11554 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11826,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://api.zippopotam.us/us/{z}",
+      "fix": "Replace hardcoded URL 'http://api.zippopotam.us/us/{z}' on line 11826 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 12061,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://127.0.0.1:DEFAULT_PORT/api/verified-files",
+      "fix": "Replace hardcoded URL 'http://127.0.0.1:DEFAULT_PORT/api/verified-files' on line 12061 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 19824,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://134.209.14.71:8101/generate",
+      "fix": "Replace hardcoded URL 'http://134.209.14.71:8101/generate' on line 19824 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 19825,
+      "pattern": "http://[^\\s\\'\"]+",
+      "url": "http://134.209.14.71:8102/generate",
+      "fix": "Replace hardcoded URL 'http://134.209.14.71:8102/generate' on line 19825 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11840,
+      "pattern": "https://[^\\s\\'\"]+",
+      "url": "https://geocoding-api.open-meteo.com/v1/search",
+      "fix": "Replace hardcoded URL 'https://geocoding-api.open-meteo.com/v1/search' on line 11840 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11857,
+      "pattern": "https://[^\\s\\'\"]+",
+      "url": "https://nominatim.openstreetmap.org/search",
+      "fix": "Replace hardcoded URL 'https://nominatim.openstreetmap.org/search' on line 11857 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11891,
+      "pattern": "https://[^\\s\\'\"]+",
+      "url": "https://archive-api.open-meteo.com/v1/archive",
+      "fix": "Replace hardcoded URL 'https://archive-api.open-meteo.com/v1/archive' on line 11891 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11963,
+      "pattern": "https://[^\\s\\'\"]+",
+      "url": "https://archive-api.open-meteo.com/v1/archive",
+      "fix": "Replace hardcoded URL 'https://archive-api.open-meteo.com/v1/archive' on line 11963 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 1182,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 1182 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 1183,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 1183 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 1184,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 1184 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 11770,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/test_weather.html",
+      "fix": "Replace hardcoded URL '/test_weather.html' on line 11770 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 13221,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/static/synerex_logo_transparent.png' on line 13221 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 13231,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/file_selection.css",
+      "fix": "Replace hardcoded URL '/file_selection.css' on line 13231 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 13239,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/file_selection.js",
+      "fix": "Replace hardcoded URL '/file_selection.js' on line 13239 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 15979,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 15979 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 15980,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 15980 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 15981,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 15981 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 16435,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_white.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_white.png' on line 16435 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 16436,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 16436 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 16437,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 16437 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17069,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/main_dashboard.css",
+      "fix": "Replace hardcoded URL '/static/main_dashboard.css' on line 17069 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17124,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/synerex_logo_white.png",
+      "fix": "Replace hardcoded URL '/static/synerex_logo_white.png' on line 17124 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17282,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/main_dashboard.css",
+      "fix": "Replace hardcoded URL '/static/main_dashboard.css' on line 17282 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17345,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/static/synerex_logo_transparent.png' on line 17345 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17462,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/main_dashboard.css",
+      "fix": "Replace hardcoded URL '/static/main_dashboard.css' on line 17462 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 17526,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/static/synerex_logo_white.png",
+      "fix": "Replace hardcoded URL '/static/synerex_logo_white.png' on line 17526 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20203,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20203 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20204,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20204 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20205,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20205 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20232,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20232 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20233,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20233 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20234,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20234 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20252,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20252 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20253,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20253 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20254,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20254 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20272,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20272 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20273,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20273 with dynamic placeholder"
+    },
+    {
+      "type": "hardcoded_url",
+      "line": 20274,
+      "pattern": "/[^\\s\\'\"]+\\.(html|css|js|png|jpg|gif)",
+      "url": "/synerex_logo_transparent.png",
+      "fix": "Replace hardcoded URL '/synerex_logo_transparent.png' on line 20274 with dynamic placeholder"
+    }
+  ]
+}

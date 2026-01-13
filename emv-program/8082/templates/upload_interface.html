@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Upload Raw Meter Data - Synerex</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main_dashboard.css') }}?v={{ cache_bust }}">
+    <link rel="icon" href="{{ url_for('static', filename='synerex_logo.png') }}" type="image/png">
+</head>
+<body>
+    <!-- Upload Interface Container -->
+    <div id="upload-interface" class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-left">
+                <img src="{{ url_for('static', filename='synerex_logo.png') }}" alt="Synerex" class="logo">
+                <h1>Upload Raw Meter Data</h1>
+            </div>
+            <div class="header-right">
+                <button id="back-to-dashboard" class="btn-secondary">← Back to Dashboard</button>
+                <div id="user-info" class="user-info">
+                    <span id="current-user-name">Welcome, User</span>
+                    <button id="logout-btn" class="btn-logout">Logout</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Upload Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>📤 Upload Raw CSV Files</h2>
+                    <p>Upload raw meter data CSV files for processing and analysis</p>
+                </div>
+                <div class="section-content">
+                    <div class="upload-area">
+                        <div class="upload-dropzone" id="upload-dropzone">
+                            <div class="upload-icon">📁</div>
+                            <h3>Drag & Drop CSV Files Here</h3>
+                            <p>or click to browse files</p>
+                            <input type="file" id="file-input" multiple accept=".csv" style="display: none;">
+                        </div>
+                        <div class="upload-info">
+                            <h4>Supported File Types:</h4>
+                            <ul>
+                                <li>CSV files (.csv)</li>
+                                <li>Maximum file size: 100MB</li>
+                                <li>Multiple files supported</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- File List -->
+                    <div class="file-list" id="file-list" style="display: none;">
+                        <h3>Selected Files:</h3>
+                        <div id="selected-files"></div>
+                        <div class="upload-actions">
+                            <button id="upload-files" class="btn-primary">📤 Upload Files</button>
+                            <button id="clear-files" class="btn-secondary">🗑️ Clear All</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Upload Progress -->
+                    <div class="upload-progress" id="upload-progress" style="display: none;">
+                        <h3>Upload Progress:</h3>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">0%</div>
+                        <div class="upload-status" id="upload-status"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Uploads -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2>📋 Recent Uploads</h2>
+                    <p>View recently uploaded raw meter data files</p>
+                </div>
+                <div class="section-content">
+                    <div class="recent-uploads" id="recent-uploads">
+                        <div class="loading">Loading recent uploads...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="dashboard-footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="#" id="system-status">System Status</a>
+                    <a href="#" id="audit-compliance">Audit Compliance</a>
+                    <a href="#" id="documentation">Documentation</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notification-banner" class="notification-banner" style="display: none;">
+        <div class="notification-content">
+            <span id="notification-text"></span>
+            <button id="notification-close" class="btn-close">x</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='upload_interface.js') }}?v={{ cache_bust }}"></script>
+</body>
+</html>

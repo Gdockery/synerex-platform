@@ -1,0 +1,120 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synerex-oneform"
+version = "3.8.5"
+description = "SYNEREX OneForm Power Analysis System"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Proprietary"}
+authors = [
+    {name = "SYNEREX Power Analysis Team"}
+]
+dependencies = [
+    "scikit-learn>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.0.0",
+    "pytest-timeout>=2.1.0",
+    "vulture>=2.0.0",
+    "pyflakes>=3.0.0",
+    "autoflake>=2.0.0",
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "pylint>=2.17.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--cov=8082",
+    "--cov=8083",
+    "--cov=8084",
+    "--cov=8085",
+    "--cov=8086",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+]
+
+[tool.coverage.run]
+source = ["8082", "8083", "8084", "8085", "8086"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = ["venv", ".venv", "__pycache__", ".git"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "venv", ".venv"]
+skips = ["B101", "B601"]  # Skip assert_used and shell_injection_subprocess
+
+[tool.vulture]
+paths = ["8082", "8083", "8084", "8085", "8086"]
+exclude = ["tests", "venv", ".venv", "__pycache__"]
+min_confidence = 80
+

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynerexAI - Energy Domain Guard System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .synerex-ai-branding {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .main-logo {
+            height: 60px;
+            width: auto;
+        }
+
+        .ai-suffix {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 1.5em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .header h1 {
+            color: #2c5aa0;
+            font-size: 3em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .tagline {
+            color: #666;
+            font-size: 1.3em;
+            margin: 15px 0;
+            font-style: italic;
+        }
+
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 5px solid #2c5aa0;
+        }
+
+        .section h2 {
+            color: #2c5aa0;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .energy-domain {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #28a745;
+        }
+
+        .energy-domain h4 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .non-energy-domain {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #dc3545;
+        }
+
+        .non-energy-domain h4 {
+            color: #721c24;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+        }
+
+        .feature-card h4 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #f39c12;
+        }
+
+        .warning h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #28a745;
+        }
+
+        .success h4 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .icon {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="synerex-ai-branding">
+                <div class="logo-container">
+                    <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" class="main-logo">
+                    <span class="ai-suffix">AI</span>
+                </div>
+                <h1>Guard</h1>
+            </div>
+            <p class="tagline">Energy-Only AI with Strict Domain Boundaries</p>
+            <div class="nav-buttons">
+                <a href="/admin-panel" class="nav-btn">← Back to Admin Panel</a>
+                <a href="/main-dashboard" class="nav-btn">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Energy Domain Definition -->
+            <div class="section">
+                <h2><span class="icon">⚡</span>Energy Domain Definition</h2>
+                <p>SynerexAI is strictly limited to energy-related analysis and will refuse to process any requests outside the energy domain. This ensures focused, specialized intelligence for energy professionals.</p>
+                
+                <div class="energy-domain">
+                    <h4>✅ ALLOWED: Energy-Related Topics</h4>
+                    <ul>
+                        <li><strong>Power Analysis:</strong> Electrical power measurements, power quality, harmonic analysis</li>
+                        <li><strong>Energy Efficiency:</strong> Energy consumption analysis, efficiency improvements, savings calculations</li>
+                        <li><strong>Cost Analysis:</strong> Energy cost calculations, ROI analysis, payback periods, utility rate optimization</li>
+                        <li><strong>Equipment Analysis:</strong> Motor efficiency, transformer analysis, electrical equipment performance</li>
+                        <li><strong>Grid Analysis:</strong> Power system analysis, load flow, voltage regulation, power factor correction</li>
+                        <li><strong>Renewable Energy:</strong> Solar, wind, battery storage analysis and integration</li>
+                        <li><strong>Energy Management:</strong> Building energy systems, HVAC optimization, lighting efficiency</li>
+                        <li><strong>Regulatory Compliance:</strong> IEEE, ASHRAE, NEMA, IEC standards compliance and validation</li>
+                        <li><strong>Utility Information:</strong> Utility rates, tariffs, rate structures, billing analysis, demand charges</li>
+                        <li><strong>Location Energy Data:</strong> Local utility information, regional rates, weather data, climate analysis</li>
+                        <li><strong>XECO Equipment:</strong> XECO installation, configuration, programming, maintenance, troubleshooting</li>
+                        <li><strong>SYNEREX Program Usage:</strong> How to use SYNEREX, dashboard navigation, features, troubleshooting</li>
+                        <li><strong>SYNEREX Support:</strong> Program configuration, settings, admin functions, system optimization</li>
+                        <li><strong>Electrical Code:</strong> NEC compliance, electrical installation, wiring, grounding, electrical safety</li>
+                        <li><strong>Installation Assistance:</strong> Equipment installation, setup, commissioning, testing, calibration</li>
+                    </ul>
+                </div>
+
+                <div class="non-energy-domain">
+                    <h4>❌ BLOCKED: Non-Energy Topics</h4>
+                    <ul>
+                        <li><strong>General AI:</strong> General-purpose AI tasks, non-energy machine learning</li>
+                        <li><strong>Other Industries:</strong> Healthcare, finance, retail, manufacturing (non-energy)</li>
+                        <li><strong>Personal Topics:</strong> Personal advice, relationships, lifestyle recommendations</li>
+                        <li><strong>Entertainment:</strong> Games, movies, music, sports analysis</li>
+                        <li><strong>Other Sciences:</strong> Biology, chemistry, physics (non-energy), mathematics (non-energy)</li>
+                        <li><strong>Business (Non-Energy):</strong> Marketing, sales, HR, general business operations</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Domain Guard Implementation -->
+            <div class="section">
+                <h2><span class="icon">🛡️</span>Domain Guard Implementation</h2>
+                <p>SynerexAI implements a multi-layer domain guard system to ensure it only operates within energy-related domains:</p>
+                
+                <h3>1. Input Validation Layer</h3>
+                <div class="code-block">
+class EnergyDomainGuard:
+    def __init__(self):
+        self.energy_keywords = [
+            'power', 'energy', 'electrical', 'voltage', 'current', 'watt', 'kwh',
+            'efficiency', 'savings', 'cost', 'roi', 'payback', 'utility', 'grid',
+            'motor', 'transformer', 'hvac', 'lighting', 'harmonic', 'power quality',
+            'ieee', 'ashrae', 'nema', 'iec', 'solar', 'wind', 'battery', 'storage'
+        ]
+        
+        self.non_energy_keywords = [
+            'health', 'medical', 'finance', 'banking', 'retail', 'shopping',
+            'entertainment', 'game', 'movie', 'music', 'sport', 'personal',
+            'relationship', 'lifestyle', 'travel', 'food', 'cooking'
+        ]
+    
+    def validate_input(self, user_input):
+        """Validate if input is energy-related"""
+        input_lower = user_input.lower()
+        
+        # Check for non-energy keywords
+        for keyword in self.non_energy_keywords:
+            if keyword in input_lower:
+                return False, f"SynerexAI is specialized for energy analysis only. '{keyword}' is outside the energy domain."
+        
+        # Check for energy keywords
+        energy_score = sum(1 for keyword in self.energy_keywords if keyword in input_lower)
+        
+        if energy_score == 0:
+            return False, "SynerexAI requires energy-related topics. Please ask about power analysis, energy efficiency, cost savings, or electrical systems."
+        
+        return True, "Input validated for energy domain."
+                </div>
+
+                <h3>2. Context Analysis Layer</h3>
+                <div class="code-block">
+class ContextAnalyzer:
+    def analyze_context(self, input_text):
+        """Analyze context for energy relevance"""
+        context_score = 0
+        
+        # Energy system indicators
+        if any(word in input_text.lower() for word in ['electrical', 'power system', 'energy system']):
+            context_score += 3
+        
+        # Energy metrics indicators
+        if any(word in input_text.lower() for word in ['kwh', 'kw', 'voltage', 'current', 'power factor']):
+            context_score += 2
+        
+        # Energy standards indicators
+        if any(word in input_text.lower() for word in ['ieee', 'ashrae', 'nema', 'iec']):
+            context_score += 2
+        
+        # Energy economics indicators
+        if any(word in input_text.lower() for word in ['savings', 'cost', 'roi', 'payback', 'utility']):
+            context_score += 2
+        
+        return context_score >= 2  # Minimum threshold for energy relevance
+                </div>
+
+                <h3>3. Response Filtering Layer</h3>
+                <div class="code-block">
+class ResponseFilter:
+    def filter_response(self, ai_response):
+        """Filter AI response to ensure energy focus"""
+        if not self.is_energy_related(ai_response):
+            return "I apologize, but SynerexAI is specialized for energy analysis only. Please ask about energy-related topics such as power analysis, energy efficiency, or electrical systems."
+        
+        return ai_response
+    
+    def is_energy_related(self, response):
+        """Check if response is energy-related"""
+        energy_indicators = [
+            'energy', 'power', 'electrical', 'efficiency', 'savings', 'cost',
+            'voltage', 'current', 'watt', 'kwh', 'ieee', 'ashrae', 'nema'
+        ]
+        
+        return any(indicator in response.lower() for indicator in energy_indicators)
+                </div>
+            </div>
+
+            <!-- Energy AI Capabilities -->
+            <div class="section">
+                <h2><span class="icon">🔋</span>SynerexAI Energy Capabilities</h2>
+                <p>SynerexAI provides specialized intelligence for energy professionals:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>⚡ Power Quality Analysis</h4>
+                        <p>Harmonic distortion, voltage unbalance, power factor analysis with IEEE 519 compliance</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>💰 Energy Cost Optimization</h4>
+                        <p>ROI calculations, payback analysis, utility rate optimization, demand response</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔧 Equipment Efficiency</h4>
+                        <p>Motor efficiency analysis, transformer performance, electrical equipment optimization</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📊 Energy Consumption Modeling</h4>
+                        <p>Baseline energy modeling, weather normalization, consumption pattern analysis</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🌱 Renewable Energy Integration</h4>
+                        <p>Solar/wind analysis, battery storage optimization, grid integration</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📋 Regulatory Compliance</h4>
+                        <p>IEEE, ASHRAE, NEMA, IEC standards compliance validation and reporting</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🏢 Utility Information</h4>
+                        <p>Utility rates, tariffs, rate structures, billing analysis, demand charges</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📍 Location Energy Data</h4>
+                        <p>Local utility information, regional rates, weather data, climate analysis</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔧 XECO Equipment Support</h4>
+                        <p>Complete XECO product knowledge, installation guidance, configuration, programming, maintenance, troubleshooting</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚡ Electrical Code Guidance</h4>
+                        <p>NEC compliance, electrical installation, wiring, grounding, electrical safety</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🛠️ Installation Assistance</h4>
+                        <p>Equipment installation, setup, commissioning, testing, calibration</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📄 Permit & Compliance</h4>
+                        <p>Electrical permits, inspections, contractor guidance, safety requirements</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usage Examples -->
+            <div class="section">
+                <h2><span class="icon">💡</span>Usage Examples</h2>
+                
+                <div class="success">
+                    <h4>✅ ALLOWED: Energy-Related Questions</h4>
+                    <ul>
+                        <li>"Analyze the power quality of this electrical system"</li>
+                        <li>"Calculate the ROI for this energy efficiency project"</li>
+                        <li>"What are the harmonic distortion levels in this facility?"</li>
+                        <li>"How can I optimize the energy consumption of this building?"</li>
+                        <li>"Validate compliance with IEEE 519 standards"</li>
+                        <li>"Analyze the efficiency of this motor system"</li>
+                        <li>"What are the utility rates for this location?"</li>
+                        <li>"Help me install XECO equipment in this facility"</li>
+                        <li>"What electrical code requirements apply to this installation?"</li>
+                        <li>"Provide guidance on electrical wiring for this project"</li>
+                        <li>"Analyze the utility bill and suggest rate optimization"</li>
+                        <li>"Help configure XECO equipment for optimal performance"</li>
+                        <li>"What are the local utility incentives for energy efficiency?"</li>
+                        <li>"Assist with electrical permit requirements for this project"</li>
+                        <li>"How do I use the SYNEREX dashboard?"</li>
+                        <li>"Help me navigate the SYNEREX program"</li>
+                        <li>"How do I upload CSV files in SYNEREX?"</li>
+                        <li>"How do I create a new project in SYNEREX?"</li>
+                        <li>"How do I generate reports in SYNEREX?"</li>
+                        <li>"How do I access the admin panel in SYNEREX?"</li>
+                        <li>"How do I troubleshoot SYNEREX issues?"</li>
+                        <li>"How do I configure SYNEREX settings?"</li>
+                        <li>"How do I use SYNEREX analysis features?"</li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <h4>❌ BLOCKED: Non-Energy Questions</h4>
+                    <ul>
+                        <li>"Help me with my personal finances" → <em>Blocked: Not energy-related</em></li>
+                        <li>"Analyze this medical data" → <em>Blocked: Healthcare domain</em></li>
+                        <li>"Recommend a good movie" → <em>Blocked: Entertainment domain</em></li>
+                        <li>"Help with my relationship" → <em>Blocked: Personal advice</em></li>
+                        <li>"Analyze stock market trends" → <em>Blocked: Finance domain</em></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- XECO Product Knowledge -->
+            <div class="section">
+                <h2><span class="icon">🔧</span>XECO Product Knowledge</h2>
+                <p>SynerexAI has comprehensive knowledge of all XECO products and installation recommendations:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>⚡ Power Quality Products</h4>
+                        <p>XECO-HF Series (Harmonic Filters), XECO-PFC Series (Power Factor Correction), XECO-VR Series (Voltage Regulation)</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📊 Energy Management</h4>
+                        <p>XECO-EM Series (Energy Management), XECO-MC Series (Monitoring and Control)</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🛠️ Installation Guidance</h4>
+                        <p>Complete installation requirements, wiring diagrams, mounting specifications, clearance requirements</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔧 Configuration Support</h4>
+                        <p>Programming guidance, parameter settings, communication setup, system integration</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔍 Troubleshooting</h4>
+                        <p>Common issues, diagnostic procedures, maintenance schedules, replacement parts</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📋 Compliance</h4>
+                        <p>NEC compliance, safety requirements, permit assistance, inspection guidance</p>
+                    </div>
+                </div>
+                
+                <div class="success">
+                    <h4>✅ XECO Product Examples</h4>
+                    <ul>
+                        <li><strong>XECO-HF Series:</strong> Harmonic filters for VFDs, UPS systems, LED lighting</li>
+                        <li><strong>XECO-PFC Series:</strong> Power factor correction for motors, transformers, lighting</li>
+                        <li><strong>XECO-VR Series:</strong> Voltage regulation for sensitive equipment, medical devices</li>
+                        <li><strong>XECO-EM Series:</strong> Energy monitoring and management systems</li>
+                        <li><strong>XECO-MC Series:</strong> Monitoring and control for electrical equipment</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Benefits of Energy-Only AI -->
+            <div class="section">
+                <h2><span class="icon">🎯</span>Benefits of Energy-Only AI</h2>
+                
+                <h3>1. Specialized Expertise</h3>
+                <ul>
+                    <li><strong>Deep Energy Knowledge:</strong> Focused expertise in energy systems and economics</li>
+                    <li><strong>Industry Standards:</strong> Built-in knowledge of energy industry standards and regulations</li>
+                    <li><strong>Energy Physics:</strong> Understanding of electrical and energy principles</li>
+                    <li><strong>Energy Economics:</strong> Specialized knowledge of energy markets and pricing</li>
+                </ul>
+
+                <h3>2. Enhanced Security</h3>
+                <ul>
+                    <li><strong>Domain Isolation:</strong> Prevents misuse for non-energy purposes</li>
+                    <li><strong>Data Protection:</strong> Energy data stays within energy domain</li>
+                    <li><strong>Regulatory Compliance:</strong> Meets energy industry security requirements</li>
+                    <li><strong>Audit Trail:</strong> Complete logging of energy-related AI decisions</li>
+                </ul>
+
+                <h3>3. Professional Trust</h3>
+                <ul>
+                    <li><strong>Energy Professional Focus:</strong> Designed specifically for energy professionals</li>
+                    <li><strong>Industry Validation:</strong> Meets energy industry standards and requirements</li>
+                    <li><strong>Professional Engineering:</strong> Supports PE oversight and validation</li>
+                    <li><strong>Utility Compliance:</strong> Meets utility company requirements and standards</li>
+                </ul>
+            </div>
+
+            <!-- Implementation Status -->
+            <div class="section">
+                <h2><span class="icon">🚀</span>Implementation Status</h2>
+                
+                <div class="success">
+                    <h4>✅ Implemented Features</h4>
+                    <ul>
+                        <li>Energy domain keyword validation</li>
+                        <li>Non-energy domain blocking</li>
+                        <li>Context analysis for energy relevance</li>
+                        <li>Response filtering for energy focus</li>
+                        <li>Energy-specific AI capabilities</li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <h4>🔄 In Development</h4>
+                    <ul>
+                        <li>Advanced energy domain classification</li>
+                        <li>Machine learning-based domain detection</li>
+                        <li>Real-time domain boundary enforcement</li>
+                        <li>Energy-specific AI model training</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

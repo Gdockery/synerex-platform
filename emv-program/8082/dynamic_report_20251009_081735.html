@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNEREX Power Analysis Report</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --background-color: #f8f9fa;
+            --text-color: #2c3e50;
+            --border-color: #e9ecef;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --error-color: #e74c3c;
+            --font-family: Arial, sans-serif;
+            --font-size-base: 14px;
+            --border-radius: 8px;
+            --spacing-unit: 20px;
+            --max-width: 1200px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            padding: var(--spacing-unit);
+        }
+        
+        .container {
+            max-width: var(--max-width);
+            margin: 0 auto;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #3498db, #2c3e50);
+            color: white;
+            padding: {{HEADER_PADDING}};
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: {{HEADER_FONT_SIZE}};
+            margin-bottom: {{HEADER_MARGIN}};
+        }
+        
+        .header p {
+            font-size: {{SUBTITLE_FONT_SIZE}};
+            opacity: {{SUBTITLE_OPACITY}};
+        }
+        
+        .content {
+            padding: {{CONTENT_PADDING}};
+        }
+        
+        .section {
+            margin-bottom: {{SECTION_MARGIN}};
+            padding: {{SECTION_PADDING}};
+            border-left: {{BORDER_WIDTH}} solid var(--primary-color);
+            background: {{SECTION_BACKGROUND}};
+        }
+        
+        .section h2 {
+            color: var(--primary-color);
+            font-size: {{SECTION_HEADER_SIZE}};
+            margin-bottom: {{SECTION_HEADER_MARGIN}};
+        }
+        
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax({{GRID_MIN_WIDTH}}, 1fr));
+            gap: {{GRID_GAP}};
+            margin: {{GRID_MARGIN}};
+        }
+        
+        .metric-card {
+            background: {{CARD_BACKGROUND}};
+            border: {{CARD_BORDER}};
+            border-radius: var(--border-radius);
+            padding: {{CARD_PADDING}};
+            text-align: center;
+            transition: {{CARD_TRANSITION}};
+        }
+        
+        .metric-card:hover {
+            transform: {{CARD_HOVER_TRANSFORM}};
+            box-shadow: {{CARD_HOVER_SHADOW}};
+        }
+        
+        .metric-value {
+            font-size: {{METRIC_VALUE_SIZE}};
+            font-weight: {{METRIC_VALUE_WEIGHT}};
+            color: var(--primary-color);
+            margin-bottom: {{METRIC_VALUE_MARGIN}};
+        }
+        
+        .metric-label {
+            font-size: {{METRIC_LABEL_SIZE}};
+            color: var(--text-color);
+            opacity: {{METRIC_LABEL_OPACITY}};
+        }
+        
+        .chart-container {
+            width: {{CHART_WIDTH}};
+            height: {{CHART_HEIGHT}};
+            margin: {{CHART_MARGIN}};
+            background: {{CHART_BACKGROUND}};
+            border-radius: var(--border-radius);
+            padding: {{CHART_PADDING}};
+        }
+        
+        .table {
+            width: {{TABLE_WIDTH}};
+            border-collapse: {{TABLE_BORDER_COLLAPSE}};
+            margin: {{TABLE_MARGIN}};
+        }
+        
+        .table th,
+        .table td {
+            padding: {{TABLE_CELL_PADDING}};
+            text-align: {{TABLE_CELL_ALIGN}};
+            border: {{TABLE_BORDER}};
+        }
+        
+        .table th {
+            background: {{TABLE_HEADER_BACKGROUND}};
+            color: {{TABLE_HEADER_COLOR}};
+            font-weight: {{TABLE_HEADER_WEIGHT}};
+        }
+        
+        .table tr:nth-child(even) {
+            background: {{TABLE_ROW_EVEN_BACKGROUND}};
+        }
+        
+        .table tr:hover {
+            background: {{TABLE_ROW_HOVER_BACKGROUND}};
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: {{BADGE_PADDING}};
+            border-radius: {{BADGE_RADIUS}};
+            font-size: {{BADGE_FONT_SIZE}};
+            font-weight: {{BADGE_FONT_WEIGHT}};
+            text-transform: {{BADGE_TEXT_TRANSFORM}};
+        }
+        
+        .status-success {
+            background: var(--success-color);
+            color: {{SUCCESS_TEXT_COLOR}};
+        }
+        
+        .status-warning {
+            background: var(--warning-color);
+            color: {{WARNING_TEXT_COLOR}};
+        }
+        
+        .status-error {
+            background: var(--error-color);
+            color: {{ERROR_TEXT_COLOR}};
+        }
+        
+        .footer {
+            background: {{FOOTER_BACKGROUND}};
+            color: {{FOOTER_TEXT_COLOR}};
+            padding: {{FOOTER_PADDING}};
+            text-align: {{FOOTER_ALIGN}};
+            font-size: {{FOOTER_FONT_SIZE}};
+        }
+        
+        @media (max-width: {{MOBILE_BREAKPOINT}}) {
+            .container {
+                margin: {{MOBILE_CONTAINER_MARGIN}};
+                border-radius: {{MOBILE_BORDER_RADIUS}};
+            }
+            
+            .header {
+                padding: {{MOBILE_HEADER_PADDING}};
+            }
+            
+            .content {
+                padding: {{MOBILE_CONTENT_PADDING}};
+            }
+            
+            .metric-grid {
+                grid-template-columns: {{MOBILE_GRID_COLUMNS}};
+                gap: {{MOBILE_GRID_GAP}};
+            }
+            
+            .chart-container {
+                width: {{MOBILE_CHART_WIDTH}};
+                height: {{MOBILE_CHART_HEIGHT}};
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SYNEREX Power Analysis Report</h1>
+            <p>Measurement & Verification Analysis</p>
+            <div class="report-meta">
+                <span>{{GENERATED_DATE_LABEL}}: 2025-10-09 08:17:35</span>
+                <span>{{VERSION_LABEL}}: 3.0</span>
+                <span>{{COMPANY_LABEL}}: Test Company Inc.</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Executive Summary -->
+            <div class="section">
+                <h2>{{EXECUTIVE_SUMMARY_TITLE}}</h2>
+                <p>{{EXECUTIVE_SUMMARY_TEXT}}</p>
+                <div class="metric-grid">
+                    <div class="metric-card">
+                        <div class="metric-value">$15,000.50</div>
+                        <div class="metric-label">{{ANNUAL_SAVINGS_LABEL}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">25.5 kW</div>
+                        <div class="metric-label">{{DEMAND_REDUCTION_LABEL}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">50,000 kWh</div>
+                        <div class="metric-label">{{ENERGY_SAVINGS_LABEL}}</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">2.5 years</div>
+                        <div class="metric-label">{{PAYBACK_PERIOD_LABEL}}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analysis Results -->
+            <div class="section">
+                <h2>{{ANALYSIS_RESULTS_TITLE}}</h2>
+                <div class="chart-container">
+                    <canvas id="analysisChart" width="{{CHART_WIDTH}}" height="{{CHART_HEIGHT}}"></canvas>
+                </div>
+            </div>
+            
+            <!-- Statistical Summary -->
+            <div class="section">
+                <h2>{{STATISTICAL_SUMMARY_TITLE}}</h2>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{METRIC_COLUMN}}</th>
+                            <th>{{BEFORE_COLUMN}}</th>
+                            <th>{{AFTER_COLUMN}}</th>
+                            <th>{{IMPROVEMENT_COLUMN}}</th>
+                            <th>{{STATUS_COLUMN}}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{POWER_FACTOR_LABEL}}</td>
+                            <td>0.850</td>
+                            <td>0.950</td>
+                            <td>11.8%</td>
+                            <td><span class="status-badge status-{{POWER_FACTOR_STATUS}}">{{POWER_FACTOR_STATUS_TEXT}}</span></td>
+                        </tr>
+                        <tr>
+                            <td>{{DEMAND_LABEL}}</td>
+                            <td>{{DEMAND_BEFORE}}</td>
+                            <td>{{DEMAND_AFTER}}</td>
+                            <td>{{DEMAND_IMPROVEMENT}}</td>
+                            <td><span class="status-badge status-{{DEMAND_STATUS}}">{{DEMAND_STATUS_TEXT}}</span></td>
+                        </tr>
+                        <tr>
+                            <td>{{ENERGY_LABEL}}</td>
+                            <td>{{ENERGY_BEFORE}}</td>
+                            <td>{{ENERGY_AFTER}}</td>
+                            <td>{{ENERGY_IMPROVEMENT}}</td>
+                            <td><span class="status-badge status-{{ENERGY_STATUS}}">{{ENERGY_STATUS_TEXT}}</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Compliance Status -->
+            <div class="section">
+                <h2>{{COMPLIANCE_STATUS_TITLE}}</h2>
+                <div class="compliance-grid">
+                    <div class="compliance-item">
+                        <span class="compliance-label">{{IEEE_519_LABEL}}</span>
+                        <span class="status-badge status-success">{{IEEE_519_STATUS_TEXT}}</span>
+                    </div>
+                    <div class="compliance-item">
+                        <span class="compliance-label">{{ASHRAE_LABEL}}</span>
+                        <span class="status-badge status-success">{{ASHRAE_STATUS_TEXT}}</span>
+                    </div>
+                    <div class="compliance-item">
+                        <span class="compliance-label">{{NEMA_LABEL}}</span>
+                        <span class="status-badge status-warning">{{NEMA_STATUS_TEXT}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>{{FOOTER_TEXT}}</p>
+            <p>{{COPYRIGHT_TEXT}}</p>
+        </div>
+    </div>
+    
+    <script>
+        // Dynamic chart generation
+        const chartData = {
+            labels: ["Before", "After"],
+            datasets: [{
+                label: '{{CHART_DATASET_LABEL}}',
+                data: [0.85, 0.95],
+                backgroundColor: '{{CHART_BACKGROUND_COLOR}}',
+                borderColor: '{{CHART_BORDER_COLOR}}',
+                borderWidth: {{CHART_BORDER_WIDTH}}
+            }]
+        };
+        
+        const chartConfig = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        };
+        
+        const ctx = document.getElementById('analysisChart').getContext('2d');
+        new Chart(ctx, chartConfig);
+    </script>
+</body>
+</html>

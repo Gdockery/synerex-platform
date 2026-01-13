@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Xeco Equipment Recommendation Calculator</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 400px; }
+        label { display: block; margin: 10px 0 5px; }
+        input { width: 100%; padding: 5px; }
+        button { margin-top: 10px; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h2>Xeco Equipment Recommendation Calculator</h2>
+    <form id="calcForm">
+        <label for="volts">Volts:</label>
+        <input type="number" id="volts" min="0" required>
+        
+        <label for="amps">Load Amps:</label>
+        <input type="number" id="amps" min="0" required>
+        
+        <label for="pf">Power Factor (%):</label>
+        <input type="number" id="pf" min="0" max="100" required>
+        
+        <label for="h3">3rd Harmonic Amps:</label>
+        <input type="number" id="h3" min="0" required>
+        
+        <label for="h5">5th Harmonic Amps:</label>
+        <input type="number" id="h5" min="0" required>
+        
+        <label for="h7">7th Harmonic Amps:</label>
+        <input type="number" id="h7" min="0" required>
+        
+        <label for="h11">11th Harmonic Amps:</label>
+        <input type="number" id="h11" min="0" required>
+        
+        <label><input type="checkbox" id="vfd"> On a VFD?</label>
+        
+        <button type="button" onclick="calculate()">Recommend</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        function calculate() {
+            const volts = parseFloat(document.getElementById('volts').value);
+            const amps = parseFloat(document.getElementById('amps').value);
+            const pf = parseFloat(document.getElementById('pf').value);
+            const h3 = parseFloat(document.getElementById('h3').value);
+            const h5 = parseFloat(document.getElementById('h5').value);
+            const h7 = parseFloat(document.getElementById('h7').value);
+            const h11 = parseFloat(document.getElementById('h11').value);
+            const vfd = document.getElementById('vfd').checked;
+            
+            const totalHarmonics = Math.sqrt(h3**2 + h5**2 + h7**2 + h11**2);
+            const thd = (totalHarmonics / amps) * 100; // For reference, though not directly used in rules
+            
+            let recommendation = '';
+            
+            if (amps < 30) {
+                recommendation = 'Under 30A: Move upstream to capture more usage. Do not install anything here.';
+            } else if (amps >= 30 && amps < 50) {
+                if (totalHarmonics > 20) {
+                    recommendation = 'Harmonics over 20A: Recommend APF-50.';
+                } else if (pf < 75 && !vfd) {
+                    recommendation = 'PF under 75 and not VFD: Recommend 600.';
+                } else if (pf < 75 && vfd) {
+                    recommendation = 'PF under 75 and VFD: Recommend APF-50.';
+                } else {
+                    recommendation = 'None of the above: Only install if ROI is not main target.';
+                }
+            } else if (amps >= 50 && amps < 70) {
+                if (totalHarmonics > 20) {
+                    recommendation = 'Harmonics over 20A: Recommend APF-50.';
+                } else if (pf < 85 && !vfd) {
+                    recommendation = 'PF under 85 and not VFD: Recommend 600.';
+                } else if (pf < 85 && vfd) {
+                    recommendation = 'PF under 85 and VFD: Recommend APF-50.';
+                } else {
+                    recommendation = 'None of the above: Only install if ROI is not main target.';
+                }
+            } else if (amps >= 70 && amps < 100) {
+                if (totalHarmonics > 40) {
+                    recommendation = 'Harmonics over 40A: Recommend APF-100.';
+                } else if (totalHarmonics > 20 && totalHarmonics <= 40) {
+                    if (pf < 85) {
+                        recommendation = 'PF under 85: Recommend APF-50.';
+                    } else if (pf < 70 && vfd) {
+                        recommendation = 'PF under 70 and VFD: Recommend APF-100.';
+                    } else if (pf < 85 && vfd) {
+                        recommendation = 'PF under 85 and VFD: Recommend APF-50.';
+                    }
+                } else if (totalHarmonics <= 20 && pf < 85 && !vfd) {
+                    recommendation = 'Harmonics below 20A, PF under 85 and not VFD: Recommend 600.';
+                } else {
+                    recommendation = 'None of the above: Only install if ROI is not main target.';
+                }
+            } else if (amps >= 100 && amps < 150) {
+                if (totalHarmonics > 40 && totalHarmonics <= 80) {
+                    if (pf > 90) {
+                        recommendation = 'PF over 90: Recommend APF-100.';
+                    } else if (pf < 90 && pf > 70) {
+                        recommendation = vfd ? 'VFD: Recommend APF-100 + APF-50.' : 'No VFD: Recommend APF-100 + 600.';
+                    } else if (pf < 70) {
+                        recommendation = vfd ? 'VFD: Recommend APF-100 + APF-100.' : 'No VFD: Recommend APF-100 + 2x 600.';
+                    }
+                } else if (totalHarmonics > 20 && totalHarmonics <= 40) {
+                    if (pf > 85) {
+                        recommendation = 'PF over 85: Recommend APF-50.';
+                    } else if (pf < 85 && pf > 70) {
+                        recommendation = vfd ? 'VFD: Recommend APF-50 + APF-50.' : 'No VFD: Recommend APF-50 + 600.';
+                    } else if (pf < 70) {
+                        recommendation = vfd ? 'VFD: Recommend APF-100 + APF-100.' : 'No VFD: Recommend APF-100 + 600.';
+                    } else if (pf < 70 && vfd) {
+                        recommendation = 'PF under 70 and VFD: Recommend APF-100 + APF-100.';
+                    } else if (pf < 85 && vfd) {
+                        recommendation = 'PF under 85 and VFD: Recommend APF-100.';
+                    }
+                } else if (totalHarmonics <= 20 && pf < 85 && !vfd) {
+                    recommendation = 'Harmonics below 20A, PF under 85 and not VFD: Recommend 600 + 600.';
+                } else {
+                    recommendation = 'None of the above: Only install if ROI is not main target.';
+                }
+            } else if (amps >= 150) {
+                recommendation = 'Over 150A: Use combinations from above rules (e.g., multiple APF-100 and/or 600). Scale based on segmented load analysis.';
+            }
+            
+            if (vfd && recommendation.includes('600')) {
+                recommendation += ' Note: For VFD, only use 600 if installed 50 feet away from the drive.';
+            }
+            
+            if (thd > 40 && recommendation.includes('600')) {
+                recommendation += ' Warning: THD >40%—APF may be preferable over 600 for better performance.';
+            }
+            
+            if (volts > 600 && recommendation.includes('600')) {
+                recommendation += ' Note: XECO600 limited to 600V or less—verify compatibility.';
+            }
+            
+            document.getElementById('result').innerHTML = `<strong>Recommendation:</strong> ${recommendation}<br><em>Calculated Total Harmonics: ${totalHarmonics.toFixed(2)}A | THD: ${thd.toFixed(2)}%</em>`;
+        }
+    </script>
+</body>
+</html>

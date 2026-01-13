@@ -1,0 +1,193 @@
+8082/confirmation_system.py:91: error: Incompatible default for argument "backup_path" (default has type "None", argument has type "str")  [assignment]
+8082/confirmation_system.py:91: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/confirmation_system.py:91: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/xeco_product_knowledge.py:427: error: Incompatible default for argument "category" (default has type "None", argument has type "str")  [assignment]
+8082/xeco_product_knowledge.py:427: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/xeco_product_knowledge.py:427: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/xeco_product_knowledge.py:427: error: Incompatible default for argument "application" (default has type "None", argument has type "str")  [assignment]
+8082/xeco_product_knowledge.py:462: error: Incompatible default for argument "category" (default has type "None", argument has type "str")  [assignment]
+8082/xeco_product_knowledge.py:462: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/xeco_product_knowledge.py:462: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/xeco_product_knowledge.py:462: error: Incompatible default for argument "application" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:78: error: Library stubs not installed for "requests"  [import-untyped]
+8082/main_hardened_ready_fixed.py:78: note: Hint: "python3 -m pip install types-requests"
+8082/main_hardened_ready_fixed.py:78: note: (or run "mypy --install-types" to install all missing stub packages)
+8082/main_hardened_ready_fixed.py:78: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+8082/main_hardened_ready_fixed.py:255: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
+8082/main_hardened_ready_fixed.py:256: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
+8082/main_hardened_ready_fixed.py:655: error: Incompatible return value type (got "None", expected "str")  [return-value]
+8082/main_hardened_ready_fixed.py:659: error: Incompatible return value type (got "None", expected "str")  [return-value]
+8082/main_hardened_ready_fixed.py:1185: error: Missing return statement  [return]
+8082/main_hardened_ready_fixed.py:1185: error: Incompatible default for argument "fallback_svg" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:1185: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1185: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1579: error: Incompatible default for argument "kvar" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1579: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1579: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1705: error: Argument 1 to "len" has incompatible type "object"; expected "Sized"  [arg-type]
+8082/main_hardened_ready_fixed.py:1803: error: Unsupported right operand type for in ("object")  [operator]
+8082/main_hardened_ready_fixed.py:1808: error: Value of type "object" is not indexable  [index]
+8082/main_hardened_ready_fixed.py:1822: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:1823: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:1829: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:1830: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:1831: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:1943: error: Argument 2 to "get" of "Mapping" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+8082/main_hardened_ready_fixed.py:1984: error: Incompatible default for argument "humidity_before" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1984: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1984: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1985: error: Incompatible default for argument "humidity_after" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1985: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1985: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1986: error: Incompatible default for argument "wind_speed_before" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1986: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1986: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1987: error: Incompatible default for argument "wind_speed_after" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1987: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1987: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1988: error: Incompatible default for argument "solar_radiation_before" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1988: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1988: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:1989: error: Incompatible default for argument "solar_radiation_after" (default has type "None", argument has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:1989: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:1989: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:2995: error: Incompatible types in assignment (expression has type "dict[str, float]", target has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:3000: error: Incompatible types in assignment (expression has type "list[int]", target has type "float")  [assignment]
+8082/main_hardened_ready_fixed.py:3065: error: Incompatible return value type (got "dict[str, Any]", expected "list[Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:3107: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3110: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3113: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3120: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3123: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3128: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3134: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3183: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3184: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3190: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3193: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3199: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3266: error: "list[Any]" has no attribute "tolist"  [attr-defined]
+8082/main_hardened_ready_fixed.py:3289: error: Incompatible default for argument "standards_ref" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:3289: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:3289: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:3320: error: Incompatible default for argument "standards_ref" (default has type "None", argument has type "list[str]")  [assignment]
+8082/main_hardened_ready_fixed.py:3320: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:3320: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:4583: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4588: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4616: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4620: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4623: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4628: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4654: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4658: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4662: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4689: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4693: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4703: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4730: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4735: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4769: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4773: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4778: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4782: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4814: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4818: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4823: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4827: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4832: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4835: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4865: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4868: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4872: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4875: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4879: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4882: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4886: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4919: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:4930: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:4941: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:4959: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:4970: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:4975: error: "object" has no attribute "items"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4976: error: "object" has no attribute "extend"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4977: error: "object" has no attribute "extend"  [attr-defined]
+8082/main_hardened_ready_fixed.py:4981: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:5002: error: Incompatible default for argument "digital_certificate" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:5002: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:5002: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:5262: error: Incompatible default for argument "secret_key" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:5262: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:5262: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:5448: error: Incompatible default for argument "details" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:5448: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:5448: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:5621: error: Incompatible default for argument "access_details" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:5621: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:5621: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:5710: error: Need type annotation for "access_types" (hint: "access_types: dict[<type>, <type>] = ...")  [var-annotated]
+8082/main_hardened_ready_fixed.py:5731: error: Incompatible default for argument "modification_details" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:5731: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:5731: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:5912: error: "object" has no attribute "add"  [attr-defined]
+8082/main_hardened_ready_fixed.py:5913: error: "object" has no attribute "add"  [attr-defined]
+8082/main_hardened_ready_fixed.py:5914: error: Unsupported target for indexed assignment ("object")  [index]
+8082/main_hardened_ready_fixed.py:5914: error: "object" has no attribute "get"  [attr-defined]
+8082/main_hardened_ready_fixed.py:5916: error: "object" has no attribute "append"  [attr-defined]
+8082/main_hardened_ready_fixed.py:5926: error: No overload variant of "list" matches argument type "object"  [call-overload]
+8082/main_hardened_ready_fixed.py:5926: note: Possible overload variants:
+8082/main_hardened_ready_fixed.py:5926: note:     def [_T] __init__(self) -> list[_T]
+8082/main_hardened_ready_fixed.py:5926: note:     def [_T] __init__(self, Iterable[_T], /) -> list[_T]
+8082/main_hardened_ready_fixed.py:5927: error: No overload variant of "list" matches argument type "object"  [call-overload]
+8082/main_hardened_ready_fixed.py:5927: note: Possible overload variants:
+8082/main_hardened_ready_fixed.py:5927: note:     def [_T] __init__(self) -> list[_T]
+8082/main_hardened_ready_fixed.py:5927: note:     def [_T] __init__(self, Iterable[_T], /) -> list[_T]
+8082/main_hardened_ready_fixed.py:6426: error: Name "class_a_requirements" is not defined  [name-defined]
+8082/main_hardened_ready_fixed.py:6456: error: Name "class_a_requirements" is not defined  [name-defined]
+8082/main_hardened_ready_fixed.py:6784: error: Need type annotation for "efficiency_classification" (hint: "efficiency_classification: dict[<type>, <type>] = ...")  [var-annotated]
+8082/main_hardened_ready_fixed.py:6917: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:6929: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:6935: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:6990: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:6998: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:7001: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:7008: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:7033: error: Incompatible return value type (got "None", expected "dict[Any, Any]")  [return-value]
+8082/main_hardened_ready_fixed.py:7035: error: Incompatible default for argument "power_quality_data" (default has type "None", argument has type "dict[Any, Any]")  [assignment]
+8082/main_hardened_ready_fixed.py:7035: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:7035: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:7143: error: Incompatible default for argument "title" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:7143: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:7143: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:7148: error: Incompatible default for argument "title" (default has type "None", argument has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:7148: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:7148: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:7153: error: Incompatible default for argument "power_quality_data" (default has type "None", argument has type "dict[Any, Any]")  [assignment]
+8082/main_hardened_ready_fixed.py:7153: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:7153: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:7278: error: Incompatible types in assignment (expression has type "float", variable has type "int")  [assignment]
+8082/main_hardened_ready_fixed.py:7451: error: Unsupported operand types for * ("float" and "None")  [operator]
+8082/main_hardened_ready_fixed.py:7451: note: Right operand is of type "float | None"
+8082/main_hardened_ready_fixed.py:7452: error: Unsupported operand types for * ("float" and "None")  [operator]
+8082/main_hardened_ready_fixed.py:7452: note: Right operand is of type "float | None"
+8082/main_hardened_ready_fixed.py:7453: error: Unsupported operand types for - ("int" and "None")  [operator]
+8082/main_hardened_ready_fixed.py:7453: note: Right operand is of type "float | None"
+8082/main_hardened_ready_fixed.py:7454: error: Unsupported operand types for - ("int" and "None")  [operator]
+8082/main_hardened_ready_fixed.py:7454: note: Right operand is of type "float | None"
+8082/main_hardened_ready_fixed.py:8838: error: Incompatible types in assignment (expression has type "bool", variable has type "str")  [assignment]
+8082/main_hardened_ready_fixed.py:10127: error: "Callable[[dict[Any, Any], dict[Any, Any], str], dict[Any, Any]]" has no attribute "_global_statistical_results"  [attr-defined]
+8082/main_hardened_ready_fixed.py:10181: error: "Callable[[dict[Any, Any], dict[Any, Any], str], dict[Any, Any]]" has no attribute "_global_statistical_results"  [attr-defined]
+8082/main_hardened_ready_fixed.py:10500: error: Argument 1 to "WeatherNormalization" has incompatible type "Any | None"; expected "str"  [arg-type]
+8082/main_hardened_ready_fixed.py:11390: error: Value of type "object" is not indexable  [index]
+8082/main_hardened_ready_fixed.py:11393: error: Value of type "object" is not indexable  [index]
+8082/main_hardened_ready_fixed.py:11559: error: Argument 1 has incompatible type "Any | None"; expected "_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]] | _NestedSequence[_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]]] | float | _NestedSequence[float]"  [arg-type]
+8082/main_hardened_ready_fixed.py:11560: error: Argument 1 has incompatible type "Any | None"; expected "_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]] | _NestedSequence[_SupportsArray[dtype[numpy.bool[builtins.bool] | integer[Any] | floating[Any]]]] | float | _NestedSequence[float]"  [arg-type]
+8082/main_hardened_ready_fixed.py:12282: error: Incompatible default for argument "statistical" (default has type "None", argument has type "dict[Any, Any]")  [assignment]
+8082/main_hardened_ready_fixed.py:12282: note: PEP 484 prohibits implicit Optional. Accordingly, mypy has changed its default to no_implicit_optional=True
+8082/main_hardened_ready_fixed.py:12282: note: Use https://github.com/hauntsaninja/no_implicit_optional to automatically upgrade your codebase
+8082/main_hardened_ready_fixed.py:12341: error: Incompatible return value type (got "None", expected "str")  [return-value]
+8082/main_hardened_ready_fixed.py:15821: error: Library stubs not installed for "markdown"  [import-untyped]
+8082/main_hardened_ready_fixed.py:15821: note: Hint: "python3 -m pip install types-Markdown"
+8082/main_hardened_ready_fixed.py:19123: error: Name "get_xeco_installation_guide" already defined (possibly by an import)  [no-redef]
+8082/main_hardened_ready_fixed.py:19153: error: Name "get_xeco_troubleshooting_guide" already defined (possibly by an import)  [no-redef]
+Found 132 errors in 3 files (checked 1 source file)

@@ -1,0 +1,87 @@
+# Log files
+*.log
+logs/
+**/logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Generated files
+**/generated_pdfs/
+**/generated_pdfs_*/
+**/generated_reports/
+*.backup
+*.orig
+*_backup_*
+
+# Analysis results
+analysis_results.json
+complete_html_report.html
+
+# Excel audit files (keep documentation ones, remove generated)
+# *_Audit_Trail_*.xlsx  # Uncomment if you want to exclude all audit trails
+
+# SSH keys and secrets
+calc_rsa
+*.pem
+*.key
+*.cert
+id_rsa
+id_rsa.pub
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Backup workspace files
+*.code-workspace.backup
+synerex-oneform-backup.code-workspace

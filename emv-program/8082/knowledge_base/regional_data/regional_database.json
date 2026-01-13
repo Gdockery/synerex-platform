@@ -1,0 +1,38 @@
+{
+  "climate_zones": {
+    "ashrae_zones": {
+      "zone_1": "Very hot, humid (Florida, Hawaii)",
+      "zone_2": "Hot, humid (Texas, Louisiana)",
+      "zone_3": "Hot, dry (Arizona, Nevada)",
+      "zone_4": "Mixed, humid (Georgia, Alabama)",
+      "zone_5": "Mixed, dry (Colorado, Utah)",
+      "zone_6": "Cold, humid (New York, Pennsylvania)",
+      "zone_7": "Cold, dry (Montana, Wyoming)",
+      "zone_8": "Very cold (Alaska, northern Canada)"
+    },
+    "energy_intensity": {
+      "office_buildings": "15-25 kWh/sqft/year",
+      "retail_buildings": "20-30 kWh/sqft/year",
+      "industrial_facilities": "50-100 kWh/sqft/year",
+      "data_centers": "200-500 kWh/sqft/year"
+    }
+  },
+  "utility_mix": {
+    "renewable_percentage": {
+      "california": "60% renewable",
+      "texas": "25% renewable",
+      "new_york": "30% renewable",
+      "national_average": "20% renewable"
+    }
+  },
+  "incentive_programs": {
+    "federal": {
+      "tax_credits": "30% for solar, 10% for efficiency",
+      "depreciation": "Accelerated depreciation for efficiency"
+    },
+    "state": {
+      "rebates": "Utility and state rebates",
+      "grants": "Energy efficiency grants"
+    }
+  }
+}

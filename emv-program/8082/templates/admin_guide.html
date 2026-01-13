@@ -1,0 +1,1675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNEREX Admin Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c5aa0;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: #2c5aa0;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .nav-btn:hover {
+            background: #1e3a5f;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(44, 90, 160, 0.3);
+        }
+
+        .content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 5px solid #2c5aa0;
+        }
+
+        .section h2 {
+            color: #2c5aa0;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h3 {
+            color: #1e3a5f;
+            font-size: 1.4em;
+            margin: 25px 0 15px 0;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+        }
+
+        .section h4 {
+            color: #495057;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+        }
+
+        .feature-card h4 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .feature-card p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #f39c12;
+        }
+
+        .warning h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 5px solid #28a745;
+        }
+
+        .success h4 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .step-list {
+            counter-reset: step-counter;
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            counter-increment: step-counter;
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .step-list li::before {
+            content: counter(step-counter);
+            background: #2c5aa0;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: absolute;
+            left: -15px;
+            top: 15px;
+        }
+
+        .step-list li {
+            margin-left: 25px;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .toc h3 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .icon {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px;">
+                <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 50px; width: auto;">
+                <h1 style="margin: 0; font-size: 2.2em;">Admin Guide</h1>
+            </div>
+            <p>Comprehensive Guide for System Administrators</p>
+            <p><strong>System Version: {{ version }}</strong> | <strong>Last Updated:</strong> October 19, 2025</p>
+            <div class="nav-buttons">
+                <a href="/admin-panel" class="nav-btn">← Back to Admin Panel</a>
+                <a href="/main-dashboard" class="nav-btn">← Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Table of Contents -->
+            <div class="toc">
+                <h3>📋 Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">1. Admin Panel Overview</a></li>
+                    <li><a href="#authentication">2. Authentication & Access Control</a></li>
+                    <li><a href="#system-overview">3. System Overview & Monitoring</a></li>
+                    <li><a href="#facility-specific-management">4. Facility-Specific Analysis Management</a></li>
+                    <li><a href="#service-management">5. Service Management</a></li>
+                    <li><a href="#user-management">6. User Management</a></li>
+                    <li><a href="#database-management">7. Database Management</a></li>
+                    <li><a href="#security-compliance">8. Security & Compliance</a></li>
+                    <li><a href="#maintenance">9. System Maintenance</a></li>
+                    <li><a href="#troubleshooting">10. Troubleshooting Guide</a></li>
+                    <li><a href="#best-practices">11. Best Practices</a></li>
+                </ul>
+            </div>
+
+            <!-- Section 1: Admin Panel Overview -->
+            <div class="section" id="overview">
+                <h2><span class="icon">🏠</span>Admin Panel Overview</h2>
+                <p>The SYNEREX Admin Panel provides comprehensive system administration capabilities for managing the power analysis platform. This guide covers all administrative functions, security protocols, and best practices.</p>
+                
+                <h3>Key Administrative Areas:</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔐 Authentication & Access</h4>
+                        <p>Role-based access control, session management, and security protocols</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📊 System Monitoring</h4>
+                        <p>Real-time system status, performance metrics, and health monitoring</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚙️ Service Management</h4>
+                        <p>Start, stop, and monitor all system services and microservices</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>👥 User Management</h4>
+                        <p>User accounts, roles, permissions, and access control</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: Authentication & Access Control -->
+            <div class="section" id="authentication">
+                <h2><span class="icon">🔐</span>Authentication & Access Control</h2>
+                
+                <h3>Role-Based Access Control (RBAC)</h3>
+                <p>The system uses a sophisticated role-based access control system with the following roles:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>👤 Standard User</h4>
+                        <p>• Access to main dashboard<br>• Run analyses<br>• Generate reports<br>• View user guide</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔧 Administrator</h4>
+                        <p>• All standard user permissions<br>• Access to admin panel<br>• System management<br>• User management</p>
+                    </div>
+                </div>
+
+                <h3>Session Management</h3>
+                <p>The system uses custom session tokens for authentication:</p>
+                <ul class="step-list">
+                    <li><strong>Session Token Generation:</strong> Unique tokens are generated upon successful login</li>
+                    <li><strong>Token Storage:</strong> Tokens are stored in localStorage and passed via headers/cookies/URL parameters</li>
+                    <li><strong>Token Validation:</strong> All admin functions validate session tokens before execution</li>
+                    <li><strong>Session Expiry:</strong> Tokens expire after a configurable period for security</li>
+                </ul>
+
+                <div class="warning">
+                    <h4>⚠️ Security Considerations</h4>
+                    <p>• Always use HTTPS in production environments<br>• Regularly rotate session tokens<br>• Monitor for unauthorized access attempts<br>• Implement strong password policies</p>
+                </div>
+            </div>
+
+            <!-- Section 3: System Overview & Monitoring -->
+            <div class="section" id="system-overview">
+                <h2><span class="icon">📊</span>System Overview & Monitoring</h2>
+                
+                <h3>System Architecture</h3>
+                <p>SYNEREX uses a microservices architecture with the following components:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🏠 Main Application (Port 8082)</h4>
+                        <p>Core analysis engine, UI dashboard, and API endpoints</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📄 HTML Service (Port 8084)</h4>
+                        <p>Report generation and template processing</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🌤️ Weather Service (Port 8200)</h4>
+                        <p>Weather data integration and environmental factors</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📈 Chart Service (Port 8086)</h4>
+                        <p>Data visualization and chart generation</p>
+                    </div>
+                </div>
+
+                <h3>Monitoring Dashboard</h3>
+                <p>The admin panel provides real-time monitoring of:</p>
+                <ul class="step-list">
+                    <li><strong>Service Status:</strong> Check if all services are running and responding</li>
+                    <li><strong>Performance Metrics:</strong> CPU usage, memory consumption, response times</li>
+                    <li><strong>Error Logs:</strong> System errors, warnings, and critical issues</li>
+                    <li><strong>User Activity:</strong> Active sessions, login attempts, and usage patterns</li>
+                </ul>
+            </div>
+
+            <!-- Section 4: Facility-Specific Analysis Management -->
+            <div class="section" id="facility-specific-management">
+                <h2><span class="icon">🏭</span>Facility-Specific Analysis Management</h2>
+                
+                <h3>Overview</h3>
+                <p>SYNEREX supports five facility-specific analysis types, each with specialized metrics, calculations, and compliance standards. Administrators should understand how to manage and monitor facility-specific analysis workflows.</p>
+
+                <h3>Available Facility Types</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>❄️ Cold Storage</h4>
+                        <p><strong>Route:</strong> <code>/cold-storage</code></p>
+                        <p><strong>Key Metrics:</strong> Energy per unit of product (kWh/lb, kWh/ton)</p>
+                        <p><strong>Standards:</strong> ASHRAE Standard 15, ASHRAE Standard 34</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🖥️ Data Center / GPU</h4>
+                        <p><strong>Route:</strong> <code>/data-center</code></p>
+                        <p><strong>Key Metrics:</strong> PUE, ITE, CLF, compute efficiency</p>
+                        <p><strong>Standards:</strong> ASHRAE Standard 90.4, ISO/IEC 30134</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🏥 Healthcare</h4>
+                        <p><strong>Route:</strong> <code>/healthcare</code></p>
+                        <p><strong>Key Metrics:</strong> Energy per patient day, energy per bed</p>
+                        <p><strong>Standards:</strong> ASHRAE Standard 170, FGI Guidelines</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🏨 Hospitality</h4>
+                        <p><strong>Route:</strong> <code>/hospitality</code></p>
+                        <p><strong>Key Metrics:</strong> Energy per room-night, energy per guest, energy per meal</p>
+                        <p><strong>Standards:</strong> ASHRAE Standard 90.1, ENERGY STAR Portfolio Manager</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🏭 Manufacturing & Industrial</h4>
+                        <p><strong>Route:</strong> <code>/manufacturing</code></p>
+                        <p><strong>Key Metrics:</strong> Energy per unit produced, compressed air efficiency</p>
+                        <p><strong>Standards:</strong> ISO 50001, ASME EA-2, NEMA MG1-2016</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚙️ General Energy Analysis</h4>
+                        <p><strong>Route:</strong> <code>/legacy</code></p>
+                        <p><strong>Key Metrics:</strong> Standard power quality metrics</p>
+                        <p><strong>Standards:</strong> IEEE 519, ASHRAE Guideline 14, IPMVP</p>
+                    </div>
+                </div>
+
+                <h3>Admin Responsibilities</h3>
+                <ul class="step-list">
+                    <li><strong>Monitor Facility-Specific Usage:</strong> Track which facility types are being used most frequently</li>
+                    <li><strong>Verify Data Input:</strong> Ensure facility-specific input fields are being completed accurately</li>
+                    <li><strong>Review Facility-Specific Reports:</strong> Verify that facility-specific metrics are appearing correctly in reports</li>
+                    <li><strong>Audit Compliance:</strong> Ensure facility-specific standards are being applied correctly</li>
+                    <li><strong>User Training:</strong> Provide guidance on selecting the appropriate facility type</li>
+                </ul>
+
+                <h3>Database Tables</h3>
+                <p>Facility-specific analysis data is stored in the following database tables:</p>
+                <div class="code-block">
+calculation_audit - Logs all facility-specific calculations<br>
+analysis_sessions - Tracks facility-specific analysis sessions<br>
+compliance_verification - Verifies facility-specific standards compliance<br>
+projects - Stores facility type selection per project
+                </div>
+
+                <h3>Troubleshooting Facility-Specific Issues</h3>
+                <h4>Common Issues:</h4>
+                <ul class="step-list">
+                    <li><strong>Missing Facility-Specific Metrics:</strong> Verify that facility type was correctly selected and all required fields were filled</li>
+                    <li><strong>Incorrect Calculations:</strong> Check that facility-specific calculation functions are being called correctly</li>
+                    <li><strong>Report Generation Errors:</strong> Verify that facility-specific sections are included in report templates</li>
+                    <li><strong>Standards Compliance Failures:</strong> Review facility-specific standards configuration and calculation logic</li>
+                </ul>
+
+                <h3>Best Practices</h3>
+                <ul class="step-list">
+                    <li><strong>Encourage Correct Facility Selection:</strong> Users should select the most appropriate facility type for accurate analysis</li>
+                    <li><strong>Validate Input Data:</strong> Ensure facility-specific input fields are validated before analysis execution</li>
+                    <li><strong>Monitor Performance:</strong> Track calculation times for facility-specific metrics to identify optimization opportunities</li>
+                    <li><strong>Update Standards:</strong> Keep facility-specific standards up to date as regulations change</li>
+                </ul>
+            </div>
+
+            <!-- Section 5: Service Management -->
+            <div class="section" id="service-management">
+                <h2><span class="icon">⚙️</span>Service Management</h2>
+                
+                <h3>Starting Services</h3>
+                <p>All services must be running for the system to function properly:</p>
+                
+                <h4>Main Application (Port 8082)</h4>
+                <div class="code-block">
+cd C:\Users\Admin\OneDrive\Documents\synerex-oneform\8082<br>
+python main_hardened_ready_fixed.py
+                </div>
+
+                <h4>HTML Service (Port 8084)</h4>
+                <div class="code-block">
+cd C:\Users\Admin\OneDrive\Documents\synerex-oneform\8084<br>
+python simple_http_server.py
+                </div>
+
+                <h4>Weather Service (Port 8200)</h4>
+                <div class="code-block">
+cd C:\Users\Admin\OneDrive\Documents\synerex-oneform\8085<br>
+python weather_service.py
+                </div>
+
+                <h4>Chart Service (Port 8086)</h4>
+                <div class="code-block">
+cd C:\Users\Admin\OneDrive\Documents\synerex-oneform\8086<br>
+python chart_service.py
+                </div>
+
+                <h3>Service Monitoring</h3>
+                <p>Use the following commands to check service status:</p>
+                <div class="code-block">
+# Check all service ports<br>
+netstat -an | findstr "8082 8084 8086 8200"<br><br>
+# Check specific service<br>
+netstat -an | findstr "8082"
+                </div>
+
+                <div class="success">
+                    <h4>✅ Service Health Check</h4>
+                    <p>All services should show "LISTENING" status. If any service is not running, restart it using the commands above.</p>
+                </div>
+
+                <h3>Service Management Buttons</h3>
+                <p>Detailed functionality of service management buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔄 Restart Service</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Stops the selected service gracefully</li>
+                            <li>Waits for service to fully shut down</li>
+                            <li>Restarts the service with fresh configuration</li>
+                            <li>Verifies service is running and responding</li>
+                            <li>Updates service status indicator</li>
+                        </ul>
+                        <p><strong>Available for:</strong> Main App, PDF Service, HTML Service, Weather Service, Chart Service, Service Manager</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📋 View Logs</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Opens service-specific log files in a modal window</li>
+                            <li>Shows last 1000 lines of log entries</li>
+                            <li>Displays real-time log content with proper formatting</li>
+                            <li>Allows scrolling through historical log entries</li>
+                            <li>Provides search and filter capabilities</li>
+                        </ul>
+                        <p><strong>Log Sources:</strong> statistical_debug.log, weather_service.log, service logs</p>
+                    </div>
+                </div>
+
+                <h3>Service Status Indicators</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🟢 ONLINE</h4>
+                        <p>Service is running and responding to health checks</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🟡 CHECKING</h4>
+                        <p>Service status is being verified (temporary state)</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔴 OFFLINE</h4>
+                        <p>Service is not running or not responding</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 6: User Management -->
+            <div class="section" id="user-management">
+                <h2><span class="icon">👥</span>User Management</h2>
+                
+                <h3>User Roles and Permissions</h3>
+                <p>The system supports different user roles with varying levels of access:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>👤 Standard User</h4>
+                        <p><strong>Permissions:</strong><br>• Access main dashboard<br>• Run power analyses<br>• Generate reports<br>• View user guides<br>• Save/load projects</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔧 Administrator</h4>
+                        <p><strong>Permissions:</strong><br>• All standard user permissions<br>• Access admin panel<br>• Manage system services<br>• View system logs<br>• Manage user accounts<br>• Database operations</p>
+                    </div>
+                </div>
+
+                <h3>User Management Buttons</h3>
+                <p>Detailed functionality of user management buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>👤 Add User</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Add User functionality would open a form here"</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Open user creation form with required fields</li>
+                            <li>Username, email, password, and role selection</li>
+                            <li>Validate input data and check for duplicates</li>
+                            <li>Create user account in database</li>
+                            <li>Send welcome email with login credentials</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>✏️ Edit User</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Edit user: [username]"</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Open user edit form with current user data</li>
+                            <li>Allow modification of username, email, role</li>
+                            <li>Password reset functionality</li>
+                            <li>Update user permissions and access levels</li>
+                            <li>Save changes to database</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🗑️ Delete User</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Deleting user: [username]"</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Show confirmation dialog with user details</li>
+                            <li>Option to transfer user's data to another user</li>
+                            <li>Archive user data before deletion</li>
+                            <li>Remove user from all active sessions</li>
+                            <li>Delete user account and associated data</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>User Account Management</h3>
+                <ul class="step-list">
+                    <li><strong>Creating User Accounts:</strong> Use the admin panel to create new user accounts with appropriate roles</li>
+                    <li><strong>Role Assignment:</strong> Assign roles based on user responsibilities and access requirements</li>
+                    <li><strong>Password Management:</strong> Implement strong password policies and regular password updates</li>
+                    <li><strong>Account Deactivation:</strong> Deactivate accounts for users who no longer need access</li>
+                </ul>
+
+                <h3>Session Management</h3>
+                <p>Monitor and manage user sessions:</p>
+                <ul class="step-list">
+                    <li><strong>Active Sessions:</strong> View all currently active user sessions</li>
+                    <li><strong>Session Termination:</strong> Force logout of specific users if needed</li>
+                    <li><strong>Session Monitoring:</strong> Track session duration and activity</li>
+                    <li><strong>Security Alerts:</strong> Monitor for suspicious login attempts</li>
+                </ul>
+            </div>
+
+            <!-- Section 7: Database Management -->
+            <div class="section" id="database-management">
+                <h2><span class="icon">🗄️</span>Database Management</h2>
+                
+                <h3>Database Operations</h3>
+                <p>The system uses SQLite for data storage with the following key areas:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📊 Analysis Data</h4>
+                        <p>Power quality measurements, harmonic analysis results, and compliance data</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>👥 User Data</h4>
+                        <p>User accounts, authentication tokens, and session information</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📈 Historical Data</h4>
+                        <p>Past analyses, reports, and audit trails</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>⚙️ System Configuration</h4>
+                        <p>System settings, service configurations, and operational parameters</p>
+                    </div>
+                </div>
+
+                <h3>Database Operations Buttons</h3>
+                <p>Detailed functionality of each database operation button in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>💾 Create Backup</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Creating database backup..."</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Creates timestamped database backups of SQLite database (results/app.db)</li>
+                            <li>Backup location: results/backups/ directory</li>
+                            <li>Backup naming: app_backup_YYYYMMDD_HHMMSS.db format</li>
+                            <li>Also creates app_latest.db for quick access</li>
+                            <li>Preserves original database while creating backup copies</li>
+                        </ul>
+                        <p><strong>Purpose:</strong> Protects against data loss, allows rollback to previous states</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>⚡ Optimize Database</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Optimizing database..."</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>VACUUM operation: Reclaims unused space, defragments database</li>
+                            <li>ANALYZE operation: Updates query optimizer statistics for better performance</li>
+                            <li>Index optimization: Rebuilds indexes for faster queries</li>
+                            <li>Reduces database file size and improves query speed</li>
+                        </ul>
+                        <p><strong>Purpose:</strong> Improves database performance, speeds up report generation</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🔍 Check Integrity</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Checking database integrity..."</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>PRAGMA integrity_check: Verifies database structure and data consistency</li>
+                            <li>PRAGMA quick_check: Fast integrity check for basic corruption detection</li>
+                            <li>Foreign key validation: Ensures referential integrity between tables</li>
+                            <li>Returns detailed integrity report with any issues found</li>
+                        </ul>
+                        <p><strong>Purpose:</strong> Detects corruption, validates data relationships, ensures data quality</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ Implementation Status</h4>
+                    <p><strong>Note:</strong> These buttons currently only show alert messages and don't perform actual database operations. They need to be connected to backend endpoints to function properly.</p>
+                </div>
+
+                <h3>Data Management Buttons</h3>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🧹 Cleanup Old Data</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Cleaning up old data..."</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Remove old analysis results beyond retention period</li>
+                            <li>Clean up temporary files and cache data</li>
+                            <li>Archive old log files</li>
+                            <li>Free up disk space while preserving essential data</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📤 Export All Data</h4>
+                        <p><strong>Current Status:</strong> Shows alert "Exporting all data..."</p>
+                        <p><strong>What it should do:</strong></p>
+                        <ul>
+                            <li>Export all projects and analysis data to CSV/Excel format</li>
+                            <li>Create comprehensive data backup package</li>
+                            <li>Include user data, settings, and configuration</li>
+                            <li>Generate downloadable archive file</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Audit Trail Management</h3>
+                <p>The system maintains comprehensive audit trails for compliance:</p>
+                <ul class="step-list">
+                    <li><strong>User Actions:</strong> Track all user actions and system interactions</li>
+                    <li><strong>Data Changes:</strong> Log all data modifications and updates</li>
+                    <li><strong>System Events:</strong> Record system events, errors, and warnings</li>
+                    <li><strong>Compliance Reporting:</strong> Generate audit reports for regulatory compliance</li>
+                </ul>
+            </div>
+
+            <!-- Section 8: Security & Compliance -->
+            <div class="section" id="security-compliance">
+                <h2><span class="icon">🔒</span>Security & Compliance</h2>
+                
+                <h3>Security Monitoring Buttons</h3>
+                <p>Detailed functionality of security monitoring buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔍 Check Security</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>File Permissions Check: Verifies critical files aren't readable by other users</li>
+                            <li>Database Security: Checks for user authentication tables and integrity</li>
+                            <li>Service Security: Verifies all services are running and accessible</li>
+                            <li>Log Security: Checks log file sizes and recommends rotation if needed</li>
+                            <li>Overall Status: Calculates SECURE/WARNING/ATTENTION/CRITICAL status</li>
+                        </ul>
+                        <p><strong>Security Checks Performed:</strong></p>
+                        <ul>
+                            <li>Critical files: results/app.db, synerex.db, main application files</li>
+                            <li>Database authentication tables verification</li>
+                            <li>Service port accessibility (8082, 8083, 8084, 8085, 8086)</li>
+                            <li>Log file size analysis and rotation recommendations</li>
+                        </ul>
+                        <p><strong>Display Features:</strong> Color-coded status indicators, detailed check results, security recommendations</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📋 Security Logs</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Log Analysis: Scans multiple log files for security-related entries</li>
+                            <li>Keyword Detection: Looks for error, warning, security, auth, login, access, permission, denied, failed</li>
+                            <li>Severity Classification: Categorizes entries as INFO/WARNING/ERROR</li>
+                            <li>File Attribution: Shows which log file and line number</li>
+                            <li>Real-time Analysis: Scans last 100 lines of each log file</li>
+                        </ul>
+                        <p><strong>Log Sources:</strong></p>
+                        <ul>
+                            <li>statistical_debug.log - Main application logs</li>
+                            <li>server_test.log - Server operation logs</li>
+                            <li>8085/weather_service.log - Weather service logs</li>
+                        </ul>
+                        <p><strong>Display Features:</strong> Color-coded severity indicators, scrollable entries, file attribution</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🛡️ Threat Scan</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>File Pattern Scan: Checks for suspicious executable files (*.exe, *.bat, *.cmd, *.scr, *.pif)</li>
+                            <li>Database Integrity: Runs PRAGMA integrity_check for corruption detection</li>
+                            <li>Permission Vulnerabilities: Identifies overly permissive file permissions</li>
+                            <li>Service Security: Verifies service security status</li>
+                            <li>Risk Assessment: Calculates LOW/MEDIUM/HIGH risk levels</li>
+                        </ul>
+                        <p><strong>Scan Types:</strong></p>
+                        <ul>
+                            <li>Comprehensive Security Scan with multiple check categories</li>
+                            <li>Database corruption detection and integrity verification</li>
+                            <li>File permission vulnerability assessment</li>
+                            <li>Service security status verification</li>
+                        </ul>
+                        <p><strong>Display Features:</strong> Risk level indicators, detailed threat reports, security recommendations</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ Security Status Levels</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>🟢 SECURE</h4>
+                            <p>All security checks passed, no issues detected</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟡 ATTENTION</h4>
+                            <p>Minor security concerns detected, review recommended</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟠 WARNING</h4>
+                            <p>Multiple security issues detected, immediate attention required</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔴 CRITICAL</h4>
+                            <p>Serious security vulnerabilities detected, immediate action required</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Compliance Management Buttons</h3>
+                <p>Detailed functionality of compliance management buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔍 Run Compliance Check</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>IEEE 519-2014/2022 Compliance: Verifies harmonic analysis capabilities and data storage</li>
+                            <li>ASHRAE Guideline 14-2014 Compliance: Checks weather normalization service availability</li>
+                            <li>NEMA MG1-2016 Compliance: Verifies motor efficiency analysis capabilities</li>
+                            <li>ANSI C12.1/C12.20 Compliance: Checks meter accuracy standards support</li>
+                            <li>IEC 61000-4-30 Compliance: Verifies power quality measurement capabilities</li>
+                        </ul>
+                        <p><strong>Compliance Checks Performed:</strong></p>
+                        <ul>
+                            <li>Database table verification (raw_meter_data, user_activity, data_modifications)</li>
+                            <li>Service availability checks (weather service, database access)</li>
+                            <li>Standards compliance scoring (0-100% per standard)</li>
+                            <li>Overall compliance status calculation</li>
+                        </ul>
+                        <p><strong>Status Levels:</strong> FULLY_COMPLIANT, MOSTLY_COMPLIANT, PARTIALLY_COMPLIANT, NON_COMPLIANT</p>
+                        <p><strong>Display Features:</strong> Color-coded compliance status, detailed standards breakdown, recommendations</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📊 Generate Report</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Creates comprehensive compliance documentation file</li>
+                            <li>Generates timestamped compliance report (JSON format)</li>
+                            <li>Documents all supported standards and capabilities</li>
+                            <li>Creates compliance_reports directory for storage</li>
+                            <li>Includes system version and compliance features</li>
+                        </ul>
+                        <p><strong>Report Contents:</strong></p>
+                        <ul>
+                            <li>12 compliance standards (IEEE, ASHRAE, NEMA, ANSI, IEC, ITIC, IPMVP, EN)</li>
+                            <li>8 compliance features (Harmonic Analysis, Power Quality, Weather Normalization, etc.)</li>
+                            <li>8 system capabilities (Real-time Monitoring, Standards Verification, etc.)</li>
+                            <li>System version and generation timestamp</li>
+                        </ul>
+                        <p><strong>File Location:</strong> results/compliance_reports/compliance_report_YYYYMMDD_HHMMSS.json</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>📋 View Audit Trail</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Retrieves comprehensive audit trail from database</li>
+                            <li>Shows user activity logs (last 100 entries)</li>
+                            <li>Displays data modification history (last 50 entries)</li>
+                            <li>Includes system events and compliance events</li>
+                            <li>Provides chronological audit trail with timestamps</li>
+                        </ul>
+                        <p><strong>Audit Sources:</strong></p>
+                        <ul>
+                            <li>user_activity table - User actions and system interactions</li>
+                            <li>data_modifications table - Database changes and updates</li>
+                            <li>System events - Compliance checks and administrative actions</li>
+                            <li>Compliance events - Standards verification and audit documentation</li>
+                        </ul>
+                        <p><strong>Display Features:</strong> Color-coded severity levels, chronological ordering, detailed entry information</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ Compliance Status Levels</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>🟢 FULLY_COMPLIANT</h4>
+                            <p>All standards checks passed (90-100% score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟠 MOSTLY_COMPLIANT</h4>
+                            <p>Most standards met (70-89% score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟡 PARTIALLY_COMPLIANT</h4>
+                            <p>Some standards met (50-69% score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔴 NON_COMPLIANT</h4>
+                            <p>Multiple standards failed (<50% score)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>System Maintenance Buttons</h3>
+                <p>Detailed functionality of system maintenance buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔧 Run Diagnostics</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>CPU Usage Check: Monitors processor utilization and frequency</li>
+                            <li>Memory Usage Check: Analyzes RAM consumption and availability</li>
+                            <li>Disk Usage Check: Verifies storage space and usage patterns</li>
+                            <li>Network Connectivity: Tests internet connection and network status</li>
+                            <li>Service Status: Verifies all SYNEREX services are running (ports 8082-8086)</li>
+                        </ul>
+                        <p><strong>Health Checks Performed:</strong></p>
+                        <ul>
+                            <li>CPU cores, frequency, and utilization percentage</li>
+                            <li>Memory total, used, available, and percentage usage</li>
+                            <li>Disk total space, used space, free space, and usage percentage</li>
+                            <li>Network connectivity to external services (8.8.8.8)</li>
+                            <li>Service port availability and status verification</li>
+                        </ul>
+                        <p><strong>Health Score:</strong> 0-100 based on system performance metrics</p>
+                        <p><strong>Status Levels:</strong> HEALTHY, WARNING, ATTENTION, CRITICAL</p>
+                        <p><strong>Display Features:</strong> Color-coded health indicators, detailed recommendations, system score</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>💾 Check Disk Space</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Main Disk Analysis: Checks primary disk usage and available space</li>
+                            <li>Directory Size Analysis: Calculates size of specific SYNEREX directories</li>
+                            <li>Storage Breakdown: Shows total, used, and free space in GB</li>
+                            <li>Usage Percentage: Displays disk utilization as percentage</li>
+                            <li>Directory Monitoring: Tracks results/, 8082/, 8083/, 8084/, 8085/, 8086/, generated_pdfs/, files/</li>
+                        </ul>
+                        <p><strong>Directories Monitored:</strong></p>
+                        <ul>
+                            <li>results/ - Database and analysis results storage</li>
+                            <li>8082/ - Main application files and logs</li>
+                            <li>8083/ - PDF service files and generated PDFs</li>
+                            <li>8084/ - HTML service files and templates</li>
+                            <li>8085/ - Weather service files and logs</li>
+                            <li>8086/ - Chart service files and data</li>
+                            <li>generated_pdfs/ - PDF output storage</li>
+                            <li>files/ - User uploaded files and data</li>
+                        </ul>
+                        <p><strong>Status Levels:</strong> HEALTHY (<80%), WARNING (80-95%), CRITICAL (>95%)</p>
+                        <p><strong>Display Features:</strong> Directory size breakdown, usage percentages, cleanup recommendations</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🧠 Memory Usage</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>System Memory Analysis: Total, used, available memory in GB</li>
+                            <li>Memory Usage Percentage: Current RAM utilization percentage</li>
+                            <li>Swap Memory Analysis: Virtual memory usage and availability</li>
+                            <li>Process Monitoring: Top 10 memory-consuming processes</li>
+                            <li>Memory Status Assessment: HEALTHY, WARNING, or CRITICAL status</li>
+                        </ul>
+                        <p><strong>Memory Metrics:</strong></p>
+                        <ul>
+                            <li>Total system memory and available memory</li>
+                            <li>Memory usage percentage and status</li>
+                            <li>Swap memory total, used, free, and usage percentage</li>
+                            <li>Top memory-consuming processes with PID and memory usage</li>
+                            <li>Process memory consumption in MB and percentage</li>
+                        </ul>
+                        <p><strong>Process Information:</strong> Process name, PID, memory percentage, memory in MB</p>
+                        <p><strong>Display Features:</strong> Memory breakdown, process list, performance recommendations</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ System Health Status Levels</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>🟢 HEALTHY</h4>
+                            <p>All systems operating normally (90-100 score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟡 WARNING</h4>
+                            <p>Some performance issues detected (70-89 score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟠 ATTENTION</h4>
+                            <p>Multiple performance concerns (50-69 score)</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔴 CRITICAL</h4>
+                            <p>Serious system issues requiring immediate attention (<50 score)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Updates & Maintenance Buttons</h3>
+                <p>Detailed functionality of updates and maintenance buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔄 Check Updates</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>System Update Check: Scans for available system and package updates</li>
+                            <li>Python Package Analysis: Checks for outdated pip packages</li>
+                            <li>SYNEREX Core Updates: Monitors for core system updates</li>
+                            <li>System Information: Displays current Python version and platform</li>
+                            <li>Update Recommendations: Provides guidance on update installation</li>
+                        </ul>
+                        <p><strong>Update Checks Performed:</strong></p>
+                        <ul>
+                            <li>Python version verification and compatibility</li>
+                            <li>Pip package outdated analysis (pip list --outdated)</li>
+                            <li>Windows system update availability (if applicable)</li>
+                            <li>SYNEREX core system version checking</li>
+                            <li>System platform and directory verification</li>
+                        </ul>
+                        <p><strong>Update Types:</strong> pip_package, system_update, core_update</p>
+                        <p><strong>Status Levels:</strong> UP_TO_DATE, UPDATES_AVAILABLE, CHECK_FAILED</p>
+                        <p><strong>Display Features:</strong> Color-coded update status, package breakdown, installation recommendations</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🔧 Schedule Maintenance</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Maintenance Planning: Creates structured maintenance schedules</li>
+                            <li>Task Definition: Defines maintenance tasks based on type</li>
+                            <li>Schedule Creation: Generates timestamped maintenance plans</li>
+                            <li>Duration Management: Sets maintenance window duration</li>
+                            <li>Recommendation Generation: Provides maintenance-specific guidance</li>
+                        </ul>
+                        <p><strong>Maintenance Types:</strong></p>
+                        <ul>
+                            <li><strong>Routine:</strong> Database optimization, log rotation, cleanup, service verification</li>
+                            <li><strong>Comprehensive:</strong> Full backup, performance analysis, security audit, service restart</li>
+                            <li><strong>Emergency:</strong> Emergency restart, critical issue resolution, stability verification</li>
+                            <li><strong>Custom:</strong> User-defined maintenance tasks and verification</li>
+                        </ul>
+                        <p><strong>File Storage:</strong> results/maintenance_schedules/maintenance_MAINT_YYYYMMDD_HHMMSS.json</p>
+                        <p><strong>Display Features:</strong> Maintenance ID tracking, task lists, duration planning, recommendations</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🚨 Emergency Shutdown</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Safety Checks: Performs comprehensive safety verification before shutdown</li>
+                            <li>Session Management: Terminates active user sessions safely</li>
+                            <li>Data Protection: Ensures critical data is saved and database integrity verified</li>
+                            <li>Process Management: Safely closes database connections and running processes</li>
+                            <li>Log Documentation: Creates detailed emergency shutdown logs</li>
+                        </ul>
+                        <p><strong>Safety Checks Performed:</strong></p>
+                        <ul>
+                            <li>Active user session verification and termination</li>
+                            <li>Database integrity verification and connection closure</li>
+                            <li>Critical data save confirmation</li>
+                            <li>Running process verification and cleanup</li>
+                            <li>Log file integrity verification and finalization</li>
+                        </ul>
+                        <p><strong>Safety Features:</strong> Double confirmation required, detailed logging, safety notice display</p>
+                        <p><strong>File Storage:</strong> results/emergency_logs/emergency_shutdown_SHUTDOWN_YYYYMMDD_HHMMSS.json</p>
+                        <p><strong>Display Features:</strong> Safety check results, action timeline, emergency documentation</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ Emergency Shutdown Safety Notice</h4>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107;">
+                        <p style="color: #856404; margin: 0;"><strong>Important:</strong> Emergency shutdown functionality includes comprehensive safety checks and logging. In a production environment, this would initiate actual system shutdown. For safety, the current implementation logs the shutdown request but does not execute the actual shutdown command.</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ Maintenance Types and Recommendations</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>🟢 Routine Maintenance</h4>
+                            <p>Schedule during low-usage periods, monitor performance after completion</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🟡 Comprehensive Maintenance</h4>
+                            <p>Plan during scheduled downtime, notify all users, prepare rollback procedures</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔴 Emergency Maintenance</h4>
+                            <p>Immediate attention required, notify users of service interruption, document all changes</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>API Management Buttons</h3>
+                <p>Detailed functionality of API management buttons in the Admin Panel:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>📚 API Documentation</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Endpoint Discovery: Automatically discovers all admin and API endpoints</li>
+                            <li>Route Analysis: Analyzes Flask routes and their methods</li>
+                            <li>Documentation Generation: Creates comprehensive API documentation</li>
+                            <li>Category Organization: Groups endpoints by functionality</li>
+                            <li>Rate Limit Documentation: Documents current rate limits and policies</li>
+                        </ul>
+                        <p><strong>Documentation Features:</strong></p>
+                        <ul>
+                            <li>Total endpoint count and categorization</li>
+                            <li>Admin endpoints vs API endpoints breakdown</li>
+                            <li>Endpoint categories: admin_management, system_monitoring, data_management, user_management</li>
+                            <li>Rate limits for different endpoint types</li>
+                            <li>Authentication requirements and methods</li>
+                            <li>Response format specifications</li>
+                        </ul>
+                        <p><strong>File Storage:</strong> results/api_documentation/api_documentation_YYYYMMDD_HHMMSS.json</p>
+                        <p><strong>Display Features:</strong> Endpoint categorization, rate limit documentation, authentication details</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>🧪 Test Endpoints</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Endpoint Testing: Tests API endpoints for functionality and response times</li>
+                            <li>Performance Analysis: Measures response times and success rates</li>
+                            <li>Error Detection: Identifies failed endpoints and connection issues</li>
+                            <li>Timeout Handling: Tests endpoint resilience with timeout scenarios</li>
+                            <li>Comprehensive Reporting: Generates detailed test results and recommendations</li>
+                        </ul>
+                        <p><strong>Test Coverage:</strong></p>
+                        <ul>
+                            <li>System diagnostics endpoints (/admin/system/diagnostics)</li>
+                            <li>Disk space endpoints (/admin/system/disk-space)</li>
+                            <li>Memory usage endpoints (/admin/system/memory-usage)</li>
+                            <li>Compliance check endpoints (/admin/compliance/check)</li>
+                            <li>Security check endpoints (/admin/security/check)</li>
+                            <li>Analysis results endpoints (/api/analysis/results)</li>
+                        </ul>
+                        <p><strong>Performance Metrics:</strong> Average response time, total response time, success rate percentage</p>
+                        <p><strong>File Storage:</strong> results/api_tests/api_test_results_YYYYMMDD_HHMMSS.json</p>
+                        <p><strong>Display Features:</strong> Test results breakdown, performance metrics, error analysis</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <h4>⚡ Rate Limits</h4>
+                        <p><strong>What it does:</strong></p>
+                        <ul>
+                            <li>Rate Limit Analysis: Analyzes current rate limiting policies and usage</li>
+                            <li>Usage Statistics: Tracks daily request counts by endpoint type</li>
+                            <li>Performance Monitoring: Monitors rate limit effectiveness</li>
+                            <li>Usage Percentages: Calculates usage distribution across endpoint types</li>
+                            <li>Recommendation Generation: Provides rate limit optimization suggestions</li>
+                        </ul>
+                        <p><strong>Rate Limit Categories:</strong></p>
+                        <ul>
+                            <li><strong>Admin Endpoints:</strong> 50 requests/minute, 10 burst/10 seconds</li>
+                            <li><strong>API Endpoints:</strong> 100 requests/minute, 20 burst/10 seconds</li>
+                            <li><strong>Upload Endpoints:</strong> 10 requests/minute, 2 burst/10 seconds</li>
+                            <li><strong>Analysis Endpoints:</strong> 20 requests/minute, 5 burst/10 seconds</li>
+                        </ul>
+                        <p><strong>Usage Tracking:</strong> Total requests, admin requests, API requests, upload requests, analysis requests</p>
+                        <p><strong>File Storage:</strong> results/rate_limit_reports/rate_limit_report_YYYYMMDD_HHMMSS.json</p>
+                        <p><strong>Display Features:</strong> Rate limit policies, usage statistics, percentage breakdowns</p>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ API Management Best Practices</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>📚 Documentation</h4>
+                            <p>Keep API documentation updated, document all endpoints, include authentication requirements</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🧪 Testing</h4>
+                            <p>Test endpoints regularly, monitor performance metrics, identify slow endpoints</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>⚡ Rate Limits</h4>
+                            <p>Monitor usage patterns, adjust limits based on usage, prevent abuse</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="warning">
+                    <h4>⚠️ API Security Considerations</h4>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107;">
+                        <p style="color: #856404; margin: 0;"><strong>Important:</strong> API management includes comprehensive security monitoring. All admin endpoints require proper authentication, and rate limiting helps prevent abuse. Regular testing ensures endpoint reliability and performance.</p>
+                    </div>
+                </div>
+
+                <h3>Security Protocols</h3>
+                <p>The system implements multiple layers of security:</p>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h4>🔐 Authentication</h4>
+                        <p>Multi-factor authentication, session management, and access control</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🛡️ Data Protection</h4>
+                        <p>Data encryption, secure storage, and transmission protocols</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>📋 Audit Logging</h4>
+                        <p>Comprehensive logging of all system activities and user actions</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>🔍 Monitoring</h4>
+                        <p>Real-time security monitoring and threat detection</p>
+                    </div>
+                </div>
+
+                <h3>CSV File Tracking & Monitoring</h3>
+                <div class="warning">
+                    <h4>⚠️ IMPORTANT: Comprehensive CSV File Tracking System</h4>
+                    <p><strong>The SYNEREX system implements comprehensive tracking for all fingerprinted CSV files. Administrators should understand the tracking mechanisms and inform users accordingly.</strong></p>
+                    
+                    <h4>Tracking Activation Points:</h4>
+                    <ol>
+                        <li><strong>File Verification:</strong> When a CSV file is first verified and receives a cryptographic fingerprint, tracking begins immediately. From this point forward, all interactions with the file are logged.</li>
+                        <li><strong>File Opening:</strong> Every time any user opens a CSV file (for viewing or editing), the system automatically creates an access log entry recording:
+                            <ul>
+                                <li>User identity (name, email, user ID, role)</li>
+                                <li>Precise timestamp (date and time down to the second)</li>
+                                <li>File fingerprint verification status</li>
+                                <li>Access type (view, edit, download, annotation)</li>
+                                <li>Network information (IP address, user agent)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Cell-Level Interactions:</strong> When users interact with individual cells in the CSV editor:
+                            <ul>
+                                <li>Cell clicks are tracked with user attribution</li>
+                                <li>Cell annotations (with explanations) are permanently stored</li>
+                                <li>Color-coded visual indicators are applied</li>
+                                <li>All annotations are linked to file fingerprints</li>
+                            </ul>
+                        </li>
+                        <li><strong>File Modifications:</strong> Any changes to file content are logged with:
+                            <ul>
+                                <li>Before and after fingerprints</li>
+                                <li>User who made the modification</li>
+                                <li>Modification reason and details</li>
+                                <li>Timestamp of modification</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    
+                    <h4>What Gets Tracked:</h4>
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>📋 File Access Events</h4>
+                            <ul>
+                                <li>File opening (view/edit)</li>
+                                <li>File downloads</li>
+                                <li>File uploads</li>
+                                <li>File verification</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔍 Cell Interactions</h4>
+                            <ul>
+                                <li>Cell clicks</li>
+                                <li>Cell annotations</li>
+                                <li>User explanations</li>
+                                <li>Visual indicators</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4>👤 User Information</h4>
+                            <ul>
+                                <li>User name and email</li>
+                                <li>User ID and role</li>
+                                <li>Session information</li>
+                                <li>Network location</li>
+                            </ul>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🔒 Audit Trail Data</h4>
+                            <ul>
+                                <li>Fingerprint verification</li>
+                                <li>Chain of custody</li>
+                                <li>Modification history</li>
+                                <li>Compliance documentation</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <h4>Administrative Responsibilities:</h4>
+                    <ul class="step-list">
+                        <li><strong>User Notification:</strong> Inform all users that CSV file interactions are tracked for audit compliance</li>
+                        <li><strong>Privacy Policy:</strong> Ensure users understand tracking is required for regulatory compliance</li>
+                        <li><strong>Access Monitoring:</strong> Regularly review access logs for security and compliance purposes</li>
+                        <li><strong>Audit Preparation:</strong> Use tracking data to prepare audit packages and compliance reports</li>
+                        <li><strong>Data Retention:</strong> Maintain tracking data according to compliance requirements</li>
+                    </ul>
+                    
+                    <h4>Database Tables for Tracking:</h4>
+                    <ul>
+                        <li><strong>csv_fingerprints:</strong> Stores file fingerprints and verification status</li>
+                        <li><strong>csv_cell_annotations:</strong> Stores cell-level annotations with user attribution</li>
+                        <li><strong>user_activity:</strong> Logs all user actions including file access</li>
+                        <li><strong>audit_log:</strong> Comprehensive audit trail of all system activities</li>
+                    </ul>
+                    
+                    <div class="success" style="margin-top: 15px;">
+                        <h4>✅ Compliance Benefits:</h4>
+                        <p>This comprehensive tracking system ensures:</p>
+                        <ul>
+                            <li>Complete chain of custody documentation</li>
+                            <li>Regulatory compliance for utility submissions</li>
+                            <li>Data integrity verification</li>
+                            <li>Audit trail completeness</li>
+                            <li>User accountability</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Compliance Standards</h3>
+                <p>The system meets various industry compliance standards:</p>
+                <ul class="step-list">
+                    <li><strong>IEEE 519-2014/2022:</strong> Power quality and harmonic distortion limits</li>
+                    <li><strong>ASHRAE Guideline 14:</strong> Energy measurement and verification standards</li>
+                    <li><strong>NEMA MG1:</strong> Motor efficiency and performance standards</li>
+                    <li><strong>IEC 61000 Series:</strong> Electromagnetic compatibility standards</li>
+                    <li><strong>ANSI C12.1/C12.20:</strong> Metering and measurement standards</li>
+                </ul>
+
+                <h3>Security Best Practices</h3>
+                <div class="warning">
+                    <h4>⚠️ Critical Security Measures</h4>
+                    <p>• Use strong, unique passwords for all accounts<br>• Enable HTTPS in production environments<br>• Regularly update system components<br>• Monitor for security vulnerabilities<br>• Implement regular security audits</p>
+                </div>
+            </div>
+
+            <!-- Section 9: System Maintenance -->
+            <div class="section" id="maintenance">
+                <h2><span class="icon">🔧</span>System Maintenance</h2>
+                
+                <h3>Regular Maintenance Tasks</h3>
+                <p>Perform these tasks regularly to ensure optimal system performance:</p>
+                
+                <h4>Daily Tasks</h4>
+                <ul class="step-list">
+                    <li><strong>Service Health Check:</strong> Verify all services are running properly</li>
+                    <li><strong>Error Log Review:</strong> Check for any system errors or warnings</li>
+                    <li><strong>Performance Monitoring:</strong> Monitor system performance metrics</li>
+                    <li><strong>User Activity Review:</strong> Review user activity and access patterns</li>
+                </ul>
+
+                <h4>Weekly Tasks</h4>
+                <ul class="step-list">
+                    <li><strong>Database Backup:</strong> Create full database backups</li>
+                    <li><strong>Log Cleanup:</strong> Clean up old log files to free up space</li>
+                    <li><strong>Security Review:</strong> Review security logs and access patterns</li>
+                    <li><strong>Performance Analysis:</strong> Analyze system performance trends</li>
+                </ul>
+
+                <h4>Monthly Tasks</h4>
+                <ul class="step-list">
+                    <li><strong>System Updates:</strong> Apply security updates and patches</li>
+                    <li><strong>Compliance Audit:</strong> Review compliance with industry standards</li>
+                    <li><strong>Capacity Planning:</strong> Assess system capacity and growth needs</li>
+                    <li><strong>Documentation Update:</strong> Update system documentation and procedures</li>
+                </ul>
+
+                <h3>System Optimization</h3>
+                <p>Optimize system performance through:</p>
+                <ul class="step-list">
+                    <li><strong>Database Optimization:</strong> Optimize database queries and indexes</li>
+                    <li><strong>Memory Management:</strong> Monitor and optimize memory usage</li>
+                    <li><strong>Storage Management:</strong> Manage disk space and storage allocation</li>
+                    <li><strong>Network Optimization:</strong> Optimize network performance and connectivity</li>
+                </ul>
+            </div>
+
+            <!-- Section 10: Troubleshooting Guide -->
+            <div class="section" id="troubleshooting">
+                <h2><span class="icon">🔍</span>Troubleshooting Guide</h2>
+                
+                <h3>Common Issues and Solutions</h3>
+                
+                <h4>Service Not Starting</h4>
+                <div class="warning">
+                    <h4>⚠️ Service Startup Issues</h4>
+                    <p><strong>Symptoms:</strong> Service fails to start or crashes immediately<br><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Check if the port is already in use: <code>netstat -an | findstr "PORT_NUMBER"</code></li>
+                        <li>Kill existing processes: <code>taskkill /F /PID PROCESS_ID</code></li>
+                        <li>Verify Python environment and dependencies</li>
+                        <li>Check file permissions and directory access</li>
+                    </ul>
+                </div>
+
+                <h4>Database Connection Issues</h4>
+                <div class="warning">
+                    <h4>⚠️ Database Problems</h4>
+                    <p><strong>Symptoms:</strong> Database errors, connection timeouts, data corruption<br><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Check database file permissions and accessibility</li>
+                        <li>Verify database integrity using SQLite tools</li>
+                        <li>Restore from backup if corruption is detected</li>
+                        <li>Check disk space and storage availability</li>
+                    </ul>
+                </div>
+
+                <h4>Authentication Issues</h4>
+                <div class="warning">
+                    <h4>⚠️ Login Problems</h4>
+                    <p><strong>Symptoms:</strong> Users cannot log in, session errors, access denied<br><strong>Solutions:</strong></p>
+                    <ul>
+                        <li>Verify user credentials and account status</li>
+                        <li>Check session token validity and expiration</li>
+                        <li>Clear browser cache and cookies</li>
+                        <li>Reset user passwords if necessary</li>
+                    </ul>
+                </div>
+
+                <h3>Performance Issues</h3>
+                <p>If the system is running slowly or experiencing performance issues:</p>
+                <ul class="step-list">
+                    <li><strong>Check System Resources:</strong> Monitor CPU, memory, and disk usage</li>
+                    <li><strong>Review Error Logs:</strong> Look for error messages and warnings</li>
+                    <li><strong>Database Performance:</strong> Check database query performance and optimization</li>
+                    <li><strong>Network Connectivity:</strong> Verify network connections and latency</li>
+                </ul>
+
+                <h3>Emergency Procedures</h3>
+                <div class="warning">
+                    <h4>🚨 Emergency Response</h4>
+                    <p>In case of system failure or security breach:</p>
+                    <ol>
+                        <li><strong>Immediate Response:</strong> Stop all services and isolate the system</li>
+                        <li><strong>Assessment:</strong> Determine the scope and impact of the issue</li>
+                        <li><strong>Recovery:</strong> Restore from backup and restart services</li>
+                        <li><strong>Documentation:</strong> Document the incident and response actions</li>
+                        <li><strong>Prevention:</strong> Implement measures to prevent recurrence</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Section 11: Best Practices -->
+            <div class="section" id="best-practices">
+                <h2><span class="icon">⭐</span>Best Practices</h2>
+                
+                <h3>Administrative Best Practices</h3>
+                <p>Follow these best practices for effective system administration:</p>
+                
+                <h4>Security Best Practices</h4>
+                <ul class="step-list">
+                    <li><strong>Regular Security Updates:</strong> Keep all system components updated</li>
+                    <li><strong>Strong Authentication:</strong> Use strong passwords and multi-factor authentication</li>
+                    <li><strong>Access Control:</strong> Implement principle of least privilege</li>
+                    <li><strong>Audit Logging:</strong> Maintain comprehensive audit trails</li>
+                </ul>
+
+                <h4>Operational Best Practices</h4>
+                <ul class="step-list">
+                    <li><strong>Regular Backups:</strong> Maintain regular, tested backups of all data</li>
+                    <li><strong>Monitoring:</strong> Implement comprehensive system monitoring</li>
+                    <li><strong>Documentation:</strong> Keep detailed documentation of all procedures</li>
+                    <li><strong>Testing:</strong> Regularly test disaster recovery procedures</li>
+                </ul>
+
+                <h4>User Management Best Practices</h4>
+                <ul class="step-list">
+                    <li><strong>Role-Based Access:</strong> Assign roles based on job responsibilities</li>
+                    <li><strong>Regular Reviews:</strong> Periodically review user access and permissions</li>
+                    <li><strong>Training:</strong> Provide adequate training for all users</li>
+                    <li><strong>Support:</strong> Maintain responsive user support processes</li>
+                </ul>
+
+                <h3>Compliance Best Practices</h3>
+                <div class="success">
+                    <h4>✅ Compliance Checklist</h4>
+                    <p>• Maintain audit trails for all system activities<br>• Implement data retention policies<br>• Ensure data integrity and accuracy<br>• Document all compliance procedures<br>• Regular compliance audits and reviews</p>
+                </div>
+
+                <h3>Performance Best Practices</h3>
+                <ul class="step-list">
+                    <li><strong>Resource Monitoring:</strong> Continuously monitor system resources</li>
+                    <li><strong>Capacity Planning:</strong> Plan for future growth and capacity needs</li>
+                    <li><strong>Optimization:</strong> Regularly optimize system performance</li>
+                    <li><strong>Scalability:</strong> Design for scalability and future expansion</li>
+                </ul>
+            </div>
+
+            <!-- Footer -->
+            <div class="section" style="text-align: center; margin-top: 50px;">
+                <h2>🚨 Emergency Actions</h2>
+                <p>The Emergency Actions section provides critical system recovery and emergency management capabilities. These functions should only be used in emergency situations and require explicit confirmation.</p>
+                
+                <h3>System Recovery Buttons</h3>
+                <p><strong>Emergency Restart:</strong> Initiates an emergency system restart with comprehensive safety checks. Performs safety checks including active user session verification, database integrity checks, critical data saving, running services status verification, log file integrity checks, and disk space availability verification. Records all actions taken including emergency restart initiation, safety checks completion, user session termination, database connection closure, service shutdown initiation, and system restart preparation. Affects all services (8082, 8083, 8084, 8085, 8086). Supports both graceful and force restart types. Creates detailed restart logs in <code>results/emergency_logs/emergency_restart_RESTART_YYYYMMDD_HHMMSS.json</code>. Display features include restart ID, type, reason, status, services affected, safety checks performed, actions taken, and safety warnings.</p>
+                
+                <p><strong>Restore from Backup:</strong> Restores system from backup with comprehensive verification and safety checks. Performs verification checks including backup file existence and accessibility verification, backup file integrity checks, sufficient disk space verification, current system state checks, backup file format validation, and active user session verification. Supports both database-only and full system restore types. Records all restore actions including backup verification completion, system state checking, database backup initiation, original file backup, restore process initiation, and file integrity verification. Creates detailed restore logs in <code>results/restore_logs/backup_restore_RESTORE_YYYYMMDD_HHMMSS.json</code>. Display features include restore ID, backup file, restore type, status, files restored, verification checks, and restore actions.</p>
+                
+                <p><strong>Reset All Services:</strong> Resets all services to default state with comprehensive configuration management. Supports both soft reset (preserve data) and hard reset (clear all data) types. Resets all services including Main App (8082), PDF Service (8083), HTML Service (8084), Weather Service (8085), and Chart Service (8086). Performs configuration changes including database connection resets, service-specific cache clearing, log file configuration resets, default service timeout restoration, authentication setting resets, and temporary file clearing. Records all reset actions including service reset initiation, service stopping, configuration file reset to defaults, service log clearing, service restart with default settings, and service health verification. Creates detailed reset logs in <code>results/reset_logs/service_reset_RESET_YYYYMMDD_HHMMSS.json</code>. Display features include reset ID, reset type, reason, status, services affected, services reset, reset actions, and configuration changes.</p>
+                
+                <h4>Emergency Procedures</h4>
+                <ul>
+                    <li><strong>Emergency Restart:</strong> Use only when system is unresponsive or critical errors occur</li>
+                    <li><strong>Backup Restore:</strong> Use when data corruption or system failure requires restoration</li>
+                    <li><strong>Service Reset:</strong> Use when services are malfunctioning or configuration is corrupted</li>
+                </ul>
+                
+                <h4>Safety Considerations</h4>
+                <ul>
+                    <li>All emergency actions require explicit confirmation</li>
+                    <li>Emergency restart includes comprehensive safety checks</li>
+                    <li>Backup restore includes verification and integrity checks</li>
+                    <li>Service reset includes configuration validation</li>
+                    <li>All actions are logged for audit purposes</li>
+                    <li>Emergency actions may cause temporary service interruption</li>
+                </ul>
+                
+                <h4>Recovery Planning</h4>
+                <ul>
+                    <li>Maintain regular backups before emergency actions</li>
+                    <li>Document emergency procedures and contact information</li>
+                    <li>Test emergency procedures in non-production environments</li>
+                    <li>Monitor system logs after emergency actions</li>
+                    <li>Verify system functionality after recovery</li>
+                </ul>
+
+                <h3>Data Recovery Buttons</h3>
+                <p><strong>Recover Deleted Data:</strong> Scans multiple data sources to recover deleted or lost data with comprehensive analysis. Performs data recovery scans including database backups analysis, log files analysis for data references, temporary file directory checks, upload history scanning for missing files, analysis results scanning for recoverable data, and cross-referencing data integrity. Supports both database records recovery and files/data recovery types. Scans data sources including database backups, log files, temporary files, upload history, and analysis results. Records all recovery actions including data recovery scan initiation, backup files analysis, log files processing, temporary files checking, data integrity verification, and recovery process completion. Creates detailed recovery logs in <code>results/recovery_logs/data_recovery_RECOVER_YYYYMMDD_HHMMSS.json</code>. Display features include recovery ID, recovery type, date range, status, files recovered, data sources scanned, scan results, and recovery actions.</p>
+                
+                <p><strong>Force Data Sync:</strong> Forces synchronization of all data across services with comprehensive conflict resolution. Performs data synchronization including database records synchronization, file upload synchronization, configuration synchronization, log file synchronization, analysis results synchronization, and user session synchronization. Supports both full synchronization and critical data only synchronization types. Synchronizes all services including Main App (8082), PDF Service (8083), HTML Service (8084), Weather Service (8085), and Chart Service (8086). Records all sync operations including data sync initiation, service connectivity verification, database synchronization start, file system sync initiation, configuration sync completion, and service health verification. Resolves conflicts including database record conflicts, file version conflicts, configuration conflicts, and timestamp conflicts. Creates detailed sync logs in <code>results/sync_logs/data_sync_SYNC_YYYYMMDD_HHMMSS.json</code>. Display features include sync ID, sync type, services, status, services synced, sync operations, data synced, and conflicts resolved.</p>
+                
+                <p><strong>Emergency Export:</strong> Creates comprehensive emergency export of all critical system data with detailed packaging. Performs emergency export operations including emergency export initiation, critical data identification, database export start, configuration files export, log files export, analysis results export, and export package creation. Supports both full export (all data) and critical data only export types. Includes optional log files in export. Exports critical files including databases (synerex.db, results/app.db), service configuration files (main_hardened_ready_fixed.py, enhanced_pdf_service.py, html_report_service.py, weather_service.py, chart_service.py), analysis results, uploads, backups, and log files. Creates export packages in <code>results/emergency_exports/emergency_export_EXPORT_YYYYMMDD_HHMMSS.zip</code>. Records export size and creates detailed export logs in <code>results/emergency_exports/emergency_export_EXPORT_YYYYMMDD_HHMMSS.json</code>. Display features include export ID, export type, include logs status, status, files exported, export size, export path, log file, export operations, and files exported.</p>
+                
+                <h4>Data Recovery Procedures</h4>
+                <ul>
+                    <li><strong>Recover Deleted Data:</strong> Use when data has been accidentally deleted or corrupted</li>
+                    <li><strong>Force Data Sync:</strong> Use when services are out of sync or data inconsistencies occur</li>
+                    <li><strong>Emergency Export:</strong> Use when system backup is needed before major changes</li>
+                </ul>
+                
+                <h4>Data Recovery Considerations</h4>
+                <ul>
+                    <li>All data recovery actions require explicit confirmation</li>
+                    <li>Data recovery includes comprehensive scanning and verification</li>
+                    <li>Data sync includes conflict resolution and service coordination</li>
+                    <li>Emergency export includes critical data and configuration files</li>
+                    <li>All actions are logged for audit and recovery purposes</li>
+                    <li>Data recovery may take time depending on data volume</li>
+                </ul>
+                
+                <h4>Data Protection Best Practices</h4>
+                <ul>
+                    <li>Regular data backups before major operations</li>
+                    <li>Monitor data integrity and consistency</li>
+                    <li>Test data recovery procedures regularly</li>
+                    <li>Maintain data export packages for emergency situations</li>
+                    <li>Document data recovery procedures and contact information</li>
+                </ul>
+
+                <h2>📋 Standards Compliance</h2>
+                <p>SYNEREX implements comprehensive standards compliance across multiple international and industry standards for power quality analysis, energy efficiency, and electrical system monitoring.</p>
+                
+                <h3>Core Standards Implemented</h3>
+                <p><strong>IEEE 519-2014/2022:</strong> Power Quality Analysis standard for harmonic distortion limits, voltage regulation, and power quality monitoring. Includes THD (Total Harmonic Distortion) analysis, voltage unbalance calculations, and power factor corrections. Provides comprehensive power quality assessment with industry-standard limits and recommendations.</p>
+                
+                <p><strong>ASHRAE Guideline 14-2014:</strong> Energy measurement and verification standard for building energy performance analysis. Includes weather normalization, occupancy normalization, and energy efficiency calculations. Provides standardized methods for energy savings measurement and verification.</p>
+                
+                <p><strong>NEMA MG1-2016:</strong> Motor efficiency standards for electrical motor performance analysis. Includes motor efficiency calculations, power factor analysis, and energy consumption monitoring. Provides industry-standard motor performance benchmarks and efficiency ratings.</p>
+                
+                <p><strong>ANSI C12.1/C12.20:</strong> Electric utility metering standards for electrical measurement accuracy and calibration. Includes meter accuracy verification, measurement uncertainty analysis, and calibration procedures. Ensures accurate electrical measurements and billing compliance.</p>
+                
+                <p><strong>IEC 61000-4-30:</strong> Power quality measurement methods and instrumentation standards. Includes power quality monitoring procedures, measurement accuracy requirements, and data quality assessment. Provides international standards for power quality measurement and analysis.</p>
+                
+                <p><strong>IEC 61000-4-7:</strong> Harmonic and interharmonic measurement standards for power quality analysis. Includes harmonic analysis procedures, interharmonic measurement methods, and frequency domain analysis. Ensures accurate harmonic distortion measurement and analysis.</p>
+                
+                <p><strong>IEC 61000-2-2:</strong> Electromagnetic compatibility standards for electrical environments. Includes EMC analysis, electromagnetic interference assessment, and compatibility verification. Provides standards for electrical system compatibility and interference analysis.</p>
+                
+                <h3>Extended Standards Support</h3>
+                <p><strong>ITIC/CBEMA:</strong> Information Technology Industry Council/Computer Business Equipment Manufacturers Association standards for power quality tolerance curves. Includes voltage tolerance analysis, power quality event classification, and equipment protection standards. Provides guidelines for IT equipment power quality requirements.</p>
+                
+                <p><strong>IEC 62053:</strong> Electricity metering equipment standards for electrical measurement devices. Includes meter accuracy requirements, measurement uncertainty analysis, and calibration procedures. Ensures accurate electrical measurement and billing compliance.</p>
+                
+                <p><strong>ANSI C84.1:</strong> Electric power systems voltage ratings and utilization standards. Includes voltage level analysis, power system ratings, and utilization equipment standards. Provides standards for electrical system voltage levels and equipment ratings.</p>
+                
+                <p><strong>IPMVP:</strong> International Performance Measurement and Verification Protocol for energy savings measurement. Includes M&V procedures, energy savings calculation methods, and performance verification standards. Provides standardized methods for energy performance measurement and verification.</p>
+                
+                <p><strong>IEEE 3002.8-2018:</strong> Power quality monitoring and analysis standards for electrical systems. Includes power quality monitoring procedures, analysis methods, and reporting standards. Provides comprehensive power quality monitoring and analysis guidelines.</p>
+                
+                <p><strong>IEEE 1277-2020:</strong> Power quality data analysis and reporting standards. Includes data analysis procedures, reporting formats, and quality assessment methods. Provides standardized methods for power quality data analysis and reporting.</p>
+                
+                <p><strong>EN 61000-3-2:</strong> European standard for electromagnetic compatibility limits for harmonic current emissions. Includes harmonic emission limits, EMC compliance verification, and electromagnetic compatibility analysis. Provides European standards for electromagnetic compatibility and harmonic emissions.</p>
+                
+                <h3>Network Envelope Smoothing Analysis Standards</h3>
+                <p><strong>Standards Foundation:</strong> The Network Envelope Smoothing Analysis is built upon established power quality and energy efficiency standards including IEEE 519, ASHRAE 14, and IEC 61000-4-30. These standards provide the foundation for power quality measurement, energy efficiency analysis, and electrical system monitoring.</p>
+                
+                <p><strong>SYNEREX Extensions:</strong> The system extends these standards with advanced smoothing analysis capabilities including smoothing index calculations, variance analysis, coefficient of variation (CV) calculations, and percentile analysis (P10, P50, P90). These extensions provide enhanced analysis capabilities beyond standard power quality measurements.</p>
+                
+                <p><strong>Compliance Documentation:</strong> All standards compliance is documented in the audit package with detailed calculation traces, methodology explanations, and compliance verification. The system maintains comprehensive audit trails for all standards implementations and extensions.</p>
+                
+                <h4>Standards Implementation Features</h4>
+                <ul>
+                    <li><strong>Automated Compliance Checking:</strong> Automatic verification of standards compliance during analysis</li>
+                    <li><strong>Standards-Based Calculations:</strong> All calculations follow established standards methodologies</li>
+                    <li><strong>Compliance Reporting:</strong> Detailed compliance reports with standards references</li>
+                    <li><strong>Audit Trail:</strong> Complete documentation of standards compliance and calculations</li>
+                    <li><strong>Standards Extensions:</strong> Advanced analysis capabilities beyond basic standards requirements</li>
+                </ul>
+                
+                <h4>Standards Documentation</h4>
+                <ul>
+                    <li>Complete standards implementation documentation in audit packages</li>
+                    <li>Detailed calculation methodologies for each standard</li>
+                    <li>Compliance verification procedures and results</li>
+                    <li>Standards extension documentation and justification</li>
+                    <li>Audit trail for all standards-related calculations and verifications</li>
+                </ul>
+
+                <h3>📞 Support and Resources</h3>
+                <p>For additional support or questions about system administration:</p>
+                <div class="nav-buttons">
+                    <a href="/admin-panel" class="nav-btn">🔧 Admin Panel</a>
+                    <a href="/main-dashboard" class="nav-btn">🏠 Main Dashboard</a>
+                    <a href="/users-guide" class="nav-btn">📖 User Guide</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

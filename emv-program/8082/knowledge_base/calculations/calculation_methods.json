@@ -1,0 +1,35 @@
+{
+  "power_factor_correction": {
+    "formula": "Required kVAR = kW \u00d7 (tan(\u03c61) - tan(\u03c62))",
+    "variables": {
+      "kW": "Real power",
+      "\u03c61": "Current power factor angle",
+      "\u03c62": "Desired power factor angle"
+    },
+    "applications": [
+      "Capacitor sizing",
+      "Power factor improvement",
+      "Utility bill optimization"
+    ]
+  },
+  "harmonic_analysis": {
+    "thd_calculation": "THD = \u221a(\u03a3(h=2 to 50) (Ih/I1)\u00b2) \u00d7 100%",
+    "variables": {
+      "Ih": "Harmonic current",
+      "I1": "Fundamental current"
+    },
+    "standards_compliance": "IEEE 519-2022 limits"
+  },
+  "energy_savings": {
+    "baseline_energy": "Energy consumption before improvements",
+    "post_retrofit_energy": "Energy consumption after improvements",
+    "savings_calculation": "Baseline - Post-retrofit",
+    "savings_percentage": "(Savings / Baseline) \u00d7 100%"
+  },
+  "roi_calculations": {
+    "simple_payback": "Initial Cost / Annual Savings",
+    "npv": "Present value of future cash flows",
+    "irr": "Internal rate of return",
+    "sir": "Savings-to-investment ratio"
+  }
+}

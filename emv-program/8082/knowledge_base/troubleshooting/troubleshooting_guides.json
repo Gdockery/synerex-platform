@@ -1,0 +1,89 @@
+{
+  "power_quality_issues": {
+    "harmonic_problems": {
+      "symptoms": [
+        "Overheating of equipment",
+        "Equipment malfunction",
+        "Meter reading errors",
+        "Flickering lights"
+      ],
+      "diagnosis": [
+        "Harmonic analysis using power quality analyzer",
+        "FFT measurement of current and voltage",
+        "Equipment temperature monitoring"
+      ],
+      "solutions": [
+        "Install harmonic filters",
+        "Equipment derating",
+        "System redesign",
+        "Load isolation"
+      ]
+    },
+    "voltage_issues": {
+      "sags_swells": {
+        "causes": [
+          "Utility switching",
+          "Large motor starts",
+          "Fault conditions"
+        ],
+        "solutions": [
+          "Voltage regulators",
+          "UPS systems",
+          "Load management"
+        ]
+      },
+      "unbalance": {
+        "causes": [
+          "Unequal load distribution",
+          "Equipment problems"
+        ],
+        "solutions": [
+          "Load balancing",
+          "Equipment maintenance"
+        ]
+      }
+    }
+  },
+  "equipment_problems": {
+    "motor_issues": {
+      "overheating": {
+        "causes": [
+          "Overload",
+          "Poor ventilation",
+          "Harmonic heating"
+        ],
+        "solutions": [
+          "Load reduction",
+          "Improved ventilation",
+          "Harmonic filtering"
+        ]
+      },
+      "vibration": {
+        "causes": [
+          "Misalignment",
+          "Bearing wear",
+          "Electrical unbalance"
+        ],
+        "solutions": [
+          "Realignment",
+          "Bearing replacement",
+          "Electrical balancing"
+        ]
+      }
+    },
+    "lighting_issues": {
+      "flickering": {
+        "causes": [
+          "Voltage fluctuations",
+          "Poor ballasts",
+          "Loose connections"
+        ],
+        "solutions": [
+          "Voltage regulation",
+          "Ballast replacement",
+          "Connection repair"
+        ]
+      }
+    }
+  }
+}

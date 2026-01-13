@@ -1,0 +1,76 @@
+{
+  "timestamp": "2025-10-09T08:43:05.959343",
+  "total_issues": 11,
+  "critical_issues": 2,
+  "high_issues": 4,
+  "medium_issues": 5,
+  "low_issues": 0,
+  "issues": [
+    {
+      "file": "results/app.db",
+      "issue": "File is readable by others",
+      "severity": "HIGH",
+      "fix": "Remove other read permissions"
+    },
+    {
+      "file": "results/app.db",
+      "issue": "File is writable by others",
+      "severity": "CRITICAL",
+      "fix": "Remove other write permissions"
+    },
+    {
+      "file": "results/app.db",
+      "issue": "File is readable by group",
+      "severity": "MEDIUM",
+      "fix": "Remove group read permissions"
+    },
+    {
+      "file": "results/app.db",
+      "issue": "File is writable by group",
+      "severity": "HIGH",
+      "fix": "Remove group write permissions"
+    },
+    {
+      "file": "results/synerex_oneform.db",
+      "issue": "File is readable by others",
+      "severity": "HIGH",
+      "fix": "Remove other read permissions"
+    },
+    {
+      "file": "results/synerex_oneform.db",
+      "issue": "File is writable by others",
+      "severity": "CRITICAL",
+      "fix": "Remove other write permissions"
+    },
+    {
+      "file": "results/synerex_oneform.db",
+      "issue": "File is readable by group",
+      "severity": "MEDIUM",
+      "fix": "Remove group read permissions"
+    },
+    {
+      "file": "results/synerex_oneform.db",
+      "issue": "File is writable by group",
+      "severity": "HIGH",
+      "fix": "Remove group write permissions"
+    },
+    {
+      "file": ".\\results\\backups\\app_backup_20250929_140230.db",
+      "issue": "Backup file is readable by others",
+      "severity": "MEDIUM",
+      "fix": "Remove other read permissions"
+    },
+    {
+      "file": ".\\results\\backups\\app_backup_20250930_095841.db",
+      "issue": "Backup file is readable by others",
+      "severity": "MEDIUM",
+      "fix": "Remove other read permissions"
+    },
+    {
+      "file": ".\\results\\backups\\app_backup_20251005_000718.db",
+      "issue": "Backup file is readable by others",
+      "severity": "MEDIUM",
+      "fix": "Remove other read permissions"
+    }
+  ]
+}

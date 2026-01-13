@@ -1,0 +1,58 @@
+[33mf0c5d1f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Update project files: service improvements, documentation updates, and code enhancements
+8082/FILE_ORGANIZATION_PLAN.md
+8082/check_backup_databases.py
+8082/check_main_db.py
+8082/debug_weather.html
+8082/files/protected/audit_logs/.gitkeep
+8082/find_lineage_winsor.py
+8082/fix_hardcoded_values.py
+8082/html_body.html
+8082/main_hardened_ready_fixed.py
+8082/report_template.html
+8082/static/javascript_functions.js
+8082/test_chat_simple.html
+8082/test_enhanced_synerex_ai.html
+8082/test_synerex_ai_chat.html
+8083/enhanced_pdf_service.py
+8084/generate_exact_template_html.py
+8084/html_report_service.py
+ACCESSIBILITY_CHECK_REPORT.md
+API_DUPLICATE_ANALYSIS.md
+API_FUNCTIONALITY_REPORT.md
+BUTTON_FIXES_SUMMARY.md
+BUTTON_OVERLAP_FIXES.md
+DASHBOARD_REPORT_BUTTONS_IMPLEMENTATION.md
+ENHANCED_SYNEREX_AI_IMPLEMENTATION.md
+JAVASCRIPT_FILES_RELOCATION.md
+JAVASCRIPT_JSON_FIXES_SUMMARY.md
+OPTIMIZED_PORT_ARCHITECTURE.md
+PORT_RESTRUCTURE_PLAN.md
+README.md
+check_analysis.py
+check_database.py
+check_project.py
+cleanup_js_console_logs.py
+quick_api_test.py
+remove_duplicate_apis.py
+restart_flask.bat
+test_post_endpoints.py
+test_variable_assignment.py
+[33m657972d[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m Add Emergency Actions and Data Recovery functionality to Admin Panel
+8082/html_body.html
+8082/main_hardened_ready_fixed.py
+8082/static/admin_panel.html
+8082/templates/admin_guide.html
+8082/templates/users_guide.html
+[33m9d89473[m[33m ([m[1;33mtag: [m[1;33mworking-so-far[m[33m)[m Fix Admin Panel View Log buttons and Update User Guides encoding issues
+8082/audit/NETWORK_ENVELOPE_SMOOTHING_ANALYSIS_AUDIT.md
+8082/main_hardened_ready_fixed.py
+8082/static/javascript_functions.js
+README.md
+check_tables.py
+init_database.py
+update_user_guides.py
+[33m438a202[m Fix 414 error and template processing for Client HTML Report
+8082/main_hardened_ready_fixed.py
+README.md
+[33m0a22467[m Fix template variable replacements in GET method - FINAL FIX
+8082/main_hardened_ready_fixed.py

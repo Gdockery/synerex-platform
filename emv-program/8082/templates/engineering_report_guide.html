@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering Analysis Guide - SYNEREX OneForm</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c5aa0;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .guide-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .guide-section h2 {
+            color: #2c5aa0;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #2c5aa0;
+            padding-bottom: 10px;
+        }
+
+        .guide-section h3 {
+            color: #444;
+            font-size: 1.4em;
+            margin: 25px 0 15px 0;
+            font-weight: 600;
+        }
+
+        .guide-section h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+            font-weight: 600;
+        }
+
+        .methodology-box {
+            background: #f8f9fa;
+            border-left: 5px solid #2c5aa0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .formula-box {
+            background: #e8f4fd;
+            border: 2px solid #2c5aa0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+        }
+
+        .standards-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .standards-table th {
+            background: #2c5aa0;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .standards-table td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .standards-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .compliance-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .compliance-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .compliance-fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .technical-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .calculation-flow {
+            background: #f0f8ff;
+            border: 2px solid #2c5aa0;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 15px;
+        }
+
+        .flow-step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #2c5aa0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .back-button {
+            display: inline-block;
+            background: #2c5aa0;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background: #1e3a5f;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .toc h3 {
+            color: #2c5aa0;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/main-dashboard" class="back-button">← Back to Dashboard</a>
+        
+        <div class="header">
+            <h1>Engineering Analysis Guide</h1>
+            <p>Technical Methodology & Standards Compliance Reference</p>
+            <p><strong>Analysis Version: {{ version }}</strong> | <strong>Last Updated:</strong> January 13, 2025</p>
+        </div>
+
+        <div class="toc">
+            <h3>Table of Contents</h3>
+            <ul>
+                <li><a href="#overview">System Overview</a></li>
+                <li><a href="#methodology">Analysis Methodology</a></li>
+                <li><a href="#standards">Standards Compliance</a></li>
+                <li><a href="#calculations">Calculation Engine</a></li>
+                <li><a href="#data-flow">Data Flow Architecture</a></li>
+                <li><a href="#validation">Data Validation</a></li>
+                <li><a href="#reporting">Report Generation</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
+            </ul>
+        </div>
+
+        <div class="guide-section" id="overview">
+            <h2>System Overview</h2>
+            <p>The SYNEREX OneForm system is a comprehensive power analysis platform designed for utility-grade auditing and compliance verification. The system implements a microservices architecture with dedicated components for analysis, reporting, and data management.</p>
+            
+            <div class="methodology-box">
+                <h4>Core Components</h4>
+                <ul>
+                    <li><strong>Analysis Engine (Port 8082):</strong> Core calculation engine implementing IEEE, ASHRAE, and NEMA standards</li>
+                    <li><strong>PDF Service (Port 8083):</strong> Professional report generation with audit trails</li>
+                    <li><strong>HTML Service (Port 8084):</strong> Dynamic web-based reporting</li>
+                    <li><strong>Weather Service (Port 8085):</strong> Environmental data integration</li>
+                    <li><strong>Chart Service (Port 8086):</strong> Data visualization and graphing</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="guide-section" id="methodology">
+            <h2>Analysis Methodology</h2>
+            
+            <h3>Power Quality Analysis</h3>
+            <p>The system performs comprehensive power quality analysis following IEEE 519-2014/2022 standards:</p>
+            
+            <div class="formula-box">
+                <strong>Total Harmonic Distortion (THD):</strong><br>
+                THD = √(Σ(h=2 to 50) (Ih/I1)²) × 100%<br>
+                Where: Ih = harmonic current, I1 = fundamental current
+            </div>
+
+            <div class="calculation-flow">
+                <h4>Analysis Flow</h4>
+                <div class="flow-step">
+                    <strong>Step 1:</strong> Data Collection - Raw power measurements, environmental conditions
+                </div>
+                <div class="flow-step">
+                    <strong>Step 2:</strong> Signal Processing - FFT analysis, harmonic extraction
+                </div>
+                <div class="flow-step">
+                    <strong>Step 3:</strong> Standards Compliance - IEEE 519, ASHRAE Guideline 14 validation
+                </div>
+                <div class="flow-step">
+                    <strong>Step 4:</strong> Statistical Analysis - Confidence intervals, precision calculations
+                </div>
+                <div class="flow-step">
+                    <strong>Step 5:</strong> Report Generation - Professional documentation with audit trails
+                </div>
+            </div>
+
+            <h3>Energy Efficiency Analysis</h3>
+            <p>ASHRAE Guideline 14 compliance verification for energy measurement and verification:</p>
+            
+            <div class="formula-box">
+                <strong>Relative Precision (RP):</strong><br>
+                RP = (t × CV) / √N × 100%<br>
+                Where: t = t-statistic, CV = coefficient of variation, N = sample size
+            </div>
+        </div>
+
+        <div class="guide-section" id="standards">
+            <h2>Standards Compliance</h2>
+            
+            <table class="standards-table">
+                <thead>
+                    <tr>
+                        <th>Standard</th>
+                        <th>Scope</th>
+                        <th>Compliance Method</th>
+                        <th>Validation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>IEEE 519-2014/2022</strong></td>
+                        <td>Power Quality Limits</td>
+                        <td>THD < 5% @ 95% CL</td>
+                        <td><span class="compliance-indicator compliance-pass">AUTOMATED</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ASHRAE Guideline 14</strong></td>
+                        <td>M&V Precision</td>
+                        <td>RP < 50% @ 95% CL</td>
+                        <td><span class="compliance-indicator compliance-pass">AUTOMATED</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>NEMA MG1</strong></td>
+                        <td>Motor Efficiency</td>
+                        <td>Efficiency Standards</td>
+                        <td><span class="compliance-indicator compliance-pass">AUTOMATED</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>IEC 61000 Series</strong></td>
+                        <td>EMC Compliance</td>
+                        <td>Harmonic Limits</td>
+                        <td><span class="compliance-indicator compliance-pass">AUTOMATED</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ANSI C12.1/C12.20</strong></td>
+                        <td>Meter Accuracy</td>
+                        <td>±0.5% Accuracy</td>
+                        <td><span class="compliance-indicator compliance-pass">AUTOMATED</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="technical-note">
+                <strong>Note:</strong> All compliance calculations are performed using industry-standard algorithms with 95% confidence intervals. The system automatically validates against all applicable standards and provides detailed audit trails.
+            </div>
+        </div>
+
+        <div class="guide-section" id="calculations">
+            <h2>Calculation Engine</h2>
+            
+            <h3>Harmonic Analysis</h3>
+            <p>The system performs Fast Fourier Transform (FFT) analysis on power measurements to extract harmonic components:</p>
+            
+            <div class="code-block">
+# Harmonic Analysis Implementation
+def analyze_harmonics(voltage_data, current_data):
+    # FFT Analysis
+    voltage_fft = np.fft.fft(voltage_data)
+    current_fft = np.fft.fft(current_data)
+    
+    # Harmonic Extraction
+    harmonics = extract_harmonics(voltage_fft, current_fft)
+    
+    # THD Calculation
+    thd = calculate_thd(harmonics)
+    
+    return thd, harmonics
+            </div>
+
+            <h3>Statistical Analysis</h3>
+            <p>Comprehensive statistical analysis including confidence intervals and precision calculations:</p>
+            
+            <div class="formula-box">
+                <strong>Confidence Interval (95%):</strong><br>
+                CI = x̄ ± (t × s/√n)<br>
+                Where: x̄ = sample mean, t = t-statistic, s = standard deviation, n = sample size
+            </div>
+
+            <h3>Data Quality Assessment</h3>
+            <p>The system performs automated data quality checks:</p>
+            <ul>
+                <li><strong>Completeness:</strong> Missing data detection and handling</li>
+                <li><strong>Accuracy:</strong> Outlier detection using statistical methods</li>
+                <li><strong>Consistency:</strong> Cross-validation with multiple data sources</li>
+                <li><strong>Reliability:</strong> Confidence interval validation</li>
+            </ul>
+        </div>
+
+        <div class="guide-section" id="data-flow">
+            <h2>Data Flow Architecture</h2>
+            
+            <div class="calculation-flow">
+                <h4>Direct GET Approach</h4>
+                <div class="flow-step">
+                    <strong>1. Data Input:</strong> User inputs project parameters and measurement data
+                </div>
+                <div class="flow-step">
+                    <strong>2. Analysis Engine:</strong> Core calculations performed in main app (8082)
+                </div>
+                <div class="flow-step">
+                    <strong>3. Results Storage:</strong> Analysis results stored in memory for retrieval
+                </div>
+                <div class="flow-step">
+                    <strong>4. HTML Service:</strong> Client HTML Report fetches results via GET request
+                </div>
+                <div class="flow-step">
+                    <strong>5. Template Processing:</strong> Dynamic HTML generation with real-time data
+                </div>
+            </div>
+
+            <div class="technical-note">
+                <strong>Architecture Benefits:</strong> Single source of truth, consistent calculations, real-time data updates, and simplified maintenance.
+            </div>
+        </div>
+
+        <div class="guide-section" id="validation">
+            <h2>Data Validation</h2>
+            
+            <h3>Input Validation</h3>
+            <ul>
+                <li><strong>Range Checks:</strong> All numerical inputs validated against physical limits</li>
+                <li><strong>Format Validation:</strong> Data type and format verification</li>
+                <li><strong>Completeness:</strong> Required field validation</li>
+                <li><strong>Consistency:</strong> Cross-field validation for logical consistency</li>
+            </ul>
+
+            <h3>Calculation Validation</h3>
+            <ul>
+                <li><strong>Mathematical Accuracy:</strong> All formulas verified against industry standards</li>
+                <li><strong>Unit Consistency:</strong> Automatic unit conversion and validation</li>
+                <li><strong>Precision Limits:</strong> Rounding and significant figure handling</li>
+                <li><strong>Error Handling:</strong> Graceful handling of calculation errors</li>
+            </ul>
+
+            <h3>Output Validation</h3>
+            <ul>
+                <li><strong>Result Verification:</strong> Cross-checking with multiple calculation methods</li>
+                <li><strong>Standards Compliance:</strong> Automatic validation against applicable standards</li>
+                <li><strong>Audit Trail:</strong> Complete calculation history for verification</li>
+                <li><strong>Quality Assurance:</strong> Automated quality checks before report generation</li>
+            </ul>
+        </div>
+
+        <div class="guide-section" id="reporting">
+            <h2>Report Generation</h2>
+            
+            <h3>HTML Reports</h3>
+            <p>Dynamic web-based reports with real-time data updates:</p>
+            <ul>
+                <li><strong>Template Processing:</strong> Dynamic variable replacement</li>
+                <li><strong>Data Integration:</strong> Real-time data from analysis engine</li>
+                <li><strong>Standards Compliance:</strong> Automatic compliance status display</li>
+                <li><strong>Professional Formatting:</strong> Industry-standard report layout</li>
+            </ul>
+
+            <h3>Excel Audit Trails</h3>
+            <p>Comprehensive Excel workbooks with detailed calculation tracing:</p>
+            <ul>
+                <li><strong>Multi-Sheet Structure:</strong> Organized by analysis type and standards</li>
+                <li><strong>Calculation Tracing:</strong> Step-by-step calculation documentation</li>
+                <li><strong>Data Validation:</strong> Input data verification sheets</li>
+                <li><strong>Compliance Matrix:</strong> Standards compliance summary</li>
+            </ul>
+
+            <h3>PDF Reports</h3>
+            <p>Professional PDF generation with audit trails:</p>
+            <ul>
+                <li><strong>Professional Layout:</strong> Industry-standard formatting</li>
+                <li><strong>Audit Trails:</strong> Complete calculation history</li>
+                <li><strong>Standards Compliance:</strong> Detailed compliance documentation</li>
+                <li><strong>Digital Signatures:</strong> Authentication and integrity verification</li>
+            </ul>
+
+            <h3>Facility-Specific Report Sections (Version {{ version }})</h3>
+            <p>When using facility-specific analysis, reports include dedicated sections for industry-specific metrics:</p>
+
+            <h4>Cold Storage Facility Reports</h4>
+            <ul>
+                <li><strong>Energy Intensity Analysis:</strong> kWh per unit of product (kWh/lb, kWh/ton)</li>
+                <li><strong>Storage Efficiency Metrics:</strong> Product weight vs. storage capacity utilization</li>
+                <li><strong>Savings per Unit:</strong> Cost savings per unit of product stored</li>
+                <li><strong>Annual Savings Projection:</strong> Projected annual savings based on turnover rate</li>
+                <li><strong>Standards Compliance:</strong> ASHRAE Standard 15, ASHRAE Standard 34 compliance status</li>
+            </ul>
+
+            <h4>Data Center / GPU Facility Reports</h4>
+            <ul>
+                <li><strong>PUE Analysis:</strong> Power Usage Effectiveness (PUE) metrics and trends</li>
+                <li><strong>ITE Metrics:</strong> IT Equipment Efficiency percentage</li>
+                <li><strong>CLF Analysis:</strong> Cooling Load Factor calculations</li>
+                <li><strong>Power Density Metrics:</strong> kW per rack, kW per sqft, kW per GPU</li>
+                <li><strong>Compute Efficiency:</strong> kWh per GPU-hour, kWh per teraflop</li>
+                <li><strong>UPS Efficiency Analysis:</strong> UPS losses and efficiency metrics</li>
+                <li><strong>Standards Compliance:</strong> ASHRAE Standard 90.4, ISO/IEC 30134 compliance status</li>
+            </ul>
+
+            <h4>Healthcare Facility Reports</h4>
+            <ul>
+                <li><strong>Energy per Patient Day:</strong> Total energy / patient days (kWh/patient-day)</li>
+                <li><strong>Energy per Bed:</strong> Annual energy per bed (kWh/bed/year)</li>
+                <li><strong>EUI Analysis:</strong> Energy Use Intensity (kWh/sqft/year)</li>
+                <li><strong>Medical Equipment Power Density:</strong> kW/sqft for imaging, lab, surgical equipment</li>
+                <li><strong>Operating Room Energy Intensity:</strong> kWh/OR/year</li>
+                <li><strong>Critical Power Redundancy:</strong> Backup capacity vs. critical loads</li>
+                <li><strong>Standards Compliance:</strong> ASHRAE Standard 170, FGI Guidelines compliance status</li>
+            </ul>
+
+            <h4>Hospitality Facility Reports</h4>
+            <ul>
+                <li><strong>Energy per Occupied Room-Night:</strong> Total energy / occupied room-nights (kWh/room-night)</li>
+                <li><strong>Energy per Guest:</strong> Total energy / guest count (kWh/guest)</li>
+                <li><strong>Energy per Meal:</strong> Total energy / meals served (kWh/meal) - for restaurants</li>
+                <li><strong>EUI Analysis:</strong> Energy Use Intensity (kWh/sqft/year)</li>
+                <li><strong>Kitchen Energy Intensity:</strong> kWh/meal for restaurant kitchens</li>
+                <li><strong>Laundry Efficiency:</strong> kWh per laundry load</li>
+                <li><strong>Pool/Spa Energy Intensity:</strong> kWh/sqft for recreation facilities</li>
+                <li><strong>Standards Compliance:</strong> ASHRAE Standard 90.1, ENERGY STAR Portfolio Manager compliance status</li>
+            </ul>
+
+            <h4>Manufacturing & Industrial Facility Reports</h4>
+            <ul>
+                <li><strong>Energy per Unit Produced:</strong> Total energy / units produced (kWh/unit) - PRIMARY METRIC</li>
+                <li><strong>Energy per Machine Hour:</strong> Total energy / machine hours (kWh/machine-hour)</li>
+                <li><strong>Production Efficiency Index:</strong> Overall improvement in energy efficiency per unit</li>
+                <li><strong>Equipment Utilization:</strong> Machine hours vs. available hours (%)</li>
+                <li><strong>Compressed Air Efficiency:</strong> kWh/(CFM-psi-hour) per ASME EA-2</li>
+                <li><strong>Motor Efficiency:</strong> kWh/HP-hour per NEMA MG1</li>
+                <li><strong>Process Heating Efficiency:</strong> Process heating power improvement</li>
+                <li><strong>Power Factor Improvement:</strong> Power quality improvement</li>
+                <li><strong>Demand Reduction:</strong> Peak demand reduction (kW) and cost savings</li>
+                <li><strong>Load Factor:</strong> Average load / peak demand (%)</li>
+                <li><strong>EUI Analysis:</strong> Energy Use Intensity (kWh/sqft/year)</li>
+                <li><strong>Standards Compliance:</strong> ISO 50001, ASME EA-2, NEMA MG1-2016 compliance status</li>
+            </ul>
+
+            <div class="technical-note">
+                <strong>Report Generation:</strong> Facility-specific sections are automatically included in both UI HTML Reports and Client HTML Reports when facility-specific analysis is performed. All facility-specific metrics are calculated using industry-standard formulas and are normalized for facility-specific variables (occupancy, production, patient days, etc.).
+            </div>
+        </div>
+
+        <div class="guide-section" id="troubleshooting">
+            <h2>Troubleshooting</h2>
+            
+            <h3>Common Issues</h3>
+            
+            <h4>Service Connectivity</h4>
+            <div class="technical-note">
+                <strong>Issue:</strong> HTML service not responding<br>
+                <strong>Solution:</strong> Verify all services are running on correct ports (8082, 8083, 8084, 8085, 8086)
+            </div>
+
+            <h4>Data Not Loading</h4>
+            <div class="technical-note">
+                <strong>Issue:</strong> Template variables showing as raw text<br>
+                <strong>Solution:</strong> Ensure analysis has been run first to generate data for HTML service to fetch
+            </div>
+
+            <h4>Calculation Errors</h4>
+            <div class="technical-note">
+                <strong>Issue:</strong> Invalid calculation results<br>
+                <strong>Solution:</strong> Check input data validity and ensure all required fields are populated
+            </div>
+
+            <h3>Debugging Tools</h3>
+            <ul>
+                <li><strong>Service Status:</strong> Check all services are running on designated ports</li>
+                <li><strong>Data Flow:</strong> Verify data is flowing correctly between services</li>
+                <li><strong>Template Processing:</strong> Check template variables are being replaced correctly</li>
+                <li><strong>Standards Compliance:</strong> Verify all calculations meet applicable standards</li>
+            </ul>
+
+            <h3>Performance Optimization</h3>
+            <ul>
+                <li><strong>Memory Management:</strong> Regular cleanup of analysis results</li>
+                <li><strong>Service Monitoring:</strong> Continuous monitoring of service health</li>
+                <li><strong>Data Caching:</strong> Efficient data storage and retrieval</li>
+                <li><strong>Error Handling:</strong> Graceful error handling and recovery</li>
+            </ul>
+        </div>
+
+        <div class="guide-section">
+            <h2>Technical Support</h2>
+            <p>For technical support and detailed documentation, refer to the system documentation and contact the development team.</p>
+            
+            <div class="methodology-box">
+                <h4>System Requirements</h4>
+                <ul>
+                    <li><strong>Python 3.8+</strong> with required libraries</li>
+                    <li><strong>Flask Framework</strong> for web services</li>
+                    <li><strong>NumPy/SciPy</strong> for mathematical calculations</li>
+                    <li><strong>OpenPyXL</strong> for Excel generation</li>
+                    <li><strong>ReportLab</strong> for PDF generation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,164 @@
+[
+  {
+    "company_info": {
+      "name": "XECO",
+      "business_model": "Power quality equipment manufacturer",
+      "description": "XECO manufactures power quality products including harmonic filters, power factor correction systems, and voltage regulators. XECO does NOT sell electricity or energy - they sell equipment that helps customers reduce their energy consumption and improve power quality.",
+      "products": "Power quality equipment, not energy/utility services",
+      "customers": "Industrial and commercial facilities looking to reduce energy costs and improve power quality"
+    }
+  },
+  {
+    "name": "XECO Harmonic Filter Series",
+    "model": "XECO-HF",
+    "category": "Power Quality",
+    "description": "Advanced harmonic filtering solutions for industrial and commercial applications",
+    "specifications": {
+      "voltage_rating": "480V, 600V, 1000V",
+      "current_rating": "50A to 2000A",
+      "frequency": "50/60 Hz",
+      "harmonic_filtering": "5th, 7th, 11th, 13th harmonics",
+      "efficiency": "98%+",
+      "temperature_range": "-40\u00b0C to +70\u00b0C",
+      "humidity": "0-95% non-condensing",
+      "enclosure": "NEMA 3R, IP54"
+    },
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-hf",
+    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-hf",
+    "applications": [
+      "Industrial facilities",
+      "Commercial buildings",
+      "Data centers",
+      "Healthcare facilities",
+      "Manufacturing plants"
+    ],
+    "features": [
+      "Advanced harmonic filtering",
+      "High efficiency operation",
+      "Easy installation",
+      "Compact design",
+      "Remote monitoring capability"
+    ]
+  },
+  {
+    "name": "XECO Power Factor Correction",
+    "model": "XECO-PFC",
+    "category": "Power Quality",
+    "description": "Automatic power factor correction system for improved energy efficiency",
+    "specifications": {
+      "voltage_rating": "480V, 600V",
+      "current_rating": "25A to 1000A",
+      "power_factor": "0.95+",
+      "control": "Automatic switching",
+      "efficiency": "99%+",
+      "response_time": "< 1 second",
+      "enclosure": "NEMA 3R, IP54"
+    },
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-pfc",
+    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-pfc",
+    "applications": [
+      "Industrial facilities",
+      "Commercial buildings",
+      "Office buildings",
+      "Shopping centers",
+      "Warehouses"
+    ],
+    "features": [
+      "Automatic power factor correction",
+      "High efficiency operation",
+      "Compact design",
+      "Easy installation",
+      "Cost savings"
+    ]
+  },
+  {
+    "name": "XECO Voltage Regulator",
+    "model": "XECO-VR",
+    "category": "Power Quality",
+    "description": "Automatic voltage regulation for stable power supply",
+    "specifications": {
+      "voltage_rating": "120V, 240V, 480V",
+      "current_rating": "10A to 500A",
+      "regulation": "\u00b11%",
+      "response_time": "< 1 cycle",
+      "efficiency": "98%+",
+      "enclosure": "NEMA 3R, IP54"
+    },
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-vr",
+    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-vr",
+    "applications": [
+      "Sensitive equipment protection",
+      "Data centers",
+      "Healthcare facilities",
+      "Laboratories",
+      "Control systems"
+    ],
+    "features": [
+      "Precise voltage regulation",
+      "Fast response time",
+      "High efficiency",
+      "Compact design",
+      "Easy installation"
+    ]
+  },
+  {
+    "name": "XECO Energy Monitor",
+    "model": "XECO-EM",
+    "category": "Energy Management",
+    "description": "Advanced energy monitoring and analysis system",
+    "specifications": {
+      "measurement_accuracy": "\u00b10.2%",
+      "voltage_range": "50V to 600V",
+      "current_range": "1A to 5000A",
+      "communication": "Modbus RTU/TCP, Ethernet",
+      "display": "7-inch touchscreen",
+      "data_logging": "1 year minimum"
+    },
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-em",
+    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-em",
+    "applications": [
+      "Energy management",
+      "Power quality monitoring",
+      "Load analysis",
+      "Billing verification",
+      "System optimization"
+    ],
+    "features": [
+      "Real-time monitoring",
+      "Data logging and analysis",
+      "Remote communication",
+      "User-friendly interface",
+      "Comprehensive reporting"
+    ]
+  },
+  {
+    "name": "XECO Motor Controller",
+    "model": "XECO-MC",
+    "category": "Motor Control",
+    "description": "Advanced motor control and protection system",
+    "specifications": {
+      "voltage_rating": "240V, 480V, 600V",
+      "current_rating": "1A to 1000A",
+      "control_type": "VFD, Soft Start, Direct",
+      "protection": "Overload, short circuit, ground fault",
+      "communication": "Modbus RTU/TCP",
+      "efficiency": "98%+"
+    },
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-mc",
+    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-mc",
+    "applications": [
+      "Motor control applications",
+      "Pump control",
+      "Fan control",
+      "Compressor control",
+      "Conveyor systems"
+    ],
+    "features": [
+      "Advanced motor control",
+      "Energy efficiency",
+      "Protection features",
+      "Easy programming",
+      "Remote monitoring"
+    ]
+  }
+]

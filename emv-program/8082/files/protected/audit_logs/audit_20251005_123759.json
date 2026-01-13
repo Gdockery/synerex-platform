@@ -1,0 +1,9 @@
+{
+  "timestamp": "2025-10-05T12:37:59.501682",
+  "action": "move_to_protected",
+  "source_path": "C:\\Users\\Admin\\OneDrive\\Documents\\synerex-oneform\\8082\\files\\raw\\2025-10-05\\2025-10-05_Lineage_Windsor-SG4-OFF_-_2025-05-01_to_2025-05-31_60_minute_intervals.csv.backup_1759685619",
+  "target_path": "files\\protected\\verified\\20251005_123759_2025-10-05_Lineage_Windsor-SG4-OFF_-_2025-05-01_to_2025-05-31_60_minute_intervals.csv_fpauto_gen_ranges.backup_1759685619",
+  "fingerprint": "auto_generate",
+  "ranges_set": true,
+  "file_size": 395191
+}

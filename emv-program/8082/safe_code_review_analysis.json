@@ -1,0 +1,4477 @@
+{
+  "timestamp": "2025-10-09T08:57:00.742569",
+  "total_safe_fixes": 628,
+  "duplicate_imports": 30,
+  "todo_comments": 1,
+  "long_lines": 474,
+  "missing_docstrings": 123,
+  "unused_variables": 0,
+  "safe_fixes": [
+    {
+      "type": "duplicate_import",
+      "module": "hashlib",
+      "count": 6,
+      "lines": [
+        60,
+        1015,
+        11404,
+        20087,
+        20127,
+        20597
+      ],
+      "fix": "Remove 5 duplicate import(s) of 'hashlib'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "hmac",
+      "count": 2,
+      "lines": [
+        61,
+        11405
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'hmac'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "base64",
+      "count": 8,
+      "lines": [
+        62,
+        232,
+        7143,
+        7281,
+        7332,
+        7391,
+        7412,
+        11392
+      ],
+      "fix": "Remove 7 duplicate import(s) of 'base64'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "json",
+      "count": 6,
+      "lines": [
+        63,
+        19187,
+        19261,
+        19421,
+        20596,
+        20808
+      ],
+      "fix": "Remove 5 duplicate import(s) of 'json'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "logging",
+      "count": 2,
+      "lines": [
+        64,
+        11644
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'logging'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "math",
+      "count": 8,
+      "lines": [
+        65,
+        271,
+        420,
+        1413,
+        1453,
+        7779,
+        7848,
+        11604
+      ],
+      "fix": "Remove 7 duplicate import(s) of 'math'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "os",
+      "count": 16,
+      "lines": [
+        66,
+        1879,
+        11204,
+        11406,
+        16522,
+        16615,
+        19094,
+        19188,
+        19262,
+        19422,
+        19859,
+        20475,
+        22025,
+        22096,
+        22142,
+        22156
+      ],
+      "fix": "Remove 15 duplicate import(s) of 'os'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "shutil",
+      "count": 4,
+      "lines": [
+        67,
+        17070,
+        17090,
+        20653
+      ],
+      "fix": "Remove 3 duplicate import(s) of 'shutil'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "sys",
+      "count": 2,
+      "lines": [
+        69,
+        542
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'sys'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "tempfile",
+      "count": 2,
+      "lines": [
+        70,
+        16614
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'tempfile'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "time",
+      "count": 2,
+      "lines": [
+        71,
+        11187
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'time'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "uuid",
+      "count": 2,
+      "lines": [
+        72,
+        20142
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'uuid'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "datetime",
+      "count": 13,
+      "lines": [
+        74,
+        405,
+        516,
+        627,
+        1440,
+        1441,
+        8734,
+        12187,
+        16616,
+        19424,
+        20595,
+        20654,
+        20809
+      ],
+      "fix": "Remove 12 duplicate import(s) of 'datetime'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "numpy",
+      "count": 9,
+      "lines": [
+        77,
+        498,
+        1402,
+        6775,
+        7850,
+        8003,
+        8474,
+        8809,
+        11500
+      ],
+      "fix": "Remove 8 duplicate import(s) of 'numpy'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "requests",
+      "count": 3,
+      "lines": [
+        78,
+        12086,
+        19858
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'requests'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "openpyxl",
+      "count": 3,
+      "lines": [
+        82,
+        83,
+        84
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'openpyxl'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "re",
+      "count": 6,
+      "lines": [
+        188,
+        12342,
+        14852,
+        19189,
+        19263,
+        19423
+      ],
+      "fix": "Remove 5 duplicate import(s) of 're'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "fcntl",
+      "count": 2,
+      "lines": [
+        222,
+        223
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'fcntl'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "io",
+      "count": 3,
+      "lines": [
+        236,
+        247,
+        21368
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'io'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "pathlib",
+      "count": 11,
+      "lines": [
+        237,
+        545,
+        551,
+        555,
+        568,
+        11351,
+        11654,
+        20476,
+        20594,
+        20652,
+        20807
+      ],
+      "fix": "Remove 10 duplicate import(s) of 'pathlib'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "matplotlib",
+      "count": 3,
+      "lines": [
+        240,
+        249,
+        250
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'matplotlib'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "flask",
+      "count": 12,
+      "lines": [
+        241,
+        242,
+        1071,
+        1183,
+        1215,
+        11768,
+        16005,
+        16462,
+        16524,
+        16542,
+        16556,
+        16617
+      ],
+      "fix": "Remove 11 duplicate import(s) of 'flask'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "werkzeug",
+      "count": 2,
+      "lines": [
+        244,
+        22297
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'werkzeug'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "pandas",
+      "count": 10,
+      "lines": [
+        253,
+        509,
+        1428,
+        6725,
+        8475,
+        8555,
+        11813,
+        11828,
+        12554,
+        15649
+      ],
+      "fix": "Remove 9 duplicate import(s) of 'pandas'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "scipy",
+      "count": 5,
+      "lines": [
+        262,
+        263,
+        3007,
+        6865,
+        7160
+      ],
+      "fix": "Remove 4 duplicate import(s) of 'scipy'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "numpy_financial",
+      "count": 3,
+      "lines": [
+        526,
+        7426,
+        7556
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'numpy_financial'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "file_protection_system",
+      "count": 3,
+      "lines": [
+        717,
+        20004,
+        20025
+      ],
+      "fix": "Remove 2 duplicate import(s) of 'file_protection_system'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "traceback",
+      "count": 12,
+      "lines": [
+        9269,
+        9498,
+        9552,
+        9920,
+        10302,
+        10524,
+        10761,
+        19078,
+        20276,
+        20297,
+        20318,
+        20339
+      ],
+      "fix": "Remove 11 duplicate import(s) of 'traceback'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "csv",
+      "count": 2,
+      "lines": [
+        11203,
+        21367
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'csv'"
+    },
+    {
+      "type": "duplicate_import",
+      "module": "cryptography",
+      "count": 2,
+      "lines": [
+        11337,
+        11338
+      ],
+      "fix": "Remove 1 duplicate import(s) of 'cryptography'"
+    },
+    {
+      "type": "todo_comment",
+      "line": 21118,
+      "content": "# TODO: Re-enable admin restriction after system is stable",
+      "fix": "Remove or fix TODO comment on line 21118"
+    },
+    {
+      "type": "long_line",
+      "line": 242,
+      "length": 142,
+      "content": "from flask import Flask, g, jsonify, render_template_string, render_template, request, send_file, se...",
+      "fix": "Break long line 242 (142 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1020,
+      "length": 122,
+      "content": "                \"\"\", (\"System Administrator\", \"admin@synerex.com\", \"admin\", admin_password_hash, \"ad...",
+      "fix": "Break long line 1020 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1189,
+      "length": 121,
+      "content": "    ctx[\"synerex_logo_url\"] = static_or_data_uri(\"static/synerex_logo_transparent.png\")  # Transpare...",
+      "fix": "Break long line 1189 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1190,
+      "length": 126,
+      "content": "    ctx[\"synerex_logo_main_url\"] = static_or_data_uri(\"static/synerex_logo_transparent.png\")  # Tran...",
+      "fix": "Break long line 1190 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1191,
+      "length": 129,
+      "content": "    ctx[\"synerex_logo_other_url\"] = static_or_data_uri(\"static/synerex_logo_transparent.png\")  # Tra...",
+      "fix": "Break long line 1191 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1692,
+      "length": 130,
+      "content": "                        if param in [\"avgKw\", \"avgKva\"] and len(clean_values) > 24:  # Only for powe...",
+      "fix": "Break long line 1692 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1697,
+      "length": 148,
+      "content": "                                    normalized_values = pd.Series(clean_values).rolling(window=windo...",
+      "fix": "Break long line 1697 (148 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1717,
+      "length": 194,
+      "content": "                                logger.info(f\"Applied normalization to {param}: CV reduced from {cle...",
+      "fix": "Break long line 1717 (194 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 1812,
+      "length": 207,
+      "content": "                                    f\"Occupancy normalization applied: CV improved from {normalizati...",
+      "fix": "Break long line 1812 (207 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3324,
+      "length": 151,
+      "content": "    def _create_executive_summary_sheet(self, ws, audit_summary, project_name, title_font, header_fo...",
+      "fix": "Break long line 3324 (151 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3364,
+      "length": 121,
+      "content": "        ws['A14'] = \"All calculations are traceable, methodologies are verified, and standards compl...",
+      "fix": "Break long line 3364 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3448,
+      "length": 149,
+      "content": "                                                  header_fill, subheader_fill, title_fill, compliant...",
+      "fix": "Break long line 3448 (149 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3483,
+      "length": 135,
+      "content": "        headers = ['Standard', 'Status', 'Implementation', 'Compliance Level', 'Key Features', 'Util...",
+      "fix": "Break long line 3483 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3494,
+      "length": 163,
+      "content": "            ['IEEE 519-2014/2022', '\u2705 Complete', 'Already Perfect', '100%', 'TDD, ISC/IL, Individual...",
+      "fix": "Break long line 3494 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3495,
+      "length": 128,
+      "content": "            ['NEMA MG1', '\u2705 Complete', 'Already Perfect', '100%', 'Voltage Unbalance < 1%', '\u2705', '\u2705'...",
+      "fix": "Break long line 3495 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3496,
+      "length": 138,
+      "content": "            ['ANSI C12.1/C12.20', '\u2705 Complete', 'Already Perfect', '100%', 'Meter Accuracy Classes',...",
+      "fix": "Break long line 3496 (138 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3497,
+      "length": 137,
+      "content": "            ['ASHRAE Guideline 14', '\u2705 Complete', 'FIXED', '100%', 'CVRMSE, NMBE, R\u00b2 with (n-p)', '\u2705...",
+      "fix": "Break long line 3497 (137 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3498,
+      "length": 123,
+      "content": "            ['IPMVP', '\u2705 Complete', 'ENHANCED', '100%', 'Statistical Significance p<0.05', '\u2705', '\u2705',...",
+      "fix": "Break long line 3498 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3499,
+      "length": 131,
+      "content": "            ['IEC 61000-4-30', '\u2705 Complete', 'NEW', '100%', 'Class A \u00b10.5% Power Accuracy', '\u2705', '\u2705'...",
+      "fix": "Break long line 3499 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3500,
+      "length": 128,
+      "content": "            ['IEC 61000-4-7', '\u2705 Complete', 'NEW', '100%', 'FFT Harmonic Analysis', '\u2705', '\u2705', '50th ...",
+      "fix": "Break long line 3500 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3501,
+      "length": 128,
+      "content": "            ['IEC 61000-2-2', '\u2705 Complete', 'NEW', '100%', 'Voltage Variation \u00b110%', '\u2705', '\u2705', 'Norm...",
+      "fix": "Break long line 3501 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3502,
+      "length": 131,
+      "content": "            ['IEC 60034-30-1', '\u2705 Complete', 'NEW', '100%', 'Motor Efficiency IE1-IE4', '\u2705', '\u2705', 'C...",
+      "fix": "Break long line 3502 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3588,
+      "length": 171,
+      "content": "    def _create_regulatory_compliance_sheet(self, ws, audit_summary, header_font, subheader_font, he...",
+      "fix": "Break long line 3588 (171 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3606,
+      "length": 141,
+      "content": "        ieee_headers = [\"Parameter\", \"Calculated Value\", \"IEEE Limit\", \"Compliance Status\", \"Measure...",
+      "fix": "Break long line 3606 (141 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3616,
+      "length": 137,
+      "content": "            [\"Individual Voltage Harmonics\", \"See Appendix A\", \"IEEE Limits\", \"COMPLIANT\", \"FFT Anal...",
+      "fix": "Break long line 3616 (137 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3617,
+      "length": 135,
+      "content": "            [\"Individual Current Harmonics\", \"See Appendix A\", \"IEEE Limits\", \"COMPLIANT\", \"FFT Anal...",
+      "fix": "Break long line 3617 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3636,
+      "length": 131,
+      "content": "        ashrae_headers = [\"Parameter\", \"Before Period\", \"After Period\", \"ASHRAE Requirement\", \"Statu...",
+      "fix": "Break long line 3636 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3644,
+      "length": 129,
+      "content": "            [\"Coefficient of Variation (CV)\", \"8.22%\", \"6.10%\", \"<10%\", \"COMPLIANT\", \"Standard Devia...",
+      "fix": "Break long line 3644 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3647,
+      "length": 123,
+      "content": "            [\"Measurement Period\", \"27 days\", \"27 days\", \"\u226514 days\", \"COMPLIANT\", \"Duration Verifica...",
+      "fix": "Break long line 3647 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3815,
+      "length": 128,
+      "content": "    def _create_detailed_calculations_sheet(self, ws, audit_summary, header_font, data_font, formula...",
+      "fix": "Break long line 3815 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3827,
+      "length": 123,
+      "content": "        headers = [\"Step\", \"Calculation Type\", \"Input Values\", \"Formula\", \"Calculation\", \"Result\", \"...",
+      "fix": "Break long line 3827 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3836,
+      "length": 134,
+      "content": "            [\"1\", \"THD Voltage\", \"V1=277V, V3=5.2V, V5=3.1V\", \"\u221a(V3\u00b2+V5\u00b2)/V1\u00d7100%\", \"\u221a(5.2\u00b2+3.1\u00b2)/27...",
+      "fix": "Break long line 3836 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3838,
+      "length": 125,
+      "content": "            [\"3\", \"Phase Unbalance\", \"Va=277V, Vb=271V, Vc=283V\", \"Max Dev/Avg\u00d7100%\", \"6/277\u00d7100%\", ...",
+      "fix": "Break long line 3838 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3839,
+      "length": 153,
+      "content": "            [\"4\", \"Energy Savings\", \"P_before=179.35kW, P_after=147.2kW\", \"(P_b-P_a)\u00d7t\u00d7365\", \"(179.3...",
+      "fix": "Break long line 3839 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3868,
+      "length": 170,
+      "content": "    def _create_standards_compliance_sheet(self, ws, audit_summary, header_font, subheader_font, hea...",
+      "fix": "Break long line 3868 (170 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3881,
+      "length": 126,
+      "content": "            [\"Standard\", \"Section\", \"Requirement\", \"Calculated Value\", \"Limit\", \"Status\", \"Verificat...",
+      "fix": "Break long line 3881 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3884,
+      "length": 135,
+      "content": "            [\"ASHRAE Guideline 14\", \"14.3.2\", \"CV Requirement\", \"6.1%\", \"<10%\", \"COMPLIANT\", \"Statis...",
+      "fix": "Break long line 3884 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3885,
+      "length": 134,
+      "content": "            [\"ASHRAE Guideline 14\", \"14.3.3\", \"Relative Precision\", \"\u00b11.8%\", \"<5%\", \"COMPLIANT\", \"t-...",
+      "fix": "Break long line 3885 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3886,
+      "length": 125,
+      "content": "            [\"NEMA MG1\", \"14.35\", \"Voltage Unbalance\", \"0.87%\", \"<5%\", \"COMPLIANT\", \"Three-phase Ana...",
+      "fix": "Break long line 3886 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3888,
+      "length": 130,
+      "content": "            [\"ANSI C12.1\", \"5.2.1\", \"Meter Accuracy\", \"Class 0.2\", \"Class 0.2\", \"COMPLIANT\", \"Calibr...",
+      "fix": "Break long line 3888 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3889,
+      "length": 136,
+      "content": "            [\"IEC 61000-4-7\", \"4.2\", \"Harmonic Analysis\", \"IEC Method\", \"IEC Method\", \"COMPLIANT\", \"...",
+      "fix": "Break long line 3889 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3890,
+      "length": 127,
+      "content": "            [\"IEC 61000-4-30\", \"5.1\", \"Power Quality\", \"IEC Method\", \"IEC Method\", \"COMPLIANT\", \"PQ ...",
+      "fix": "Break long line 3890 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3931,
+      "length": 135,
+      "content": "            [\"Parameter\", \"Before Period\", \"After Period\", \"Quality Metric\", \"Acceptance Criteria\", ...",
+      "fix": "Break long line 3931 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3933,
+      "length": 128,
+      "content": "            [\"Coefficient of Variation\", \"8.22%\", \"6.10%\", \"Data Consistency\", \"<10%\", \"PASS\", \"\u00b10.5...",
+      "fix": "Break long line 3933 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3934,
+      "length": 121,
+      "content": "            [\"Relative Precision\", \"\u00b12.1%\", \"\u00b11.8%\", \"Measurement Precision\", \"<5%\", \"PASS\", \"\u00b10.3%\"...",
+      "fix": "Break long line 3934 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3937,
+      "length": 132,
+      "content": "            [\"Calibration Status\", \"Valid\", \"Valid\", \"Instrument Accuracy\", \"In Calibration\", \"PASS\"...",
+      "fix": "Break long line 3937 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3938,
+      "length": 148,
+      "content": "            [\"Environmental Conditions\", \"Controlled\", \"Controlled\", \"Measurement Environment\", \"Sta...",
+      "fix": "Break long line 3938 (148 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 3966,
+      "length": 143,
+      "content": "    def _create_pe_review_sheet(self, ws, audit_summary, project_name, title_font, header_font, titl...",
+      "fix": "Break long line 3966 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4076,
+      "length": 131,
+      "content": "    def _create_utility_checklist_sheet(self, ws, audit_summary, header_font, subheader_font, header...",
+      "fix": "Break long line 4076 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4096,
+      "length": 121,
+      "content": "            [\"Professional Engineer Review\", \"\u25a1 Complete\", \"PE review and certification required\", \"...",
+      "fix": "Break long line 4096 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4097,
+      "length": 121,
+      "content": "            [\"Standards Compliance\", \"\u25a1 Complete\", \"IEEE 519, ASHRAE 14, NEMA MG1 compliance\", \"Indu...",
+      "fix": "Break long line 4097 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4198,
+      "length": 167,
+      "content": "            [\"IEEE 519-2014/2022\", \"IEEE Recommended Practice and Requirements for Harmonic Control ...",
+      "fix": "Break long line 4198 (167 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4199,
+      "length": 132,
+      "content": "            [\"ASHRAE Guideline 14-2014\", \"Measurement of Energy and Demand Savings\", \"14.3\", \"Statis...",
+      "fix": "Break long line 4199 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4201,
+      "length": 145,
+      "content": "            [\"IPMVP Volume I\", \"Concepts and Options for Determining Energy and Water Savings\", \"Opt...",
+      "fix": "Break long line 4201 (145 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4203,
+      "length": 157,
+      "content": "            [\"IEC 61000-4-7\", \"Electromagnetic compatibility (EMC) - Part 4-7: Testing and measureme...",
+      "fix": "Break long line 4203 (157 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4204,
+      "length": 154,
+      "content": "            [\"IEC 61000-4-30\", \"Electromagnetic compatibility (EMC) - Part 4-30: Testing and measure...",
+      "fix": "Break long line 4204 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4453,
+      "length": 125,
+      "content": "            verification[\"warnings\"].append(f\"Meter class {meter_class} doesn't match CV-based expec...",
+      "fix": "Break long line 4453 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4994,
+      "length": 133,
+      "content": "            \"disciplines_covered\": list(set(pe[\"discipline\"] for pe in self.pe_certifications.values...",
+      "fix": "Break long line 4994 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4995,
+      "length": 123,
+      "content": "            \"states_covered\": list(set(pe[\"state\"] for pe in self.pe_certifications.values() if pe[\"...",
+      "fix": "Break long line 4995 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 4996,
+      "length": 140,
+      "content": "            \"last_verification\": max([pe.get(\"verification_date\", \"1900-01-01\") for pe in self.pe_ce...",
+      "fix": "Break long line 4996 (140 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5107,
+      "length": 131,
+      "content": "        logger.info(f\"CSV INTEGRITY - Created fingerprint {fingerprint['fingerprint_id']} for conten...",
+      "fix": "Break long line 5107 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5256,
+      "length": 129,
+      "content": "        logger.info(f\"CSV CUSTODY - Verified chain of custody {custody_record['custody_id']}: {verif...",
+      "fix": "Break long line 5256 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5286,
+      "length": 132,
+      "content": "        signature_string = f\"{signature_data['content_hash']}{signature_data['signer_name']}{signatu...",
+      "fix": "Break long line 5286 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5316,
+      "length": 132,
+      "content": "        signature_string = f\"{signature_data['content_hash']}{signature_data['signer_name']}{signatu...",
+      "fix": "Break long line 5316 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5605,
+      "length": 122,
+      "content": "            'chain_continuity': modified_custody_record.get('parent_custody_id') == original_custody...",
+      "fix": "Break long line 5605 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5784,
+      "length": 151,
+      "content": "        logger.info(f\"ASHRAE Precision Debug - savings={savings:.2f}, ci_half_width={ci_half_width:....",
+      "fix": "Break long line 5784 (151 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5846,
+      "length": 123,
+      "content": "            logger.debug(f\"ASHRAE CV Debug - cv: {cv}, meets_ashrae_cv: {meets_ashrae_cv} (type: {ty...",
+      "fix": "Break long line 5846 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 5899,
+      "length": 288,
+      "content": "            logger.debug(f\"Data Quality Debug - meets_completeness: {meets_completeness} (type: {typ...",
+      "fix": "Break long line 5899 (288 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6185,
+      "length": 122,
+      "content": "                'non_compliant_parameters': sum(1 for result in compliance_results.values() if not r...",
+      "fix": "Break long line 6185 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6409,
+      "length": 180,
+      "content": "                    'upper_margin_percent': limits['upper_limit_percent'] - voltage_variation_upper ...",
+      "fix": "Break long line 6409 (180 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6410,
+      "length": 179,
+      "content": "                    'lower_margin_percent': voltage_variation_lower - limits['lower_limit_percent'] ...",
+      "fix": "Break long line 6410 (179 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6433,
+      "length": 124,
+      "content": "                    'compliant_categories': sum(1 for result in compliance_results.values() if resul...",
+      "fix": "Break long line 6433 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6434,
+      "length": 131,
+      "content": "                    'non_compliant_categories': sum(1 for result in compliance_results.values() if n...",
+      "fix": "Break long line 6434 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6507,
+      "length": 123,
+      "content": "            corrected_efficiency_limits = {ie_class: limit * speed_factor for ie_class, limit in eff...",
+      "fix": "Break long line 6507 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6526,
+      "length": 170,
+      "content": "                        'improvement_potential_percent_of_measured': (improvement_potential / measur...",
+      "fix": "Break long line 6526 (170 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6570,
+      "length": 171,
+      "content": "                    'next_upgrade_class': 'IE2' if efficiency_class == 'IE1' else ('IE3' if efficien...",
+      "fix": "Break long line 6570 (171 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6571,
+      "length": 180,
+      "content": "                    'maximum_improvement_potential_percent': max([imp['improvement_potential_percent...",
+      "fix": "Break long line 6571 (180 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6771,
+      "length": 121,
+      "content": "                if norm_kw_before is not None and norm_kw_after is not None and norm_kw_before > 0 a...",
+      "fix": "Break long line 6771 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6806,
+      "length": 138,
+      "content": "                    logger.info(f\"Using normalized kW values for smoothing index: before={norm_kw_be...",
+      "fix": "Break long line 6806 (138 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 6811,
+      "length": 121,
+      "content": "                    logger.info(f\"Using regular kW values for smoothing index (normalized values not...",
+      "fix": "Break long line 6811 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 7289,
+      "length": 127,
+      "content": "        if power_quality_data and \"normalized_kw_before\" in power_quality_data and \"normalized_kw_af...",
+      "fix": "Break long line 7289 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8199,
+      "length": 176,
+      "content": "                        \"notes\": f\"Kh={x.get('kh') or float(config.get('kh_stray_factor', 0.5) or 0....",
+      "fix": "Break long line 8199 (176 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8674,
+      "length": 132,
+      "content": "            logger.info(f\"ASHRAE Precision Debug - {period}: Got relative_precision from global resu...",
+      "fix": "Break long line 8674 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8680,
+      "length": 122,
+      "content": "            logger.info(f\"ASHRAE Precision Debug - {period}: Got relative_precision from data: {rela...",
+      "fix": "Break long line 8680 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8691,
+      "length": 202,
+      "content": "            logger.info(f\"ASHRAE precision result (from statistical): relative_precision={relative_p...",
+      "fix": "Break long line 8691 (202 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8704,
+      "length": 155,
+      "content": "                    logger.warning(f\"ASHRAE precision fallback (CV): relative_precision={relative_pr...",
+      "fix": "Break long line 8704 (155 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8777,
+      "length": 184,
+      "content": "                        logger.info(f\"Time-based calculation: {start_time} to {end_time}, span={tota...",
+      "fix": "Break long line 8777 (184 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8800,
+      "length": 144,
+      "content": "        logger.info(f\"Completeness calculation: row_count={row_count}, expected_points={expected_poi...",
+      "fix": "Break long line 8800 (144 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 8941,
+      "length": 177,
+      "content": "                logger.info(f\"IPMVP Statistical Analysis - {period}: p-value={statistical_p_value:.3...",
+      "fix": "Break long line 8941 (177 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9025,
+      "length": 122,
+      "content": "        nema_voltage_unbalance_limit = config.get(\"nema_mg1_imbalance_limit\", 1.0)  # NEMA MG1: 1% v...",
+      "fix": "Break long line 9025 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9137,
+      "length": 144,
+      "content": "            logger.info(f\"ANSI C12.1 Debug - {period}: avgKw mean={data['avgKw']['mean']:.2f}, std={...",
+      "fix": "Break long line 9137 (144 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9138,
+      "length": 171,
+      "content": "            logger.info(f\"ANSI C12.1 Debug - {period}: Class 0.2 threshold={meter_accuracy_class_02_...",
+      "fix": "Break long line 9138 (171 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9151,
+      "length": 136,
+      "content": "                logger.info(f\"ANSI C12.1 AUDIT - {period}: MEASURED Class 0.2 (CV={kw_cv:.2f}% < {me...",
+      "fix": "Break long line 9151 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9154,
+      "length": 136,
+      "content": "                logger.info(f\"ANSI C12.1 AUDIT - {period}: MEASURED Class 0.5 (CV={kw_cv:.2f}% < {me...",
+      "fix": "Break long line 9154 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9157,
+      "length": 137,
+      "content": "                logger.info(f\"ANSI C12.1 AUDIT - {period}: MEASURED Class 1.0 (CV={kw_cv:.2f}% >= {m...",
+      "fix": "Break long line 9157 (137 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9196,
+      "length": 131,
+      "content": "        logger.info(f\"*** ANSI C12.1 COMPLIANCE ANALYSIS COMPLETED FOR {period.upper()} - Meter Clas...",
+      "fix": "Break long line 9196 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9197,
+      "length": 131,
+      "content": "        logger.info(f\"=== ANSI C12.1 COMPLIANCE ANALYSIS COMPLETED FOR {period.upper()} - Meter Clas...",
+      "fix": "Break long line 9197 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9331,
+      "length": 156,
+      "content": "    logger.info(f\"AUDIT TRAIL - Before data validation: Valid={before_validation['is_valid']}, Quali...",
+      "fix": "Break long line 9331 (156 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9332,
+      "length": 153,
+      "content": "    logger.info(f\"AUDIT TRAIL - After data validation: Valid={after_validation['is_valid']}, Quality...",
+      "fix": "Break long line 9332 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9461,
+      "length": 197,
+      "content": "            logger.info(f\"Power quality analysis - Config values: transformer_kva={transformer_kva},...",
+      "fix": "Break long line 9461 (197 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9477,
+      "length": 185,
+      "content": "                logger.info(f\"Power quality analysis - Auto-calculated ISC/IL: transformer_kva={tran...",
+      "fix": "Break long line 9477 (185 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9478,
+      "length": 149,
+      "content": "                logger.info(f\"Power quality analysis - Auto-calculated: rated_current={rated_current...",
+      "fix": "Break long line 9478 (149 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9480,
+      "length": 158,
+      "content": "                logger.warning(f\"Power quality analysis - Cannot auto-calculate ISC/IL: transformer_...",
+      "fix": "Break long line 9480 (158 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9599,
+      "length": 205,
+      "content": "        logger.info(f\"Before compliance results: ashrae_precision_compliant={before_compliance.get('...",
+      "fix": "Break long line 9599 (205 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9610,
+      "length": 207,
+      "content": "                logger.info(f\"Transferred ASHRAE baseline model values from before_compliance: CVRMS...",
+      "fix": "Break long line 9610 (207 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9653,
+      "length": 202,
+      "content": "        logger.info(f\"After compliance results: ashrae_precision_compliant={after_compliance.get('as...",
+      "fix": "Break long line 9653 (202 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9665,
+      "length": 198,
+      "content": "                logger.info(f\"Transferred ASHRAE baseline model values from compliance: CVRMSE={afte...",
+      "fix": "Break long line 9665 (198 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9667,
+      "length": 196,
+      "content": "                logger.info(f\"ASHRAE baseline model values already set by main calculation, preservi...",
+      "fix": "Break long line 9667 (196 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9742,
+      "length": 178,
+      "content": "                \"before_value\": f\"p < 0.001\" if ipmvp_before_value > 0 and ipmvp_before_value < 0.00...",
+      "fix": "Break long line 9742 (178 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9743,
+      "length": 173,
+      "content": "                \"after_value\": f\"p < 0.001\" if ipmvp_after_value > 0 and ipmvp_after_value < 0.001 e...",
+      "fix": "Break long line 9743 (173 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9827,
+      "length": 147,
+      "content": "        logger.debug(f\"before_comp type: {type(before_comp)}, keys: {list(before_comp.keys()) if isi...",
+      "fix": "Break long line 9827 (147 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9828,
+      "length": 143,
+      "content": "        logger.debug(f\"after_comp type: {type(after_comp)}, keys: {list(after_comp.keys()) if isinst...",
+      "fix": "Break long line 9828 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9864,
+      "length": 122,
+      "content": "            logger.info(f\"DATA QUALITY ASSESSMENT - BEFORE: CV={before_cv:.2f}% (for ASHRAE complian...",
+      "fix": "Break long line 9864 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9865,
+      "length": 123,
+      "content": "            logger.debug(f\"DATA QUALITY ASSESSMENT - BEFORE: CV={before_cv:.2f}% (for ASHRAE complia...",
+      "fix": "Break long line 9865 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9870,
+      "length": 121,
+      "content": "            logger.debug(f\"DATA QUALITY ASSESSMENT - AFTER: CV={after_cv:.2f}% (for ASHRAE complianc...",
+      "fix": "Break long line 9870 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 9872,
+      "length": 126,
+      "content": "        logger.info(f\"*** ANSI C12.1 METER ACCURACY CLASS SET - Before: {meter_class_before}, After:...",
+      "fix": "Break long line 9872 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10003,
+      "length": 127,
+      "content": "        logger.info(f\"Added phase imbalance data - Before: {phase_imbalance_before:.2f}%, After: {ph...",
+      "fix": "Break long line 10003 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10018,
+      "length": 146,
+      "content": "        results[\"power_quality\"][\"voltage_improvement\"] = ((voltage_after - voltage_before) / voltag...",
+      "fix": "Break long line 10018 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10020,
+      "length": 172,
+      "content": "        logger.info(f\"Added voltage data - Before: {voltage_before:.1f}V, After: {voltage_after:.1f}...",
+      "fix": "Break long line 10020 (172 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10030,
+      "length": 128,
+      "content": "        f\"DEBUG: Weather normalization check - temp_before: {config.get('temp_before')}, temp_after:...",
+      "fix": "Break long line 10030 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10034,
+      "length": 129,
+      "content": "            f\"DEBUG: Weather normalization enabled with temp_before: {config['temp_before']}, temp_a...",
+      "fix": "Break long line 10034 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10084,
+      "length": 123,
+      "content": "                \"Network I\u00b2R/eddy included in financial totals (may overlap with metered \u0394kW dependi...",
+      "fix": "Break long line 10084 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10213,
+      "length": 157,
+      "content": "                f\"  Heat Reduction: {total_heat_reduction:.3f} kW (conductor: {conductor_loss_reduct...",
+      "fix": "Break long line 10213 (157 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10273,
+      "length": 150,
+      "content": "        f\"  True PF Before: {power_quality_data.get('true_pf_before', pf_before):.3f}, After: {power...",
+      "fix": "Break long line 10273 (150 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10410,
+      "length": 122,
+      "content": "        # Note: Attribution includes additional categories (CP/PLC, Harmonic, Envelope) not in basic...",
+      "fix": "Break long line 10410 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10438,
+      "length": 163,
+      "content": "                        f\"  Before {metric}: {type(before_data[metric])}, length: {len(before_data[m...",
+      "fix": "Break long line 10438 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10444,
+      "length": 159,
+      "content": "                        f\"  After {metric}: {type(after_data[metric])}, length: {len(after_data[metr...",
+      "fix": "Break long line 10444 (159 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10473,
+      "length": 167,
+      "content": "                                            \"values\": [norm_kw_before] * len(before_data[\"avgKw\"][\"v...",
+      "fix": "Break long line 10473 (167 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10481,
+      "length": 163,
+      "content": "                                            \"values\": [norm_kw_after] * len(after_data[\"avgKw\"][\"val...",
+      "fix": "Break long line 10481 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10487,
+      "length": 202,
+      "content": "                                    chart_png = envelope_analyzer.generate_envelope_chart_png(normal...",
+      "fix": "Break long line 10487 (202 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10488,
+      "length": 153,
+      "content": "                                    logger.info(f\"Using normalized kW values for envelope chart: bef...",
+      "fix": "Break long line 10488 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10491,
+      "length": 126,
+      "content": "                                    chart_png = envelope_analyzer.generate_envelope_chart_png(before...",
+      "fix": "Break long line 10491 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10492,
+      "length": 127,
+      "content": "                                    logger.info(\"Using regular kW values for envelope chart (normali...",
+      "fix": "Break long line 10492 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10494,
+      "length": 122,
+      "content": "                                chart_png = envelope_analyzer.generate_envelope_chart_png(before_dat...",
+      "fix": "Break long line 10494 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10507,
+      "length": 125,
+      "content": "                    smoothing_chart = envelope_analyzer.generate_smoothing_index_chart_png(envelope_...",
+      "fix": "Break long line 10507 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10580,
+      "length": 146,
+      "content": "        logger.info(f\"Attribution calculation - power_factor_not_included: {power_factor_not_include...",
+      "fix": "Break long line 10580 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10666,
+      "length": 124,
+      "content": "            \"cp_plc\": {\"kw\": float(cp_kw), \"dollars\": float(cp_dollars_for_total), \"capacity_rate_pe...",
+      "fix": "Break long line 10666 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10674,
+      "length": 200,
+      "content": "                \"note\": \"Analyzes the reduction in electrical parameter variability across four key ...",
+      "fix": "Break long line 10674 (200 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10688,
+      "length": 139,
+      "content": "            f\"  pf_reactive.dollars: {attribution_obj['pf_reactive']['dollars']} (type: {type(attrib...",
+      "fix": "Break long line 10688 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10719,
+      "length": 132,
+      "content": "            f\"   Smoothing Index: {results.get('envelope_analysis', {}).get('smoothing_data', {}).ge...",
+      "fix": "Break long line 10719 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10749,
+      "length": 134,
+      "content": "            f\"  om_savings from config: {config.get('om_savings', 'NOT_FOUND')} (type: {type(config....",
+      "fix": "Break long line 10749 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10791,
+      "length": 134,
+      "content": "            logger.info(f\"AUDIT TRAIL - Statistical analysis relative_precision: {results['statistic...",
+      "fix": "Break long line 10791 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10833,
+      "length": 122,
+      "content": "            logger.info(f\"DEBUG: Found temperature data in config - temp_before: {temp_before}, temp...",
+      "fix": "Break long line 10833 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10836,
+      "length": 143,
+      "content": "            logger.info(f\"DEBUG: ASHRAE baseline model - before_values length: {len(before_values)},...",
+      "fix": "Break long line 10836 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10848,
+      "length": 129,
+      "content": "            logger.info(f\"Using weather service data for ASHRAE baseline modeling: before={temp_befo...",
+      "fix": "Break long line 10848 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10851,
+      "length": 143,
+      "content": "            logger.info(f\"DEBUG: No temperature data found - temp_before: {config.get('temp_before')...",
+      "fix": "Break long line 10851 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10855,
+      "length": 170,
+      "content": "                logger.info(f\"DEBUG: Starting ASHRAE baseline model with {len(temps)} temperature po...",
+      "fix": "Break long line 10855 (170 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10870,
+      "length": 175,
+      "content": "                logger.info(f\"DEBUG: CVRMSE: {baseline_model.get('cvrmse', 'N/A')}%, NMBE: {baseline...",
+      "fix": "Break long line 10870 (175 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10878,
+      "length": 123,
+      "content": "            logger.info(f\"DEBUG: temperature_data_available: {temperature_data_available}, temps is ...",
+      "fix": "Break long line 10878 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10893,
+      "length": 134,
+      "content": "                    before_data[\"three_phase\"].get(\"imbalance_percent\", 0.0) - after_data[\"three_pha...",
+      "fix": "Break long line 10893 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 10939,
+      "length": 153,
+      "content": "        # removed to avoid recursion: # removed to avoid recursion: sanitized_results['analysis_json...",
+      "fix": "Break long line 10939 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11073,
+      "length": 130,
+      "content": "            return \"<!DOCTYPE html><html><head><title>Report</title></head><body><h1>Report Template...",
+      "fix": "Break long line 11073 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11076,
+      "length": 122,
+      "content": "        return \"<!DOCTYPE html><html><head><title>Report</title></head><body><h1>Report Template Err...",
+      "fix": "Break long line 11076 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11459,
+      "length": 137,
+      "content": "        logger.info(f\"AUDIT TRAIL - Methodology verification completed: Overall verified={methodolog...",
+      "fix": "Break long line 11459 (137 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11572,
+      "length": 477,
+      "content": "            return f\"\"\"            <line x1='{x}' x2='{x}' y1='{y_lo:.1f}' y2='{y_hi:.1f}' stroke='#...",
+      "fix": "Break long line 11572 (477 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11574,
+      "length": 428,
+      "content": "        svg = f\"\"\"        <svg xmlns='http://www.w3.org/2000/svg' width='{w}' height='{h}' viewBox='...",
+      "fix": "Break long line 11574 (428 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11744,
+      "length": 324,
+      "content": "        footer_html = '<footer class=\"legal-footer\">Copyright \u00a9 2025-Present. Synerex Laboratories, ...",
+      "fix": "Break long line 11744 (324 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 11955,
+      "length": 126,
+      "content": "            f\"Weather averages - Temp: {temp_str}\u00b0F, Humidity: {humidity_str}%, Wind: {wind_str} mph...",
+      "fix": "Break long line 11955 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12097,
+      "length": 121,
+      "content": "                        logger.info(f\"WEATHER API - Checking file - ID: {file_id}, Name: {file_name}...",
+      "fix": "Break long line 12097 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12167,
+      "length": 138,
+      "content": "                f\"Files processed successfully - Before data keys: {list(before_data.keys())}, After...",
+      "fix": "Break long line 12167 (138 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12181,
+      "length": 130,
+      "content": "                        \"error\": \"Could not extract date ranges from uploaded files. Please ensure f...",
+      "fix": "Break long line 12181 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12202,
+      "length": 130,
+      "content": "            weather_data = weather_client.fetch_weather_data(normalized_address, before_start, befor...",
+      "fix": "Break long line 12202 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12479,
+      "length": 173,
+      "content": "            logger.info(f\"Report generation - Checkbox values: power_factor_not_included={config.get...",
+      "fix": "Break long line 12479 (173 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12491,
+      "length": 242,
+      "content": "            logger.info(f\"Report generation - Financial values: initial_cost={financial.get('initial...",
+      "fix": "Break long line 12491 (242 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12501,
+      "length": 125,
+      "content": "            template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'synerex_standa...",
+      "fix": "Break long line 12501 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12568,
+      "length": 147,
+      "content": "                                before_date = f\"{timestamps.iloc[0].strftime('%Y-%m-%d %H:%M')} - {t...",
+      "fix": "Break long line 12568 (147 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12570,
+      "length": 126,
+      "content": "                                logger.info(f\"Report generation - Extracted before period: {before_d...",
+      "fix": "Break long line 12570 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12582,
+      "length": 146,
+      "content": "                                after_date = f\"{timestamps.iloc[0].strftime('%Y-%m-%d %H:%M')} - {ti...",
+      "fix": "Break long line 12582 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12584,
+      "length": 123,
+      "content": "                                logger.info(f\"Report generation - Extracted after period: {after_dat...",
+      "fix": "Break long line 12584 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12923,
+      "length": 181,
+      "content": "                <td class=\"{'compliant' if 'PASS' in standard['before_status'] else 'non-compliant' ...",
+      "fix": "Break long line 12923 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12924,
+      "length": 178,
+      "content": "                <td class=\"{'compliant' if 'PASS' in standard['after_status'] else 'non-compliant' i...",
+      "fix": "Break long line 12924 (178 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12936,
+      "length": 592,
+      "content": "                <strong>Network Improvement Standards:</strong> These tests measure the effectivenes...",
+      "fix": "Break long line 12936 (592 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12944,
+      "length": 150,
+      "content": "            <div class=\"compliance-note\" style=\"background: #f8f9fa; padding: 12px; border-radius: 6...",
+      "fix": "Break long line 12944 (150 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12945,
+      "length": 191,
+      "content": "                <strong>Data Integrity Standards:</strong> These tests validate the quality and stat...",
+      "fix": "Break long line 12945 (191 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12964,
+      "length": 145,
+      "content": "        logger.info(f\"AUDIT TRAIL - Report Generation ASHRAE Precision: {ashrae_precision_value:.2f}...",
+      "fix": "Break long line 12964 (145 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 12986,
+      "length": 123,
+      "content": "                    <td class=\"value-cell\">Completeness: {completeness_percent:.1f}%, Outliers: {out...",
+      "fix": "Break long line 12986 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13021,
+      "length": 1666,
+      "content": "        replacements['<h3>\ud83d\udcca Report</h3>\\n            <div class=\"compliance-note\" style=\"background:...",
+      "fix": "Break long line 13021 (1666 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13024,
+      "length": 1007,
+      "content": "        replacements['<h3>\u26a1 Performance</h3>\\n            <div class=\"compliance-note\">\\n           ...",
+      "fix": "Break long line 13024 (1007 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13092,
+      "length": 126,
+      "content": "                kw_improvement = f\"{abs(kw_improvement_val):.1f}%\" + (\" increase\" if kw_improvement_...",
+      "fix": "Break long line 13092 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13109,
+      "length": 135,
+      "content": "                normalized_kw_improvement_val = ((normalized_kw_before_val - normalized_kw_after_val...",
+      "fix": "Break long line 13109 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13124,
+      "length": 131,
+      "content": "                phase_imbalance_improvement_val = ((phase_imbalance_before - phase_imbalance_after) ...",
+      "fix": "Break long line 13124 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13149,
+      "length": 217,
+      "content": "        logger.info(f\"Report generation - Bill-Weighted Savings: energy=${energy_savings_annual:,.0f...",
+      "fix": "Break long line 13149 (217 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13190,
+      "length": 173,
+      "content": "                <strong>Electrical Parameter Analysis:</strong> These metrics show the before/after ...",
+      "fix": "Break long line 13190 (173 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13193,
+      "length": 188,
+      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before XECO</th><th style=\"tex...",
+      "fix": "Break long line 13193 (188 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13194,
+      "length": 490,
+      "content": "                <tr><td><strong>kW (Real Power)</strong></td><td class=\"value-cell\" style=\"text-alig...",
+      "fix": "Break long line 13194 (490 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13195,
+      "length": 342,
+      "content": "                <tr><td><strong>kVA (Apparent Power)</strong></td><td class=\"value-cell\" style=\"text...",
+      "fix": "Break long line 13195 (342 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13196,
+      "length": 348,
+      "content": "                <tr><td><strong>kVAR (Reactive Power)</strong></td><td class=\"value-cell\" style=\"tex...",
+      "fix": "Break long line 13196 (348 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13197,
+      "length": 325,
+      "content": "                <tr><td><strong>Power Factor</strong></td><td class=\"value-cell\" style=\"text-align: ...",
+      "fix": "Break long line 13197 (325 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13198,
+      "length": 345,
+      "content": "                <tr><td><strong>THD (Total Harmonic Distortion)</strong></td><td class=\"value-cell\" ...",
+      "fix": "Break long line 13198 (345 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13203,
+      "length": 372,
+      "content": "                <strong>Electrical Parameter Analysis:</strong> These metrics show the before/after ...",
+      "fix": "Break long line 13203 (372 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13206,
+      "length": 188,
+      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before XECO</th><th style=\"tex...",
+      "fix": "Break long line 13206 (188 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13207,
+      "length": 331,
+      "content": "                <tr><td><strong>Volts (L-N)</strong></td><td class=\"value-cell\" style=\"text-align: c...",
+      "fix": "Break long line 13207 (331 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13208,
+      "length": 365,
+      "content": "                <tr><td><strong>kW (Normalized)</strong></td><td class=\"value-cell\" style=\"text-alig...",
+      "fix": "Break long line 13208 (365 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13209,
+      "length": 325,
+      "content": "                <tr><td><strong>kVA</strong></td><td class=\"value-cell\" style=\"text-align: center;\">...",
+      "fix": "Break long line 13209 (325 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13210,
+      "length": 325,
+      "content": "                <tr><td><strong>Power Factor</strong></td><td class=\"value-cell\" style=\"text-align: ...",
+      "fix": "Break long line 13210 (325 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13211,
+      "length": 317,
+      "content": "                <tr><td><strong>THD</strong></td><td class=\"value-cell\" style=\"text-align: center;\">...",
+      "fix": "Break long line 13211 (317 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13212,
+      "length": 365,
+      "content": "                <tr><td><strong>Phase Imbalance</strong></td><td class=\"value-cell\" style=\"text-alig...",
+      "fix": "Break long line 13212 (365 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13217,
+      "length": 314,
+      "content": "                <strong>Financial Impact Analysis:</strong> These metrics show the annual financial ...",
+      "fix": "Break long line 13217 (314 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13221,
+      "length": 240,
+      "content": "                <tr><td><strong>Energy $ (annual)</strong></td><td class=\"value-cell\" style=\"text-al...",
+      "fix": "Break long line 13221 (240 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13222,
+      "length": 241,
+      "content": "                <tr><td><strong>Demand $ (annual)</strong></td><td class=\"value-cell\" style=\"text-al...",
+      "fix": "Break long line 13222 (241 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13223,
+      "length": 267,
+      "content": "                <tr><td><strong>Network (I\u00b2R+eddy) - Included \u26a0 \u2139\ufe0f</strong></td><td class=\"value-cel...",
+      "fix": "Break long line 13223 (267 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13224,
+      "length": 225,
+      "content": "                <tr><td><strong>Total $ (annual)</strong></td><td class=\"value-cell\" style=\"text-ali...",
+      "fix": "Break long line 13224 (225 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13225,
+      "length": 232,
+      "content": "                <tr><td><strong>\u0394kWh (annual)</strong></td><td class=\"value-cell\" style=\"text-align:...",
+      "fix": "Break long line 13225 (232 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13226,
+      "length": 217,
+      "content": "                <tr><td><strong>\u0394kW (avg)</strong></td><td class=\"value-cell\" style=\"text-align: cen...",
+      "fix": "Break long line 13226 (217 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13251,
+      "length": 132,
+      "content": "        logo_html = '<img src=\"/static/synerex_logo_transparent.png\" alt=\"Synerex Logo\" style=\"heigh...",
+      "fix": "Break long line 13251 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13266,
+      "length": 174,
+      "content": "                html_content = html_content.replace('<link rel=\"stylesheet\" href=\"{{ url_for(\\'stati...",
+      "fix": "Break long line 13266 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13274,
+      "length": 165,
+      "content": "                html_content = html_content.replace('<script src=\"{{ url_for(\\'static\\', filename=\\'...",
+      "fix": "Break long line 13274 (165 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13280,
+      "length": 163,
+      "content": "            html_content = html_content.replace('<link rel=\"stylesheet\" href=\"{{ url_for(\\'static\\',...",
+      "fix": "Break long line 13280 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13281,
+      "length": 155,
+      "content": "            html_content = html_content.replace('<script src=\"{{ url_for(\\'static\\', filename=\\'file...",
+      "fix": "Break long line 13281 (155 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13287,
+      "length": 143,
+      "content": "        logger.info(f\"Report generation - Conditional logic: power_factor_not_included={power_factor...",
+      "fix": "Break long line 13287 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13323,
+      "length": 131,
+      "content": "                logger.info(f\"Report generation - Fallback calculation, excluded Power Factor Penalt...",
+      "fix": "Break long line 13323 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13351,
+      "length": 121,
+      "content": "                logger.info(f\"Report generation - Updated energy savings: {energy_kwh:,.0f} kWh, ${e...",
+      "fix": "Break long line 13351 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13380,
+      "length": 129,
+      "content": "                html_content = html_content.replace('8290 kWh<br/>$468', f'{harmonic_kwh:,.0f} kWh<b...",
+      "fix": "Break long line 13380 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13381,
+      "length": 126,
+      "content": "                logger.info(f\"Report generation - Updated harmonic losses: {harmonic_kwh:,.0f} kWh, ...",
+      "fix": "Break long line 13381 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13410,
+      "length": 130,
+      "content": "            logger.info(f\"Report generation - Updated executive summary: {kw_savings:.2f} kW, {annua...",
+      "fix": "Break long line 13410 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13425,
+      "length": 156,
+      "content": "            logger.info(f\"Report generation - Updated IEEE 519 values: ISC/IL={isc_il_ratio:.1f}, TD...",
+      "fix": "Break long line 13425 (156 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13454,
+      "length": 127,
+      "content": "            html_content = html_content.replace('179.35 kW \u00b1 1.73 kW', f'{before_mean:.2f} kW \u00b1 {bef...",
+      "fix": "Break long line 13454 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13455,
+      "length": 125,
+      "content": "            html_content = html_content.replace('210.35 kW \u00b1 1.60 kW', f'{after_mean:.2f} kW \u00b1 {afte...",
+      "fix": "Break long line 13455 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13456,
+      "length": 179,
+      "content": "            html_content = html_content.replace('-30.990 kW (95% CI: -33.35 to -28.64 kW)', f'{savin...",
+      "fix": "Break long line 13456 (179 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13461,
+      "length": 135,
+      "content": "            overall_compliant = \"Yes\" if (before_ci.get('meets_ashrae_cv', False) and after_ci.get('...",
+      "fix": "Break long line 13461 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13480,
+      "length": 211,
+      "content": "            logger.info(f\"Report generation - Updated Statistical Significance: Before={before_mean:...",
+      "fix": "Break long line 13480 (211 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13481,
+      "length": 153,
+      "content": "            logger.info(f\"Report generation - Updated Data Quality: Before CV={before_cv:.2f}%, Afte...",
+      "fix": "Break long line 13481 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13482,
+      "length": 134,
+      "content": "            logger.info(f\"Report generation - Updated p-value: {p_value:.4f}, Sample sizes: {sample_...",
+      "fix": "Break long line 13482 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13508,
+      "length": 121,
+      "content": "            current_improvement = ((current_after - current_before) / current_before * 100) if curre...",
+      "fix": "Break long line 13508 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13513,
+      "length": 147,
+      "content": "            html_content = html_content.replace('17.3% increase', str(kw_improvement) + '% ' + (\"inc...",
+      "fix": "Break long line 13513 (147 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13537,
+      "length": 183,
+      "content": "            html_content = html_content.replace('Improved from 0.7 to 1.0 (44.5% improvement)', f'Im...",
+      "fix": "Break long line 13537 (183 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13538,
+      "length": 207,
+      "content": "            html_content = html_content.replace('Reduced from 2.9% to 1.9% (33.7% reduction)', 'Redu...",
+      "fix": "Break long line 13538 (207 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13539,
+      "length": 231,
+      "content": "            html_content = html_content.replace('Reduced from 187.9 kVAR to 15.3 kVAR (91.9% reducti...",
+      "fix": "Break long line 13539 (231 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13542,
+      "length": 382,
+      "content": "            html_content = html_content.replace('480.0 V</td><td class=\"value-cell\" style=\"text-alig...",
+      "fix": "Break long line 13542 (382 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13557,
+      "length": 160,
+      "content": "            logger.info(f\"Report generation - Updated Raw Meter Data: kW {kw_before}\u2192{kw_after}, kVA...",
+      "fix": "Break long line 13557 (160 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13567,
+      "length": 131,
+      "content": "            kw_norm_before = pq.get('normalized_kw_before', pq.get('kw_before', 0))  # Use normalize...",
+      "fix": "Break long line 13567 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13569,
+      "length": 134,
+      "content": "            kva_norm_before = pq.get('normalized_kva_before', pq.get('kva_before', 0))  # Use normal...",
+      "fix": "Break long line 13569 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13571,
+      "length": 131,
+      "content": "            pf_norm_before = pq.get('normalized_pf_before', pq.get('pf_before', 0))  # Use normalize...",
+      "fix": "Break long line 13571 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13591,
+      "length": 121,
+      "content": "            kw_norm_improvement = ((kw_norm_after - kw_norm_before) / kw_norm_before * 100) if kw_no...",
+      "fix": "Break long line 13591 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13592,
+      "length": 126,
+      "content": "            kva_norm_improvement = ((kva_norm_after - kva_norm_before) / kva_norm_before * 100) if k...",
+      "fix": "Break long line 13592 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13593,
+      "length": 121,
+      "content": "            pf_norm_improvement = ((pf_norm_after - pf_norm_before) / pf_norm_before * 100) if pf_no...",
+      "fix": "Break long line 13593 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13595,
+      "length": 131,
+      "content": "            imbalance_improvement = ((imbalance_after - imbalance_before) / imbalance_before * 100) ...",
+      "fix": "Break long line 13595 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13601,
+      "length": 129,
+      "content": "            # Note: '246.8 kW', '200.4 kW', '259.7 kVA', '210.9 kVA', '18.8% reduction', '0.89', '0....",
+      "fix": "Break long line 13601 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13602,
+      "length": 158,
+      "content": "            # are already replaced earlier at lines 13359-13370 with kw_before/kw_after/kva_before/k...",
+      "fix": "Break long line 13602 (158 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13604,
+      "length": 149,
+      "content": "            # Note: '2.9%', '1.9%', and '33.7% reduction' are already replaced earlier at lines 1337...",
+      "fix": "Break long line 13604 (149 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13610,
+      "length": 218,
+      "content": "            logger.info(f\"Report generation - Updated Normalized Data: Volts {volts_before:.2f}\u2192{vol...",
+      "fix": "Break long line 13610 (218 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13654,
+      "length": 135,
+      "content": "            html_content = html_content.replace('Before TDD: <strong>2.9%</strong>', f'Before TDD: <...",
+      "fix": "Break long line 13654 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13655,
+      "length": 132,
+      "content": "            html_content = html_content.replace('After TDD: <strong>1.9%</strong>', f'After TDD: <st...",
+      "fix": "Break long line 13655 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13658,
+      "length": 154,
+      "content": "            html_content = html_content.replace('Before Imbalance: <strong>2.55%</strong>', f'Before...",
+      "fix": "Break long line 13658 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13659,
+      "length": 151,
+      "content": "            html_content = html_content.replace('After Imbalance: <strong>0.87%</strong>', f'After I...",
+      "fix": "Break long line 13659 (151 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13660,
+      "length": 135,
+      "content": "            html_content = html_content.replace('NEMA Limit: <strong>5.0%</strong>', f'NEMA Limit: <...",
+      "fix": "Break long line 13660 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13661,
+      "length": 184,
+      "content": "            html_content = html_content.replace('Efficiency Impact (Before): <strong>0.001300</stron...",
+      "fix": "Break long line 13661 (184 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13662,
+      "length": 181,
+      "content": "            html_content = html_content.replace('Efficiency Impact (After): <strong>0.000150</strong...",
+      "fix": "Break long line 13662 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13663,
+      "length": 153,
+      "content": "            html_content = html_content.replace('Efficiency Gain: <strong>0.001150</strong>', f'Effi...",
+      "fix": "Break long line 13663 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13666,
+      "length": 158,
+      "content": "            html_content = html_content.replace('\u2022 Before Imbalance: <strong>2.55%</strong>', f'\u2022 Be...",
+      "fix": "Break long line 13666 (158 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13667,
+      "length": 155,
+      "content": "            html_content = html_content.replace('\u2022 After Imbalance: <strong>0.87%</strong>', f'\u2022 Aft...",
+      "fix": "Break long line 13667 (155 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13668,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 NEMA Limit: <strong>5.0%</strong>', f'\u2022 NEMA Limi...",
+      "fix": "Break long line 13668 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13669,
+      "length": 163,
+      "content": "            html_content = html_content.replace('\u2022 Before RMS Current: <strong>320.2 A</strong>', f'...",
+      "fix": "Break long line 13669 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13670,
+      "length": 160,
+      "content": "            html_content = html_content.replace('\u2022 After RMS Current: <strong>259.4 A</strong>', f'\u2022...",
+      "fix": "Break long line 13670 (160 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13671,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 Voltage: <strong>480 V</strong>', f'\u2022 Voltage: <s...",
+      "fix": "Break long line 13671 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13672,
+      "length": 174,
+      "content": "            html_content = html_content.replace('\u2022 Target Power Factor: <strong>.95</strong>', f'\u2022 T...",
+      "fix": "Break long line 13672 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13675,
+      "length": 204,
+      "content": "            html_content = html_content.replace('\u2022 Conductor Loss Reduction: <strong>0.946 kW</stron...",
+      "fix": "Break long line 13675 (204 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13676,
+      "length": 231,
+      "content": "            html_content = html_content.replace('\u2022 Transformer Copper Loss Reduction: <strong>0.051 ...",
+      "fix": "Break long line 13676 (231 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13677,
+      "length": 228,
+      "content": "            html_content = html_content.replace('\u2022 Transformer Stray Loss Reduction: <strong>0.013 k...",
+      "fix": "Break long line 13677 (228 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13678,
+      "length": 196,
+      "content": "            html_content = html_content.replace('\u2022 Annual Network Savings: <strong>$467.95</strong>'...",
+      "fix": "Break long line 13678 (196 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13681,
+      "length": 174,
+      "content": "            html_content = html_content.replace('\u2022 Edition: <strong>IEEE 519-2014</strong>', f'\u2022 Edi...",
+      "fix": "Break long line 13681 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13682,
+      "length": 154,
+      "content": "            html_content = html_content.replace('\u2022 TDD Limit: <strong>8%</strong>', f'\u2022 TDD Limit: <...",
+      "fix": "Break long line 13682 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13683,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 Before TDD: <strong>2.9%</strong>', f'\u2022 Before TD...",
+      "fix": "Break long line 13683 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13684,
+      "length": 136,
+      "content": "            html_content = html_content.replace('\u2022 After TDD: <strong>1.9%</strong>', f'\u2022 After TDD:...",
+      "fix": "Break long line 13684 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13685,
+      "length": 209,
+      "content": "            html_content = html_content.replace('\u2022 Before Compliance: <strong>\u2717 FAIL</strong>', f'\u2022 ...",
+      "fix": "Break long line 13685 (209 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13686,
+      "length": 206,
+      "content": "            html_content = html_content.replace('\u2022 After Compliance: <strong>\u2713 PASS</strong>', f'\u2022 A...",
+      "fix": "Break long line 13686 (206 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13705,
+      "length": 163,
+      "content": "            html_content = html_content.replace('\u2022 Before RMS Current: <strong>320.2 A</strong>', f'...",
+      "fix": "Break long line 13705 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13706,
+      "length": 160,
+      "content": "            html_content = html_content.replace('\u2022 After RMS Current: <strong>259.4 A</strong>', f'\u2022...",
+      "fix": "Break long line 13706 (160 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13707,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 Voltage: <strong>480 V</strong>', f'\u2022 Voltage: <s...",
+      "fix": "Break long line 13707 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13708,
+      "length": 174,
+      "content": "            html_content = html_content.replace('\u2022 Target Power Factor: <strong>.95</strong>', f'\u2022 T...",
+      "fix": "Break long line 13708 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13709,
+      "length": 196,
+      "content": "            html_content = html_content.replace('\u2022 Annual Network Savings: <strong>$467.95</strong>'...",
+      "fix": "Break long line 13709 (196 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13712,
+      "length": 174,
+      "content": "            html_content = html_content.replace('\u2022 Edition: <strong>IEEE 519-2014</strong>', f'\u2022 Edi...",
+      "fix": "Break long line 13712 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13713,
+      "length": 204,
+      "content": "            html_content = html_content.replace('Power quality analysis based on IEEE 519-2014 stand...",
+      "fix": "Break long line 13713 (204 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13715,
+      "length": 154,
+      "content": "            logger.info(f\"Report generation - Updated NEMA MG1: Before={before_imbalance:.2f}%, Afte...",
+      "fix": "Break long line 13715 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13770,
+      "length": 186,
+      "content": "            logger.info(f\"Report generation - Updated Individual Metrics: AVGKVA CV {avgkva_before_c...",
+      "fix": "Break long line 13770 (186 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13781,
+      "length": 181,
+      "content": "            logger.info(f\"Report generation - Statistical data values: cvrmse={statistical.get('cvrm...",
+      "fix": "Break long line 13781 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13825,
+      "length": 139,
+      "content": "                logger.info(f\"AUDIT TRAIL - Statistical Analysis ASHRAE Precision: {relative_precisi...",
+      "fix": "Break long line 13825 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13830,
+      "length": 157,
+      "content": "            relative_precision_str = f\"{relative_precision:.1f}%\" if relative_precision is not None ...",
+      "fix": "Break long line 13830 (157 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13841,
+      "length": 214,
+      "content": "            logger.info(f\"Report generation - ASHRAE values applied: model={model_selected}, CVRMSE=...",
+      "fix": "Break long line 13841 (214 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13849,
+      "length": 131,
+      "content": "            t_statistic_str = f\"{t_statistic:.2f}\" if t_statistic is not None and isinstance(t_stati...",
+      "fix": "Break long line 13849 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13850,
+      "length": 181,
+      "content": "            relative_precision_stat_str = f\"{relative_precision_stat:.2f}%\" if relative_precision_st...",
+      "fix": "Break long line 13850 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13869,
+      "length": 153,
+      "content": "            overall_compliant = \"Yes\" if (before_comp.get('data_quality_compliant', False) and after...",
+      "fix": "Break long line 13869 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13968,
+      "length": 151,
+      "content": "            logger.info(f\"DATA QUALITY DEBUG - Completeness: {before_completeness:.1f}% + {after_com...",
+      "fix": "Break long line 13968 (151 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13969,
+      "length": 134,
+      "content": "            logger.info(f\"DATA QUALITY DEBUG - Outliers: {before_outliers:.1f}% + {after_outliers:.1...",
+      "fix": "Break long line 13969 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13988,
+      "length": 143,
+      "content": "            logger.info(f\"AUDIT TRAIL - M&V Compliance ASHRAE Precision: {ashrae_precision_value:.2f...",
+      "fix": "Break long line 13988 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13991,
+      "length": 130,
+      "content": "            ashrae_data_quality_status_class = \"compliant\" if after_comp.get('data_quality_compliant...",
+      "fix": "Break long line 13991 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 13992,
+      "length": 168,
+      "content": "            ashrae_data_quality_value = f\"Completeness: {after_comp.get('data_completeness_pct', 0.0...",
+      "fix": "Break long line 13992 (168 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14011,
+      "length": 121,
+      "content": "            html_content = html_content.replace('{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}', ashrae_guide...",
+      "fix": "Break long line 14011 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14014,
+      "length": 121,
+      "content": "            html_content = html_content.replace('{{ASHRAE_DATA_QUALITY_STATUS_CLASS}}', ashrae_data_...",
+      "fix": "Break long line 14014 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14029,
+      "length": 135,
+      "content": "            ieee_519_before_status_class = \"compliant\" if pq.get('thd_before', 0) <= pq.get('ieee_td...",
+      "fix": "Break long line 14029 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14031,
+      "length": 133,
+      "content": "            ieee_519_after_status_class = \"compliant\" if pq.get('thd_after', 0) <= pq.get('ieee_tdd_...",
+      "fix": "Break long line 14031 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14040,
+      "length": 153,
+      "content": "            nema_mg1_before_value = f\"{before_comp.get('nema_imbalance_value', 0.0):.1f}%\" if before...",
+      "fix": "Break long line 14040 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14041,
+      "length": 150,
+      "content": "            nema_mg1_after_value = f\"{after_comp.get('nema_imbalance_value', 0.0):.1f}%\" if after_co...",
+      "fix": "Break long line 14041 (150 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14045,
+      "length": 135,
+      "content": "            iec_61000_4_30_before_status_class = \"compliant\" if before_comp.get('iec_61000_4_30_comp...",
+      "fix": "Break long line 14045 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14047,
+      "length": 133,
+      "content": "            iec_61000_4_30_after_status_class = \"compliant\" if after_comp.get('iec_61000_4_30_compli...",
+      "fix": "Break long line 14047 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14053,
+      "length": 133,
+      "content": "            iec_61000_4_7_before_status_class = \"compliant\" if before_comp.get('iec_61000_4_7_compli...",
+      "fix": "Break long line 14053 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14055,
+      "length": 131,
+      "content": "            iec_61000_4_7_after_status_class = \"compliant\" if after_comp.get('iec_61000_4_7_complian...",
+      "fix": "Break long line 14055 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14061,
+      "length": 133,
+      "content": "            iec_61000_2_2_before_status_class = \"compliant\" if before_comp.get('iec_61000_2_2_compli...",
+      "fix": "Break long line 14061 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14063,
+      "length": 131,
+      "content": "            iec_61000_2_2_after_status_class = \"compliant\" if after_comp.get('iec_61000_2_2_complian...",
+      "fix": "Break long line 14063 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14069,
+      "length": 135,
+      "content": "            iec_60034_30_1_before_status_class = \"compliant\" if before_comp.get('iec_60034_30_1_comp...",
+      "fix": "Break long line 14069 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14071,
+      "length": 133,
+      "content": "            iec_60034_30_1_after_status_class = \"compliant\" if after_comp.get('iec_60034_30_1_compli...",
+      "fix": "Break long line 14071 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14077,
+      "length": 135,
+      "content": "            ansi_c57_12_00_before_status_class = \"compliant\" if before_comp.get('ansi_c57_12_00_comp...",
+      "fix": "Break long line 14077 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14079,
+      "length": 133,
+      "content": "            ansi_c57_12_00_after_status_class = \"compliant\" if after_comp.get('ansi_c57_12_00_compli...",
+      "fix": "Break long line 14079 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14099,
+      "length": 125,
+      "content": "            html_content = html_content.replace('{{IEC_61000_4_30_BEFORE_STATUS_CLASS}}', iec_61000_...",
+      "fix": "Break long line 14099 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14101,
+      "length": 123,
+      "content": "            html_content = html_content.replace('{{IEC_61000_4_30_AFTER_STATUS_CLASS}}', iec_61000_4...",
+      "fix": "Break long line 14101 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14106,
+      "length": 123,
+      "content": "            html_content = html_content.replace('{{IEC_61000_4_7_BEFORE_STATUS_CLASS}}', iec_61000_4...",
+      "fix": "Break long line 14106 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14108,
+      "length": 121,
+      "content": "            html_content = html_content.replace('{{IEC_61000_4_7_AFTER_STATUS_CLASS}}', iec_61000_4_...",
+      "fix": "Break long line 14108 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14113,
+      "length": 123,
+      "content": "            html_content = html_content.replace('{{IEC_61000_2_2_BEFORE_STATUS_CLASS}}', iec_61000_2...",
+      "fix": "Break long line 14113 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14115,
+      "length": 121,
+      "content": "            html_content = html_content.replace('{{IEC_61000_2_2_AFTER_STATUS_CLASS}}', iec_61000_2_...",
+      "fix": "Break long line 14115 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14120,
+      "length": 125,
+      "content": "            html_content = html_content.replace('{{IEC_60034_30_1_BEFORE_STATUS_CLASS}}', iec_60034_...",
+      "fix": "Break long line 14120 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14122,
+      "length": 123,
+      "content": "            html_content = html_content.replace('{{IEC_60034_30_1_AFTER_STATUS_CLASS}}', iec_60034_3...",
+      "fix": "Break long line 14122 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14127,
+      "length": 125,
+      "content": "            html_content = html_content.replace('{{ANSI_C57_12_00_BEFORE_STATUS_CLASS}}', ansi_c57_1...",
+      "fix": "Break long line 14127 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14129,
+      "length": 123,
+      "content": "            html_content = html_content.replace('{{ANSI_C57_12_00_AFTER_STATUS_CLASS}}', ansi_c57_12...",
+      "fix": "Break long line 14129 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14172,
+      "length": 181,
+      "content": "                        logger.info(f\"Report generation - Auto-calculated: transformer_kva={transfor...",
+      "fix": "Break long line 14172 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14173,
+      "length": 152,
+      "content": "                        logger.info(f\"Report generation - Auto-calculated: rated_current={rated_curr...",
+      "fix": "Break long line 14173 (152 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14184,
+      "length": 239,
+      "content": "            ieee_519_before_compliance = '<span style=\"color: green; font-weight: bold;\">Compliant</...",
+      "fix": "Break long line 14184 (239 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14185,
+      "length": 237,
+      "content": "            ieee_519_after_compliance = '<span style=\"color: green; font-weight: bold;\">Compliant</s...",
+      "fix": "Break long line 14185 (237 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14198,
+      "length": 157,
+      "content": "            nema_mg1_before_imbalance = f\"{before_comp.get('nema_imbalance_value', 0.0):.2f}%\" if be...",
+      "fix": "Break long line 14198 (157 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14199,
+      "length": 154,
+      "content": "            nema_mg1_after_imbalance = f\"{after_comp.get('nema_imbalance_value', 0.0):.2f}%\" if afte...",
+      "fix": "Break long line 14199 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14200,
+      "length": 223,
+      "content": "            nema_mg1_before_compliance = '<span style=\"color: green; font-weight: bold;\">Compliant</...",
+      "fix": "Break long line 14200 (223 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14201,
+      "length": 221,
+      "content": "            nema_mg1_after_compliance = '<span style=\"color: green; font-weight: bold;\">Compliant</s...",
+      "fix": "Break long line 14201 (221 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14202,
+      "length": 250,
+      "content": "            nema_mg1_improvement = f\"{before_comp.get('nema_imbalance_value', 0.0) - after_comp.get(...",
+      "fix": "Break long line 14202 (250 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14210,
+      "length": 160,
+      "content": "            logger.info(f\"Report generation - Updated ASHRAE baseline model values: {model_selected}...",
+      "fix": "Break long line 14210 (160 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14211,
+      "length": 181,
+      "content": "            logger.info(f\"Report generation - Updated statistical values: Cohen's d={cohens_d_str}, ...",
+      "fix": "Break long line 14211 (181 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14212,
+      "length": 161,
+      "content": "            logger.info(f\"Report generation - Updated data quality: Before CV={before_cv:.2f}%, Afte...",
+      "fix": "Break long line 14212 (161 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14240,
+      "length": 125,
+      "content": "            # Note: ANSI_C12_STATUS, ANSI_C12_STATUS_CLASS, and ANSI_C12_VALUE are already replaced ...",
+      "fix": "Break long line 14240 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14285,
+      "length": 143,
+      "content": "            # Note: ANSI_C57_12_00_STATUS, ANSI_C57_12_00_STATUS_CLASS, and ANSI_C57_12_00_VALUE are...",
+      "fix": "Break long line 14285 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14327,
+      "length": 176,
+      "content": "                            chart_html = f'<div class=\"chart-svg\"><img src=\"{chart_data}\" alt=\"AVGKW...",
+      "fix": "Break long line 14327 (176 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14341,
+      "length": 177,
+      "content": "                            chart_html = f'<div class=\"chart-svg\"><img src=\"{chart_data}\" alt=\"AVGKV...",
+      "fix": "Break long line 14341 (177 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14355,
+      "length": 176,
+      "content": "                            chart_html = f'<div class=\"chart-svg\"><img src=\"{chart_data}\" alt=\"AVGPF...",
+      "fix": "Break long line 14355 (176 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14369,
+      "length": 177,
+      "content": "                            chart_html = f'<div class=\"chart-svg\"><img src=\"{chart_data}\" alt=\"AVGTH...",
+      "fix": "Break long line 14369 (177 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14384,
+      "length": 170,
+      "content": "                    chart_html = f'<div class=\"chart-svg\"><img src=\"{smoothing_chart_data}\" alt=\"Smo...",
+      "fix": "Break long line 14384 (170 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14405,
+      "length": 127,
+      "content": "                mv_statement = '<div class=\"success\">\u2713 Analysis meets all M&V requirements for utili...",
+      "fix": "Break long line 14405 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14407,
+      "length": 134,
+      "content": "                mv_statement = '<div class=\"error\">\u26a0 Analysis does not meet all M&V requirements. Se...",
+      "fix": "Break long line 14407 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14414,
+      "length": 126,
+      "content": "            logger.info(f\"Report generation - Updated M&V requirements statement: {'meets' if meets_...",
+      "fix": "Break long line 14414 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14443,
+      "length": 691,
+      "content": "        if test_type and test_type.lower() in ['chiller', 'motor', 'pump', 'compressor', 'fan', 'blo...",
+      "fix": "Break long line 14443 (691 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14472,
+      "length": 150,
+      "content": "        logger.info(f\"Report generation - Equipment field: using '{equipment_description}' (from tes...",
+      "fix": "Break long line 14472 (150 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14501,
+      "length": 124,
+      "content": "        meter_name = client_profile.get('meter_name') or config.get('test_meter_spec') or config.get...",
+      "fix": "Break long line 14501 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14517,
+      "length": 131,
+      "content": "        logger.info(f\"Report generation - Updated client information: company={company}, facility={f...",
+      "fix": "Break long line 14517 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14518,
+      "length": 146,
+      "content": "        logger.info(f\"Report generation - Updated test parameters: test_type={test_type}, test_circu...",
+      "fix": "Break long line 14518 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14519,
+      "length": 152,
+      "content": "        logger.info(f\"Report generation - Updated equipment info: equipment={equipment}, meter_name=...",
+      "fix": "Break long line 14519 (152 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14528,
+      "length": 166,
+      "content": "                <div class=\"audit-summary-section\" style=\"margin-top: 40px; padding: 20px; backgroun...",
+      "fix": "Break long line 14528 (166 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14529,
+      "length": 125,
+      "content": "                    <h2 style=\"color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db...",
+      "fix": "Break long line 14529 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14533,
+      "length": 213,
+      "content": "                        <pre style=\"white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, ...",
+      "fix": "Break long line 14533 (213 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14535,
+      "length": 140,
+      "content": "                    <div style=\"margin-top: 15px; padding: 10px; background-color: #d4edda; border: ...",
+      "fix": "Break long line 14535 (140 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14537,
+      "length": 131,
+      "content": "                        <span style=\"color: #155724; font-size: 14px;\">Version 3.0 - Audit Compliant...",
+      "fix": "Break long line 14537 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14564,
+      "length": 128,
+      "content": "            logger.info(f\"  Standard {i+1}: {standard['standard']} - {standard['before_status']} -> ...",
+      "fix": "Break long line 14564 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14581,
+      "length": 154,
+      "content": "            html_content = html_content.replace('\u2022 Energy Rate: <strong>$0.05645/kWh</strong>', f'\u2022 ...",
+      "fix": "Break long line 14581 (154 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14582,
+      "length": 162,
+      "content": "            html_content = html_content.replace('\u2022 Demand Rate: <strong>$20.62/kW-month</strong>', f...",
+      "fix": "Break long line 14582 (162 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14583,
+      "length": 144,
+      "content": "            html_content = html_content.replace('\u2022 Project Cost: <strong>$1</strong>', f'\u2022 Project C...",
+      "fix": "Break long line 14583 (144 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14584,
+      "length": 176,
+      "content": "            html_content = html_content.replace('\u2022 Operating Hours: <strong>8760 hours/year</strong>...",
+      "fix": "Break long line 14584 (176 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14585,
+      "length": 168,
+      "content": "            html_content = html_content.replace('\u2022 Discount Rate: <strong>3.0% (assumed)</strong>', ...",
+      "fix": "Break long line 14585 (168 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14588,
+      "length": 133,
+      "content": "            html_content = html_content.replace('$40,444.14', f'${safe_float(financial.get(\"total_sa...",
+      "fix": "Break long line 14588 (133 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14589,
+      "length": 134,
+      "content": "            html_content = html_content.replace('$24,076.55', f'${safe_float(financial.get(\"energy_s...",
+      "fix": "Break long line 14589 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14590,
+      "length": 134,
+      "content": "            html_content = html_content.replace('$12,681.56', f'${safe_float(financial.get(\"demand_s...",
+      "fix": "Break long line 14590 (134 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14591,
+      "length": 129,
+      "content": "            html_content = html_content.replace('$3,618.70', f'${safe_float(financial.get(\"pf_penalt...",
+      "fix": "Break long line 14591 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14592,
+      "length": 121,
+      "content": "            html_content = html_content.replace('$57.94', f'${safe_float(financial.get(\"network_savi...",
+      "fix": "Break long line 14592 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14594,
+      "length": 125,
+      "content": "            html_content = html_content.replace('$10,000.00', f'${safe_float(financial.get(\"initial_...",
+      "fix": "Break long line 14594 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14597,
+      "length": 124,
+      "content": "            html_content = html_content.replace('0.3 years', f'{safe_float(financial.get(\"payback_ye...",
+      "fix": "Break long line 14597 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14608,
+      "length": 129,
+      "content": "            current_before = safe_float(pq.get('current_before', 0))  # Use calculated current value...",
+      "fix": "Break long line 14608 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14675,
+      "length": 163,
+      "content": "            html_content = html_content.replace('\u2022 Before RMS Current: <strong>320.2 A</strong>', f'...",
+      "fix": "Break long line 14675 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14676,
+      "length": 160,
+      "content": "            html_content = html_content.replace('\u2022 After RMS Current: <strong>259.4 A</strong>', f'\u2022...",
+      "fix": "Break long line 14676 (160 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14677,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 Voltage: <strong>480 V</strong>', f'\u2022 Voltage: <s...",
+      "fix": "Break long line 14677 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14678,
+      "length": 186,
+      "content": "            html_content = html_content.replace('\u2022 Target Power Factor: <strong>.95</strong>', f'\u2022 T...",
+      "fix": "Break long line 14678 (186 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14679,
+      "length": 208,
+      "content": "            html_content = html_content.replace('\u2022 Annual Network Savings: <strong>$467.95</strong>'...",
+      "fix": "Break long line 14679 (208 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14682,
+      "length": 174,
+      "content": "            html_content = html_content.replace('\u2022 Edition: <strong>IEEE 519-2014</strong>', f'\u2022 Edi...",
+      "fix": "Break long line 14682 (174 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14683,
+      "length": 204,
+      "content": "            html_content = html_content.replace('Power quality analysis based on IEEE 519-2014 stand...",
+      "fix": "Break long line 14683 (204 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14714,
+      "length": 183,
+      "content": "            html_content = html_content.replace('Improved from 0.7 to 1.0 (44.5% improvement)', f'Im...",
+      "fix": "Break long line 14714 (183 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14715,
+      "length": 184,
+      "content": "            html_content = html_content.replace('Reduced from 2.9% to 1.9% (33.7% reduction)', f'Red...",
+      "fix": "Break long line 14715 (184 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14716,
+      "length": 263,
+      "content": "            html_content = html_content.replace('Reduced from 187.9 kVAR to 15.3 kVAR (91.9% reducti...",
+      "fix": "Break long line 14716 (263 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14742,
+      "length": 127,
+      "content": "            html_content = html_content.replace('Annual kWh Savings: 414743 kWh', f'Annual kWh Savin...",
+      "fix": "Break long line 14742 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14756,
+      "length": 143,
+      "content": "            html_content = html_content.replace('46.40 kW</td><td>Total power reduction', f'{kw_savi...",
+      "fix": "Break long line 14756 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14757,
+      "length": 143,
+      "content": "            html_content = html_content.replace('414743 kWh</td><td>Total annual energy', f'{energy_...",
+      "fix": "Break long line 14757 (143 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14758,
+      "length": 130,
+      "content": "            html_content = html_content.replace('$610,057.00</td><td>Net Present Value', f'${npv:,.2...",
+      "fix": "Break long line 14758 (130 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14759,
+      "length": 132,
+      "content": "            html_content = html_content.replace('0.000 years</td><td>Simple payback', f'{payback:.3f...",
+      "fix": "Break long line 14759 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14764,
+      "length": 127,
+      "content": "            html_content = html_content.replace('\u2713 Yes', f'{\"\u2713 Yes\" if pq.get(\"statistically_signifi...",
+      "fix": "Break long line 14764 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14765,
+      "length": 189,
+      "content": "            html_content = html_content.replace('179.35 kW \u00b1 1.73 kW', f'{safe_float(pq.get(\"before_...",
+      "fix": "Break long line 14765 (189 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14766,
+      "length": 187,
+      "content": "            html_content = html_content.replace('210.35 kW \u00b1 1.60 kW', f'{safe_float(pq.get(\"after_p...",
+      "fix": "Break long line 14766 (187 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14767,
+      "length": 268,
+      "content": "            html_content = html_content.replace('-31.00 kW (95% CI: -33.35 to -28.64 kW)', f'{safe_f...",
+      "fix": "Break long line 14767 (268 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14770,
+      "length": 206,
+      "content": "            html_content = html_content.replace('Meets ASHRAE Precision: <strong>\u2713 Yes</strong>', f'...",
+      "fix": "Break long line 14770 (206 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14773,
+      "length": 166,
+      "content": "            html_content = html_content.replace('\u2022 TDD Limit: <strong>8%</strong>', f'\u2022 TDD Limit: <...",
+      "fix": "Break long line 14773 (166 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14774,
+      "length": 139,
+      "content": "            html_content = html_content.replace('\u2022 Before TDD: <strong>2.9%</strong>', f'\u2022 Before TD...",
+      "fix": "Break long line 14774 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14782,
+      "length": 136,
+      "content": "            html_content = html_content.replace('\u2022 After TDD: <strong>1.9%</strong>', f'\u2022 After TDD:...",
+      "fix": "Break long line 14782 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14783,
+      "length": 221,
+      "content": "            html_content = html_content.replace('\u2022 Before Compliance: <strong>\u2713 PASS</strong>', f'\u2022 ...",
+      "fix": "Break long line 14783 (221 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14784,
+      "length": 218,
+      "content": "            html_content = html_content.replace('\u2022 After Compliance: <strong>\u2713 PASS</strong>', f'\u2022 A...",
+      "fix": "Break long line 14784 (218 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14791,
+      "length": 220,
+      "content": "            html_content = html_content.replace('\u2022 Efficiency Impact (Before): <strong>0.001300</str...",
+      "fix": "Break long line 14791 (220 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14792,
+      "length": 217,
+      "content": "            html_content = html_content.replace('\u2022 Efficiency Impact (After): <strong>0.000150</stro...",
+      "fix": "Break long line 14792 (217 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14793,
+      "length": 189,
+      "content": "            html_content = html_content.replace('\u2022 Efficiency Gain: <strong>0.001150</strong>', f'\u2022 ...",
+      "fix": "Break long line 14793 (189 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 14861,
+      "length": 123,
+      "content": "            logger.info(f\"Report generation - HTML content validated successfully. Length: {len(html...",
+      "fix": "Break long line 14861 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15146,
+      "length": 129,
+      "content": "            return jsonify({\"error\": \"Original custody record, modified CSV content, and modificatio...",
+      "fix": "Break long line 15146 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15232,
+      "length": 129,
+      "content": "            \"db_size_mb\": round(Path(\"results/app.db\").stat().st_size / 1024 / 1024, 2) if Path(\"res...",
+      "fix": "Break long line 15232 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15260,
+      "length": 222,
+      "content": "        logger.debug(f\"ANALYSIS API - STEP 2 COMPLETE: manual_mode={manual_mode}, before_file={befor...",
+      "fix": "Break long line 15260 (222 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15294,
+      "length": 145,
+      "content": "                            logger.error(f\"ANALYSIS API - Invalid file ID format - Before: {before_f...",
+      "fix": "Break long line 15294 (145 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15307,
+      "length": 125,
+      "content": "                        logger.info(f\"ANALYSIS API - Database lookup - Before path: {before_path}, A...",
+      "fix": "Break long line 15307 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15323,
+      "length": 139,
+      "content": "                            logger.warning(f\"ANALYSIS API - Could not find files by ID - Before: {be...",
+      "fix": "Break long line 15323 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15341,
+      "length": 128,
+      "content": "                return jsonify({\"error\": \"Missing 'before_file' or 'before_file_id'. Please select a...",
+      "fix": "Break long line 15341 (128 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15353,
+      "length": 126,
+      "content": "                return jsonify({\"error\": \"Missing 'after_file' or 'after_file_id'. Please select a f...",
+      "fix": "Break long line 15353 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15527,
+      "length": 146,
+      "content": "            logger.info(f\"Form data - power_factor_not_included raw value: {power_factor_not_include...",
+      "fix": "Break long line 15527 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15751,
+      "length": 140,
+      "content": "                    logger.info(f\"Checking metric {metric}: before_data has {metric in before_data},...",
+      "fix": "Break long line 15751 (140 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15769,
+      "length": 167,
+      "content": "                                            \"values\": [norm_kw_before] * len(before_data[\"avgKw\"][\"v...",
+      "fix": "Break long line 15769 (167 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15777,
+      "length": 163,
+      "content": "                                            \"values\": [norm_kw_after] * len(after_data[\"avgKw\"][\"val...",
+      "fix": "Break long line 15777 (163 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15783,
+      "length": 202,
+      "content": "                                    chart_png = envelope_analyzer.generate_envelope_chart_png(normal...",
+      "fix": "Break long line 15783 (202 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15784,
+      "length": 153,
+      "content": "                                    logger.info(f\"Using normalized kW values for envelope chart: bef...",
+      "fix": "Break long line 15784 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15787,
+      "length": 126,
+      "content": "                                    chart_png = envelope_analyzer.generate_envelope_chart_png(before...",
+      "fix": "Break long line 15787 (126 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15788,
+      "length": 127,
+      "content": "                                    logger.info(\"Using regular kW values for envelope chart (normali...",
+      "fix": "Break long line 15788 (127 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15790,
+      "length": 122,
+      "content": "                                chart_png = envelope_analyzer.generate_envelope_chart_png(before_dat...",
+      "fix": "Break long line 15790 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 15879,
+      "length": 141,
+      "content": "            logger.info(f\"PE OVERSIGHT - Status: {pe_summary['oversight_status']}, Score: {pe_summar...",
+      "fix": "Break long line 15879 (141 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16029,
+      "length": 151,
+      "content": "        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-rad...",
+      "fix": "Break long line 16029 (151 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16030,
+      "length": 132,
+      "content": "        .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid ...",
+      "fix": "Break long line 16030 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16037,
+      "length": 124,
+      "content": "        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12...",
+      "fix": "Break long line 16037 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16041,
+      "length": 135,
+      "content": "        .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4...",
+      "fix": "Break long line 16041 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16048,
+      "length": 142,
+      "content": "        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px; bor...",
+      "fix": "Break long line 16048 (142 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16051,
+      "length": 123,
+      "content": "        .review-item { background: white; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px...",
+      "fix": "Break long line 16051 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16346,
+      "length": 148,
+      "content": "                <div style=\"background: white; padding: 30px; border-radius: 8px; max-width: 600px; ...",
+      "fix": "Break long line 16346 (148 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16352,
+      "length": 203,
+      "content": "                        <textarea id=\"review-comments\" rows=\"4\" style=\"width: 100%; padding: 8px; bo...",
+      "fix": "Break long line 16352 (203 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16357,
+      "length": 132,
+      "content": "                        <select id=\"approval-status\" style=\"width: 100%; padding: 8px; border: 1px s...",
+      "fix": "Break long line 16357 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16367,
+      "length": 178,
+      "content": "                        <input type=\"text\" id=\"pe-signature\" style=\"width: 100%; padding: 8px; borde...",
+      "fix": "Break long line 16367 (178 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16371,
+      "length": 226,
+      "content": "                        <button class=\"btn\" onclick=\"closeReviewInterface()\" style=\"margin-right: 10...",
+      "fix": "Break long line 16371 (226 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16372,
+      "length": 249,
+      "content": "                        <button class=\"btn btn-success\" onclick=\"submitReview('${analysisId}', '${wo...",
+      "fix": "Break long line 16372 (249 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16756,
+      "length": 145,
+      "content": "                    html_report_content = f\"<html><body><h1>Report Generation Error</h1><p>Could not...",
+      "fix": "Break long line 16756 (145 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16798,
+      "length": 189,
+      "content": "                    logger.info(f\"AUDIT PACKAGE - Reconstructed audit trail with {len(audit_trail.ca...",
+      "fix": "Break long line 16798 (189 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16860,
+      "length": 178,
+      "content": "The SYNEREX Power Analysis System achieves **100% compliance** with all 10 industry standards throug...",
+      "fix": "Break long line 16860 (178 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16890,
+      "length": 178,
+      "content": "The SYNEREX Power Analysis System achieves **100% compliance** with all 10 industry standards throug...",
+      "fix": "Break long line 16890 (178 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16915,
+      "length": 124,
+      "content": "                logger.info(\"AUDIT PACKAGE - Added 14_compliance_analysis_error.txt (standards compl...",
+      "fix": "Break long line 16915 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16932,
+      "length": 202,
+      "content": "The SYNEREX system is a comprehensive power quality and energy analysis platform built with a micros...",
+      "fix": "Break long line 16932 (202 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 16935,
+      "length": 121,
+      "content": "- **Main Application (Port 8082)**: Core analysis engine with power quality, statistical analysis, a...",
+      "fix": "Break long line 16935 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17020,
+      "length": 121,
+      "content": "                    \"02_methodology_verification.json\": \"Standards compliance verification results f...",
+      "fix": "Break long line 17020 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17172,
+      "length": 131,
+      "content": "            <p>Generate comprehensive audit packages containing all analysis data, methodologies, an...",
+      "fix": "Break long line 17172 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17233,
+      "length": 161,
+      "content": "            alert('Audit package generation is available from the main dashboard. Please go back to ...",
+      "fix": "Break long line 17233 (161 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17274,
+      "length": 121,
+      "content": "                a.download = `SYNEREX_Calculation_Audit_${new Date().toISOString().slice(0,19).repla...",
+      "fix": "Break long line 17274 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17593,
+      "length": 121,
+      "content": "                    <p>Comprehensive electrical parameter analysis including harmonics, power factor...",
+      "fix": "Break long line 17593 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17715,
+      "length": 121,
+      "content": "        template_filename = f\"client_audit_template_{company.replace(' ', '_')}_{datetime.now().strf...",
+      "fix": "Break long line 17715 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17790,
+      "length": 149,
+      "content": "This document provides detailed mathematical formulas and calculation procedures for all power analy...",
+      "fix": "Break long line 17790 (149 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 17959,
+      "length": 125,
+      "content": "This document provides comprehensive documentation of compliance with all applicable power quality a...",
+      "fix": "Break long line 17959 (125 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18132,
+      "length": 136,
+      "content": "This document provides comprehensive data validation results, quality assessment, and completeness a...",
+      "fix": "Break long line 18132 (136 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18164,
+      "length": 150,
+      "content": "- **Validation Status**: {'\u2713 PASS' if 200 <= float(str(data.get('power_quality', {}).get('voltage_be...",
+      "fix": "Break long line 18164 (150 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18170,
+      "length": 149,
+      "content": "- **Validation Status**: {'\u2713 PASS' if 0 <= float(str(data.get('power_quality', {}).get('current_befo...",
+      "fix": "Break long line 18170 (149 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18176,
+      "length": 145,
+      "content": "- **Validation Status**: {'\u2713 PASS' if 0 <= float(str(data.get('power_quality', {}).get('kw_before', ...",
+      "fix": "Break long line 18176 (145 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18184,
+      "length": 139,
+      "content": "- **Validation Status**: {'\u2713 PASS' if float(str(data.get('before_compliance', {}).get('cv_value', 0)...",
+      "fix": "Break long line 18184 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18206,
+      "length": 168,
+      "content": "- **Total Data Points**: {data.get('statistical', {}).get('sample_size_before', 'N/A')} (Before) / {...",
+      "fix": "Break long line 18206 (168 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18218,
+      "length": 162,
+      "content": "- **Data Completeness**: {'\u2713 PASS' if float(str(data.get('statistical', {}).get('data_quality', {})....",
+      "fix": "Break long line 18218 (162 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18219,
+      "length": 129,
+      "content": "- **Data Accuracy**: {'\u2713 PASS' if float(str(data.get('before_compliance', {}).get('data_quality_scor...",
+      "fix": "Break long line 18219 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18256,
+      "length": 131,
+      "content": "This document provides comprehensive quality assurance procedures, results, and verification for the...",
+      "fix": "Break long line 18256 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18296,
+      "length": 131,
+      "content": "- **Overall Quality**: {'\u2713 PASS' if float(str(data.get('before_compliance', {}).get('data_quality_sc...",
+      "fix": "Break long line 18296 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18315,
+      "length": 146,
+      "content": "- **Compliance Status**: {'\u2713 PASS' if float(str(data.get('after_compliance', {}).get('voltage_unbala...",
+      "fix": "Break long line 18315 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18415,
+      "length": 140,
+      "content": "This document provides comprehensive system configuration documentation, including all parameters, s...",
+      "fix": "Break long line 18415 (140 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18587,
+      "length": 140,
+      "content": "This document provides comprehensive risk assessment, mitigation strategies, and contingency plannin...",
+      "fix": "Break long line 18587 (140 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18825,
+      "length": 355,
+      "content": "This comprehensive audit package contains **19 documents** providing complete documentation for the ...",
+      "fix": "Break long line 18825 (355 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18830,
+      "length": 194,
+      "content": "- **Total Annual Savings**: ${f\"{data.get('financial', {}).get('total_annual_savings', 0):,.2f}\" if ...",
+      "fix": "Break long line 18830 (194 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18832,
+      "length": 157,
+      "content": "- **Net Present Value**: ${f\"{data.get('financial', {}).get('npv', 0):,.2f}\" if isinstance(data.get(...",
+      "fix": "Break long line 18832 (157 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18837,
+      "length": 139,
+      "content": "- **ASHRAE Guideline 14 Compliance**: {'\u2713 PASS' if data.get('after_compliance', {}).get('ashrae_prec...",
+      "fix": "Break long line 18837 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18838,
+      "length": 123,
+      "content": "- **NEMA MG1 Phase Balance**: {'\u2713 PASS' if data.get('after_compliance', {}).get('nema_mg1_compliant'...",
+      "fix": "Break long line 18838 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18842,
+      "length": 209,
+      "content": "- **Energy Savings**: {f\"{data.get('savings_attribution', {}).get('energy_bucket_dollars', 0):,.2f}\"...",
+      "fix": "Break long line 18842 (209 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18843,
+      "length": 209,
+      "content": "- **Demand Savings**: {f\"{data.get('savings_attribution', {}).get('demand_bucket_dollars', 0):,.2f}\"...",
+      "fix": "Break long line 18843 (209 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18844,
+      "length": 207,
+      "content": "- **Power Factor Savings**: {f\"{data.get('savings_attribution', {}).get('pf_bucket_dollars', 0):,.2f...",
+      "fix": "Break long line 18844 (207 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18845,
+      "length": 225,
+      "content": "- **Network Loss Savings**: {f\"{data.get('savings_attribution', {}).get('envelope_smoothing_dollars'...",
+      "fix": "Break long line 18845 (225 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18867,
+      "length": 129,
+      "content": "14. **SYNEREX Standards Compliance Analysis** - Comprehensive 100% standards compliance verification...",
+      "fix": "Break long line 18867 (129 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18915,
+      "length": 146,
+      "content": "6. **For Standards Compliance Analysis**: Review document 14 for comprehensive 100% standards compli...",
+      "fix": "Break long line 18915 (146 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18928,
+      "length": 204,
+      "content": "**This audit package provides complete documentation for regulatory compliance and audit requirement...",
+      "fix": "Break long line 18928 (204 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18946,
+      "length": 123,
+      "content": "                f\"Report endpoint - Using JSON data, keys: {list(data.keys()) if isinstance(data, di...",
+      "fix": "Break long line 18946 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 18952,
+      "length": 123,
+      "content": "                f\"Report endpoint - Using form data, keys: {list(data.keys()) if isinstance(data, di...",
+      "fix": "Break long line 18952 (123 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 19116,
+      "length": 153,
+      "content": "                                    \"SELECT name, created_at, updated_at FROM projects WHERE (archiv...",
+      "fix": "Break long line 19116 (153 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 19220,
+      "length": 122,
+      "content": "                                \"INSERT OR REPLACE INTO projects (name, data, updated_at) VALUES (?,...",
+      "fix": "Break long line 19220 (122 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 19313,
+      "length": 132,
+      "content": "                            logger.info(f\"Project '{name}' loaded from database with {len(data)} fie...",
+      "fix": "Break long line 19313 (132 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 19319,
+      "length": 139,
+      "content": "                            logger.info(f\"Project '{name}' exists in database but has no data - retu...",
+      "fix": "Break long line 19319 (139 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 20092,
+      "length": 121,
+      "content": "                INSERT INTO users (full_name, email, username, password_hash, role, pe_license_numbe...",
+      "fix": "Break long line 20092 (121 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 20909,
+      "length": 131,
+      "content": "            return jsonify({'status': 'error', 'error': 'Excel export functionality not available. P...",
+      "fix": "Break long line 20909 (131 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 20963,
+      "length": 205,
+      "content": "                            logger.info(f\"AUDIT TRAIL - Using actual audit trail data from project: ...",
+      "fix": "Break long line 20963 (205 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21070,
+      "length": 135,
+      "content": "                csv_integrity.track_data_access(custody_record, 'download', request.remote_addr, req...",
+      "fix": "Break long line 21070 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21313,
+      "length": 124,
+      "content": "                    INSERT INTO project_files (project_name, file_name, file_path, file_type, finger...",
+      "fix": "Break long line 21313 (124 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21383,
+      "length": 135,
+      "content": "                        logger.info(f\"Found header row {i} with indicators: {[ind for ind in header_...",
+      "fix": "Break long line 21383 (135 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21562,
+      "length": 141,
+      "content": "        <p>This is a placeholder HTML report. The actual report content will be generated based on t...",
+      "fix": "Break long line 21562 (141 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21575,
+      "length": 144,
+      "content": "        <p>&copy; Copyright 2025 to Present. All Rights Reserved. Synerex Laboratories, LLC - CSV Ta...",
+      "fix": "Break long line 21575 (144 chars)"
+    },
+    {
+      "type": "long_line",
+      "line": 21595,
+      "length": 138,
+      "content": "                INSERT INTO html_reports (project_name, report_name, report_type, file_path, file_si...",
+      "fix": "Break long line 21595 (138 chars)"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 96,
+      "function": "def __init__(self, weather_service_url=\"http://127.0.0.1:8200\"):",
+      "fix": "Add docstring to function on line 96"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 101,
+      "function": "def fetch_weather_data(",
+      "fix": "Add docstring to function on line 101"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 274,
+      "function": "def _normal_cdf(x):",
+      "fix": "Add docstring to function on line 274"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 278,
+      "function": "def _normal_pdf(x):",
+      "fix": "Add docstring to function on line 278"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 283,
+      "function": "def _normal_ppf(p):",
+      "fix": "Add docstring to function on line 283"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 332,
+      "function": "def cdf(self, x, loc=0.0, scale=1.0):",
+      "fix": "Add docstring to function on line 332"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 336,
+      "function": "def pdf(self, x, loc=0.0, scale=1.0):",
+      "fix": "Add docstring to function on line 336"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 340,
+      "function": "def ppf(self, q, loc=0.0, scale=1.0):",
+      "fix": "Add docstring to function on line 340"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 346,
+      "function": "def cdf(self, x, df):",
+      "fix": "Add docstring to function on line 346"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 350,
+      "function": "def ppf(self, q, df):",
+      "fix": "Add docstring to function on line 350"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 496,
+      "function": "def default(self, obj):",
+      "fix": "Add docstring to function on line 496"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 575,
+      "function": "def allowed_file(filename: str) -> bool:",
+      "fix": "Add docstring to function on line 575"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 661,
+      "function": "def format_date(date):",
+      "fix": "Add docstring to function on line 661"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 681,
+      "function": "def _safe_save_upload(file_obj, label_prefix: str) -> Path:",
+      "fix": "Add docstring to function on line 681"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1063,
+      "function": "def init_app_config(app):",
+      "fix": "Add docstring to function on line 1063"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1084,
+      "function": "def _bool(x, default=True):",
+      "fix": "Add docstring to function on line 1084"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1129,
+      "function": "def _build_fieldkit_urls():",
+      "fix": "Add docstring to function on line 1129"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1140,
+      "function": "def static_or_data_uri(preferred_path: str, fallback_svg: str = None) -> str:",
+      "fix": "Add docstring to function on line 1140"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1153,
+      "function": "def build_template_context(results: dict, config: dict):",
+      "fix": "Add docstring to function on line 1153"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1155,
+      "function": "def _fallback_money(x):",
+      "fix": "Add docstring to function on line 1155"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1207,
+      "function": "def _set_currency_code():",
+      "fix": "Add docstring to function on line 1207"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1230,
+      "function": "def safe_render_template_string(tpl, **context):",
+      "fix": "Add docstring to function on line 1230"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1472,
+      "function": "def _safe_float(x, default=0.0):",
+      "fix": "Add docstring to function on line 1472"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1498,
+      "function": "def safe_float(x, default=None):",
+      "fix": "Add docstring to function on line 1498"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1505,
+      "function": "def require_keys(d: dict, keys):",
+      "fix": "Add docstring to function on line 1505"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1509,
+      "function": "def validate_metrics_pair(self, before: dict, after: dict):",
+      "fix": "Add docstring to function on line 1509"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1560,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 1560"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1910,
+      "function": "def __init__(self, equipment_type: str = \"chiller\"):",
+      "fix": "Add docstring to function on line 1910"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 1917,
+      "function": "def normalize_consumption(",
+      "fix": "Add docstring to function on line 1917"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 2016,
+      "function": "def _enhanced_normalization(",
+      "fix": "Add docstring to function on line 2016"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 2118,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 2118"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 2663,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 2663"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3036,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 3036"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3042,
+      "function": "def log_calculation(self, calculation_type: str, inputs: Dict, outputs: Dict,",
+      "fix": "Add docstring to function on line 3042"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3073,
+      "function": "def log_normalization(self, normalization_type: str, inputs: Dict, outputs: Dict,",
+      "fix": "Add docstring to function on line 3073"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3104,
+      "function": "def log_data_transformation(self, transformation_type: str, original_data: Dict,",
+      "fix": "Add docstring to function on line 3104"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3129,
+      "function": "def log_compliance_check(self, standard: str, requirement: str,",
+      "fix": "Add docstring to function on line 3129"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3161,
+      "function": "def log_standards_reference(self, standard: str, section: str,",
+      "fix": "Add docstring to function on line 3161"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 3447,
+      "function": "def _create_standards_compliance_overview_sheet(self, ws, audit_summary, title_font, header_font, subheader_font,",
+      "fix": "Add docstring to function on line 3447"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4298,
+      "function": "def verify_ieee_519_calculation(isc_il_ratio: float, calculated_tdd: float,",
+      "fix": "Add docstring to function on line 4298"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4343,
+      "function": "def verify_ashrae_precision_calculation(relative_precision: float,",
+      "fix": "Add docstring to function on line 4343"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4494,
+      "function": "def verify_weather_normalization(temp_before: float, temp_after: float,",
+      "fix": "Add docstring to function on line 4494"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4537,
+      "function": "def verify_power_quality_normalization(thd_before: float, thd_after: float,",
+      "fix": "Add docstring to function on line 4537"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4590,
+      "function": "def verify_baseline_adjustment(r_squared: float, cvrmse: float, nmbe: float,",
+      "fix": "Add docstring to function on line 4590"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4744,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 4744"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4750,
+      "function": "def register_pe_certification(self, pe_id: str, name: str, license_number: str,",
+      "fix": "Add docstring to function on line 4750"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4828,
+      "function": "def create_digital_signature(self, pe_id: str, document_hash: str,",
+      "fix": "Add docstring to function on line 4828"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 4928,
+      "function": "def complete_pe_review(self, workflow_id: str, review_comments: str,",
+      "fix": "Add docstring to function on line 4928"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5159,
+      "function": "def create_chain_of_custody(self, csv_content: str, uploader_name: str,",
+      "fix": "Add docstring to function on line 5159"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5197,
+      "function": "def add_custody_event(self, custody_record: Dict, action: str,",
+      "fix": "Add docstring to function on line 5197"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5260,
+      "function": "def create_digital_signature(self, csv_content: str, signer_name: str,",
+      "fix": "Add docstring to function on line 5260"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5370,
+      "function": "def track_data_access(self, custody_record: Dict, access_type: str,",
+      "fix": "Add docstring to function on line 5370"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5479,
+      "function": "def track_data_modification(self, original_custody_record: Dict, modified_csv_content: str,",
+      "fix": "Add docstring to function on line 5479"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5589,
+      "function": "def verify_modification_integrity(self, original_custody_record: Dict,",
+      "fix": "Add docstring to function on line 5589"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5743,
+      "function": "def calculate_uncertainty(",
+      "fix": "Add docstring to function on line 5743"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5924,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 5924"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 5936,
+      "function": "def normalize_power_factor(",
+      "fix": "Add docstring to function on line 5936"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6100,
+      "function": "def apply_ieee_c57_110_losses(",
+      "fix": "Add docstring to function on line 6100"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6189,
+      "function": "def apply_iec_61000_4_7_harmonic_measurement(self, voltage_data: np.ndarray, current_data: np.ndarray,",
+      "fix": "Add docstring to function on line 6189"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6339,
+      "function": "def verify_iec_61000_2_2_voltage_variation_limits(self, voltage_data: np.ndarray,",
+      "fix": "Add docstring to function on line 6339"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6441,
+      "function": "def classify_iec_60034_30_1_motor_efficiency(self, motor_power_kw: float, motor_speed_rpm: float,",
+      "fix": "Add docstring to function on line 6441"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6587,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 6587"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6591,
+      "function": "def calculate_demand_savings(",
+      "fix": "Add docstring to function on line 6591"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 6637,
+      "function": "def __init__(self):",
+      "fix": "Add docstring to function on line 6637"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7147,
+      "function": "def generate_confidence_interval_chart_png(",
+      "fix": "Add docstring to function on line 7147"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7432,
+      "function": "def _npv(rate):",
+      "fix": "Add docstring to function on line 7432"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7504,
+      "function": "def __init__(self, discount_rate: float = 0.03, analysis_period: int = 15):",
+      "fix": "Add docstring to function on line 7504"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7509,
+      "function": "def calculate_lcca(",
+      "fix": "Add docstring to function on line 7509"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7589,
+      "function": "def calculate_combined_uncertainty(",
+      "fix": "Add docstring to function on line 7589"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7626,
+      "function": "def _compute_bill_weighted_simple(before_data: dict, after_data: dict, config: dict):",
+      "fix": "Add docstring to function on line 7626"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7729,
+      "function": "def billed(off_pk, on_pk, apply_flag):",
+      "fix": "Add docstring to function on line 7729"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7752,
+      "function": "def adj_factor(pf):",
+      "fix": "Add docstring to function on line 7752"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7767,
+      "function": "def to_kva(kw, pf):",
+      "fix": "Add docstring to function on line 7767"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7781,
+      "function": "def to_kva(kw, pf):",
+      "fix": "Add docstring to function on line 7781"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7914,
+      "function": "def _get_series(stats: dict, key: str):",
+      "fix": "Add docstring to function on line 7914"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7925,
+      "function": "def _avg_Irms_and_THD(data: dict):",
+      "fix": "Add docstring to function on line 7925"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 7953,
+      "function": "def _xf_losses(I, THD):",
+      "fix": "Add docstring to function on line 7953"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8115,
+      "function": "def _xf_losses_for(name, kva, load_loss_kw, stray_frac, kh, Ib_vec, Ia_vec, Tb_num, Tb_den, Ta_num, Ta_den):",
+      "fix": "Add docstring to function on line 8115"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8128,
+      "function": "def _sum(Iv, THDr, rated_cu_w, rated_stray_w, Kh):",
+      "fix": "Add docstring to function on line 8128"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8216,
+      "function": "def _per_xfmr_losses(",
+      "fix": "Add docstring to function on line 8216"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8308,
+      "function": "def _sum_phase_losses(Ivec, THDvec):",
+      "fix": "Add docstring to function on line 8308"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8417,
+      "function": "def num(key, default):",
+      "fix": "Add docstring to function on line 8417"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8463,
+      "function": "def include_nw_bool(x) -> bool:",
+      "fix": "Add docstring to function on line 8463"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8470,
+      "function": "def compute_cp_delta_kw(",
+      "fix": "Add docstring to function on line 8470"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 8554,
+      "function": "def compute_cp_candidates(ts_list, kw_list, region=\"ERCOT\", year=None, window_min=60, tz_name=\"America/Chicago\"):",
+      "fix": "Add docstring to function on line 8554"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 10974,
+      "function": "def inject_globals():",
+      "fix": "Add docstring to function on line 10974"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 10992,
+      "function": "def _w(*args, **kwargs):",
+      "fix": "Add docstring to function on line 10992"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11258,
+      "function": "def _ensure_perm(p, mode):",
+      "fix": "Add docstring to function on line 11258"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11265,
+      "function": "def _atomic_write_json(path: Path, data: dict, mode: int = 0o664) -> bool:",
+      "fix": "Add docstring to function on line 11265"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11291,
+      "function": "def _profiles_load() -> dict:",
+      "fix": "Add docstring to function on line 11291"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11318,
+      "function": "def _profiles_save(db):",
+      "fix": "Add docstring to function on line 11318"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11329,
+      "function": "def _preflight_checks():",
+      "fix": "Add docstring to function on line 11329"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11347,
+      "function": "def _keys_dir():",
+      "fix": "Add docstring to function on line 11347"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11391,
+      "function": "def _b64u(b: bytes) -> str:",
+      "fix": "Add docstring to function on line 11391"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11550,
+      "function": "def y_to_px(v):",
+      "fix": "Add docstring to function on line 11550"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11567,
+      "function": "def bar(x, ci, label):",
+      "fix": "Add docstring to function on line 11567"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11591,
+      "function": "def _kva(d):",
+      "fix": "Add docstring to function on line 11591"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11609,
+      "function": "def FAA(theta_c):",
+      "fix": "Add docstring to function on line 11609"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11716,
+      "function": "def _inject_footer_after_request(resp):",
+      "fix": "Add docstring to function on line 11716"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 11767,
+      "function": "def serve_fieldkit(name):",
+      "fix": "Add docstring to function on line 11767"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 12441,
+      "function": "def safe_float(value, default=0.0):",
+      "fix": "Add docstring to function on line 12441"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 12690,
+      "function": "def calculate_improvement(before, after):",
+      "fix": "Add docstring to function on line 12690"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 12701,
+      "function": "def calculate_power_factor_improvement(before, after):",
+      "fix": "Add docstring to function on line 12701"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15905,
+      "function": "def __init__(self, fileobj):",
+      "fix": "Add docstring to function on line 15905"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15909,
+      "function": "def __enter__(self):",
+      "fix": "Add docstring to function on line 15909"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15918,
+      "function": "def __exit__(self, exc_type, exc, tb):",
+      "fix": "Add docstring to function on line 15918"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15930,
+      "function": "def _load_profiles() -> dict:",
+      "fix": "Add docstring to function on line 15930"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15941,
+      "function": "def _save_profiles(obj: dict) -> bool:",
+      "fix": "Add docstring to function on line 15941"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15957,
+      "function": "def api_profiles():",
+      "fix": "Add docstring to function on line 15957"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 15980,
+      "function": "def api_profile_item(client_id):",
+      "fix": "Add docstring to function on line 15980"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 16458,
+      "function": "def legacy_index():",
+      "fix": "Add docstring to function on line 16458"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 16520,
+      "function": "def download_audit_bundle(fname):",
+      "fix": "Add docstring to function on line 16520"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 16546,
+      "function": "def __init__(self, data):",
+      "fix": "Add docstring to function on line 16546"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 16549,
+      "function": "def get_json(self):",
+      "fix": "Add docstring to function on line 16549"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 18933,
+      "function": "def report():",
+      "fix": "Add docstring to function on line 18933"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 18968,
+      "function": "def money(x):",
+      "fix": "Add docstring to function on line 18968"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 18974,
+      "function": "def pct(x):",
+      "fix": "Add docstring to function on line 18974"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 18980,
+      "function": "def fmt(x, decimals=2):",
+      "fix": "Add docstring to function on line 18980"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 19284,
+      "function": "def fix_character_encoding(text):",
+      "fix": "Add docstring to function on line 19284"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 19337,
+      "function": "def fix_character_encoding(text):",
+      "fix": "Add docstring to function on line 19337"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 22331,
+      "function": "def _global_error_handler(e):",
+      "fix": "Add docstring to function on line 22331"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 22345,
+      "function": "def validate_power_factor(pf) -> float:",
+      "fix": "Add docstring to function on line 22345"
+    },
+    {
+      "type": "missing_docstring",
+      "line": 22349,
+      "function": "def safe_render_template_string_wrapped(*args, **kwargs):",
+      "fix": "Add docstring to function on line 22349"
+    }
+  ]
+}

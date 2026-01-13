@@ -1,0 +1,35 @@
+================================================================================
+SYNEREX COMPLIANCE REPORT
+================================================================================
+Generated: 2025-11-12 13:09:24
+
+COMPLIANCE STATUS SUMMARY
+--------------------------------------------------------------------------------
+
+✓ IEEE 519-2014/2022
+  TDD limits calculated from ISC/IL ratio
+
+✓ ASHRAE Guideline 14
+  Statistical validation implemented
+
+✓ NEMA MG1
+  Phase balance from actual voltage measurements
+
+✓ IEC 61000 Series
+  Compliance from measured data
+
+✓ ANSI C12.1/C12.20
+  Meter class from actual CV calculations
+
+✓ IPMVP
+  P-values from proper statistical tests
+
+DATA INTEGRITY SUMMARY
+--------------------------------------------------------------------------------
+Files with fingerprints: 6
+Total data modifications: 5
+Total user activities: 22
+
+================================================================================
+END OF REPORT
+================================================================================

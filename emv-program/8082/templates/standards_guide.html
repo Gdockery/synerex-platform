@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNEREX System - Standards Compliance Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c5aa0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c5aa0;
+            font-size: 2.5em;
+            margin: 0;
+        }
+        .header .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .toc h2 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        .section {
+            margin: 40px 0;
+            padding: 20px;
+            border-left: 4px solid #2c5aa0;
+            background: #fafafa;
+            page-break-before: always;
+        }
+        
+        .section:first-child {
+            page-break-before: avoid;
+        }
+        .section h2 {
+            color: #2c5aa0;
+            font-size: 1.8em;
+            margin-top: 0;
+        }
+        .section h3 {
+            color: #444;
+            font-size: 1.4em;
+            margin-top: 30px;
+        }
+        .section h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .standard-card {
+            background: white;
+            border: 2px solid #2c5aa0;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .standard-card h4 {
+            color: #2c5aa0;
+            margin-top: 0;
+            font-size: 1.3em;
+        }
+        .formula {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .compliance-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .compliant {
+            background: #d4edda;
+            color: #155724;
+        }
+        .non-compliant {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2c5aa0;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: none;
+        }
+        .back-to-top:hover {
+            background: #1e3a5f;
+        }
+        .back-button {
+            background: #2c5aa0 !important;
+            color: white !important;
+            padding: 10px 20px !important;
+            border-radius: 5px !important;
+            text-decoration: none !important;
+            font-weight: bold !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            transition: all 0.3s ease !important;
+            border: none !important;
+            cursor: pointer !important;
+        }
+        .back-button:hover {
+            background: #1e3a5f !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 2px 8px rgba(44, 90, 160, 0.3) !important;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: white;
+            border: 2px solid #2c5aa0;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .feature-card h4 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        .calculation-flow {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .flow-step {
+            background: white;
+            border: 1px solid #2c5aa0;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            position: relative;
+        }
+        .flow-step::before {
+            content: "→";
+            position: absolute;
+            right: -15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #2c5aa0;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .flow-step:last-child::before {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <a href="/main-dashboard" class="back-button" style="background: #2c5aa0; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; transition: all 0.3s ease;">
+                    ← Back to Dashboard
+                </a>
+                <div style="text-align: center; flex: 1;">
+                    <h1 style="margin: 0;">Standards Compliance Guide</h1>
+                    <p class="subtitle" style="margin: 10px 0 0 0;">Comprehensive Documentation of Industry Standards, Calculation Methodologies, and Audit Compliance</p>
+                    <p style="margin: 10px 0 0 0;"><strong>Analysis Version: {{ version }}</strong> | <strong>Last Updated:</strong> January 13, 2025</p>
+                </div>
+                <div style="width: 120px;"></div> <!-- Spacer for centering -->
+            </div>
+        </div>
+
+        <div class="toc">
+            <h2>📚 Table of Contents</h2>
+            <ul>
+                <li><a href="#overview">1. Overview & System Architecture</a></li>
+                <li><a href="#standards-implemented">2. Standards Implemented (10 Industry Standards)</a></li>
+                <li><a href="#calculation-methodologies">3. Calculation Methodologies</a></li>
+                <li><a href="#audit-compliance">4. Audit Compliance & Documentation</a></li>
+                <li><a href="#data-flow">5. Data Flow & Verification</a></li>
+                <li><a href="#excel-generation">6. Excel Audit Trail Generation</a></li>
+                <li><a href="#recent-updates">7. Recent Updates (Version {{ version }})</a></li>
+                <li><a href="#maintenance">8. Maintenance & Quality Assurance</a></li>
+            </ul>
+        </div>
+
+        <div id="overview" class="section">
+            <h2>1. Overview & System Architecture</h2>
+            
+            <div class="info">
+                <h4>🎯 System Purpose</h4>
+                <p>The SYNEREX Power Analysis System provides comprehensive power quality analysis, energy savings measurement, and standards compliance verification. All calculations follow industry standards and are designed for audit readiness.</p>
+            </div>
+
+            <h3>🏗️ System Architecture</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🔬 Analysis Engine (Port 8082)</h4>
+                    <p>Core power analysis calculations, standards compliance verification, and statistical analysis</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📊 HTML Service (Port 8084)</h4>
+                    <p>Direct GET approach for Client HTML Report generation with real-time data integration</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🌤️ Weather Service (Port 8085)</h4>
+                    <p>Weather normalization and environmental data integration for comprehensive analysis</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📈 Chart Service (Port 8086)</h4>
+                    <p>Advanced data visualization and chart generation for analysis results</p>
+                </div>
+            </div>
+
+            <h3>📋 Standards Compliance Matrix</h3>
+            <div class="standard-card">
+                <h4>✅ Fully Implemented Standards (10)</h4>
+                <ul>
+                    <li><strong>IEEE 519-2014/2022</strong> - Harmonic Control</li>
+                    <li><strong>ASHRAE Guideline 14-2014</strong> - Statistical Validation</li>
+                    <li><strong>IPMVP Volume I</strong> - Measurement & Verification</li>
+                    <li><strong>ANSI C12.1/C12.20</strong> - Meter Accuracy</li>
+                    <li><strong>NEMA MG1-2016</strong> - Phase Balance</li>
+                    <li><strong>IEC 61000-2-2</strong> - Voltage Variations</li>
+                    <li><strong>ANSI C57.12.00</strong> - Transformer Efficiency</li>
+                    <li><strong>IEC 61000-4-30</strong> - Instrument Accuracy</li>
+                    <li><strong>IEC 61000-4-7</strong> - Harmonic Measurements</li>
+                    <li><strong>IEC 60034-30-1</strong> - Motor Efficiency</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="standards-implemented" class="section">
+            <h2>2. Standards Implemented (General + Facility-Specific Standards)</h2>
+            
+            <div class="standard-card">
+                <h4>🔬 1. IEEE 519-2014/2022 - Harmonic Control</h4>
+                <p><strong>Application:</strong> Total Demand Distortion (TDD) limits based on ISC/IL ratio</p>
+                <div class="formula">
+                    TDD = √(Σ(h=2 to 50) Ih²) / IL × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> Based on ISC/IL ratio per IEEE 519 Table 10.3</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>📊 2. ASHRAE Guideline 14-2014 - Statistical Validation</h4>
+                <p><strong>Application:</strong> Relative precision and data quality assessment</p>
+                <div class="formula">
+                    CVRMSE = √(Σ(yi - ŷi)² / (n-p)) / ȳ × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> Relative precision < 50% @ 95% CL</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>🔍 3. IPMVP Volume I - Measurement & Verification</h4>
+                <p><strong>Application:</strong> Statistical significance testing (p < 0.05)</p>
+                <div class="formula">
+                    t = (x̄1 - x̄2) / √(s1²/n1 + s2²/n2)
+                </div>
+                <p><strong>Compliance Threshold:</strong> p-value < 0.05 indicates statistical significance</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>⚡ 4. ANSI C12.1/C12.20 - Meter Accuracy</h4>
+                <p><strong>Application:</strong> Electric utility meter accuracy validation</p>
+                <div class="formula">
+                    Accuracy Class = Based on CV calculation<br>
+                    Class 0.5: CV ≤ 0.5% (Industry Standard)
+                </div>
+                <p><strong>Compliance Threshold:</strong> Class 0.5 revenue-grade meters</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>⚖️ 5. NEMA MG1-2016 - Phase Balance</h4>
+                <p><strong>Application:</strong> Three-phase motor phase balance requirements</p>
+                <div class="formula">
+                    % Unbalance = (Max deviation from average) / Average voltage × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> ≤5% phase unbalance</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>🌐 6. IEC 61000-2-2 - Voltage Variations</h4>
+                <p><strong>Application:</strong> Voltage variation limits in public low-voltage systems</p>
+                <div class="formula">
+                    Voltage Variation = |(Actual - Nominal)| / Nominal × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> ±10% voltage variation limit</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>🔧 7. ANSI C57.12.00 - Transformer Efficiency</h4>
+                <p><strong>Application:</strong> Transformer efficiency and performance requirements</p>
+                <div class="formula">
+                    Efficiency = (Output Power / Input Power) × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> Based on power quality and load characteristics</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>📏 8. IEC 61000-4-30 - Instrument Accuracy</h4>
+                <p><strong>Application:</strong> Power quality measurement instrument accuracy</p>
+                <div class="formula">
+                    Class A Accuracy = ±0.5% for voltage and current measurements
+                </div>
+                <p><strong>Compliance Threshold:</strong> ±0.5% accuracy for Class A instruments</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>⚡ 9. IEC 62053 - Meter Accuracy Standards</h4>
+                <p><strong>Application:</strong> International electrical energy meter accuracy validation</p>
+                <div class="formula">
+                    IEC 62053-22: Class 0.1S, 0.2S, 0.5S accuracy<br>
+                    IEC 62053-21: Class 1, 2 accuracy<br>
+                    IEC 62053-23: Reactive energy (kvarh) measurement
+                </div>
+                <p><strong>Compliance Threshold:</strong> Class 0.5S or better for energy measurement</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>🖥️ 10. ITIC/CBEMA - Power Quality Tolerance</h4>
+                <p><strong>Application:</strong> Information Technology equipment voltage tolerance curves</p>
+                <div class="formula">
+                    ITIC Curve: Voltage sag/swell tolerance<br>
+                    CBEMA Curve: Computer equipment protection<br>
+                    Voltage Range: 120V ±10% normal operation
+                </div>
+                <p><strong>Compliance Threshold:</strong> Equipment operation within ITIC/CBEMA tolerance zones</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>📊 9. IEC 61000-4-7 - Harmonic Measurements</h4>
+                <p><strong>Application:</strong> Harmonic measurement compliance</p>
+                <div class="formula">
+                    THD = √(Σ(h=2 to 50) Vh²) / V1 × 100%
+                </div>
+                <p><strong>Compliance Threshold:</strong> Based on THD values from power quality analysis</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+
+            <div class="standard-card">
+                <h4>⚙️ 10. IEC 60034-30-1 - Motor Efficiency</h4>
+                <p><strong>Application:</strong> Motor efficiency classification (IE1, IE2, IE3, IE4)</p>
+                <div class="formula">
+                    Efficiency Class = f(Power Factor, Load Characteristics)
+                </div>
+                <p><strong>Compliance Threshold:</strong> IE2 (High) or IE3 (Premium) efficiency</p>
+                <div class="compliance-status compliant">✓ IMPLEMENTED</div>
+            </div>
+        </div>
+
+        <div id="calculation-methodologies" class="section">
+            <h2>3. Facility-Specific Standards (Version {{ version }})</h2>
+            <p>SYNEREX implements facility-specific industry standards for five distinct facility types:</p>
+
+            <h3>3.1 Cold Storage Facilities</h3>
+            <ul>
+                <li><strong>ASHRAE Standard 15:</strong> Refrigeration Safety - Safety standards for refrigeration systems</li>
+                <li><strong>ASHRAE Standard 34:</strong> Refrigerant Classification - Refrigerant safety classification</li>
+                <li><strong>ASHRAE Guideline 14:</strong> Measurement & Verification - M&V methodology for energy savings</li>
+                <li><strong>ENERGY STAR Commercial Refrigeration:</strong> Energy efficiency standards for commercial refrigeration equipment</li>
+            </ul>
+
+            <h3>3.2 Data Center / GPU Facilities</h3>
+            <ul>
+                <li><strong>ASHRAE Standard 90.4:</strong> Data Center Energy Standard - Energy efficiency requirements for data centers</li>
+                <li><strong>ASHRAE TC 9.9:</strong> Thermal Guidelines for Data Processing Environments - Temperature and humidity guidelines</li>
+                <li><strong>The Green Grid PUE:</strong> Power Usage Effectiveness metric for data center efficiency</li>
+                <li><strong>ISO/IEC 30134:</strong> Data Center Resource Efficiency - International standard for data center efficiency metrics</li>
+                <li><strong>Uptime Institute Tier Classification:</strong> Data center reliability and redundancy standards</li>
+                <li><strong>ENERGY STAR Data Center Program:</strong> Energy efficiency certification for data centers</li>
+            </ul>
+
+            <h3>3.3 Healthcare Facilities</h3>
+            <ul>
+                <li><strong>ASHRAE Standard 170:</strong> Ventilation of Health Care Facilities - Ventilation requirements for healthcare facilities</li>
+                <li><strong>ASHRAE Standard 90.1:</strong> Energy Standard for Buildings - Energy efficiency requirements</li>
+                <li><strong>FGI Guidelines:</strong> Facility Guidelines Institute - Design and construction guidelines for healthcare facilities</li>
+                <li><strong>Joint Commission Environment of Care:</strong> Safety and environmental standards for healthcare facilities</li>
+                <li><strong>ENERGY STAR Portfolio Manager Healthcare:</strong> Energy benchmarking for healthcare facilities</li>
+            </ul>
+
+            <h3>3.4 Hospitality Facilities</h3>
+            <ul>
+                <li><strong>ASHRAE Standard 90.1:</strong> Energy Standard for Buildings - Energy efficiency requirements</li>
+                <li><strong>ENERGY STAR Portfolio Manager (Hotels & Restaurants):</strong> Energy benchmarking for hospitality facilities</li>
+                <li><strong>IPMVP Volume I (Option B - Whole Building):</strong> Measurement & Verification for whole building energy savings</li>
+                <li><strong>AHLA Guidelines:</strong> American Hotel & Lodging Association - Industry best practices for hotels</li>
+            </ul>
+
+            <h3>3.5 Manufacturing & Industrial Facilities</h3>
+            <ul>
+                <li><strong>ISO 50001:</strong> Energy Management Systems - International standard for energy management</li>
+                <li><strong>ASME EA-2:</strong> Compressed Air Systems - Energy assessment standards for compressed air systems</li>
+                <li><strong>NEMA MG1-2016:</strong> Motor Efficiency - Standards for motor efficiency and performance</li>
+                <li><strong>ASHRAE Standard 90.1:</strong> Energy Standard for Buildings - Energy efficiency requirements</li>
+                <li><strong>EPA ENERGY STAR Industrial Facilities:</strong> Energy efficiency certification for industrial facilities</li>
+                <li><strong>IPMVP Volume I (Option A - Retrofit Isolation):</strong> Measurement & Verification for isolated retrofits</li>
+            </ul>
+
+            <h3>3.6 General Standards (Applied to All Facilities)</h3>
+            <p>The following standards are applied to all facility types:</p>
+            <ul>
+                <li><strong>IEEE 519-2014/2022:</strong> Harmonic Limits - Power quality standards for harmonic distortion</li>
+                <li><strong>ASHRAE Guideline 14:</strong> Measurement & Verification - M&V methodology</li>
+                <li><strong>NEMA MG1-2016:</strong> Voltage Unbalance - Three-phase motor protection standards</li>
+                <li><strong>IPMVP Volume I:</strong> Measurement & Verification Protocol - Energy savings measurement standards</li>
+                <li><strong>ANSI C12.1/C12.20:</strong> Meter Accuracy - Electricity meter accuracy standards</li>
+                <li><strong>IEC 61000-2-2:</strong> Voltage Variation - Power quality standards for voltage variation</li>
+                <li><strong>FEMP LCCA:</strong> Life Cycle Cost Analysis - Federal energy management standards</li>
+                <li><strong>IEC 61000-4-7:</strong> Measurement Methods - Harmonic measurement methodology</li>
+                <li><strong>IEEE 141-1993:</strong> Power System Analysis - Industrial power system analysis standards</li>
+            </ul>
+
+            <h2>4. Calculation Methodologies</h2>
+            
+            <h3>🔄 Data Processing Flow</h3>
+            <div class="calculation-flow">
+                <div class="flow-step">
+                    <h4>1. Data Input & Validation</h4>
+                    <p>Raw CSV data upload, completeness checking (≥95%), outlier detection (≤5%)</p>
+                </div>
+                <div class="flow-step">
+                    <h4>2. Statistical Analysis</h4>
+                    <p>Two-sample t-test, Cohen's d effect size, confidence intervals (95%)</p>
+                </div>
+                <div class="flow-step">
+                    <h4>3. Standards Compliance</h4>
+                    <p>IEEE 519 TDD, ASHRAE precision, IPMVP significance, NEMA balance</p>
+                </div>
+                <div class="flow-step">
+                    <h4>4. Financial Analysis</h4>
+                    <p>Energy savings, cost savings, NPV, IRR, payback period calculations</p>
+                </div>
+                <div class="flow-step">
+                    <h4>5. Report Generation</h4>
+                    <p>HTML reports, Excel audit trails, compliance documentation</p>
+                </div>
+            </div>
+
+            <h3>📊 Key Statistical Methods</h3>
+            <div class="code-block">
+# Two-Sample T-Test (IPMVP Compliance)
+from scipy import stats
+t_stat, p_value = stats.ttest_ind(before_data, after_data)
+statistically_significant = p_value < 0.05
+
+# Cohen's d Effect Size
+d = (x̄1 - x̄2) / spooled
+where spooled = √[(s1² + s2²) / 2]
+
+# ASHRAE Relative Precision
+CVRMSE = √(Σ(yi - ŷi)² / (n-p)) / ȳ × 100%
+ashrae_compliant = CVRMSE < 50.0
+            </div>
+
+            <h3>⚡ Power Quality Calculations</h3>
+            <div class="code-block">
+# IEEE 519 TDD Calculation
+TDD = √(Σ(h=2 to 50) Ih²) / IL × 100%
+
+# ISC/IL Ratio Determination
+isc_il_ratio = (isc_kA * 1000) / il_A
+if isc_il_ratio >= 1000:
+    tdd_limit = 5.0  # 5% TDD limit
+elif isc_il_ratio >= 100:
+    tdd_limit = 8.0  # 8% TDD limit
+# ... etc per IEEE 519 Table 10.3
+            </div>
+        </div>
+
+        <div id="audit-compliance" class="section">
+            <h2>4. Audit Compliance & Documentation</h2>
+            
+            <div class="success">
+                <h4>✅ Audit Readiness Features</h4>
+                <ul>
+                    <li><strong>Complete Calculation Logging:</strong> Every calculation timestamped with methodology</li>
+                    <li><strong>Standards References:</strong> All 10 standards with version numbers documented</li>
+                    <li><strong>Data Quality Assessment:</strong> Automatic completeness and outlier checking</li>
+                    <li><strong>Excel Audit Trails:</strong> Multi-sheet workbooks with calculation tracing</li>
+                    <li><strong>Professional Engineering Oversight:</strong> All calculations verified independently</li>
+                </ul>
+            </div>
+
+            <h3>📋 Audit Trail Components</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📊 Data Integrity</h4>
+                    <p>Input validation, data quality scoring, outlier detection, completeness checking</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔍 Calculation Logging</h4>
+                    <p>Every calculation logged with inputs, outputs, methodology, and timestamp</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📈 Standards Verification</h4>
+                    <p>All 10 standards compliance checks logged with threshold values</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📋 Export Capability</h4>
+                    <p>Complete audit trail exportable to JSON and Excel formats</p>
+                </div>
+            </div>
+
+            <h3>🎯 M&V Compliance Verification</h3>
+            <div class="warning">
+                <h4>📋 Three Critical M&V Requirements</h4>
+                <ol>
+                    <li><strong>ASHRAE Precision Validation:</strong> relative_precision < 50%</li>
+                    <li><strong>LCCA Compliance Check:</strong> sir_value > 1.0</li>
+                    <li><strong>IEEE 519 Compliance:</strong> thd_after ≤ ieee_thd_limit</li>
+                </ol>
+                <p><strong>Status:</strong> All three requirements implemented and verified ✅</p>
+            </div>
+        </div>
+
+        <div id="data-flow" class="section">
+            <h2>5. Data Flow & Verification</h2>
+            
+            <h3>🔄 Direct GET Approach</h3>
+            <div class="info">
+                <h4>🎯 Single Source of Truth Architecture</h4>
+                <p>The system uses a <strong>Direct GET approach</strong> for HTML report generation:</p>
+                <ol>
+                    <li><strong>UI HTML Report:</strong> Performs all calculations and analysis</li>
+                    <li><strong>Client HTML Report:</strong> Directly GETs calculated values from UI</li>
+                    <li><strong>No Duplicate Calculations:</strong> Ensures complete consistency</li>
+                    <li><strong>Real-time Data:</strong> Always shows current analysis results</li>
+                </ol>
+            </div>
+
+            <h3>📊 Input Data Requirements</h3>
+            <div class="standard-card">
+                <h4>📥 Required Data Inputs</h4>
+                <ul>
+                    <li><strong>Before/After Data:</strong> Time-series power measurements</li>
+                    <li><strong>Configuration:</strong> System parameters (ISC, IL, etc.)</li>
+                    <li><strong>Quality Metrics:</strong> Data completeness, outliers, timestamps</li>
+                    <li><strong>Environmental Data:</strong> Weather normalization data</li>
+                </ul>
+            </div>
+
+            <h3>📈 Output Compliance Status</h3>
+            <div class="calculation-flow">
+                <div class="flow-step">
+                    <h4>Data Integrity Standards</h4>
+                    <p>ASHRAE Guideline 14, IPMVP, ANSI C12.1/C12.20</p>
+                </div>
+                <div class="flow-step">
+                    <h4>Network Improvement Standards</h4>
+                    <p>IEEE 519, NEMA MG1, IEC 61000 series, ANSI C57.12.00</p>
+                </div>
+                <div class="flow-step">
+                    <h4>Professional Reports</h4>
+                    <p>HTML reports, Excel audit trails, compliance documentation</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="excel-generation" class="section">
+            <h2>6. Excel Audit Trail Generation</h2>
+            
+            <div class="success">
+                <h4>📊 Multi-Sheet Excel Workbooks</h4>
+                <p>Comprehensive Excel audit trails with detailed calculation tracing for each industry standard.</p>
+            </div>
+
+            <h3>📋 Excel Workbook Structure</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📊 Overview Sheet</h4>
+                    <p>Executive summary with all compliance status and key metrics</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔬 Standards Compliance</h4>
+                    <p>Dedicated sheets for each of the 10 industry standards</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📈 Calculation Details</h4>
+                    <p>Mathematical formulas, inputs, outputs, and methodology</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📋 Audit Trail</h4>
+                    <p>Complete calculation history with timestamps and references</p>
+                </div>
+            </div>
+
+            <h3>🎯 Excel Generation Features</h3>
+            <div class="code-block">
+# Excel Audit Trail Generation
+def export_audit_trail_to_excel(filename, project_name):
+    """
+    Generate comprehensive Excel audit trail with:
+    - Multi-sheet workbook structure
+    - Standards compliance sheets
+    - Calculation methodology documentation
+    - Complete audit trail logging
+    """
+    workbook = openpyxl.Workbook()
+    
+    # Create sheets for each standard
+    standards = [
+        "IEEE 519-2014/2022", "ASHRAE Guideline 14", "IPMVP",
+        "ANSI C12.1/C12.20", "NEMA MG1", "IEC 61000-2-2",
+        "ANSI C57.12.00", "IEC 61000-4-30", "IEC 61000-4-7", "IEC 60034-30-1"
+    ]
+    
+    for standard in standards:
+        create_standards_compliance_sheet(workbook, standard)
+    
+    workbook.save(filename)
+            </div>
+        </div>
+
+        <div id="recent-updates" class="section">
+            <h2>7. Recent Updates (Version {{ version }})</h2>
+            
+            <h3>🚀 Direct GET Approach Implementation</h3>
+            <div class="info">
+                <h4>🎯 Single Source of Truth</h4>
+                <ul>
+                    <li><strong>HTML Service Integration:</strong> Implemented Direct GET approach for Client HTML Report generation</li>
+                    <li><strong>Real-time Data Access:</strong> Client HTML Report directly fetches calculated values from UI</li>
+                    <li><strong>Eliminated Duplicates:</strong> No more duplicate calculations ensuring consistency</li>
+                    <li><strong>Template Processing:</strong> Enhanced with proper Unicode character handling</li>
+                </ul>
+            </div>
+
+            <h3>🎨 Enhanced User Interface</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📋 Prepared for Section</h4>
+                    <p>Added comprehensive client information section to Client HTML Report</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎨 Layout Optimization</h4>
+                    <p>Improved report layout with proper section organization</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔤 Unicode Support</h4>
+                    <p>Fixed ASCII/Unicode character encoding for proper symbol display</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📄 Professional Presentation</h4>
+                    <p>Enhanced formatting for utility company submissions</p>
+                </div>
+            </div>
+
+            <h3>📊 Excel Audit Trail Generation</h3>
+            <div class="success">
+                <h4>✅ Enhanced Excel Features</h4>
+                <ul>
+                    <li><strong>Multi-sheet Workbooks:</strong> Comprehensive calculation tracing</li>
+                    <li><strong>Standards Compliance Sheets:</strong> Dedicated sheets for each standard</li>
+                    <li><strong>Methodology Documentation:</strong> Detailed mathematical formulas</li>
+                    <li><strong>Audit Readiness:</strong> Complete audit trail for utility submissions</li>
+                </ul>
+            </div>
+
+            <h3>🏗️ System Architecture Improvements</h3>
+            <div class="standard-card">
+                <h4>🔧 Microservices Integration</h4>
+                <ul>
+                    <li><strong>Analysis Service (8082):</strong> Enhanced communication with HTML service</li>
+                    <li><strong>Weather Service (8085):</strong> Improved integration for comprehensive analysis</li>
+                    <li><strong>Service Management:</strong> Enhanced startup and management procedures</li>
+                    <li><strong>Error Handling:</strong> Improved error handling and service recovery</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="maintenance" class="section">
+            <h2>8. Maintenance & Quality Assurance</h2>
+            
+            <h3>🔄 Standards Updates</h3>
+            <div class="info">
+                <h4>📋 Version Control</h4>
+                <ul>
+                    <li><strong>Standards References:</strong> All standards include version numbers</li>
+                    <li><strong>Calculation Updates:</strong> Methods updated when standards change</li>
+                    <li><strong>Audit Trail:</strong> Maintained for all changes</li>
+                    <li><strong>Documentation:</strong> Updated with any changes</li>
+                </ul>
+            </div>
+
+            <h3>✅ Quality Assurance</h3>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🧪 Testing</h4>
+                    <p>All calculations tested against known values</p>
+                </div>
+                <div class="feature-card">
+                    <h4>✅ Verification</h4>
+                    <p>Compliance status verified independently</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📋 Documentation</h4>
+                    <p>Updated with any changes</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔄 Maintenance</h4>
+                    <p>Regular review and updates</p>
+                </div>
+            </div>
+
+            <div class="warning">
+                <h4>📅 Maintenance Schedule</h4>
+                <ul>
+                    <li><strong>Next Review:</strong> January 13, 2026</li>
+                    <li><strong>Standards Updates:</strong> As needed when industry standards change</li>
+                    <li><strong>Quality Assurance:</strong> Continuous monitoring and testing</li>
+                    <li><strong>Documentation:</strong> Updated with each system enhancement</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📞 Support & Contact</h2>
+            <div class="info">
+                <h4>🆘 Technical Support</h4>
+                <p>For technical support, questions about standards compliance, or system maintenance, please contact the SYNEREX Development Team.</p>
+                <p><strong>Analysis Version:</strong> {{ version }} | <strong>Last Updated:</strong> January 13, 2025</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+
+    <script>
+        // Show/hide back to top button
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.style.display = 'block';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+
+        // Smooth scrolling for table of contents links
+        document.querySelectorAll('.toc a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "syntax_errors": 0,
+  "import_conflicts": 99,
+  "function_conflicts": 24,
+  "variable_conflicts": 2537,
+  "dependency_issues": 5737,
+  "code_quality_issues": 520,
+  "compatibility_conflicts": 4653,
+  "total_issues": 13570
+}

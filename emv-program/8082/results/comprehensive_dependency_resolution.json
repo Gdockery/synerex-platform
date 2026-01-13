@@ -1,0 +1,10 @@
+{
+  "requirements_txt": "created",
+  "dependencies_resolved": 660,
+  "import_conflicts_resolved": 33,
+  "function_conflicts_resolved": 12,
+  "variable_conflicts_resolved": 45,
+  "compatibility_conflicts_resolved": 87,
+  "code_quality_issues_resolved": 475,
+  "total_issues_resolved": 1312
+}

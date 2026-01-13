@@ -1,0 +1,77 @@
+{
+  "location_analysis": {
+    "location": "Miami, Florida",
+    "climate_zone": "zone_1",
+    "zone_description": "Very Hot, Humid (Florida, Hawaii)",
+    "temperature_analysis": {
+      "current_temperature": 85,
+      "climate_zone_range": [
+        70,
+        95
+      ],
+      "temperature_analysis": {
+        "above_normal": false,
+        "below_normal": false,
+        "optimal_range": true,
+        "cooling_load_impact": 10,
+        "heating_load_impact": 0
+      }
+    },
+    "energy_characteristics": {
+      "primary_concern": "Cooling loads",
+      "energy_intensity": 25,
+      "peak_demand": "Summer afternoons",
+      "efficiency_focus": "HVAC optimization, shading"
+    }
+  },
+  "regional_energy_data": {
+    "utility_rates": {
+      "peak_rate": 0.15,
+      "off_peak_rate": 0.1,
+      "demand_charge": 6.5,
+      "time_of_use": false,
+      "renewable_percentage": 20
+    },
+    "renewable_percentage": 20,
+    "incentives": [
+      "Property tax exemption",
+      "Sales tax exemption"
+    ],
+    "energy_trends": [
+      "Solar growth",
+      "Hurricane resilience",
+      "Grid hardening"
+    ]
+  },
+  "recommendations": [
+    "Optimize HVAC systems for cooling efficiency",
+    "Consider solar shading and thermal mass",
+    "Implement demand response for peak cooling",
+    "Evaluate chiller efficiency and controls",
+    "High cooling load detected - focus on HVAC optimization",
+    "Consider thermal storage systems",
+    "Evaluate building envelope improvements"
+  ],
+  "energy_opportunities": [
+    {
+      "type": "Cooling Optimization",
+      "description": "High cooling load presents efficiency opportunities",
+      "potential_savings": "15-25%",
+      "technologies": [
+        "High-efficiency chillers",
+        "Thermal storage",
+        "Demand response"
+      ]
+    },
+    {
+      "type": "HVAC Optimization",
+      "description": "Climate zone favors HVAC efficiency improvements",
+      "potential_savings": "10-20%",
+      "technologies": [
+        "Variable speed drives",
+        "Smart controls",
+        "Energy recovery"
+      ]
+    }
+  ]
+}

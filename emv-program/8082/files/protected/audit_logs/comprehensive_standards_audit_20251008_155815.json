@@ -1,0 +1,162 @@
+{
+  "audit_metadata": {
+    "report_title": "Comprehensive Standards Compliance Audit Report",
+    "generated_date": "2025-10-08T15:58:15.939715",
+    "audit_type": "Dynamic Data Compliance Verification",
+    "system_version": "SYNEREX OneForm v2.0",
+    "auditor": "Automated Standards Compliance System"
+  },
+  "executive_summary": {
+    "total_standards_tested": 10,
+    "standards_passed": 6,
+    "standards_failed": 4,
+    "overall_compliance_percentage": 60.0,
+    "compliance_status": "NON-COMPLIANT",
+    "data_source": "Real measurement data (not hardcoded)",
+    "audit_methodology": "Dynamic function testing with actual system data"
+  },
+  "detailed_results": {
+    "IEEE_519": {
+      "standard": "IEEE 519-2014",
+      "title": "Harmonic Limits",
+      "status": "FAIL",
+      "details": {
+        "standard": "IEEE 519-2014/2022",
+        "calculation_type": "TDD_LIMIT",
+        "is_verified": false,
+        "errors": [
+          "TDD limit mismatch: expected 5.0%, got 8.0%"
+        ],
+        "warnings": [],
+        "methodology": "ISC/IL ratio-based TDD limits per IEEE 519-2014/2022"
+      },
+      "test_data_used": "Real power quality measurements"
+    },
+    "ASHRAE_14": {
+      "standard": "ASHRAE Guideline 14",
+      "title": "Measurement of Energy and Demand Savings",
+      "status": "PASS",
+      "details": {
+        "standard": "ASHRAE Guideline 14",
+        "calculation_type": "RELATIVE_PRECISION",
+        "is_verified": true,
+        "errors": [],
+        "warnings": [],
+        "methodology": "Relative precision < 50% @ 95% CL per ASHRAE Guideline 14"
+      },
+      "test_data_used": "Real power quality measurements"
+    },
+    "NEMA_MG1": {
+      "standard": "NEMA MG1",
+      "title": "Motor Efficiency Standards",
+      "status": "FAIL",
+      "details": {
+        "standard": "NEMA MG1",
+        "calculation_type": "VOLTAGE_UNBALANCE",
+        "is_verified": true,
+        "errors": [],
+        "warnings": [
+          "Voltage unbalance 2.55% exceeds NEMA MG1 limit of 1%"
+        ],
+        "methodology": "Voltage unbalance < 1% per NEMA MG1 standard"
+      },
+      "test_data_used": "Real power quality measurements"
+    },
+    "IEC_61000_4_30": {
+      "standard": "IEC 61000-4-30",
+      "title": "Class A Accuracy Requirements",
+      "status": "FAIL",
+      "details": {
+        "standard": "IEC 61000-4-30",
+        "class": "Class A",
+        "overall_compliant": true,
+        "compliance_details": {
+          "power_measurement": {
+            "iec_limit_percent": 0.5,
+            "measured_accuracy_percent": 0.3,
+            "is_compliant": true,
+            "margin_percent": 0.2
+          },
+          "voltage_measurement": {
+            "iec_limit_percent": 0.2,
+            "measured_accuracy_percent": 0.1,
+            "is_compliant": true,
+            "margin_percent": 0.1
+          },
+          "current_measurement": {
+            "iec_limit_percent": 0.2,
+            "measured_accuracy_percent": 0.1,
+            "is_compliant": true,
+            "margin_percent": 0.1
+          },
+          "frequency_measurement": {
+            "iec_limit_percent": 0.01,
+            "measured_accuracy_percent": 0.005,
+            "is_compliant": true,
+            "margin_percent": 0.005
+          },
+          "phase_angle": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "harmonic_voltage": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "harmonic_current": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "interharmonic_voltage": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "interharmonic_current": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "flicker": {
+            "iec_limit_percent": 5.0,
+            "measured_accuracy_percent": 2.0,
+            "is_compliant": true,
+            "margin_percent": 3.0
+          },
+          "voltage_unbalance": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          },
+          "current_unbalance": {
+            "iec_limit_percent": 0.1,
+            "measured_accuracy_percent": 0.05,
+            "is_compliant": true,
+            "margin_percent": 0.05
+          }
+        },
+        "summary": {
+          "total_parameters": 12,
+          "compliant_parameters": 12,
+          "non_compliant_parameters": 0
+        }
+      },
+      "test_data_used": "Real measurement accuracy data"
+    },
+    "IEC_61000_4_7": {
+      "standard": "IEC 61000-4-7",
+      "title": "Harmonic and Interharmonic Measurement",
+      "status": "PASS",
+      "details": {
+        "standard": "IEC 61000-4-7",
+        "methodology": "Harmonic and Interharmonic Measurement",
+        "is_compliant": 

@@ -1,0 +1,62 @@
+{
+  "ieee_519_2022": {
+    "title": "IEEE 519-2022 Harmonic Limits",
+    "description": "IEEE Standard for Harmonic Control in Electric Power Systems",
+    "harmonic_limits": {
+      "voltage_thd": {
+        "general_systems": "5%",
+        "sensitive_equipment": "3%",
+        "critical_systems": "1%"
+      },
+      "current_thd": {
+        "general_systems": "8%",
+        "sensitive_equipment": "5%",
+        "critical_systems": "3%"
+      },
+      "individual_harmonics": {
+        "5th_harmonic": "3%",
+        "7th_harmonic": "3%",
+        "11th_harmonic": "1.5%",
+        "13th_harmonic": "1.5%"
+      }
+    },
+    "compliance_methods": [
+      "Harmonic analysis using FFT",
+      "Load flow analysis with harmonic injection",
+      "Filter design and sizing",
+      "Equipment derating calculations"
+    ],
+    "applications": [
+      "Industrial facilities",
+      "Commercial buildings",
+      "Data centers",
+      "Healthcare facilities"
+    ]
+  },
+  "ashrae_guideline_14": {
+    "title": "ASHRAE Guideline 14-2014 Measurement & Verification",
+    "description": "Measurement of Energy and Demand Savings",
+    "requirements": {
+      "baseline_period": "12 months minimum",
+      "reporting_period": "12 months minimum",
+      "uncertainty_requirements": "< 10% for energy savings",
+      "weather_normalization": "Required for HVAC systems"
+    },
+    "calculation_methods": [
+      "Baseline energy modeling",
+      "Weather normalization",
+      "Uncertainty analysis",
+      "Savings calculation"
+    ]
+  },
+  "nec_2023": {
+    "title": "National Electrical Code 2023",
+    "description": "Electrical installation and safety requirements",
+    "key_requirements": {
+      "grounding": "Equipment grounding per Article 250",
+      "overcurrent_protection": "Article 240 requirements",
+      "conductor_sizing": "Article 310 ampacity tables",
+      "motor_protection": "Article 430 motor requirements"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+# Enhanced PDF Generation Service Dependencies
+# Core PDF generation
+reportlab>=4.0.0
+
+# Additional dependencies for PDF generation
+# Updated for Python 3.13 compatibility
+Pillow>=10.0.0
+lxml>=6.0.0
+
+# Note: svglib removed as it requires rlpycairo/pycairo which needs Cairo system libraries
+# SVG conversion can be handled by reportlab directly or omitted if not critical
+# This ensures no system library dependencies are required

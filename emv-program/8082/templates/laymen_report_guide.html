@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Read Your Energy Analysis Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c5aa0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #2c5aa0;
+            font-size: 2.5em;
+            margin: 0;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin: 10px 0;
+        }
+
+        .version-info {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .toc {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            color: #2c5aa0;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .toc a {
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .toc a:hover {
+            color: #1e3a5f;
+            text-decoration: underline;
+        }
+
+        .section {
+            background: white;
+            margin: 30px 0;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #2c5aa0;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #2c5aa0;
+            font-size: 1.4em;
+            margin: 25px 0 15px 0;
+        }
+
+        .section h4 {
+            color: #495057;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        .highlight-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2c5aa0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success-box {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .icon {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c5aa0;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .comparison-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #2c5aa0;
+        }
+
+        .good {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .attention {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .needs-work {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .analogy {
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            padding: 15px;
+            margin: 15px 0;
+            font-style: italic;
+            color: #495057;
+        }
+
+        .action-item {
+            background: #e3f2fd;
+            border: 1px solid #2c5aa0;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .action-item h4 {
+            color: #2c5aa0;
+            margin: 0 0 10px 0;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2c5aa0;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .back-to-top:hover {
+            background: #1e3a5f;
+        }
+
+        .glossary {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .glossary-term {
+            font-weight: bold;
+            color: #2c5aa0;
+        }
+
+        .glossary-definition {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 How to Read Your Energy Analysis Report</h1>
+            <p class="subtitle">A Business-Friendly Guide to Understanding Your Energy Savings</p>
+            <p class="version-info"><strong>Analysis Version: {{ version }}</strong> | <strong>Last Updated:</strong> January 13, 2025</p>
+        </div>
+
+        <div class="toc">
+            <h2>📋 Table of Contents</h2>
+            <ul>
+                <li><a href="#executive-summary">1. Executive Summary - What This Report Tells You</a></li>
+                <li><a href="#key-metrics">2. Key Business Metrics - The Numbers That Matter</a></li>
+                <li><a href="#facility-specific-metrics">2.5. Facility-Specific Metrics (Version 3.8)</a></li>
+                <li><a href="#energy-savings">3. Energy Savings - How Much Money You're Saving</a></li>
+                <li><a href="#power-quality">4. Power Quality - Protecting Your Equipment</a></li>
+                <li><a href="#standards-compliance">5. Standards Compliance - Meeting Industry Requirements</a></li>
+                <li><a href="#statistical-analysis">6. Statistical Analysis - How Confident We Are</a></li>
+                <li><a href="#what-to-do-next">7. What to Do Next - Action Items</a></li>
+                <li><a href="#glossary">8. Glossary - Understanding the Technical Terms</a></li>
+            </ul>
+        </div>
+
+        <div class="section" id="executive-summary">
+            <h2>🎯 Executive Summary - What This Report Tells You</h2>
+            
+            <div class="highlight-box">
+                <h3>💡 The Bottom Line</h3>
+                <p>This report shows you exactly how much money and energy your Synerex system is saving you, and proves that the investment is working as promised. Think of it like a detailed financial statement for your energy efficiency investment.</p>
+            </div>
+
+            <h3>🔍 What You'll Find in This Report</h3>
+            <ul>
+                <li><strong>💰 Financial Impact:</strong> Exact dollar amounts you're saving each month and year</li>
+                <li><strong>⚡ Energy Savings:</strong> How much electricity you're no longer wasting</li>
+                <li><strong>🛡️ Equipment Protection:</strong> How your electrical equipment is being protected</li>
+                <li><strong>📊 Data Quality:</strong> Proof that our measurements are accurate and reliable</li>
+                <li><strong>✅ Standards Compliance:</strong> Confirmation that everything meets industry standards</li>
+            </ul>
+
+            <div class="analogy">
+                <strong>Think of it like this:</strong> If you bought a fuel-efficient car, you'd want to see exactly how much gas you're saving compared to your old car. This report does the same thing, but for your entire electrical system.
+            </div>
+        </div>
+
+        <div class="section" id="key-metrics">
+            <h2>📈 Key Business Metrics - The Numbers That Matter</h2>
+            
+            <h3>💰 Financial Impact</h3>
+            <div class="metric-card">
+                <div class="metric-value">$X,XXX</div>
+                <div class="metric-label">Monthly Savings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">$XX,XXX</div>
+                <div class="metric-label">Annual Savings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">X.X Years</div>
+                <div class="metric-label">Payback Period</div>
+            </div>
+
+            <div class="success-box">
+                <h4>✅ What This Means for Your Business</h4>
+                <p>These numbers represent real money that stays in your pocket instead of going to the utility company. The payback period shows how quickly your investment pays for itself.</p>
+            </div>
+
+            <h3>⚡ Energy Impact</h3>
+            <div class="metric-card">
+                <div class="metric-value">X,XXX kWh</div>
+                <div class="metric-label">Monthly Energy Saved</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">XX%</div>
+                <div class="metric-label">Efficiency Improvement</div>
+            </div>
+
+            <div class="highlight-box">
+                <h4>💡 Energy Savings Explained</h4>
+                <p>kWh (kilowatt-hours) is how electricity is measured - like gallons of gas for your car. The more kWh you save, the less you pay on your electric bill. A typical home uses about 1,000 kWh per month, so saving 500 kWh is like powering half a house for free!</p>
+            </div>
+        </div>
+
+        <div class="section" id="facility-specific-metrics">
+            <h2>🏭 Facility-Specific Metrics - Understanding Your Industry's Numbers (Version 3.8)</h2>
+            
+            <p>Depending on your facility type, your report may include specialized metrics that are specific to your industry. These metrics help you understand energy efficiency in terms that make sense for your business.</p>
+
+            <h3>❄️ Cold Storage Facilities</h3>
+            <div class="metric-card">
+                <div class="metric-value">X.XX kWh/lb</div>
+                <div class="metric-label">Energy per Pound of Product</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Means:</h4>
+                <p>This tells you how much electricity it takes to store one pound of your product. Lower is better! If you're storing 10,000 pounds and using 0.5 kWh per pound, that's 5,000 kWh total. If you can reduce it to 0.4 kWh per pound, you save 1,000 kWh - that's real money!</p>
+                <p><strong>Think of it like:</strong> Miles per gallon for your storage facility. The more efficient, the less energy per unit stored.</p>
+            </div>
+
+            <h3>🖥️ Data Center / GPU Facilities</h3>
+            <div class="metric-card">
+                <div class="metric-value">X.XX</div>
+                <div class="metric-label">PUE (Power Usage Effectiveness)</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Means:</h4>
+                <p>PUE measures how efficiently your data center uses power. A PUE of 1.0 would be perfect (all power goes to computing), but most data centers are between 1.5 and 2.0. Lower is better! If your PUE improves from 2.0 to 1.5, you're using 25% less power for the same computing work.</p>
+                <p><strong>Think of it like:</strong> If your car used 2 gallons of gas to go 1 mile, that's inefficient. A PUE of 1.5 means you're using 1.5 gallons to go 1 mile - still room for improvement, but better!</p>
+            </div>
+
+            <h3>🏥 Healthcare Facilities</h3>
+            <div class="metric-card">
+                <div class="metric-value">XX.X kWh</div>
+                <div class="metric-label">Energy per Patient Day</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Means:</h4>
+                <p>This shows how much energy it takes to care for one patient for one day. This helps you understand if your energy use is reasonable for the number of patients you're serving. If you have 100 patients and use 50 kWh per patient day, that's 5,000 kWh per day total.</p>
+                <p><strong>Think of it like:</strong> Cost per customer in a restaurant. You want to know if you're spending too much energy per patient compared to industry standards.</p>
+            </div>
+
+            <h3>🏨 Hospitality Facilities</h3>
+            <div class="metric-card">
+                <div class="metric-value">XX.X kWh</div>
+                <div class="metric-label">Energy per Room-Night (Hotels)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">X.XX kWh</div>
+                <div class="metric-label">Energy per Meal (Restaurants)</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Means:</h4>
+                <p><strong>For Hotels:</strong> This tells you how much energy it takes to serve one guest for one night. If you have 50 occupied rooms and use 30 kWh per room-night, that's 1,500 kWh per day. Lower is better!</p>
+                <p><strong>For Restaurants:</strong> This shows energy per meal served. If you serve 200 meals and use 2 kWh per meal, that's 400 kWh per day. This helps you understand if your kitchen is energy-efficient.</p>
+                <p><strong>Think of it like:</strong> Cost per unit sold. You want to minimize energy cost per room or per meal to maximize profit.</p>
+            </div>
+
+            <h3>🏭 Manufacturing & Industrial Facilities</h3>
+            <div class="metric-card">
+                <div class="metric-value">X.XX kWh</div>
+                <div class="metric-label">Energy per Unit Produced</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Means:</h4>
+                <p>This is THE most important metric for manufacturing! It tells you how much energy it takes to make one unit of your product. If you produce 1,000 units and use 5 kWh per unit, that's 5,000 kWh total. If you can reduce it to 4 kWh per unit, you save 1,000 kWh - that's money in your pocket!</p>
+                <p><strong>Think of it like:</strong> Cost per widget. The lower the energy cost per unit, the more profitable each unit becomes. This directly impacts your bottom line.</p>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">X.XX kWh</div>
+                <div class="metric-label">Energy per Machine Hour</div>
+            </div>
+            <div class="highlight-box">
+                <h4>💡 What This Also Means:</h4>
+                <p>This shows how efficiently your machines are running. If a machine runs for 100 hours and uses 500 kWh, that's 5 kWh per machine hour. This helps you identify which machines are energy hogs and which are efficient.</p>
+            </div>
+
+            <div class="success-box">
+                <h4>✅ Why Facility-Specific Metrics Matter</h4>
+                <p>These metrics help you:</p>
+                <ul>
+                    <li><strong>Compare to Industry Standards:</strong> See how you stack up against similar facilities</li>
+                    <li><strong>Track Progress:</strong> Measure improvement over time in terms that matter to your business</li>
+                    <li><strong>Make Better Decisions:</strong> Understand which operations are most energy-intensive</li>
+                    <li><strong>Justify Investments:</strong> Show ROI in terms that executives and stakeholders understand</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="energy-savings">
+            <h2>💡 Energy Savings - How Much Money You're Saving</h2>
+            
+            <h3>📊 Before vs. After Comparison</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Before Synerex</th>
+                        <th>After Synerex</th>
+                        <th>Improvement</th>
+                        <th>What This Means</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Monthly Energy Use</td>
+                        <td>X,XXX kWh</td>
+                        <td>X,XXX kWh</td>
+                        <td class="good">-XX%</td>
+                        <td>You're using less electricity</td>
+                    </tr>
+                    <tr>
+                        <td>Monthly Cost</td>
+                        <td>$X,XXX</td>
+                        <td>$X,XXX</td>
+                        <td class="good">-$XXX</td>
+                        <td>Money saved every month</td>
+                    </tr>
+                    <tr>
+                        <td>Power Factor</td>
+                        <td>0.XX</td>
+                        <td>0.XX</td>
+                        <td class="good">+X%</td>
+                        <td>More efficient power usage</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="success-box">
+                <h4>🎉 What This Means for You</h4>
+                <ul>
+                    <li><strong>Lower Electric Bills:</strong> You're paying less every month</li>
+                    <li><strong>Better Efficiency:</strong> Your equipment is working more efficiently</li>
+                    <li><strong>Reduced Waste:</strong> Less energy is being wasted as heat</li>
+                    <li><strong>Environmental Impact:</strong> You're using less energy, which is better for the environment</li>
+                </ul>
+            </div>
+
+            <div class="analogy">
+                <strong>Think of it like this:</strong> If your car was getting 20 miles per gallon and now gets 30 miles per gallon, you'd save money on gas. Your electrical system is now more "fuel efficient" too!
+            </div>
+        </div>
+
+        <div class="section" id="power-quality">
+            <h2>🛡️ Power Quality - Protecting Your Equipment</h2>
+            
+            <h3>⚡ What is Power Quality?</h3>
+            <p>Power quality is like the "health" of your electrical system. Just like you want clean water coming into your house, you want clean electricity powering your equipment.</p>
+
+            <div class="highlight-box">
+                <h4>🔍 Why Power Quality Matters</h4>
+                <ul>
+                    <li><strong>Equipment Protection:</strong> Clean power protects your expensive equipment from damage</li>
+                    <li><strong>Longer Lifespan:</strong> Equipment lasts longer when it gets clean power</li>
+                    <li><strong>Better Performance:</strong> Equipment works more efficiently with clean power</li>
+                    <li><strong>Reduced Maintenance:</strong> Less wear and tear means fewer repairs</li>
+                </ul>
+            </div>
+
+            <h3>📊 Power Quality Metrics</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Measurement</th>
+                        <th>Before</th>
+                        <th>After</th>
+                        <th>Status</th>
+                        <th>What This Means</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>THD (Electrical "Noise")</td>
+                        <td>X.X%</td>
+                        <td>X.X%</td>
+                        <td class="good">✅ PASS</td>
+                        <td>Less electrical interference</td>
+                    </tr>
+                    <tr>
+                        <td>Voltage Stability</td>
+                        <td>XXX V</td>
+                        <td>XXX V</td>
+                        <td class="good">✅ PASS</td>
+                        <td>More stable voltage</td>
+                    </tr>
+                    <tr>
+                        <td>Power Factor</td>
+                        <td>0.XX</td>
+                        <td>0.XX</td>
+                        <td class="good">✅ PASS</td>
+                        <td>More efficient power usage</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="success-box">
+                <h4>✅ Standards Compliance</h4>
+                <p>Your system now meets <strong>IEEE 519</strong> standards, which are the industry requirements for power quality. This means:</p>
+                <ul>
+                    <li>Your equipment is protected from electrical damage</li>
+                    <li>You're meeting utility company requirements</li>
+                    <li>Your system is operating at professional standards</li>
+                </ul>
+            </div>
+
+            <div class="analogy">
+                <strong>Think of it like this:</strong> If you had a water filter that removed impurities from your drinking water, your appliances would last longer and work better. Synerex is like a "filter" for your electrical system!
+            </div>
+        </div>
+
+        <div class="section" id="standards-compliance">
+            <h2>✅ Standards Compliance - Meeting Industry Requirements</h2>
+            
+            <h3>🏆 What Standards Mean</h3>
+            <p>Standards are like "rules of the road" for electrical systems. They ensure everything works safely and efficiently. Your Synerex system meets all the important industry standards.</p>
+
+            <div class="highlight-box">
+                <h4>📋 Key Standards Your System Meets</h4>
+                <ul>
+                    <li><strong>IEEE 519:</strong> Power quality standards (like electrical "traffic rules")</li>
+                    <li><strong>ASHRAE Guideline 14:</strong> Energy measurement accuracy (like a precise scale)</li>
+                    <li><strong>IPMVP:</strong> International standards for measuring energy savings</li>
+                    <li><strong>NEMA MG1:</strong> Motor efficiency standards</li>
+                </ul>
+            </div>
+
+            <h3>📊 Compliance Status</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Standard</th>
+                        <th>Requirement</th>
+                        <th>Your Result</th>
+                        <th>Status</th>
+                        <th>What This Means</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>IEEE 519</td>
+                        <td>THD < 5%</td>
+                        <td>X.X%</td>
+                        <td class="good">✅ PASS</td>
+                        <td>Excellent power quality</td>
+                    </tr>
+                    <tr>
+                        <td>ASHRAE</td>
+                        <td>Precision < 50%</td>
+                        <td>XX%</td>
+                        <td class="good">✅ PASS</td>
+                        <td>Very accurate measurements</td>
+                    </tr>
+                    <tr>
+                        <td>Statistical</td>
+                        <td>p < 0.05</td>
+                        <td>0.XXX</td>
+                        <td class="good">✅ PASS</td>
+                        <td>Results are statistically valid</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="success-box">
+                <h4>🎉 Why This Matters for Your Business</h4>
+                <ul>
+                    <li><strong>Professional Credibility:</strong> Your system meets industry standards</li>
+                    <li><strong>Utility Compliance:</strong> You won't have issues with your utility company</li>
+                    <li><strong>Insurance Benefits:</strong> Some insurance companies offer discounts for compliant systems</li>
+                    <li><strong>Resale Value:</strong> Your facility is more valuable with compliant systems</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="statistical-analysis">
+            <h2>📊 Statistical Analysis - How Confident We Are</h2>
+            
+            <h3>🔬 What Statistical Analysis Means</h3>
+            <p>Statistical analysis is like a "confidence meter" for our measurements. It tells us how sure we are that the savings are real and not just random variation.</p>
+
+            <div class="highlight-box">
+                <h4>📈 Key Statistical Metrics</h4>
+                <ul>
+                    <li><strong>Statistical Significance:</strong> How confident we are that the results are real</li>
+                    <li><strong>Confidence Interval:</strong> The range of likely savings</li>
+                    <li><strong>Data Quality:</strong> How reliable our measurements are</li>
+                    <li><strong>Sample Size:</strong> How much data we analyzed</li>
+                </ul>
+            </div>
+
+            <h3>📊 Your Statistical Results</h3>
+            <div class="metric-card">
+                <div class="metric-value">95%</div>
+                <div class="metric-label">Confidence Level</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">X,XXX</div>
+                <div class="metric-label">Data Points Analyzed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">XX%</div>
+                <div class="metric-label">Measurement Precision</div>
+            </div>
+
+            <div class="success-box">
+                <h4>✅ What This Means</h4>
+                <p>We are <strong>95% confident</strong> that your energy savings are real and will continue. This is the same level of confidence used in medical research and scientific studies.</p>
+            </div>
+
+            <div class="analogy">
+                <strong>Think of it like this:</strong> If a doctor said "I'm 95% confident this medicine will work," you'd feel pretty good about taking it. We're equally confident about your energy savings!
+            </div>
+        </div>
+
+        <div class="section" id="what-to-do-next">
+            <h2>🎯 What to Do Next - Action Items</h2>
+            
+            <h3>📋 Immediate Actions (Next 30 Days)</h3>
+            <div class="action-item">
+                <h4>📊 Review Your Electric Bills</h4>
+                <p>Compare your recent bills to see the savings in action. Look for the "kWh used" and "total cost" sections.</p>
+            </div>
+            
+            <div class="action-item">
+                <h4>📈 Track Your Progress</h4>
+                <p>Keep a simple spreadsheet of your monthly energy usage and costs to see the ongoing benefits.</p>
+            </div>
+            
+            <div class="action-item">
+                <h4>🔄 Schedule Follow-up Analysis</h4>
+                <p>Plan for another analysis in 6-12 months to see continued improvements and validate ongoing savings.</p>
+            </div>
+
+            <h3>📅 Long-term Actions (Next 6-12 Months)</h3>
+            <div class="action-item">
+                <h4>💰 Calculate Your ROI</h4>
+                <p>Use the savings data to calculate your return on investment and payback period.</p>
+            </div>
+            
+            <div class="action-item">
+                <h4>📢 Share the Results</h4>
+                <p>Consider sharing your success story with other facilities or in industry publications.</p>
+            </div>
+            
+            <div class="action-item">
+                <h4>🔧 Plan for Maintenance</h4>
+                <p>Schedule regular maintenance to ensure your Synerex system continues performing optimally.</p>
+            </div>
+
+            <div class="highlight-box">
+                <h4>💡 Pro Tips for Maximum Benefit</h4>
+                <ul>
+                    <li><strong>Monitor Regularly:</strong> Check your energy usage monthly to catch any issues early</li>
+                    <li><strong>Document Everything:</strong> Keep records of your savings for future reference</li>
+                    <li><strong>Share Success:</strong> Use your results to justify future energy efficiency investments</li>
+                    <li><strong>Stay Informed:</strong> Ask questions if you don't understand any part of the report</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section" id="glossary">
+            <h2>📚 Glossary - Understanding the Technical Terms</h2>
+            
+            <div class="glossary">
+                <div class="glossary-term">kWh (Kilowatt-Hour)</div>
+                <div class="glossary-definition">The unit of measurement for electricity usage. Like gallons for water or miles for distance. Your electric bill shows how many kWh you used.</div>
+
+                <div class="glossary-term">THD (Total Harmonic Distortion)</div>
+                <div class="glossary-definition">A measure of electrical "noise" in your system. Lower is better - it means cleaner power for your equipment.</div>
+
+                <div class="glossary-term">Power Factor</div>
+                <div class="glossary-definition">A measure of how efficiently your electrical system uses power. Higher is better - it means less waste.</div>
+
+                <div class="glossary-term">IEEE 519</div>
+                <div class="glossary-definition">The industry standard for power quality. Meeting this standard means your electrical system is operating at professional levels.</div>
+
+                <div class="glossary-term">ASHRAE Guideline 14</div>
+                <div class="glossary-definition">The industry standard for measuring energy savings accurately. It ensures our measurements are reliable and professional.</div>
+
+                <div class="glossary-term">Statistical Significance</div>
+                <div class="glossary-definition">A measure of how confident we are that the results are real and not just random variation. 95% confidence means we're very sure.</div>
+
+                <div class="glossary-term">Confidence Interval</div>
+                <div class="glossary-definition">The range of likely savings. For example, "between $500 and $700 per month" gives you a realistic expectation.</div>
+
+                <div class="glossary-term">Payback Period</div>
+                <div class="glossary-definition">How long it takes for your investment to pay for itself through energy savings. A 2-year payback means you'll break even in 2 years.</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📞 Need Help Understanding Your Report?</h2>
+            <p>If you have questions about any part of your energy analysis report, don't hesitate to reach out. We're here to help you understand exactly what your system is doing for your business.</p>
+            
+            <div class="highlight-box">
+                <h4>💬 We're Here to Help</h4>
+                <p>Our team can explain any part of your report in simple terms. We want you to feel confident about your investment and understand the value you're receiving.</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Back to Top">↑</button>
+
+    <script>
+        // Show/hide back to top button
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.style.display = 'block';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Synerex - CSV Tamper-Proofing Utility-Grade Audit System (Updated 19:35)</title>
+    <link rel="stylesheet" href="/static/main_dashboard.css?v=1759795628">
+    <link rel="icon" href="/static/synerex_logo_transparent.png" type="image/png">
+</head>
+<body>
+    <!-- Main Dashboard Container -->
+    <div id="main-dashboard" class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-left">
+                <img src="/static/synerex_logo_transparent.png?v=1759795628&t=1759795628" alt="Synerex" class="logo">
+                <h1>CSV Tamper-Proofing Utility-Grade Audit System</h1>
+                <!-- Template updated: 2025-10-05 22:30 - Logo changed to transparent version -->
+            </div>
+            <div class="header-right">
+                <div id="user-info" class="user-info" style="display: none;">
+                    <span id="current-user-name">Welcome, User</span>
+                    <button id="logout-btn" class="btn-logout">Logout</button>
+                </div>
+                <button id="help-btn" class="btn-help">📖 Help</button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Login Section (shown when not authenticated) -->
+            <div id="login-section" class="dashboard-section">
+                <div class="section-header">
+                    <h2>🔐 User Authentication</h2>
+                    <p>Please login to access the CSV Tamper-Proofing Utility-Grade Audit System</p>
+                </div>
+                <div class="section-content">
+                    <div class="login-forms">
+                        <div class="login-form">
+                            <h3>Login</h3>
+                            <form id="user-login">
+                                <div class="form-group">
+                                    <label>Username/Email:</label>
+                                    <input type="text" id="username" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Password:</label>
+                                    <div class="password-input-container">
+                                        <input type="password" id="password" required>
+                                        <button type="button" class="password-toggle" id="toggle-login-password" onclick="togglePasswordVisibility('password', 'toggle-login-password')">
+                                            <span class="eye-icon">👁️</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Role:</label>
+                                    <select id="user-role" required>
+                                        <option value="">Select Role</option>
+                                        <option value="pe">Professional Engineer (PE)</option>
+                                        <option value="engineer">Engineer</option>
+                                        <option value="technician">Technician</option>
+                                        <option value="administrator">System Administrator</option>
+                                        <option value="auditor">Auditor</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn-primary">Login</button>
+                            </form>
+                        </div>
+                        
+                        <div class="register-form">
+                            <h3>Register New User</h3>
+                            <form id="user-registration">
+                                <div class="form-group">
+                                    <label>Full Name:</label>
+                                    <input type="text" id="full-name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Email:</label>
+                                    <input type="email" id="email" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Username:</label>
+                                    <input type="text" id="reg-username" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Password:</label>
+                                    <div class="password-input-container">
+                                        <input type="password" id="reg-password" required placeholder="Minimum 8 characters with numbers and symbols">
+                                        <button type="button" class="password-toggle" id="toggle-password" onclick="togglePasswordVisibility('reg-password', 'toggle-password')">
+                                            <span class="eye-icon">👁️</span>
+                                        </button>
+                                    </div>
+                                    <div class="password-strength">
+                                        <div id="password-strength-bar" class="password-strength-bar"></div>
+                                    </div>
+                                    <div id="password-strength-message" class="password-feedback" style="display: none;"></div>
+                                    <div class="password-requirements">
+                                        <small>Password must contain:</small>
+                                        <ul>
+                                            <li id="req-length">At least 8 characters</li>
+                                            <li id="req-uppercase">One uppercase letter</li>
+                                            <li id="req-lowercase">One lowercase letter</li>
+                                            <li id="req-number">One number</li>
+                                            <li id="req-special">One special character</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Confirm Password:</label>
+                                    <div class="password-input-container">
+                                        <input type="password" id="reg-confirm-password" required placeholder="Re-enter your password">
+                                        <button type="button" class="password-toggle" id="toggle-confirm-password" onclick="togglePasswordVisibility('reg-confirm-password', 'toggle-confirm-password')">
+                                            <span class="eye-icon">👁️</span>
+                                        </button>
+                                    </div>
+                                    <div id="password-match-message" class="password-feedback" style="display: none;"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Role:</label>
+                                    <select id="reg-user-role" required>
+                                        <option value="">Select Role</option>
+                                        <option value="pe">Professional Engineer (PE)</option>
+                                        <option value="engineer">Engineer</option>
+                                        <option value="technician">Technician</option>
+                                        <option value="administrator">System Administrator</option>
+                                        <option value="auditor">Auditor</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>PE License Number (if applicable):</label>
+                                    <input type="text" id="pe-license" placeholder="e.g., PE12345-CA">
+                                </div>
+                                <div class="form-group">
+                                    <label>State/Province:</label>
+                                    <input type="text" id="state" placeholder="e.g., CA, TX, NY">
+                                </div>
+                                <button type="submit" class="btn-primary">Register</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Dashboard (shown when authenticated) -->
+            <div id="main-sections" class="dashboard-sections" style="display: none;">
+                <!-- Raw Meter File Storage -->
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h2>📁 Raw Meter File Storage</h2>
+                        <p>Upload and manage raw CSV files from meters</p>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button id="upload-raw-data" class="btn-primary">📤 Upload Raw Data</button>
+                            <button id="view-raw-files" class="btn-secondary">📋 View Raw Files</button>
+                            <button id="raw-data-stats" class="btn-info">📊 Statistics</button>
+                        </div>
+                        <div class="section-stats">
+                            <div class="stat-card">
+                                <h3 id="raw-files-count">0</h3>
+                                <p>Raw Files</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="raw-files-size">0 MB</h3>
+                                <p>Total Size</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="raw-files-recent">0</h3>
+                                <p>Recent Uploads</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CSV File Review -->
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h2>✂️ CSV File Review</h2>
+                        <p>Review files for integrity and perform clipping operations</p>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button id="start-clipping" class="btn-primary">✂️ Start Clipping</button>
+                            <button id="view-fingerprints" class="btn-secondary">🔍 View Fingerprints</button>
+                            <button id="verify-integrity" class="btn-info">✅ Verify Integrity</button>
+                        </div>
+                        <div class="section-stats">
+                            <div class="stat-card">
+                                <h3 id="clipped-files-count">0</h3>
+                                <p>Clipped Files</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="modifications-count">0</h3>
+                                <p>Modifications</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="integrity-status">100%</h3>
+                                <p>Integrity Status</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Project Management -->
+                <div class="dashboard-section">
+                    <div class="section-header">
+                        <h2>📋 Project Management</h2>
+                        <p>Create new projects or access existing ones</p>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button id="create-project" class="btn-primary">➕ Create New Project</button>
+                            <button id="access-project" class="btn-secondary">📂 Access Project</button>
+                            <button id="project-templates" class="btn-info">📄 Templates</button>
+                        </div>
+                        <div class="section-stats">
+                            <div class="stat-card">
+                                <h3 id="active-projects-count">0</h3>
+                                <p>Active Projects</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="completed-projects-count">0</h3>
+                                <p>Completed</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="project-files-count">0</h3>
+                                <p>Project Files</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PE Management -->
+                <div class="dashboard-section" id="pe-section" style="display: none;">
+                    <div class="section-header">
+                        <h2>👨‍💼 Professional Engineer Management</h2>
+                        <p>Register and manage PE certifications</p>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-actions">
+                            <button id="register-pe" class="btn-primary">👨‍💼 Register New PE</button>
+                            <button id="pe-dashboard" class="btn-secondary">📊 PE Dashboard</button>
+                            <button id="verify-licenses" class="btn-info">✅ Verify Licenses</button>
+                        </div>
+                        <div class="section-stats">
+                            <div class="stat-card">
+                                <h3 id="registered-pe-count">0</h3>
+                                <p>Registered PEs</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="active-pe-count">0</h3>
+                                <p>Active PEs</p>
+                            </div>
+                            <div class="stat-card">
+                                <h3 id="pe-oversight-level">0%</h3>
+                                <p>Oversight Level</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="dashboard-footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="#" id="system-status">System Status</a>
+                    <a href="#" id="audit-compliance">Audit Compliance</a>
+                    <a href="#" id="documentation">Documentation</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help System -->
+    <div id="help-system" class="help-panel" style="display: none;">
+        <div class="help-header">
+            <h3>📖 User Guide</h3>
+            <button id="close-help" class="btn-close">×</button>
+        </div>
+        <div class="help-content">
+            <div class="help-step active" data-step="1">
+                <h4>Step 1: Login or Register</h4>
+                <p>Use the login form to access the system or register a new account with appropriate role permissions.</p>
+            </div>
+            <div class="help-step" data-step="2">
+                <h4>Step 2: Upload Raw Data</h4>
+                <p>Upload raw CSV files from meters to the system for processing and analysis.</p>
+            </div>
+            <div class="help-step" data-step="3">
+                <h4>Step 3: Review and Clip Data</h4>
+                <p>Review uploaded files for integrity and perform clipping operations if needed.</p>
+            </div>
+            <div class="help-step" data-step="4">
+                <h4>Step 4: Create Projects</h4>
+                <p>Create new projects or access existing ones to begin analysis.</p>
+            </div>
+            <div class="help-step" data-step="5">
+                <h4>Step 5: PE Oversight (if applicable)</h4>
+                <p>Professional Engineers can register and provide oversight for projects.</p>
+            </div>
+        </div>
+        <div class="help-navigation">
+            <button id="prev-step" class="btn-secondary">Previous</button>
+            <button id="next-step" class="btn-primary">Next</button>
+        </div>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notification-banner" class="notification-banner" style="display: none;">
+        <div class="notification-content">
+            <span id="notification-text"></span>
+            <button id="notification-close" class="btn-close">×</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        console.log('HTML template loaded, about to load main_dashboard.js');
+        console.log('Cache bust value:', '1759795628');
+    </script>
+    <script src="/static/main_dashboard.js?v=1759795628"></script>
+    <script>
+        console.log('main_dashboard.js script tag loaded');
+    </script>
+<style>.legal-footer{position:fixed;left:0;right:0;bottom:8px;text-align:center;font-size:11px;line-height:1.2;color:#000000;opacity:.85;pointer-events:none;padding:0 12px}body{padding-bottom:44px}</style><footer class="legal-footer">Copyright © 2025-Present. Synerex Laboratories, LLC. All rights reserved. This software is protected by U.S. and international copyright laws. Reproduction and distribution of this software without written permission from Synerex Laboratories, LLC is prohibited.</footer></body>
+</html>
