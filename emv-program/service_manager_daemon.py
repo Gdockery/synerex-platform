@@ -37,6 +37,7 @@ class ServiceManager:
         self.config = self._load_config()
         self.services: Dict[str, ServiceStatus] = {}
         self.processes: Dict[str, subprocess.Popen] = {}
+        self._log_files: Dict[str, tuple] = {}  # Store log file handles for Windows
         self.monitoring_thread = None
         self.running = False
         
@@ -75,8 +76,8 @@ class ServiceManager:
         """Check if a service is healthy by making HTTP request"""
         service_config = self.config['services'][service_id]
         try:
-            # Use longer timeout for main_app (8082) since it can be slow to respond
-            timeout = 10 if service_id == 'main_app' else 2
+            # Use longer timeout for main_app (8082) and weather service (8200) since they can be slow to respond
+            timeout = 10 if service_id == 'main_app' else (5 if service_id == 'weather' else 2)
             url = f"http://127.0.0.1:{service_config['port']}{service_config['health_endpoint']}"
             if service_id == 'main_app':
                 url = "http://127.0.0.1:8082/api/health"
@@ -99,6 +100,39 @@ class ServiceManager:
             # Stop if already running but unhealthy
             if service_status.running:
                 self._stop_service(service_id)
+                # Wait a bit longer after stopping to ensure port is released
+                time.sleep(2)
+            
+            # Verify port is available before starting (especially important on Windows)
+            port = service_config['port']
+            port_available = False
+            max_port_check_attempts = 5
+            for attempt in range(max_port_check_attempts):
+                port_in_use = False
+                try:
+                    import socket
+                    test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    test_sock.settimeout(1)
+                    result = test_sock.connect_ex(('127.0.0.1', port))
+                    test_sock.close()
+                    if result == 0:
+                        port_in_use = True
+                        print(f"Port {port} still in use, waiting... (attempt {attempt + 1}/{max_port_check_attempts})")
+                        time.sleep(2)
+                    else:
+                        port_available = True
+                        break
+                except Exception as e:
+                    print(f"Warning: Could not check port {port}: {e}")
+                    # Assume port is available if we can't check
+                    port_available = True
+                    break
+            
+            if not port_available:
+                error_msg = f"Port {port} is still in use after {max_port_check_attempts} attempts"
+                print(f"ERROR: {error_msg}")
+                service_status.error_message = error_msg
+                return False
             
             # Start the service
             service_dir = self.project_root / service_config['directory']
@@ -113,12 +147,38 @@ class ServiceManager:
             print(f"Script: {script_path}")
             
             # Start service with cross-platform process creation
-            process = subprocess.Popen(
-                [sys.executable, service_config['script']],
-                cwd=str(service_dir),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
+            # On Windows, redirect stdout/stderr to avoid buffer blocking issues
+            if sys.platform == 'win32':
+                # Windows: Use CREATE_NO_WINDOW and redirect to files to avoid buffer blocking
+                logs_dir = self.project_root / "logs"
+                logs_dir.mkdir(exist_ok=True)
+                stdout_file = logs_dir / f"{service_id}_stdout.log"
+                stderr_file = logs_dir / f"{service_id}_stderr.log"
+                
+                # Open files in append mode and keep them open (don't use 'with' block)
+                # The subprocess will inherit the file handles and they must stay open
+                stdout_f = open(stdout_file, 'a', buffering=1)  # Line buffering
+                stderr_f = open(stderr_file, 'a', buffering=1)  # Line buffering
+                
+                process = subprocess.Popen(
+                    [sys.executable, service_config['script']],
+                    cwd=str(service_dir),
+                    stdout=stdout_f,
+                    stderr=stderr_f,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                
+                # Store file handles so they stay open for the process lifetime
+                # We'll close them when the process stops
+                self._log_files[service_id] = (stdout_f, stderr_f)
+            else:
+                # Unix: Redirect to DEVNULL to avoid buffer blocking
+                process = subprocess.Popen(
+                    [sys.executable, service_config['script']],
+                    cwd=str(service_dir),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
             
             self.processes[service_id] = process
             service_status.pid = process.pid
@@ -126,6 +186,35 @@ class ServiceManager:
             service_status.error_message = None
             
             print(f"SUCCESS: {service_status.name} started (PID: {process.pid})")
+            
+            # Check if process is still alive after a brief moment
+            time.sleep(0.5)
+            if process.poll() is not None:
+                # Process died immediately - check for errors
+                error_msg = f"Process exited immediately with code {process.returncode}"
+                print(f"ERROR: {error_msg}")
+                service_status.error_message = error_msg
+                service_status.running = False
+                
+                # Try to read error from stderr log if available
+                if sys.platform == 'win32' and service_id in self._log_files:
+                    try:
+                        stderr_f = self._log_files[service_id][1]
+                        stderr_f.flush()
+                        stderr_file = self.project_root / "logs" / f"{service_id}_stderr.log"
+                        if stderr_file.exists():
+                            with open(stderr_file, 'r') as f:
+                                error_content = f.read()
+                                if error_content:
+                                    print(f"Error output: {error_content[-500:]}")  # Last 500 chars
+                                    service_status.error_message = f"{error_msg}\nLast error output: {error_content[-200:]}"
+                    except:
+                        pass
+                
+                return False
+            
+            # Wait a moment for the service to bind to the port (especially important on Windows)
+            time.sleep(2)
             
             # Wait for service to become healthy (with longer intervals to avoid overwhelming)
             timeout = service_config['startup_timeout']
@@ -162,32 +251,71 @@ class ServiceManager:
                 if process.poll() is None:  # Process is still running
                     print(f"Stopping {service_status.name} (PID: {process.pid})")
                     process.terminate()
-                    process.wait(timeout=5)
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        print(f"Process didn't terminate gracefully, force killing...")
+                        process.kill()
+                        process.wait(timeout=2)
+                
+                # Close log file handles on Windows
+                if sys.platform == 'win32' and service_id in self._log_files:
+                    stdout_f, stderr_f = self._log_files[service_id]
+                    try:
+                        stdout_f.close()
+                        stderr_f.close()
+                    except Exception as e:
+                        print(f"Warning: Error closing log files for {service_status.name}: {e}")
+                    del self._log_files[service_id]
             
-            # Also try to kill by port
-            for proc in psutil.process_iter(['pid', 'name']):
-                try:
-                    if proc.info['name'] == 'python.exe':
-                        connections = proc.net_connections()
-                        for conn in connections:
-                            if conn.laddr.port == service_status.port:
-                                print(f"Stopping {service_status.name} (PID: {proc.pid})")
-                                proc.terminate()
-                                proc.wait(timeout=5)
-                                break
-                except (psutil.AccessDenied, psutil.NoSuchProcess):
-                    continue
+            # Also try to kill by port (especially important on Windows)
+            # Check multiple times to ensure port is released
+            max_port_check_attempts = 10
+            for attempt in range(max_port_check_attempts):
+                port_in_use = False
+                for proc in psutil.process_iter(['pid', 'name']):
+                    try:
+                        if proc.info['name'] == 'python.exe':
+                            connections = proc.net_connections()
+                            for conn in connections:
+                                if conn.laddr.port == service_status.port:
+                                    print(f"Found process {proc.pid} using port {service_status.port}, terminating...")
+                                    proc.terminate()
+                                    try:
+                                        proc.wait(timeout=5)
+                                    except psutil.TimeoutExpired:
+                                        proc.kill()
+                                        try:
+                                            proc.wait(timeout=2)
+                                        except psutil.TimeoutExpired:
+                                            pass  # Process killed, continue
+                                    port_in_use = True
+                                    break
+                    except (psutil.AccessDenied, psutil.NoSuchProcess):
+                        continue
+                
+                if not port_in_use:
+                    break
+                
+                if attempt < max_port_check_attempts - 1:
+                    time.sleep(1)  # Wait before checking again
             
             service_status.running = False
             service_status.pid = None
             if service_id in self.processes:
                 del self.processes[service_id]
             
+            # Additional wait to ensure port is fully released (Windows needs this)
+            if sys.platform == 'win32':
+                time.sleep(1)
+            
             print(f"SUCCESS: {service_status.name} stopped")
             return True
             
         except Exception as e:
             print(f"ERROR: Failed to stop {service_status.name}: {e}")
+            import traceback
+            print(traceback.format_exc())
             return False
     
     def start_all_services(self) -> Dict[str, bool]:
@@ -243,18 +371,104 @@ class ServiceManager:
         
         return result
     
+    def _is_port_in_use(self, port: int) -> bool:
+        """Check if a port is actually in use"""
+        try:
+            import socket
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.settimeout(2)  # Increased timeout for reliability
+            result = test_sock.connect_ex(('127.0.0.1', port))
+            test_sock.close()
+            # connect_ex returns 0 if connection successful (port is in use and accepting connections)
+            is_in_use = result == 0
+            if is_in_use:
+                print(f"DEBUG: Port {port} is in use (connection successful)")
+            return is_in_use
+        except Exception as e:
+            print(f"DEBUG: Error checking port {port}: {e}")
+            return False
+
+    def _get_pid_for_port(self, port: int) -> Optional[int]:
+        """Get PID of process using the port (cross-platform)"""
+        try:
+            if sys.platform == 'win32':
+                # Windows: Use netstat
+                import subprocess
+                result = subprocess.run(
+                    ['netstat', '-ano'],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                for line in result.stdout.split('\n'):
+                    if f':{port}' in line and 'LISTENING' in line:
+                        parts = line.split()
+                        if len(parts) > 0:
+                            pid = parts[-1]
+                            try:
+                                return int(pid)
+                            except:
+                                pass
+            else:
+                # Unix: Use lsof or ss
+                import subprocess
+                try:
+                    result = subprocess.run(
+                        ['lsof', '-ti', f':{port}'],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        return int(result.stdout.strip().split('\n')[0])
+                except:
+                    pass
+        except:
+            pass
+        return None
+
     def get_service_status(self) -> Dict[str, dict]:
         """Get status of all services"""
         status = {}
         for service_id, service_status in self.services.items():
+            # Check if service is actually running on the port (even if not started by Service Manager)
+            service_config = self.config['services'][service_id]
+            port = service_config['port']
+            actually_running = self._is_port_in_use(port)
+            
+            # Update running status if port is in use (service might have been started manually)
+            if actually_running:
+                if not service_status.running:
+                    print(f"DEBUG: Detected {service_status.name} running on port {port} (not started by Service Manager)")
+                    service_status.running = True
+                # Try to find the PID if we don't have it
+                if service_status.pid is None:
+                    service_status.pid = self._get_pid_for_port(port)
+                # Clear any error message since service is actually running
+                if service_status.error_message:
+                    print(f"DEBUG: Clearing error message for {service_status.name} since it's actually running")
+                    service_status.error_message = None
+            
+            # Determine if service is actually available
+            is_running = service_status.running or actually_running
+            
+            # Check health if service appears to be running
+            is_healthy = False
+            if is_running:
+                is_healthy = self._is_service_healthy(service_id)
+                if actually_running and is_healthy:
+                    print(f"DEBUG: {service_status.name} is running and healthy on port {port}")
+                elif actually_running and not is_healthy:
+                    print(f"DEBUG: {service_status.name} is running on port {port} but health check failed")
+            
             status[service_id] = {
                 'name': service_status.name,
-                'running': service_status.running,
+                'running': is_running,  # Use actual port status
                 'pid': service_status.pid,
                 'port': service_status.port,
-                'healthy': self._is_service_healthy(service_id) if service_status.running else False,
+                'healthy': is_healthy,
                 'restart_count': service_status.restart_count,
-                'error_message': service_status.error_message
+                'error_message': service_status.error_message if not actually_running else None
             }
         return status
     
@@ -447,8 +661,8 @@ def restart_service(service_id):
             'message': f'Failed to stop {service_id}'
         }), 500
     
-    # Wait a moment for the service to stop
-    time.sleep(2)
+    # Wait longer for the service to fully stop and port to be released (especially important on Windows)
+    time.sleep(3)
     
     # Start the service
     start_result = service_manager._start_service(service_id)
@@ -459,9 +673,18 @@ def restart_service(service_id):
             'service': service_manager.get_service_status()[service_id]
         })
     else:
+        # Get more detailed error information
+        service_status = service_manager.services[service_id]
+        error_msg = service_status.error_message or "Service failed to become healthy within timeout"
         return jsonify({
             'success': False,
-            'message': f'Failed to start {service_id} after stopping'
+            'message': f'Failed to start {service_id} after stopping',
+            'error': error_msg,
+            'details': {
+                'running': service_status.running,
+                'pid': service_status.pid,
+                'port': service_status.port
+            }
         }), 500
 
 @app.route('/api/services/restart-self', methods=['POST'])

@@ -392,12 +392,12 @@
         <h5>Manual Weather Data Entry</h5>
         <div class="form-grid">
           <div>
-            <label>Ambient Temperature - Before Period (°F)</label>
+            <label>Ambient Temperature - Before Period (°C)</label>
             <input type="number" name="temp_before" step="0.1" placeholder="e.g., 78.0" />
             <div class="help">Average ambient temperature during baseline period</div>
           </div>
           <div>
-            <label>Ambient Temperature - After Period (°F)</label>
+            <label>Ambient Temperature - After Period (°C)</label>
             <input type="number" name="temp_after" step="0.1" placeholder="e.g., 74.0" />
             <div class="help">Average ambient temperature during measurement period</div>
           </div>
@@ -420,12 +420,12 @@
             <div class="help">Average relative humidity during measurement period</div>
           </div>
           <div>
-            <label>Dewpoint - Before Period (°F)</label>
+            <label>Dewpoint - Before Period (°C)</label>
             <input type="number" name="dewpoint_before" step="0.1" placeholder="e.g., 65.0" />
             <div class="help">Average dewpoint temperature during baseline period (for ML normalization)</div>
           </div>
           <div>
-            <label>Dewpoint - After Period (°F)</label>
+            <label>Dewpoint - After Period (°C)</label>
             <input type="number" name="dewpoint_after" step="0.1" placeholder="e.g., 68.0" />
             <div class="help">Average dewpoint temperature during measurement period (for ML normalization)</div>
           </div>
@@ -1997,10 +1997,73 @@
   document.addEventListener('DOMContentLoaded', function() {
     const backButton = document.getElementById('back-to-dashboard');
     if (backButton) {
-      backButton.addEventListener('click', function() {
-        window.location.href = '/main-dashboard';
+      backButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('🔙 Back to Dashboard clicked - clearing all spinners and navigating...');
+        
+        // CRITICAL: Clear all spinners immediately and aggressively before navigation
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"], [class*="Loading"]');
+        spinners.forEach(spinner => {
+          spinner.style.display = 'none';
+          spinner.style.visibility = 'hidden';
+          spinner.style.opacity = '0';
+          spinner.classList.remove('loading', 'active', 'spinning', 'spinner', 'Loading');
+        });
+        
+        // Clear loading classes from body and html
+        document.body.classList.remove('loading', 'modal-open', 'spinning');
+        document.body.style.opacity = '';
+        document.body.style.pointerEvents = '';
+        document.documentElement.classList.remove('loading', 'modal-open');
+        
+        // Clear any loading overlays
+        const overlays = document.querySelectorAll('.loading-overlay, .spinner-overlay, [class*="overlay"], [class*="Overlay"]');
+        overlays.forEach(overlay => {
+          overlay.style.display = 'none';
+          overlay.style.visibility = 'hidden';
+        });
+        
+        // Clear any CSS animations that might show spinners
+        const style = document.createElement('style');
+        style.textContent = `
+          .spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+          }
+          body.loading, body.spinning {
+            opacity: 1 !important;
+          }
+        `;
+        document.head.appendChild(style);
+        
+        // Use replace immediately - no delay needed, spinners already cleared above
+        window.location.replace('/main-dashboard');
       });
     }
+  });
+
+  // Clear spinners on page unload to prevent them from persisting
+  window.addEventListener('beforeunload', function() {
+    const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+    spinners.forEach(spinner => {
+      spinner.style.display = 'none';
+      spinner.style.visibility = 'hidden';
+      spinner.classList.remove('loading', 'active', 'spinning');
+    });
+    document.body.classList.remove('loading', 'modal-open');
+  });
+
+  window.addEventListener('pagehide', function() {
+    const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+    spinners.forEach(spinner => {
+      spinner.style.display = 'none';
+      spinner.style.visibility = 'hidden';
+      spinner.classList.remove('loading', 'active', 'spinning');
+    });
+    document.body.classList.remove('loading', 'modal-open');
   });
 
   // SynerexAI Chat Widget Functions
