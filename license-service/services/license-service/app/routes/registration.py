@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from ..db import SessionLocal
 from ..models.org import Organization
+from ..models.user import User
 from ..models.authorization import ProgramAuthorization
 from ..models.license import License
 from ..models.billing import BillingOrder
@@ -676,10 +677,24 @@ def register_submit(
     request: Request,
     org_name: str = Form(...),
     org_type: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    password_confirm: str = Form(...),
     email: str = Form(...),
-    program: str = Form(None),  # Optional for PE
-    plan: str = Form(None),  # Optional for PE
-    meter_count: Optional[int] = Form(None),
+    # Address fields
+    company_address: str = Form(...),
+    company_city: str = Form(...),
+    company_state: str = Form(...),
+    company_zip: str = Form(...),
+    company_phone: str = Form(...),
+    company_cell: Optional[str] = Form(None),
+    physical_address: Optional[str] = Form(None),
+    physical_city: Optional[str] = Form(None),
+    physical_state: Optional[str] = Form(None),
+    physical_zip: Optional[str] = Form(None),
+    physical_phone: Optional[str] = Form(None),
+    physical_cell: Optional[str] = Form(None),
+    # PE fields (if org_type == 'pe')
     pe_license_number: Optional[str] = Form(None),
     pe_license_state: Optional[str] = Form(None),
     agreement_accepted: Optional[str] = Form(None),  # Checkbox returns "on" if checked
@@ -688,6 +703,39 @@ def register_submit(
 ):
     """Handle registration submission for PE or Licensee."""
     try:
+        # Validate username format
+        import re
+        if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+            return templates.TemplateResponse(
+                "signup.html",
+                {"request": request, "error": "Username must be 3-20 characters and contain only letters, numbers, and underscores", "success": None, "website_url": settings.website_url},
+                status_code=400
+            )
+        
+        # Validate password
+        if len(password) < 8:
+            return templates.TemplateResponse(
+                "signup.html",
+                {"request": request, "error": "Password must be at least 8 characters long", "success": None, "website_url": settings.website_url},
+                status_code=400
+            )
+        
+        # Validate password confirmation
+        if password != password_confirm:
+            return templates.TemplateResponse(
+                "signup.html",
+                {"request": request, "error": "Passwords do not match", "success": None, "website_url": settings.website_url},
+                status_code=400
+            )
+        
+        # Check if username already exists
+        if db.get(User, username):
+            return templates.TemplateResponse(
+                "signup.html",
+                {"request": request, "error": "Username already exists. Please choose a different username.", "success": None, "website_url": settings.website_url},
+                status_code=409
+            )
+        
         # Validate org_type
         if org_type not in ("pe", "customer"):
             return templates.TemplateResponse(
@@ -719,37 +767,6 @@ def register_submit(
                     {"request": request, "error": "PE License State is required", "success": None, "website_url": settings.website_url},
                     status_code=400
                 )
-            program = None
-            plan = None
-        else:
-            # Validate Licensee-specific fields
-            if not program or program not in ("emv", "tracking"):
-                return templates.TemplateResponse(
-                    "signup.html",
-                    {"request": request, "error": "Program must be 'emv' or 'tracking'", "success": None, "website_url": settings.website_url},
-                    status_code=400
-                )
-            
-            # Map plan to template_id
-            template_mapping = {
-                "emv": {
-                    "single_report": "emv_single_report",
-                    "annual": "emv_annual"
-                },
-                "tracking": {
-                    "basic": "tracking_basic",
-                    "pro": "tracking_pro",
-                    "enterprise": "tracking_enterprise"
-                }
-            }
-            
-            template_id = template_mapping.get(program, {}).get(plan)
-            if not template_id:
-                return templates.TemplateResponse(
-                    "signup.html",
-                    {"request": request, "error": f"Invalid plan '{plan}' for program '{program}'", "success": None, "website_url": settings.website_url},
-                    status_code=400
-                )
         
         # Generate org_id
         org_id = _generate_org_id(org_name, org_type)
@@ -767,7 +784,21 @@ def register_submit(
             "org_id": org_id,
             "org_name": org_name,
             "org_type": org_type,
-            "email": email.strip()
+            "email": email.strip(),
+            # Company/Billing Address
+            "company_address": company_address.strip() if company_address else None,
+            "company_city": company_city.strip() if company_city else None,
+            "company_state": company_state.strip().upper() if company_state else None,
+            "company_zip": company_zip.strip() if company_zip else None,
+            "company_phone": company_phone.strip() if company_phone else None,
+            "company_cell": company_cell.strip() if company_cell else None,
+            # Physical Address
+            "physical_address": physical_address.strip() if physical_address else None,
+            "physical_city": physical_city.strip() if physical_city else None,
+            "physical_state": physical_state.strip().upper() if physical_state else None,
+            "physical_zip": physical_zip.strip() if physical_zip else None,
+            "physical_phone": physical_phone.strip() if physical_phone else None,
+            "physical_cell": physical_cell.strip() if physical_cell else None,
         }
         
         if org_type == "pe":
@@ -781,6 +812,21 @@ def register_submit(
         log_event(db, actor="self_service", action="org.create", ref_id=org_id, 
                  detail={"org_type": org_type, "email": email, "pe_license_number": pe_license_number if org_type == "pe" else None})
         
+        # Create user account
+        import bcrypt
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        user = User(
+            username=username,
+            password_hash=password_hash,
+            org_id=org_id,
+            email=email,
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        log_event(db, actor="self_service", action="user.create", ref_id=username, 
+                 detail={"org_id": org_id, "email": email})
+        
         # For PE registration, skip billing/license creation - just show success message
         if org_type == "pe":
             return templates.TemplateResponse(
@@ -793,75 +839,13 @@ def register_submit(
                 }
             )
         
-        # For Licensee, continue with billing/license creation
-        # Calculate pricing
-        term_days = 365  # Default 1 year
-        today = datetime.utcnow().date()
-        term_start = today.isoformat()
-        term_end = (today + timedelta(days=term_days)).isoformat()
-        
-        # Get default seat/meter counts from template
-        template = load_template(program, template_id)
-        entitlements = template.get("entitlements", {})
-        limits = entitlements.get("limits", {})
-        default_seats = limits.get("seat_limit", 0)
-        default_meters = limits.get("meter_limit", 0)
-        
-        # For Tracking programs, use meter_count from form if provided, otherwise default to 1
-        if program == "tracking":
-            if meter_count is None or meter_count < 1:
-                return templates.TemplateResponse(
-                    "signup.html",
-                    {"request": request, "error": "Number of meters is required for Tracking licenses", "success": None, "website_url": settings.website_url},
-                    status_code=400
-                )
-            if meter_count > 30:
-                return templates.TemplateResponse(
-                    "signup.html",
-                    {"request": request, "error": "Maximum 30 meters allowed per license", "success": None, "website_url": settings.website_url},
-                    status_code=400
-                )
-            actual_meter_count = meter_count
-        else:
-            # For EM&V, use default from template
-            actual_meter_count = default_meters
-        
-        pricing = calculate_price(program, plan, term_days, default_seats, actual_meter_count)
-        
-        # Create billing order with shorter ID
-        short_hash = hashlib.md5(f"{program}{org_id}{datetime.utcnow().isoformat()}".encode()).hexdigest()[:8].upper()
-        program_abbrev = "EMV" if program == "emv" else "TRK"
-        order_id = f"ORD-{program_abbrev}-{short_hash}"
-        order = BillingOrder(
-            order_id=order_id,
-            org_id=org_id,
-            program_id=program,
-            plan=plan,
-            term_start=term_start,
-            term_end=term_end,
-            seat_count=default_seats,
-            meter_count=actual_meter_count,
-            unit_price=pricing["base_price"],
-            amount_total=pricing["amount_total"],
-            currency=pricing["currency"],
-            status="pending",
-            due_at=datetime.utcnow() + timedelta(days=7),  # 7 days to pay
-            agreement_accepted=True,
-            agreement_version=settings.software_license_agreement_version,
-            agreement_accepted_at=datetime.utcnow(),
-            agreement_accepted_by=email or org_id
-        )
-        db.add(order)
-        db.commit()
-        
-        log_event(db, actor="self_service", action="billing.order.create", ref_id=order_id,
-                 detail={"org_id": org_id, "program": program, "plan": plan, "amount": pricing["amount_total"]})
-        
-        # Redirect to payment page
-        redirect_url = f"/register/payment?order_id={order_id}"
+        # For Licensee, registration is complete - redirect to login or My Account
+        # No billing/license creation at registration time
+        # Users will select licenses from My Account page
         if return_url:
-            redirect_url += f"&return_url={return_url}"
-        return RedirectResponse(redirect_url, status_code=303)
+            return RedirectResponse(f"{return_url}?registered=true", status_code=303)
+        # Redirect to login with success message
+        return RedirectResponse("/auth/login?registered=true&message=Registration+successful!+Please+log+in+to+access+your+account.", status_code=303)
         
     except Exception as e:
         db.rollback()

@@ -305,3 +305,46 @@ async def validate_session_token_endpoint(
             content={"valid": False, "reason": str(e)}
         )
 
+@router.get("/auth/api/check-session")
+def check_session(request: Request, db: Session = Depends(db_session)):
+    """
+    Check session and return user info.
+    Used by website MyAccount page.
+    Does NOT modify token/payload structures - only reads organization data.
+    """
+    # Check if user has a session (could be from license lookup, admin login, etc.)
+    # For now, check if there's an org_id in session or from query params
+    org_id = request.session.get("org_id") or request.query_params.get("org_id")
+    
+    if not org_id:
+        return JSONResponse(
+            status_code=401,
+            content={"authenticated": False, "message": "No session found"}
+        )
+    
+    # Get organization
+    org = db.get(Organization, org_id)
+    if not org:
+        return JSONResponse(
+            status_code=404,
+            content={"authenticated": False, "message": "Organization not found"}
+        )
+    
+    # Build response based on org_type
+    response = {
+        "authenticated": True,
+        "org_id": org.org_id,
+        "org_name": org.org_name,
+        "org_type": org.org_type,
+        "email": org.email
+    }
+    
+    # Add PE-specific fields if org_type is 'pe'
+    if org.org_type == "pe":
+        response["user_type"] = "licensed_pe"
+        response["pe_approval_status"] = org.pe_approval_status or "pending"
+        response["pe_license_number"] = org.pe_license_number
+        response["pe_license_state"] = org.pe_license_state
+        response["pe_linked_org_id"] = org.pe_linked_org_id
+    
+    return response

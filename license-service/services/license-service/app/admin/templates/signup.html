@@ -269,73 +269,202 @@
           </div>
         </div>
         
-        <!-- Licensee-specific fields (shown conditionally) -->
-        <div id="licensee-fields" style="display: none;">
-          <div class="form-group">
-            <label for="program">Program *</label>
-            <select id="program" name="program">
-              <option value="">Select program...</option>
-              <option value="emv">EM&V (Evaluation, Measurement & Verification)</option>
-              <option value="tracking">Tracking (Continuous Monitoring)</option>
-            </select>
-            <div class="info">EM&V: For baseline creation and sealing. Tracking: For continuous monitoring and reporting. <strong>Note:</strong> Tracking licenses require a valid EM&V baseline lineage to be fully functional.</div>
+        <!-- Address Fields (shown for both PE and Licensee) -->
+        <div id="address-fields">
+          <div class="form-group" style="margin-top: 24px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #1976d2; font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">Company/Billing Address</h3>
+            
+            <div class="form-group">
+              <label for="company_address">Company Address *</label>
+              <input type="text" id="company_address" name="company_address" required placeholder="Street address"/>
+              <div class="info">Your company's billing address</div>
+            </div>
+            
+            <div class="form-group">
+              <label for="company_city">City *</label>
+              <input type="text" id="company_city" name="company_city" required placeholder="City"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="company_state">State *</label>
+              <select id="company_state" name="company_state" required>
+                <option value="">Select State</option>
+                <option value="AL">Alabama</option>
+                <option value="AK">Alaska</option>
+                <option value="AZ">Arizona</option>
+                <option value="AR">Arkansas</option>
+                <option value="CA">California</option>
+                <option value="CO">Colorado</option>
+                <option value="CT">Connecticut</option>
+                <option value="DE">Delaware</option>
+                <option value="FL">Florida</option>
+                <option value="GA">Georgia</option>
+                <option value="HI">Hawaii</option>
+                <option value="ID">Idaho</option>
+                <option value="IL">Illinois</option>
+                <option value="IN">Indiana</option>
+                <option value="IA">Iowa</option>
+                <option value="KS">Kansas</option>
+                <option value="KY">Kentucky</option>
+                <option value="LA">Louisiana</option>
+                <option value="ME">Maine</option>
+                <option value="MD">Maryland</option>
+                <option value="MA">Massachusetts</option>
+                <option value="MI">Michigan</option>
+                <option value="MN">Minnesota</option>
+                <option value="MS">Mississippi</option>
+                <option value="MO">Missouri</option>
+                <option value="MT">Montana</option>
+                <option value="NE">Nebraska</option>
+                <option value="NV">Nevada</option>
+                <option value="NH">New Hampshire</option>
+                <option value="NJ">New Jersey</option>
+                <option value="NM">New Mexico</option>
+                <option value="NY">New York</option>
+                <option value="NC">North Carolina</option>
+                <option value="ND">North Dakota</option>
+                <option value="OH">Ohio</option>
+                <option value="OK">Oklahoma</option>
+                <option value="OR">Oregon</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="RI">Rhode Island</option>
+                <option value="SC">South Carolina</option>
+                <option value="SD">South Dakota</option>
+                <option value="TN">Tennessee</option>
+                <option value="TX">Texas</option>
+                <option value="UT">Utah</option>
+                <option value="VT">Vermont</option>
+                <option value="VA">Virginia</option>
+                <option value="WA">Washington</option>
+                <option value="WV">West Virginia</option>
+                <option value="WI">Wisconsin</option>
+                <option value="WY">Wyoming</option>
+                <option value="DC">District of Columbia</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="company_zip">ZIP Code *</label>
+              <input type="text" id="company_zip" name="company_zip" required placeholder="12345" pattern="[0-9]{5}(-[0-9]{4})?" title="5 or 9 digit ZIP code"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="company_phone">Phone *</label>
+              <input type="tel" id="company_phone" name="company_phone" required placeholder="(555) 123-4567"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="company_cell">Cell Phone</label>
+              <input type="tel" id="company_cell" name="company_cell" placeholder="(555) 123-4567"/>
+              <div class="info">Optional</div>
+            </div>
           </div>
           
-          <div class="form-group">
-            <label for="plan">Plan *</label>
-            <select id="plan" name="plan">
-              <option value="">Select plan...</option>
-              <option value="single_report" data-program="emv" data-base-price="4200" data-one-time="true">Single Report License (EM&V) - $4,200 (One-time)</option>
-              <option value="annual" data-program="emv" data-base-price="53000" data-one-time="false">Annual License Fee (EM&V) - $53,000/year (Unlimited)</option>
-              <option value="basic" data-program="tracking" data-base-price="495" data-per-meter="750" data-users="5">Basic (Tracking) - 5 Users, Read Only Version - $495 + $750/meter/year</option>
-              <option value="pro" data-program="tracking" data-base-price="950" data-per-meter="795" data-users="15">Pro (Tracking) - 15 Users, Equipment Scheduling - $950 + $795/meter/year</option>
-              <option value="enterprise" data-program="tracking" data-base-price="1495" data-per-meter="750" data-users="Unlimited">Enterprise (Tracking) - Unlimited Users, Full Scheduling/Reporting - $1,495 + $750/meter/year</option>
-            </select>
-            <div class="info">Choose the plan tier that best fits your needs. Pricing shown is annual.</div>
+          <div class="form-group" style="margin-top: 24px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #1976d2; font-size: 16px; border-bottom: 1px solid #ddd; padding-bottom: 8px;">Physical Address</h3>
+            <p class="info" style="margin-bottom: 15px;">If different from company address (optional)</p>
+            
+            <div class="form-group">
+              <label for="physical_address">Physical Address</label>
+              <input type="text" id="physical_address" name="physical_address" placeholder="Street address"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="physical_city">City</label>
+              <input type="text" id="physical_city" name="physical_city" placeholder="City"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="physical_state">State</label>
+              <select id="physical_state" name="physical_state">
+                <option value="">Select State</option>
+                <option value="AL">Alabama</option>
+                <option value="AK">Alaska</option>
+                <option value="AZ">Arizona</option>
+                <option value="AR">Arkansas</option>
+                <option value="CA">California</option>
+                <option value="CO">Colorado</option>
+                <option value="CT">Connecticut</option>
+                <option value="DE">Delaware</option>
+                <option value="FL">Florida</option>
+                <option value="GA">Georgia</option>
+                <option value="HI">Hawaii</option>
+                <option value="ID">Idaho</option>
+                <option value="IL">Illinois</option>
+                <option value="IN">Indiana</option>
+                <option value="IA">Iowa</option>
+                <option value="KS">Kansas</option>
+                <option value="KY">Kentucky</option>
+                <option value="LA">Louisiana</option>
+                <option value="ME">Maine</option>
+                <option value="MD">Maryland</option>
+                <option value="MA">Massachusetts</option>
+                <option value="MI">Michigan</option>
+                <option value="MN">Minnesota</option>
+                <option value="MS">Mississippi</option>
+                <option value="MO">Missouri</option>
+                <option value="MT">Montana</option>
+                <option value="NE">Nebraska</option>
+                <option value="NV">Nevada</option>
+                <option value="NH">New Hampshire</option>
+                <option value="NJ">New Jersey</option>
+                <option value="NM">New Mexico</option>
+                <option value="NY">New York</option>
+                <option value="NC">North Carolina</option>
+                <option value="ND">North Dakota</option>
+                <option value="OH">Ohio</option>
+                <option value="OK">Oklahoma</option>
+                <option value="OR">Oregon</option>
+                <option value="PA">Pennsylvania</option>
+                <option value="RI">Rhode Island</option>
+                <option value="SC">South Carolina</option>
+                <option value="SD">South Dakota</option>
+                <option value="TN">Tennessee</option>
+                <option value="TX">Texas</option>
+                <option value="UT">Utah</option>
+                <option value="VT">Vermont</option>
+                <option value="VA">Virginia</option>
+                <option value="WA">Washington</option>
+                <option value="WV">West Virginia</option>
+                <option value="WI">Wisconsin</option>
+                <option value="WY">Wyoming</option>
+                <option value="DC">District of Columbia</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="physical_zip">ZIP Code</label>
+              <input type="text" id="physical_zip" name="physical_zip" placeholder="12345" pattern="[0-9]{5}(-[0-9]{4})?" title="5 or 9 digit ZIP code"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="physical_phone">Phone</label>
+              <input type="tel" id="physical_phone" name="physical_phone" placeholder="(555) 123-4567"/>
+            </div>
+            
+            <div class="form-group">
+              <label for="physical_cell">Cell Phone</label>
+              <input type="tel" id="physical_cell" name="physical_cell" placeholder="(555) 123-4567"/>
+            </div>
           </div>
-          
-          <div class="form-group" id="meter-count-group" style="display: none;">
-            <label for="meter_count">Number of Meters *</label>
-            <select id="meter_count" name="meter_count">
-              <option value="1">1 meter</option>
-              <option value="2">2 meters</option>
-              <option value="3">3 meters</option>
-              <option value="4">4 meters</option>
-              <option value="5">5 meters</option>
-              <option value="6">6 meters</option>
-              <option value="7">7 meters</option>
-              <option value="8">8 meters</option>
-              <option value="9">9 meters</option>
-              <option value="10">10 meters</option>
-              <option value="11">11 meters</option>
-              <option value="12">12 meters</option>
-              <option value="13">13 meters</option>
-              <option value="14">14 meters</option>
-              <option value="15">15 meters</option>
-              <option value="16">16 meters</option>
-              <option value="17">17 meters</option>
-              <option value="18">18 meters</option>
-              <option value="19">19 meters</option>
-              <option value="20">20 meters</option>
-              <option value="21">21 meters</option>
-              <option value="22">22 meters</option>
-              <option value="23">23 meters</option>
-              <option value="24">24 meters</option>
-              <option value="25">25 meters</option>
-              <option value="26">26 meters</option>
-              <option value="27">27 meters</option>
-              <option value="28">28 meters</option>
-              <option value="29">29 meters</option>
-              <option value="30">30 meters</option>
-            </select>
-            <div class="info">Select the number of meters for your license.</div>
-          </div>
-          
-          <div class="form-group" id="pricing-display" style="display: none; background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 20px;">
-            <div style="font-weight: 600; color: #1976d2; margin-bottom: 8px;">Estimated Annual Cost:</div>
-            <div id="pricing-breakdown" style="color: #333; font-size: 14px;"></div>
-            <div id="pricing-total" style="font-size: 18px; font-weight: 700; color: #1976d2; margin-top: 8px;"></div>
-          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="username">Username *</label>
+          <input type="text" id="username" name="username" required placeholder="Choose a username" pattern="[a-zA-Z0-9_]{3,20}" title="3-20 characters, letters, numbers, and underscores only"/>
+          <div class="info">This will be your login username (3-20 characters, letters, numbers, and underscores only)</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <input type="password" id="password" name="password" required placeholder="Choose a secure password" minlength="8"/>
+          <div class="info">Minimum 8 characters</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="password_confirm">Confirm Password *</label>
+          <input type="password" id="password_confirm" name="password_confirm" required placeholder="Re-enter your password"/>
+          <div class="info">Must match your password</div>
         </div>
         
         <div class="form-group">
@@ -451,16 +580,8 @@
     <script>
       const orgTypeSelect = document.getElementById('org_type');
       const peFields = document.getElementById('pe-fields');
-      const licenseeFields = document.getElementById('licensee-fields');
       const peLicenseNumber = document.getElementById('pe_license_number');
       const peLicenseState = document.getElementById('pe_license_state');
-      const programSelect = document.getElementById('program');
-      const planSelect = document.getElementById('plan');
-      const meterCountGroup = document.getElementById('meter-count-group');
-      const meterCountSelect = document.getElementById('meter_count');
-      const pricingDisplay = document.getElementById('pricing-display');
-      const pricingBreakdown = document.getElementById('pricing-breakdown');
-      const pricingTotal = document.getElementById('pricing-total');
       const softwareAgreement = document.getElementById('software-license-agreement');
       const peAgreement = document.getElementById('pe-registration-agreement');
       const agreementCheckbox = document.getElementById('agreement_accepted');
@@ -475,12 +596,6 @@
           peFields.style.display = 'block';
           peLicenseNumber.required = true;
           peLicenseState.required = true;
-          // Hide Licensee fields
-          licenseeFields.style.display = 'none';
-          programSelect.required = false;
-          planSelect.required = false;
-          meterCountGroup.style.display = 'none';
-          pricingDisplay.style.display = 'none';
           // Show PE agreement, hide software license agreement
           softwareAgreement.style.display = 'none';
           peAgreement.style.display = 'block';
@@ -494,10 +609,6 @@
             <li>Once approved, you'll be able to review utility submission reports for rebate programs</li>
           `;
         } else if (this.value === 'customer') {
-          // Show Licensee fields
-          licenseeFields.style.display = 'block';
-          programSelect.required = true;
-          planSelect.required = true;
           // Hide PE fields
           peFields.style.display = 'none';
           peLicenseNumber.required = false;
@@ -507,93 +618,36 @@
           peAgreement.style.display = 'none';
           agreementCheckbox.required = true;
           peAgreementCheckbox.required = false;
-          submitButton.textContent = 'Register & Get License';
+          submitButton.textContent = 'Register';
           // Update help text
           helpList.innerHTML = `
-            <li>Your organization will be created automatically</li>
-            <li>A billing order will be created for your selected plan</li>
-            <li>You'll be redirected to complete payment</li>
-            <li>After successful payment, a signed license will be issued immediately</li>
-            <li>You'll receive your Software License Serial Number to enter into the EM&V or Tracking software login page</li>
+            <li>Your organization account will be created</li>
+            <li>You'll be able to log in and select licenses from your My Account page</li>
+            <li>After registration, visit My Account to browse and purchase licenses</li>
           `;
         } else {
           // Hide all conditional fields
           peFields.style.display = 'none';
-          licenseeFields.style.display = 'none';
           softwareAgreement.style.display = 'none';
           peAgreement.style.display = 'none';
           helpList.innerHTML = '<li>Select a registration type to see next steps</li>';
         }
       });
       
-      // Filter plan options based on selected program
-      programSelect.addEventListener('change', function() {
-        const selectedProgram = this.value;
-        const options = planSelect.querySelectorAll('option');
-        
-        options.forEach(option => {
-          if (option.value === '') {
-            option.style.display = 'block';
-            return;
-          }
-          
-          const optionProgram = option.getAttribute('data-program');
-          if (optionProgram === selectedProgram) {
-            option.style.display = 'block';
-          } else {
-            option.style.display = 'none';
-          }
-        });
-        
-        // Reset plan selection and hide meter count
-        planSelect.value = '';
-        meterCountGroup.style.display = 'none';
-        pricingDisplay.style.display = 'none';
-      });
+      // Password confirmation validation
+      const passwordField = document.getElementById('password');
+      const passwordConfirmField = document.getElementById('password_confirm');
       
-      function updatePricing() {
-        const selectedPlan = planSelect.options[planSelect.selectedIndex];
-        const program = selectedPlan.getAttribute('data-program');
-        const basePrice = selectedPlan.getAttribute('data-base-price');
-        const perMeter = selectedPlan.getAttribute('data-per-meter');
-        const users = selectedPlan.getAttribute('data-users');
-        
-        if (program === 'tracking' && perMeter) {
-          meterCountGroup.style.display = 'block';
-          meterCountSelect.required = true;
-          
-          const meterCount = parseInt(meterCountSelect.value) || 1;
-          const basePriceNum = parseFloat(basePrice) || 0;
-          const perMeterPrice = parseFloat(perMeter);
-          const meterCost = meterCount * perMeterPrice;
-          const totalCost = basePriceNum + meterCost;
-          
-          pricingDisplay.style.display = 'block';
-          pricingBreakdown.innerHTML = `
-            <div>Plan: ${selectedPlan.textContent.split(' - ')[0]}</div>
-            <div>Users: ${users}</div>
-            <div>Base Price: $${basePriceNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-            <div>Meters: ${meterCount} × $${perMeterPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/meter = $${meterCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-          `;
-          pricingTotal.textContent = `Total: $${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}/year`;
+      function validatePasswordMatch() {
+        if (passwordConfirmField.value && passwordField.value !== passwordConfirmField.value) {
+          passwordConfirmField.setCustomValidity('Passwords do not match');
         } else {
-          meterCountGroup.style.display = 'none';
-          meterCountSelect.required = false;
-          if (basePrice) {
-            const basePriceNum = parseFloat(basePrice);
-            pricingDisplay.style.display = 'block';
-            pricingBreakdown.innerHTML = `
-              <div>Plan: ${selectedPlan.textContent.split(' - ')[0]}</div>
-            `;
-            pricingTotal.textContent = `Total: $${basePriceNum.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}${selectedPlan.getAttribute('data-one-time') === 'true' ? ' (One-time)' : '/year'}`;
-          } else {
-            pricingDisplay.style.display = 'none';
-          }
+          passwordConfirmField.setCustomValidity('');
         }
       }
       
-      planSelect.addEventListener('change', updatePricing);
-      meterCountSelect.addEventListener('change', updatePricing);
+      passwordField.addEventListener('input', validatePasswordMatch);
+      passwordConfirmField.addEventListener('input', validatePasswordMatch);
     </script>
   </body>
 </html>

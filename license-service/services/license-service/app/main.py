@@ -21,6 +21,7 @@ from .routes.audit_api import router as audit_api_router
 from .routes.downloads import router as downloads_router
 from .routes.billing import router as billing_router
 from .routes.registration import router as registration_router
+from .routes.auth import router as auth_router
 from .routes.templates import router as templates_router
 from .routes.lifecycle import router as lifecycle_router
 from .routes.webhooks import router as webhooks_router
@@ -76,6 +77,7 @@ def unauthorized_handler(request: Request, exc: HTTPException):
     return HTMLResponse(content=f"<h1>401 Unauthorized</h1><p>{exc.detail}</p>", status_code=401)
 
 app.include_router(registration_router)
+app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(orgs_router)
 app.include_router(api_keys_router)
@@ -98,15 +100,56 @@ def check_session(request: Request):
     """
     Check session and return user info.
     Used by website MyAccount page.
-    Does NOT modify token/payload structures - only reads organization data.
+    Supports both user login sessions and admin sessions.
     """
     from .db import SessionLocal
     from .models.org import Organization
+    from .models.user import User
     
     db = SessionLocal()
     try:
-        # Check if user has a session (could be from license lookup, admin login, etc.)
-        # For now, check if there's an org_id in session or from query params
+        # Check for user login session first
+        username = request.session.get("username")
+        user_logged_in = request.session.get("user_logged_in", False)
+        
+        if user_logged_in and username:
+            # User is logged in via client login
+            user = db.get(User, username)
+            if not user or not user.is_active:
+                return JSONResponse(
+                    status_code=401,
+                    content={"authenticated": False, "message": "User session invalid"}
+                )
+            
+            org = db.get(Organization, user.org_id)
+            if not org:
+                return JSONResponse(
+                    status_code=404,
+                    content={"authenticated": False, "message": "Organization not found"}
+                )
+            
+            # Build response for logged-in user
+            response = {
+                "authenticated": True,
+                "user_type": "client",
+                "username": username,
+                "org_id": org.org_id,
+                "org_name": org.org_name,
+                "org_type": org.org_type,
+                "email": user.email
+            }
+            
+            # Add PE-specific fields if org_type is 'pe'
+            if org.org_type == "pe":
+                response["user_type"] = "licensed_pe"
+                response["pe_approval_status"] = org.pe_approval_status or "pending"
+                response["pe_license_number"] = org.pe_license_number
+                response["pe_license_state"] = org.pe_license_state
+                response["pe_linked_org_id"] = org.pe_linked_org_id
+            
+            return response
+        
+        # Fallback: Check for org_id in session (legacy or admin sessions)
         org_id = request.session.get("org_id") or request.query_params.get("org_id")
         
         if not org_id:

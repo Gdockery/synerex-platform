@@ -1,4 +1,5 @@
 from .org import Organization
+from .user import User
 from .license import License
 from .authorization import ProgramAuthorization
 from .api_key import ApiKey
