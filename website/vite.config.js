@@ -4,6 +4,11 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'public',
   assetsInclude: ['**/*.png', '**/*.jpg', '**/*.jpeg'],
+  server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: false
+  },
   build: {
     rollupOptions: {
       external: (id) => {

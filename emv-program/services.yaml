@@ -2,7 +2,7 @@ services:
   main_app:
     name: "Main App"
     port: 8082
-    script: "main_hardened_ready_refactored.py"
+    script: "main_hardened_ready_fixed.py"
     directory: "8082"
     dependencies: ["weather"]  # Ensure weather service starts before main app
     health_endpoint: "/health"
@@ -33,7 +33,7 @@ services:
     directory: "8085"
     dependencies: []
     health_endpoint: "/health"
-    startup_timeout: 20
+    startup_timeout: 30
     
   charts:
     name: "Charts"
@@ -51,7 +51,7 @@ services:
     directory: "8082"
     dependencies: ["main_app"]
     health_endpoint: "/health"
-    startup_timeout: 15
+    startup_timeout: 30
 
   utility_rate:
     name: "Utility Rate Service"

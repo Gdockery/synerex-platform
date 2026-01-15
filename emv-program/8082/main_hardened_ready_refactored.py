@@ -490,23 +490,13 @@ def extract_project_report_number(analysis_session_id):
         return str(analysis_session_id)[:15]  # First 15 chars as fallback
 
 def get_current_version():
-    """Get current version dynamically - imports from main_hardened_ready_fixed if available"""
+    """Get current version - simplified to avoid import issues"""
     try:
-        # Try to import from main_hardened_ready_fixed to get the git version
-        import sys
-        if 'main_hardened_ready_fixed' in sys.modules:
-            from main_hardened_ready_fixed import get_git_version
-            return get_git_version()
-        # Fallback: try to import the module
-        try:
-            import main_hardened_ready_fixed
-            return main_hardened_ready_fixed.get_git_version()
-        except ImportError:
-            pass
+        # Return the base version directly to avoid import hangs
+        return APP_BASE_VERSION
     except Exception:
-        pass
-    # Final fallback
-    return APP_BASE_VERSION
+        # Ultimate fallback
+        return "3.8"
 
 # Set up console handler first
 console_handler = logging.StreamHandler()
@@ -3885,6 +3875,16 @@ class WeatherNormalizationML:
                 result["ashrae_compliant"] = True  # Changed to True - methodology is compliant
                 result["standards_validation"] = f"PASSED - ASHRAE-compliant weather normalization using validated equipment-specific sensitivity factors" + (" with temperature and dewpoint normalization" if dewpoint_available else " (temperature normalization)") + ". Methodology exceeds ASHRAE requirements through equipment-specific calibration and dual-factor normalization."
             
+            # WEATHER NORMALIZATION DIAGNOSTIC: Log what's being returned from normalize_consumption
+            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (normalize_consumption return):")
+            logger.info(f"🔍   Keys in result: {list(result.keys())}")
+            logger.info(f"🔍   temp_sensitivity_used: {result.get('temp_sensitivity_used')}")
+            logger.info(f"🔍   dewpoint_sensitivity_used: {result.get('dewpoint_sensitivity_used')}")
+            logger.info(f"🔍   regression_temp_sensitivity: {result.get('regression_temp_sensitivity')}")
+            logger.info(f"🔍   regression_dewpoint_sensitivity: {result.get('regression_dewpoint_sensitivity')}")
+            logger.info(f"🔍   regression_r2: {result.get('regression_r2')}")
+            logger.info(f"🔍   self.regression_r2: {self.regression_r2}")
+            
             return result
             
         except Exception as e:
@@ -6817,6 +6817,25 @@ def analyze():
         app._latest_form_data = form_data
         logger.info(f"Stored analysis results in _latest_analysis_results with keys: {list(results.keys()) if isinstance(results, dict) else 'not a dict'}")
         logger.info(f"Stored form_data with keys: {list(form_data.keys()) if form_data else 'no form data'}")
+        
+        # WEATHER NORMALIZATION DIAGNOSTIC: Check if weather_normalization is present and what it contains
+        if isinstance(results, dict) and "weather_normalization" in results:
+            wn = results["weather_normalization"]
+            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (at storage): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
+            if isinstance(wn, dict):
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_r2={wn.get('regression_r2')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: normalized_kw_before={wn.get('normalized_kw_before')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: normalized_kw_after={wn.get('normalized_kw_after')}")
+            else:
+                logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization is not a dict! Type={type(wn)}, Value={wn}")
+        else:
+            logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND in results! Available keys: {list(results.keys()) if isinstance(results, dict) else 'N/A'}")
+        
         if isinstance(results, dict) and "financial_debug" in results:
             financial_debug = results.get("financial_debug", {})
             logger.info(f"financial_debug keys: {list(financial_debug.keys()) if isinstance(financial_debug, dict) else 'not a dict'}")
@@ -7645,6 +7664,11 @@ def get_analysis_results():
     POST endpoint to update results with client-calculated values
     Used by HTML service for Direct GET Approach
     """
+    # Log that the endpoint was called
+    logger.info(f"🔍 get_analysis_results called with method: {request.method}")
+    logger.info(f"🔍 Request path: {request.path}")
+    logger.info(f"🔍 Request URL: {request.url}")
+    logger.info(f"🔍 Allowed methods: {request.endpoint}")
     try:
         # Handle POST: Update stored results with client-calculated values
         if request.method == "POST":
@@ -7812,6 +7836,21 @@ def get_analysis_results():
                     print(f"DEBUG: energy_flow nodes count: {len(ef_data.get('nodes', []))}")
                 if 'links' in ef_data:
                     print(f"DEBUG: energy_flow links count: {len(ef_data.get('links', []))}")
+
+        # WEATHER NORMALIZATION DIAGNOSTIC: Check if weather_normalization is present when sending to frontend
+        if isinstance(analysis_results, dict) and "weather_normalization" in analysis_results:
+            wn = analysis_results["weather_normalization"]
+            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (at frontend send): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
+            if isinstance(wn, dict):
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
+                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
+            else:
+                logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization is not a dict when sending to frontend! Type={type(wn)}, Value={wn}")
+        else:
+            logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND when sending to frontend! Available keys: {list(analysis_results.keys()) if isinstance(analysis_results, dict) else 'N/A'}")
 
         return jsonify({"results": analysis_results})
 
@@ -28954,7 +28993,7 @@ def admin_panel():
                     <div class="login-box">
                         <h2>⏰ Session Expired</h2>
                         <p>Your session has expired. Please log in again.</p>
-                        <a href="/admin-panel" class="btn">Login Again</a>
+                        <a href="/admin-panel" class="btn" onclick="localStorage.removeItem('session_token'); sessionStorage.removeItem('session_token'); document.cookie = 'session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'; window.location.href='/admin-panel'; return false;">Login Again</a>
                         <a href="/main-dashboard" class="btn" style="background: #6c757d;">Go to Dashboard</a>
                     </div>
                 </body>

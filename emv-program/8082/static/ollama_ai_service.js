@@ -307,7 +307,7 @@ class OllamaAIService {
             
             // Add timeout to prevent hanging requests
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased from 60 to 120 seconds to allow for Ollama API processing
             
             // Call Ollama AI backend
             const response = await fetch(`${this.baseUrl}/api/ai/chat`, {

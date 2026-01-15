@@ -384,13 +384,19 @@ export default function AdminDashboard() {
     setServiceActions(prev => ({ ...prev, 'all': 'starting' }));
     try {
       // Call Service Manager API directly (no auth needed)
+      // Use a longer timeout since starting all services can take 60+ seconds
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+      
       const response = await fetch(
         `${SERVICE_MANAGER_URL}/api/services/start-all`,
         {
           method: 'POST',
-          credentials: 'omit'
+          credentials: 'omit',
+          signal: controller.signal
         }
       );
+      clearTimeout(timeoutId);
       const data = await response.json();
       
       setTimeout(() => {
@@ -459,12 +465,25 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error('Failed to start all services:', err);
-      alert(`Failed to start all services: ${err.message}`);
+      let errorMessage = 'Failed to start all services';
+      
+      if (err.name === 'AbortError') {
+        errorMessage = 'Request timed out. The services may still be starting. Please check the Service Manager status in a few moments.';
+      } else if (err.message) {
+        errorMessage = `Failed to start all services: ${err.message}`;
+      }
+      
+      alert(errorMessage);
       setServiceActions(prev => {
         const next = { ...prev };
         delete next['all'];
         return next;
       });
+      
+      // Refresh service status even on error to show current state
+      setTimeout(() => {
+        loadServices();
+      }, 2000);
     }
   };
   

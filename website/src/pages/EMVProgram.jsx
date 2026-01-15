@@ -1,7 +1,38 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import LicenseRegistration from "../components/LicenseRegistration.jsx";
 
 export default function EMVProgram() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/pdf/generate-emv-program-pdf?url=' + encodeURIComponent(window.location.href), {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'EMV-Program-Overview.pdf';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to generate PDF. Please try again or use the browser print function (Ctrl+P / Cmd+P).');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen text-gray-100 pt-16" style={{
       background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)',
@@ -13,6 +44,183 @@ export default function EMVProgram() {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
+        }
+        
+        /* Print Styles - Comprehensive formatting for PDF */
+        @media print {
+          @page {
+            size: A4;
+            margin: 0.75in;
+          }
+          
+          /* Reset all backgrounds and colors for print */
+          * {
+            background: white !important;
+            color: #000 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+          
+          body {
+            background: white !important;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #000 !important;
+            padding: 0 !important;
+          }
+          
+          /* Hide interactive elements */
+          button, a[href], .no-print {
+            display: none !important;
+          }
+          
+          /* Container adjustments */
+          .max-w-7xl {
+            max-width: 100% !important;
+            padding: 0 !important;
+          }
+          
+          /* Hero section - make it compact for print */
+          section:first-child {
+            page-break-after: avoid;
+            margin-bottom: 20pt !important;
+            padding: 15pt 0 !important;
+          }
+          
+          h1 {
+            font-size: 24pt !important;
+            margin-bottom: 10pt !important;
+            page-break-after: avoid;
+          }
+          
+          h2 {
+            font-size: 18pt !important;
+            margin-top: 20pt !important;
+            margin-bottom: 12pt !important;
+            page-break-after: avoid;
+            border-bottom: 2pt solid #000 !important;
+            padding-bottom: 6pt !important;
+          }
+          
+          h3 {
+            font-size: 14pt !important;
+            margin-top: 15pt !important;
+            margin-bottom: 8pt !important;
+            page-break-after: avoid;
+            font-weight: bold !important;
+          }
+          
+          /* Text sizing for readability */
+          p, li, span {
+            font-size: 10pt !important;
+            line-height: 1.4 !important;
+            color: #000 !important;
+          }
+          
+          /* Sections - prevent awkward breaks */
+          section {
+            page-break-inside: avoid;
+            margin-bottom: 20pt !important;
+            padding: 0 !important;
+          }
+          
+          /* Cards and boxes - convert to simple bordered boxes */
+          .bg-gray-900\\/50, .bg-gray-800\\/50, 
+          .bg-gradient-to-br, .bg-gradient-to-r,
+          .backdrop-blur-sm {
+            background: white !important;
+            border: 1pt solid #ccc !important;
+            border-radius: 0 !important;
+            padding: 12pt !important;
+            margin-bottom: 12pt !important;
+            page-break-inside: avoid;
+          }
+          
+          /* Grid layouts - stack vertically for print */
+          .grid {
+            display: block !important;
+          }
+          
+          .grid > * {
+            width: 100% !important;
+            margin-bottom: 15pt !important;
+            page-break-inside: avoid;
+          }
+          
+          /* Lists - better spacing */
+          ul {
+            margin: 8pt 0 !important;
+            padding-left: 20pt !important;
+          }
+          
+          li {
+            margin-bottom: 6pt !important;
+            line-height: 1.4 !important;
+          }
+          
+          /* Images - ensure they print */
+          img {
+            max-width: 200pt !important;
+            height: auto !important;
+            filter: none !important;
+            -webkit-filter: none !important;
+          }
+          
+          /* Logo in header */
+          section:first-child img {
+            max-width: 150pt !important;
+          }
+          
+          /* Spacing adjustments */
+          .mb-16, .mb-8, .mb-6, .mb-4 {
+            margin-bottom: 12pt !important;
+          }
+          
+          .mt-8 {
+            margin-top: 12pt !important;
+          }
+          
+          /* Text colors - convert to black/gray for print */
+          .text-purple-400, .text-blue-400 {
+            color: #000 !important;
+            font-weight: bold !important;
+          }
+          
+          .text-gray-300, .text-gray-400, .text-gray-100 {
+            color: #333 !important;
+          }
+          
+          .text-white {
+            color: #000 !important;
+          }
+          
+          /* Bullet points and checkmarks */
+          .text-purple-400.mr-2 {
+            color: #000 !important;
+            font-weight: bold !important;
+          }
+          
+          /* Ensure proper page breaks between major sections */
+          section:nth-child(even) {
+            page-break-before: auto;
+          }
+          
+          /* Prevent orphaned headings */
+          h2 + div, h3 + ul, h3 + p {
+            page-break-before: avoid;
+          }
+          
+          /* Table-like content (if any) */
+          .grid.md\\:grid-cols-3,
+          .grid.md\\:grid-cols-2 {
+            display: block !important;
+          }
+          
+          /* License registration component - hide or simplify */
+          .bg-gradient-to-r {
+            border: 1pt solid #000 !important;
+            padding: 15pt !important;
+          }
         }
       `}</style>
       <div className="max-w-7xl mx-auto px-4 py-12">
@@ -44,6 +252,19 @@ export default function EMVProgram() {
             >
               Contact Sales
             </Link>
+            <button
+              onClick={handleExportPDF}
+              disabled={isExporting}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed no-print"
+            >
+              {isExporting ? 'Generating PDF...' : '📄 Export as PDF'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="px-6 py-3 bg-green-600 hover:bg-green-500 rounded-lg font-semibold transition-colors no-print"
+            >
+              🖨️ Print / Save as PDF
+            </button>
           </div>
         </section>
 

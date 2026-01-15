@@ -254,8 +254,31 @@ class PDFFormGenerator:
         """Generate common sections for all facility types"""
         elements = []
         
-        # Project Information Section
-        elements.append(Paragraph("1. PROJECT INFORMATION", self.styles['SectionHeader']))
+        # Client Information Section (NEW - Added at the beginning)
+        elements.append(Paragraph("1. CLIENT INFORMATION", self.styles['SectionHeader']))
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("<i>Enter client/company information for this project</i>", self.styles['Normal']))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Client/Company Basic Information
+        elements.extend(self.create_single_field_row("Company Name", "", "Client or company name"))
+        elements.extend(self.create_single_field_row("Company Address (Street)", "", "Street address"))
+        elements.extend(self.create_single_field_row("City", "", "City name"))
+        elements.extend(self.create_single_field_row("State/Province", "", "State or province abbreviation"))
+        elements.extend(self.create_single_field_row("ZIP/Postal Code", "", "Postal code"))
+        elements.extend(self.create_single_field_row("Country", "", "Country (if outside US)"))
+        
+        # Client Contact Information
+        elements.append(Paragraph("<b>Primary Contact</b>", self.styles['FieldLabel']))
+        elements.extend(self.create_single_field_row("Contact Name", "", "Primary contact person name"))
+        elements.extend(self.create_single_field_row("Contact Email", "", "Contact email address"))
+        elements.extend(self.create_single_field_row("Contact Phone", "", "Contact phone number"))
+        elements.extend(self.create_single_field_row("Contact Mobile/Cell", "", "Mobile phone number (optional)"))
+        
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Project Information Section (renumbered from 1 to 2)
+        elements.append(Paragraph("2. PROJECT INFORMATION", self.styles['SectionHeader']))
         
         # Client/Company Information
         elements.extend(self.create_single_field_row("Client/Company Name", ""))
@@ -312,8 +335,8 @@ class PDFFormGenerator:
         
         elements.append(Spacer(1, 0.2*inch))
         
-        # Test Parameters Section
-        elements.append(Paragraph("2. TEST PARAMETERS", self.styles['SectionHeader']))
+        # Test Parameters Section (renumbered from 2 to 3)
+        elements.append(Paragraph("3. TEST PARAMETERS", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Test Type", "[ ] Power Quality  [ ] Energy Savings  [ ] Harmonic Analysis"))
         elements.extend(self.create_single_field_row("Circuit Name", ""))
         elements.extend(self.create_field_row("Test Period", "Before: ", "After: ", "Start and end dates"))
@@ -323,15 +346,15 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Interval Data", "[ ] 1-minute  [ ] 15-minute  [ ] Hourly"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Weather Data Section
-        elements.append(Paragraph("3. WEATHER DATA", self.styles['SectionHeader']))
+        # Weather Data Section (renumbered from 3 to 4)
+        elements.append(Paragraph("4. WEATHER DATA", self.styles['SectionHeader']))
         elements.extend(self.create_field_row("Temperature", "Before:  deg F", "After:  deg F", "Average temperature during test period"))
         elements.extend(self.create_field_row("Humidity", "Before:  %", "After:  %", "Average relative humidity"))
         elements.extend(self.create_single_field_row("Weather Data Source", "[ ] Automatic API  [ ] Manual Entry"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Billing Information Section
-        elements.append(Paragraph("4. BILLING INFORMATION", self.styles['SectionHeader']))
+        # Billing Information Section (renumbered from 4 to 5)
+        elements.append(Paragraph("5. BILLING INFORMATION", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Utility Company", ""))
         elements.extend(self.create_single_field_row("Account Number", ""))
         elements.extend(self.create_single_field_row("Energy Rate", " $/kWh", "Cost per kilowatt-hour"))
@@ -344,8 +367,8 @@ class PDFFormGenerator:
         """Generate Cold Storage facility form"""
         elements = self.generate_common_sections()
         
-        # Cold Storage Facility Configuration Section
-        elements.append(Paragraph("5. COLD STORAGE FACILITY CONFIGURATION", self.styles['SectionHeader']))
+        # Cold Storage Facility Configuration Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. COLD STORAGE FACILITY CONFIGURATION", self.styles['SectionHeader']))
         elements.append(Spacer(1, 0.1*inch))
         elements.append(Paragraph("<i>Enter product and storage information to calculate energy intensity metrics (kWh per unit of product)</i>", self.styles['Normal']))
         elements.append(Spacer(1, 0.15*inch))
@@ -393,8 +416,8 @@ class PDFFormGenerator:
         
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("6. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 6 to 7)
+        elements.append(Paragraph("7. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))
@@ -405,8 +428,8 @@ class PDFFormGenerator:
         """Generate Data Center/GPU facility form"""
         elements = self.generate_common_sections()
         
-        # Data Center Specific Section
-        elements.append(Paragraph("5. DATA CENTER / GPU FACILITY DATA", self.styles['SectionHeader']))
+        # Data Center Specific Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. DATA CENTER / GPU FACILITY DATA", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Facility Type", 
             "[ ] Traditional Data Center  [ ] GPU Facility  [ ] Hybrid  [ ] Colocation  [ ] Edge"))
         elements.extend(self.create_single_field_row("Facility Area", "_____ sqft", "Total facility floor area"))
@@ -423,8 +446,8 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Workload Type", "[ ] Training  [ ] Inference  [ ] Mixed"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("6. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 6 to 7)
+        elements.append(Paragraph("7. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))
@@ -435,8 +458,8 @@ class PDFFormGenerator:
         """Generate Healthcare facility form"""
         elements = self.generate_common_sections()
         
-        # Healthcare Specific Section
-        elements.append(Paragraph("5. HEALTHCARE FACILITY DATA", self.styles['SectionHeader']))
+        # Healthcare Specific Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. HEALTHCARE FACILITY DATA", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Facility Type", 
             "[ ] Hospital  [ ] Clinic  [ ] Medical Center  [ ] Surgical Center  [ ] Nursing Home  [ ] Other: ___________"))
         elements.extend(self.create_single_field_row("Facility Area", "_____ sqft", "Total facility floor area"))
@@ -454,8 +477,8 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Critical Load Power", "_____ kW", "Critical load power requirement"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("6. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 6 to 7)
+        elements.append(Paragraph("7. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))
@@ -466,8 +489,8 @@ class PDFFormGenerator:
         """Generate Hospitality facility form"""
         elements = self.generate_common_sections()
         
-        # Hospitality Specific Section
-        elements.append(Paragraph("5. HOSPITALITY FACILITY DATA", self.styles['SectionHeader']))
+        # Hospitality Specific Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. HOSPITALITY FACILITY DATA", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Facility Type", 
             "[ ] Hotel (Full Service)  [ ] Hotel (Limited Service)  [ ] Resort  [ ] Restaurant  [ ] Banquet Hall  [ ] Casino  [ ] Other: ___________"))
         elements.extend(self.create_single_field_row("Facility Area", "_____ sqft", "Total facility floor area"))
@@ -492,8 +515,8 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Off-Season Occupancy Rate", "_____ %", "Off-season occupancy"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("6. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 6 to 7)
+        elements.append(Paragraph("7. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))
@@ -504,8 +527,8 @@ class PDFFormGenerator:
         """Generate Manufacturing & Industrial facility form"""
         elements = self.generate_common_sections()
         
-        # Manufacturing Specific Section
-        elements.append(Paragraph("5. MANUFACTURING & INDUSTRIAL FACILITY DATA", self.styles['SectionHeader']))
+        # Manufacturing Specific Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. MANUFACTURING & INDUSTRIAL FACILITY DATA", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Facility Type", 
             "[ ] Manufacturing Plant  [ ] Assembly Plant  [ ] Processing Facility  [ ] Foundry  [ ] Chemical Processing  [ ] Food Processing  [ ] Textile  [ ] Automotive  [ ] Electronics  [ ] Pharmaceutical  [ ] Paper/Pulp  [ ] Other: ___________"))
         elements.extend(self.create_single_field_row("Facility Area", "_____ sqft", "Total facility floor area"))
@@ -547,8 +570,8 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Demand Charge Rate", "_____ $/kW", "Utility demand charge rate"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("6. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 6 to 7)
+        elements.append(Paragraph("7. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))
@@ -559,8 +582,8 @@ class PDFFormGenerator:
         """Generate General Energy Analysis form with electrical and financial configuration"""
         elements = self.generate_common_sections()
         
-        # Electrical Configuration Section
-        elements.append(Paragraph("5. ELECTRICAL CONFIGURATION", self.styles['SectionHeader']))
+        # Electrical Configuration Section (renumbered from 5 to 6)
+        elements.append(Paragraph("6. ELECTRICAL CONFIGURATION", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Number of Phases", "[ ] 1 (Single Phase)  [ ] 3 (Three Phase)"))
         elements.extend(self.create_single_field_row("Nominal Voltage", "_____ V", "System nominal voltage (e.g., 480V, 240V)"))
         elements.extend(self.create_single_field_row("Voltage Type", "[ ] Line-to-Line (LL)  [ ] Line-to-Neutral (LN)"))
@@ -570,8 +593,8 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("Stray Loss Fraction", "_____ %", "Percentage of load loss that is stray loss"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Additional Billing Information
-        elements.append(Paragraph("6. ADDITIONAL BILLING & FINANCIAL INFORMATION", self.styles['SectionHeader']))
+        # Additional Billing Information (renumbered from 6 to 7)
+        elements.append(Paragraph("7. ADDITIONAL BILLING & FINANCIAL INFORMATION", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Project Cost", "_____ $", "Total project installation cost"))
         elements.extend(self.create_single_field_row("Last Monthly Bill (Total Cost)", "_____ $", "Client's last monthly utility bill total"))
         elements.extend(self.create_single_field_row("Target Power Factor", "_____ (0-1)", "Target power factor for normalization (e.g., 0.95)"))
@@ -583,14 +606,14 @@ class PDFFormGenerator:
         elements.extend(self.create_single_field_row("CP Demand Rate", "_____ $/kW-month", "Coincident peak demand rate"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Equipment Description
-        elements.append(Paragraph("7. EQUIPMENT DESCRIPTION", self.styles['SectionHeader']))
+        # Equipment Description (renumbered from 7 to 8)
+        elements.append(Paragraph("8. EQUIPMENT DESCRIPTION", self.styles['SectionHeader']))
         elements.extend(self.create_single_field_row("Equipment Description", "_________________________________", "Description of equipment being analyzed"))
         elements.extend(self.create_single_field_row("Circuit Name/ID", "_________________________________", "Circuit identifier or name"))
         elements.append(Spacer(1, 0.2*inch))
         
-        # Notes Section
-        elements.append(Paragraph("8. NOTES", self.styles['SectionHeader']))
+        # Notes Section (renumbered from 8 to 9)
+        elements.append(Paragraph("9. NOTES", self.styles['SectionHeader']))
         for i in range(8):
             elements.append(Paragraph("_" * 85, self.styles['Normal']))
             elements.append(Spacer(1, 0.1*inch))

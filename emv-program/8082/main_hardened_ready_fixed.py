@@ -181,7 +181,7 @@ class WeatherServiceClient:
                 logger.error("Weather service may not be running on port 8200")
 
             response = self.session.post(
-                f"{self.weather_service_url}/weather/batch", json=payload, timeout=30
+                f"{self.weather_service_url}/weather/batch", json=payload, timeout=120  # Increased from 30 to 120 seconds to allow for Open-Meteo API calls (60s) + processing time
             )
             logger.info(f"Weather service response status: {response.status_code}")
             logger.info(f"Weather service response headers: {dict(response.headers)}")
@@ -189,6 +189,10 @@ class WeatherServiceClient:
 
             data = response.json()
             logger.info(f"Weather service response data: {data}")
+            logger.info(f"Weather service response - temp_before: {data.get('temp_before')}, temp_after: {data.get('temp_after')}")
+            logger.info(f"Weather service response - humidity_before: {data.get('humidity_before')}, humidity_after: {data.get('humidity_after')}")
+            logger.info(f"Weather service response - dewpoint_before: {data.get('dewpoint_before')}, dewpoint_after: {data.get('dewpoint_after')}")
+            logger.info(f"Weather service response - hourly_data present: {'hourly_data' in data}, hourly_data length: {len(data.get('hourly_data', []))}")
 
             if data.get("success", False):
                 # Weather service returns data directly, not in before_period/after_period objects
@@ -201,6 +205,8 @@ class WeatherServiceClient:
                     "temp_after": data.get("temp_after"),
                     "humidity_before": data.get("humidity_before"),
                     "humidity_after": data.get("humidity_after"),
+                    "dewpoint_before": data.get("dewpoint_before"),
+                    "dewpoint_after": data.get("dewpoint_after"),
                     "wind_speed_before": data.get("wind_speed_before"),
                     "wind_speed_after": data.get("wind_speed_after"),
                     "solar_radiation_before": data.get("solar_radiation_before"),
@@ -212,6 +218,62 @@ class WeatherServiceClient:
                     "data_points_after": data.get("after_days", 0),
                     "hourly_data": data.get("hourly_data", []),
                 }
+
+                # Fallback: Calculate from hourly_data if daily values are null
+                hourly_data = result.get("hourly_data", [])
+                if hourly_data:
+                    logger.info(f"Fallback check: Found {len(hourly_data)} hourly data points")
+                    
+                    # Separate before and after hourly data
+                    before_hourly = [h for h in hourly_data if h.get("period") == "before"]
+                    after_hourly = [h for h in hourly_data if h.get("period") == "after"]
+                    
+                    logger.info(f"Fallback check: {len(before_hourly)} before points, {len(after_hourly)} after points")
+                    
+                    # Calculate temp_before from hourly data if null
+                    if result.get("temp_before") is None and before_hourly:
+                        before_temps = [h.get("temp") for h in before_hourly if h.get("temp") is not None]
+                        if before_temps:
+                            result["temp_before"] = sum(before_temps) / len(before_temps)
+                            logger.info(f"Client fallback: Calculated temp_before from {len(before_temps)} hourly points: {result['temp_before']:.2f}°C")
+                    
+                    # Calculate humidity_before from hourly data if null (independent of temp)
+                    if result.get("humidity_before") is None and before_hourly:
+                        before_humidity = [h.get("humidity") for h in before_hourly if h.get("humidity") is not None]
+                        if before_humidity:
+                            result["humidity_before"] = sum(before_humidity) / len(before_humidity)
+                            logger.info(f"Client fallback: Calculated humidity_before from {len(before_humidity)} hourly points: {result['humidity_before']:.2f}%")
+                    
+                    # Calculate dewpoint_before from hourly data if null (independent of temp)
+                    if result.get("dewpoint_before") is None and before_hourly:
+                        before_dewpoint = [h.get("dewpoint") for h in before_hourly if h.get("dewpoint") is not None]
+                        if before_dewpoint:
+                            result["dewpoint_before"] = sum(before_dewpoint) / len(before_dewpoint)
+                            logger.info(f"Client fallback: Calculated dewpoint_before from {len(before_dewpoint)} hourly points: {result['dewpoint_before']:.2f}°C")
+                    
+                    # Calculate temp_after from hourly data if null
+                    if result.get("temp_after") is None and after_hourly:
+                        after_temps = [h.get("temp") for h in after_hourly if h.get("temp") is not None]
+                        if after_temps:
+                            result["temp_after"] = sum(after_temps) / len(after_temps)
+                            logger.info(f"Client fallback: Calculated temp_after from {len(after_temps)} hourly points: {result['temp_after']:.2f}°C")
+                    
+                    # Calculate humidity_after from hourly data if null (independent of temp)
+                    if result.get("humidity_after") is None and after_hourly:
+                        after_humidity = [h.get("humidity") for h in after_hourly if h.get("humidity") is not None]
+                        if after_humidity:
+                            result["humidity_after"] = sum(after_humidity) / len(after_humidity)
+                            logger.info(f"Client fallback: Calculated humidity_after from {len(after_humidity)} hourly points: {result['humidity_after']:.2f}%")
+                    
+                    # Calculate dewpoint_after from hourly data if null (independent of temp)
+                    if result.get("dewpoint_after") is None and after_hourly:
+                        after_dewpoint = [h.get("dewpoint") for h in after_hourly if h.get("dewpoint") is not None]
+                        if after_dewpoint:
+                            result["dewpoint_after"] = sum(after_dewpoint) / len(after_dewpoint)
+                            logger.info(f"Client fallback: Calculated dewpoint_after from {len(after_dewpoint)} hourly points: {result['dewpoint_after']:.2f}°C")
+                else:
+                    logger.warning(f"Fallback check: No hourly_data available in weather response. Keys: {list(result.keys())}")
+                    logger.warning(f"Fallback check: Weather service returned - temp_before: {result.get('temp_before')}, temp_after: {result.get('temp_after')}")
 
                 logger.info(f"Processed weather result: {result}")
                 logger.info("Weather data fetched successfully from service")
@@ -19238,6 +19300,21 @@ def _inject_footer_after_request(resp):
         return resp
 
 
+@app.after_request
+def _add_no_cache_for_js(resp):
+    """Add no-cache headers for JavaScript files to prevent caching issues during development"""
+    try:
+        path = request.path or ""
+        # Only apply to JavaScript files
+        if path.endswith('.js'):
+            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            resp.headers['Pragma'] = 'no-cache'
+            resp.headers['Expires'] = '0'
+    except Exception:
+        pass
+    return resp
+
+
 # ===== Grouped Flask Routes =====
 # --------------------
 # Static file routes
@@ -19752,10 +19829,29 @@ def match_weather_to_csv_timestamps(csv_timestamps, hourly_weather_data, meter_i
                     }
                     matched_count += 1
                 else:
-                    missing_count += 1
-                    if missing_count <= 5:  # Log first 5 missing timestamps
-                        logger.warning(f"No weather data available for CSV timestamp: {csv_ts}")
-                    continue
+                    # CRITICAL FIX: Use nearest available weather data point instead of skipping
+                    # This ensures ALL timestamps get weather data, even if outside the weather data range
+                    if len(weather_df) > 0:
+                        # Find nearest weather timestamp (before or after)
+                        nearest_idx = (weather_df['timestamp'] - csv_ts).abs().idxmin()
+                        matched = {
+                            'timestamp': csv_ts.isoformat(),
+                            'temp': _to_native(weather_df.loc[nearest_idx, 'temp']),
+                            'dewpoint': _to_native(weather_df.loc[nearest_idx, 'dewpoint']),
+                            'humidity': _to_native(weather_df.loc[nearest_idx, 'humidity']),
+                            'wind_speed': _to_native(weather_df.loc[nearest_idx, 'wind_speed']),
+                            'solar_radiation': _to_native(weather_df.loc[nearest_idx, 'solar_radiation'])
+                        }
+                        nearest_count += 1
+                        if missing_count <= 5:  # Log first 5 cases where we use nearest point
+                            time_diff = abs((weather_df.loc[nearest_idx, 'timestamp'] - csv_ts).total_seconds() / 3600)
+                            logger.info(f"Using nearest weather data point for CSV timestamp {csv_ts} (nearest is {time_diff:.1f} hours away)")
+                        matched_data.append(matched)
+                    else:
+                        missing_count += 1
+                        if missing_count <= 5:  # Log first 5 missing timestamps
+                            logger.warning(f"No weather data available for CSV timestamp: {csv_ts}")
+                        continue
             else:
                 # For hourly or longer intervals, use nearest neighbor
                 nearest_idx = (weather_df['timestamp'] - csv_ts).abs().idxmin()
@@ -20119,7 +20215,7 @@ def fetch_weather():
 
             # Format dates for weather service
             # Convert string timestamps to datetime objects first
-            from datetime import datetime
+            from datetime import datetime, timedelta
 
             before_start_dt = datetime.strptime(
                 before_dates["start"], "%Y-%m-%d %H:%M:%S"
@@ -20129,11 +20225,26 @@ def fetch_weather():
                 after_dates["start"], "%Y-%m-%d %H:%M:%S"
             )
             after_end_dt = datetime.strptime(after_dates["end"], "%Y-%m-%d %H:%M:%S")
-
-            before_start = before_start_dt.strftime("%Y-%m-%d")
-            before_end = before_end_dt.strftime("%Y-%m-%d")
-            after_start = after_start_dt.strftime("%Y-%m-%d")
-            after_end = after_end_dt.strftime("%Y-%m-%d")
+            
+            # CRITICAL: Ensure date range covers ALL timestamps by using the full day range
+            # Start from the beginning of the start date and end at the end of the end date
+            # This ensures we get hourly weather data for the entire timestamp range
+            # Use the actual date range without adding extra days to avoid unnecessarily large queries
+            before_start = before_start_dt.replace(hour=0, minute=0, second=0).strftime("%Y-%m-%d")
+            before_end = before_end_dt.replace(hour=23, minute=59, second=59).strftime("%Y-%m-%d")
+            after_start = after_start_dt.replace(hour=0, minute=0, second=0).strftime("%Y-%m-%d")
+            after_end = after_end_dt.replace(hour=23, minute=59, second=59).strftime("%Y-%m-%d")
+            
+            # Calculate date range duration for logging and optimization
+            before_days = (before_end_dt - before_start_dt).days + 1
+            after_days = (after_end_dt - after_start_dt).days + 1
+            
+            logger.info(f"Date range for weather fetch - Before: {before_start} to {before_end} ({before_days} days, covering {before_start_dt} to {before_end_dt})")
+            logger.info(f"Date range for weather fetch - After: {after_start} to {after_end} ({after_days} days, covering {after_start_dt} to {after_end_dt})")
+            
+            # Warn if date ranges are very large (may cause slow API responses)
+            if before_days > 90 or after_days > 90:
+                logger.warning(f"⚠️ Large date range detected - Before: {before_days} days, After: {after_days} days. This may take longer to fetch.")
 
             # Fetch weather data using weather service (request hourly data for timestamp matching)
             normalized_address = _normalize_address_for_weather(address)
@@ -20146,6 +20257,14 @@ def fetch_weather():
             )
 
             logger.info(f"Weather data fetched successfully: {weather_data}")
+            
+            # Check if weather data has null values and log warning
+            if weather_data.get('temp_before') is None or weather_data.get('temp_after') is None:
+                logger.warning(f"⚠️ Weather data has null values - temp_before: {weather_data.get('temp_before')}, temp_after: {weather_data.get('temp_after')}")
+                logger.warning(f"Weather service response keys: {list(weather_data.keys())}")
+                logger.warning(f"Hourly data available: {len(weather_data.get('hourly_data', []))} points")
+                if weather_data.get('hourly_data'):
+                    logger.warning(f"Will attempt to calculate from hourly data as fallback")
             
             # Extract CSV timestamps and match with weather data
             matched_weather_before = []
@@ -20174,21 +20293,28 @@ def fetch_weather():
                         logger.info(f"After period hourly data: {len(after_hourly)} points")
                         
                         # Match weather to CSV timestamps
+                        # CRITICAL: Ensure ALL timestamps get weather data
                         if before_hourly:
+                            logger.info(f"🔍 Matching weather data to {len(before_csv_data['timestamps'])} before CSV timestamps...")
                             matched_weather_before = match_weather_to_csv_timestamps(
                                 before_csv_data['timestamps'],
                                 before_hourly,
                                 meter_interval_minutes=before_csv_data['interval_minutes']
                             )
-                            logger.info(f"Matched {len(matched_weather_before)} weather points to before CSV timestamps")
+                            logger.info(f"✅ Matched {len(matched_weather_before)} weather points to {len(before_csv_data['timestamps'])} before CSV timestamps")
+                            if len(matched_weather_before) != len(before_csv_data['timestamps']):
+                                logger.warning(f"⚠️ WARNING: Weather data matched for {len(matched_weather_before)} timestamps but CSV has {len(before_csv_data['timestamps'])} timestamps")
                         
                         if after_hourly:
+                            logger.info(f"🔍 Matching weather data to {len(after_csv_data['timestamps'])} after CSV timestamps...")
                             matched_weather_after = match_weather_to_csv_timestamps(
                                 after_csv_data['timestamps'],
                                 after_hourly,
                                 meter_interval_minutes=after_csv_data['interval_minutes']
                             )
-                            logger.info(f"Matched {len(matched_weather_after)} weather points to after CSV timestamps")
+                            logger.info(f"✅ Matched {len(matched_weather_after)} weather points to {len(after_csv_data['timestamps'])} after CSV timestamps")
+                            if len(matched_weather_after) != len(after_csv_data['timestamps']):
+                                logger.warning(f"⚠️ WARNING: Weather data matched for {len(matched_weather_after)} timestamps but CSV has {len(after_csv_data['timestamps'])} timestamps")
                     else:
                         logger.warning("No hourly weather data available for timestamp matching")
                 else:
@@ -20205,12 +20331,64 @@ def fetch_weather():
                 if temps_before:
                     weather_data['temp_before'] = sum(temps_before) / len(temps_before)
                     logger.info(f"Calculated average temp_before from {len(temps_before)} matched points: {weather_data['temp_before']:.2f}°C")
+                
+                # Also calculate humidity and dewpoint from matched data
+                humidity_before = [m.get('humidity') for m in matched_weather_before if m.get('humidity') is not None]
+                if humidity_before:
+                    weather_data['humidity_before'] = sum(humidity_before) / len(humidity_before)
+                
+                dewpoint_before = [m.get('dewpoint') for m in matched_weather_before if m.get('dewpoint') is not None]
+                if dewpoint_before:
+                    weather_data['dewpoint_before'] = sum(dewpoint_before) / len(dewpoint_before)
             
             if matched_weather_after:
                 temps_after = [m.get('temp') for m in matched_weather_after if m.get('temp') is not None]
                 if temps_after:
                     weather_data['temp_after'] = sum(temps_after) / len(temps_after)
                     logger.info(f"Calculated average temp_after from {len(temps_after)} matched points: {weather_data['temp_after']:.2f}°C")
+                
+                # Also calculate humidity and dewpoint from matched data
+                humidity_after = [m.get('humidity') for m in matched_weather_after if m.get('humidity') is not None]
+                if humidity_after:
+                    weather_data['humidity_after'] = sum(humidity_after) / len(humidity_after)
+                
+                dewpoint_after = [m.get('dewpoint') for m in matched_weather_after if m.get('dewpoint') is not None]
+                if dewpoint_after:
+                    weather_data['dewpoint_after'] = sum(dewpoint_after) / len(dewpoint_after)
+            
+            # Fallback: If weather_data still has null values, try to calculate from hourly_data
+            if (weather_data.get('temp_before') is None or weather_data.get('temp_after') is None) and weather_data.get('hourly_data'):
+                hourly_data = weather_data.get('hourly_data', [])
+                before_hourly = [hw for hw in hourly_data if hw.get("period") == "before"]
+                after_hourly = [hw for hw in hourly_data if hw.get("period") == "after"]
+                
+                if before_hourly and weather_data.get('temp_before') is None:
+                    before_temps = [h.get('temp') for h in before_hourly if h.get('temp') is not None]
+                    if before_temps:
+                        weather_data['temp_before'] = sum(before_temps) / len(before_temps)
+                        logger.info(f"Fallback: Calculated temp_before from {len(before_temps)} hourly points: {weather_data['temp_before']:.2f}°C")
+                        
+                        before_humidity = [h.get('humidity') for h in before_hourly if h.get('humidity') is not None]
+                        if before_humidity:
+                            weather_data['humidity_before'] = sum(before_humidity) / len(before_humidity)
+                        
+                        before_dewpoint = [h.get('dewpoint') for h in before_hourly if h.get('dewpoint') is not None]
+                        if before_dewpoint:
+                            weather_data['dewpoint_before'] = sum(before_dewpoint) / len(before_dewpoint)
+                
+                if after_hourly and weather_data.get('temp_after') is None:
+                    after_temps = [h.get('temp') for h in after_hourly if h.get('temp') is not None]
+                    if after_temps:
+                        weather_data['temp_after'] = sum(after_temps) / len(after_temps)
+                        logger.info(f"Fallback: Calculated temp_after from {len(after_temps)} hourly points: {weather_data['temp_after']:.2f}°C")
+                        
+                        after_humidity = [h.get('humidity') for h in after_hourly if h.get('humidity') is not None]
+                        if after_humidity:
+                            weather_data['humidity_after'] = sum(after_humidity) / len(after_humidity)
+                        
+                        after_dewpoint = [h.get('dewpoint') for h in after_hourly if h.get('dewpoint') is not None]
+                        if after_dewpoint:
+                            weather_data['dewpoint_after'] = sum(after_dewpoint) / len(after_dewpoint)
 
             return jsonify(
                 {
@@ -25420,6 +25598,33 @@ def serve_template_report():
         return jsonify({"error": f"Failed to serve template: {str(e)}"}), 500
 
 
+@app.route("/api/serve-layman-report", methods=["GET", "POST"])
+def serve_layman_report():
+    """Serve the layman-friendly executive summary report"""
+    try:
+        # Forward request to 8084 service for layman report generation
+        response = requests.get("http://localhost:8084/generate-layman", timeout=30)
+        if response.status_code == 200:
+            html_content = response.text
+            return Response(
+                html_content,
+                mimetype='text/html',
+                headers={
+                    'Content-Type': 'text/html; charset=utf-8',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            )
+        else:
+            return jsonify({"error": "Could not generate layman report", "status": response.status_code}), 500
+    except Exception as e:
+        logger.error(f"Error serving layman report: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/pe/register", methods=["POST"])
 @api_guard
 def register_pe():
@@ -26243,15 +26448,51 @@ def api_store_verification_code():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/analysis/results", methods=["GET"])
+@app.route("/api/analysis/results", methods=["GET", "POST"])
 @api_guard
 def get_analysis_results():
     """
     GET endpoint to retrieve the latest analysis results
+    POST endpoint to update results with client-calculated values
     Used by HTML service for Direct GET Approach
     """
     try:
-        # Get the latest analysis results from session
+        # Handle POST: Update stored results with client-calculated values
+        if request.method == "POST":
+            data = request.get_json()
+            client_results = data.get("results") if data else None
+            update_only = data.get("update_only", False) if data else False
+            
+            if client_results:
+                stored_results = getattr(app, "_latest_analysis_results", None)
+                
+                if stored_results and update_only:
+                    # Merge client-calculated power_quality values into stored results
+                    if "power_quality" in client_results and isinstance(client_results["power_quality"], dict):
+                        if "power_quality" not in stored_results:
+                            stored_results["power_quality"] = {}
+                        
+                        # Merge client-calculated values (prioritize client values)
+                        client_pq = client_results["power_quality"]
+                        stored_pq = stored_results["power_quality"]
+                        
+                        # Update with client-calculated values
+                        for key in ["pf_normalized_kw_before", "pf_normalized_kw_after", 
+                                   "normalized_kw_before", "normalized_kw_after",
+                                   "pf_normalized_savings_kw", "pf_normalized_savings_percent",
+                                   "total_normalized_savings_kw", "total_normalized_savings_percent",
+                                   "calculated_normalized_kw_savings", "pf_adjustment_factor_before",
+                                   "pf_adjustment_factor_after", "calculated_pf_normalized_kw_before",
+                                   "calculated_pf_normalized_kw_after"]:
+                            if key in client_pq:
+                                stored_pq[key] = client_pq[key]
+                        
+                        logger.info(f"Updated stored results with client-calculated power_quality values")
+                        app._latest_analysis_results = stored_results
+                
+                return jsonify({"success": True, "message": "Results updated"}), 200
+        
+        # GET handler: Get the latest analysis results from session
         analysis_results = getattr(app, "_latest_analysis_results", None)
 
         if not analysis_results:
@@ -40658,19 +40899,40 @@ def get_projects():
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
+        start_time = time.time()
+        
         with get_db_connection() as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
+            # Optimized query using LEFT JOINs instead of subqueries for better performance
             projects = conn.execute(
                 """
-                SELECT id, name, description, created_at, updated_at,
-                       (SELECT COUNT(*) FROM feeders_data WHERE project_id = p.id) as feeder_count,
-                       (SELECT COUNT(*) FROM transformers_data WHERE project_id = p.id) as transformer_count
+                SELECT 
+                    p.id, 
+                    p.name, 
+                    p.description, 
+                    p.created_at, 
+                    p.updated_at,
+                    COALESCE(f.feeder_count, 0) as feeder_count,
+                    COALESCE(t.transformer_count, 0) as transformer_count
                 FROM projects p
-                ORDER BY updated_at DESC
+                LEFT JOIN (
+                    SELECT project_id, COUNT(*) as feeder_count
+                    FROM feeders_data
+                    GROUP BY project_id
+                ) f ON p.id = f.project_id
+                LEFT JOIN (
+                    SELECT project_id, COUNT(*) as transformer_count
+                    FROM transformers_data
+                    GROUP BY project_id
+                ) t ON p.id = t.project_id
+                ORDER BY p.updated_at DESC
             """
             ).fetchall()
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"Projects query completed in {elapsed_time:.2f} seconds, returned {len(projects)} projects")
 
             return jsonify([dict(project) for project in projects])
 
@@ -41105,6 +41367,89 @@ def projects_save():
             except (ValueError, TypeError):
                 project_id = None
 
+        # CRITICAL FIX: Handle file uploads if provided
+        # If files are uploaded, save them first and get their IDs
+        before_file_id = None
+        after_file_id = None
+        
+        if 'before_file' in request.files:
+            before_file = request.files['before_file']
+            if before_file and before_file.filename:
+                try:
+                    logger.info(f"💾 Uploading before_file: {before_file.filename}")
+                    # Save file using existing function
+                    saved_path = _safe_save_upload(before_file, "before")
+                    
+                    # Save to database and get file ID
+                    if ENABLE_SQLITE:
+                        with get_db_connection() as conn:
+                            if conn is not None:
+                                cursor = conn.cursor()
+                                file_size = os.path.getsize(saved_path) if os.path.exists(saved_path) else 0
+                                
+                                # Create fingerprint for integrity (optional, but consistent with upload endpoint)
+                                try:
+                                    csv_integrity = CSVIntegrityProtection()
+                                    with open(saved_path, "r", encoding="utf-8") as f:
+                                        file_content = f.read()
+                                    fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
+                                    fingerprint = fingerprint_data["content_hash"]
+                                except Exception as fp_error:
+                                    logger.warning(f"Could not create fingerprint for before_file: {fp_error}")
+                                    fingerprint = None
+                                
+                                cursor.execute("""
+                                    INSERT INTO raw_meter_data (file_name, file_path, file_size, fingerprint, uploaded_by)
+                                    VALUES (?, ?, ?, ?, ?)
+                                """, (before_file.filename, str(saved_path), file_size, fingerprint, "project_save"))
+                                conn.commit()
+                                before_file_id = cursor.lastrowid
+                                logger.info(f"💾 Saved before_file to database with ID: {before_file_id}")
+                except Exception as e:
+                    logger.error(f"Error uploading before_file: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    return jsonify({"error": f"Failed to upload before file: {str(e)}"}), 500
+        
+        if 'after_file' in request.files:
+            after_file = request.files['after_file']
+            if after_file and after_file.filename:
+                try:
+                    logger.info(f"💾 Uploading after_file: {after_file.filename}")
+                    # Save file using existing function
+                    saved_path = _safe_save_upload(after_file, "after")
+                    
+                    # Save to database and get file ID
+                    if ENABLE_SQLITE:
+                        with get_db_connection() as conn:
+                            if conn is not None:
+                                cursor = conn.cursor()
+                                file_size = os.path.getsize(saved_path) if os.path.exists(saved_path) else 0
+                                
+                                # Create fingerprint for integrity (optional, but consistent with upload endpoint)
+                                try:
+                                    csv_integrity = CSVIntegrityProtection()
+                                    with open(saved_path, "r", encoding="utf-8") as f:
+                                        file_content = f.read()
+                                    fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
+                                    fingerprint = fingerprint_data["content_hash"]
+                                except Exception as fp_error:
+                                    logger.warning(f"Could not create fingerprint for after_file: {fp_error}")
+                                    fingerprint = None
+                                
+                                cursor.execute("""
+                                    INSERT INTO raw_meter_data (file_name, file_path, file_size, fingerprint, uploaded_by)
+                                    VALUES (?, ?, ?, ?, ?)
+                                """, (after_file.filename, str(saved_path), file_size, fingerprint, "project_save"))
+                                conn.commit()
+                                after_file_id = cursor.lastrowid
+                                logger.info(f"💾 Saved after_file to database with ID: {after_file_id}")
+                except Exception as e:
+                    logger.error(f"Error uploading after_file: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+                    return jsonify({"error": f"Failed to upload after file: {str(e)}"}), 500
+
         # Get payload from form data (JavaScript sends JSON string in 'payload' field)
         payload_str = request.form.get("payload", "")
         if payload_str:
@@ -41120,6 +41465,14 @@ def projects_save():
             for key, value in request.form.items():
                 if key not in ["project_name", "project_id", "payload"]:
                     project_data[key] = value
+
+        # CRITICAL FIX: Update file IDs in project_data if files were uploaded
+        if before_file_id:
+            project_data['before_file_id'] = before_file_id
+            logger.info(f"💾 Updated project_data with before_file_id: {before_file_id}")
+        if after_file_id:
+            project_data['after_file_id'] = after_file_id
+            logger.info(f"💾 Updated project_data with after_file_id: {after_file_id}")
 
         if not project_data:
             return jsonify({"error": "No project data provided"}), 400
@@ -45953,6 +46306,9 @@ def admin_restart_service():
             "html-service": "html_reports",
             "weather-service": "weather",
             "chart-service": "charts",
+            "ollama-ai-service": "ollama_ai",
+            "utility-rate-service": "utility_rate",
+            "utility-incentive-service": "utility_incentive",
             "service-manager": "service_manager",
         }
 
@@ -46066,6 +46422,214 @@ def admin_stop_all_services():
             ),
             500,
         )
+
+
+# ===== Admin User Management Endpoints =====
+@app.route("/admin/users/list", methods=["GET"])
+def admin_users_list():
+    """Get list of all users for admin panel"""
+    try:
+        if not ENABLE_SQLITE:
+            return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
+
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"success": False, "error": "Database not available"}), 500
+
+            users = conn.execute(
+                """
+                SELECT id, username, email, role, pe_license_number, state, 
+                       full_name, created_at, updated_at
+                FROM users
+                ORDER BY created_at DESC
+            """
+            ).fetchall()
+
+            users_list = []
+            for user in users:
+                users_list.append({
+                    "id": user["id"],
+                    "username": user["username"],
+                    "email": user["email"],
+                    "role": user["role"],
+                    "pe_license_number": user["pe_license_number"] or "-",
+                    "state": user["state"] or "-",
+                    "full_name": user["full_name"] or user["username"],
+                    "created_at": user["created_at"],
+                    "updated_at": user["updated_at"]
+                })
+
+            return jsonify({"success": True, "users": users_list})
+
+    except Exception as e:
+        logger.error(f"Error getting users list: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/admin/users/add", methods=["POST"])
+def admin_users_add():
+    """Add a new user"""
+    try:
+        if not ENABLE_SQLITE:
+            return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
+
+        data = request.get_json()
+        username = data.get("username", "").strip()
+        email = data.get("email", "").strip()
+        role = data.get("role", "user").strip().lower()
+        password = data.get("password", "").strip()
+        full_name = data.get("full_name", username).strip()
+        pe_license_number = data.get("pe_license_number", "").strip()
+        state = data.get("state", "").strip()
+
+        if not username or not email or not password:
+            return jsonify({"success": False, "error": "Username, email, and password are required"}), 400
+
+        if role not in ["admin", "user"]:
+            return jsonify({"success": False, "error": "Role must be 'admin' or 'user'"}), 400
+
+        # Hash password
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"success": False, "error": "Database not available"}), 500
+
+            # Check if username or email already exists
+            existing = conn.execute(
+                "SELECT id FROM users WHERE username = ? OR email = ?",
+                (username, email)
+            ).fetchone()
+
+            if existing:
+                return jsonify({"success": False, "error": "Username or email already exists"}), 400
+
+            # Insert new user
+            conn.execute(
+                """
+                INSERT INTO users (username, email, password_hash, role, full_name, 
+                                 pe_license_number, state, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+                (username, email, password_hash, role, full_name, pe_license_number, state)
+            )
+            conn.commit()
+
+            return jsonify({"success": True, "message": f"User '{username}' created successfully"})
+
+    except Exception as e:
+        logger.error(f"Error adding user: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/admin/users/edit", methods=["POST"])
+def admin_users_edit():
+    """Edit an existing user"""
+    try:
+        if not ENABLE_SQLITE:
+            return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
+
+        data = request.get_json()
+        user_id = data.get("user_id")
+        role = data.get("role", "").strip().lower()
+        email = data.get("email", "").strip()
+        password = data.get("password", "").strip()
+        full_name = data.get("full_name", "").strip()
+        pe_license_number = data.get("pe_license_number", "").strip()
+        state = data.get("state", "").strip()
+
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID is required"}), 400
+
+        if role and role not in ["admin", "user"]:
+            return jsonify({"success": False, "error": "Role must be 'admin' or 'user'"}), 400
+
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"success": False, "error": "Database not available"}), 500
+
+            # Check if user exists
+            user = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not user:
+                return jsonify({"success": False, "error": "User not found"}), 404
+
+            # Build update query dynamically based on provided fields
+            updates = []
+            params = []
+
+            if role:
+                updates.append("role = ?")
+                params.append(role)
+            if email:
+                updates.append("email = ?")
+                params.append(email)
+            if password:
+                password_hash = hashlib.sha256(password.encode()).hexdigest()
+                updates.append("password_hash = ?")
+                params.append(password_hash)
+            if full_name:
+                updates.append("full_name = ?")
+                params.append(full_name)
+            if pe_license_number is not None:
+                updates.append("pe_license_number = ?")
+                params.append(pe_license_number)
+            if state is not None:
+                updates.append("state = ?")
+                params.append(state)
+
+            if not updates:
+                return jsonify({"success": False, "error": "No fields to update"}), 400
+
+            updates.append("updated_at = CURRENT_TIMESTAMP")
+            params.append(user_id)
+
+            conn.execute(
+                f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+                params
+            )
+            conn.commit()
+
+            return jsonify({"success": True, "message": "User updated successfully"})
+
+    except Exception as e:
+        logger.error(f"Error editing user: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/admin/users/delete", methods=["POST"])
+def admin_users_delete():
+    """Delete a user"""
+    try:
+        if not ENABLE_SQLITE:
+            return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
+
+        data = request.get_json()
+        user_id = data.get("user_id")
+
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID is required"}), 400
+
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"success": False, "error": "Database not available"}), 500
+
+            # Check if user exists
+            user = conn.execute("SELECT username FROM users WHERE id = ?", (user_id,)).fetchone()
+            if not user:
+                return jsonify({"success": False, "error": "User not found"}), 404
+
+            # Delete user sessions first (foreign key constraint)
+            conn.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+            
+            # Delete user
+            conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+
+            return jsonify({"success": True, "message": f"User '{user['username']}' deleted successfully"})
+
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/admin/update-user-guides", methods=["POST"])

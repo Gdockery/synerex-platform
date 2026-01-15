@@ -546,7 +546,10 @@
             <p id="version-info"><strong>Version 3.1</strong> | <strong>Last Updated:</strong> October 19, 2025</p>
             <div style="margin-top: 0.75rem;">
                 <a href="http://localhost:5173/admin" class="admin-button" style="text-decoration: none; display: inline-block; margin-right: 0.5rem; background: #6c757d;">← Back to Synerex Admin</a>
-                <a href="/main-dashboard" class="admin-button" style="text-decoration: none; display: inline-block; margin-right: 0.5rem;">← Back to Dashboard</a>
+                <a href="/main-dashboard" 
+                   class="admin-button" 
+                   style="text-decoration: none; display: inline-block; margin-right: 0.5rem;"
+                   onclick="window.location.href='/main-dashboard'; return false;">← Back to Dashboard</a>
                 <a href="/admin-guide" class="admin-button" style="text-decoration: none; display: inline-block; background: #28a745; margin-right: 0.5rem;">📖 Admin Guide</a>
                 <a href="/synerex-ai" class="admin-button" style="text-decoration: none; display: inline-block; background: #6f42c1; margin-right: 0.5rem;">🤖 SynerexAI</a>
                 <a href="/energy-ai-guard" class="admin-button" style="text-decoration: none; display: inline-block; background: #dc3545;">SynerexAI Guard</a>
@@ -1046,6 +1049,11 @@
         // System Statistics
         async function loadSystemStats() {
             try {
+                // Skip health checks if services are restarting
+                if (typeof restartInProgress !== 'undefined' && restartInProgress) {
+                    return; // Don't check health during restart
+                }
+                
                 // Calculate session uptime (simplified)
                 const sessionMinutes = Math.floor(Math.random() * 30) + 1; // 1-30 minutes
                 const uptimeText = `${sessionMinutes}m`;
@@ -1067,7 +1075,14 @@
                         clearTimeout(timeoutId);
                         if (response.ok) coreServicesHealthy++;
                     } catch (error) {
-                        // Core service is offline - don't check other services yet
+                        // Silently handle connection errors - services may be restarting
+                        // Only log if not a connection error
+                        if (error.name !== 'AbortError' && 
+                            !error.message.includes('ERR_CONNECTION') && 
+                            !error.message.includes('ERR_CONNECTION_RESET') &&
+                            !error.message.includes('ERR_CONNECTION_REFUSED')) {
+                            console.debug('Service health check error:', service.name, error);
+                        }
                     }
                 }
 
@@ -1091,11 +1106,30 @@
                             const timeoutId = setTimeout(() => controller.abort(), 5000);
                             const response = await fetch(service.url, { 
                                 signal: controller.signal 
+                            }).catch(err => {
+                                // Suppress connection errors during restarts
+                                if (typeof restartInProgress !== 'undefined' && restartInProgress) {
+                                    return null; // Return null to indicate error, but don't throw
+                                }
+                                throw err; // Re-throw if not during restart
                             });
                             clearTimeout(timeoutId);
-                            if (response.ok) activeServices++;
+                            if (response && response.ok) activeServices++;
                         } catch (error) {
-                            // Service is offline
+                            // Silently handle connection errors - services may be restarting
+                            // Suppress all errors during restart, or if it's a connection error
+                            const isConnectionError = error.message && (
+                                error.message.includes('ERR_CONNECTION') || 
+                                error.message.includes('ERR_CONNECTION_RESET') ||
+                                error.message.includes('ERR_CONNECTION_REFUSED') ||
+                                error.message.includes('Failed to fetch') ||
+                                error.message.includes('NetworkError')
+                            );
+                            if (error.name !== 'AbortError' && 
+                                !isConnectionError && 
+                                (typeof restartInProgress === 'undefined' || !restartInProgress)) {
+                                console.debug('Service health check error:', service.name, error);
+                            }
                         }
                     }
                 }
@@ -1110,7 +1144,14 @@
                 document.getElementById('total-projects').textContent = activeServices.toString();
                 document.getElementById('system-uptime').textContent = uptimeText;
             } catch (error) {
-                console.error('Error loading system stats:', error);
+                // Only log if not during restart and not a connection error
+                if (typeof restartInProgress === 'undefined' || !restartInProgress) {
+                    if (!error.message || (!error.message.includes('ERR_CONNECTION') && 
+                        !error.message.includes('ERR_CONNECTION_RESET') &&
+                        !error.message.includes('ERR_CONNECTION_REFUSED'))) {
+                        console.error('Error loading system stats:', error);
+                    }
+                }
                 // Fallback values
                 document.getElementById('total-users').textContent = '2';
                 document.getElementById('active-sessions').textContent = '1';
@@ -1153,11 +1194,11 @@
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${user.username}</td>
-                            <td>${user.email}</td>
+                            <td>${user.full_name || user.username}</td>
                             <td>${user.email}</td>
                             <td><span class="role-badge role-${user.role}">${user.role.toUpperCase()}</span></td>
-                            <td>-</td>
-                            <td>-</td>
+                            <td>${user.pe_license_number || '-'}</td>
+                            <td>${user.state || '-'}</td>
                             <td>
                                 <button class="admin-button" onclick="editUser('${user.username}', ${user.id})">Edit</button>
                                 <button class="admin-button danger" onclick="deleteUser('${user.username}', ${user.id})">Delete</button>
@@ -3608,6 +3649,11 @@ File size: 2.3 MB
 
         function loadVersion() {
             /** Load and update the version information from the API */
+            // Skip version check if services are restarting
+            if (typeof restartInProgress !== 'undefined' && restartInProgress) {
+                return; // Don't check version during restart
+            }
+            
             // Add timeout controller to prevent infinite spinner
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -3629,7 +3675,18 @@ File size: 2.3 MB
                 })
                 .catch(error => {
                     clearTimeout(timeoutId);
-                    if (error.name !== 'AbortError') {
+                    // Silently handle connection errors during restarts
+                    const isConnectionError = (error.message && (
+                        error.message.includes('ERR_CONNECTION') || 
+                        error.message.includes('ERR_CONNECTION_RESET') ||
+                        error.message.includes('ERR_CONNECTION_REFUSED') ||
+                        error.message.includes('Failed to fetch') ||
+                        error.message.includes('NetworkError')
+                    )) || error.name === 'TypeError' && error.message && error.message.includes('fetch');
+                    const isDuringRestart = typeof restartInProgress !== 'undefined' && restartInProgress;
+                    
+                    // Only log if not a connection error and not during restart
+                    if (error.name !== 'AbortError' && !isConnectionError && !isDuringRestart) {
                         console.error('Failed to load version:', error);
                     }
                     // Keep the default version if API call fails

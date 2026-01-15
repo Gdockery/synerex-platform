@@ -6,29 +6,75 @@ class MainDashboard {
         this.sessionToken = localStorage.getItem('session_token');
         this.helpStep = 1;
         this.maxHelpSteps = 5;
+        
+        // Show login form immediately - don't wait for auth check
+        this.showLoginSection();
+        
+        // CRITICAL: Clear all spinners immediately on initialization
+        this.clearAllSpinners();
+        
+        // Then check authentication in background (non-blocking)
         this.initializeEventListeners();
-        this.checkAuthentication();
+        // Use setTimeout to make auth check non-blocking
+        setTimeout(() => {
+            this.checkAuthentication();
+        }, 100);
 
     }
     
     initializeEventListeners() {
-
         // Check if we're on the main dashboard page
         const loginForm = document.getElementById('user-login');
         const registerForm = document.getElementById('user-registration');
         const logoutBtn = document.getElementById('logout-btn');
         
-        if (!loginForm && !registerForm && !logoutBtn) {
-
-            return;
+        // Project Management buttons - attach these FIRST before any early return
+        // These should always exist on the dashboard page
+        const createProject = document.getElementById('create-project');
+        if (createProject) createProject.addEventListener('click', () => this.showCreateProject());
+        
+        const accessProject = document.getElementById('access-project');
+        if (accessProject) {
+            accessProject.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('✅ Access Project button clicked');
+                console.log('🔍 Calling showAccessProject()...');
+                try {
+                    this.showAccessProject();
+                } catch (error) {
+                    console.error('❌ Error calling showAccessProject:', error);
+                    alert('Error: ' + error.message);
+                }
+            });
+            console.log('✅ Access Project button listener attached');
+        } else {
+            console.error('❌ Access Project button not found!');
         }
         
-        // Authentication
+        const projectTemplates = document.getElementById('project-templates');
+        if (projectTemplates) projectTemplates.addEventListener('click', () => this.showProjectTemplates());
+        
+        // Authentication - Always try to attach listeners, even if elements don't exist yet
+        // Retry after a short delay if elements aren't found (they might be created dynamically)
         if (loginForm) {
             loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.login();
             });
+            console.log('✅ Login form listener attached');
+        } else {
+            // Retry after DOM is ready
+            setTimeout(() => {
+                const retryLoginForm = document.getElementById('user-login');
+                if (retryLoginForm) {
+                    retryLoginForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.login();
+                    });
+                    console.log('✅ Login form listener attached on retry');
+                }
+            }, 500);
         }
         
         if (registerForm) {
@@ -36,12 +82,26 @@ class MainDashboard {
                 e.preventDefault();
                 this.register();
             });
+            console.log('✅ Register form listener attached');
+        } else {
+            // Retry after DOM is ready
+            setTimeout(() => {
+                const retryRegisterForm = document.getElementById('user-registration');
+                if (retryRegisterForm) {
+                    retryRegisterForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.register();
+                    });
+                    console.log('✅ Register form listener attached on retry');
+                }
+            }, 500);
         }
         
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 this.logout();
             });
+            console.log('✅ Logout button listener attached');
         }
         
         // Raw Meter File Storage
@@ -63,16 +123,6 @@ class MainDashboard {
         
         const verifyIntegrity = document.getElementById('verify-integrity');
         if (verifyIntegrity) verifyIntegrity.addEventListener('click', () => this.showIntegrityVerification());
-        
-        // Project Management
-        const createProject = document.getElementById('create-project');
-        if (createProject) createProject.addEventListener('click', () => this.showCreateProject());
-        
-        const accessProject = document.getElementById('access-project');
-        if (accessProject) accessProject.addEventListener('click', () => this.showAccessProject());
-        
-        const projectTemplates = document.getElementById('project-templates');
-        if (projectTemplates) projectTemplates.addEventListener('click', () => this.showProjectTemplates());
         
         // PE Management - attach listeners
         this.attachPEButtonListeners();
@@ -128,28 +178,69 @@ class MainDashboard {
     }
     
     async checkAuthentication() {
-        if (this.sessionToken) {
-            try {
-                const response = await fetch('/api/auth/validate-session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_token: this.sessionToken })
-                });
-                
-                const result = await response.json();
-                if (result.status === 'success') {
-                    this.currentUser = result.user;
-                    this.showAuthenticatedDashboard();
-                    this.loadDashboardStats();
-                } else {
+        console.log('🔐 checkAuthentication() called');
+        
+        // CRITICAL: Clear spinners immediately before starting auth check
+        this.clearAllSpinners();
+        
+        // Add a fallback timeout to ensure spinners are always cleared (reduced to 3 seconds)
+        const fallbackTimeout = setTimeout(() => {
+            console.warn('⚠️ Authentication check taking too long, clearing spinners and showing login');
+            this.clearAllSpinners();
+            this.showLoginSection(); // Show login if auth check hangs
+        }, 3000); // 3 second fallback (reduced from 5)
+        
+        try {
+            if (this.sessionToken) {
+                try {
+                    // Shorter timeout - 2 seconds max
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                        console.error('⏱️ Session validation timed out after 2 seconds');
+                        controller.abort();
+                    }, 2000); // Reduced to 2 seconds
+                    
+                    const response = await fetch('/api/auth/validate-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session_token: this.sessionToken }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    clearTimeout(fallbackTimeout); // Clear fallback when request completes
+                    
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        console.log('✅ Session valid, showing dashboard');
+                        this.currentUser = result.user;
+                        this.clearAllSpinners(); // Clear spinners before showing dashboard
+                        this.showAuthenticatedDashboard();
+                        // Load stats in background - don't block
+                        this.loadDashboardStats().catch(err => {
+                            console.error('Stats load failed (non-critical):', err);
+                        });
+                    } else {
+                        console.log('❌ Session invalid, showing login');
+                        this.clearAllSpinners();
+                        this.showLoginSection();
+                    }
+                } catch (error) {
+                    clearTimeout(fallbackTimeout); // Clear fallback on error
+                    console.error('❌ Session validation error:', error);
+                    // Always clear spinners and show login section on any error
+                    this.clearAllSpinners();
                     this.showLoginSection();
                 }
-            } catch (error) {
-                console.error('Session validation error:', error);
+            } else {
+                clearTimeout(fallbackTimeout); // Clear fallback if no token
+                console.log('ℹ️ No session token, showing login');
+                this.clearAllSpinners();
                 this.showLoginSection();
             }
-        } else {
-            this.showLoginSection();
+        } finally {
+            // Always clear fallback timeout
+            clearTimeout(fallbackTimeout);
         }
     }
     
@@ -163,54 +254,96 @@ class MainDashboard {
             return;
         }
         
+        // Clear any existing spinners first
+        this.clearAllSpinners();
+        
         try {
+            console.log('🔐 Login attempt:', { username, role });
             this.setLoading(true);
             
             // Add timeout controller to prevent infinite spinner
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            let timeoutTriggered = false;
+            const timeoutId = setTimeout(() => {
+                timeoutTriggered = true;
+                console.error('⏱️ Login request timed out after 5 seconds');
+                controller.abort();
+                // Force clear spinner immediately on timeout
+                this.clearAllSpinners();
+                this.setLoading(false);
+                this.showNotification('Login request timed out. Please check if the server is running on port 8082.', 'error');
+            }, 5000);
             
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, role }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            // Check if response is OK before parsing JSON
-            if (!response.ok) {
-                const errorText = await response.text().catch(() => 'Unknown error');
-                throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
-            }
-            
-            // Parse JSON response
-            const text = await response.text();
-            if (!text) {
-                throw new Error('Empty response from server');
-            }
-            
-            const result = JSON.parse(text);
-            
-            if (result.status === 'success') {
-                this.currentUser = result.user;
-                this.sessionToken = result.session_token;
-                localStorage.setItem('session_token', this.sessionToken);
-                this.showAuthenticatedDashboard();
-                this.loadDashboardStats();
-                this.showNotification('Login successful!', 'success');
-            } else {
-                this.showNotification('Login failed: ' + (result.error || 'Unknown error'), 'error');
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role }),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (timeoutTriggered) {
+                    return; // Already handled by timeout
+                }
+                
+                console.log('📥 Login response status:', response.status, response.statusText);
+                
+                // Check if response is OK before parsing JSON
+                if (!response.ok) {
+                    const errorText = await response.text().catch(() => 'Unknown error');
+                    console.error('❌ Login failed:', response.status, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+                }
+                
+                // Parse JSON response
+                const text = await response.text();
+                console.log('📦 Login response text:', text.substring(0, 200));
+                
+                if (!text) {
+                    throw new Error('Empty response from server');
+                }
+                
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('❌ JSON parse error:', parseError, 'Response text:', text);
+                    throw new Error('Invalid JSON response from server');
+                }
+                
+                console.log('✅ Login result:', result);
+                
+                if (result.status === 'success') {
+                    this.currentUser = result.user;
+                    this.sessionToken = result.session_token;
+                    localStorage.setItem('session_token', this.sessionToken);
+                    this.showAuthenticatedDashboard();
+                    this.loadDashboardStats().catch(err => {
+                        console.error('Stats load failed (non-critical):', err);
+                    });
+                    this.showNotification('Login successful!', 'success');
+                } else {
+                    console.error('❌ Login failed:', result.error);
+                    this.showNotification('Login failed: ' + (result.error || 'Unknown error'), 'error');
+                }
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                if (timeoutTriggered || fetchError.name === 'AbortError') {
+                    // Already handled by timeout
+                    return;
+                }
+                throw fetchError; // Re-throw to outer catch
             }
         } catch (error) {
-            console.error('Login error:', error);
-            if (error.name === 'AbortError') {
-                this.showNotification('Login request timed out. Please check if the server is running on port 8082.', 'error');
-            } else {
+            console.error('❌ Login error:', error);
+            if (error.name !== 'AbortError') {
                 this.showNotification('Login failed: ' + error.message, 'error');
             }
         } finally {
+            console.log('🔄 Clearing loading state');
+            this.clearAllSpinners();
             this.setLoading(false);
         }
     }
@@ -322,163 +455,217 @@ class MainDashboard {
     }
     
     async loadDashboardStats() {
+        console.log('📊 loadDashboardStats() called');
         try {
             // Check if we're on the main dashboard page
             const rawFilesCount = document.getElementById('raw-files-count');
             if (!rawFilesCount) {
-
+                console.log('⚠️ Not on main dashboard page, skipping stats load');
                 return;
             }
             
-            // Load raw files stats
-            const rawFilesResponse = await fetch('/api/dashboard/raw-files-stats', {
-                headers: this.getAuthHeaders()
-            });
-            const rawFilesStats = await rawFilesResponse.json();
+            // Load raw files stats with timeout
+            const rawFilesController = new AbortController();
+            const rawFilesTimeout = setTimeout(() => {
+                console.error('⏱️ Raw files stats request timed out');
+                rawFilesController.abort();
+            }, 5000);
             
-            if (rawFilesStats.status === 'success') {
-                const rawFilesSize = document.getElementById('raw-files-size');
-                const rawFilesRecent = document.getElementById('raw-files-recent');
+            try {
+                const rawFilesResponse = await fetch('/api/dashboard/raw-files-stats', {
+                    headers: this.getAuthHeaders(),
+                    signal: rawFilesController.signal
+                });
+                clearTimeout(rawFilesTimeout);
+                const rawFilesStats = await rawFilesResponse.json();
                 
-                if (rawFilesCount) {
-                    rawFilesCount.textContent = rawFilesStats.total_files;
-                    // Make clickable
-                    rawFilesCount.style.cursor = 'pointer';
-                    rawFilesCount.title = 'Click to view all raw files';
-                    rawFilesCount.addEventListener('click', () => {
-                        this.showRawFilesListModal();
-                    });
-                    // Also make parent stat-card clickable
-                    const rawFilesCard = rawFilesCount.closest('.stat-card');
-                    if (rawFilesCard) {
-                        rawFilesCard.style.cursor = 'pointer';
-                        rawFilesCard.addEventListener('click', () => {
+                if (rawFilesStats.status === 'success') {
+                    const rawFilesSize = document.getElementById('raw-files-size');
+                    const rawFilesRecent = document.getElementById('raw-files-recent');
+                    
+                    if (rawFilesCount) {
+                        rawFilesCount.textContent = rawFilesStats.total_files;
+                        // Make clickable
+                        rawFilesCount.style.cursor = 'pointer';
+                        rawFilesCount.title = 'Click to view all raw files';
+                        rawFilesCount.addEventListener('click', () => {
                             this.showRawFilesListModal();
                         });
+                        // Also make parent stat-card clickable
+                        const rawFilesCard = rawFilesCount.closest('.stat-card');
+                        if (rawFilesCard) {
+                            rawFilesCard.style.cursor = 'pointer';
+                            rawFilesCard.addEventListener('click', () => {
+                                this.showRawFilesListModal();
+                            });
+                        }
                     }
-                }
-                if (rawFilesSize) {
-                    rawFilesSize.textContent = rawFilesStats.total_size;
-                    // Make clickable
-                    rawFilesSize.style.cursor = 'pointer';
-                    rawFilesSize.title = 'Click to view storage breakdown';
-                    rawFilesSize.addEventListener('click', () => {
-                        this.showStorageBreakdown();
-                    });
-                    // Also make parent stat-card clickable
-                    const sizeCard = rawFilesSize.closest('.stat-card');
-                    if (sizeCard) {
-                        sizeCard.style.cursor = 'pointer';
-                        sizeCard.addEventListener('click', () => {
+                    if (rawFilesSize) {
+                        rawFilesSize.textContent = rawFilesStats.total_size;
+                        // Make clickable
+                        rawFilesSize.style.cursor = 'pointer';
+                        rawFilesSize.title = 'Click to view storage breakdown';
+                        rawFilesSize.addEventListener('click', () => {
                             this.showStorageBreakdown();
                         });
+                        // Also make parent stat-card clickable
+                        const sizeCard = rawFilesSize.closest('.stat-card');
+                        if (sizeCard) {
+                            sizeCard.style.cursor = 'pointer';
+                            sizeCard.addEventListener('click', () => {
+                                this.showStorageBreakdown();
+                            });
+                        }
                     }
-                }
-                if (rawFilesRecent) {
-                    rawFilesRecent.textContent = rawFilesStats.recent_uploads;
-                    // Make clickable
-                    rawFilesRecent.style.cursor = 'pointer';
-                    rawFilesRecent.title = 'Click to view recent uploads';
-                    rawFilesRecent.addEventListener('click', () => {
-                        this.showRecentUploads();
-                    });
-                    // Also make parent stat-card clickable
-                    const recentCard = rawFilesRecent.closest('.stat-card');
-                    if (recentCard) {
-                        recentCard.style.cursor = 'pointer';
-                        recentCard.addEventListener('click', () => {
+                    if (rawFilesRecent) {
+                        rawFilesRecent.textContent = rawFilesStats.recent_uploads;
+                        // Make clickable
+                        rawFilesRecent.style.cursor = 'pointer';
+                        rawFilesRecent.title = 'Click to view recent uploads';
+                        rawFilesRecent.addEventListener('click', () => {
                             this.showRecentUploads();
                         });
+                        // Also make parent stat-card clickable
+                        const recentCard = rawFilesRecent.closest('.stat-card');
+                        if (recentCard) {
+                            recentCard.style.cursor = 'pointer';
+                            recentCard.addEventListener('click', () => {
+                                this.showRecentUploads();
+                            });
+                        }
                     }
                 }
+            } catch (error) {
+                clearTimeout(rawFilesTimeout);
+                console.error('❌ Error loading raw files stats:', error);
             }
             
-            // Load clipping stats
-            const clippingResponse = await fetch('/api/dashboard/clipping-stats', {
-                headers: this.getAuthHeaders()
-            });
-            const clippingStats = await clippingResponse.json();
+            // Load clipping stats with timeout
+            const clippingController = new AbortController();
+            const clippingTimeout = setTimeout(() => {
+                // Suppress timeout error - stats are non-critical
+                clippingController.abort();
+            }, 5000);
             
-            if (clippingStats.status === 'success') {
-                const clippedFilesCount = document.getElementById('clipped-files-count');
-                const modificationsCount = document.getElementById('modifications-count');
-                const integrityStatus = document.getElementById('integrity-status');
+            try {
+                const clippingResponse = await fetch('/api/dashboard/clipping-stats', {
+                    headers: this.getAuthHeaders(),
+                    signal: clippingController.signal
+                });
+                clearTimeout(clippingTimeout);
+                const clippingStats = await clippingResponse.json();
                 
-                if (clippedFilesCount) {
-                    clippedFilesCount.textContent = clippingStats.clipped_files || 0;
-                    // Make clickable
-                    clippedFilesCount.style.cursor = 'pointer';
-                    clippedFilesCount.title = 'Click to view clipped files list';
-                    clippedFilesCount.addEventListener('click', () => {
-                        this.showClippedFilesList();
-                    });
-                    // Also make parent stat-card clickable
-                    const clippedCard = clippedFilesCount.closest('.stat-card');
-                    if (clippedCard) {
-                        clippedCard.style.cursor = 'pointer';
-                        clippedCard.addEventListener('click', () => {
+                if (clippingStats.status === 'success') {
+                    const clippedFilesCount = document.getElementById('clipped-files-count');
+                    const modificationsCount = document.getElementById('modifications-count');
+                    const integrityStatus = document.getElementById('integrity-status');
+                    
+                    if (clippedFilesCount) {
+                        clippedFilesCount.textContent = clippingStats.clipped_files || 0;
+                        // Make clickable
+                        clippedFilesCount.style.cursor = 'pointer';
+                        clippedFilesCount.title = 'Click to view clipped files list';
+                        clippedFilesCount.addEventListener('click', () => {
                             this.showClippedFilesList();
                         });
+                        // Also make parent stat-card clickable
+                        const clippedCard = clippedFilesCount.closest('.stat-card');
+                        if (clippedCard) {
+                            clippedCard.style.cursor = 'pointer';
+                            clippedCard.addEventListener('click', () => {
+                                this.showClippedFilesList();
+                            });
+                        }
                     }
-                }
-                if (modificationsCount) {
-                    modificationsCount.textContent = clippingStats.modifications || 0;
-                    // Make clickable
-                    modificationsCount.style.cursor = 'pointer';
-                    modificationsCount.title = 'Click to view modifications history';
-                    modificationsCount.addEventListener('click', () => {
-                        this.showModificationsHistory();
-                    });
-                    // Also make parent stat-card clickable
-                    const modificationsCard = modificationsCount.closest('.stat-card');
-                    if (modificationsCard) {
-                        modificationsCard.style.cursor = 'pointer';
-                        modificationsCard.addEventListener('click', () => {
+                    if (modificationsCount) {
+                        modificationsCount.textContent = clippingStats.modifications || 0;
+                        // Make clickable
+                        modificationsCount.style.cursor = 'pointer';
+                        modificationsCount.title = 'Click to view modifications history';
+                        modificationsCount.addEventListener('click', () => {
                             this.showModificationsHistory();
                         });
+                        // Also make parent stat-card clickable
+                        const modificationsCard = modificationsCount.closest('.stat-card');
+                        if (modificationsCard) {
+                            modificationsCard.style.cursor = 'pointer';
+                            modificationsCard.addEventListener('click', () => {
+                                this.showModificationsHistory();
+                            });
+                        }
                     }
-                }
-                if (integrityStatus) {
-                    integrityStatus.textContent = clippingStats.integrity_status || '100%';
-                    // Make clickable
-                    integrityStatus.style.cursor = 'pointer';
-                    integrityStatus.title = 'Click to view detailed integrity status';
-                    integrityStatus.addEventListener('click', () => {
-                        this.showIntegrityStatusDetails();
-                    });
-                    // Also make parent stat-card clickable
-                    const integrityCard = integrityStatus.closest('.stat-card');
-                    if (integrityCard) {
-                        integrityCard.style.cursor = 'pointer';
-                        integrityCard.addEventListener('click', () => {
+                    if (integrityStatus) {
+                        integrityStatus.textContent = clippingStats.integrity_status || '100%';
+                        // Make clickable
+                        integrityStatus.style.cursor = 'pointer';
+                        integrityStatus.title = 'Click to view detailed integrity status';
+                        integrityStatus.addEventListener('click', () => {
                             this.showIntegrityStatusDetails();
                         });
+                        // Also make parent stat-card clickable
+                        const integrityCard = integrityStatus.closest('.stat-card');
+                        if (integrityCard) {
+                            integrityCard.style.cursor = 'pointer';
+                            integrityCard.addEventListener('click', () => {
+                                this.showIntegrityStatusDetails();
+                            });
+                        }
                     }
+                }
+            } catch (error) {
+                clearTimeout(clippingTimeout);
+                // Suppress timeout errors - stats are non-critical
+                if (error.name !== 'AbortError') {
+                    console.debug('Error loading clipping stats (non-critical):', error);
                 }
             }
             
-            // Load project stats
-            const projectResponse = await fetch('/api/dashboard/project-stats', {
-                headers: this.getAuthHeaders()
-            });
-            const projectStats = await projectResponse.json();
+            // Load project stats with timeout
+            const projectController = new AbortController();
+            const projectTimeout = setTimeout(() => {
+                // Suppress timeout error - stats are non-critical
+                projectController.abort();
+            }, 5000);
             
-            if (projectStats.status === 'success') {
-                const activeProjectsCount = document.getElementById('active-projects-count');
-                const completedProjectsCount = document.getElementById('completed-projects-count');
-                const projectFilesCount = document.getElementById('project-files-count');
+            try {
+                const projectResponse = await fetch('/api/dashboard/project-stats', {
+                    headers: this.getAuthHeaders(),
+                    signal: projectController.signal
+                });
+                clearTimeout(projectTimeout);
+                const projectStats = await projectResponse.json();
                 
-                if (activeProjectsCount) activeProjectsCount.textContent = projectStats.active_projects;
-                if (completedProjectsCount) completedProjectsCount.textContent = projectStats.completed_projects;
-                if (projectFilesCount) projectFilesCount.textContent = projectStats.project_files;
+                if (projectStats.status === 'success') {
+                    const activeProjectsCount = document.getElementById('active-projects-count');
+                    const completedProjectsCount = document.getElementById('completed-projects-count');
+                    const projectFilesCount = document.getElementById('project-files-count');
+                    
+                    if (activeProjectsCount) activeProjectsCount.textContent = projectStats.active_projects;
+                    if (completedProjectsCount) completedProjectsCount.textContent = projectStats.completed_projects;
+                    if (projectFilesCount) projectFilesCount.textContent = projectStats.project_files;
+                }
+            } catch (error) {
+                clearTimeout(projectTimeout);
+                // Suppress timeout errors - stats are non-critical
+                if (error.name !== 'AbortError') {
+                    console.debug('Error loading project stats (non-critical):', error);
+                }
             }
             
-            // Load PE stats if applicable
+            // Load PE stats if applicable with timeout
             if (this.currentUser && (this.currentUser.role === 'pe' || this.currentUser.role === 'administrator')) {
+                const peController = new AbortController();
+                const peTimeout = setTimeout(() => {
+                    // Suppress timeout error - stats are non-critical
+                    peController.abort();
+                }, 5000);
+                
                 try {
                     const peResponse = await fetch('/api/dashboard/pe-stats', {
-                        headers: this.getAuthHeaders()
+                        headers: this.getAuthHeaders(),
+                        signal: peController.signal
                     });
+                    clearTimeout(peTimeout);
                     
                     if (!peResponse.ok) {
                         throw new Error(`HTTP error! status: ${peResponse.status}`);
@@ -546,13 +733,19 @@ class MainDashboard {
                         console.warn('PE stats API returned error:', peStats.error);
                     }
                 } catch (error) {
-                    console.error('Error loading PE stats:', error);
+                    clearTimeout(peTimeout);
+                    // Suppress timeout errors - stats are non-critical
+                    if (error.name !== 'AbortError') {
+                        console.debug('Error loading PE stats (non-critical):', error);
+                    }
                     // Don't show error notification as this is not critical
                 }
             }
         } catch (error) {
-            console.error('Error loading dashboard stats:', error);
-            this.showNotification('Error loading dashboard statistics', 'error');
+            console.error('❌ Error in loadDashboardStats:', error);
+            // Don't show error notification - stats are optional
+        } finally {
+            console.log('✅ loadDashboardStats() completed');
         }
     }
     
@@ -2725,17 +2918,53 @@ class MainDashboard {
     }
     
     async showAccessProject() {
+        console.log('🔍 showAccessProject() called');
+        
+        // Check if user is authenticated
+        if (!this.sessionToken) {
+            console.error('❌ No session token available. User not authenticated.');
+            this.showNotification('Please log in first to access projects.', 'error');
+            return;
+        }
+        
         this.showNotification('Loading projects...', 'info');
         
         try {
-            const response = await fetch('/api/projects');
+            console.log('📡 Fetching projects from /api/projects...');
+            console.log('🔑 Session token available:', this.sessionToken ? 'Yes' : 'No');
+            
+            // Add timeout to prevent hanging requests
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.error('⏱️ Projects request timed out');
+                controller.abort();
+            }, 30000); // 30 second timeout (increased for database queries with counts)
+            
+            const authHeaders = this.getAuthHeaders();
+            console.log('📤 Request headers:', authHeaders);
+            
+            const response = await fetch('/api/projects', {
+                headers: authHeaders,
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            console.log('📥 Response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ API error:', response.status, errorText);
+                this.showNotification(`Error loading projects: ${response.status} ${response.statusText}`, 'error');
+                return;
+            }
+            
             const data = await response.json();
+            console.log('📦 Projects data received:', Array.isArray(data) ? `${data.length} projects` : 'Not an array', data);
             
             if (Array.isArray(data) && data.length > 0) {
+                console.log(`✅ Found ${data.length} projects, creating modal...`);
                 // Create a modal to select and access projects
                 const modal = document.createElement('div');
                 modal.className = 'modal';
-                modal.style.display = 'block';
                 modal.innerHTML = `
                     <div class="modal-content" style="max-width: 800px;">
                         <div class="modal-header">
@@ -2750,10 +2979,25 @@ class MainDashboard {
                                 ${data.map(project => {
                                     // Escape project name for use in HTML attributes
                                     const escapedName = project.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                                    // Get project ID - handle both id and project_id fields
+                                    const projectId = project.id || project.project_id || project.ID;
+                                    if (!projectId) {
+                                        console.error('⚠️ Project missing ID:', project);
+                                        return ''; // Skip projects without IDs
+                                    }
                                     return `
                                     <div class="project-item" style="padding: 15px; border: 1px solid #ddd; margin: 10px 0; border-radius: 5px;">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div style="flex: 1; cursor: pointer;" onclick="window.mainDashboard.loadProject(${project.id})">
+                                            <div style="flex: 1; cursor: pointer;" onclick="(function() { 
+                                                const projectId = ${projectId}; 
+                                                console.log('🖱️ Project clicked, ID:', projectId); 
+                                                if (window.mainDashboard && typeof window.mainDashboard.loadProject === 'function') { 
+                                                    window.mainDashboard.loadProject(projectId); 
+                                                } else { 
+                                                    console.error('❌ window.mainDashboard.loadProject not available'); 
+                                                    alert('Error: Cannot load project. Please refresh the page and try again.'); 
+                                                } 
+                                            })();">
                                         <h3 style="margin: 0 0 5px 0; font-size: 0.9em;">${project.name}</h3>
                                         <p style="margin: 0; color: #666; font-size: 0.8em;">Click to load this project</p>
                                             </div>
@@ -2817,23 +3061,42 @@ class MainDashboard {
                 `;
                 
                 document.body.appendChild(modal);
-            document.body.classList.add('modal-open');
+                document.body.classList.add('modal-open');
+                console.log('✅ Modal created and appended to body');
             } else {
+                console.log('ℹ️ No projects found or empty array');
                 this.showNotification('No projects found. Create a project first.', 'info');
             }
         } catch (error) {
-            this.showNotification('Error loading projects: ' + error.message, 'error');
+            console.error('❌ Error in showAccessProject:', error);
+            if (error.name === 'AbortError') {
+                this.showNotification('Request timed out. Please try again.', 'error');
+            } else {
+                this.showNotification('Error loading projects: ' + (error.message || 'Unknown error'), 'error');
+            }
         }
     }
     
     async loadProject(projectId) {
-        // CRITICAL: Clear all cached data when loading a new project to prevent cross-project contamination
+        console.log('📂 loadProject() called with projectId:', projectId);
+        
+        // Validate projectId
+        if (!projectId) {
+            console.error('❌ loadProject called with invalid projectId:', projectId);
+            this.showNotification('Error: Invalid project ID', 'error');
+            return;
+        }
+        
+        // CRITICAL: Clear cached project/analysis data but preserve project list data
         try {
             const keysToRemove = [];
             for (let i = 0; i < sessionStorage.length; i++) {
                 const key = sessionStorage.key(i);
                 if (key && (key.includes('project') || key.includes('analysis') || key.includes('results'))) {
-                    keysToRemove.push(key);
+                    // Don't clear project list related keys - preserve them for the dropdown
+                    if (!key.includes('projectList') && !key.includes('projectsList')) {
+                        keysToRemove.push(key);
+                    }
                 }
             }
             keysToRemove.forEach(key => sessionStorage.removeItem(key));
@@ -2843,14 +3106,16 @@ class MainDashboard {
                 delete window.analysisResults;
             }
             
-            console.log('🧹 Cleared cached data for new project load');
+            console.log('🧹 Cleared cached data for new project load (preserved project list)');
         } catch (e) {
-            console.warn(' Could not clear cache:', e);
+            console.warn('⚠️ Could not clear cache:', e);
         }
         
         this.showNotification(`Loading project ID: ${projectId}...`, 'info');
         
         try {
+            console.log('📡 Calling /api/projects/load with project_id:', projectId);
+            
             const response = await fetch('/api/projects/load', {
                 method: 'POST',
                 headers: {
@@ -2861,26 +3126,50 @@ class MainDashboard {
                 })
             });
             
+            console.log('📥 Response status:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => 'Unknown error');
+                console.error('❌ API error:', response.status, errorText);
+                this.showNotification(`Error loading project: HTTP ${response.status} - ${errorText}`, 'error');
+                throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+            }
+            
             const result = await response.json();
+            console.log('📦 API response:', result);
             
             if (result.project) {
                 // Store project data in sessionStorage for the legacy interface to use
                 sessionStorage.setItem('loadedProjectData', JSON.stringify(result));
                 sessionStorage.setItem('loadedProjectName', result.project.name);
+                sessionStorage.setItem('currentProjectId', projectId);
                 
+                console.log('✅ Project loaded:', result.project.name);
                 this.showNotification(`Project "${result.project.name}" loaded successfully! Redirecting to UI...`, 'success');
+                
                 // Close any open modals
                 document.querySelectorAll('.modal').forEach(modal => modal.remove());
                 document.body.classList.remove('modal-open');
+                
                 // Redirect to legacy interface with the loaded project
+                console.log('🔄 Redirecting to /legacy in 1 second...');
                 setTimeout(() => {
+                    console.log('🚀 Navigating to /legacy');
+                    // Use window.location.href to navigate (was working before)
                     window.location.href = '/legacy';
                 }, 1000);
             } else {
-                this.showNotification('Error loading project: ' + result.error, 'error');
+                console.error('❌ No project in response:', result);
+                this.showNotification('Error loading project: ' + (result.error || 'Project data not found in response'), 'error');
             }
         } catch (error) {
-            this.showNotification('Error loading project: ' + error.message, 'error');
+            console.error('❌ Error in loadProject:', error);
+            console.error('❌ Error stack:', error.stack);
+            if (error.name === 'AbortError') {
+                this.showNotification('Project load was cancelled or timed out. Please try again.', 'error');
+            } else {
+                this.showNotification('Error loading project: ' + error.message, 'error');
+            }
         }
     }
     
@@ -3353,6 +3642,46 @@ class MainDashboard {
         });
     }
     
+    clearAllSpinners() {
+        // Clear all possible spinner elements
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+        spinners.forEach(spinner => {
+            spinner.style.display = 'none';
+            spinner.style.visibility = 'hidden';
+            spinner.classList.remove('loading', 'active', 'spinning', 'spinner');
+            // Also remove inline styles that might show spinner
+            spinner.style.opacity = '';
+        });
+        
+        // Clear loading classes from body and forms
+        document.body.classList.remove('loading', 'modal-open');
+        document.body.style.opacity = '';
+        document.body.style.pointerEvents = '';
+        
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.classList.remove('loading');
+            form.style.pointerEvents = 'auto';
+            form.style.opacity = '1';
+            form.style.position = ''; // Remove position that might be needed for ::after spinner
+        });
+        
+        // Clear any loading overlays
+        const overlays = document.querySelectorAll('.loading-overlay, .spinner-overlay, [class*="overlay"]');
+        overlays.forEach(overlay => {
+            overlay.style.display = 'none';
+        });
+        
+        // Disable any disabled buttons
+        const buttons = document.querySelectorAll('button[disabled], input[type="submit"][disabled]');
+        buttons.forEach(btn => {
+            if (btn.dataset.originalText) {
+                btn.innerHTML = btn.dataset.originalText;
+            }
+            btn.disabled = false;
+        });
+    }
+    
     clearLoginForm() {
         document.getElementById('user-login').reset();
     }
@@ -3487,8 +3816,53 @@ class MainDashboard {
     }
 }
 
+// Clear spinners on page unload to prevent them from persisting
+window.addEventListener('beforeunload', function() {
+    if (window.mainDashboard) {
+        window.mainDashboard.clearAllSpinners();
+    } else {
+        // Clear spinners even if dashboard isn't initialized yet
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"]');
+        spinners.forEach(spinner => {
+            spinner.style.display = 'none';
+            spinner.style.visibility = 'hidden';
+            spinner.classList.remove('loading', 'active', 'spinning');
+        });
+        document.body.classList.remove('loading', 'modal-open');
+    }
+});
+
+window.addEventListener('pagehide', function() {
+    if (window.mainDashboard) {
+        window.mainDashboard.clearAllSpinners();
+    } else {
+        // Clear spinners even if dashboard isn't initialized yet
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"]');
+        spinners.forEach(spinner => {
+            spinner.style.display = 'none';
+            spinner.style.visibility = 'hidden';
+            spinner.classList.remove('loading', 'active', 'spinning');
+        });
+        document.body.classList.remove('loading', 'modal-open');
+    }
+});
+
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // CRITICAL: Clear all spinners immediately on page load
+    // This prevents spinners from persisting when navigating from other pages
+    if (window.mainDashboard) {
+        window.mainDashboard.clearAllSpinners();
+    } else {
+        // Clear spinners even if dashboard isn't initialized yet
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"]');
+        spinners.forEach(spinner => {
+            spinner.style.display = 'none';
+            spinner.style.visibility = 'hidden';
+            spinner.classList.remove('loading', 'active', 'spinning');
+        });
+        document.body.classList.remove('loading', 'modal-open');
+    }
 
     if (!window.mainDashboard) {
         window.mainDashboard = new MainDashboard();

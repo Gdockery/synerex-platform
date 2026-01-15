@@ -11,6 +11,47 @@
     <link rel="icon" href="{{ url_for('static', filename='synerex_logo_transparent.png') }}" type="image/png">
 </head>
 <body>
+    <!-- CRITICAL: Clear all spinners immediately on page load, even before DOM is ready -->
+    <script>
+        (function() {
+            // Clear spinners immediately - run before any other scripts
+            function clearAllSpinnersNow() {
+                try {
+                    // Clear all possible spinner elements
+                    var spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+                    for (var i = 0; i < spinners.length; i++) {
+                        spinners[i].style.display = 'none';
+                        spinners[i].style.visibility = 'hidden';
+                        spinners[i].style.opacity = '0';
+                    }
+                    // Clear body classes
+                    if (document.body) {
+                        document.body.classList.remove('loading', 'modal-open', 'spinning');
+                        document.body.style.opacity = '';
+                        document.body.style.pointerEvents = '';
+                    }
+                    // Clear overlays
+                    var overlays = document.querySelectorAll('.loading-overlay, .spinner-overlay, [class*="overlay"]');
+                    for (var i = 0; i < overlays.length; i++) {
+                        overlays[i].style.display = 'none';
+                        overlays[i].style.visibility = 'hidden';
+                    }
+                } catch(e) {
+                    // Ignore errors if DOM not ready yet
+                }
+            }
+            // Run immediately
+            clearAllSpinnersNow();
+            // Also run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', clearAllSpinnersNow);
+            } else {
+                clearAllSpinnersNow();
+            }
+            // Run on page show (for back/forward navigation)
+            window.addEventListener('pageshow', clearAllSpinnersNow);
+        })();
+    </script>
     <!-- Main Dashboard Container -->
     <div id="main-dashboard" class="dashboard-container">
         <!-- Header -->
@@ -260,7 +301,7 @@
                     <div class="section-content">
                         <div class="section-actions">
                             <button id="create-project" class="btn-primary">➕ Create New Project</button>
-                            <button id="access-project" class="btn-secondary">📂 Access Project</button>
+                            <button id="access-project" class="btn-secondary" onclick="if(window.mainDashboard){window.mainDashboard.showAccessProject();}else{console.error('mainDashboard not available');alert('Please wait for the page to fully load.');}">📂 Access Project</button>
                             <button id="project-templates" class="btn-info">📄 Templates</button>
                         </div>
                         <div class="section-stats">

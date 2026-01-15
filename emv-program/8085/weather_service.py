@@ -16,7 +16,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+try:
+    CORS(app)
+    logger.info("CORS initialized successfully")
+except Exception as e:
+    logger.warning(f"Failed to initialize CORS (non-critical): {e}")
+    # Continue without CORS if it fails - service can still work
 
 def geocode_address(address):
     """Geocode address to get coordinates using Open-Meteo Geocoding API with fallbacks"""
@@ -224,68 +229,84 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
             params["hourly"] = "temperature_2m,relative_humidity_2m,dewpoint_2m,wind_speed_10m,shortwave_radiation"
             logger.info(f"Fetching hourly weather data for timestamp matching: {start_date} to {end_date}")
         
-        response = requests.get(url, params=params, timeout=30)
-        response.raise_for_status()
+        logger.info(f"Making Open-Meteo API request: {url} with params: {params}")
+        logger.info(f"Request timeout: 60 seconds")
         
-        data = response.json()
+        try:
+            response = requests.get(url, params=params, timeout=60)  # Increased timeout to 60 seconds for large date ranges
+            logger.info(f"Open-Meteo API response status: {response.status_code}")
+            response.raise_for_status()
+            
+            data = response.json()
+            logger.info(f"Open-Meteo API response received, keys: {list(data.keys())}")
+        except requests.exceptions.Timeout:
+            logger.error(f"Open-Meteo API request timed out after 60 seconds for {start_date} to {end_date}")
+            return {"error": f"Open-Meteo API request timed out. The date range may be too large or the API is slow."}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Open-Meteo API request failed: {e}")
+            return {"error": f"Open-Meteo API request failed: {str(e)}"}
         
         # Extract hourly data if available (for timestamp matching)
         hourly_data_list = []
-        if include_hourly and "hourly" in data and data["hourly"].get("time"):
-            hourly_times = data["hourly"]["time"]
-            hourly_temps = data["hourly"].get("temperature_2m", [])
-            hourly_dewpoints = data["hourly"].get("dewpoint_2m", [])
-            hourly_humidity = data["hourly"].get("relative_humidity_2m", [])
-            hourly_wind = data["hourly"].get("wind_speed_10m", [])
-            hourly_solar = data["hourly"].get("shortwave_radiation", [])
-            
-            # Create list of hourly data points with timestamps
-            # Convert numpy types to native Python types for JSON serialization
-            def _convert_numpy_types(value):
-                """Convert numpy types to native Python types"""
-                if value is None:
-                    return None
-                try:
-                    import numpy as np
-                    if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-                        return int(value)
-                    elif isinstance(value, (np.floating, np.float64, np.float32, np.float16)):
-                        return float(value) if not np.isnan(value) else None
-                except ImportError:
-                    pass
-                return value
-            
-            for i, time_str in enumerate(hourly_times):
-                if i < len(hourly_temps) and hourly_temps[i] is not None:
-                    temp_val = _convert_numpy_types(hourly_temps[i])
-                    dewpoint_val = _convert_numpy_types(hourly_dewpoints[i] if i < len(hourly_dewpoints) and hourly_dewpoints[i] is not None else None)
-                    humidity_val = _convert_numpy_types(hourly_humidity[i] if i < len(hourly_humidity) and hourly_humidity[i] is not None else None)
-                    wind_val = _convert_numpy_types(hourly_wind[i] if i < len(hourly_wind) and hourly_wind[i] is not None else None)
-                    solar_val = _convert_numpy_types(hourly_solar[i] if i < len(hourly_solar) and hourly_solar[i] is not None else None)
-                    
-                    hourly_data_list.append({
-                        "timestamp": time_str,
-                        "time": time_str,
-                        "datetime": time_str,
-                        "temp_c": temp_val,
-                        "temperature": temp_val,
-                        "temp": temp_val,
-                        "dewpoint_c": dewpoint_val,
-                        "dewpoint": dewpoint_val,
-                        "dew_point": dewpoint_val,
-                        "humidity": humidity_val,
-                        "relative_humidity": humidity_val,
-                        "wind_speed": wind_val,
-                        "solar_radiation": solar_val
-                    })
-            
-            logger.info(f"Extracted {len(hourly_data_list)} hourly weather data points for timestamp matching")
-            if len(hourly_data_list) > 0:
-                logger.info(f"First hourly timestamp: {hourly_data_list[0].get('timestamp')}, temp: {hourly_data_list[0].get('temp')}°C")
-                logger.info(f"Last hourly timestamp: {hourly_data_list[-1].get('timestamp')}, temp: {hourly_data_list[-1].get('temp')}°C")
-                logger.info(f"Timestamp format: {type(hourly_data_list[0].get('timestamp'))}")
+        if include_hourly and "hourly" in data:
+            hourly_times = data["hourly"].get("time", [])
+            # Check if we have time data (not just if it's truthy, but if it's a non-empty list)
+            if hourly_times and len(hourly_times) > 0:
+                hourly_temps = data["hourly"].get("temperature_2m", [])
+                hourly_dewpoints = data["hourly"].get("dewpoint_2m", [])
+                hourly_humidity = data["hourly"].get("relative_humidity_2m", [])
+                hourly_wind = data["hourly"].get("wind_speed_10m", [])
+                hourly_solar = data["hourly"].get("shortwave_radiation", [])
+                
+                # Create list of hourly data points with timestamps
+                # Convert numpy types to native Python types for JSON serialization
+                def _convert_numpy_types(value):
+                    """Convert numpy types to native Python types"""
+                    if value is None:
+                        return None
+                    try:
+                        import numpy as np
+                        if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+                            return int(value)
+                        elif isinstance(value, (np.floating, np.float64, np.float32, np.float16)):
+                            return float(value) if not np.isnan(value) else None
+                    except ImportError:
+                        pass
+                    return value
+                
+                for i, time_str in enumerate(hourly_times):
+                    if i < len(hourly_temps) and hourly_temps[i] is not None:
+                        temp_val = _convert_numpy_types(hourly_temps[i])
+                        dewpoint_val = _convert_numpy_types(hourly_dewpoints[i] if i < len(hourly_dewpoints) and hourly_dewpoints[i] is not None else None)
+                        humidity_val = _convert_numpy_types(hourly_humidity[i] if i < len(hourly_humidity) and hourly_humidity[i] is not None else None)
+                        wind_val = _convert_numpy_types(hourly_wind[i] if i < len(hourly_wind) and hourly_wind[i] is not None else None)
+                        solar_val = _convert_numpy_types(hourly_solar[i] if i < len(hourly_solar) and hourly_solar[i] is not None else None)
+                        
+                        hourly_data_list.append({
+                            "timestamp": time_str,
+                            "time": time_str,
+                            "datetime": time_str,
+                            "temp_c": temp_val,
+                            "temperature": temp_val,
+                            "temp": temp_val,
+                            "dewpoint_c": dewpoint_val,
+                            "dewpoint": dewpoint_val,
+                            "dew_point": dewpoint_val,
+                            "humidity": humidity_val,
+                            "relative_humidity": humidity_val,
+                            "wind_speed": wind_val,
+                            "solar_radiation": solar_val
+                        })
+                
+                logger.info(f"Extracted {len(hourly_data_list)} hourly weather data points for timestamp matching")
+                if len(hourly_data_list) > 0:
+                    logger.info(f"First hourly timestamp: {hourly_data_list[0].get('timestamp')}, temp: {hourly_data_list[0].get('temp')}°C")
+                    logger.info(f"Last hourly timestamp: {hourly_data_list[-1].get('timestamp')}, temp: {hourly_data_list[-1].get('temp')}°C")
+                    logger.info(f"Timestamp format: {type(hourly_data_list[0].get('timestamp'))}")
+            else:
+                logger.warning(f"Hourly data requested but time array is empty or missing. Available hourly keys: {list(data.get('hourly', {}).keys())}")
         
-        if "daily" in data and data["daily"]["time"]:
+        if "daily" in data and data["daily"].get("time") and len(data["daily"]["time"]) > 0:
             # Log the raw API response structure for debugging
             daily_keys = list(data['daily'].keys())
             logger.info(f"Open-Meteo API response keys: {daily_keys}")
@@ -333,6 +354,14 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
             valid_wind = [w for w in wind_speed if w is not None]
             valid_solar = [s for s in solar_radiation if s is not None]
             
+            # Log if arrays are empty
+            if not valid_temps:
+                logger.warning(f"⚠️ Temperature array is empty or all None values! Array length: {len(temps)}, None count: {temps.count(None) if temps else 0}")
+            if not valid_humidity:
+                logger.warning(f"⚠️ Humidity array is empty or all None values! Array length: {len(humidity)}, None count: {humidity.count(None) if humidity else 0}")
+            if not valid_dewpoint:
+                logger.warning(f"⚠️ Dewpoint array is empty or all None values! Array length: {len(dewpoint)}, None count: {dewpoint.count(None) if dewpoint else 0}")
+            
             # Calculate averages and convert numpy types to native Python types
             def _convert_numpy_types(value):
                 """Convert numpy types to native Python types"""
@@ -348,11 +377,56 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
                     pass
                 return value
             
+            # Calculate from daily data first
             temp_avg = sum(valid_temps) / len(valid_temps) if valid_temps else None
             humidity_avg = sum(valid_humidity) / len(valid_humidity) if valid_humidity else None
             dewpoint_avg = sum(valid_dewpoint) / len(valid_dewpoint) if valid_dewpoint else None
             wind_speed_avg = sum(valid_wind) / len(valid_wind) if valid_wind else None
             solar_radiation_avg = sum(valid_solar) / len(valid_solar) if valid_solar else None
+            
+            # CRITICAL: ALWAYS use hourly data if available - it's more accurate and reliable
+            if hourly_data_list and len(hourly_data_list) > 0:
+                logger.info(f"Using hourly data: {len(hourly_data_list)} points available")
+                hourly_temps = [h.get('temp') for h in hourly_data_list if h.get('temp') is not None]
+                hourly_humidity = [h.get('humidity') for h in hourly_data_list if h.get('humidity') is not None]
+                hourly_dewpoint = [h.get('dewpoint') for h in hourly_data_list if h.get('dewpoint') is not None]
+                hourly_wind = [h.get('wind_speed') for h in hourly_data_list if h.get('wind_speed') is not None]
+                hourly_solar = [h.get('solar_radiation') for h in hourly_data_list if h.get('solar_radiation') is not None]
+                
+                if hourly_temps:
+                    temp_avg = sum(hourly_temps) / len(hourly_temps)
+                    logger.info(f"✅ Calculated temp_avg from {len(hourly_temps)} hourly points: {temp_avg:.2f}°C")
+                if hourly_humidity:
+                    humidity_avg = sum(hourly_humidity) / len(hourly_humidity)
+                    logger.info(f"✅ Calculated humidity_avg from {len(hourly_humidity)} hourly points: {humidity_avg:.2f}%")
+                if hourly_dewpoint:
+                    dewpoint_avg = sum(hourly_dewpoint) / len(hourly_dewpoint)
+                    logger.info(f"✅ Calculated dewpoint_avg from {len(hourly_dewpoint)} hourly points: {dewpoint_avg:.2f}°C")
+                if hourly_wind:
+                    wind_speed_avg = sum(hourly_wind) / len(hourly_wind)
+                    logger.info(f"✅ Calculated wind_speed_avg from {len(hourly_wind)} hourly points: {wind_speed_avg:.2f} m/s")
+                if hourly_solar:
+                    solar_radiation_avg = sum(hourly_solar) / len(hourly_solar)
+                    logger.info(f"✅ Calculated solar_radiation_avg from {len(hourly_solar)} hourly points: {solar_radiation_avg:.2f}")
+            
+            # Final fallback: If still None and we have hourly data, try one more time
+            if (temp_avg is None or humidity_avg is None) and hourly_data_list:
+                logger.warning(f"⚠️ Daily averages are None (temp={temp_avg}, humidity={humidity_avg}), attempting immediate calculation from {len(hourly_data_list)} hourly data points...")
+                if temp_avg is None:
+                    hourly_temps = [h.get('temp') for h in hourly_data_list if h.get('temp') is not None]
+                    if hourly_temps:
+                        temp_avg = sum(hourly_temps) / len(hourly_temps)
+                        logger.info(f"Immediate hourly fallback: Calculated temp_avg from {len(hourly_temps)} hourly points: {temp_avg:.2f}°C")
+                if humidity_avg is None:
+                    hourly_humidity = [h.get('humidity') for h in hourly_data_list if h.get('humidity') is not None]
+                    if hourly_humidity:
+                        humidity_avg = sum(hourly_humidity) / len(hourly_humidity)
+                        logger.info(f"Immediate hourly fallback: Calculated humidity_avg from {len(hourly_humidity)} hourly points: {humidity_avg:.2f}%")
+                if dewpoint_avg is None:
+                    hourly_dewpoint = [h.get('dewpoint') for h in hourly_data_list if h.get('dewpoint') is not None]
+                    if hourly_dewpoint:
+                        dewpoint_avg = sum(hourly_dewpoint) / len(hourly_dewpoint)
+                        logger.info(f"Immediate hourly fallback: Calculated dewpoint_avg from {len(hourly_dewpoint)} hourly points: {dewpoint_avg:.2f}°C")
             
             # Convert to native Python types
             temp_avg = _convert_numpy_types(temp_avg)
@@ -370,25 +444,83 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
                     logger.error(f"❌ VALUES APPEAR SWAPPED: Temp={temp_avg}°C (should be -50 to 50), Humidity={humidity_avg}% (should be 0-100)")
                     logger.error("This suggests the arrays may be in the wrong order from the API")
             
+            # Fallback: If daily averages are None but we have hourly data, calculate from hourly
+            if temp_avg is None and hourly_data_list:
+                hourly_temps = [h.get('temp') for h in hourly_data_list if h.get('temp') is not None]
+                if hourly_temps:
+                    temp_avg = sum(hourly_temps) / len(hourly_temps)
+                    logger.info(f"Fallback: Calculated temp_avg from {len(hourly_temps)} hourly points: {temp_avg:.2f}°C")
+            
+            if humidity_avg is None and hourly_data_list:
+                hourly_humidity = [h.get('humidity') for h in hourly_data_list if h.get('humidity') is not None]
+                if hourly_humidity:
+                    humidity_avg = sum(hourly_humidity) / len(hourly_humidity)
+                    logger.info(f"Fallback: Calculated humidity_avg from {len(hourly_humidity)} hourly points: {humidity_avg:.2f}%")
+            
+            if dewpoint_avg is None and hourly_data_list:
+                hourly_dewpoint = [h.get('dewpoint') for h in hourly_data_list if h.get('dewpoint') is not None]
+                if hourly_dewpoint:
+                    dewpoint_avg = sum(hourly_dewpoint) / len(hourly_dewpoint)
+                    logger.info(f"Fallback: Calculated dewpoint_avg from {len(hourly_dewpoint)} hourly points: {dewpoint_avg:.2f}°C")
+            
+            if wind_speed_avg is None and hourly_data_list:
+                hourly_wind = [h.get('wind_speed') for h in hourly_data_list if h.get('wind_speed') is not None]
+                if hourly_wind:
+                    wind_speed_avg = sum(hourly_wind) / len(hourly_wind)
+                    logger.info(f"Fallback: Calculated wind_speed_avg from {len(hourly_wind)} hourly points: {wind_speed_avg:.2f} m/s")
+            
+            if solar_radiation_avg is None and hourly_data_list:
+                hourly_solar = [h.get('solar_radiation') for h in hourly_data_list if h.get('solar_radiation') is not None]
+                if hourly_solar:
+                    solar_radiation_avg = sum(hourly_solar) / len(hourly_solar)
+                    logger.info(f"Fallback: Calculated solar_radiation_avg from {len(hourly_solar)} hourly points: {solar_radiation_avg:.2f}")
+            
             result = {
                 "temp_avg": temp_avg,
                 "humidity_avg": humidity_avg,
                 "dewpoint_avg": dewpoint_avg,
                 "wind_speed_avg": wind_speed_avg,
                 "solar_radiation_avg": solar_radiation_avg,
-                "days_count": int(len(valid_temps))  # Convert to int
+                "days_count": int(len(valid_temps)) if valid_temps else (len(hourly_data_list) // 24 if hourly_data_list else 0)
             }
             
-            # Add hourly data if available (for ASHRAE regression)
+            # Add hourly data if available
             if hourly_data_list:
                 result["hourly_data"] = hourly_data_list
                 logger.info(f"Added {len(hourly_data_list)} hourly data points to weather response")
             
-            logger.info(f"Weather data fetched for {start_date} to {end_date}: {result}")
+            logger.info(f"Weather data fetched for {start_date} to {end_date}: temp_avg={temp_avg}, humidity_avg={humidity_avg}, dewpoint_avg={dewpoint_avg}")
             return result
         else:
-            logger.warning(f"No weather data available for {start_date} to {end_date}")
-            return {"error": "No weather data available for the specified period"}
+            # No daily data - calculate from hourly if available
+            if hourly_data_list:
+                logger.info(f"No daily data available, but found {len(hourly_data_list)} hourly data points - calculating averages from hourly data")
+                hourly_temps = [h.get('temp') for h in hourly_data_list if h.get('temp') is not None]
+                hourly_humidity = [h.get('humidity') for h in hourly_data_list if h.get('humidity') is not None]
+                hourly_dewpoint = [h.get('dewpoint') for h in hourly_data_list if h.get('dewpoint') is not None]
+                hourly_wind = [h.get('wind_speed') for h in hourly_data_list if h.get('wind_speed') is not None]
+                hourly_solar = [h.get('solar_radiation') for h in hourly_data_list if h.get('solar_radiation') is not None]
+                
+                temp_avg = sum(hourly_temps) / len(hourly_temps) if hourly_temps else None
+                humidity_avg = sum(hourly_humidity) / len(hourly_humidity) if hourly_humidity else None
+                dewpoint_avg = sum(hourly_dewpoint) / len(hourly_dewpoint) if hourly_dewpoint else None
+                wind_speed_avg = sum(hourly_wind) / len(hourly_wind) if hourly_wind else None
+                solar_radiation_avg = sum(hourly_solar) / len(hourly_solar) if hourly_solar else None
+                
+                result = {
+                    "temp_avg": temp_avg,
+                    "humidity_avg": humidity_avg,
+                    "dewpoint_avg": dewpoint_avg,
+                    "wind_speed_avg": wind_speed_avg,
+                    "solar_radiation_avg": solar_radiation_avg,
+                    "days_count": len(hourly_data_list) // 24,  # Approximate days from hourly data
+                    "hourly_data": hourly_data_list
+                }
+                logger.info(f"Calculated weather averages from hourly data: {result}")
+                return result
+            else:
+                logger.warning(f"No weather data available for {start_date} to {end_date}")
+                return {"error": "No weather data available for the specified period"}
             
     except Exception as e:
         logger.error(f"Weather API error: {e}")
@@ -397,7 +529,13 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "service": "weather-service"})
+    try:
+        return jsonify({"status": "healthy", "service": "weather-service"})
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"status": "error", "service": "weather-service", "error": str(e)}), 500
 
 @app.route('/weather/batch', methods=['POST'])
 def weather_batch():
@@ -478,11 +616,106 @@ def weather_batch():
         logger.info(f"Date conversion - After: {after_start} -> {after_start_date}, {after_end} -> {after_end_date}")
         
         # Check if hourly data is requested (for ASHRAE regression)
-        include_hourly = data.get('include_hourly', False)
+        # CRITICAL: Always request hourly data as fallback if daily data is missing
+        include_hourly = data.get('include_hourly', True)  # Default to True for fallback support
+        if not include_hourly:
+            logger.warning("include_hourly was False, forcing to True for fallback support")
+            include_hourly = True  # Force to True to ensure we can calculate from hourly if needed
+        
+        logger.info(f"Weather batch - include_hourly: {include_hourly}")
         
         # Fetch weather data for both periods
-        before_weather = fetch_weather_data(lat, lon, before_start_date, before_end_date, include_hourly=include_hourly)
-        after_weather = fetch_weather_data(lat, lon, after_start_date, after_end_date, include_hourly=include_hourly)
+        # Log the date ranges to help debug timeout issues
+        logger.info(f"Fetching before period: {before_start_date} to {before_end_date}")
+        logger.info(f"Fetching after period: {after_start_date} to {after_end_date}")
+        
+        # CRITICAL FIX: Always fetch with hourly data to ensure we have fallback
+        # This ensures we can always calculate from hourly data if daily is None
+        try:
+            logger.info("Attempting to fetch before weather data (with hourly for fallback)...")
+            before_weather = fetch_weather_data(lat, lon, before_start_date, before_end_date, include_hourly=True)  # Always include hourly for fallback
+            logger.info(f"Before weather data received: temp_avg={before_weather.get('temp_avg')}, humidity_avg={before_weather.get('humidity_avg')}")
+            logger.info(f"Before weather hourly_data count: {len(before_weather.get('hourly_data', []))}")
+            
+            # If daily data is None, calculate from hourly data immediately (hourly data should already be in before_weather)
+            if (before_weather.get('temp_avg') is None or before_weather.get('humidity_avg') is None):
+                logger.warning(f"⚠️ BEFORE PERIOD: Daily data is None - temp_avg={before_weather.get('temp_avg')}, humidity_avg={before_weather.get('humidity_avg')}")
+                logger.info(f"Before period has {len(before_weather.get('hourly_data', []))} hourly data points available for calculation")
+                
+                # CRITICAL FIX: Calculate averages from hourly data immediately (already fetched above)
+                hourly_list = before_weather.get('hourly_data', [])
+                logger.info(f"Calculating from {len(hourly_list)} hourly data points for before period...")
+                if hourly_list:
+                        temps = [h.get('temp') for h in hourly_list if h.get('temp') is not None]
+                        humidity = [h.get('humidity') for h in hourly_list if h.get('humidity') is not None]
+                        dewpoint = [h.get('dewpoint') for h in hourly_list if h.get('dewpoint') is not None]
+                        wind = [h.get('wind_speed') for h in hourly_list if h.get('wind_speed') is not None]
+                        solar = [h.get('solar_radiation') for h in hourly_list if h.get('solar_radiation') is not None]
+                        
+                        if temps and before_weather.get('temp_avg') is None:
+                            before_weather['temp_avg'] = sum(temps) / len(temps)
+                            logger.info(f"Calculated temp_avg from hourly: {before_weather['temp_avg']:.2f}°C")
+                        if humidity and before_weather.get('humidity_avg') is None:
+                            before_weather['humidity_avg'] = sum(humidity) / len(humidity)
+                            logger.info(f"Calculated humidity_avg from hourly: {before_weather['humidity_avg']:.2f}%")
+                        if dewpoint and before_weather.get('dewpoint_avg') is None:
+                            before_weather['dewpoint_avg'] = sum(dewpoint) / len(dewpoint)
+                            logger.info(f"Calculated dewpoint_avg from hourly: {before_weather['dewpoint_avg']:.2f}°C")
+                        if wind and before_weather.get('wind_speed_avg') is None:
+                            before_weather['wind_speed_avg'] = sum(wind) / len(wind)
+                            logger.info(f"Calculated wind_speed_avg from hourly: {before_weather['wind_speed_avg']:.2f} m/s")
+                        if solar and before_weather.get('solar_radiation_avg') is None:
+                            before_weather['solar_radiation_avg'] = sum(solar) / len(solar)
+                            logger.info(f"Calculated solar_radiation_avg from hourly: {before_weather['solar_radiation_avg']:.2f}")
+                else:
+                    logger.warning(f"⚠️ BEFORE PERIOD: No hourly data available to calculate from! Hourly list is empty.")
+        except Exception as e:
+            logger.error(f"Error fetching before weather data: {e}")
+            logger.error(traceback.format_exc())
+            before_weather = {"error": str(e)}
+        
+        try:
+            logger.info("Attempting to fetch after weather data (with hourly for fallback)...")
+            after_weather = fetch_weather_data(lat, lon, after_start_date, after_end_date, include_hourly=True)  # Always include hourly for fallback
+            logger.info(f"After weather data received: temp_avg={after_weather.get('temp_avg')}, humidity_avg={after_weather.get('humidity_avg')}")
+            logger.info(f"After weather hourly_data count: {len(after_weather.get('hourly_data', []))}")
+            
+            # If daily data is None, calculate from hourly data immediately (hourly data should already be in after_weather)
+            if (after_weather.get('temp_avg') is None or after_weather.get('humidity_avg') is None):
+                logger.warning(f"⚠️ AFTER PERIOD: Daily data is None - temp_avg={after_weather.get('temp_avg')}, humidity_avg={after_weather.get('humidity_avg')}")
+                logger.info(f"After period has {len(after_weather.get('hourly_data', []))} hourly data points available for calculation")
+                
+                # CRITICAL FIX: Calculate averages from hourly data immediately (already fetched above)
+                hourly_list = after_weather.get('hourly_data', [])
+                logger.info(f"Calculating from {len(hourly_list)} hourly data points for after period...")
+                if hourly_list:
+                        temps = [h.get('temp') for h in hourly_list if h.get('temp') is not None]
+                        humidity = [h.get('humidity') for h in hourly_list if h.get('humidity') is not None]
+                        dewpoint = [h.get('dewpoint') for h in hourly_list if h.get('dewpoint') is not None]
+                        wind = [h.get('wind_speed') for h in hourly_list if h.get('wind_speed') is not None]
+                        solar = [h.get('solar_radiation') for h in hourly_list if h.get('solar_radiation') is not None]
+                        
+                        if temps and after_weather.get('temp_avg') is None:
+                            after_weather['temp_avg'] = sum(temps) / len(temps)
+                            logger.info(f"Calculated temp_avg from hourly: {after_weather['temp_avg']:.2f}°C")
+                        if humidity and after_weather.get('humidity_avg') is None:
+                            after_weather['humidity_avg'] = sum(humidity) / len(humidity)
+                            logger.info(f"Calculated humidity_avg from hourly: {after_weather['humidity_avg']:.2f}%")
+                        if dewpoint and after_weather.get('dewpoint_avg') is None:
+                            after_weather['dewpoint_avg'] = sum(dewpoint) / len(dewpoint)
+                            logger.info(f"Calculated dewpoint_avg from hourly: {after_weather['dewpoint_avg']:.2f}°C")
+                        if wind and after_weather.get('wind_speed_avg') is None:
+                            after_weather['wind_speed_avg'] = sum(wind) / len(wind)
+                            logger.info(f"Calculated wind_speed_avg from hourly: {after_weather['wind_speed_avg']:.2f} m/s")
+                        if solar and after_weather.get('solar_radiation_avg') is None:
+                            after_weather['solar_radiation_avg'] = sum(solar) / len(solar)
+                            logger.info(f"Calculated solar_radiation_avg from hourly: {after_weather['solar_radiation_avg']:.2f}")
+                else:
+                    logger.warning(f"⚠️ AFTER PERIOD: No hourly data available to calculate from! Hourly list is empty.")
+        except Exception as e:
+            logger.error(f"Error fetching after weather data: {e}")
+            logger.error(traceback.format_exc())
+            after_weather = {"error": str(e)}
         
         # Check for errors
         if "error" in before_weather or "error" in after_weather:
@@ -516,6 +749,60 @@ def weather_batch():
             
             logger.info(f"Combined {len(before_hourly)} before + {len(after_hourly)} after = {len(hourly_data_combined)} total hourly data points")
         
+        # FINAL SAFETY CHECK: Ensure we have values before building result
+        # This catches any edge cases where calculations might have been missed
+        if before_weather.get('temp_avg') is None and before_weather.get('hourly_data'):
+            logger.warning("temp_before still None after all attempts, calculating from hourly_data one more time...")
+            hourly_list = before_weather.get('hourly_data', [])
+            if hourly_list:
+                temps = [h.get('temp') for h in hourly_list if h.get('temp') is not None]
+                humidity = [h.get('humidity') for h in hourly_list if h.get('humidity') is not None]
+                dewpoint = [h.get('dewpoint') for h in hourly_list if h.get('dewpoint') is not None]
+                wind = [h.get('wind_speed') for h in hourly_list if h.get('wind_speed') is not None]
+                solar = [h.get('solar_radiation') for h in hourly_list if h.get('solar_radiation') is not None]
+                
+                if temps:
+                    before_weather['temp_avg'] = sum(temps) / len(temps)
+                    logger.info(f"Final fallback: Calculated temp_avg: {before_weather['temp_avg']:.2f}°C")
+                if humidity:
+                    before_weather['humidity_avg'] = sum(humidity) / len(humidity)
+                    logger.info(f"Final fallback: Calculated humidity_avg: {before_weather['humidity_avg']:.2f}%")
+                if dewpoint:
+                    before_weather['dewpoint_avg'] = sum(dewpoint) / len(dewpoint)
+                    logger.info(f"Final fallback: Calculated dewpoint_avg: {before_weather['dewpoint_avg']:.2f}°C")
+                if wind:
+                    before_weather['wind_speed_avg'] = sum(wind) / len(wind)
+                    logger.info(f"Final fallback: Calculated wind_speed_avg: {before_weather['wind_speed_avg']:.2f} m/s")
+                if solar:
+                    before_weather['solar_radiation_avg'] = sum(solar) / len(solar)
+                    logger.info(f"Final fallback: Calculated solar_radiation_avg: {before_weather['solar_radiation_avg']:.2f}")
+        
+        if after_weather.get('temp_avg') is None and after_weather.get('hourly_data'):
+            logger.warning("temp_after still None after all attempts, calculating from hourly_data one more time...")
+            hourly_list = after_weather.get('hourly_data', [])
+            if hourly_list:
+                temps = [h.get('temp') for h in hourly_list if h.get('temp') is not None]
+                humidity = [h.get('humidity') for h in hourly_list if h.get('humidity') is not None]
+                dewpoint = [h.get('dewpoint') for h in hourly_list if h.get('dewpoint') is not None]
+                wind = [h.get('wind_speed') for h in hourly_list if h.get('wind_speed') is not None]
+                solar = [h.get('solar_radiation') for h in hourly_list if h.get('solar_radiation') is not None]
+                
+                if temps:
+                    after_weather['temp_avg'] = sum(temps) / len(temps)
+                    logger.info(f"Final fallback: Calculated temp_avg: {after_weather['temp_avg']:.2f}°C")
+                if humidity:
+                    after_weather['humidity_avg'] = sum(humidity) / len(humidity)
+                    logger.info(f"Final fallback: Calculated humidity_avg: {after_weather['humidity_avg']:.2f}%")
+                if dewpoint:
+                    after_weather['dewpoint_avg'] = sum(dewpoint) / len(dewpoint)
+                    logger.info(f"Final fallback: Calculated dewpoint_avg: {after_weather['dewpoint_avg']:.2f}°C")
+                if wind:
+                    after_weather['wind_speed_avg'] = sum(wind) / len(wind)
+                    logger.info(f"Final fallback: Calculated wind_speed_avg: {after_weather['wind_speed_avg']:.2f} m/s")
+                if solar:
+                    after_weather['solar_radiation_avg'] = sum(solar) / len(solar)
+                    logger.info(f"Final fallback: Calculated solar_radiation_avg: {after_weather['solar_radiation_avg']:.2f}")
+        
         # Prepare response
         result = {
             "success": True,
@@ -539,7 +826,145 @@ def weather_batch():
         if hourly_data_combined:
             result["hourly_data"] = hourly_data_combined
         
+        # CRITICAL FIX: Apply fallback calculation if daily averages are None but hourly data exists
+        # This ensures we always have values if hourly data is available
+        if hourly_data_combined:
+            # Separate before and after hourly data
+            before_hourly = [h for h in hourly_data_combined if h.get("period") == "before"]
+            after_hourly = [h for h in hourly_data_combined if h.get("period") == "after"]
+            
+            logger.info(f"Batch fallback check: {len(before_hourly)} before points, {len(after_hourly)} after points")
+            if before_hourly:
+                logger.info(f"Before hourly sample: {before_hourly[0]}")
+            if after_hourly:
+                logger.info(f"After hourly sample: {after_hourly[0]}")
+            
+            # Calculate temp_before from hourly if None
+            if result.get("temp_before") is None and before_hourly:
+                before_temps = [h.get("temp") for h in before_hourly if h.get("temp") is not None]
+                if before_temps:
+                    result["temp_before"] = sum(before_temps) / len(before_temps)
+                    logger.info(f"Batch fallback: Calculated temp_before from {len(before_temps)} hourly points: {result['temp_before']:.2f}°C")
+            
+            # Calculate humidity_before from hourly if None
+            if result.get("humidity_before") is None and before_hourly:
+                before_humidity = [h.get("humidity") for h in before_hourly if h.get("humidity") is not None]
+                if before_humidity:
+                    result["humidity_before"] = sum(before_humidity) / len(before_humidity)
+                    logger.info(f"Batch fallback: Calculated humidity_before from {len(before_humidity)} hourly points: {result['humidity_before']:.2f}%")
+            
+            # Calculate dewpoint_before from hourly if None
+            if result.get("dewpoint_before") is None and before_hourly:
+                before_dewpoint = [h.get("dewpoint") for h in before_hourly if h.get("dewpoint") is not None]
+                if before_dewpoint:
+                    result["dewpoint_before"] = sum(before_dewpoint) / len(before_dewpoint)
+                    logger.info(f"Batch fallback: Calculated dewpoint_before from {len(before_dewpoint)} hourly points: {result['dewpoint_before']:.2f}°C")
+            
+            # Calculate wind_speed_before from hourly if None
+            if result.get("wind_speed_before") is None and before_hourly:
+                before_wind = [h.get("wind_speed") for h in before_hourly if h.get("wind_speed") is not None]
+                if before_wind:
+                    result["wind_speed_before"] = sum(before_wind) / len(before_wind)
+                    logger.info(f"Batch fallback: Calculated wind_speed_before from {len(before_wind)} hourly points: {result['wind_speed_before']:.2f} m/s")
+            
+            # Calculate solar_radiation_before from hourly if None
+            if result.get("solar_radiation_before") is None and before_hourly:
+                before_solar = [h.get("solar_radiation") for h in before_hourly if h.get("solar_radiation") is not None]
+                if before_solar:
+                    result["solar_radiation_before"] = sum(before_solar) / len(before_solar)
+                    logger.info(f"Batch fallback: Calculated solar_radiation_before from {len(before_solar)} hourly points: {result['solar_radiation_before']:.2f}")
+            
+            # Calculate temp_after from hourly if None
+            if result.get("temp_after") is None and after_hourly:
+                after_temps = [h.get("temp") for h in after_hourly if h.get("temp") is not None]
+                if after_temps:
+                    result["temp_after"] = sum(after_temps) / len(after_temps)
+                    logger.info(f"Batch fallback: Calculated temp_after from {len(after_temps)} hourly points: {result['temp_after']:.2f}°C")
+            
+            # Calculate humidity_after from hourly if None
+            if result.get("humidity_after") is None and after_hourly:
+                after_humidity = [h.get("humidity") for h in after_hourly if h.get("humidity") is not None]
+                if after_humidity:
+                    result["humidity_after"] = sum(after_humidity) / len(after_humidity)
+                    logger.info(f"Batch fallback: Calculated humidity_after from {len(after_humidity)} hourly points: {result['humidity_after']:.2f}%")
+            
+            # Calculate dewpoint_after from hourly if None
+            if result.get("dewpoint_after") is None and after_hourly:
+                after_dewpoint = [h.get("dewpoint") for h in after_hourly if h.get("dewpoint") is not None]
+                if after_dewpoint:
+                    result["dewpoint_after"] = sum(after_dewpoint) / len(after_dewpoint)
+                    logger.info(f"Batch fallback: Calculated dewpoint_after from {len(after_dewpoint)} hourly points: {result['dewpoint_after']:.2f}°C")
+            
+            # Calculate wind_speed_after from hourly if None
+            if result.get("wind_speed_after") is None and after_hourly:
+                after_wind = [h.get("wind_speed") for h in after_hourly if h.get("wind_speed") is not None]
+                if after_wind:
+                    result["wind_speed_after"] = sum(after_wind) / len(after_wind)
+                    logger.info(f"Batch fallback: Calculated wind_speed_after from {len(after_wind)} hourly points: {result['wind_speed_after']:.2f} m/s")
+            
+            # Calculate solar_radiation_after from hourly if None
+            if result.get("solar_radiation_after") is None and after_hourly:
+                after_solar = [h.get("solar_radiation") for h in after_hourly if h.get("solar_radiation") is not None]
+                if after_solar:
+                    result["solar_radiation_after"] = sum(after_solar) / len(after_solar)
+                    logger.info(f"Batch fallback: Calculated solar_radiation_after from {len(after_solar)} hourly points: {result['solar_radiation_after']:.2f}")
+        
+        # AGGRESSIVE FINAL FALLBACK: Calculate from hourly_data_combined if result still has None values
+        # This ensures we ALWAYS have values if any hourly data exists
+        if hourly_data_combined:
+            before_hourly_final = [h for h in hourly_data_combined if h.get("period") == "before"]
+            after_hourly_final = [h for h in hourly_data_combined if h.get("period") == "after"]
+            
+            # Force calculation for temp_before if still None
+            if result.get("temp_before") is None and before_hourly_final:
+                temps = [h.get("temp") or h.get("temp_c") or h.get("temperature") for h in before_hourly_final]
+                temps = [t for t in temps if t is not None]
+                if temps:
+                    result["temp_before"] = sum(temps) / len(temps)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated temp_before from {len(temps)} points: {result['temp_before']:.2f}°C")
+            
+            # Force calculation for humidity_before if still None
+            if result.get("humidity_before") is None and before_hourly_final:
+                humidity = [h.get("humidity") or h.get("relative_humidity") for h in before_hourly_final]
+                humidity = [h for h in humidity if h is not None]
+                if humidity:
+                    result["humidity_before"] = sum(humidity) / len(humidity)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated humidity_before from {len(humidity)} points: {result['humidity_before']:.2f}%")
+            
+            # Force calculation for dewpoint_before if still None
+            if result.get("dewpoint_before") is None and before_hourly_final:
+                dewpoint = [h.get("dewpoint") or h.get("dewpoint_c") or h.get("dew_point") for h in before_hourly_final]
+                dewpoint = [d for d in dewpoint if d is not None]
+                if dewpoint:
+                    result["dewpoint_before"] = sum(dewpoint) / len(dewpoint)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated dewpoint_before from {len(dewpoint)} points: {result['dewpoint_before']:.2f}°C")
+            
+            # Force calculation for temp_after if still None
+            if result.get("temp_after") is None and after_hourly_final:
+                temps = [h.get("temp") or h.get("temp_c") or h.get("temperature") for h in after_hourly_final]
+                temps = [t for t in temps if t is not None]
+                if temps:
+                    result["temp_after"] = sum(temps) / len(temps)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated temp_after from {len(temps)} points: {result['temp_after']:.2f}°C")
+            
+            # Force calculation for humidity_after if still None
+            if result.get("humidity_after") is None and after_hourly_final:
+                humidity = [h.get("humidity") or h.get("relative_humidity") for h in after_hourly_final]
+                humidity = [h for h in humidity if h is not None]
+                if humidity:
+                    result["humidity_after"] = sum(humidity) / len(humidity)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated humidity_after from {len(humidity)} points: {result['humidity_after']:.2f}%")
+            
+            # Force calculation for dewpoint_after if still None
+            if result.get("dewpoint_after") is None and after_hourly_final:
+                dewpoint = [h.get("dewpoint") or h.get("dewpoint_c") or h.get("dew_point") for h in after_hourly_final]
+                dewpoint = [d for d in dewpoint if d is not None]
+                if dewpoint:
+                    result["dewpoint_after"] = sum(dewpoint) / len(dewpoint)
+                    logger.info(f"AGGRESSIVE FALLBACK: Calculated dewpoint_after from {len(dewpoint)} points: {result['dewpoint_after']:.2f}°C")
+        
         logger.info(f"Weather batch response: {result}")
+        logger.info(f"FINAL RESULT - temp_before: {result.get('temp_before')}, temp_after: {result.get('temp_after')}, humidity_before: {result.get('humidity_before')}, humidity_after: {result.get('humidity_after')}, dewpoint_before: {result.get('dewpoint_before')}, dewpoint_after: {result.get('dewpoint_after')}")
         return jsonify(result)
         
     except Exception as e:
@@ -547,6 +972,46 @@ def weather_batch():
         return jsonify({"success": False, "error": str(e)})
 
 if __name__ == '__main__':
-    logger.info("Starting Weather Service on port 8200")
-    # Windows-compatible Flask configuration
-    app.run(host='0.0.0.0', port=8200, debug=False, use_reloader=False, threaded=True)
+    try:
+        import sys
+        import os
+        
+        # Log startup immediately to both stdout and logger
+        startup_msg = f"""
+{'=' * 60}
+Weather Service Starting...
+Python: {sys.executable}
+Working Directory: {os.getcwd()}
+Script Location: {__file__}
+Flask App: {app.name}
+Port: 8200
+{'=' * 60}
+"""
+        print(startup_msg)
+        logger.info(startup_msg.strip())
+        
+        logger.info("Initializing Flask application...")
+        logger.info(f"Flask debug mode: False")
+        logger.info(f"Flask threaded: True")
+        logger.info(f"Flask use_reloader: False")
+        
+        # Test that we can create the Flask app
+        logger.info("Flask app created successfully")
+        
+        # Windows-compatible Flask configuration
+        print("Starting Flask server on port 8200...")
+        logger.info("Calling app.run() to start Flask server...")
+        app.run(host='0.0.0.0', port=8200, debug=False, use_reloader=False, threaded=True)
+    except KeyboardInterrupt:
+        print("\nWeather Service stopped by user")
+        logger.info("Weather Service stopped by user")
+        sys.exit(0)
+    except Exception as e:
+        error_msg = f"CRITICAL ERROR: Failed to start Weather Service: {e}"
+        print(error_msg)
+        logger.error(error_msg)
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        logger.error(tb)
+        sys.exit(1)

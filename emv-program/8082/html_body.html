@@ -93,10 +93,13 @@
         <div class="field">
           <label>Actions</label>
           <div style="display:flex; gap:8px; align-items:center;">
-            <button type="button" id="btnNewProject" class="btn secondary" style="color: white !important;">New</button>
+            <button type="button" id="btnNewProject" class="btn secondary" style="color: white !important;"
+              onclick="if(typeof newProject === 'function') { newProject(); } else { console.error('newProject function not found'); showNotification('Error: New function not available. Please refresh the page.'); }">New</button>
             <button type="button" id="btnSaveProject" class="btn secondary"
-              style="color: white !important;">Save</button>
-            <button type="button" id="btnSaveAsProject" class="btn secondary" style="color: white !important;">Save
+              style="color: white !important;"
+              onclick="if(typeof saveProject === 'function') { saveProject(); } else { console.error('saveProject function not found'); showNotification('Error: Save function not available. Please refresh the page.'); }">Save</button>
+            <button type="button" id="btnSaveAsProject" class="btn secondary" style="color: white !important;"
+              onclick="if(typeof saveAsProject === 'function') { saveAsProject(); } else { console.error('saveAsProject function not found'); showNotification('Error: Save As function not available. Please refresh the page.'); }">Save
               As</button>
             <button type="button" id="btnDeleteProject" class="btn danger"
               style="color: white !important;"
@@ -1557,7 +1560,7 @@
         <button type="button" id="btnExportESGCaseStudy" class="btn" disabled
           style="background-color: #667eea; color: white; border-color: #667eea; margin-left: 8px;">Generate ESG Case Study Report</button>
         <button type="button" id="btnExportLaymanReport" class="btn" disabled
-          style="background-color: #2c5aa0; color: white; border-color: #2c5aa0; margin-left: 8px;">Executive Summary (Layman's Report)</button>
+          style="background-color: #2c5aa0; color: white; border-color: #2c5aa0; margin-left: 8px;">Executive Summary Report</button>
         <div style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
           <select id="pdfReportType" class="btn"
             style="background: white; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; min-width: 200px;">

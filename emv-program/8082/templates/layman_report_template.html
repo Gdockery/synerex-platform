@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNEREX Power Analysis - Executive Summary</title>
+    <title>Executive Summary Report | SYNEREX</title>
     <style>
         * {
             margin: 0;
@@ -33,6 +33,11 @@
             color: white;
             position: relative;
             overflow: hidden;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
         
         .hero-section::before {
@@ -52,32 +57,34 @@
         }
         
         .hero-title {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 300;
             margin-bottom: 20px;
             position: relative;
             z-index: 1;
+            letter-spacing: 2px;
         }
         
         .hero-savings {
-            font-size: 96px;
+            font-size: 80px;
             font-weight: bold;
-            margin: 30px 0;
+            margin: 25px 0;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
             position: relative;
             z-index: 1;
+            line-height: 1.1;
         }
         
         .hero-subtitle {
-            font-size: 28px;
+            font-size: 24px;
             opacity: 0.95;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             position: relative;
             z-index: 1;
         }
         
         .hero-monthly {
-            font-size: 22px;
+            font-size: 18px;
             opacity: 0.9;
             position: relative;
             z-index: 1;
@@ -471,20 +478,210 @@
         
         /* Print Styles */
         @media print {
+            @page {
+                size: letter;
+                margin: 0.75in;
+            }
+            
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            
             body {
-                background: white;
+                background: white !important;
+                font-size: 11pt;
+                line-height: 1.4;
+                color: #000 !important;
             }
             
             .layman-report {
                 box-shadow: none;
+                max-width: 100%;
+                margin: 0;
+                background: white !important;
             }
             
+            /* Cover page - ensure it's on its own page */
+            .hero-section {
+                page-break-after: always;
+                page-break-inside: avoid;
+                padding: 1.5in 1in !important;
+                min-height: 8.5in;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                background: linear-gradient(135deg, #2c5aa0 0%, #1e3a5f 100%) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Ensure logo prints with proper styling */
+            .hero-section img {
+                max-width: 250px !important;
+                max-height: 100px !important;
+                width: auto !important;
+                height: auto !important;
+                filter: brightness(0) invert(1) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                page-break-inside: avoid !important;
+                margin: 0 auto !important;
+            }
+            
+            /* Logo container */
+            .hero-section > div:first-child {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                margin-bottom: 30pt !important;
+                page-break-inside: avoid !important;
+                min-height: 100px !important;
+            }
+            
+            /* Adjust hero text sizes for print */
+            .hero-title {
+                font-size: 22pt !important;
+                margin-bottom: 15pt !important;
+                letter-spacing: 2pt !important;
+            }
+            
+            .hero-savings {
+                font-size: 64pt !important;
+                margin: 20pt 0 !important;
+                line-height: 1.1 !important;
+            }
+            
+            .hero-subtitle {
+                font-size: 18pt !important;
+                margin-bottom: 10pt !important;
+            }
+            
+            .hero-monthly {
+                font-size: 14pt !important;
+            }
+            
+            /* Project info section for print */
+            .hero-section > div:nth-child(2) {
+                font-size: 12pt !important;
+                line-height: 1.8 !important;
+                margin-top: 20pt !important;
+                margin-bottom: 15pt !important;
+            }
+            
+            .hero-section > div:nth-child(2) > div {
+                margin-bottom: 8pt !important;
+            }
+            
+            /* Prevent page breaks inside sections */
             .section {
+                page-break-inside: avoid;
+                padding: 25pt 20pt !important;
+                margin: 0 !important;
+            }
+            
+            .metrics-grid {
+                page-break-inside: avoid;
+                padding: 25pt 20pt !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15pt !important;
+            }
+            
+            .metric-card {
+                page-break-inside: avoid;
+                padding: 20pt 15pt !important;
+            }
+            
+            /* Ensure charts don't break */
+            .comparison-chart {
+                page-break-inside: avoid;
+                padding: 20pt !important;
+            }
+            
+            .bar-chart {
+                page-break-inside: avoid;
+                height: 200px !important;
+            }
+            
+            /* Trust section */
+            .trust-section {
+                page-break-inside: avoid;
+                padding: 25pt 20pt !important;
+            }
+            
+            .verification-box {
+                page-break-inside: avoid;
+                margin: 20pt !important;
+                padding: 20pt !important;
+            }
+            
+            /* Hide interactive elements */
+            details summary {
+                list-style: none;
+            }
+            
+            details summary::marker {
+                display: none;
+            }
+            
+            details[open] {
                 page-break-inside: avoid;
             }
             
-            .hero-section {
-                page-break-after: always;
+            /* Ensure proper spacing */
+            .section-title {
+                font-size: 18pt !important;
+                margin-bottom: 15pt !important;
+                padding-bottom: 8pt !important;
+            }
+            
+            /* Adjust metric cards for print */
+            .metric-value {
+                font-size: 32pt !important;
+            }
+            
+            .metric-label {
+                font-size: 13pt !important;
+            }
+            
+            .metric-description {
+                font-size: 10pt !important;
+            }
+            
+            /* Ensure badges print properly */
+            .badge {
+                page-break-inside: avoid;
+                border: 2px solid #28a745 !important;
+            }
+            
+            /* Better spacing for breakdown items */
+            .savings-breakdown {
+                page-break-inside: avoid;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15pt !important;
+            }
+            
+            .breakdown-item {
+                page-break-inside: avoid;
+                padding: 15pt !important;
+            }
+            
+            /* Growth timeline */
+            .growth-timeline {
+                page-break-inside: avoid;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 15pt !important;
+            }
+            
+            .growth-year {
+                page-break-inside: avoid;
+                padding: 15pt !important;
             }
         }
         
@@ -519,10 +716,22 @@
     <div class="layman-report">
         <!-- PAGE 1: Hero Section -->
         <div class="hero-section">
-            <div style="margin-bottom: 30px; position: relative; z-index: 1;">
-                <img src="{{SYNEREX_LOGO}}" alt="Synerex Logo" style="max-width: 400px; height: auto; filter: brightness(0) invert(1);">
+            <div style="margin-bottom: 30px; position: relative; z-index: 1; display: flex; justify-content: center; align-items: center; min-height: 100px;">
+                <img src="{{SYNEREX_LOGO}}" alt="Synerex Logo" style="max-width: 300px; max-height: 120px; width: auto; height: auto; object-fit: contain; filter: brightness(0) invert(1); display: block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div style="display: none; font-size: 32px; font-weight: bold; color: white; letter-spacing: 3px;">SYNEREX</div>
             </div>
-            <div class="hero-title">POWER ANALYSIS REPORT</div>
+            <div class="hero-title">EXECUTIVE SUMMARY REPORT</div>
+            <!-- Project Information Section -->
+            <div style="margin-top: 30px; margin-bottom: 20px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto; position: relative; z-index: 1;">
+                <div style="font-size: 16px; line-height: 2; color: white; opacity: 0.95;">
+                    <div><strong>Project Report #:</strong> {{PROJECT_NUMBER}}</div>
+                    <div><strong>Test Date:</strong> {{TEST_DATE}}</div>
+                    <div><strong>Contact Name:</strong> {{CONTACT_NAME}}</div>
+                    <div><strong>Project Site:</strong> {{PROJECT_SITE}}</div>
+                    <div><strong>Address:</strong> {{FACILITY_ADDRESS}}</div>
+                    <div><strong>City, State Zip:</strong> {{CITY_STATE_ZIP}}</div>
+                </div>
+            </div>
             <div class="hero-savings">{{TOTAL_ANNUAL_SAVINGS_FORMATTED}}</div>
             <div class="hero-subtitle">Your Annual Savings</div>
             <div class="hero-monthly">That's {{MONTHLY_SAVINGS_FORMATTED}} every month</div>

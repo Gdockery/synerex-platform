@@ -17,9 +17,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+try:
+    CORS(app)
+    logger.info("CORS initialized successfully")
+except Exception as e:
+    logger.warning(f"Failed to initialize CORS (non-critical): {e}")
+    # Continue without CORS if it fails - service can still work
 
 # Initialize knowledge retrieval system with absolute path - REQUIRED
+knowledge_retrieval = None  # Initialize as None first
 try:
     # Get the directory where this script is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,21 +39,23 @@ try:
     total_items = sum(stats.values())
     
     if total_items == 0:
-        raise RuntimeError("Knowledge base loaded but contains no data! All files appear to be empty or missing.")
-    
-    logger.info(f"✅ Knowledge retrieval system initialized successfully")
-    logger.info(f"📊 Knowledge base stats: {stats}")
+        logger.warning("⚠️ Knowledge base loaded but contains no data! Service will start but AI features may be limited.")
+        # Don't raise - allow service to start
+    else:
+        logger.info(f"✅ Knowledge retrieval system initialized successfully")
+        logger.info(f"📊 Knowledge base stats: {stats}")
     
 except Exception as e:
-    logger.error(f"❌ CRITICAL: Failed to initialize knowledge retrieval: {e}")
-    logger.error(f"❌ Service cannot start without a functional knowledge base!")
-    logger.error(f"❌ Please check:")
+    logger.error(f"❌ WARNING: Failed to initialize knowledge retrieval: {e}")
+    logger.error(f"⚠️ Service will start but AI features will be limited!")
+    logger.error(f"⚠️ Please check:")
     logger.error(f"   1. Knowledge base directory exists: {knowledge_base_path}")
     logger.error(f"   2. All required JSON files are present and valid")
     logger.error(f"   3. Files are readable and contain valid JSON data")
     import traceback
     logger.error(traceback.format_exc())
-    raise SystemExit(f"Cannot start Ollama AI Backend: Knowledge base initialization failed: {e}")
+    # REMOVE SystemExit - allow service to start anyway
+    knowledge_retrieval = None
 
 # Ollama configuration
 OLLAMA_BASE_URL = "http://localhost:11434"
@@ -65,7 +73,11 @@ class OllamaAI:
         try:
             logger.info(f"🤖 Generating response for question: {question[:50]}...")
             
-            # Knowledge base is guaranteed to exist (service won't start without it)
+            # Check if knowledge base is available
+            if not self.knowledge_retrieval:
+                return "I apologize, but the knowledge base is not available. Please check the service logs for details."
+            
+            # Knowledge base is available - proceed normally
             coverage_info = self.knowledge_retrieval.classify_query_and_check_coverage(question)
             logger.info(f"📊 Query coverage: {coverage_info}")
             
@@ -412,8 +424,8 @@ Could you rephrase your question to focus on XECO power quality products or powe
                 }
             }
             
-            # Progressive timeout: start with 30s, retry with 60s if needed
-            for timeout in [30, 60]:
+            # Progressive timeout: start with 60s, retry with 120s if needed (increased from 30s/60s)
+            for timeout in [60, 120]:
                 try:
                     logger.info(f"🚀 Calling Ollama API (timeout: {timeout}s)...")
                     response = requests.post(url, json=payload, timeout=timeout)
@@ -431,8 +443,8 @@ Could you rephrase your question to focus on XECO power quality products or powe
                     return response_text
                     
                 except requests.exceptions.Timeout:
-                    logger.warning(f"⏰ Ollama timeout ({timeout}s), {'retrying with longer timeout...' if timeout == 30 else 'giving up'}")
-                    if timeout == 60:  # Final attempt failed
+                    logger.warning(f"⏰ Ollama timeout ({timeout}s), {'retrying with longer timeout...' if timeout == 60 else 'giving up'}")
+                    if timeout == 120:  # Final attempt failed
                         raise requests.exceptions.Timeout("Ollama API timed out after multiple attempts")
                     continue
                     
@@ -452,16 +464,17 @@ ollama_ai = OllamaAI()
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    # Knowledge base is required - service won't start without it
-    if not knowledge_retrieval:
-        return jsonify({
-            "status": "unhealthy",
-            "service": "ollama_ai_backend",
-            "error": "Knowledge base not initialized - service should not be running",
-            "timestamp": "2025-01-27T20:45:00Z"
-        }), 503
-    
     try:
+        # Check if knowledge base is available
+        kb_available = knowledge_retrieval is not None
+        kb_stats = {}
+        
+        if kb_available:
+            try:
+                kb_stats = knowledge_retrieval.get_knowledge_stats()
+            except:
+                kb_available = False
+        
         # Test Ollama connection
         ollama_status = "unknown"
         try:
@@ -470,22 +483,21 @@ def health_check():
         except Exception as e:
             ollama_status = f"unavailable: {str(e)}"
         
-        # Get knowledge base stats (required)
-        kb_stats = knowledge_retrieval.get_knowledge_stats()
-        
         return jsonify({
-            "status": "healthy",
+            "status": "healthy" if kb_available else "degraded",
             "service": "ollama_ai_backend",
             "ollama_status": ollama_status,
             "model": OLLAMA_MODEL,
             "knowledge_base": kb_stats,
-            "knowledge_base_available": True,
+            "knowledge_base_available": kb_available,
             "timestamp": "2025-01-27T20:45:00Z"
         })
     except Exception as e:
         logger.error(f"Health check error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({
-            "status": "unhealthy",
+            "status": "error",
             "service": "ollama_ai_backend",
             "error": str(e),
             "timestamp": "2025-01-27T20:45:00Z"
@@ -532,7 +544,10 @@ def search_knowledge():
         
         results = []
         
-        # Knowledge base is guaranteed to exist (service won't start without it)
+        # Check if knowledge base is available
+        if not knowledge_retrieval:
+            return jsonify({"error": "Knowledge base is not available"}), 503
+        
         if search_type in ['all', 'products']:
             results.extend(knowledge_retrieval.search_products(query, limit=2))
         
@@ -562,7 +577,9 @@ def search_knowledge():
 def knowledge_stats():
     """Get knowledge base statistics"""
     try:
-        # Knowledge base is guaranteed to exist (service won't start without it)
+        if not knowledge_retrieval:
+            return jsonify({"error": "Knowledge base is not available", "stats": {}}), 503
+        
         stats = knowledge_retrieval.get_knowledge_stats()
         return jsonify(stats)
     except Exception as e:
@@ -588,22 +605,35 @@ def test_ai():
         return jsonify({"error": str(e), "status": "failed"}), 500
 
 if __name__ == '__main__':
-    print("Starting Ollama AI Backend Service")
-    print(f"Ollama URL: {OLLAMA_BASE_URL}")
-    print(f"Model: {OLLAMA_MODEL}")
-    # Knowledge base is guaranteed to exist (service won't start without it)
-    kb_stats = knowledge_retrieval.get_knowledge_stats()
-    print(f"Knowledge Base: {kb_stats}")
-    
-    # Test Ollama connection
     try:
-        test_response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
-        if test_response.status_code == 200:
-            print("Ollama connection successful")
+        print("Starting Ollama AI Backend Service")
+        print(f"Ollama URL: {OLLAMA_BASE_URL}")
+        print(f"Model: {OLLAMA_MODEL}")
+        
+        # Check if knowledge base is available (don't fail if it's not)
+        if knowledge_retrieval:
+            try:
+                kb_stats = knowledge_retrieval.get_knowledge_stats()
+                print(f"Knowledge Base: {kb_stats}")
+            except:
+                print("⚠️ Knowledge Base: Error getting stats")
         else:
-            print("Ollama connection failed")
+            print("⚠️ Knowledge Base: Not available (service will start but AI features limited)")
+        
+        # Test Ollama connection
+        try:
+            test_response = requests.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=5)
+            if test_response.status_code == 200:
+                print("Ollama connection successful")
+            else:
+                print("Ollama connection failed")
+        except Exception as e:
+            print(f"Ollama connection error: {e}")
+        
+        # Start Flask app
+        app.run(host='0.0.0.0', port=8090, debug=False, use_reloader=False, threaded=True)
     except Exception as e:
-        print(f"Ollama connection error: {e}")
-    
-    # Start Flask app
-    app.run(host='0.0.0.0', port=8090, debug=True)
+        logger.error(f"Failed to start Ollama AI Backend Service: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise

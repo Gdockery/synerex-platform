@@ -695,9 +695,12 @@ def generate_verification_certificate_html(r):
 def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
     """Generate detailed kW normalization savings breakdown HTML"""
     try:
+        print(f"*** BREAKDOWN FUNCTION START: power_quality type={type(power_quality)}, keys={list(power_quality.keys()) if isinstance(power_quality, dict) else 'Not a dict'} ***")
+        
         # Get raw kW values
         kw_before = safe_get(power_quality, "kw_before", default=0)
         kw_after = safe_get(power_quality, "kw_after", default=0)
+        print(f"*** BREAKDOWN FUNCTION: kw_before={kw_before}, kw_after={kw_after} ***")
         
         # Get weather normalized values
         # CRITICAL: Use the exact same values that UI Analysis displays
@@ -716,26 +719,43 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # Get fully normalized values
         # PRIORITIZE: Use stored calculated values from UI if available, otherwise use backend values
         # The UI calculates these values and stores them in power_quality for consistency
-        normalized_kw_before = safe_get(power_quality, "pf_normalized_kw_before") or safe_get(power_quality, "normalized_kw_before", default=0)
-        normalized_kw_after = safe_get(power_quality, "pf_normalized_kw_after") or safe_get(power_quality, "normalized_kw_after", default=0)
+        # CRITICAL FIX: Always prioritize PF-normalized values (calculated_pf_normalized_kw_before) over 
+        # weather-normalized values (normalized_kw_before) to ensure correct percentage calculation
+        normalized_kw_before = (
+            safe_get(power_quality, "calculated_pf_normalized_kw_before") or  # Step 4 PF-normalized (most accurate)
+            safe_get(power_quality, "pf_normalized_kw_before") or  # Step 3 PF-normalized
+            safe_get(power_quality, "normalized_kw_before", default=0)  # Fallback (may be weather-normalized)
+        )
+        normalized_kw_after = (
+            safe_get(power_quality, "calculated_pf_normalized_kw_after") or  # Step 4 PF-normalized (most accurate)
+            safe_get(power_quality, "pf_normalized_kw_after") or  # Step 3 PF-normalized
+            safe_get(power_quality, "normalized_kw_after", default=0)  # Fallback (may be weather-normalized)
+        )
         
-        # If we have stored UI-calculated values from Step 4, use those (most accurate)
-        if safe_get(power_quality, "normalized_kw_before") and safe_get(power_quality, "normalized_kw_after"):
-            # These are the Step 4 calculated values stored by the UI
-            normalized_kw_before = safe_get(power_quality, "normalized_kw_before")
-            normalized_kw_after = safe_get(power_quality, "normalized_kw_after")
-        elif safe_get(power_quality, "pf_normalized_kw_before") and safe_get(power_quality, "pf_normalized_kw_after"):
-            # Fallback to Step 3 calculated values if Step 4 not available
-            normalized_kw_before = safe_get(power_quality, "pf_normalized_kw_before")
-            normalized_kw_after = safe_get(power_quality, "pf_normalized_kw_after")
+        # Check if we have data to show (use None checks and >= 0 to allow zero values)
+        has_raw = (kw_before is not None and kw_after is not None and 
+                  kw_before >= 0 and kw_after >= 0)
+        has_weather = (weather_normalized_kw_before is not None and 
+                      weather_normalized_kw_after is not None and 
+                      weather_normalized_kw_before >= 0 and weather_normalized_kw_after >= 0)
+        has_fully = (normalized_kw_before is not None and 
+                    normalized_kw_after is not None and 
+                    normalized_kw_before >= 0 and normalized_kw_after >= 0)
         
-        # Check if we have data to show
-        has_raw = kw_before > 0 and kw_after > 0
-        has_weather = weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0
-        has_fully = normalized_kw_before > 0 and normalized_kw_after > 0
+        # Always generate breakdown if we have power_quality data (normalization should always be calculated)
+        # Check if power_quality exists in the data structure
+        has_power_quality = power_quality is not None and isinstance(power_quality, dict) and len(power_quality) > 0
         
-        if not (has_raw or has_weather or has_fully):
-            return ""  # No data available
+        # If we have power_quality data, always show the breakdown (even if some values are 0 or None)
+        if not has_power_quality:
+            # Only return empty if we truly have no power_quality data at all
+            logger.warning("No power_quality data found - skipping normalization breakdown")
+            return '<div style="margin-top: 1.5rem; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #ff9800;"><p style="color: #666;">Normalization breakdown will be displayed when analysis data is available.</p></div>'
+        
+        # If we have power_quality data, proceed with breakdown generation
+        # (The individual sections will handle missing data gracefully)
+        print(f"*** BREAKDOWN FUNCTION: has_power_quality={has_power_quality}, has_raw={has_raw}, has_weather={has_weather}, has_fully={has_fully} ***")
+        print(f"*** BREAKDOWN FUNCTION: Proceeding with breakdown generation... ***")
         
         # Get weather data
         weather_data = safe_get(r, "weather_data", default={}) or safe_get(r, "weather_normalization", default={})
@@ -765,8 +785,16 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             total_savings_kw = safe_get(power_quality, "total_normalized_savings_kw", default=0)
             total_normalized_percent = safe_get(power_quality, "total_normalized_savings_percent", default=0)
         else:
+            # CRITICAL FIX: Ensure we use PF-normalized values for calculation, not weather-normalized
+            # Get the correct PF-normalized "before" value for the denominator
+            pf_normalized_kw_before_for_calc = (
+                safe_get(power_quality, "calculated_pf_normalized_kw_before") or
+                safe_get(power_quality, "pf_normalized_kw_before") or
+                normalized_kw_before  # Fallback (should be PF-normalized after fix above)
+            )
             total_savings_kw = normalized_kw_before - normalized_kw_after if has_fully else 0
-            total_normalized_percent = (total_savings_kw / normalized_kw_before * 100) if has_fully and normalized_kw_before > 0 else 0
+            # Use PF-normalized "before" value for percentage calculation to avoid double-counting
+            total_normalized_percent = (total_savings_kw / pf_normalized_kw_before_for_calc * 100) if has_fully and pf_normalized_kw_before_for_calc > 0 else 0
         
         # Calculate weather savings
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
@@ -810,11 +838,28 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # Calculate weather effects
         # CRITICAL FIX: Get base temperature from results (must come from baseline data, not hardcoded)
         # Match UI Analysis logic: prioritize optimized_base_temp, then base_temp_celsius
-        base_temp = safe_get(weather_norm, "optimized_base_temp") or safe_get(weather_norm, "base_temp_celsius") or 18.3
+        base_temp_raw = safe_get(weather_norm, "optimized_base_temp") or safe_get(weather_norm, "base_temp_celsius")
+        base_temp = base_temp_raw if base_temp_raw is not None else 18.3  # Explicit None check
+        
         # Get actual sensitivity from results if available, prioritizing regression-calculated values
         # Match UI Analysis: use regression_temp_sensitivity first, then temp_sensitivity_used
-        temp_sensitivity = safe_get(weather_norm, "regression_temp_sensitivity") or safe_get(weather_norm, "temp_sensitivity_used") or safe_get(power_quality, "temp_sensitivity_used") or 0.036
-        dewpoint_sensitivity = safe_get(weather_norm, "regression_dewpoint_sensitivity") or safe_get(weather_norm, "dewpoint_sensitivity_used") or safe_get(power_quality, "dewpoint_sensitivity_used") or 0.0216
+        temp_sensitivity_raw = (safe_get(weather_norm, "regression_temp_sensitivity") or 
+                               safe_get(weather_norm, "temp_sensitivity_used") or 
+                               safe_get(power_quality, "temp_sensitivity_used"))
+        temp_sensitivity = temp_sensitivity_raw if temp_sensitivity_raw is not None else 0.036  # Explicit None check
+        
+        dewpoint_sensitivity_raw = (safe_get(weather_norm, "regression_dewpoint_sensitivity") or 
+                                   safe_get(weather_norm, "dewpoint_sensitivity_used") or 
+                                   safe_get(power_quality, "dewpoint_sensitivity_used"))
+        dewpoint_sensitivity = dewpoint_sensitivity_raw if dewpoint_sensitivity_raw is not None else 0.0216  # Explicit None check
+        
+        # Ensure base_temp is a number (not None)
+        if base_temp is None or not isinstance(base_temp, (int, float)):
+            base_temp = 18.3
+        if temp_sensitivity is None or not isinstance(temp_sensitivity, (int, float)):
+            temp_sensitivity = 0.036
+        if dewpoint_sensitivity is None or not isinstance(dewpoint_sensitivity, (int, float)):
+            dewpoint_sensitivity = 0.0216
         
         temp_effect_before = None
         temp_effect_after = None
@@ -824,17 +869,27 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         weather_effect_after = None
         calculated_adjustment_factor = None
         
-        if temp_before is not None and temp_after is not None:
+        if temp_before is not None and temp_after is not None and base_temp is not None and temp_sensitivity is not None:
             # CRITICAL FIX: For cooling systems, temperatures below base_temp have zero cooling load
             # Use max(0, ...) to prevent negative weather effects (same as in normalization logic)
-            temp_effect_before = max(0, (temp_before - base_temp) * temp_sensitivity)
-            temp_effect_after = max(0, (temp_after - base_temp) * temp_sensitivity)
+            try:
+                temp_effect_before = max(0, (temp_before - base_temp) * temp_sensitivity)
+                temp_effect_after = max(0, (temp_after - base_temp) * temp_sensitivity)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Error calculating temp effects: {e}, temp_before={temp_before}, temp_after={temp_after}, base_temp={base_temp}, temp_sensitivity={temp_sensitivity}")
+                temp_effect_before = None
+                temp_effect_after = None
         
-        if dewpoint_before is not None and dewpoint_after is not None:
+        if dewpoint_before is not None and dewpoint_after is not None and base_temp is not None and dewpoint_sensitivity is not None:
             # CRITICAL FIX: For cooling systems, dewpoints below base_temp have zero cooling load
             # Use max(0, ...) to prevent negative weather effects (same as temperature)
-            dewpoint_effect_before = max(0, (dewpoint_before - base_temp) * dewpoint_sensitivity)
-            dewpoint_effect_after = max(0, (dewpoint_after - base_temp) * dewpoint_sensitivity)
+            try:
+                dewpoint_effect_before = max(0, (dewpoint_before - base_temp) * dewpoint_sensitivity)
+                dewpoint_effect_after = max(0, (dewpoint_after - base_temp) * dewpoint_sensitivity)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Error calculating dewpoint effects: {e}, dewpoint_before={dewpoint_before}, dewpoint_after={dewpoint_after}, base_temp={base_temp}, dewpoint_sensitivity={dewpoint_sensitivity}")
+                dewpoint_effect_before = None
+                dewpoint_effect_after = None
         
         if (temp_effect_before is not None and temp_effect_after is not None and 
             dewpoint_effect_before is not None and dewpoint_effect_after is not None):
@@ -889,12 +944,12 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 base_temp_display = f"{base_temp:.1f}°C (calculated from baseline 'before' data)"
             html.append(f'<tr style="background: #f5f5f5;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Base Temperature</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{base_temp_display}</td></tr>')
             
-            if temp_before is not None and temp_after is not None:
+            if temp_before is not None and temp_after is not None and base_temp is not None:
                 temp_diff_before = temp_before - base_temp
                 temp_diff_after = temp_after - base_temp
                 html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature (deg C)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(temp_before, 1)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(temp_after, 1)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Diff from base: {format_number(temp_diff_before, 1)} deg C / {format_number(temp_diff_after, 1)} deg C</td></tr>')
                 
-                if temp_effect_before is not None and temp_effect_after is not None:
+                if temp_effect_before is not None and temp_effect_after is not None and temp_sensitivity is not None and base_temp is not None:
                     # Calculate raw temperature effects for display (before max clamping)
                     raw_temp_effect_before = (temp_before - base_temp) * temp_sensitivity
                     raw_temp_effect_after = (temp_after - base_temp) * temp_sensitivity
@@ -912,12 +967,12 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     
                     html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {before_formula}<br/>After: {after_formula}</td></tr>')
             
-            if dewpoint_before is not None and dewpoint_after is not None:
+            if dewpoint_before is not None and dewpoint_after is not None and base_temp is not None:
                 dewpoint_diff_before = dewpoint_before - base_temp
                 dewpoint_diff_after = dewpoint_after - base_temp
                 html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint (deg C)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(dewpoint_before, 1)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(dewpoint_after, 1)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Diff from base: {format_number(dewpoint_diff_before, 1)} deg C / {format_number(dewpoint_diff_after, 1)} deg C</td></tr>')
                 
-                if dewpoint_effect_before is not None and dewpoint_effect_after is not None:
+                if dewpoint_effect_before is not None and dewpoint_effect_after is not None and dewpoint_sensitivity is not None and base_temp is not None:
                     # Show correct formula: separate calculations for before and after, not a division
                     # Before: (dewpoint_diff_before × sensitivity) = effect_before
                     # After: max(0, dewpoint_diff_after × sensitivity) = effect_after
@@ -955,16 +1010,17 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     efficiency_factor = 0.7  # 30% reduction
                     efficiency_factor_display = "0.70 (30% reduction - efficiency outweighs weather)"
                     reduction_percent = 30
-            else:
-                efficiency_factor = 0.85  # 15% reduction
-                efficiency_factor_display = "0.85 (15% reduction - efficiency still matters)"
-                reduction_percent = 15
+                else:
+                    efficiency_factor = 0.85  # 15% reduction
+                    efficiency_factor_display = "0.85 (15% reduction - efficiency still matters)"
+                    reduction_percent = 15
                 
-                # Calculate reduced weather effects
-                weather_effect_before_reduced = weather_effect_before * efficiency_factor
-                weather_effect_after_reduced = weather_effect_after * efficiency_factor
-                
-                html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Efficiency Factor</strong><br/><small style="color: #666;">Weather effect reduction (informational)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_before * 100, 2)}% → {format_number(weather_effect_before_reduced * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_after * 100, 2)}% → {format_number(weather_effect_after_reduced * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Factor: {efficiency_factor_display}<br/>Before: {format_number(weather_effect_before * 100, 2)}% × {format_number(efficiency_factor, 2)} = {format_number(weather_effect_before_reduced * 100, 2)}%<br/>After: {format_number(weather_effect_after * 100, 2)}% × {format_number(efficiency_factor, 2)} = {format_number(weather_effect_after_reduced * 100, 2)}%<br/><small style="color: #4caf50;">Improving kW efficiency outweighs small weather differences ({format_number(temp_range, 1)}°C)</small><br/><small style="color: #ff9800; font-style: italic;">⚠️ Note: This is informational and not applied to the calculation</small></td></tr>')
+                # Calculate reduced weather effects - ADD None CHECK to prevent TypeError
+                if weather_effect_before is not None and weather_effect_after is not None and efficiency_factor is not None:
+                    weather_effect_before_reduced = weather_effect_before * efficiency_factor
+                    weather_effect_after_reduced = weather_effect_after * efficiency_factor
+                    
+                    html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Efficiency Factor</strong><br/><small style="color: #666;">Weather effect reduction (informational)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_before * 100, 2)}% → {format_number(weather_effect_before_reduced * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_after * 100, 2)}% → {format_number(weather_effect_after_reduced * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Factor: {efficiency_factor_display}<br/>Before: {format_number(weather_effect_before * 100, 2)}% × {format_number(efficiency_factor, 2)} = {format_number(weather_effect_before_reduced * 100, 2)}%<br/>After: {format_number(weather_effect_after * 100, 2)}% × {format_number(efficiency_factor, 2)} = {format_number(weather_effect_after_reduced * 100, 2)}%<br/><small style="color: #4caf50;">Improving kW efficiency outweighs small weather differences ({format_number(temp_range, 1)}°C)</small><br/><small style="color: #ff9800; font-style: italic;">⚠️ Note: This is informational and not applied to the calculation</small></td></tr>')
             
             # Always show the actual factor (from real data), not theoretical
             # Calculate actual factor from normalized/raw ratio
@@ -997,8 +1053,12 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             html.append('<tr><td colspan="4" style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; color: #666; font-size: 0.9em;">')
             html.append('<strong>Calculation Formula:</strong><br/>')
-            html.append(f'1. <strong>Temperature Effect</strong> = (Temperature - {format_number(base_temp, 1)} deg C) x {format_number(temp_sensitivity * 100, 1)}%<br/>')
-            html.append(f'2. <strong>Dewpoint Effect</strong> = (Dewpoint - {format_number(base_temp, 1)} deg C) x {format_number(dewpoint_sensitivity * 100, 1)}%<br/>')
+            if base_temp is not None and temp_sensitivity is not None and dewpoint_sensitivity is not None:
+                html.append(f'1. <strong>Temperature Effect</strong> = (Temperature - {format_number(base_temp, 1)} deg C) x {format_number(temp_sensitivity * 100, 1)}%<br/>')
+                html.append(f'2. <strong>Dewpoint Effect</strong> = (Dewpoint - {format_number(base_temp, 1)} deg C) x {format_number(dewpoint_sensitivity * 100, 1)}%<br/>')
+            else:
+                html.append('1. <strong>Temperature Effect</strong> = (Temperature - Base Temp) x Temp Sensitivity<br/>')
+                html.append('2. <strong>Dewpoint Effect</strong> = (Dewpoint - Base Temp) x Dewpoint Sensitivity<br/>')
             html.append('3. <strong>Weather Effect</strong> = Temperature Effect + Dewpoint Effect<br/>')
             html.append('4. <strong>Adjustment Factor</strong> = (1 + Weather Effect Before) / (1 + Weather Effect After)<br/>')
             html.append('5. <strong>Normalized After kW</strong> = Raw After kW x Adjustment Factor<br/>')
@@ -1068,11 +1128,17 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         if has_fully:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>')
+            # CRITICAL FIX: Use PF-normalized "before" value for display to ensure correct percentage calculation
+            pf_normalized_kw_before_display = (
+                safe_get(power_quality, "calculated_pf_normalized_kw_before") or
+                safe_get(power_quality, "pf_normalized_kw_before") or
+                normalized_kw_before  # Fallback (should be PF-normalized after fix above)
+            )
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>')
             html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
-            html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(normalized_kw_before, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
-            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">Total Normalized Savings (%)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(normalized_kw_before, 2)}) x 100</td></tr>')
+            html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
+            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">Total Normalized Savings (%)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(pf_normalized_kw_before_display, 2)}) x 100</td></tr>')
             html.append('</table>')
             
             # Verification summary - Enhanced with detailed breakdown
@@ -1140,7 +1206,10 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         logger.error(f"Error generating kW normalization breakdown: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return ""  # Return empty string on error
+        print(f"*** BREAKDOWN FUNCTION ERROR: {e} ***")
+        print(f"*** BREAKDOWN FUNCTION TRACEBACK: {traceback.format_exc()} ***")
+        # Return error message HTML instead of empty string so we can see what went wrong
+        return f'<div style="margin-top: 1.5rem; padding: 20px; background: #ffebee; border-radius: 8px; border-left: 5px solid #f44336;"><h4 style="color: #c62828;">Error Generating Normalization Breakdown</h4><p style="color: #666;">An error occurred while generating the normalization breakdown: {str(e)}</p><p style="color: #999; font-size: 0.9em;">Please check the server logs for details.</p></div>'
 
 def generate_exact_template_html(r):
     """Generate HTML report using simple structured protocol - GET field values from UI service"""
@@ -4271,7 +4340,14 @@ def generate_exact_template_html(r):
     # Get power_quality and weather_norm for breakdown
     power_quality_for_breakdown = safe_get(r, "power_quality", default={})
     weather_norm_for_breakdown = safe_get(r, "weather_normalization", default={})
+    
+    # DEBUG: Log what data we have
+    print(f"*** BREAKDOWN DEBUG: power_quality keys: {list(power_quality_for_breakdown.keys()) if isinstance(power_quality_for_breakdown, dict) else 'Not a dict'} ***")
+    print(f"*** BREAKDOWN DEBUG: weather_norm keys: {list(weather_norm_for_breakdown.keys()) if isinstance(weather_norm_for_breakdown, dict) else 'Not a dict'} ***")
+    print(f"*** BREAKDOWN DEBUG: kw_before = {power_quality_for_breakdown.get('kw_before', 'NOT_FOUND')}, kw_after = {power_quality_for_breakdown.get('kw_after', 'NOT_FOUND')} ***")
+    
     breakdown_html = generate_kw_normalization_breakdown(r, power_quality_for_breakdown, weather_norm_for_breakdown)
+    print(f"*** BREAKDOWN DEBUG: Generated breakdown HTML length: {len(breakdown_html)} characters ***")
     template_content = template_content.replace('{{KW_NORMALIZATION_BREAKDOWN}}', breakdown_html)
     
     # Add missing template variable replacements for Raw Meter Test Data section
@@ -6854,8 +6930,8 @@ def generate_layman_report_html(r):
         energy = safe_get(r, "energy", default={})
         config = safe_get(r, "config", default={})
         
-        # Get analysis session ID first
-        analysis_session_id = r.get('analysis_session_id') or "N/A"
+        # Get analysis session ID first (use safe_get to properly handle None)
+        analysis_session_id = safe_get(r, "analysis_session_id", default=None)
         
         # Get verification code - try from results first, then lookup from database
         verification_code = r.get('verification_code') or r.get('config', {}).get('verification_code')
@@ -6863,7 +6939,7 @@ def generate_layman_report_html(r):
             verification_code = verification_code.strip('{}').strip('{{').strip('}}').strip()
         
         # If not found in results, try to get it from database using analysis_session_id
-        if (not verification_code or verification_code == "N/A") and analysis_session_id and analysis_session_id != "N/A":
+        if (not verification_code or verification_code == "N/A") and analysis_session_id:
             try:
                 # Try to query database via API call to main service
                 import requests
@@ -7001,6 +7077,101 @@ def generate_layman_report_html(r):
         # Get report date
         report_date = datetime.now().strftime('%B %d, %Y')
         
+        # Get project information
+        # Project Number: Generated from analysis_session_id (format: YYYYMMDD_HHMMSS)
+        project_number = "N/A"
+        if analysis_session_id:
+            # Extract YYYYMMDD_HHMMSS from ANALYSIS_YYYYMMDD_HHMMSS_uuid
+            match = re.match(r'ANALYSIS_(\d{8}_\d{6})', str(analysis_session_id))
+            if match:
+                project_number = match.group(1)
+            else:
+                # Fallback: use the full session ID if format doesn't match
+                project_number = str(analysis_session_id)
+        else:
+            # Generate a fallback report number from current date/time
+            project_number = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
+        # Get test date (use report date or from config)
+        test_date = (
+            config.get('test_date') or
+            config.get('testDate') or
+            r.get('test_date') or
+            r.get('testDate') or
+            report_date or
+            "N/A"
+        )
+        
+        # Get contact name: From "Point of Contact" field (name="cp_contact")
+        client_profile = safe_get(r, "client_profile", default={})
+        contact_name = (
+            config.get('cp_contact') or
+            r.get('cp_contact') or
+            (client_profile.get('cp_contact') if isinstance(client_profile, dict) else None) or
+            config.get('contact_name') or
+            config.get('contactName') or
+            r.get('contact_name') or
+            r.get('contactName') or
+            "N/A"
+        )
+        
+        # Get Project Site: From "Project Name" field (name="company", id="projectName")
+        project_site = (
+            config.get('company') or
+            config.get('projectName') or
+            r.get('company') or
+            r.get('projectName') or
+            (client_profile.get('company') if isinstance(client_profile, dict) else None) or
+            (client_profile.get('projectName') if isinstance(client_profile, dict) else None) or
+            "N/A"
+        )
+        
+        # Get facility address: From "Facility Address" field (name="facility_address")
+        facility_address = (
+            config.get('facility_address') or
+            r.get('facility_address') or
+            (client_profile.get('facility_address') if isinstance(client_profile, dict) else None) or
+            "N/A"
+        )
+        
+        # Get city, state, zip from UI fields
+        # City: name="location" (id="facility_city")
+        # State: name="facility_state" (id="facility_state")
+        # Zip: name="facility_zip" (id="facility_zip")
+        facility_city = (
+            config.get('location') or
+            config.get('facility_city') or
+            r.get('location') or
+            r.get('facility_city') or
+            (client_profile.get('location') if isinstance(client_profile, dict) else None) or
+            (client_profile.get('facility_city') if isinstance(client_profile, dict) else None) or
+            ""
+        )
+        
+        facility_state = (
+            config.get('facility_state') or
+            r.get('facility_state') or
+            (client_profile.get('facility_state') if isinstance(client_profile, dict) else None) or
+            ""
+        )
+        
+        facility_zip = (
+            config.get('facility_zip') or
+            r.get('facility_zip') or
+            (client_profile.get('facility_zip') if isinstance(client_profile, dict) else None) or
+            ""
+        )
+        
+        # Combine city, state, zip
+        if facility_city and facility_state and facility_zip:
+            city_state_zip = f"{facility_city}, {facility_state} {facility_zip}"
+        elif facility_city and facility_state:
+            city_state_zip = f"{facility_city}, {facility_state}"
+        elif facility_city:
+            city_state_zip = facility_city
+        else:
+            city_state_zip = "N/A"
+        
         # Get logo for header
         logo_data_uri = get_logo_data_uri()
         
@@ -7056,6 +7227,14 @@ def generate_layman_report_html(r):
         template_content = template_content.replace('{{CARS_EQUIVALENT}}', str(cars_equivalent))
         template_content = template_content.replace('{{TREES_EQUIVALENT}}', format_number(trees_equivalent))
         template_content = template_content.replace('{{LIGHTBULBS_EQUIVALENT}}', str(lightbulbs_equivalent))
+        
+        # Replace project information variables
+        template_content = template_content.replace('{{PROJECT_NUMBER}}', str(project_number))
+        template_content = template_content.replace('{{TEST_DATE}}', str(test_date))
+        template_content = template_content.replace('{{CONTACT_NAME}}', str(contact_name))
+        template_content = template_content.replace('{{PROJECT_SITE}}', str(project_site))
+        template_content = template_content.replace('{{FACILITY_ADDRESS}}', str(facility_address))
+        template_content = template_content.replace('{{CITY_STATE_ZIP}}', str(city_state_zip))
         
         # Replace any remaining variables with empty string
         template_content = re.sub(r'\{\{[A-Za-z0-9_]+\}\}', '', template_content)

@@ -379,6 +379,90 @@ export default function MyAccount() {
           </div>
         )}
         
+        {/* License Selection Section - Only show if user doesn't have licenses */}
+        {userInfo && !licenseData && (
+          <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
+            <h2 className="text-2xl font-bold mb-4 text-purple-400">Select a License</h2>
+            <p className="text-gray-300 mb-6">
+              Choose a license plan to get started with Synerex programs. After purchase, you'll receive your License Serial Number via email.
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* EM&V Plans */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-bold mb-4 text-blue-400">EM&V Program</h3>
+                <div className="space-y-4">
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors cursor-pointer">
+                    <div className="font-semibold text-white mb-2">Single Report License</div>
+                    <div className="text-2xl font-bold text-purple-400 mb-2">$4,200</div>
+                    <div className="text-sm text-gray-400 mb-3">One-time payment</div>
+                    <button 
+                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=emv&plan=single_report`}
+                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors cursor-pointer">
+                    <div className="font-semibold text-white mb-2">Annual License</div>
+                    <div className="text-2xl font-bold text-purple-400 mb-2">$53,000</div>
+                    <div className="text-sm text-gray-400 mb-3">Per year, unlimited reports</div>
+                    <button 
+                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=emv&plan=annual`}
+                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Tracking Plans */}
+              <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                <h3 className="text-xl font-bold mb-4 text-green-400">Tracking Program</h3>
+                <div className="space-y-4">
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors cursor-pointer">
+                    <div className="font-semibold text-white mb-2">Basic Plan</div>
+                    <div className="text-2xl font-bold text-green-400 mb-2">$495</div>
+                    <div className="text-sm text-gray-400 mb-1">+ $750/meter/year</div>
+                    <div className="text-sm text-gray-400 mb-3">5 Users, Read Only</div>
+                    <button 
+                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=basic`}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors cursor-pointer">
+                    <div className="font-semibold text-white mb-2">Pro Plan</div>
+                    <div className="text-2xl font-bold text-green-400 mb-2">$950</div>
+                    <div className="text-sm text-gray-400 mb-1">+ $795/meter/year</div>
+                    <div className="text-sm text-gray-400 mb-3">15 Users, Equipment Scheduling</div>
+                    <button 
+                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=pro`}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors cursor-pointer">
+                    <div className="font-semibold text-white mb-2">Enterprise Plan</div>
+                    <div className="text-2xl font-bold text-green-400 mb-2">$1,495</div>
+                    <div className="text-sm text-gray-400 mb-1">+ $750/meter/year</div>
+                    <div className="text-sm text-gray-400 mb-3">Unlimited Users, Full Features</div>
+                    <button 
+                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=enterprise`}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
+                    >
+                      Select Plan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Lookup Form */}
         <div className="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-4 text-purple-400">Lookup License</h2>

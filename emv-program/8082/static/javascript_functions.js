@@ -469,9 +469,12 @@ function fetchWeatherData() {
     return;
   }
 
-  // Show loading state
+  // Show loading state with progress updates
   fetchBtn.disabled = true;
-  statusSpan.innerHTML = '⏳';
+  statusSpan.innerHTML = '⏳ Starting...';
+  
+  // Show notification with progress
+  showNotification('Fetching weather data... This may take 30-60 seconds for large date ranges.', 'info');
 
   // Get form data
   const formData = new FormData();
@@ -529,17 +532,58 @@ function fetchWeatherData() {
 
   for (let [key, value] of formData.entries()) {}
 
+  // Add timeout controller to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.warn('⏱️ Weather fetch timeout - request taking longer than expected');
+    statusSpan.innerHTML = '⏳ Still fetching...';
+    showNotification('Weather fetch is taking longer than expected. Please wait...', 'info');
+  }, 30000); // Show progress update after 30 seconds
+  
+  // Final timeout after 150 seconds (2.5 minutes)
+  const finalTimeoutId = setTimeout(() => {
+    controller.abort();
+    statusSpan.innerHTML = '❌';
+    fetchBtn.disabled = false;
+    showNotification('Weather fetch timed out after 2.5 minutes. The date range may be too large. Please try with smaller date ranges.', 'error');
+  }, 150000); // 150 second final timeout
+
+  // Update progress indicator periodically
+  let progressCounter = 0;
+  const progressInterval = setInterval(() => {
+    progressCounter++;
+    if (progressCounter <= 5) {
+      statusSpan.innerHTML = `⏳ Fetching... (${progressCounter * 10}s)`;
+    } else {
+      statusSpan.innerHTML = `⏳ Still fetching... (${progressCounter * 10}s)`;
+    }
+  }, 10000); // Update every 10 seconds
+
   // Make API call
   fetch('/api/fetch_weather', {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal: controller.signal
     })
     .then(response => {
+      clearTimeout(timeoutId);
+      clearTimeout(finalTimeoutId);
+      clearInterval(progressInterval);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       return response.json();
     })
     .then(data => {
+      clearTimeout(timeoutId);
+      clearTimeout(finalTimeoutId);
+      clearInterval(progressInterval);
+      
       if (data.success) {
         statusSpan.innerHTML = '✅';
+        showNotification('Weather data fetched successfully!', 'success');
         // Populate weather fields if returned
         if (data.weather_data) {
           // Debug: Log the received weather data to verify values
@@ -556,15 +600,27 @@ function fetchWeatherData() {
       } else {
         statusSpan.innerHTML = '❌';
         console.error('Weather fetch failed:', data.error);
-        showNotification(`Weather fetch failed: ${data.error}`);
+        showNotification(`Weather fetch failed: ${data.error}`, 'error');
       }
     })
     .catch(error => {
+      clearTimeout(timeoutId);
+      clearTimeout(finalTimeoutId);
+      clearInterval(progressInterval);
+      
       statusSpan.innerHTML = '❌';
       console.error('Weather fetch error:', error);
-      showNotification(`Weather fetch error: ${error.message}`);
+      
+      if (error.name === 'AbortError') {
+        showNotification('Weather fetch timed out. The date range may be too large or the service is slow. Please try again or use smaller date ranges.', 'error');
+      } else {
+        showNotification(`Weather fetch error: ${error.message}`, 'error');
+      }
     })
     .finally(() => {
+      clearTimeout(timeoutId);
+      clearTimeout(finalTimeoutId);
+      clearInterval(progressInterval);
       fetchBtn.disabled = false;
       // checkFetchWeatherButtonState(); // COMMENTED OUT - OLD FUNCTION
     });
@@ -1109,32 +1165,53 @@ document.addEventListener("DOMContentLoaded", function() {
                                window.location.pathname === '/' ||
                                document.getElementById('main-dashboard');
       if (!isMainDashboard) {
-      console.warn('⚠️ Project list select element not found');
-      // Retry after a short delay in case DOM isn't ready yet
-      setTimeout(() => {
-        const retrySelect = document.getElementById('projectList');
-        if (retrySelect) {
-          console.log('✅ Found projectList on retry, loading projects...');
-          loadProjectList();
-        } else {
+        console.warn('⚠️ Project list select element not found');
+        // Retry after a short delay in case DOM isn't ready yet
+        setTimeout(() => {
+          const retrySelect = document.getElementById('projectList');
+          if (retrySelect) {
+            console.log('✅ Found projectList on retry, loading projects...');
+            loadProjectList();
+          } else {
             console.debug('❌ Project list select element still not found after retry (may not exist on this page)');
-        }
-      }, 500);
+          }
+        }, 500);
       }
       return;
     }
 
     console.log('📡 Fetching projects from /api/projects...');
     
+    // Get session token for authentication
+    const sessionToken = localStorage.getItem('session_token');
+    const authHeaders = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
+    
+    // Add session token if available
+    if (sessionToken) {
+      authHeaders['X-Session-Token'] = sessionToken;
+      console.log('🔑 Session token found, adding to request');
+    } else {
+      console.warn('⚠️ No session token found - request may fail if authentication is required');
+    }
+    
+    // Add timeout controller to prevent infinite spinner
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error('⏱️ Projects request timed out after 30 seconds');
+      controller.abort();
+    }, 30000); // Increased to 30 seconds to match main dashboard
+    
     fetch('/api/projects', {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      },
-      cache: 'no-cache'
+      headers: authHeaders,
+      cache: 'no-cache',
+      signal: controller.signal
     })
       .then(response => {
+        clearTimeout(timeoutId);
         console.log('📥 Response status:', response.status, response.statusText);
         console.log('📥 Response headers:', response.headers);
         
@@ -1251,9 +1328,16 @@ document.addEventListener("DOMContentLoaded", function() {
         console.log('✅ Verified options in DOM:', options.length);
       })
       .catch(error => {
+        clearTimeout(timeoutId);
         console.error('❌ Error loading project list:', error);
-        console.error('❌ Error stack:', error.stack);
-        showNotification('Failed to load projects: ' + error.message);
+        if (error.name !== 'AbortError') {
+          console.error('❌ Error stack:', error.stack);
+          showNotification('Failed to load projects: ' + error.message);
+        }
+        
+        // Clear any spinner
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"]');
+        spinners.forEach(spinner => spinner.style.display = 'none');
         
         // Show the select element to verify it exists
         const select = document.getElementById('projectList');
@@ -1269,6 +1353,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Project Save/Load/New functionality
   try {
+    // Check if we're on a page that should have project buttons
+    const isProjectPage = document.getElementById('projectList') || 
+                          document.getElementById('projectName') ||
+                          window.location.pathname.includes('/legacy') ||
+                          window.location.pathname.includes('/analysis');
+    
     // Add event listeners for project buttons first
     const btnSave = document.getElementById('btnSaveProject');
     const btnLoad = document.getElementById('btnLoadProject');
@@ -1277,17 +1367,77 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnDelete = document.getElementById('btnDeleteProject');
     const btnReanalyze = document.getElementById('btnReanalyzeProject');
 
-    if (btnSave) btnSave.addEventListener('click', saveProject);
-    if (btnLoad) btnLoad.addEventListener('click', loadProject);
-    if (btnNew) btnNew.addEventListener('click', newProject);
-    if (btnSaveAs) btnSaveAs.addEventListener('click', saveAsProject);
+    if (btnSave) {
+      console.log('✅ Save button found, attaching event listener');
+      btnSave.addEventListener('click', function() {
+        console.log('💾 Save button clicked');
+        if (typeof saveProject === 'function') {
+          saveProject();
+        } else {
+          console.error('❌ saveProject function not found');
+          showNotification('Error: Save function not available. Please refresh the page.');
+        }
+      });
+      // Make globally accessible
+      window.saveProject = saveProject;
+    } else {
+      console.warn('⚠️ Save button not found');
+    }
+    if (btnLoad) {
+      console.log('✅ Load button found, attaching event listener');
+      btnLoad.addEventListener('click', function() {
+        console.log('📂 Load button clicked');
+        if (typeof loadProject === 'function') {
+          loadProject();
+        } else {
+          console.error('❌ loadProject function not found');
+          showNotification('Error: Load function not available. Please refresh the page.');
+        }
+      });
+      window.loadProject = loadProject;
+    } else {
+      console.warn('⚠️ Load button not found');
+    }
+    if (btnNew) {
+      console.log('✅ New button found, attaching event listener');
+      btnNew.addEventListener('click', function() {
+        console.log('🆕 New button clicked');
+        if (typeof newProject === 'function') {
+          newProject();
+        } else {
+          console.error('❌ newProject function not found');
+          showNotification('Error: New function not available. Please refresh the page.');
+        }
+      });
+      // Make globally accessible
+      window.newProject = newProject;
+    } else {
+      console.warn('⚠️ New button not found');
+    }
+    if (btnSaveAs) {
+      console.log('✅ Save As button found, attaching event listener');
+      btnSaveAs.addEventListener('click', function() {
+        console.log('💾💾 Save As button clicked');
+        if (typeof saveAsProject === 'function') {
+          saveAsProject();
+        } else {
+          console.error('❌ saveAsProject function not found');
+          showNotification('Error: Save As function not available. Please refresh the page.');
+        }
+      });
+      // Make globally accessible
+      window.saveAsProject = saveAsProject;
+    } else {
+      console.warn('⚠️ Save As button not found');
+    }
     if (btnDelete) {
       console.log('✅ Delete button found, attaching event listener');
       btnDelete.addEventListener('click', deleteProject);
       // Also make it globally accessible as fallback
       window.deleteProject = deleteProject;
-    } else {
-      console.error('❌ Delete button not found!');
+    } else if (isProjectPage) {
+      // Only log error if we're on a page where the button should exist
+      console.warn('⚠️ Delete button not found (expected on project pages)');
     }
     if (btnReanalyze) btnReanalyze.addEventListener('click', reanalyzeProject);
     
@@ -1616,6 +1766,24 @@ function saveProject() {
     console.log(`💾 No project_id found - will create new project or find by name`);
   }
   formData.append('payload', JSON.stringify(payload));
+  
+  // CRITICAL: Append actual files if they exist (not just file IDs)
+  const beforeFileInput = document.querySelector('input[name="before_file"]');
+  const afterFileInput = document.querySelector('input[name="after_file"]');
+  
+  if (beforeFileInput && beforeFileInput.files && beforeFileInput.files[0]) {
+    formData.append('before_file', beforeFileInput.files[0]);
+    console.log('💾 Appending before_file to formData:', beforeFileInput.files[0].name, 'Size:', beforeFileInput.files[0].size, 'bytes');
+  } else {
+    console.log('💾 No before_file found or file not selected');
+  }
+  
+  if (afterFileInput && afterFileInput.files && afterFileInput.files[0]) {
+    formData.append('after_file', afterFileInput.files[0]);
+    console.log('💾 Appending after_file to formData:', afterFileInput.files[0].name, 'Size:', afterFileInput.files[0].size, 'bytes');
+  } else {
+    console.log('💾 No after_file found or file not selected');
+  }
 
   fetch('/api/projects/save', {
       method: 'POST',
@@ -2045,10 +2213,20 @@ function fetchFileInfoAndRestore(fileId, fileType) {
 }
 
 function loadProject() {
+  console.log('📂 loadProject() called from UI page');
   const select = document.getElementById('projectList');
+  
+  if (!select) {
+    console.error('❌ Project list select element not found');
+    showNotification('Error: Project dropdown not found');
+    return;
+  }
+  
   const projectName = select.value;
+  console.log('📋 Selected project name:', projectName);
 
   if (!projectName) {
+    console.warn('⚠️ No project selected');
     showNotification('Please select a project to load');
     return;
   }
@@ -2096,7 +2274,22 @@ function loadProject() {
         project_name: projectName
       })
     })
-    .then(response => response.json())
+    .then(response => {
+      console.log('📥 Load project response status:', response.status, response.statusText);
+      if (!response.ok) {
+        return response.text().then(text => {
+          console.error('❌ API error:', response.status, text);
+          let errorData;
+          try {
+            errorData = JSON.parse(text);
+          } catch (e) {
+            errorData = { error: text || `HTTP ${response.status}` };
+          }
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        });
+      }
+      return response.json();
+    })
     .then(data => {
       if (data.project) {
         // CRITICAL: Get project_id from response (more reliable than dropdown)
@@ -3440,11 +3633,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
       try {
+        console.log('🔬 Starting Engineering Analysis...');
+        console.log('🔬 FormData entries count:', Array.from(formData.entries()).length);
+        // Log form data entries (excluding files for brevity)
+        const formDataEntries = Array.from(formData.entries()).map(([k, v]) => {
+          if (v instanceof File) {
+            return [k, `[File: ${v.name}, ${v.size} bytes]`];
+          }
+          return [k, String(v).substring(0, 100)]; // Truncate long values
+        });
+        console.log('🔬 FormData entries (first 30):', formDataEntries.slice(0, 30));
+        
+        const startTime = Date.now();
+        console.log('🔬 Sending analysis request to /api/analyze at', new Date().toISOString());
 
         const response = await fetch("/api/analyze", {
           method: "POST",
           body: formData
         });
+        
+        const endTime = Date.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
+        console.log('🔬 Analysis response received after', duration, 'seconds');
+        console.log('🔬 Analysis response status:', response.status);
 
 
         // Always try to parse JSON first (whether success or error)
@@ -3616,6 +3827,17 @@ async function exportReport(r) {
       btn.textContent = "Exporting...";
     }
 
+    // CRITICAL FIX: Open window immediately (synchronously) before async operations
+    // This ensures the popup is directly triggered by user click, avoiding popup blocker
+    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    if (!newWindow) {
+      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
+    }
+    
+    // Show loading message in the new window
+    newWindow.document.write('<html><head><title>Loading Report...</title></head><body><h2>Loading report, please wait...</h2></body></html>');
+    newWindow.document.close();
+
     // Call the template endpoint with the calculated results data and form data
 
     // Collect form data
@@ -3635,19 +3857,18 @@ async function exportReport(r) {
     });
 
     if (!response.ok) {
+      newWindow.document.open();
+      newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading report</h2><p>HTTP error! status: ' + response.status + '</p></body></html>');
+      newWindow.document.close();
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const htmlContent = await response.text();
 
-    // Open HTML content in new window
-    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    if (newWindow) {
-      newWindow.document.write(htmlContent);
-      newWindow.document.close();
-    } else {
-      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
-    }
+    // Write the actual HTML content to the already-opened window
+    newWindow.document.open();
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
 
 
     // Reset button
@@ -3687,6 +3908,17 @@ async function exportESGCaseStudyReport(r) {
       btn.textContent = "Generating ESG Report...";
     }
 
+    // CRITICAL FIX: Open window immediately (synchronously) before async operations
+    // This ensures the popup is directly triggered by user click, avoiding popup blocker
+    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    if (!newWindow) {
+      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
+    }
+    
+    // Show loading message in the new window
+    newWindow.document.write('<html><head><title>Loading ESG Report...</title></head><body><h2>Loading ESG report, please wait...</h2></body></html>');
+    newWindow.document.close();
+
     // Use GET request like regular report (uses stored results from /api/analyze)
     // This ensures the ESG report gets the complete stored data structure
     const response = await fetch('/api/generate-esg-case-study-report', {
@@ -3698,19 +3930,18 @@ async function exportESGCaseStudyReport(r) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+      newWindow.document.open();
+      newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading ESG report</h2><p>' + (errorData.error || `HTTP error! status: ${response.status}`) + '</p></body></html>');
+      newWindow.document.close();
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
     const htmlContent = await response.text();
 
-    // Open HTML content in new window
-    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    if (newWindow) {
-      newWindow.document.write(htmlContent);
-      newWindow.document.close();
-    } else {
-      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
-    }
+    // Write the actual HTML content to the already-opened window
+    newWindow.document.open();
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
 
     // Reset button
     if (btn) {
@@ -3741,6 +3972,17 @@ async function exportLaymanReport(r) {
       btn.textContent = "Generating...";
     }
 
+    // CRITICAL FIX: Open window immediately (synchronously) before async operations
+    // This ensures the popup is directly triggered by user click, avoiding popup blocker
+    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    if (!newWindow) {
+      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
+    }
+    
+    // Show loading message in the new window
+    newWindow.document.write('<html><head><title>Loading Executive Summary...</title></head><body><h2>Loading Executive Summary report, please wait...</h2></body></html>');
+    newWindow.document.close();
+
     // Make API call to get the layman report
     const response = await fetch('/api/serve-layman-report', {
       method: 'GET',
@@ -3750,24 +3992,23 @@ async function exportLaymanReport(r) {
     });
 
     if (!response.ok) {
+      newWindow.document.open();
+      newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading Executive Summary report</h2><p>HTTP error! status: ' + response.status + '</p></body></html>');
+      newWindow.document.close();
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const htmlContent = await response.text();
 
-    // Open HTML content in new window
-    const newWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    if (newWindow) {
-      newWindow.document.write(htmlContent);
-      newWindow.document.close();
-    } else {
-      throw new Error("Could not open new window. Please check your browser's popup blocker settings.");
-    }
+    // Write the actual HTML content to the already-opened window
+    newWindow.document.open();
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
 
     // Reset button
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "📊 Executive Summary (Layman's Report)";
+      btn.textContent = "Executive Summary Report";
     }
 
     showNotification("Executive Summary report opened in new window!");
@@ -3779,7 +4020,7 @@ async function exportLaymanReport(r) {
     const btn = document.getElementById("btnExportLaymanReport");
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "📊 Executive Summary (Layman's Report)";
+      btn.textContent = "Executive Summary Report";
     }
   }
 }
@@ -5721,6 +5962,10 @@ function calculateStatisticalValues(r) {
     cv_values: {
       before: beforeCV,
       after: afterCV
+    },
+    sample_sizes: {
+      before: beforeValues.length,
+      after: afterValues.length
     }
   };
 }
@@ -5739,6 +5984,7 @@ function displayResults(r) {
   if (!r.statistical) r.statistical = {};
   r.statistical.calculated_confidence_intervals = calculatedStats.confidence_intervals;
   r.statistical.calculated_cv_values = calculatedStats.cv_values;
+  r.statistical.calculated_sample_sizes = calculatedStats.sample_sizes;
 
   // CRITICAL: Capture compliance data IMMEDIATELY before any processing
   window.complianceData = {
@@ -5797,6 +6043,7 @@ function displayResults(r) {
     if (r.statistical.calculated_confidence_intervals && r.statistical.calculated_cv_values) {
       const ci = r.statistical.calculated_confidence_intervals;
       const cv = r.statistical.calculated_cv_values;
+      const sampleSizes = r.statistical.calculated_sample_sizes || {};
 
       html += `<h3>Confidence Intervals (95%)</h3>`;
       html += `<div style="font-size: 14px; color: #666; margin: 8px 0;">`;
@@ -5807,13 +6054,13 @@ function displayResults(r) {
         `<div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 8px 1;">`;
       html += `<span style="font-weight: 1; color: #1;">Before Period:</span>`;
       html +=
-        `<span style="font-weight: bold; color: #333;">${fmt(ci.before?.lower, 2)} - ${fmt(ci.before?.upper, 2)}</span>`;
+        `<span style="font-weight: bold; color: #333;">${fmt(ci.before?.lower, 2)} kW - ${fmt(ci.before?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${sampleSizes.before || 0})</span></span>`;
       html += `</div>`;
       html +=
         `<div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 8px 1;">`;
       html += `<span style="font-weight: 1; color: #1;">After Period:</span>`;
       html +=
-        `<span style="font-weight: bold; color: #333;">${fmt(ci.after?.lower, 2)} - ${fmt(ci.after?.upper, 2)}</span>`;
+        `<span style="font-weight: bold; color: #333;">${fmt(ci.after?.lower, 2)} kW - ${fmt(ci.after?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${sampleSizes.after || 0})</span></span>`;
       html += `</div>`;
 
       html += `<h3>Data Quality Assessment</h3>`;
@@ -7446,9 +7693,10 @@ function displayResults(r) {
     
     if (pfBefore && pfAfter && weatherBefore && weatherAfter) {
       // Calculate PF normalization for savings: normalize both to the SAME PF
-      // Use the better PF (higher value) as normalization target to show true savings benefit
-      // This ensures savings percentage increases when PF improves
-      const normalizationPF = Math.max(pfBefore, pfAfter, targetPF);
+      // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
+      // Using max() can artificially inflate savings when before PF is much lower than after PF
+      // Standard utility target (0.95) provides consistent, fair comparison
+      const normalizationPF = targetPF; // Always use 0.95 (standard utility target)
       const pfAdjustmentBefore = normalizationPF / pfBefore;
       const pfAdjustmentAfter = normalizationPF / pfAfter;
       const pfNormalizedKwBefore = weatherBefore * pfAdjustmentBefore;
@@ -7764,17 +8012,17 @@ function displayResults(r) {
       // STEP 2: Weather Normalization
       html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #2196f3;">`;
       html += `<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2014)</h4>`;
-      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with equipment-specific sensitivity factors (3.6% per °C for temp, 2.16% per °C for dewpoint for chillers).</p>`;
+      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with equipment-specific sensitivity factors (3.6% per °C for temp, 2.16% per °C for dewpoint for chillers). <strong>Base Temperature:</strong> 18.3°C (65°F) per ASHRAE Guideline 14 standard for commercial applications.</p>`;
       
       if (hasWeatherNormalized) {
         // Calculate weather normalization details
         // Get base temperature from results - use optimized if available, otherwise use default
         const weatherNorm = r.weather_normalization || {};
-        // Base temperature MUST come from baseline data - use 10.0°C as required default
+        // Base temperature MUST come from baseline data - use 18.3°C (65°F) per ASHRAE Guideline 14 standard
         // Use nullish coalescing (??) to properly handle 0 values
         const baseTemp = weatherNorm.optimized_base_temp ?? 
                         weatherNorm.base_temp_celsius ?? 
-                        10.0; // Use 10.0°C as required default if not in results
+                        18.3; // Use 18.3°C (65°F) per ASHRAE Guideline 14 standard if not in results
         
         // Also get sensitivity factors from results if available (regression-calculated)
         // Debug: Log what values are available
@@ -7852,14 +8100,14 @@ function displayResults(r) {
         html += `<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         
         // Base temperature - MUST come from baseline 'before' data
-        // Always show 10.0°C as required default
+        // Always show 18.3°C (65°F) per ASHRAE Guideline 14 standard
         let baseTempDisplay = '';
         if (baseTemp === null || baseTemp === undefined || isNaN(baseTemp)) {
           baseTempDisplay = 'Not available (baseline data required)';
         } else {
           // Always show the base temperature value (should be 10.0°C)
           const isOptimized = weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null;
-          baseTempDisplay = `${baseTemp.toFixed(1)}°C${isOptimized ? ' (optimized from baseline data)' : ' (fixed at 10.0°C per requirements)'}`;
+          baseTempDisplay = `${baseTemp.toFixed(1)}°C${isOptimized ? ' (optimized from baseline data)' : ' (fixed at 18.3°C per ASHRAE Guideline 14 standard)'}`;
         }
         html += `<tr style="background: #f5f5f5;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Base Temperature</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${baseTempDisplay}</td></tr>`;
         
@@ -8182,11 +8430,13 @@ function displayResults(r) {
       // STEP 3: Power Factor Normalization
       html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">`;
       html += `<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>`;
-      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor (the better of before/after/target) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Normalization PF / Actual PF), where Normalization PF = max(PF Before, PF After, Target PF)</p>`;
+      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to standard utility target power factor (0.95) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = 0.95 (utility standard per IEEE 519 and utility billing practices)</p>`;
       
       if (hasFullyNormalized && pfBefore && pfAfter) {
-        // Use the better PF (higher value) as normalization target to show true savings benefit
-        const normalizationPF = Math.max(pfBefore, pfAfter, targetPF);
+        // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
+        // Using max() can artificially inflate savings when before PF is much lower than after PF
+        // Standard utility target (0.95) provides consistent, fair comparison
+        const normalizationPF = targetPF; // Always use 0.95 (standard utility target)
         const pfAdjustmentBefore = normalizationPF / pfBefore;
         const pfAdjustmentAfter = normalizationPF / pfAfter;
         
@@ -8206,7 +8456,7 @@ function displayResults(r) {
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">max(Before, After, Target) = ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</td></tr>`;
+        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF = 0.95 (utility standard)</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</td></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherBeforeForDisplay != null && !isNaN(weatherBeforeForDisplay) ? Number(weatherBeforeForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherAfterForDisplay != null && !isNaN(weatherAfterForDisplay) ? Number(weatherAfterForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>`;
         // PF Adjustment Factor calculation formula
         const pfFactorCalcText = `<strong>Factor Calculation:</strong> Before: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')} = ${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')}<br/>After: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')} = ${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')}<br/>= Normalization PF ÷ Actual PF`;
@@ -8283,8 +8533,10 @@ function displayResults(r) {
         // Use the better PF (higher value) as normalization target to show true savings benefit
         // This ensures savings percentage increases when PF improves
         if (pfBeforeStep4 && pfAfterStep4 && weatherBeforeForStep4 && weatherAfterForStep4) {
-          // Use max of before, after, and target to normalize both periods to same PF
-          const normalizationPFStep4 = Math.max(pfBeforeStep4, pfAfterStep4, targetPFStep4);
+          // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
+          // Using max() can artificially inflate savings when before PF is much lower than after PF
+          // Standard utility target (0.95) provides consistent, fair comparison
+          const normalizationPFStep4 = targetPFStep4; // Always use 0.95 (standard utility target)
           const pfAdjustmentBeforeStep4 = normalizationPFStep4 / pfBeforeStep4;
           const pfAdjustmentAfterStep4 = normalizationPFStep4 / pfAfterStep4;
           pfNormalizedKwBeforeStep4 = weatherBeforeForStep4 * pfAdjustmentBeforeStep4;
@@ -9989,6 +10241,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
   const btnExportLayman = document.getElementById("btnExportLaymanReport");
   if (btnExportLayman) {
     btnExportLayman.disabled = false;
+    btnExportLayman.textContent = "Executive Summary Report"; // Change text after analysis
     btnExportLayman.replaceWith(btnExportLayman.cloneNode(true));
     const _el_btnExportLayman = document.getElementById("btnExportLaymanReport");
     if (_el_btnExportLayman) _el_btnExportLayman.addEventListener("click", () => exportLaymanReport(r));
