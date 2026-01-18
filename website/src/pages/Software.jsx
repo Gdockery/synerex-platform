@@ -90,10 +90,10 @@ export default function Page() {
       {/* Deep-Dive Section */}
       <section id="deep-dive" className="py-20 bg-gradient-to-r from-gray-950 via-purple-900 to-gray-900 px-3">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-purple-400 mb-10 text-center">Deep-Dive: Military-Grade Security & Global Standards Compliance</h2>
+          <h2 className="text-3xl font-bold text-purple-400 mb-10 text-center">Deep-Dive: Industry-Standard Security & Global Standards Compliance</h2>
           <div className="grid md:grid-cols-2 gap-10 text-gray-300 text-sm">
             <div>
-              <h3 className="text-xl text-purple-300 mb-3 font-semibold">Military-Grade Cryptographic Security</h3>
+              <h3 className="text-xl text-purple-300 mb-3 font-semibold">Industry-Standard Cryptographic Security</h3>
               <ul className="list-disc list-inside space-y-1">
                 <li>SHA-256 File Fingerprinting System</li>
                 <li>HMAC-SHA256 Authentication</li>
@@ -102,18 +102,32 @@ export default function Page() {
                 <li>Real-Time Integrity Monitoring</li>
                 <li>Automatic Tamper Detection</li>
                 <li>Blockchain-Style Audit Trail</li>
-                <li>Hardware & Software Tamper Detection</li>
+                <li>Data Tamper Detection</li>
+                <li>Content Normalization for Deterministic Hashing</li>
+                <li>Metadata Integrity Verification (File Size, Line Count, Encoding)</li>
+                <li>Data Access & Modification Tracking</li>
+                <li>Session Token Security with Expiration</li>
+                <li>Role-Based Access Control (Administrator, PE, User)</li>
               </ul>
             </div>
             <div>
               <h3 className="text-xl text-purple-300 mb-3 font-semibold">Comprehensive Standards Compliance</h3>
               <ul className="list-disc list-inside space-y-1">
-                <li>IEEE 519-2014/2022 Harmonic Analysis (TDD, PCC, 50th order)</li>
-                <li>ASHRAE Guideline 14 (CVRMSE, NMBE, R², Precision)</li>
-                <li>NEMA MG1 (Phase Balance & Efficiency Classes)</li>
-                <li>IEC 61000 Series (Class A Instrumentation, Harmonic Limits)</li>
-                <li>ANSI C12.1/C12.20 (Meter Accuracy Classes 0.1–2.0)</li>
-                <li>IPMVP Statistical Validation (p-value, Effect Size, CI)</li>
+                <li>IEEE 519-2014 / 2022: Utility harmonic distortion limits</li>
+                <li>ASHRAE Guideline 14: Energy savings measurement verification</li>
+                <li>NEMA MG1: Electric motor performance standard</li>
+                <li>IPMVP: Energy savings verification framework</li>
+                <li>IEC 62053-22: High-accuracy revenue energy metering</li>
+                <li>IEC 61000-4-7: Harmonic and interharmonic measurement</li>
+                <li>IEC 61000-2-2: Low-voltage power quality compatibility</li>
+                <li>IEC 61000-4-30: Power quality measurement methodology</li>
+                <li>IEC 60034-30-1: Electric motor efficiency classifications</li>
+                <li>AHRI 550 / 590: Chiller performance rating standard</li>
+                <li>ANSI C12.1 & C12.20: Utility-grade revenue meter accuracy</li>
+                <li>ANSI C57.12.00: Power transformer design standard</li>
+                <li>ITIC / CBEMA Curve: IT equipment voltage tolerance</li>
+                <li>BESS Standards (IEEE 1547, UL 9540, IEC 62933): Battery energy storage grid compliance</li>
+                <li>UPS Standards (IEC 62040, IEEE 446, UL 1778): Uninterruptible power system standards</li>
               </ul>
             </div>
           </div>
@@ -182,9 +196,9 @@ export default function Page() {
           </div>
 
           <h3 className="text-2xl text-purple-300 font-semibold mb-4">Utility-Grade Audit Capabilities</h3>
-          <p className="text-gray-300 text-sm mb-4">Comprehensive workflows supporting utility-specific verification and PE certification.</p>
+          <p className="text-gray-300 text-sm mb-4">Comprehensive workflows supporting general utility verification requirements and PE certification.</p>
           <ul className="list-disc list-inside text-gray-300 text-sm mb-12">
-            <li>Utility Requirements: Oncor, CenterPoint, AEP, Entergy, Duke Energy</li>
+            <li>Meets General Utility Requirements (Compatible with Oncor, CenterPoint, AEP, Entergy, Duke Energy, and other utilities)</li>
             <li>PE Review Workflow & Certification Validation</li>
             <li>Submission Timeline & Milestone Tracking</li>
             <li>Real-Time Progress and Deadline Monitoring</li>
@@ -281,7 +295,7 @@ export default function Page() {
       <section className="py-20 bg-gradient-to-br from-purple-950 to-gray-950 px-4 text-center fade-in">
         <div className="">
           <h2 className="text-3xl font-bold text-purple-400 mb-6">The Bottom Line</h2>
-          <p className="text-gray-300 text-lg mb-8">SYNEREX is not just a power analysis system — it is the gold standard for global energy data integrity. With its military-grade cryptographic security, comprehensive standards compliance, and world-class audit trail, SYNEREX represents the pinnacle of power analysis technology — delivering the most secure, verifiable, and auditable energy metering system in existence.</p>
+          <p className="text-gray-300 text-lg mb-8">SYNEREX is not just a power analysis system — it is the gold standard for global energy data integrity. With its industry-standard cryptographic security, comprehensive standards compliance, and world-class audit trail, SYNEREX represents the pinnacle of power analysis technology — delivering the most secure, verifiable, and auditable energy metering system in existence.</p>
           <a href="#integration" className="inline-block bg-purple-600 hover:bg-purple-400 text-white font-semibold py-3 px-10 rounded-full transition-all duration-300 shadow-lg hover:shadow-purple-400/30">Explore the Technology</a>
         </div>
       </section>
