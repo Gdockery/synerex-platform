@@ -3,6 +3,114 @@ setlocal enabledelayedexpansion
 REM SYNEREX OneForm - Start All Services (Windows Batch)
 REM This script starts all 8 SYNEREX services on Windows (including Ollama AI Backend, Utility Rate Service, and Incentive Service)
 
+REM ========================================
+REM PATH VALIDATION: Verify all service files exist
+REM ========================================
+echo.
+echo [VALIDATION] Checking all service files...
+
+REM Check Service Manager
+if not exist "service_manager_daemon.py" (
+    echo [ERROR] Cannot find service_manager_daemon.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\service_manager_daemon.py
+    goto :validation_failed
+)
+
+REM Check services.yaml
+if not exist "services.yaml" (
+    echo [ERROR] Cannot find services.yaml
+    echo Current directory: %CD%
+    echo Expected: emv-program\services.yaml
+    goto :validation_failed
+)
+
+REM Check Main App (8082)
+if not exist "8082\main_hardened_ready_refactored.py" (
+    echo [ERROR] Cannot find 8082\main_hardened_ready_refactored.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8082\main_hardened_ready_refactored.py
+    goto :validation_failed
+)
+
+REM Check PDF Generator (8083)
+if not exist "8083\enhanced_pdf_service.py" (
+    echo [ERROR] Cannot find 8083\enhanced_pdf_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8083\enhanced_pdf_service.py
+    goto :validation_failed
+)
+
+REM Check HTML Reports (8084)
+if not exist "8084\html_report_service.py" (
+    echo [ERROR] Cannot find 8084\html_report_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8084\html_report_service.py
+    goto :validation_failed
+)
+
+REM Check Weather Service (8085)
+if not exist "8085\weather_service.py" (
+    echo [ERROR] Cannot find 8085\weather_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8085\weather_service.py
+    goto :validation_failed
+)
+
+REM Check Utility Rate Service (8085)
+if not exist "8085\utility_rate_service.py" (
+    echo [ERROR] Cannot find 8085\utility_rate_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8085\utility_rate_service.py
+    goto :validation_failed
+)
+
+REM Check Utility Incentive Service (8085)
+if not exist "8085\utility_incentive_service.py" (
+    echo [ERROR] Cannot find 8085\utility_incentive_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8085\utility_incentive_service.py
+    goto :validation_failed
+)
+
+REM Check Chart Service (8086)
+if not exist "8086\chart_service.py" (
+    echo [ERROR] Cannot find 8086\chart_service.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8086\chart_service.py
+    goto :validation_failed
+)
+
+REM Check Ollama AI Backend (8082)
+if not exist "8082\ollama_ai_backend.py" (
+    echo [ERROR] Cannot find 8082\ollama_ai_backend.py
+    echo Current directory: %CD%
+    echo Expected: emv-program\8082\ollama_ai_backend.py
+    goto :validation_failed
+)
+
+REM All validations passed
+echo [OK] All service files found - path validation passed
+echo.
+goto :validation_passed
+
+:validation_failed
+echo.
+echo [ERROR] ========================================
+echo [ERROR] PATH VALIDATION FAILED
+echo [ERROR] ========================================
+echo.
+echo Batch file must be run from: emv-program\
+echo Current directory: %CD%
+echo.
+echo Please navigate to the emv-program directory and try again.
+echo.
+pause
+exit /b 1
+
+:validation_passed
+REM Continue with service startup...
+
 echo Starting SYNEREX OneForm Services v2...
 
 REM First, stop any existing services (EXCEPT Main App 8082 - it will restart last)

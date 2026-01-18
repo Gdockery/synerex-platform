@@ -49,12 +49,9 @@ export default function Header(){
           >
             Register
           </a>
-          <a 
-            href={`${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.origin + '/my-account')}`}
-            className="hover:text-purple-600 transition-colors"
-          >
-            Login
-          </a>
+          <Link to="/my-account" className="hover:text-purple-600 transition-colors">
+            My Account
+          </Link>
           
           {/* Admin Dropdown */}
           <div 

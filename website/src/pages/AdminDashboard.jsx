@@ -279,48 +279,50 @@ export default function AdminDashboard() {
     // Services not managed by Service Manager
     if (serviceManagerId === null) {
       if (serviceId === 'license_service_8000') {
-        // Handle License Service restart via its own API
-        if (action === 'restart') {
-          if (confirm('Restarting License Service will temporarily disconnect. The page will reload automatically. Continue?')) {
-            setServiceActions(prev => ({ ...prev, [serviceId]: action }));
-            try {
-              const response = await fetch(`${LICENSE_SERVICE_URL}/api/server/restart`, {
-                method: 'POST',
-                credentials: 'include', // Include cookies for session authentication (standard admin auth)
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              });
-              const data = await response.json();
-              
-              if (data.success) {
-                alert(data.message);
-                // Refresh page after delay to reconnect to restarted License Service
-                setTimeout(() => {
-                  window.location.reload();
-                }, 3000);
-              } else {
-                alert('Failed to restart License Service: ' + (data.message || 'Unknown error'));
+        // Handle License Service start/stop via main app (8082) endpoints
+        // Since License Service may be stopped, we can't call its API directly
+        if (action === 'start' || action === 'stop') {
+          setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+          try {
+            const response = await fetch(`${EMV_URL}/admin/license-service/${action}`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+              alert(data.message || `License Service ${action} initiated`);
+              setTimeout(() => {
+                loadServices();
                 setServiceActions(prev => {
                   const next = { ...prev };
                   delete next[serviceId];
                   return next;
                 });
-              }
-            } catch (err) {
-              console.error('Failed to restart License Service:', err);
-              alert('Failed to restart License Service: ' + err.message);
+              }, 2000);
+            } else {
+              alert(`Failed to ${action} License Service: ` + (data.message || 'Unknown error'));
               setServiceActions(prev => {
                 const next = { ...prev };
                 delete next[serviceId];
                 return next;
               });
             }
+          } catch (err) {
+            console.error(`Failed to ${action} License Service:`, err);
+            alert(`Failed to ${action} License Service: ` + err.message);
+            setServiceActions(prev => {
+              const next = { ...prev };
+              delete next[serviceId];
+              return next;
+            });
           }
           return;
         } else {
-          // Start/Stop not supported for License Service
-          alert('License Service (port 8000) can only be restarted. Start/Stop operations are not supported.');
+          alert(`License Service (port 8000) only supports Start and Stop operations.`);
         }
       } else {
         alert(`Service ${serviceId} is not managed by Service Manager.`);
@@ -974,28 +976,6 @@ export default function AdminDashboard() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
                                 </svg>
                                 Stop
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => handleServiceAction(serviceId, 'restart')}
-                            disabled={!isRunning || actionInProgress}
-                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-                          >
-                            {actionInProgress === 'restart' ? (
-                              <>
-                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Restarting...
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                </svg>
-                                Restart
                               </>
                             )}
                           </button>

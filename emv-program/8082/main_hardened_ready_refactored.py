@@ -592,26 +592,96 @@ except Exception:
     RESULTS_DIR = Path.cwd() / "results"
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Database connection context manager
+# Database connection context manager - MULTI-TENANT: Org-specific databases
 @contextmanager
-def get_db_connection():
-    """Context manager for database connections."""
+def get_db_connection(org_id=None, use_sessions_db=False):
+    """
+    Context manager for database connections with multi-tenant support.
+    
+    Args:
+        org_id: Organization ID. If provided and use_sessions_db=False, uses org-specific database.
+                Format: results/org_{org_id}/app.db
+        use_sessions_db: If True, uses shared sessions database (results/sessions.db)
+                        regardless of org_id. Use this for session management.
+    
+    Returns:
+        Database connection to org-specific database or shared sessions database
+    """
     conn = None
     try:
-        # Ensure results directory exists
-        db_path = os.path.join(RESULTS_DIR, "app.db")
+        if use_sessions_db:
+            # Use shared sessions database for session management
+            db_path = os.path.join(RESULTS_DIR, "sessions.db")
+        elif org_id:
+            # Use org-specific database
+            org_dir = os.path.join(RESULTS_DIR, f"org_{org_id}")
+            os.makedirs(org_dir, exist_ok=True)
+            db_path = os.path.join(org_dir, "app.db")
+        else:
+            # Fallback: use default app.db (for backward compatibility during migration)
+            # WARNING: This should only be used temporarily
+            logger.warning("get_db_connection() called without org_id - using default app.db (backward compatibility)")
+            db_path = os.path.join(RESULTS_DIR, "app.db")
+        
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row  # Enable dict-like access
         yield conn
     except Exception as e:
-        logger.error(f"Database connection error: {e}")
+        logger.error(f"Database connection error (org_id={org_id}, use_sessions_db={use_sessions_db}): {e}")
         if conn:
             conn.rollback()
         raise
     finally:
         if conn:
             conn.close()
+
+def get_current_org_id(request):
+    """
+    Extract org_id from the current request session.
+    
+    Queries the shared sessions database to get org_id associated with the session token.
+    
+    Args:
+        request: Flask request object
+    
+    Returns:
+        org_id (str) or None if not found or session invalid
+    """
+    try:
+        session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
+        if not session_token:
+            return None
+        
+        # Query shared sessions database to get org_id
+        with get_db_connection(use_sessions_db=True) as conn:
+            cursor = conn.cursor()
+            # Ensure user_sessions table exists with org_id column
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS user_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        org_id TEXT,
+                        session_token TEXT UNIQUE NOT NULL,
+                        expires_at TEXT NOT NULL,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                conn.commit()
+            except Exception as e:
+                logger.debug(f"Table creation check: {e}")
+            
+            cursor.execute(
+                "SELECT org_id FROM user_sessions WHERE session_token = ? AND expires_at > datetime('now')",
+                (session_token,)
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                return row[0]
+    except Exception as e:
+        logger.debug(f"Could not get org_id from session: {e}")
+    return None
 
 # FileLock for profiles
 try:
@@ -648,7 +718,7 @@ def log_calculation_audit(analysis_session_id: str, calculation_type: str,
                           input_values: dict, output_values: dict, 
                           methodology: str = None, formula: str = None,
                           standard_name: str = None, standards_reference: str = None,
-                          user_id: int = None):
+                          user_id: int = None, org_id: str = None):
     """
     Log a calculation step to the audit trail
     
@@ -662,9 +732,14 @@ def log_calculation_audit(analysis_session_id: str, calculation_type: str,
         standard_name: Name of standard (e.g., 'IEEE 519-2014')
         standards_reference: Reference to standard document
         user_id: ID of user who initiated the calculation
+        org_id: Organization ID (required for multi-tenant isolation)
     """
     try:
-        with get_db_connection() as conn:
+        if not org_id:
+            logger.warning("log_calculation_audit called without org_id - skipping audit log")
+            return
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -689,21 +764,39 @@ def log_calculation_audit(analysis_session_id: str, calculation_type: str,
 
 def create_analysis_session(project_name: str = None, before_file_id: int = None,
                            after_file_id: int = None, config_parameters: dict = None,
-                           user_id: int = None) -> str:
+                           user_id: int = None, org_id: str = None) -> str:
     """
     Create a new analysis session and return its ID
+    
+    Args:
+        org_id: Organization ID (required for multi-tenant isolation)
     
     Returns:
         analysis_session_id: Unique ID for this session
     """
     try:
-        from main_hardened_ready_fixed import get_db_connection
+        if not org_id:
+            logger.warning("create_analysis_session called without org_id - using fallback session ID")
+            return f"ANALYSIS_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
         session_id = f"ANALYSIS_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
-        with get_db_connection() as conn:
+        # Use org-specific database
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
+                # Ensure analysis_sessions table exists
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS analysis_sessions (
+                        id TEXT PRIMARY KEY,
+                        project_name TEXT,
+                        before_file_id INTEGER,
+                        after_file_id INTEGER,
+                        config_parameters TEXT,
+                        initiated_by INTEGER,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
                 cursor.execute("""
                     INSERT INTO analysis_sessions 
                     (id, project_name, before_file_id, after_file_id, config_parameters, initiated_by)
@@ -725,7 +818,7 @@ def create_analysis_session(project_name: str = None, before_file_id: int = None
 
 def log_data_access(access_type: str, file_id: int = None, user_id: int = None,
                     ip_address: str = None, user_agent: str = None,
-                    access_details: dict = None):
+                    access_details: dict = None, org_id: str = None):
     """
     Log data access (download, export, view, API)
     
@@ -736,9 +829,14 @@ def log_data_access(access_type: str, file_id: int = None, user_id: int = None,
         ip_address: IP address of requester
         user_agent: User agent string
         access_details: Additional details as dictionary
+        org_id: Organization ID (required for multi-tenant isolation)
     """
     try:
-        with get_db_connection() as conn:
+        if not org_id:
+            logger.warning("log_data_access called without org_id - skipping access log")
+            return
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -798,7 +896,8 @@ def store_verification_code(analysis_session_id: str, verification_code: str):
 def log_compliance_verification(analysis_session_id: str, standard_name: str,
                                check_type: str, calculated_value: float,
                                limit_value: float = None, threshold_value: float = None,
-                               is_compliant: bool = None, verification_method: str = None):
+                               is_compliant: bool = None, verification_method: str = None,
+                               org_id: str = None):
     """
     Log a compliance verification check
     
@@ -811,9 +910,14 @@ def log_compliance_verification(analysis_session_id: str, standard_name: str,
         threshold_value: Alternative threshold
         is_compliant: Whether the check passed
         verification_method: Method used for verification
+        org_id: Organization ID (required for multi-tenant isolation)
     """
     try:
-        with get_db_connection() as conn:
+        if not org_id:
+            logger.warning("log_compliance_verification called without org_id - skipping compliance log")
+            return
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -839,7 +943,7 @@ def log_weather_data_audit(analysis_session_id: str, location_address: str,
                           latitude: float, longitude: float,
                           date_range_start: str, date_range_end: str,
                           api_source: str, data_quality_score: float = None,
-                          user_id: int = None):
+                          user_id: int = None, org_id: str = None):
     """
     Log weather data fetch for audit trail
     
@@ -853,9 +957,14 @@ def log_weather_data_audit(analysis_session_id: str, location_address: str,
         api_source: API source used (e.g., 'open-meteo')
         data_quality_score: Quality score of weather data
         user_id: ID of user who requested weather data
+        org_id: Organization ID (required for multi-tenant isolation)
     """
     try:
-        with get_db_connection() as conn:
+        if not org_id:
+            logger.warning("log_weather_data_audit called without org_id - skipping weather audit log")
+            return
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -5235,20 +5344,29 @@ def analyze():
     """Analyze uploaded data using unified processing pipeline"""
     logger.info("=== ANALYSIS API - ANALYZE ENDPOINT STARTED ===")
     
-    # Get user ID from session if available
+    # Get org_id and user_id from session if available
+    org_id = None
     user_id = None
     try:
-        session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
-        if session_token:
-            with get_db_connection() as conn:
-                if conn:
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ?", (session_token,))
-                    row = cursor.fetchone()
-                    if row:
-                        user_id = row[0]
+        org_id = get_current_org_id(request)
+        if org_id:
+            # Get user_id from org-specific database
+            session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
+            if session_token:
+                with get_db_connection(use_sessions_db=True) as sessions_conn:
+                    if sessions_conn:
+                        cursor = sessions_conn.cursor()
+                        cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ? AND org_id = ?", (session_token, org_id))
+                        row = cursor.fetchone()
+                        if row:
+                            user_id = row[0]
     except Exception as e:
-        logger.debug(f"Could not get user_id from session: {e}")
+        logger.debug(f"Could not get org_id/user_id from session: {e}")
+    
+    # CRITICAL: Require org_id for multi-tenant isolation
+    if not org_id:
+        logger.warning("Analysis request without org_id - rejecting for security")
+        return jsonify({"error": "Organization ID required. Please log in again."}), 401
     
     # Get file IDs for session creation
     form = request.form if hasattr(request, 'form') and request.form else {}
@@ -5277,7 +5395,8 @@ def analyze():
         before_file_id=before_file_id,
         after_file_id=after_file_id,
         config_parameters=config_params,
-        user_id=user_id
+        user_id=user_id,
+        org_id=org_id
     )
     logger.info(f"Created analysis session: {analysis_session_id}")
     
@@ -5410,7 +5529,7 @@ def analyze():
         # Process before file if we have a file ID
         if before_id:
             base_dir = Path(__file__).parent
-            with get_db_connection() as conn:
+            with get_db_connection(org_id=org_id) as conn:
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (before_id,))
@@ -5434,7 +5553,7 @@ def analyze():
         # Process after file if we have a file ID
         if after_id:
             base_dir = Path(__file__).parent
-            with get_db_connection() as conn:
+            with get_db_connection(org_id=org_id) as conn:
                 if conn:
                     cursor = conn.cursor()
                     cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (after_id,))
@@ -6339,7 +6458,8 @@ def analyze():
                                         calculated_value=float(thd_value),
                                         limit_value=float(limit),
                                         is_compliant=is_compliant,
-                                        verification_method='IEEE 519-2014/2022 Table 10.3'
+                                        verification_method='IEEE 519-2014/2022 Table 10.3',
+                                        org_id=org_id
                                     )
                                     logger.info(f"Logged IEEE 519 compliance: THD={thd_value:.2f}%, limit={limit:.2f}%, compliant={is_compliant}")
                                 except (ValueError, TypeError) as e:
@@ -6363,7 +6483,8 @@ def analyze():
                                         calculated_value=float(precision),
                                         limit_value=float(limit),
                                         is_compliant=is_compliant,
-                                        verification_method='ASHRAE Guideline 14-2014 Section 14.3'
+                                        verification_method='ASHRAE Guideline 14-2014 Section 14.3',
+                                        org_id=org_id
                                     )
                                     logger.info(f"Logged ASHRAE compliance: precision={precision:.2f}%, limit={limit:.2f}%, compliant={is_compliant}")
                                 except (ValueError, TypeError) as e:
@@ -6387,7 +6508,8 @@ def analyze():
                                         calculated_value=float(unbalance),
                                         limit_value=float(limit),
                                         is_compliant=is_compliant,
-                                        verification_method='NEMA MG1 Standard'
+                                        verification_method='NEMA MG1 Standard',
+                                        org_id=org_id
                                     )
                                     logger.info(f"Logged NEMA MG1 compliance: unbalance={unbalance:.2f}%, limit={limit:.2f}%, compliant={is_compliant}")
                                 except (ValueError, TypeError) as e:
@@ -6408,7 +6530,8 @@ def analyze():
                                     calculated_value=float(p_value),
                                     limit_value=float(limit),
                                     is_compliant=is_compliant,
-                                    verification_method='IPMVP Volume I - Statistical Significance Test'
+                                    verification_method='IPMVP Volume I - Statistical Significance Test',
+                                    org_id=org_id
                                 )
                                 logger.info(f"Logged IPMVP compliance: p_value={p_value:.4f}, limit={limit:.4f}, compliant={is_compliant}")
                             except (ValueError, TypeError) as e:
@@ -6436,7 +6559,8 @@ def analyze():
                                         calculated_value=float(completeness),
                                         limit_value=float(completeness_limit),
                                         is_compliant=completeness_compliant,
-                                        verification_method='ASHRAE Guideline 14-2014 - Data Completeness'
+                                        verification_method='ASHRAE Guideline 14-2014 - Data Completeness',
+                                        org_id=org_id
                                     )
                                     logger.info(f"Logged ASHRAE data completeness: {completeness:.1f}%, limit={completeness_limit:.1f}%, compliant={completeness_compliant}")
                                 except (ValueError, TypeError) as e:
@@ -6453,7 +6577,8 @@ def analyze():
                                         calculated_value=float(outliers),
                                         limit_value=float(outliers_limit),
                                         is_compliant=outliers_compliant,
-                                        verification_method='ASHRAE Guideline 14-2014 - Outlier Detection'
+                                        verification_method='ASHRAE Guideline 14-2014 - Outlier Detection',
+                                        org_id=org_id
                                     )
                                     logger.info(f"Logged ASHRAE data outliers: {outliers:.1f}%, limit={outliers_limit:.1f}%, compliant={outliers_compliant}")
                                 except (ValueError, TypeError) as e:
@@ -7001,7 +7126,8 @@ def analyze():
                                     calculated_value=float(after_iec_result['voltage_variation']),
                                     limit_value=10.0,
                                     is_compliant=after_pass,
-                                    verification_method='IEC 61000-2-2 - Voltage Variation Limits'
+                                    verification_method='IEC 61000-2-2 - Voltage Variation Limits',
+                                    org_id=org_id
                                 )
                             except Exception as e:
                                 logger.warning(f"Could not log IEC 61000-2-2 compliance: {e}")
@@ -7166,7 +7292,8 @@ def analyze():
                                     calculated_value=float(after_iec_4_30_result.get('voltage_accuracy', 0.0)),
                                     limit_value=0.5,
                                     is_compliant=after_pass,
-                                    verification_method='IEC 61000-4-30 - Class A Instrument Accuracy (±0.5%)'
+                                    verification_method='IEC 61000-4-30 - Class A Instrument Accuracy (±0.5%)',
+                                    org_id=org_id
                                 )
                             except Exception as e:
                                 logger.warning(f"Could not log IEC 61000-4-30 compliance: {e}")
@@ -10569,15 +10696,33 @@ def handle_license_token_login(token: str):
         session_token = str(uuid.uuid4())
         expires_at = datetime.now() + timedelta(hours=24)
         
-        # Store session in database
-        with get_db_connection() as conn:
-            if conn is None:
+        # Use org-specific database for user management
+        with get_db_connection(org_id=org_id) as org_conn:
+            if org_conn is None:
                 return jsonify({
                     "status": "error",
                     "error": "Database not available"
                 }), 500
             
-            cursor = conn.cursor()
+            cursor = org_conn.cursor()
+            
+            # Ensure users table exists in org-specific database
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user',
+                    status TEXT DEFAULT 'active',
+                    full_name TEXT,
+                    pe_license_number TEXT,
+                    state TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT
+                )
+            """)
+            org_conn.commit()
             
             # Try to get or create a user record for this org
             cursor.execute(
@@ -10614,16 +10759,40 @@ def handle_license_token_login(token: str):
                 user_role = cursor.fetchone()
                 default_role = user_role[0] if user_role else "technician"
             
-            # Create session
-            cursor.execute(
+            org_conn.commit()
+        
+        # Store session in shared sessions database with org_id
+        with get_db_connection(use_sessions_db=True) as sessions_conn:
+            if sessions_conn is None:
+                return jsonify({
+                    "status": "error",
+                    "error": "Sessions database not available"
+                }), 500
+            
+            sessions_cursor = sessions_conn.cursor()
+            
+            # Ensure user_sessions table exists with org_id column
+            sessions_cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    org_id TEXT,
+                    session_token TEXT UNIQUE NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create session with org_id
+            sessions_cursor.execute(
                 """
-                INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
-                VALUES (?, ?, ?, datetime('now'))
+                INSERT INTO user_sessions (user_id, org_id, session_token, expires_at, created_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
                 """,
-                (user_id, session_token, expires_at.isoformat())
+                (user_id, org_id, session_token, expires_at.isoformat())
             )
             
-            conn.commit()
+            sessions_conn.commit()
         
         return jsonify({
             "status": "success",
@@ -10670,25 +10839,44 @@ def login_user():
         username = data.get("username")
         password = data.get("password")
         role = data.get("role")
+        org_id = data.get("org_id")  # Required for multi-tenant isolation
 
-        if not all([username, password, role]):
-            return jsonify({"status": "error", "error": "Missing required fields"}), 400
+        if not all([username, password, role, org_id]):
+            return jsonify({"status": "error", "error": "Missing required fields (username, password, role, org_id)"}), 400
 
-        # Import database connection function from original
-        with get_db_connection() as conn:
-            if conn is None:
+        # Use org-specific database for user lookup
+        with get_db_connection(org_id=org_id) as org_conn:
+            if org_conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database not available"}),
                     500,
                 )
 
-            cursor = conn.cursor()
+            cursor = org_conn.cursor()
+            
+            # Ensure users table exists in org-specific database
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'user',
+                    status TEXT DEFAULT 'active',
+                    full_name TEXT,
+                    pe_license_number TEXT,
+                    state TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT
+                )
+            """)
+            org_conn.commit()
 
             # Hash password for comparison
             import hashlib
             password_hash = hashlib.sha256(password.encode()).hexdigest()
 
-            # Find user
+            # Find user in org-specific database
             cursor.execute(
                 """
                 SELECT id, full_name, email, username, role, pe_license_number, state
@@ -10707,21 +10895,44 @@ def login_user():
             session_token = str(uuid.uuid4())
             expires_at = datetime.now() + timedelta(hours=24)
 
-            # Store session
-            cursor.execute(
+            user_id = user[0]
+            org_conn.commit()
+
+        # Store session in shared sessions database with org_id
+        with get_db_connection(use_sessions_db=True) as sessions_conn:
+            if sessions_conn is None:
+                return jsonify({"status": "error", "error": "Sessions database not available"}), 500
+            
+            sessions_cursor = sessions_conn.cursor()
+            
+            # Ensure user_sessions table exists with org_id column
+            sessions_cursor.execute("""
+                CREATE TABLE IF NOT EXISTS user_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    org_id TEXT,
+                    session_token TEXT UNIQUE NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create session with org_id
+            sessions_cursor.execute(
                 """
-                INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
-                VALUES (?, ?, ?, datetime('now'))
+                INSERT INTO user_sessions (user_id, org_id, session_token, expires_at, created_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
             """,
-                (user[0], session_token, expires_at.isoformat()),
+                (user_id, org_id, session_token, expires_at.isoformat()),
             )
 
-            conn.commit()
+            sessions_conn.commit()
 
             return jsonify(
                 {
                     "status": "success",
                     "session_token": session_token,
+                    "org_id": org_id,
                     "user": {
                         "id": user[0],
                         "full_name": user[1],
@@ -10739,7 +10950,7 @@ def login_user():
 
 @app.route("/api/auth/validate-session", methods=["POST"])
 def validate_session():
-    """Validate user session"""
+    """Validate user session and return user info with org_id"""
     try:
         data = request.get_json()
         session_token = data.get("session_token")
@@ -10747,30 +10958,57 @@ def validate_session():
         if not session_token:
             return jsonify({"status": "error", "error": "No session token provided"}), 400
 
-        # Import database connection function from original
-        with get_db_connection() as conn:
-            if conn is None:
-                return jsonify({"status": "error", "error": "Database not available"}), 500
+        # First, get session info from shared sessions database
+        with get_db_connection(use_sessions_db=True) as sessions_conn:
+            if sessions_conn is None:
+                return jsonify({"status": "error", "error": "Sessions database not available"}), 500
 
-            cursor = conn.cursor()
-
-            # Find valid session
-            cursor.execute(
+            sessions_cursor = sessions_conn.cursor()
+            
+            # Find valid session and get org_id
+            sessions_cursor.execute(
                 """
-                SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state
-                FROM user_sessions s
-                JOIN users u ON s.user_id = u.id
-                WHERE s.session_token = ? AND s.expires_at > datetime('now')
+                SELECT user_id, org_id
+                FROM user_sessions
+                WHERE session_token = ? AND expires_at > datetime('now')
             """,
                 (session_token,),
             )
 
-            user = cursor.fetchone()
-            if not user:
+            session_row = sessions_cursor.fetchone()
+            if not session_row:
                 return jsonify({"status": "error", "error": "Invalid or expired session"}), 401
+            
+            user_id = session_row[0]
+            org_id = session_row[1]
+            
+            if not org_id:
+                return jsonify({"status": "error", "error": "Session missing org_id"}), 401
+
+        # Then, get user details from org-specific database
+        with get_db_connection(org_id=org_id) as org_conn:
+            if org_conn is None:
+                return jsonify({"status": "error", "error": "Organization database not available"}), 500
+
+            org_cursor = org_conn.cursor()
+
+            # Find user in org-specific database
+            org_cursor.execute(
+                """
+                SELECT id, full_name, email, username, role, pe_license_number, state
+                FROM users
+                WHERE id = ?
+            """,
+                (user_id,),
+            )
+
+            user = org_cursor.fetchone()
+            if not user:
+                return jsonify({"status": "error", "error": "User not found in organization database"}), 404
 
             return jsonify({
                 "status": "success",
+                "org_id": org_id,
                 "user": {
                     "id": user[0],
                     "full_name": user[1],
@@ -10797,12 +11035,13 @@ def register_user():
         role = data.get("role")
         pe_license_number = data.get("pe_license_number", "")
         state = data.get("state", "")
+        org_id = data.get("org_id")  # Required for multi-tenant isolation
 
-        if not all([full_name, email, username, password, role]):
-            return jsonify({"status": "error", "error": "Missing required fields"}), 400
+        if not all([full_name, email, username, password, role, org_id]):
+            return jsonify({"status": "error", "error": "Missing required fields (including org_id)"}), 400
 
-        # Import database connection function from original
-        with get_db_connection() as conn:
+        # Use org-specific database
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database not available"}),
@@ -11114,10 +11353,15 @@ def generate_equipment_health_pdf_endpoint():
 def get_projects():
     """Get list of all projects."""
     try:
-        # Import database connection function from original
-        logger.info("GET /api/projects - Fetching project list")
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
         
-        with get_db_connection() as conn:
+        # Import database connection function from original
+        logger.info(f"GET /api/projects - Fetching project list for org_id={org_id}")
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 logger.error("Database connection is None")
                 return jsonify({"error": "Database not available"}), 500
@@ -11193,6 +11437,11 @@ def get_projects():
 def create_project():
     """Create a new project."""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
         data = request.get_json()
         name = data.get("name", "").strip()
         description = data.get("description", "").strip()
@@ -11201,12 +11450,26 @@ def create_project():
         if not name:
             return jsonify({"error": "Project name is required"}), 400
 
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
-            # Check if project name already exists
             cursor = conn.cursor()
+            
+            # Ensure projects table exists in org-specific database
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    data TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+
+            # Check if project name already exists
             cursor.execute("SELECT id FROM projects WHERE name = ?", (name,))
             existing = cursor.fetchone()
             if existing:
@@ -11260,6 +11523,11 @@ def load_project():
         
         import json
         
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
         # Support both JSON body and form data
         if request.is_json:
             data = request.get_json()
@@ -11270,7 +11538,7 @@ def load_project():
             project_id = None
         
         # Import database connection function from original
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
@@ -11479,7 +11747,12 @@ def projects_save():
                     break
         logger.info(f"Sample field values: {sample_values}")
         
-        with get_db_connection() as conn:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
@@ -11572,8 +11845,18 @@ def projects_save():
 def get_raw_files_stats():
     """Get statistics for raw meter data files"""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({
+                "status": "success",
+                "total_files": 0,
+                "total_size": "0 MB",
+                "recent_uploads": 0,
+            }), 200  # Return empty stats instead of error for better UX
+        
         # Import database connection function from original
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({
                     "status": "success",
@@ -12041,8 +12324,13 @@ def verify_all_csv_integrity():
 def get_original_files():
     """Get list of original files"""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "success", "files": []}), 200  # Return empty list instead of error
+        
         # Import database connection function from original
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"status": "success", "files": []})
 
@@ -12081,15 +12369,20 @@ def get_original_files():
 def download_original_file(file_id: int):
     """Download a raw meter data file by id"""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return "Organization ID required. Please log in again.", 401
+        
         # Get user ID from session if available
         user_id = None
         try:
             session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
             if session_token:
-                with get_db_connection() as conn:
-                    if conn:
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ?", (session_token,))
+                with get_db_connection(use_sessions_db=True) as sessions_conn:
+                    if sessions_conn:
+                        cursor = sessions_conn.cursor()
+                        cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ? AND org_id = ?", (session_token, org_id))
                         row = cursor.fetchone()
                         if row:
                             user_id = row[0]
@@ -12097,7 +12390,7 @@ def download_original_file(file_id: int):
             pass
         
         base_dir = Path(__file__).parent
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return "Database not available", 500
             cursor = conn.cursor()
@@ -15277,8 +15570,13 @@ def download_pe_review_checklist(analysis_session_id):
 def delete_original_file(file_id: int):
     """Delete a raw meter data file and its DB entry"""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+        
         base_dir = Path(__file__).parent
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"status": "error", "error": "Database not available"}), 500
             cursor = conn.cursor()
@@ -15440,8 +15738,13 @@ def upload_raw_meter_data():
             fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
             fingerprint = fingerprint_data["content_hash"]  # Store just the hash string
 
-            # Store file metadata in database
-            with get_db_connection() as conn:
+            # Get org_id for multi-tenant isolation
+            org_id = get_current_org_id(request)
+            if not org_id:
+                return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+
+            # Store file metadata in org-specific database
+            with get_db_connection(org_id=org_id) as conn:
                 if conn is None:
                     return (
                         jsonify(
@@ -15451,6 +15754,21 @@ def upload_raw_meter_data():
                     )
 
                 cursor = conn.cursor()
+                # Ensure raw_meter_data table exists in org-specific database
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS raw_meter_data (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        file_name TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        file_size INTEGER,
+                        fingerprint TEXT,
+                        uploaded_by TEXT,
+                        upload_date TEXT DEFAULT CURRENT_TIMESTAMP,
+                        verification_status TEXT DEFAULT 'pending'
+                    )
+                """)
+                conn.commit()
+                
                 cursor.execute(
                     """
                     INSERT INTO raw_meter_data (file_name, file_path, file_size, fingerprint, uploaded_by)
@@ -15490,7 +15808,12 @@ def upload_raw_meter_data():
 def list_original_files():
     """List all original raw meter data files"""
     try:
-        with get_db_connection() as conn:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -15533,19 +15856,27 @@ def get_file_for_clipping(file_id):
         logger.info(f"=== CLIPPING ENDPOINT CALLED ===")
         logger.info(f"Requested file ID: {file_id}")
 
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+        
         # Get user session for access logging
         user_id = None
         session_token = request.headers.get('Authorization', '').replace('Bearer ', '') or request.cookies.get('session_token')
         if session_token:
             try:
-                from main_hardened_ready_fixed import validate_user_session
-                user = validate_user_session(session_token)
-                if user:
-                    user_id = user.get('id')
+                with get_db_connection(use_sessions_db=True) as sessions_conn:
+                    if sessions_conn:
+                        cursor = sessions_conn.cursor()
+                        cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ? AND org_id = ?", (session_token, org_id))
+                        row = cursor.fetchone()
+                        if row:
+                            user_id = row[0]
             except Exception as e:
                 logger.debug(f"Could not validate user session for access logging: {e}")
 
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 logger.error("Database connection failed")
                 return (
@@ -15746,21 +16077,37 @@ def apply_clipping_to_original_file(file_id):
                 400,
             )
 
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+        
         # Get user session for tracking
         session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
         logger.info(
             f"Session token received: {session_token[:20] if session_token else 'None'}..."
         )
         
-        # Import validate_user_session from fixed file
-        from main_hardened_ready_fixed import validate_user_session, get_db_connection, CSVIntegrityProtection
+        # Import CSVIntegrityProtection from fixed file
+        from main_hardened_ready_fixed import CSVIntegrityProtection
         
-        user = validate_user_session(session_token)
-        logger.info(f"User validation result: {user is not None}")
-        if not user:
+        # Validate session using sessions database
+        user_id = None
+        try:
+            with get_db_connection(use_sessions_db=True) as sessions_conn:
+                if sessions_conn:
+                    cursor = sessions_conn.cursor()
+                    cursor.execute("SELECT user_id FROM user_sessions WHERE session_token = ? AND org_id = ? AND expires_at > datetime('now')", (session_token, org_id))
+                    row = cursor.fetchone()
+                    if row:
+                        user_id = row[0]
+        except Exception as e:
+            logger.debug(f"Could not validate user session: {e}")
+        
+        if not user_id:
             return jsonify({"status": "error", "error": "Invalid session"}), 401
 
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -17475,8 +17822,13 @@ def get_dashboard_statistics():
 def list_verified_files():
     """List all verified CSV files from the file system"""
     try:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "success", "files": [], "total_count": 0}), 200
+        
         # Use proper database connection
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -17530,7 +17882,12 @@ def list_verified_files():
 def list_fingerprint_files():
     """List fingerprint files from csv_fingerprints with size from filesystem."""
     try:
-        with get_db_connection() as conn:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "success", "files": []}), 200
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"status": "error", "error": "Database connection failed"}), 500
             cursor = conn.cursor()

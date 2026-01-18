@@ -110,12 +110,30 @@
       .link a:hover {
         text-decoration: underline;
       }
+      .back-button {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+      .back-button a {
+        color: #1976d2;
+        text-decoration: none;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .back-button a:hover {
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="logo-container">
         <img src="/static/synerex_logo_color.png" alt="Synerex" />
+      </div>
+      <div class="back-button">
+        <a href="http://localhost:5173/">← Back to Home</a>
       </div>
       <h2>Client Login</h2>
       {% if error %}
