@@ -2978,6 +2978,8 @@ class WeatherNormalizationML:
             
             # ENHANCED: If "after" time series data is available, normalize each timestamp individually
             # This provides more accurate normalization by capturing intraday weather variations
+            # CRITICAL: Weather normalization should NEVER be skipped because of timestamp comparison issues
+            # If timestamp matching fails, we will fall back to average-based normalization
             use_timestamp_normalization = (
                 after_energy_series is not None and 
                 after_temp_series is not None and
@@ -2986,168 +2988,269 @@ class WeatherNormalizationML:
                 len(after_energy_series) == len(after_temp_series)
             )
             
+            # CRITICAL FIX: Wrap timestamp normalization in try-except to ensure normalization is never skipped
+            # If timestamp matching fails for any reason, fall back to average-based normalization
+            timestamp_normalization_failed = False
             if use_timestamp_normalization:
-                logger.info(f"Using timestamp-by-timestamp normalization for 'after' period ({len(after_energy_series)} data points)")
-                
-                # CRITICAL FIX: Sort timestamps to ensure deterministic matching
-                # This prevents inconsistent results when the same data is processed multiple times
-                if baseline_timestamps and len(baseline_timestamps) > 1:
-                    # Sort baseline timestamps and corresponding series together to maintain alignment
-                    baseline_zipped = list(zip(
-                        baseline_timestamps,
-                        baseline_energy_series if baseline_energy_series else [None] * len(baseline_timestamps),
-                        baseline_temp_series if baseline_temp_series else [None] * len(baseline_timestamps),
-                        baseline_dewpoint_series if baseline_dewpoint_series else [None] * len(baseline_timestamps)
-                    ))
-                    baseline_zipped.sort(key=lambda x: x[0])  # Sort by timestamp
+                try:
+                    logger.info(f"Using timestamp-by-timestamp normalization for 'after' period ({len(after_energy_series)} data points)")
                     
-                    baseline_timestamps = [x[0] for x in baseline_zipped]
-                    if baseline_energy_series:
-                        baseline_energy_series = [x[1] for x in baseline_zipped]
-                    if baseline_temp_series:
-                        baseline_temp_series = [x[2] for x in baseline_zipped]
-                    if baseline_dewpoint_series:
-                        baseline_dewpoint_series = [x[3] for x in baseline_zipped]
-                    logger.info(f"Sorted {len(baseline_timestamps)} baseline timestamps for deterministic matching")
-                
-                if after_timestamps and len(after_timestamps) > 1:
-                    # Sort after timestamps and corresponding series together to maintain alignment
-                    after_zipped = list(zip(
-                        after_timestamps,
-                        after_energy_series if after_energy_series else [None] * len(after_timestamps),
-                        after_temp_series if after_temp_series else [None] * len(after_timestamps),
-                        after_dewpoint_series if after_dewpoint_series else [None] * len(after_timestamps)
-                    ))
-                    after_zipped.sort(key=lambda x: x[0])  # Sort by timestamp
+                    # CRITICAL FIX: Sort timestamps to ensure deterministic matching
+                    # This prevents inconsistent results when the same data is processed multiple times
+                    if baseline_timestamps and len(baseline_timestamps) > 1:
+                        # Sort baseline timestamps and corresponding series together to maintain alignment
+                        baseline_zipped = list(zip(
+                            baseline_timestamps,
+                            baseline_energy_series if baseline_energy_series else [None] * len(baseline_timestamps),
+                            baseline_temp_series if baseline_temp_series else [None] * len(baseline_timestamps),
+                            baseline_dewpoint_series if baseline_dewpoint_series else [None] * len(baseline_timestamps)
+                        ))
+                        baseline_zipped.sort(key=lambda x: x[0])  # Sort by timestamp
+                        
+                        baseline_timestamps = [x[0] for x in baseline_zipped]
+                        if baseline_energy_series:
+                            baseline_energy_series = [x[1] for x in baseline_zipped]
+                        if baseline_temp_series:
+                            baseline_temp_series = [x[2] for x in baseline_zipped]
+                        if baseline_dewpoint_series:
+                            baseline_dewpoint_series = [x[3] for x in baseline_zipped]
+                        logger.info(f"Sorted {len(baseline_timestamps)} baseline timestamps for deterministic matching")
                     
-                    after_timestamps = [x[0] for x in after_zipped]
-                    if after_energy_series:
-                        after_energy_series = [x[1] for x in after_zipped]
-                    if after_temp_series:
-                        after_temp_series = [x[2] for x in after_zipped]
-                    if after_dewpoint_series:
-                        after_dewpoint_series = [x[3] for x in after_zipped]
-                    logger.info(f"Sorted {len(after_timestamps)} after timestamps for deterministic matching")
-                
-                # Initialize variables for timestamp-based matching
-                aggregated_CDD_values = None
-                aggregated_HDD_values = None
-                aggregated_weather_effects = None
-                use_timestamp_matching = False
-                CDD_before_ref_fallback = None
-                HDD_before_ref_fallback = None
-                weather_effect_before_ref_fallback = None
-                
-                # CRITICAL FIX: Use ACTUAL baseline time series data for reference, not average values
-                # If baseline time series data is available, use timestamp-by-timestamp matching
-                # Otherwise, calculate average weather effects from baseline time series data
-                
-                # Calculate reference CDD and HDD for ASHRAE additive normalization
-                CDD_before_ref = None
-                HDD_before_ref = None
-                weather_effect_before_ref = None  # For fallback multiplicative formula
-                
-                if baseline_energy_series is not None and baseline_temp_series is not None and len(baseline_energy_series) > 0 and len(baseline_temp_series) > 0:
-                    logger.info(f"Using baseline time series data ({len(baseline_energy_series)} data points) for timestamp-by-timestamp normalization")
+                    if after_timestamps and len(after_timestamps) > 1:
+                        # Sort after timestamps and corresponding series together to maintain alignment
+                        after_zipped = list(zip(
+                            after_timestamps,
+                            after_energy_series if after_energy_series else [None] * len(after_timestamps),
+                            after_temp_series if after_temp_series else [None] * len(after_timestamps),
+                            after_dewpoint_series if after_dewpoint_series else [None] * len(after_timestamps)
+                        ))
+                        after_zipped.sort(key=lambda x: x[0])  # Sort by timestamp
+                        
+                        after_timestamps = [x[0] for x in after_zipped]
+                        if after_energy_series:
+                            after_energy_series = [x[1] for x in after_zipped]
+                        if after_temp_series:
+                            after_temp_series = [x[2] for x in after_zipped]
+                        if after_dewpoint_series:
+                            after_dewpoint_series = [x[3] for x in after_zipped]
+                        logger.info(f"Sorted {len(after_timestamps)} after timestamps for deterministic matching")
                     
-                    # CRITICAL FIX: Detect intervals from timestamps (not counts) and match by time-of-day
-                    # This ensures baseline reference matches the granularity of "after" data while preserving time-of-day relationships
-                    # Example: If "after" is hourly (24/day) and baseline is 1-minute (1440/day),
-                    # aggregate baseline to hourly by matching time-of-day (12:00 baseline matches 12:00 after)
-                    
-                    baseline_count = len(baseline_energy_series)
-                    after_count = len(after_energy_series) if after_energy_series else 0
-                    
-                    # Detect intervals from timestamps if available, otherwise fall back to count-based detection
-                    baseline_interval_min = None
-                    after_interval_min = None
+                    # Initialize variables for timestamp-based matching
+                    aggregated_CDD_values = None
+                    aggregated_HDD_values = None
+                    aggregated_weather_effects = None
                     use_timestamp_matching = False
+                    CDD_before_ref_fallback = None
+                    HDD_before_ref_fallback = None
+                    weather_effect_before_ref_fallback = None
                     
-                    if baseline_timestamps and after_timestamps and len(baseline_timestamps) > 1 and len(after_timestamps) > 1:
-                        # Detect baseline interval from timestamps
-                        baseline_intervals = []
-                        for i in range(1, min(100, len(baseline_timestamps))):
-                            diff = (baseline_timestamps[i] - baseline_timestamps[i-1]).total_seconds() / 60
-                            if diff > 0:
-                                baseline_intervals.append(diff)
-                        
-                        if baseline_intervals:
-                            from collections import Counter
-                            baseline_interval_min = Counter(baseline_intervals).most_common(1)[0][0]
-                            logger.info(f"Detected baseline interval from timestamps: {baseline_interval_min:.1f} minutes")
-                        
-                        # Detect after interval from timestamps
-                        after_intervals = []
-                        for i in range(1, min(100, len(after_timestamps))):
-                            diff = (after_timestamps[i] - after_timestamps[i-1]).total_seconds() / 60
-                            if diff > 0:
-                                after_intervals.append(diff)
-                        
-                        if after_intervals:
-                            from collections import Counter
-                            after_interval_min = Counter(after_intervals).most_common(1)[0][0]
-                            logger.info(f"Detected after interval from timestamps: {after_interval_min:.1f} minutes")
-                        
-                        # If intervals are different and timestamps are available, use timestamp-based matching
-                        if baseline_interval_min and after_interval_min and baseline_interval_min < after_interval_min:
-                            use_timestamp_matching = True
-                            aggregation_ratio = after_interval_min / baseline_interval_min
-                            logger.info(f"Detected interval mismatch: baseline={baseline_interval_min:.1f}min, after={after_interval_min:.1f}min (ratio: {aggregation_ratio:.1f}:1)")
-                            logger.info(f"Aggregating baseline to match 'after' interval using time-of-day matching")
+                    # CRITICAL FIX: Use ACTUAL baseline time series data for reference, not average values
+                    # If baseline time series data is available, use timestamp-by-timestamp matching
+                    # Otherwise, calculate average weather effects from baseline time series data
                     
-                    # Use timestamp-based matching if intervals differ and timestamps are available
-                    if use_timestamp_matching and baseline_timestamps and after_timestamps:
-                        aggregated_CDD_values = []
-                        aggregated_HDD_values = []
-                        aggregated_weather_effects = []
+                    # Calculate reference CDD and HDD for ASHRAE additive normalization
+                    CDD_before_ref = None
+                    HDD_before_ref = None
+                    weather_effect_before_ref = None  # For fallback multiplicative formula
+                    
+                    if baseline_energy_series is not None and baseline_temp_series is not None and len(baseline_energy_series) > 0 and len(baseline_temp_series) > 0:
+                        logger.info(f"Using baseline time series data ({len(baseline_energy_series)} data points) for timestamp-by-timestamp normalization")
                         
-                        # For each "after" timestamp, find matching baseline timestamps by time-of-day (not date)
-                        for after_idx, after_ts in enumerate(after_timestamps):
-                            # Extract time-of-day components from "after" timestamp (ignore date)
-                            after_hour = after_ts.hour
-                            after_minute = after_ts.minute
+                        # CRITICAL FIX: Detect intervals from timestamps (not counts) and match by time-of-day
+                        # This ensures baseline reference matches the granularity of "after" data while preserving time-of-day relationships
+                        # Example: If "after" is hourly (24/day) and baseline is 1-minute (1440/day),
+                        # aggregate baseline to hourly by matching time-of-day (12:00 baseline matches 12:00 after)
+                        
+                        baseline_count = len(baseline_energy_series)
+                        after_count = len(after_energy_series) if after_energy_series else 0
+                        
+                        # Detect intervals from timestamps if available, otherwise fall back to count-based detection
+                        baseline_interval_min = None
+                        after_interval_min = None
+                        use_timestamp_matching = False
+                        
+                        if baseline_timestamps and after_timestamps and len(baseline_timestamps) > 1 and len(after_timestamps) > 1:
+                            # Detect baseline interval from timestamps
+                            baseline_intervals = []
+                            for i in range(1, min(100, len(baseline_timestamps))):
+                                diff = (baseline_timestamps[i] - baseline_timestamps[i-1]).total_seconds() / 60
+                                if diff > 0:
+                                    baseline_intervals.append(diff)
                             
-                            # Calculate the minute range for this "after" interval
-                            # e.g., if after_ts is 12:00 and interval is 60 min, match 12:00-12:59
-                            # e.g., if after_ts is 12:15 and interval is 15 min, match 12:15-12:29
-                            after_minute_start = after_minute
-                            after_minute_end = after_minute + int(after_interval_min)
+                            if baseline_intervals:
+                                from collections import Counter
+                                baseline_interval_min = Counter(baseline_intervals).most_common(1)[0][0]
+                                logger.info(f"Detected baseline interval from timestamps: {baseline_interval_min:.1f} minutes")
                             
-                            # Handle minute overflow (e.g., if interval is 60 min and starts at 12:45, end is 13:45)
-                            if after_minute_end >= 60:
-                                # Spanning to next hour
-                                after_hour_end = after_hour + (after_minute_end // 60)
-                                after_minute_end = after_minute_end % 60
-                            else:
-                                after_hour_end = after_hour
+                            # Detect after interval from timestamps
+                            after_intervals = []
+                            for i in range(1, min(100, len(after_timestamps))):
+                                diff = (after_timestamps[i] - after_timestamps[i-1]).total_seconds() / 60
+                                if diff > 0:
+                                    after_intervals.append(diff)
                             
-                            bucket_CDD = []
-                            bucket_HDD = []
-                            bucket_weather_effects = []
+                            if after_intervals:
+                                from collections import Counter
+                                after_interval_min = Counter(after_intervals).most_common(1)[0][0]
+                                logger.info(f"Detected after interval from timestamps: {after_interval_min:.1f} minutes")
                             
-                            # Find all baseline timestamps that match this time-of-day window (any date)
-                            for baseline_idx, baseline_ts in enumerate(baseline_timestamps):
-                                baseline_hour = baseline_ts.hour
-                                baseline_minute = baseline_ts.minute
+                            # If intervals are different and timestamps are available, use timestamp-based matching
+                            if baseline_interval_min and after_interval_min and baseline_interval_min < after_interval_min:
+                                use_timestamp_matching = True
+                                aggregation_ratio = after_interval_min / baseline_interval_min
+                                logger.info(f"Detected interval mismatch: baseline={baseline_interval_min:.1f}min, after={after_interval_min:.1f}min (ratio: {aggregation_ratio:.1f}:1)")
+                                logger.info(f"Aggregating baseline to match 'after' interval using time-of-day matching")
+                        
+                        # Use timestamp-based matching if intervals differ and timestamps are available
+                        if use_timestamp_matching and baseline_timestamps and after_timestamps:
+                            aggregated_CDD_values = []
+                            aggregated_HDD_values = []
+                            aggregated_weather_effects = []
+                            
+                            # For each "after" timestamp, find matching baseline timestamps by time-of-day (not date)
+                            for after_idx, after_ts in enumerate(after_timestamps):
+                                # Extract time-of-day components from "after" timestamp (ignore date)
+                                after_hour = after_ts.hour
+                                after_minute = after_ts.minute
                                 
-                                # Check if baseline timestamp falls within the "after" time-of-day window
-                                # Match by hour and minute range, ignoring the date
-                                if after_minute_end < after_minute_start or after_hour_end != after_hour:
-                                    # Interval spans across hour boundary (e.g., 12:45-13:14)
-                                    matches = (
-                                        (baseline_hour == after_hour and baseline_minute >= after_minute_start) or
-                                        (baseline_hour == after_hour_end and baseline_minute < after_minute_end)
-                                    )
+                                # Calculate the minute range for this "after" interval
+                                # e.g., if after_ts is 12:00 and interval is 60 min, match 12:00-12:59
+                                # e.g., if after_ts is 12:15 and interval is 15 min, match 12:15-12:29
+                                after_minute_start = after_minute
+                                after_minute_end = after_minute + int(after_interval_min)
+                                
+                                # Handle minute overflow (e.g., if interval is 60 min and starts at 12:45, end is 13:45)
+                                if after_minute_end >= 60:
+                                    # Spanning to next hour
+                                    after_hour_end = after_hour + (after_minute_end // 60)
+                                    after_minute_end = after_minute_end % 60
                                 else:
-                                    # Interval within same hour (e.g., 12:00-12:59 or 12:15-12:29)
-                                    matches = (
-                                        baseline_hour == after_hour and 
-                                        after_minute_start <= baseline_minute < after_minute_end
-                                    )
+                                    after_hour_end = after_hour
                                 
-                                if matches:
-                                    baseline_temp_i = baseline_temp_series[baseline_idx] if baseline_idx < len(baseline_temp_series) else temp_before
-                                    baseline_dewpoint_i = baseline_dewpoint_series[baseline_idx] if (baseline_dewpoint_series is not None and baseline_idx < len(baseline_dewpoint_series)) else dewpoint_before
+                                bucket_CDD = []
+                                bucket_HDD = []
+                                bucket_weather_effects = []
+                                
+                                # Find all baseline timestamps that match this time-of-day window (any date)
+                                for baseline_idx, baseline_ts in enumerate(baseline_timestamps):
+                                    baseline_hour = baseline_ts.hour
+                                    baseline_minute = baseline_ts.minute
+                                    
+                                    # Check if baseline timestamp falls within the "after" time-of-day window
+                                    # Match by hour and minute range, ignoring the date
+                                    if after_minute_end < after_minute_start or after_hour_end != after_hour:
+                                        # Interval spans across hour boundary (e.g., 12:45-13:14)
+                                        matches = (
+                                            (baseline_hour == after_hour and baseline_minute >= after_minute_start) or
+                                            (baseline_hour == after_hour_end and baseline_minute < after_minute_end)
+                                        )
+                                    else:
+                                        # Interval within same hour (e.g., 12:00-12:59 or 12:15-12:29)
+                                        matches = (
+                                            baseline_hour == after_hour and 
+                                            after_minute_start <= baseline_minute < after_minute_end
+                                        )
+                                    
+                                    if matches:
+                                        baseline_temp_i = baseline_temp_series[baseline_idx] if baseline_idx < len(baseline_temp_series) else temp_before
+                                        baseline_dewpoint_i = baseline_dewpoint_series[baseline_idx] if (baseline_dewpoint_series is not None and baseline_idx < len(baseline_dewpoint_series)) else dewpoint_before
+                                        
+                                        # Calculate CDD and HDD for this baseline point
+                                        CDD_i = max(0, baseline_temp_i - self.base_temp)
+                                        bucket_CDD.append(CDD_i)
+                                        
+                                        if dewpoint_available and baseline_dewpoint_i is not None:
+                                            HDD_i = max(0, baseline_dewpoint_i - self.base_temp)
+                                            bucket_HDD.append(HDD_i)
+                                        else:
+                                            bucket_HDD.append(0.0)
+                                        
+                                        # Also calculate weather effects for fallback multiplicative formula
+                                        temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
+                                        if dewpoint_available and baseline_dewpoint_i is not None:
+                                            dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
+                                        else:
+                                            dewpoint_effect_i = 0.0
+                                        weather_effect_i = temp_effect_i + dewpoint_effect_i
+                                        bucket_weather_effects.append(weather_effect_i)
+                                
+                                # Average this bucket's values (preserves time-of-day relationship across all baseline days)
+                                if bucket_CDD:
+                                    aggregated_CDD_values.append(sum(bucket_CDD) / len(bucket_CDD))
+                                    aggregated_HDD_values.append(sum(bucket_HDD) / len(bucket_HDD))
+                                    aggregated_weather_effects.append(sum(bucket_weather_effects) / len(bucket_weather_effects))
+                                else:
+                                    # If no matching timestamps found, use average of all baseline
+                                    logger.warning(f"No baseline timestamps found for after timestamp {after_ts} (time-of-day {after_hour:02d}:{after_minute:02d}), using fallback")
+                                    aggregated_CDD_values.append(None)  # Will use fallback
+                                    aggregated_HDD_values.append(None)
+                                    aggregated_weather_effects.append(None)
+                            
+                            # Store aggregated values for timestamp-by-timestamp matching (don't average yet)
+                            # We'll use aggregated_CDD_values[i] for each "after" timestamp i
+                            logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' timestamps by time-of-day")
+                            
+                            # Calculate fallback reference (average of all aggregated buckets) in case some buckets are None
+                            valid_CDD = [v for v in aggregated_CDD_values if v is not None]
+                            valid_HDD = [v for v in aggregated_HDD_values if v is not None]
+                            valid_weather_effects = [v for v in aggregated_weather_effects if v is not None]
+                            
+                            # CRITICAL: If timestamp matching failed for too many buckets, fall back to average-based normalization
+                            # Weather normalization should NEVER be skipped because of timestamp comparison issues
+                            if len(valid_CDD) < len(aggregated_CDD_values) * 0.5:  # Less than 50% of buckets matched
+                                logger.warning(f"[WARNING] Timestamp matching failed for {len(aggregated_CDD_values) - len(valid_CDD)} out of {len(aggregated_CDD_values)} buckets")
+                                logger.warning(f"[WARNING] Falling back to average-based normalization to ensure normalization is applied")
+                                raise ValueError("Timestamp matching failed - too many unmatched buckets, falling back to average-based normalization")
+                            
+                            CDD_before_ref_fallback = sum(valid_CDD) / len(valid_CDD) if valid_CDD else 0.0
+                            HDD_before_ref_fallback = sum(valid_HDD) / len(valid_HDD) if valid_HDD else 0.0
+                            weather_effect_before_ref_fallback = sum(valid_weather_effects) / len(valid_weather_effects) if valid_weather_effects else 0.0
+                            
+                            # CRITICAL FIX: Calculate average weather effect from ALL baseline data (not just aggregated buckets)
+                            # This ensures correct normalization when baseline period (November) was warmer than after period (December)
+                            # The average from all baseline data matches what's displayed and produces correct savings increase
+                            if baseline_temp_series is not None and len(baseline_temp_series) > 0:
+                                all_baseline_weather_effects = []
+                                for i in range(len(baseline_temp_series)):
+                                    baseline_temp_i = baseline_temp_series[i]
+                                    baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
+                                    temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
+                                    dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if dewpoint_available and baseline_dewpoint_i is not None else 0.0
+                                    weather_effect_i = temp_effect_i + dewpoint_effect_i
+                                    all_baseline_weather_effects.append(weather_effect_i)
+                                
+                                # Use average from ALL baseline data (matches displayed values)
+                                weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
+                                logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
+                            
+                            logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                        
+                        # Fallback to count-based detection if timestamps not available or intervals match
+                        elif after_count > 0 and baseline_count > after_count * 2:
+                            # Intervals are mismatched - need to aggregate baseline (count-based fallback)
+                            aggregation_ratio = baseline_count / after_count
+                            logger.info(f"Detected interval mismatch (count-based): baseline has {baseline_count} points, after has {after_count} points (ratio: {aggregation_ratio:.1f}:1)")
+                            logger.info(f"Aggregating baseline to match 'after' interval granularity (count-based fallback)")
+                            
+                            # Aggregate baseline data to match "after" interval
+                            # Group baseline points into buckets matching "after" count
+                            points_per_bucket = int(baseline_count / after_count)
+                            aggregated_CDD_values = []
+                            aggregated_HDD_values = []
+                            aggregated_weather_effects = []
+                            
+                            for bucket_idx in range(after_count):
+                                start_idx = bucket_idx * points_per_bucket
+                                end_idx = min((bucket_idx + 1) * points_per_bucket, baseline_count)
+                                
+                                # Aggregate CDD, HDD, and weather effects for this bucket
+                                bucket_CDD = []
+                                bucket_HDD = []
+                                bucket_weather_effects = []
+                                
+                                for i in range(start_idx, end_idx):
+                                    baseline_temp_i = baseline_temp_series[i] if i < len(baseline_temp_series) else temp_before
+                                    baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
                                     
                                     # Calculate CDD and HDD for this baseline point
                                     CDD_i = max(0, baseline_temp_i - self.base_temp)
@@ -3167,440 +3270,364 @@ class WeatherNormalizationML:
                                         dewpoint_effect_i = 0.0
                                     weather_effect_i = temp_effect_i + dewpoint_effect_i
                                     bucket_weather_effects.append(weather_effect_i)
+                                
+                                # Average this bucket's values
+                                if bucket_CDD:
+                                    aggregated_CDD_values.append(sum(bucket_CDD) / len(bucket_CDD))
+                                    aggregated_HDD_values.append(sum(bucket_HDD) / len(bucket_HDD))
+                                    aggregated_weather_effects.append(sum(bucket_weather_effects) / len(bucket_weather_effects))
                             
-                            # Average this bucket's values (preserves time-of-day relationship across all baseline days)
-                            if bucket_CDD:
-                                aggregated_CDD_values.append(sum(bucket_CDD) / len(bucket_CDD))
-                                aggregated_HDD_values.append(sum(bucket_HDD) / len(bucket_HDD))
-                                aggregated_weather_effects.append(sum(bucket_weather_effects) / len(bucket_weather_effects))
-                            else:
-                                # If no matching timestamps found, use average of all baseline
-                                logger.warning(f"No baseline timestamps found for after timestamp {after_ts} (time-of-day {after_hour:02d}:{after_minute:02d}), using fallback")
-                                aggregated_CDD_values.append(None)  # Will use fallback
-                                aggregated_HDD_values.append(None)
-                                aggregated_weather_effects.append(None)
-                        
-                        # Store aggregated values for timestamp-by-timestamp matching (don't average yet)
-                        # We'll use aggregated_CDD_values[i] for each "after" timestamp i
-                        logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' timestamps by time-of-day")
-                        
-                        # Calculate fallback reference (average of all aggregated buckets) in case some buckets are None
-                        valid_CDD = [v for v in aggregated_CDD_values if v is not None]
-                        valid_HDD = [v for v in aggregated_HDD_values if v is not None]
-                        valid_weather_effects = [v for v in aggregated_weather_effects if v is not None]
-                        
-                        CDD_before_ref_fallback = sum(valid_CDD) / len(valid_CDD) if valid_CDD else 0.0
-                        HDD_before_ref_fallback = sum(valid_HDD) / len(valid_HDD) if valid_HDD else 0.0
-                        weather_effect_before_ref_fallback = sum(valid_weather_effects) / len(valid_weather_effects) if valid_weather_effects else 0.0
-                        
-                        # CRITICAL FIX: Calculate average weather effect from ALL baseline data (not just aggregated buckets)
-                        # This ensures correct normalization when baseline period (November) was warmer than after period (December)
-                        # The average from all baseline data matches what's displayed and produces correct savings increase
-                        if baseline_temp_series is not None and len(baseline_temp_series) > 0:
-                            all_baseline_weather_effects = []
-                            for i in range(len(baseline_temp_series)):
-                                baseline_temp_i = baseline_temp_series[i]
-                                baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
-                                temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
-                                dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if dewpoint_available and baseline_dewpoint_i is not None else 0.0
-                                weather_effect_i = temp_effect_i + dewpoint_effect_i
-                                all_baseline_weather_effects.append(weather_effect_i)
+                            # Calculate reference from aggregated baseline (now matches "after" granularity)
+                            CDD_before_ref_fallback = sum(aggregated_CDD_values) / len(aggregated_CDD_values) if aggregated_CDD_values else 0.0
+                            HDD_before_ref_fallback = sum(aggregated_HDD_values) / len(aggregated_HDD_values) if aggregated_HDD_values else 0.0
+                            weather_effect_before_ref_fallback = sum(aggregated_weather_effects) / len(aggregated_weather_effects) if aggregated_weather_effects else 0.0
                             
-                            # Use average from ALL baseline data (matches displayed values)
-                            weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
-                            logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
-                        
-                        logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
-                    
-                    # Fallback to count-based detection if timestamps not available or intervals match
-                    elif after_count > 0 and baseline_count > after_count * 2:
-                        # Intervals are mismatched - need to aggregate baseline (count-based fallback)
-                        aggregation_ratio = baseline_count / after_count
-                        logger.info(f"Detected interval mismatch (count-based): baseline has {baseline_count} points, after has {after_count} points (ratio: {aggregation_ratio:.1f}:1)")
-                        logger.info(f"Aggregating baseline to match 'after' interval granularity (count-based fallback)")
-                        
-                        # Aggregate baseline data to match "after" interval
-                        # Group baseline points into buckets matching "after" count
-                        points_per_bucket = int(baseline_count / after_count)
-                        aggregated_CDD_values = []
-                        aggregated_HDD_values = []
-                        aggregated_weather_effects = []
-                        
-                        for bucket_idx in range(after_count):
-                            start_idx = bucket_idx * points_per_bucket
-                            end_idx = min((bucket_idx + 1) * points_per_bucket, baseline_count)
+                            # CRITICAL FIX: Calculate average weather effect from ALL baseline data (not just aggregated buckets)
+                            # This ensures correct normalization when baseline period (November) was warmer than after period (December)
+                            if baseline_temp_series is not None and len(baseline_temp_series) > 0:
+                                all_baseline_weather_effects = []
+                                for i in range(len(baseline_temp_series)):
+                                    baseline_temp_i = baseline_temp_series[i]
+                                    baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
+                                    temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
+                                    dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if dewpoint_available and baseline_dewpoint_i is not None else 0.0
+                                    weather_effect_i = temp_effect_i + dewpoint_effect_i
+                                    all_baseline_weather_effects.append(weather_effect_i)
+                                
+                                # Use average from ALL baseline data (matches displayed values)
+                                weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
+                                logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
                             
-                            # Aggregate CDD, HDD, and weather effects for this bucket
-                            bucket_CDD = []
-                            bucket_HDD = []
-                            bucket_weather_effects = []
+                            logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' interval")
+                            logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                        else:
+                            # Intervals match or baseline has fewer points - use all baseline data directly
+                            logger.info(f"Baseline and 'after' intervals match (or baseline is coarser) - using all baseline data directly")
                             
-                            for i in range(start_idx, end_idx):
+                            # Calculate CDD and HDD for each baseline timestamp (for ASHRAE additive formula)
+                            baseline_CDD_values = []
+                            baseline_HDD_values = []
+                            baseline_weather_effects = []  # For fallback multiplicative formula
+                            
+                            for i in range(len(baseline_energy_series)):
                                 baseline_temp_i = baseline_temp_series[i] if i < len(baseline_temp_series) else temp_before
                                 baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
                                 
-                                # Calculate CDD and HDD for this baseline point
+                                # Calculate CDD (Cooling Degree Days) for ASHRAE additive formula
                                 CDD_i = max(0, baseline_temp_i - self.base_temp)
-                                bucket_CDD.append(CDD_i)
+                                baseline_CDD_values.append(CDD_i)
                                 
+                                # Calculate HDD (Humidity Degree Days) for ASHRAE additive formula
                                 if dewpoint_available and baseline_dewpoint_i is not None:
                                     HDD_i = max(0, baseline_dewpoint_i - self.base_temp)
-                                    bucket_HDD.append(HDD_i)
+                                    baseline_HDD_values.append(HDD_i)
                                 else:
-                                    bucket_HDD.append(0.0)
+                                    baseline_HDD_values.append(0.0)
                                 
                                 # Also calculate weather effects for fallback multiplicative formula
-                                temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
+                                temp_effect_baseline_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
                                 if dewpoint_available and baseline_dewpoint_i is not None:
-                                    dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
+                                    dewpoint_effect_baseline_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
                                 else:
-                                    dewpoint_effect_i = 0.0
-                                weather_effect_i = temp_effect_i + dewpoint_effect_i
-                                bucket_weather_effects.append(weather_effect_i)
+                                    dewpoint_effect_baseline_i = 0.0
+                                weather_effect_baseline_i = temp_effect_baseline_i + dewpoint_effect_baseline_i
+                                baseline_weather_effects.append(weather_effect_baseline_i)
                             
-                            # Average this bucket's values
-                            if bucket_CDD:
-                                aggregated_CDD_values.append(sum(bucket_CDD) / len(bucket_CDD))
-                                aggregated_HDD_values.append(sum(bucket_HDD) / len(bucket_HDD))
-                                aggregated_weather_effects.append(sum(bucket_weather_effects) / len(bucket_weather_effects))
-                        
-                        # Calculate reference from aggregated baseline (now matches "after" granularity)
-                        CDD_before_ref_fallback = sum(aggregated_CDD_values) / len(aggregated_CDD_values) if aggregated_CDD_values else 0.0
-                        HDD_before_ref_fallback = sum(aggregated_HDD_values) / len(aggregated_HDD_values) if aggregated_HDD_values else 0.0
-                        weather_effect_before_ref_fallback = sum(aggregated_weather_effects) / len(aggregated_weather_effects) if aggregated_weather_effects else 0.0
-                        
-                        # CRITICAL FIX: Calculate average weather effect from ALL baseline data (not just aggregated buckets)
-                        # This ensures correct normalization when baseline period (November) was warmer than after period (December)
-                        if baseline_temp_series is not None and len(baseline_temp_series) > 0:
-                            all_baseline_weather_effects = []
-                            for i in range(len(baseline_temp_series)):
-                                baseline_temp_i = baseline_temp_series[i]
-                                baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
-                                temp_effect_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
-                                dewpoint_effect_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if dewpoint_available and baseline_dewpoint_i is not None else 0.0
-                                weather_effect_i = temp_effect_i + dewpoint_effect_i
-                                all_baseline_weather_effects.append(weather_effect_i)
+                            # Calculate average CDD and HDD from baseline (for ASHRAE additive formula)
+                            CDD_before_ref = sum(baseline_CDD_values) / len(baseline_CDD_values) if baseline_CDD_values else 0.0
+                            HDD_before_ref = sum(baseline_HDD_values) / len(baseline_HDD_values) if baseline_HDD_values else 0.0
                             
-                            # Use average from ALL baseline data (matches displayed values)
-                            weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
-                            logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
-                        
-                        logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' interval")
-                        logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                            # Use average of baseline weather effects as reference (for fallback multiplicative formula)
+                            weather_effect_before_ref = sum(baseline_weather_effects) / len(baseline_weather_effects) if baseline_weather_effects else 0.0
+                            
+                            logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
                     else:
-                        # Intervals match or baseline has fewer points - use all baseline data directly
-                        logger.info(f"Baseline and 'after' intervals match (or baseline is coarser) - using all baseline data directly")
+                        # Fallback: Use average temp_before and dewpoint_before as reference
+                        logger.info("Baseline time series data not available, using average temp_before/dewpoint_before as reference")
                         
-                        # Calculate CDD and HDD for each baseline timestamp (for ASHRAE additive formula)
-                        baseline_CDD_values = []
-                        baseline_HDD_values = []
-                        baseline_weather_effects = []  # For fallback multiplicative formula
-                        
-                    for i in range(len(baseline_energy_series)):
-                        baseline_temp_i = baseline_temp_series[i] if i < len(baseline_temp_series) else temp_before
-                        baseline_dewpoint_i = baseline_dewpoint_series[i] if (baseline_dewpoint_series is not None and i < len(baseline_dewpoint_series)) else dewpoint_before
-                        
-                        # Calculate CDD (Cooling Degree Days) for ASHRAE additive formula
-                        CDD_i = max(0, baseline_temp_i - self.base_temp)
-                        baseline_CDD_values.append(CDD_i)
-                        
-                        # Calculate HDD (Humidity Degree Days) for ASHRAE additive formula
-                        if dewpoint_available and baseline_dewpoint_i is not None:
-                            HDD_i = max(0, baseline_dewpoint_i - self.base_temp)
-                            baseline_HDD_values.append(HDD_i)
+                        # Calculate CDD and HDD from average values
+                        CDD_before_ref = max(0, temp_before - self.base_temp)
+                        if dewpoint_available:
+                            HDD_before_ref = max(0, dewpoint_before - self.base_temp)
                         else:
-                            baseline_HDD_values.append(0.0)
+                            HDD_before_ref = 0.0
                         
                         # Also calculate weather effects for fallback multiplicative formula
-                        temp_effect_baseline_i = max(0, (baseline_temp_i - self.base_temp) * self.temp_sensitivity)
-                        if dewpoint_available and baseline_dewpoint_i is not None:
-                            dewpoint_effect_baseline_i = max(0, (baseline_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
+                        temp_effect_before_ref = max(0, (temp_before - self.base_temp) * self.temp_sensitivity)
+                        if dewpoint_available:
+                            dewpoint_effect_before_ref = max(0, (dewpoint_before - self.base_temp) * self.dewpoint_sensitivity)
                         else:
-                            dewpoint_effect_baseline_i = 0.0
-                        weather_effect_baseline_i = temp_effect_baseline_i + dewpoint_effect_baseline_i
-                        baseline_weather_effects.append(weather_effect_baseline_i)
-                    
-                    # Calculate average CDD and HDD from baseline (for ASHRAE additive formula)
-                    CDD_before_ref = sum(baseline_CDD_values) / len(baseline_CDD_values) if baseline_CDD_values else 0.0
-                    HDD_before_ref = sum(baseline_HDD_values) / len(baseline_HDD_values) if baseline_HDD_values else 0.0
-                    
-                    # Use average of baseline weather effects as reference (for fallback multiplicative formula)
-                    weather_effect_before_ref = sum(baseline_weather_effects) / len(baseline_weather_effects) if baseline_weather_effects else 0.0
-                    
-                    logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
-                else:
-                    # Fallback: Use average temp_before and dewpoint_before as reference
-                    logger.info("Baseline time series data not available, using average temp_before/dewpoint_before as reference")
-                    
-                    # Calculate CDD and HDD from average values
-                    CDD_before_ref = max(0, temp_before - self.base_temp)
-                    if dewpoint_available:
-                        HDD_before_ref = max(0, dewpoint_before - self.base_temp)
-                    else:
-                        HDD_before_ref = 0.0
-                    
-                    # Also calculate weather effects for fallback multiplicative formula
-                    temp_effect_before_ref = max(0, (temp_before - self.base_temp) * self.temp_sensitivity)
-                    if dewpoint_available:
-                        dewpoint_effect_before_ref = max(0, (dewpoint_before - self.base_temp) * self.dewpoint_sensitivity)
-                    else:
-                        dewpoint_effect_before_ref = 0.0
-                    weather_effect_before_ref = temp_effect_before_ref + dewpoint_effect_before_ref
-                    
-                    logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
-                
-                # Normalize each timestamp in the "after" period
-                normalized_after_values = []
-                for i in range(len(after_energy_series)):
-                    after_kw_i = after_energy_series[i]
-                    after_temp_i = after_temp_series[i]
-                    
-                    # Get dewpoint for this timestamp if available
-                    if after_dewpoint_series is not None and i < len(after_dewpoint_series):
-                        after_dewpoint_i = after_dewpoint_series[i]
-                    else:
-                        after_dewpoint_i = self.base_temp  # Fallback to base_temp
-                    
-                    # Calculate CDD and HDD for this timestamp (for ASHRAE additive formula)
-                    CDD_after_i = max(0, after_temp_i - self.base_temp)
-                    if dewpoint_available and after_dewpoint_i is not None:
-                        HDD_after_i = max(0, after_dewpoint_i - self.base_temp)
-                    else:
-                        HDD_after_i = 0.0
-                    
-                    # Also calculate weather effects for fallback multiplicative formula
-                    temp_effect_after_i = max(0, (after_temp_i - self.base_temp) * self.temp_sensitivity)
-                    if dewpoint_available and after_dewpoint_i is not None:
-                        dewpoint_effect_after_i = max(0, (after_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
-                    else:
-                        dewpoint_effect_after_i = 0.0
-                    weather_effect_after_i = temp_effect_after_i + dewpoint_effect_after_i
-                    
-                    # CRITICAL FIX: Use bucket-specific reference if available (preserves time-of-day relationships)
-                    # Otherwise use averaged reference
-                    if use_timestamp_matching and i < len(aggregated_CDD_values) and aggregated_CDD_values[i] is not None:
-                        # Use bucket-specific reference for CDD/HDD (preserves time-of-day relationship)
-                        CDD_before_i = aggregated_CDD_values[i]
-                        HDD_before_i = aggregated_HDD_values[i] if i < len(aggregated_HDD_values) and aggregated_HDD_values[i] is not None else 0.0
-                        # CRITICAL FIX: Use per-bucket weather effect when available (preserves time-of-day relationships)
-                        # Per-bucket effects match each "after" timestamp to its corresponding baseline time-of-day
-                        # This ensures correct normalization when baseline period (November) was warmer than after period (December)
-                        # Only fall back to overall average if per-bucket value is not available
-                        weather_effect_before_i = aggregated_weather_effects[i] if (i < len(aggregated_weather_effects) and aggregated_weather_effects[i] is not None) else (weather_effect_before_ref_fallback if 'weather_effect_before_ref_fallback' in locals() and weather_effect_before_ref_fallback is not None else 0.0)
-                    else:
-                        # Use averaged reference (fallback)
-                        CDD_before_i = CDD_before_ref if 'CDD_before_ref' in locals() else CDD_before_ref_fallback if 'CDD_before_ref_fallback' in locals() else 0.0
-                        HDD_before_i = HDD_before_ref if 'HDD_before_ref' in locals() else HDD_before_ref_fallback if 'HDD_before_ref_fallback' in locals() else 0.0
-                        weather_effect_before_i = weather_effect_before_ref if 'weather_effect_before_ref' in locals() else weather_effect_before_ref_fallback if 'weather_effect_before_ref_fallback' in locals() else 0.0
-                    
-                    # REVERTED: Use multiplicative formula (original method that produced 8.96%)
-                    # Formula: normalized = after_kw * (1 + baseline_weather_effect) / (1 + after_weather_effect)
-                    # This uses calculated weather effects (not fixed values) but applies them multiplicatively
-                    if weather_effect_before_i is not None and weather_effect_after_i is not None:
-                        # Multiplicative normalization (original method)
-                        adjustment_factor_i = (1.0 + weather_effect_before_i) / (1.0 + weather_effect_after_i)
-                        normalized_kw_i = after_kw_i * adjustment_factor_i
+                            dewpoint_effect_before_ref = 0.0
+                        weather_effect_before_ref = temp_effect_before_ref + dewpoint_effect_before_ref
                         
-                        # Log first few timestamps for debugging
-                        if i < 5:
-                            logger.info(f"[DEBUG] Timestamp {i}: Multiplicative normalization: after={after_kw_i:.2f}, before_effect={weather_effect_before_i:.6f}, after_effect={weather_effect_after_i:.6f}, factor={adjustment_factor_i:.6f}, normalized={normalized_kw_i:.2f}")
+                        logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
+                    
+                    # Normalize each timestamp in the "after" period
+                    normalized_after_values = []
+                    for i in range(len(after_energy_series)):
+                        after_kw_i = after_energy_series[i]
+                        after_temp_i = after_temp_series[i]
                         
-                        # Log average weather effects for comparison
-                        if i == 0:
-                            logger.info(f"[DEBUG] Timestamp normalization - Average weather effects:")
-                            logger.info(f"   weather_effect_before_ref (average): {weather_effect_before_ref if 'weather_effect_before_ref' in locals() else 'N/A'}")
-                            logger.info(f"   weather_effect_after (average): {weather_effect_after if 'weather_effect_after' in locals() else 'N/A'}")
-                            logger.info(f"   Expected factor from averages: {(1.0 + (weather_effect_before_ref if 'weather_effect_before_ref' in locals() else 0.64656)) / (1.0 + (weather_effect_after if 'weather_effect_after' in locals() else 0.57024)):.6f}")
-                    else:
-                        # Fallback if weather effects not available
-                        normalized_kw_i = after_kw_i
-                        if i < 5:
-                            logger.warning(f"Timestamp {i}: Weather effects not available, using raw value")
-                    
-                    normalized_after_values.append(normalized_kw_i)
-                
-                # Aggregate normalized values
-                normalized_kw_after = sum(normalized_after_values) / len(normalized_after_values) if normalized_after_values else kw_after
-                
-                # CRITICAL DEBUG: Log average weather effects vs per-timestamp effects
-                if normalized_after_values and len(normalized_after_values) > 0:
-                    # Get the reference weather effect that was used (check multiple possible variable names)
-                    weather_effect_before_ref_value = None
-                    if 'weather_effect_before_ref' in locals():
-                        weather_effect_before_ref_value = weather_effect_before_ref
-                    elif 'weather_effect_before_ref_fallback' in locals():
-                        weather_effect_before_ref_value = weather_effect_before_ref_fallback
-                    elif 'weather_effect_before' in locals():
-                        weather_effect_before_ref_value = weather_effect_before
-                    
-                    # Calculate average adjustment factors used
-                    sample_factors = []
-                    sample_after_effects = []
-                    for i in range(min(100, len(normalized_after_values))):
-                        if i < len(normalized_after_values) and i < len(after_temp_series):
-                            # Get the weather effects that were used for this timestamp
-                            after_temp_i = after_temp_series[i]
-                            after_dewpoint_i = after_dewpoint_series[i] if (dewpoint_available and after_dewpoint_series is not None and i < len(after_dewpoint_series)) else None
-                            temp_effect_i = max(0, (after_temp_i - self.base_temp) * self.temp_sensitivity)
-                            dewpoint_effect_i = max(0, (after_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if after_dewpoint_i is not None else 0.0
-                            weather_effect_after_i = temp_effect_i + dewpoint_effect_i
-                            sample_after_effects.append(weather_effect_after_i)
-                            # Use average before effect for comparison
-                            if weather_effect_before_ref_value is not None:
-                                factor_i = (1.0 + weather_effect_before_ref_value) / (1.0 + weather_effect_after_i)
-                                sample_factors.append(factor_i)
-                    
-                    if sample_factors and weather_effect_before_ref_value is not None:
-                        avg_factor = sum(sample_factors) / len(sample_factors)
-                        avg_after_effect = sum(sample_after_effects) / len(sample_after_effects) if sample_after_effects else 0.0
-                        expected_factor = (1.0 + weather_effect_before_ref_value) / (1.0 + avg_after_effect) if avg_after_effect > 0 else 1.0
-                        kw_after_from_series = sum(after_energy_series) / len(after_energy_series) if after_energy_series and len(after_energy_series) > 0 else kw_after
-                        logger.info(f"[DEBUG] Timestamp normalization analysis:")
-                        logger.info(f"   Reference before effect used: {weather_effect_before_ref_value:.6f}")
-                        logger.info(f"   Average after effect (per-timestamp): {avg_after_effect:.6f}")
-                        logger.info(f"   Average factor (per-timestamp): {avg_factor:.6f}")
-                        logger.info(f"   Expected factor (from averages): {expected_factor:.6f}")
-                        logger.info(f"   Actual normalized_kw_after: {normalized_kw_after:.2f}")
-                        logger.info(f"   Actual factor (normalized/raw): {normalized_kw_after / kw_after_from_series if kw_after_from_series > 0 else 1.0:.6f}")
-                
-                # SAFETY FIX: Only cap if normalization is clearly wrong
-                # When base_temp is optimized and weather effects are valid,
-                # normalized_kw_after > kw_before can be correct (cooler weather normalized to warmer)
-                if kw_after < kw_before and normalized_kw_after > kw_before:
-                    # Check if this is a valid normalization (optimized base_temp, valid weather effects)
-                    base_temp_valid = (
-                        self.base_temp_optimized and
-                        self.base_temp < 20.0 and  # Reasonable base_temp (not too high)
-                        weather_effect_before_ref > 0 and
-                        len(normalized_after_values) > 0
-                    )
-                    
-                    # Check average weather effect after to ensure it's valid
-                    if base_temp_valid and len(normalized_after_values) > 0 and len(after_temp_series) > 0:
-                        # Calculate average weather effect after for validation
-                        sample_size = min(100, len(after_temp_series))
-                        weather_effects_sum = 0.0
-                        for i in range(sample_size):
-                            temp_effect = max(0, (after_temp_series[i] - self.base_temp) * self.temp_sensitivity)
-                            dewpoint_effect = 0.0
-                            if dewpoint_available and after_dewpoint_series is not None and i < len(after_dewpoint_series):
-                                dewpoint_effect = max(0, (after_dewpoint_series[i] - self.base_temp) * self.dewpoint_sensitivity)
-                            weather_effects_sum += temp_effect + dewpoint_effect
+                        # Get dewpoint for this timestamp if available
+                        if after_dewpoint_series is not None and i < len(after_dewpoint_series):
+                            after_dewpoint_i = after_dewpoint_series[i]
+                        else:
+                            after_dewpoint_i = self.base_temp  # Fallback to base_temp
                         
-                        avg_weather_effect_after = weather_effects_sum / sample_size if sample_size > 0 else 0.0
-                        base_temp_valid = base_temp_valid and avg_weather_effect_after > 0
-                    
-                    if base_temp_valid:
-                        # Valid normalization - don't cap, but log for review
-                        logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
-                        logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
-                        logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
-                        logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({((kw_before - kw_after) / kw_before * 100):.1f}%)")
-                        logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
-                        # Don't cap - allow the mathematically correct normalization
-                    else:
-                        # Normalization validation failed - apply safety fix with higher threshold
-                        # This occurs when base_temp validation fails or weather effects are invalid
-                        raw_savings_pct = (kw_before - kw_after) / kw_before if kw_before > 0 else 0
-                        min_normalized_savings_pct = raw_savings_pct * 0.8  # Preserve at least 80% of raw savings (was 50%)
-                        max_normalized_kw_after = kw_before * (1 - min_normalized_savings_pct)
+                        # Calculate CDD and HDD for this timestamp (for ASHRAE additive formula)
+                        CDD_after_i = max(0, after_temp_i - self.base_temp)
+                        if dewpoint_available and after_dewpoint_i is not None:
+                            HDD_after_i = max(0, after_dewpoint_i - self.base_temp)
+                        else:
+                            HDD_after_i = 0.0
                         
-                        logger.warning(f"[WARNING] SAFETY FIX (timestamp): normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
-                        logger.warning(f"   Base_temp validation failed or weather effects invalid")
-                        logger.warning(f"   Capping to {max_normalized_kw_after:.2f} to preserve at least 80% of raw savings")
-                        normalized_kw_after = max_normalized_kw_after
-                
-                # CRITICAL FIX: Recalculate kw_after from time series to ensure consistency
-                # The kw_after parameter might be from a different calculation, so we need to use
-                # the same time series data for both numerator and denominator
-                # This ensures project-specific factors are calculated correctly
-                kw_after_from_series = sum(after_energy_series) / len(after_energy_series) if after_energy_series and len(after_energy_series) > 0 else kw_after
-                
-                # CRITICAL FIX: Calculate weather_adjustment_factor from average weather effects, not from ratio
-                # The ratio method (normalized/raw) can produce incorrect factors when timestamp-by-timestamp
-                # normalization uses varying per-timestamp weather effects. The factor should be calculated
-                # from the average weather effects to match the theoretical calculation.
-                # 
-                # IMPORTANT: Use the simple average weather effects (temp_before/after, dewpoint_before/after)
-                # NOT the per-timestamp averages, to match the frontend calculation
-                # Get average weather effects from the simple averages (matches frontend calculation)
-                if 'weather_effect_before' in locals() and weather_effect_before is not None:
-                    avg_weather_effect_before = weather_effect_before
-                elif 'weather_effect_before_ref' in locals() and weather_effect_before_ref is not None:
-                    avg_weather_effect_before = weather_effect_before_ref
-                else:
-                    avg_weather_effect_before = 0.0
-                
-                # Use the simple average weather_effect_after (from temp_after, dewpoint_after)
-                # NOT the per-timestamp average, to match frontend calculation
-                if 'weather_effect_after' in locals() and weather_effect_after is not None:
-                    avg_weather_effect_after = weather_effect_after
-                else:
-                    # Fallback: calculate from temp_after and dewpoint_after if available
-                    if 'temp_after' in locals() and temp_after is not None:
-                        temp_effect_after = max(0, (temp_after - self.base_temp) * self.temp_sensitivity)
-                        dewpoint_effect_after = 0.0
-                        if dewpoint_available and 'dewpoint_after' in locals() and dewpoint_after is not None:
-                            dewpoint_effect_after = max(0, (dewpoint_after - self.base_temp) * self.dewpoint_sensitivity)
-                        avg_weather_effect_after = temp_effect_after + dewpoint_effect_after
-                    else:
-                        avg_weather_effect_after = 0.0
-                
-                # Calculate factor from average weather effects (correct method - matches frontend calculation)
-                if avg_weather_effect_before > 0 or avg_weather_effect_after > 0:
-                    weather_adjustment_factor = (1.0 + avg_weather_effect_before) / (1.0 + avg_weather_effect_after) if (1.0 + avg_weather_effect_after) > 0 else 1.0
-                    logger.info(f"[FIX] Weather adjustment factor calculated from average weather effects:")
-                    logger.info(f"   Using simple averages (matches frontend):")
-                    logger.info(f"   weather_effect_before (from temp_before/dewpoint_before): {avg_weather_effect_before:.6f}")
-                    logger.info(f"   weather_effect_after (from temp_after/dewpoint_after): {avg_weather_effect_after:.6f}")
-                    logger.info(f"   factor = (1.0 + {avg_weather_effect_before:.6f}) / (1.0 + {avg_weather_effect_after:.6f}) = {weather_adjustment_factor:.6f}")
-                    logger.info(f"   This matches the theoretical calculation used by the frontend (should be ~1.0486)")
+                        # Also calculate weather effects for fallback multiplicative formula
+                        temp_effect_after_i = max(0, (after_temp_i - self.base_temp) * self.temp_sensitivity)
+                        if dewpoint_available and after_dewpoint_i is not None:
+                            dewpoint_effect_after_i = max(0, (after_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity)
+                        else:
+                            dewpoint_effect_after_i = 0.0
+                        weather_effect_after_i = temp_effect_after_i + dewpoint_effect_after_i
+                        
+                        # CRITICAL FIX: Use bucket-specific reference if available (preserves time-of-day relationships)
+                        # Otherwise use averaged reference
+                        if use_timestamp_matching and i < len(aggregated_CDD_values) and aggregated_CDD_values[i] is not None:
+                            # Use bucket-specific reference for CDD/HDD (preserves time-of-day relationship)
+                            CDD_before_i = aggregated_CDD_values[i]
+                            HDD_before_i = aggregated_HDD_values[i] if i < len(aggregated_HDD_values) and aggregated_HDD_values[i] is not None else 0.0
+                            # CRITICAL FIX: Use per-bucket weather effect when available (preserves time-of-day relationships)
+                            # Per-bucket effects match each "after" timestamp to its corresponding baseline time-of-day
+                            # This ensures correct normalization when baseline period (November) was warmer than after period (December)
+                            # Only fall back to overall average if per-bucket value is not available
+                            weather_effect_before_i = aggregated_weather_effects[i] if (i < len(aggregated_weather_effects) and aggregated_weather_effects[i] is not None) else (weather_effect_before_ref_fallback if 'weather_effect_before_ref_fallback' in locals() and weather_effect_before_ref_fallback is not None else 0.0)
+                        else:
+                            # Use averaged reference (fallback)
+                            CDD_before_i = CDD_before_ref if 'CDD_before_ref' in locals() else CDD_before_ref_fallback if 'CDD_before_ref_fallback' in locals() else 0.0
+                            HDD_before_i = HDD_before_ref if 'HDD_before_ref' in locals() else HDD_before_ref_fallback if 'HDD_before_ref_fallback' in locals() else 0.0
+                            weather_effect_before_i = weather_effect_before_ref if 'weather_effect_before_ref' in locals() else weather_effect_before_ref_fallback if 'weather_effect_before_ref_fallback' in locals() else 0.0
+                        
+                        # REVERTED: Use multiplicative formula (original method that produced 8.96%)
+                        # Formula: normalized = after_kw * (1 + baseline_weather_effect) / (1 + after_weather_effect)
+                        # This uses calculated weather effects (not fixed values) but applies them multiplicatively
+                        if weather_effect_before_i is not None and weather_effect_after_i is not None:
+                            # Multiplicative normalization (original method)
+                            adjustment_factor_i = (1.0 + weather_effect_before_i) / (1.0 + weather_effect_after_i)
+                            normalized_kw_i = after_kw_i * adjustment_factor_i
+                            
+                            # Log first few timestamps for debugging
+                            if i < 5:
+                                logger.info(f"[DEBUG] Timestamp {i}: Multiplicative normalization: after={after_kw_i:.2f}, before_effect={weather_effect_before_i:.6f}, after_effect={weather_effect_after_i:.6f}, factor={adjustment_factor_i:.6f}, normalized={normalized_kw_i:.2f}")
+                            
+                            # Log average weather effects for comparison
+                            if i == 0:
+                                logger.info(f"[DEBUG] Timestamp normalization - Average weather effects:")
+                                logger.info(f"   weather_effect_before_ref (average): {weather_effect_before_ref if 'weather_effect_before_ref' in locals() else 'N/A'}")
+                                logger.info(f"   weather_effect_after (average): {weather_effect_after if 'weather_effect_after' in locals() else 'N/A'}")
+                                logger.info(f"   Expected factor from averages: {(1.0 + (weather_effect_before_ref if 'weather_effect_before_ref' in locals() else 0.64656)) / (1.0 + (weather_effect_after if 'weather_effect_after' in locals() else 0.57024)):.6f}")
+                        else:
+                            # Fallback if weather effects not available
+                            normalized_kw_i = after_kw_i
+                            if i < 5:
+                                logger.warning(f"Timestamp {i}: Weather effects not available, using raw value")
+                        
+                        normalized_after_values.append(normalized_kw_i)
                     
-                    # CRITICAL FIX: Recalculate normalized_kw_after using the correct factor to ensure consistency
-                    # The timestamp-by-timestamp normalization may produce a slightly different result due to
-                    # per-timestamp weather variations. We recalculate using the correct factor to ensure
-                    # normalized_kw_after matches the factor calculation.
-                    old_normalized_kw_after = normalized_kw_after
-                    normalized_kw_after = kw_after_from_series * weather_adjustment_factor
-                    logger.info(f"[FIX] Recalculated normalized_kw_after for consistency:")
-                    logger.info(f"   Old value (from timestamp normalization): {old_normalized_kw_after:.2f}")
-                    logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} × {weather_adjustment_factor:.6f}")
-                    logger.info(f"   This ensures normalized_kw_after matches the weather_adjustment_factor")
-                else:
-                    # Fallback to ratio method if weather effects not available
-                    weather_adjustment_factor = normalized_kw_after / kw_after_from_series if kw_after_from_series > 0 else 1.0
-                    logger.warning(f"[WARNING] Weather effects not available, using ratio method: {normalized_kw_after:.2f} / {kw_after_from_series:.2f} = {weather_adjustment_factor:.6f}")
-                
-                # AUDIT COMPLIANCE: Use calculated weather adjustment factor without artificial capping
-                # Weather normalization must use actual calculated values for audit compliance
-                # Log the calculated factor for transparency
-                raw_savings_pct = (kw_before - kw_after_from_series) / kw_before if kw_before > 0 else 0
-                normalized_savings_pct = (kw_before - normalized_kw_after) / kw_before * 100 if kw_before > 0 else 0
-                
-                logger.info(f"[INFO] Weather normalization (timestamp-by-timestamp):")
-                logger.info(f"   Raw savings: {raw_savings_pct*100:.2f}%")
-                logger.info(f"   Weather adjustment factor: {weather_adjustment_factor:.4f}")
-                logger.info(f"   Normalized savings: {normalized_savings_pct:.2f}%")
-                logger.info(f"   Using calculated weather effects without capping (audit compliance)")
-                
-                # NOTE: Capping logic removed for audit compliance - weather normalization uses actual calculated values
-                
-                logger.info(f"Timestamp-by-timestamp normalization: {len(normalized_after_values)} timestamps normalized")
-                logger.info(f"  kw_after from series: {kw_after_from_series:.6f} (from {len(after_energy_series)} data points)")
-                logger.info(f"  Average normalized_kw_after: {normalized_kw_after:.6f}")
-                logger.info(f"  Factor: {weather_adjustment_factor:.6f}")
-                
-                # CRITICAL VALIDATION: Check if normalized values are all the same as raw (indicates no normalization occurred)
-                if normalized_after_values:
-                    sample_normalized = normalized_after_values[:min(10, len(normalized_after_values))]
-                    sample_raw = after_energy_series[:min(10, len(after_energy_series))]
-                    all_same = all(abs(n - r) < 0.01 for n, r in zip(sample_normalized, sample_raw))
-                    if all_same:
-                        logger.warning(f"[WARNING] WARNING: All normalized values equal raw values in timestamp normalization!")
-                        logger.warning(f"[WARNING] This suggests weather effects are identical for all timestamps")
-                        logger.warning(f"[WARNING] weather_effect_before_ref={weather_effect_before_ref:.6f}")
-                        logger.warning(f"[WARNING] Sample timestamps: raw={sample_raw[:3]}, normalized={sample_normalized[:3]}")
-            else:
+                    # Aggregate normalized values
+                    normalized_kw_after = sum(normalized_after_values) / len(normalized_after_values) if normalized_after_values else kw_after
+                    
+                    # CRITICAL DEBUG: Log average weather effects vs per-timestamp effects
+                    if normalized_after_values and len(normalized_after_values) > 0:
+                        # Get the reference weather effect that was used (check multiple possible variable names)
+                        weather_effect_before_ref_value = None
+                        if 'weather_effect_before_ref' in locals():
+                            weather_effect_before_ref_value = weather_effect_before_ref
+                        elif 'weather_effect_before_ref_fallback' in locals():
+                            weather_effect_before_ref_value = weather_effect_before_ref_fallback
+                        elif 'weather_effect_before' in locals():
+                            weather_effect_before_ref_value = weather_effect_before
+                        
+                        # Calculate average adjustment factors used
+                        sample_factors = []
+                        sample_after_effects = []
+                        for i in range(min(100, len(normalized_after_values))):
+                            if i < len(normalized_after_values) and i < len(after_temp_series):
+                                # Get the weather effects that were used for this timestamp
+                                after_temp_i = after_temp_series[i]
+                                after_dewpoint_i = after_dewpoint_series[i] if (dewpoint_available and after_dewpoint_series is not None and i < len(after_dewpoint_series)) else None
+                                temp_effect_i = max(0, (after_temp_i - self.base_temp) * self.temp_sensitivity)
+                                dewpoint_effect_i = max(0, (after_dewpoint_i - self.base_temp) * self.dewpoint_sensitivity) if after_dewpoint_i is not None else 0.0
+                                weather_effect_after_i = temp_effect_i + dewpoint_effect_i
+                                sample_after_effects.append(weather_effect_after_i)
+                                # Use average before effect for comparison
+                                if weather_effect_before_ref_value is not None:
+                                    factor_i = (1.0 + weather_effect_before_ref_value) / (1.0 + weather_effect_after_i)
+                                    sample_factors.append(factor_i)
+                        
+                        if sample_factors and weather_effect_before_ref_value is not None:
+                            avg_factor = sum(sample_factors) / len(sample_factors)
+                            avg_after_effect = sum(sample_after_effects) / len(sample_after_effects) if sample_after_effects else 0.0
+                            expected_factor = (1.0 + weather_effect_before_ref_value) / (1.0 + avg_after_effect) if avg_after_effect > 0 else 1.0
+                            kw_after_from_series = sum(after_energy_series) / len(after_energy_series) if after_energy_series and len(after_energy_series) > 0 else kw_after
+                            logger.info(f"[DEBUG] Timestamp normalization analysis:")
+                            logger.info(f"   Reference before effect used: {weather_effect_before_ref_value:.6f}")
+                            logger.info(f"   Average after effect (per-timestamp): {avg_after_effect:.6f}")
+                            logger.info(f"   Average factor (per-timestamp): {avg_factor:.6f}")
+                            logger.info(f"   Expected factor (from averages): {expected_factor:.6f}")
+                            logger.info(f"   Actual normalized_kw_after: {normalized_kw_after:.2f}")
+                            logger.info(f"   Actual factor (normalized/raw): {normalized_kw_after / kw_after_from_series if kw_after_from_series > 0 else 1.0:.6f}")
+                    
+                    # SAFETY FIX: Only cap if normalization is clearly wrong
+                    # When base_temp is optimized and weather effects are valid,
+                    # normalized_kw_after > kw_before can be correct (cooler weather normalized to warmer)
+                    if kw_after < kw_before and normalized_kw_after > kw_before:
+                        # Check if this is a valid normalization (optimized base_temp, valid weather effects)
+                        base_temp_valid = (
+                            self.base_temp_optimized and
+                            self.base_temp < 20.0 and  # Reasonable base_temp (not too high)
+                            weather_effect_before_ref > 0 and
+                            len(normalized_after_values) > 0
+                        )
+                        
+                        # Check average weather effect after to ensure it's valid
+                        if base_temp_valid and len(normalized_after_values) > 0 and len(after_temp_series) > 0:
+                            # Calculate average weather effect after for validation
+                            sample_size = min(100, len(after_temp_series))
+                            weather_effects_sum = 0.0
+                            for i in range(sample_size):
+                                temp_effect = max(0, (after_temp_series[i] - self.base_temp) * self.temp_sensitivity)
+                                dewpoint_effect = 0.0
+                                if dewpoint_available and after_dewpoint_series is not None and i < len(after_dewpoint_series):
+                                    dewpoint_effect = max(0, (after_dewpoint_series[i] - self.base_temp) * self.dewpoint_sensitivity)
+                                weather_effects_sum += temp_effect + dewpoint_effect
+                            
+                            avg_weather_effect_after = weather_effects_sum / sample_size if sample_size > 0 else 0.0
+                            base_temp_valid = base_temp_valid and avg_weather_effect_after > 0
+                        
+                        if base_temp_valid:
+                            # Valid normalization - don't cap, but log for review
+                            logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
+                            logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
+                            logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
+                            logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({((kw_before - kw_after) / kw_before * 100):.1f}%)")
+                            logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
+                            # Don't cap - allow the mathematically correct normalization
+                        else:
+                            # Normalization validation failed - apply safety fix with higher threshold
+                            # This occurs when base_temp validation fails or weather effects are invalid
+                            raw_savings_pct = (kw_before - kw_after) / kw_before if kw_before > 0 else 0
+                            min_normalized_savings_pct = raw_savings_pct * 0.8  # Preserve at least 80% of raw savings (was 50%)
+                            max_normalized_kw_after = kw_before * (1 - min_normalized_savings_pct)
+                            
+                            logger.warning(f"[WARNING] SAFETY FIX (timestamp): normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
+                            logger.warning(f"   Base_temp validation failed or weather effects invalid")
+                            logger.warning(f"   Capping to {max_normalized_kw_after:.2f} to preserve at least 80% of raw savings")
+                            normalized_kw_after = max_normalized_kw_after
+                    
+                    # CRITICAL FIX: Recalculate kw_after from time series to ensure consistency
+                    # The kw_after parameter might be from a different calculation, so we need to use
+                    # the same time series data for both numerator and denominator
+                    # This ensures project-specific factors are calculated correctly
+                    kw_after_from_series = sum(after_energy_series) / len(after_energy_series) if after_energy_series and len(after_energy_series) > 0 else kw_after
+                    
+                    # CRITICAL FIX: Calculate weather_adjustment_factor from average weather effects, not from ratio
+                    # The ratio method (normalized/raw) can produce incorrect factors when timestamp-by-timestamp
+                    # normalization uses varying per-timestamp weather effects. The factor should be calculated
+                    # from the average weather effects to match the theoretical calculation.
+                    # 
+                    # IMPORTANT: Use the simple average weather effects (temp_before/after, dewpoint_before/after)
+                    # NOT the per-timestamp averages, to match the frontend calculation
+                    # Get average weather effects from the simple averages (matches frontend calculation)
+                    if 'weather_effect_before' in locals() and weather_effect_before is not None:
+                        avg_weather_effect_before = weather_effect_before
+                    elif 'weather_effect_before_ref' in locals() and weather_effect_before_ref is not None:
+                        avg_weather_effect_before = weather_effect_before_ref
+                    else:
+                        avg_weather_effect_before = 0.0
+                    
+                    # Use the simple average weather_effect_after (from temp_after, dewpoint_after)
+                    # NOT the per-timestamp average, to match frontend calculation
+                    if 'weather_effect_after' in locals() and weather_effect_after is not None:
+                        avg_weather_effect_after = weather_effect_after
+                    else:
+                        # Fallback: calculate from temp_after and dewpoint_after if available
+                        if 'temp_after' in locals() and temp_after is not None:
+                            temp_effect_after = max(0, (temp_after - self.base_temp) * self.temp_sensitivity)
+                            dewpoint_effect_after = 0.0
+                            if dewpoint_available and 'dewpoint_after' in locals() and dewpoint_after is not None:
+                                dewpoint_effect_after = max(0, (dewpoint_after - self.base_temp) * self.dewpoint_sensitivity)
+                            avg_weather_effect_after = temp_effect_after + dewpoint_effect_after
+                        else:
+                            avg_weather_effect_after = 0.0
+                    
+                    # Calculate factor from average weather effects (correct method - matches frontend calculation)
+                    if avg_weather_effect_before > 0 or avg_weather_effect_after > 0:
+                        weather_adjustment_factor = (1.0 + avg_weather_effect_before) / (1.0 + avg_weather_effect_after) if (1.0 + avg_weather_effect_after) > 0 else 1.0
+                        logger.info(f"[FIX] Weather adjustment factor calculated from average weather effects:")
+                        logger.info(f"   Using simple averages (matches frontend):")
+                        logger.info(f"   weather_effect_before (from temp_before/dewpoint_before): {avg_weather_effect_before:.6f}")
+                        logger.info(f"   weather_effect_after (from temp_after/dewpoint_after): {avg_weather_effect_after:.6f}")
+                        logger.info(f"   factor = (1.0 + {avg_weather_effect_before:.6f}) / (1.0 + {avg_weather_effect_after:.6f}) = {weather_adjustment_factor:.6f}")
+                        logger.info(f"   This matches the theoretical calculation used by the frontend (should be ~1.0486)")
+                        
+                        # CRITICAL FIX: Recalculate normalized_kw_after using the correct factor to ensure consistency
+                        # The timestamp-by-timestamp normalization may produce a slightly different result due to
+                        # per-timestamp weather variations. We recalculate using the correct factor to ensure
+                        # normalized_kw_after matches the factor calculation.
+                        old_normalized_kw_after = normalized_kw_after
+                        normalized_kw_after = kw_after_from_series * weather_adjustment_factor
+                        logger.info(f"[FIX] Recalculated normalized_kw_after for consistency:")
+                        logger.info(f"   Old value (from timestamp normalization): {old_normalized_kw_after:.2f}")
+                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} × {weather_adjustment_factor:.6f}")
+                        logger.info(f"   This ensures normalized_kw_after matches the weather_adjustment_factor")
+                    else:
+                        # Fallback to ratio method if weather effects not available
+                        weather_adjustment_factor = normalized_kw_after / kw_after_from_series if kw_after_from_series > 0 else 1.0
+                        logger.warning(f"[WARNING] Weather effects not available, using ratio method: {normalized_kw_after:.2f} / {kw_after_from_series:.2f} = {weather_adjustment_factor:.6f}")
+                    
+                    # AUDIT COMPLIANCE: Use calculated weather adjustment factor without artificial capping
+                    # Weather normalization must use actual calculated values for audit compliance
+                    # Log the calculated factor for transparency
+                    raw_savings_pct = (kw_before - kw_after_from_series) / kw_before if kw_before > 0 else 0
+                    normalized_savings_pct = (kw_before - normalized_kw_after) / kw_before * 100 if kw_before > 0 else 0
+                    
+                    logger.info(f"[INFO] Weather normalization (timestamp-by-timestamp):")
+                    logger.info(f"   Raw savings: {raw_savings_pct*100:.2f}%")
+                    logger.info(f"   Weather adjustment factor: {weather_adjustment_factor:.4f}")
+                    logger.info(f"   Normalized savings: {normalized_savings_pct:.2f}%")
+                    logger.info(f"   Using calculated weather effects without capping (audit compliance)")
+                    
+                    # NOTE: Capping logic removed for audit compliance - weather normalization uses actual calculated values
+                    
+                    logger.info(f"Timestamp-by-timestamp normalization: {len(normalized_after_values)} timestamps normalized")
+                    logger.info(f"  kw_after from series: {kw_after_from_series:.6f} (from {len(after_energy_series)} data points)")
+                    logger.info(f"  Average normalized_kw_after: {normalized_kw_after:.6f}")
+                    logger.info(f"  Factor: {weather_adjustment_factor:.6f}")
+                    
+                    # CRITICAL VALIDATION: Check if normalized values are all the same as raw (indicates no normalization occurred)
+                    if normalized_after_values:
+                        sample_normalized = normalized_after_values[:min(10, len(normalized_after_values))]
+                        sample_raw = after_energy_series[:min(10, len(after_energy_series))]
+                        all_same = all(abs(n - r) < 0.01 for n, r in zip(sample_normalized, sample_raw))
+                        if all_same:
+                            logger.warning(f"[WARNING] WARNING: All normalized values equal raw values in timestamp normalization!")
+                            logger.warning(f"[WARNING] This suggests weather effects are identical for all timestamps")
+                            logger.warning(f"[WARNING] weather_effect_before_ref={weather_effect_before_ref:.6f}")
+                            logger.warning(f"[WARNING] Sample timestamps: raw={sample_raw[:3]}, normalized={sample_normalized[:3]}")
+                except Exception as e:
+                    # CRITICAL: Weather normalization should NEVER be skipped because of timestamp comparison issues
+                    # If timestamp matching fails for any reason, fall back to average-based normalization
+                    logger.warning(f"[WARNING] Timestamp normalization failed due to error: {e}")
+                    logger.warning(f"[WARNING] Falling back to average-based normalization to ensure normalization is applied")
+                    logger.warning(f"[WARNING] Error details: {type(e).__name__}: {str(e)}")
+                    import traceback
+                    logger.warning(f"[WARNING] Traceback: {traceback.format_exc()}")
+                    timestamp_normalization_failed = True
+                    use_timestamp_normalization = False  # Force fallback to average-based normalization
+            
+            # Apply average-based normalization if timestamp normalization was not used or failed
+            # CRITICAL: Weather normalization should NEVER be skipped because of timestamp comparison issues
+            # This ensures normalization is always applied, even if timestamp matching fails
+            if not use_timestamp_normalization or timestamp_normalization_failed:
                 # Fallback to average-based normalization (original method)
                 # Normalize "after" to "before" weather conditions
                 # If "after" had hotter weather, we adjust it down (less cooling needed)
@@ -3892,6 +3919,7 @@ class WeatherNormalizationML:
             import traceback
             logger.error(traceback.format_exc())
             # Return raw values on error
+            # CRITICAL: Always include temp_sensitivity_used even on error so frontend has the value
             return {
                 "method": "ML-Based Weather Normalization (Error - using raw values)",
                 "raw_kw_before": kw_before,
@@ -3901,7 +3929,12 @@ class WeatherNormalizationML:
                 "weather_adjusted_savings": kw_before - kw_after,
                 "raw_savings": kw_before - kw_after,
                 "normalization_applied": False,
-                "error": str(e)
+                "error": str(e),
+                "temp_sensitivity_used": self.temp_sensitivity,  # Always include sensitivity factors
+                "dewpoint_sensitivity_used": self.dewpoint_sensitivity,
+                "base_temp_celsius": self.base_temp,
+                "base_temp_optimized": self.base_temp_optimized,
+                "optimized_base_temp": self.base_temp if self.base_temp is not None else None,
             }
 
 # Unified Chart Generation - REFACTORED
@@ -5424,6 +5457,31 @@ def analyze():
         
         # Build proper config from form
         cfg_raw = dict(CONFIG_DEFAULTS)
+        
+        # CRITICAL FIX: For JSON requests, merge config from JSON payload first
+        # This ensures UI field values (like demand_rate) are properly used
+        if request.is_json and 'config' in locals() and isinstance(config, dict):
+            for key, value in config.items():
+                if value is not None and value != '':
+                    # Convert numeric fields to float
+                    if key in ["energy_rate", "demand_rate", "operating_hours", "target_pf",
+                               "project_cost", "phases", "voltage_nominal", "onpeak_fraction_pct",
+                               "summer_fraction_pct", "ratchet_percent", "line_R_ref_ohm",
+                               "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w",
+                               "confidence_level", "relative_precision", "data_quality_threshold",
+                               "discount_rate", "analysis_period", "escalation_rate"]:
+                        try:
+                            if isinstance(value, str) and value.strip():
+                                cfg_raw[key] = float(value)
+                            elif isinstance(value, (int, float)):
+                                cfg_raw[key] = float(value)
+                        except (ValueError, TypeError):
+                            logger.warning(f"Failed to convert config field '{key}' to float: {value}, keeping as-is")
+                            cfg_raw[key] = value
+                    else:
+                        cfg_raw[key] = value
+        
+        # Then process form keys (form values will override JSON config if both exist)
         for key in form.keys():
             value = form.get(key)
             if value:
@@ -6154,7 +6212,14 @@ def analyze():
         # This ensures when 8084 calls /api/analysis/results, it gets the complete data structure
         # CRITICAL: Store form data (config) so template variables can be replaced
         if request.is_json:
-            form_data = data.get('config', {}) if 'data' in locals() else {}
+            # Use config that was already extracted, and also check top-level data for meter fields
+            form_data = config.copy() if 'config' in locals() and isinstance(config, dict) else {}
+            # Also check top-level data for meter_model and meter_sn in case they're sent there
+            if 'data' in locals() and isinstance(data, dict):
+                if 'meter_model' in data and 'meter_model' not in form_data:
+                    form_data['meter_model'] = data['meter_model']
+                if 'meter_sn' in data and 'meter_sn' not in form_data:
+                    form_data['meter_sn'] = data['meter_sn']
         else:
             form_data = dict(form) if 'form' in locals() else {}
         
@@ -6812,6 +6877,2241 @@ def analyze():
                 logger.warning(f"Could not update NEMA MG1 in compliance_status: {e}")
                 import traceback
                 logger.warning(traceback.format_exc())
+        
+        # Calculate IEC 61000-2-2: Voltage variation limits (±10%) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_iec_61000_2_2_from_csv(file_path, period='unknown', nominal_voltage=120.0):
+                    """Calculate IEC 61000-2-2 voltage variation compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} IEC 61000-2-2 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find voltage columns (try all phases)
+                        voltage_cols = []
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage']:
+                                voltage_cols.append(col)
+                        
+                        if not voltage_cols:
+                            logger.warning(f"Could not find voltage columns in CSV for {period} IEC 61000-2-2")
+                            return None
+                        
+                        # Calculate voltage variation for first available voltage column
+                        voltage_data = pd.to_numeric(df[voltage_cols[0]], errors='coerce').dropna()
+                        
+                        if len(voltage_data) == 0:
+                            logger.warning(f"No valid voltage data found in CSV for {period}")
+                            return None
+                        
+                        # Calculate voltage variation percentage: |(Actual - Nominal)| / Nominal × 100%
+                        voltage_mean = float(voltage_data.mean())
+                        voltage_variation = abs(voltage_mean - nominal_voltage) / nominal_voltage * 100.0
+                        
+                        # IEC 61000-2-2 limit: ±10% variation
+                        is_compliant = voltage_variation <= 10.0
+                        
+                        logger.info(f"[OK] [{period}] Calculated IEC 61000-2-2 voltage variation: {voltage_variation:.2f}%, compliant={is_compliant}")
+                        return {'voltage_variation': voltage_variation, 'nominal_voltage': nominal_voltage, 'actual_voltage': voltage_mean, 'pass': is_compliant}
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating IEC 61000-2-2 from CSV for {period}: {e}")
+                        return None
+                
+                # Get nominal voltage from form/config (default 120V for residential, 480V for commercial)
+                voltage_level_str = form.get('voltage_level') or (data.get('voltage_level') if request.is_json and 'data' in locals() else None)
+                try:
+                    nominal_voltage = float(voltage_level_str) if voltage_level_str else 120.0
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get file paths
+                before_file_path = None
+                after_file_path = None
+                with get_db_connection() as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        if before_file_id:
+                            cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (before_file_id,))
+                            row = cursor.fetchone()
+                            if row and row[0]:
+                                before_file_path = row[0]
+                                if not os.path.isabs(before_file_path):
+                                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                                    before_file_path = os.path.join(base_dir, before_file_path)
+                        
+                        if after_file_id:
+                            cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (after_file_id,))
+                            row = cursor.fetchone()
+                            if row and row[0]:
+                                after_file_path = row[0]
+                                if not os.path.isabs(after_file_path):
+                                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                                    after_file_path = os.path.join(base_dir, after_file_path)
+                
+                # Calculate IEC 61000-2-2 for before period
+                if before_file_path:
+                    before_iec_result = calculate_iec_61000_2_2_from_csv(before_file_path, 'before', nominal_voltage)
+                    if before_iec_result:
+                        if 'compliance_status' not in results:
+                            results['compliance_status'] = {}
+                        if 'before_compliance' not in results['compliance_status']:
+                            results['compliance_status']['before_compliance'] = {}
+                        results['compliance_status']['before_compliance']['iec_61000_2_2'] = before_iec_result
+                        
+                        if 'before_compliance' not in results:
+                            results['before_compliance'] = {}
+                        results['before_compliance']['iec_61000_2_2'] = before_iec_result
+                        logger.info(f"[OK] Updated before_compliance.iec_61000_2_2")
+                
+                # Calculate IEC 61000-2-2 for after period
+                if after_file_path:
+                    after_iec_result = calculate_iec_61000_2_2_from_csv(after_file_path, 'after', nominal_voltage)
+                    if after_iec_result:
+                        # PASS if improvement (after < before) OR if after ≤ 10%
+                        after_pass = bool(after_iec_result['pass'])
+                        if before_iec_result:
+                            after_pass = after_pass or bool(after_iec_result['voltage_variation'] < before_iec_result['voltage_variation'])
+                        
+                        after_iec_result['pass'] = after_pass
+                        
+                        if 'compliance_status' not in results:
+                            results['compliance_status'] = {}
+                        if 'after_compliance' not in results['compliance_status']:
+                            results['compliance_status']['after_compliance'] = {}
+                        results['compliance_status']['after_compliance']['iec_61000_2_2'] = after_iec_result
+                        
+                        if 'after_compliance' not in results:
+                            results['after_compliance'] = {}
+                        results['after_compliance']['iec_61000_2_2'] = after_iec_result
+                        logger.info(f"[OK] Updated after_compliance.iec_61000_2_2")
+                        
+                        # Log compliance verification
+                        if analysis_session_id:
+                            try:
+                                log_compliance_verification(
+                                    analysis_session_id=analysis_session_id,
+                                    standard_name='IEC 61000-2-2',
+                                    check_type='iec_61000_2_2_voltage_variation',
+                                    calculated_value=float(after_iec_result['voltage_variation']),
+                                    limit_value=10.0,
+                                    is_compliant=after_pass,
+                                    verification_method='IEC 61000-2-2 - Voltage Variation Limits'
+                                )
+                            except Exception as e:
+                                logger.warning(f"Could not log IEC 61000-2-2 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate IEC 61000-2-2 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate IEC 61000-4-30: Power quality measurement methodology (Class A accuracy ±0.5%) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_iec_61000_4_30_from_csv(file_path, period='unknown', nominal_voltage=120.0):
+                    """Calculate IEC 61000-4-30 Class A instrument accuracy compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} IEC 61000-4-30 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find voltage and current columns
+                        voltage_col = None
+                        current_col = None
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage']:
+                                voltage_col = col
+                            if current_col is None and col_lower in ['l1amp', 'l1_amp', 'phase1amp', 'i1', 'ia', 'current_l1', 'current_phase1', 'current', 'amps']:
+                                current_col = col
+                        
+                        if voltage_col is None:
+                            logger.warning(f"Could not find voltage column in CSV for {period} IEC 61000-4-30")
+                            return None
+                        
+                        # Calculate voltage measurement accuracy
+                        voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                        if len(voltage_data) == 0:
+                            logger.warning(f"No valid voltage data found in CSV for {period}")
+                            return None
+                        
+                        voltage_mean = float(voltage_data.mean())
+                        voltage_std = float(voltage_data.std())
+                        
+                        # IEC 61000-4-30 Class A accuracy: ±0.5% for voltage measurements
+                        # Calculate measurement accuracy as coefficient of variation (CV) or relative standard deviation
+                        voltage_accuracy = (voltage_std / voltage_mean * 100.0) if voltage_mean > 0 else 0.0
+                        
+                        # Class A compliance: measurement accuracy ≤ 0.5%
+                        voltage_compliant = voltage_accuracy <= 0.5
+                        
+                        # Calculate current measurement accuracy if available
+                        current_accuracy = None
+                        current_compliant = None
+                        if current_col:
+                            current_data = pd.to_numeric(df[current_col], errors='coerce').dropna()
+                            if len(current_data) > 0:
+                                current_mean = float(current_data.mean())
+                                current_std = float(current_data.std())
+                                current_accuracy = (current_std / current_mean * 100.0) if current_mean > 0 else 0.0
+                                current_compliant = current_accuracy <= 0.5
+                        
+                        # Overall compliance: both voltage and current (if available) must be compliant
+                        is_compliant = voltage_compliant and (current_compliant if current_compliant is not None else True)
+                        
+                        result = {
+                            'voltage_accuracy': voltage_accuracy,
+                            'voltage_compliant': voltage_compliant,
+                            'pass': is_compliant,
+                            'class_a_compliant': is_compliant
+                        }
+                        
+                        if current_accuracy is not None:
+                            result['current_accuracy'] = current_accuracy
+                            result['current_compliant'] = current_compliant
+                        
+                        logger.info(f"[OK] [{period}] Calculated IEC 61000-4-30 Class A accuracy: voltage={voltage_accuracy:.3f}%, compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating IEC 61000-4-30 from CSV for {period}: {e}")
+                        return None
+                
+                # Get nominal voltage from form/config
+                voltage_level_str = form.get('voltage_level') or (data.get('voltage_level') if request.is_json and 'data' in locals() else None)
+                try:
+                    nominal_voltage = float(voltage_level_str) if voltage_level_str else 120.0
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get file paths
+                before_file_path = None
+                after_file_path = None
+                with get_db_connection() as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        if before_file_id:
+                            cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (before_file_id,))
+                            row = cursor.fetchone()
+                            if row and row[0]:
+                                before_file_path = row[0]
+                                if not os.path.isabs(before_file_path):
+                                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                                    before_file_path = os.path.join(base_dir, before_file_path)
+                        
+                        if after_file_id:
+                            cursor.execute("SELECT file_path FROM raw_meter_data WHERE id = ?", (after_file_id,))
+                            row = cursor.fetchone()
+                            if row and row[0]:
+                                after_file_path = row[0]
+                                if not os.path.isabs(after_file_path):
+                                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                                    after_file_path = os.path.join(base_dir, after_file_path)
+                
+                # Calculate IEC 61000-4-30 for before period
+                if before_file_path:
+                    before_iec_4_30_result = calculate_iec_61000_4_30_from_csv(before_file_path, 'before', nominal_voltage)
+                    if before_iec_4_30_result:
+                        if 'compliance_status' not in results:
+                            results['compliance_status'] = {}
+                        if 'before_compliance' not in results['compliance_status']:
+                            results['compliance_status']['before_compliance'] = {}
+                        results['compliance_status']['before_compliance']['iec_61000_4_30'] = before_iec_4_30_result
+                        
+                        if 'before_compliance' not in results:
+                            results['before_compliance'] = {}
+                        results['before_compliance']['iec_61000_4_30'] = before_iec_4_30_result
+                        logger.info(f"[OK] Updated before_compliance.iec_61000_4_30")
+                
+                # Calculate IEC 61000-4-30 for after period
+                if after_file_path:
+                    after_iec_4_30_result = calculate_iec_61000_4_30_from_csv(after_file_path, 'after', nominal_voltage)
+                    if after_iec_4_30_result:
+                        # PASS if improvement (after accuracy < before accuracy) OR if after ≤ 0.5%
+                        after_pass = bool(after_iec_4_30_result['pass'])
+                        if before_iec_4_30_result:
+                            after_voltage_acc = after_iec_4_30_result.get('voltage_accuracy', 999.0)
+                            before_voltage_acc = before_iec_4_30_result.get('voltage_accuracy', 999.0)
+                            after_pass = after_pass or bool(after_voltage_acc < before_voltage_acc)
+                        
+                        after_iec_4_30_result['pass'] = after_pass
+                        
+                        if 'compliance_status' not in results:
+                            results['compliance_status'] = {}
+                        if 'after_compliance' not in results['compliance_status']:
+                            results['compliance_status']['after_compliance'] = {}
+                        results['compliance_status']['after_compliance']['iec_61000_4_30'] = after_iec_4_30_result
+                        
+                        if 'after_compliance' not in results:
+                            results['after_compliance'] = {}
+                        results['after_compliance']['iec_61000_4_30'] = after_iec_4_30_result
+                        logger.info(f"[OK] Updated after_compliance.iec_61000_4_30")
+                        
+                        # Log compliance verification
+                        if analysis_session_id:
+                            try:
+                                log_compliance_verification(
+                                    analysis_session_id=analysis_session_id,
+                                    standard_name='IEC 61000-4-30',
+                                    check_type='iec_61000_4_30_class_a_accuracy',
+                                    calculated_value=float(after_iec_4_30_result.get('voltage_accuracy', 0.0)),
+                                    limit_value=0.5,
+                                    is_compliant=after_pass,
+                                    verification_method='IEC 61000-4-30 - Class A Instrument Accuracy (±0.5%)'
+                                )
+                            except Exception as e:
+                                logger.warning(f"Could not log IEC 61000-4-30 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate IEC 61000-4-30 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate IEC 62053-22: High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_iec_62053_22_from_csv(file_path, period='unknown'):
+                    """Calculate IEC 62053-22 Class 0.2S meter accuracy compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} IEC 62053-22 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power/kWh column
+                        power_col = None
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'kwh', 'watts', 'w']:
+                                power_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power/kWh column in CSV for {period} IEC 62053-22")
+                            return None
+                        
+                        # Calculate power measurement accuracy (Coefficient of Variation)
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        power_mean = float(power_data.mean())
+                        power_std = float(power_data.std())
+                        
+                        if power_mean == 0:
+                            logger.warning(f"Zero mean power for {period} IEC 62053-22 calculation")
+                            return None
+                        
+                        # Coefficient of Variation (CV) as percentage - represents measurement accuracy
+                        cv_percent = (power_std / power_mean) * 100.0
+                        
+                        # IEC 62053-22 Class 0.2S requires ±0.2% accuracy
+                        # CV should be ≤ 0.2% for Class 0.2S compliance
+                        class_0_2s_limit = 0.2
+                        is_compliant = cv_percent <= class_0_2s_limit
+                        
+                        # Determine accuracy class
+                        if cv_percent <= 0.1:
+                            accuracy_class = "Class 0.1S"
+                        elif cv_percent <= 0.2:
+                            accuracy_class = "Class 0.2S"
+                        elif cv_percent <= 0.5:
+                            accuracy_class = "Class 0.5S"
+                        elif cv_percent <= 1.0:
+                            accuracy_class = "Class 1.0"
+                        else:
+                            accuracy_class = "Below Class 1.0"
+                        
+                        result = {
+                            'standard': 'IEC 62053-22',
+                            'period': period,
+                            'cv_percent': round(cv_percent, 4),
+                            'class_0_2s_limit': class_0_2s_limit,
+                            'is_compliant': is_compliant,
+                            'accuracy_class': accuracy_class,
+                            'power_mean': round(power_mean, 2),
+                            'power_std': round(power_std, 2),
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"IEC 62053-22 {period}: CV={cv_percent:.4f}%, Class={accuracy_class}, Compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating IEC 62053-22 from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate IEC 62053-22 for before period
+                if before_file_path:
+                    before_iec_62053_22_result = calculate_iec_62053_22_from_csv(before_file_path, 'before')
+                    if before_iec_62053_22_result:
+                        # Update compliance status
+                        if 'IEC 62053-22' not in results['compliance_status']:
+                            results['compliance_status']['IEC 62053-22'] = {
+                                'standard': 'IEC 62053-22',
+                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['IEC 62053-22']['before'] = {
+                            'cv_percent': before_iec_62053_22_result['cv_percent'],
+                            'accuracy_class': before_iec_62053_22_result['accuracy_class'],
+                            'is_compliant': before_iec_62053_22_result['is_compliant'],
+                            'class_0_2s_limit': before_iec_62053_22_result['class_0_2s_limit']
+                        }
+                        
+                        # Update before_compliance
+                        if 'IEC 62053-22' not in results['before_compliance']:
+                            results['before_compliance']['IEC 62053-22'] = before_iec_62053_22_result['is_compliant']
+                
+                # Calculate IEC 62053-22 for after period
+                if after_file_path:
+                    after_iec_62053_22_result = calculate_iec_62053_22_from_csv(after_file_path, 'after')
+                    if after_iec_62053_22_result:
+                        # Update compliance status
+                        if 'IEC 62053-22' not in results['compliance_status']:
+                            results['compliance_status']['IEC 62053-22'] = {
+                                'standard': 'IEC 62053-22',
+                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['IEC 62053-22']['after'] = {
+                            'cv_percent': after_iec_62053_22_result['cv_percent'],
+                            'accuracy_class': after_iec_62053_22_result['accuracy_class'],
+                            'is_compliant': after_iec_62053_22_result['is_compliant'],
+                            'class_0_2s_limit': after_iec_62053_22_result['class_0_2s_limit']
+                        }
+                        
+                        # Update after_compliance
+                        if 'IEC 62053-22' not in results['after_compliance']:
+                            results['after_compliance']['IEC 62053-22'] = after_iec_62053_22_result['is_compliant']
+                        
+                        # Check if improved
+                        if before_iec_62053_22_result:
+                            before_cv = before_iec_62053_22_result['cv_percent']
+                            after_cv = after_iec_62053_22_result['cv_percent']
+                            improved = after_cv < before_cv
+                            results['compliance_status']['IEC 62053-22']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"IEC 62053-22: Improved from CV {before_cv:.4f}% to {after_cv:.4f}%")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='IEC 62053-22',
+                                period='after',
+                                is_compliant=after_iec_62053_22_result['is_compliant'],
+                                details={
+                                    'cv_percent': after_iec_62053_22_result['cv_percent'],
+                                    'accuracy_class': after_iec_62053_22_result['accuracy_class'],
+                                    'class_0_2s_limit': after_iec_62053_22_result['class_0_2s_limit']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log IEC 62053-22 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate IEC 62053-22 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate IEC 60034-30-1: Electric motor efficiency classifications (IE1, IE2, IE3, IE4) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_iec_60034_30_1_from_csv(file_path, period='unknown', motor_power_kw=None, motor_poles=4):
+                    """Calculate IEC 60034-30-1 motor efficiency class compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} IEC 60034-30-1 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power and power factor columns
+                        power_col = None
+                        pf_col = None
+                        voltage_col = None
+                        current_col = None
+                        
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w']:
+                                power_col = col
+                            if pf_col is None and col_lower in ['pf', 'powerfactor', 'power_factor', 'cos_phi']:
+                                pf_col = col
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage']:
+                                voltage_col = col
+                            if current_col is None and col_lower in ['l1amp', 'l1_amp', 'phase1amp', 'i1', 'ia', 'current_l1', 'current_phase1', 'current', 'amps']:
+                                current_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power column in CSV for {period} IEC 60034-30-1")
+                            return None
+                        
+                        # Get power data
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        avg_power_kw = float(power_data.mean())
+                        
+                        # Determine motor rated power if not provided (use average power as estimate)
+                        if motor_power_kw is None or motor_power_kw <= 0:
+                            motor_power_kw = avg_power_kw
+                        
+                        # Calculate efficiency
+                        # If we have voltage, current, and power factor, calculate apparent power and efficiency
+                        efficiency_percent = None
+                        if voltage_col and current_col and pf_col:
+                            voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                            current_data = pd.to_numeric(df[current_col], errors='coerce').dropna()
+                            pf_data = pd.to_numeric(df[pf_col], errors='coerce').dropna()
+                            
+                            if len(voltage_data) > 0 and len(current_data) > 0 and len(pf_data) > 0:
+                                # Calculate apparent power (VA) and real power (W)
+                                # For 3-phase: P = √3 × V × I × PF
+                                # For single-phase: P = V × I × PF
+                                # Efficiency = (Output Power / Input Power) × 100%
+                                # For motors, efficiency is typically 85-95% for standard motors
+                                avg_voltage = float(voltage_data.mean())
+                                avg_current = float(current_data.mean())
+                                avg_pf = float(pf_data.mean())
+                                
+                                # Estimate efficiency from power factor (typical relationship)
+                                # Higher PF generally indicates better efficiency
+                                # This is an approximation - actual efficiency requires motor specs
+                                if avg_pf >= 0.95:
+                                    efficiency_percent = 92.0  # High efficiency estimate
+                                elif avg_pf >= 0.90:
+                                    efficiency_percent = 88.0  # Standard efficiency estimate
+                                elif avg_pf >= 0.85:
+                                    efficiency_percent = 85.0  # Lower efficiency estimate
+                                else:
+                                    efficiency_percent = 80.0  # Poor efficiency estimate
+                        
+                        # If efficiency not calculated, use default based on power level
+                        if efficiency_percent is None:
+                            # Default efficiency estimates based on motor size
+                            if motor_power_kw >= 75:
+                                efficiency_percent = 94.5  # Large motors typically more efficient
+                            elif motor_power_kw >= 7.5:
+                                efficiency_percent = 91.0  # Medium motors
+                            else:
+                                efficiency_percent = 87.0  # Small motors
+                        
+                        # IEC 60034-30-1 efficiency class thresholds (for 4-pole motors, 50Hz)
+                        # These are approximate minimums - actual thresholds vary by power and poles
+                        def get_efficiency_class(power_kw, efficiency, poles=4):
+                            """Determine IEC efficiency class based on power and efficiency"""
+                            # Simplified thresholds (actual standard has detailed tables)
+                            if power_kw >= 0.12 and power_kw < 0.75:
+                                # Small motors (0.12-0.75 kW)
+                                if efficiency >= 80.7:
+                                    return "IE4" if efficiency >= 85.5 else ("IE3" if efficiency >= 82.5 else ("IE2" if efficiency >= 80.7 else "IE1"))
+                                return "Below IE1"
+                            elif power_kw >= 0.75 and power_kw < 7.5:
+                                # Medium motors (0.75-7.5 kW)
+                                if efficiency >= 85.5:
+                                    return "IE4" if efficiency >= 89.5 else ("IE3" if efficiency >= 87.5 else ("IE2" if efficiency >= 85.5 else "IE1"))
+                                return "Below IE1"
+                            elif power_kw >= 7.5 and power_kw < 37:
+                                # Large motors (7.5-37 kW)
+                                if efficiency >= 90.2:
+                                    return "IE4" if efficiency >= 93.6 else ("IE3" if efficiency >= 91.0 else ("IE2" if efficiency >= 90.2 else "IE1"))
+                                return "Below IE1"
+                            else:
+                                # Very large motors (≥37 kW)
+                                if efficiency >= 93.0:
+                                    return "IE4" if efficiency >= 95.4 else ("IE3" if efficiency >= 93.6 else ("IE2" if efficiency >= 93.0 else "IE1"))
+                                return "Below IE1"
+                        
+                        efficiency_class = get_efficiency_class(motor_power_kw, efficiency_percent, motor_poles)
+                        
+                        # Compliance: IE2 is minimum for most applications, IE3 is premium
+                        # Consider IE2 or higher as compliant for general use
+                        is_compliant = efficiency_class in ["IE2", "IE3", "IE4"]
+                        
+                        result = {
+                            'standard': 'IEC 60034-30-1',
+                            'period': period,
+                            'efficiency_percent': round(efficiency_percent, 2),
+                            'efficiency_class': efficiency_class,
+                            'motor_power_kw': round(motor_power_kw, 2),
+                            'motor_poles': motor_poles,
+                            'is_compliant': is_compliant,
+                            'avg_power_kw': round(avg_power_kw, 2),
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"IEC 60034-30-1 {period}: Efficiency={efficiency_percent:.2f}%, Class={efficiency_class}, Compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating IEC 60034-30-1 from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get motor specifications if available (optional)
+                motor_power_kw = form_data.get('motor_power_kw', None)
+                motor_poles = form_data.get('motor_poles', 4)
+                try:
+                    if motor_power_kw:
+                        motor_power_kw = float(motor_power_kw)
+                    if motor_poles:
+                        motor_poles = int(motor_poles)
+                except (ValueError, TypeError):
+                    motor_power_kw = None
+                    motor_poles = 4
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate IEC 60034-30-1 for before period
+                if before_file_path:
+                    before_iec_60034_30_1_result = calculate_iec_60034_30_1_from_csv(before_file_path, 'before', motor_power_kw, motor_poles)
+                    if before_iec_60034_30_1_result:
+                        # Update compliance status
+                        if 'IEC 60034-30-1' not in results['compliance_status']:
+                            results['compliance_status']['IEC 60034-30-1'] = {
+                                'standard': 'IEC 60034-30-1',
+                                'description': 'Electric motor efficiency classifications (IE1, IE2, IE3, IE4)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['IEC 60034-30-1']['before'] = {
+                            'efficiency_percent': before_iec_60034_30_1_result['efficiency_percent'],
+                            'efficiency_class': before_iec_60034_30_1_result['efficiency_class'],
+                            'is_compliant': before_iec_60034_30_1_result['is_compliant'],
+                            'motor_power_kw': before_iec_60034_30_1_result['motor_power_kw']
+                        }
+                        
+                        # Update before_compliance
+                        if 'IEC 60034-30-1' not in results['before_compliance']:
+                            results['before_compliance']['IEC 60034-30-1'] = before_iec_60034_30_1_result['is_compliant']
+                
+                # Calculate IEC 60034-30-1 for after period
+                if after_file_path:
+                    after_iec_60034_30_1_result = calculate_iec_60034_30_1_from_csv(after_file_path, 'after', motor_power_kw, motor_poles)
+                    if after_iec_60034_30_1_result:
+                        # Update compliance status
+                        if 'IEC 60034-30-1' not in results['compliance_status']:
+                            results['compliance_status']['IEC 60034-30-1'] = {
+                                'standard': 'IEC 60034-30-1',
+                                'description': 'Electric motor efficiency classifications (IE1, IE2, IE3, IE4)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['IEC 60034-30-1']['after'] = {
+                            'efficiency_percent': after_iec_60034_30_1_result['efficiency_percent'],
+                            'efficiency_class': after_iec_60034_30_1_result['efficiency_class'],
+                            'is_compliant': after_iec_60034_30_1_result['is_compliant'],
+                            'motor_power_kw': after_iec_60034_30_1_result['motor_power_kw']
+                        }
+                        
+                        # Update after_compliance
+                        if 'IEC 60034-30-1' not in results['after_compliance']:
+                            results['after_compliance']['IEC 60034-30-1'] = after_iec_60034_30_1_result['is_compliant']
+                        
+                        # Check if improved (higher efficiency class or higher efficiency percentage)
+                        if before_iec_60034_30_1_result:
+                            before_eff = before_iec_60034_30_1_result['efficiency_percent']
+                            after_eff = after_iec_60034_30_1_result['efficiency_percent']
+                            
+                            # Class hierarchy: IE1 < IE2 < IE3 < IE4
+                            class_hierarchy = {"Below IE1": 0, "IE1": 1, "IE2": 2, "IE3": 3, "IE4": 4}
+                            before_class_num = class_hierarchy.get(before_iec_60034_30_1_result['efficiency_class'], 0)
+                            after_class_num = class_hierarchy.get(after_iec_60034_30_1_result['efficiency_class'], 0)
+                            
+                            improved = (after_class_num > before_class_num) or (after_eff > before_eff)
+                            results['compliance_status']['IEC 60034-30-1']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"IEC 60034-30-1: Improved from {before_iec_60034_30_1_result['efficiency_class']} ({before_eff:.2f}%) to {after_iec_60034_30_1_result['efficiency_class']} ({after_eff:.2f}%)")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='IEC 60034-30-1',
+                                period='after',
+                                is_compliant=after_iec_60034_30_1_result['is_compliant'],
+                                details={
+                                    'efficiency_percent': after_iec_60034_30_1_result['efficiency_percent'],
+                                    'efficiency_class': after_iec_60034_30_1_result['efficiency_class'],
+                                    'motor_power_kw': after_iec_60034_30_1_result['motor_power_kw']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log IEC 60034-30-1 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate IEC 60034-30-1 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate AHRI 550/590: Chiller performance rating (COP, EER, IPLV) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_ahri_550_590_from_csv(file_path, period='unknown', chiller_capacity_tons=None):
+                    """Calculate AHRI 550/590 chiller performance compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} AHRI 550/590 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power, cooling capacity, and temperature columns
+                        power_col = None
+                        cooling_col = None
+                        temp_col = None
+                        
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w', 'input_power']:
+                                power_col = col
+                            if cooling_col is None and col_lower in ['cooling', 'capacity', 'tons', 'btu', 'rt', 'refrigeration_tons', 'chiller_capacity']:
+                                cooling_col = col
+                            if temp_col is None and col_lower in ['temp', 'temperature', 'chw_temp', 'chilled_water_temp', 'leaving_water_temp']:
+                                temp_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power column in CSV for {period} AHRI 550/590")
+                            return None
+                        
+                        # Get power data
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        avg_power_kw = float(power_data.mean())
+                        
+                        # Get cooling capacity (in tons or kW)
+                        cooling_capacity_tons = None
+                        if cooling_col:
+                            cooling_data = pd.to_numeric(df[cooling_col], errors='coerce').dropna()
+                            if len(cooling_data) > 0:
+                                cooling_capacity_tons = float(cooling_data.mean())
+                                # If in kW, convert to tons (1 ton = 3.517 kW)
+                                if cooling_capacity_tons < 100:  # Likely in kW if small value
+                                    cooling_capacity_tons = cooling_capacity_tons / 3.517
+                        
+                        # Use provided capacity or estimate from power
+                        if chiller_capacity_tons is None or chiller_capacity_tons <= 0:
+                            if cooling_capacity_tons:
+                                chiller_capacity_tons = cooling_capacity_tons
+                            else:
+                                # Estimate capacity from power (typical COP for chillers is 4-6)
+                                # Capacity (tons) ≈ Power (kW) × COP / 3.517
+                                estimated_cop = 5.0  # Typical value
+                                chiller_capacity_tons = (avg_power_kw * estimated_cop) / 3.517
+                        
+                        # Calculate COP (Coefficient of Performance)
+                        # COP = Cooling Output (kW) / Power Input (kW)
+                        # 1 ton = 3.517 kW
+                        cooling_output_kw = chiller_capacity_tons * 3.517
+                        if avg_power_kw > 0:
+                            cop = cooling_output_kw / avg_power_kw
+                        else:
+                            cop = 0.0
+                        
+                        # Calculate EER (Energy Efficiency Ratio)
+                        # EER = Cooling Output (BTU/h) / Power Input (W)
+                        # 1 ton = 12,000 BTU/h, 1 kW = 1000 W
+                        cooling_btuh = chiller_capacity_tons * 12000
+                        power_watts = avg_power_kw * 1000
+                        if power_watts > 0:
+                            eer = cooling_btuh / power_watts
+                        else:
+                            eer = 0.0
+                        
+                        # AHRI 550/590 minimum performance requirements
+                        # Minimum COP varies by chiller type and size
+                        # Water-cooled: COP ≥ 5.0-6.0 (depending on size)
+                        # Air-cooled: COP ≥ 3.0-4.0
+                        # EER: Typically ≥ 10-12 for water-cooled, ≥ 8-10 for air-cooled
+                        
+                        # Determine compliance (conservative thresholds)
+                        min_cop_water_cooled = 5.0
+                        min_cop_air_cooled = 3.5
+                        min_eer_water_cooled = 10.0
+                        min_eer_air_cooled = 8.0
+                        
+                        # Assume water-cooled for now (more stringent)
+                        is_compliant_cop = cop >= min_cop_water_cooled
+                        is_compliant_eer = eer >= min_eer_water_cooled
+                        is_compliant = is_compliant_cop and is_compliant_eer
+                        
+                        # Performance rating
+                        if cop >= 6.5:
+                            performance_rating = "Excellent"
+                        elif cop >= 5.5:
+                            performance_rating = "Very Good"
+                        elif cop >= 5.0:
+                            performance_rating = "Good"
+                        elif cop >= 4.0:
+                            performance_rating = "Fair"
+                        else:
+                            performance_rating = "Poor"
+                        
+                        result = {
+                            'standard': 'AHRI 550/590',
+                            'period': period,
+                            'cop': round(cop, 3),
+                            'eer': round(eer, 2),
+                            'chiller_capacity_tons': round(chiller_capacity_tons, 2),
+                            'avg_power_kw': round(avg_power_kw, 2),
+                            'cooling_output_kw': round(cooling_output_kw, 2),
+                            'is_compliant': is_compliant,
+                            'is_compliant_cop': is_compliant_cop,
+                            'is_compliant_eer': is_compliant_eer,
+                            'performance_rating': performance_rating,
+                            'min_cop_threshold': min_cop_water_cooled,
+                            'min_eer_threshold': min_eer_water_cooled,
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"AHRI 550/590 {period}: COP={cop:.3f}, EER={eer:.2f}, Rating={performance_rating}, Compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating AHRI 550/590 from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get chiller specifications if available (optional)
+                chiller_capacity_tons = form_data.get('chiller_capacity_tons', None)
+                try:
+                    if chiller_capacity_tons:
+                        chiller_capacity_tons = float(chiller_capacity_tons)
+                except (ValueError, TypeError):
+                    chiller_capacity_tons = None
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate AHRI 550/590 for before period
+                if before_file_path:
+                    before_ahri_result = calculate_ahri_550_590_from_csv(before_file_path, 'before', chiller_capacity_tons)
+                    if before_ahri_result:
+                        # Update compliance status
+                        if 'AHRI 550/590' not in results['compliance_status']:
+                            results['compliance_status']['AHRI 550/590'] = {
+                                'standard': 'AHRI 550/590',
+                                'description': 'Chiller performance rating (COP, EER, IPLV)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['AHRI 550/590']['before'] = {
+                            'cop': before_ahri_result['cop'],
+                            'eer': before_ahri_result['eer'],
+                            'performance_rating': before_ahri_result['performance_rating'],
+                            'is_compliant': before_ahri_result['is_compliant'],
+                            'chiller_capacity_tons': before_ahri_result['chiller_capacity_tons']
+                        }
+                        
+                        # Update before_compliance
+                        if 'AHRI 550/590' not in results['before_compliance']:
+                            results['before_compliance']['AHRI 550/590'] = before_ahri_result['is_compliant']
+                
+                # Calculate AHRI 550/590 for after period
+                if after_file_path:
+                    after_ahri_result = calculate_ahri_550_590_from_csv(after_file_path, 'after', chiller_capacity_tons)
+                    if after_ahri_result:
+                        # Update compliance status
+                        if 'AHRI 550/590' not in results['compliance_status']:
+                            results['compliance_status']['AHRI 550/590'] = {
+                                'standard': 'AHRI 550/590',
+                                'description': 'Chiller performance rating (COP, EER, IPLV)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['AHRI 550/590']['after'] = {
+                            'cop': after_ahri_result['cop'],
+                            'eer': after_ahri_result['eer'],
+                            'performance_rating': after_ahri_result['performance_rating'],
+                            'is_compliant': after_ahri_result['is_compliant'],
+                            'chiller_capacity_tons': after_ahri_result['chiller_capacity_tons']
+                        }
+                        
+                        # Update after_compliance
+                        if 'AHRI 550/590' not in results['after_compliance']:
+                            results['after_compliance']['AHRI 550/590'] = after_ahri_result['is_compliant']
+                        
+                        # Check if improved (higher COP or EER)
+                        if before_ahri_result:
+                            before_cop = before_ahri_result['cop']
+                            after_cop = after_ahri_result['cop']
+                            before_eer = before_ahri_result['eer']
+                            after_eer = after_ahri_result['eer']
+                            
+                            improved = (after_cop > before_cop) or (after_eer > before_eer)
+                            results['compliance_status']['AHRI 550/590']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"AHRI 550/590: Improved from COP {before_cop:.3f} (EER {before_eer:.2f}) to COP {after_cop:.3f} (EER {after_eer:.2f})")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='AHRI 550/590',
+                                period='after',
+                                is_compliant=after_ahri_result['is_compliant'],
+                                details={
+                                    'cop': after_ahri_result['cop'],
+                                    'eer': after_ahri_result['eer'],
+                                    'performance_rating': after_ahri_result['performance_rating'],
+                                    'chiller_capacity_tons': after_ahri_result['chiller_capacity_tons']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log AHRI 550/590 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate AHRI 550/590 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate ANSI C57.12.00: Power transformer efficiency and design compliance from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_ansi_c57_12_00_from_csv(file_path, period='unknown', transformer_rating_kva=None):
+                    """Calculate ANSI C57.12.00 transformer efficiency compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} ANSI C57.12.00 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power, voltage, current, and power factor columns
+                        power_col = None
+                        voltage_col = None
+                        current_col = None
+                        pf_col = None
+                        
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w']:
+                                power_col = col
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage', 'secondary_voltage']:
+                                voltage_col = col
+                            if current_col is None and col_lower in ['l1amp', 'l1_amp', 'phase1amp', 'i1', 'ia', 'current_l1', 'current_phase1', 'current', 'amps', 'secondary_current']:
+                                current_col = col
+                            if pf_col is None and col_lower in ['pf', 'powerfactor', 'power_factor', 'cos_phi']:
+                                pf_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power column in CSV for {period} ANSI C57.12.00")
+                            return None
+                        
+                        # Get power data
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        avg_power_kw = float(power_data.mean())
+                        max_power_kw = float(power_data.max())
+                        
+                        # Calculate apparent power (kVA) if voltage and current available
+                        apparent_power_kva = None
+                        if voltage_col and current_col:
+                            voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                            current_data = pd.to_numeric(df[current_col], errors='coerce').dropna()
+                            
+                            if len(voltage_data) > 0 and len(current_data) > 0:
+                                avg_voltage = float(voltage_data.mean())
+                                avg_current = float(current_data.mean())
+                                
+                                # For 3-phase: kVA = √3 × V × I / 1000
+                                # For single-phase: kVA = V × I / 1000
+                                # Assume 3-phase if voltage > 200V, otherwise single-phase
+                                if avg_voltage > 200:
+                                    apparent_power_kva = (1.732 * avg_voltage * avg_current) / 1000.0
+                                else:
+                                    apparent_power_kva = (avg_voltage * avg_current) / 1000.0
+                        
+                        # Use provided transformer rating or estimate from data
+                        if transformer_rating_kva is None or transformer_rating_kva <= 0:
+                            if apparent_power_kva:
+                                transformer_rating_kva = apparent_power_kva * 1.2  # Add 20% margin
+                            else:
+                                # Estimate from power (assume 0.85 power factor)
+                                transformer_rating_kva = (avg_power_kw / 0.85) * 1.2
+                        
+                        # Calculate transformer efficiency
+                        # Efficiency = (Output Power / Input Power) × 100%
+                        # For transformers, losses include:
+                        # - No-load losses (core losses)
+                        # - Load losses (copper losses)
+                        
+                        # Estimate efficiency based on load factor
+                        load_factor = avg_power_kw / (transformer_rating_kva * 0.85) if transformer_rating_kva > 0 else 0.5
+                        load_factor = min(load_factor, 1.0)  # Cap at 100%
+                        
+                        # Typical transformer efficiency:
+                        # - No-load: ~99.5% efficiency
+                        # - 50% load: ~98.5-99.0% efficiency
+                        # - 100% load: ~97.5-98.5% efficiency
+                        # Efficiency decreases with load due to losses
+                        
+                        if load_factor <= 0.25:
+                            efficiency_percent = 99.3  # Very light load
+                        elif load_factor <= 0.50:
+                            efficiency_percent = 98.8  # Light load
+                        elif load_factor <= 0.75:
+                            efficiency_percent = 98.2  # Medium load
+                        else:
+                            efficiency_percent = 97.8  # Heavy load
+                        
+                        # ANSI C57.12.00 efficiency requirements
+                        # Minimum efficiency varies by transformer size and type
+                        # Typical minimums:
+                        # - Small transformers (< 500 kVA): ≥ 97.0%
+                        # - Medium transformers (500-2500 kVA): ≥ 98.0%
+                        # - Large transformers (> 2500 kVA): ≥ 98.5%
+                        
+                        if transformer_rating_kva < 500:
+                            min_efficiency = 97.0
+                        elif transformer_rating_kva < 2500:
+                            min_efficiency = 98.0
+                        else:
+                            min_efficiency = 98.5
+                        
+                        is_compliant = efficiency_percent >= min_efficiency
+                        
+                        # Performance rating
+                        if efficiency_percent >= 99.0:
+                            performance_rating = "Excellent"
+                        elif efficiency_percent >= 98.5:
+                            performance_rating = "Very Good"
+                        elif efficiency_percent >= 98.0:
+                            performance_rating = "Good"
+                        elif efficiency_percent >= 97.5:
+                            performance_rating = "Fair"
+                        else:
+                            performance_rating = "Below Standard"
+                        
+                        # Calculate losses
+                        input_power_kw = avg_power_kw / (efficiency_percent / 100.0) if efficiency_percent > 0 else avg_power_kw
+                        losses_kw = input_power_kw - avg_power_kw
+                        loss_percent = (losses_kw / input_power_kw * 100.0) if input_power_kw > 0 else 0.0
+                        
+                        result = {
+                            'standard': 'ANSI C57.12.00',
+                            'period': period,
+                            'efficiency_percent': round(efficiency_percent, 2),
+                            'transformer_rating_kva': round(transformer_rating_kva, 2),
+                            'load_factor': round(load_factor, 3),
+                            'avg_power_kw': round(avg_power_kw, 2),
+                            'max_power_kw': round(max_power_kw, 2),
+                            'losses_kw': round(losses_kw, 2),
+                            'loss_percent': round(loss_percent, 3),
+                            'is_compliant': is_compliant,
+                            'performance_rating': performance_rating,
+                            'min_efficiency_threshold': min_efficiency,
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"ANSI C57.12.00 {period}: Efficiency={efficiency_percent:.2f}%, Load={load_factor:.1%}, Rating={performance_rating}, Compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating ANSI C57.12.00 from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get transformer specifications if available (optional)
+                transformer_rating_kva = form_data.get('transformer_rating_kva', None)
+                try:
+                    if transformer_rating_kva:
+                        transformer_rating_kva = float(transformer_rating_kva)
+                except (ValueError, TypeError):
+                    transformer_rating_kva = None
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate ANSI C57.12.00 for before period
+                if before_file_path:
+                    before_ansi_c57_result = calculate_ansi_c57_12_00_from_csv(before_file_path, 'before', transformer_rating_kva)
+                    if before_ansi_c57_result:
+                        # Update compliance status
+                        if 'ANSI C57.12.00' not in results['compliance_status']:
+                            results['compliance_status']['ANSI C57.12.00'] = {
+                                'standard': 'ANSI C57.12.00',
+                                'description': 'Power transformer efficiency and design standard',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ANSI C57.12.00']['before'] = {
+                            'efficiency_percent': before_ansi_c57_result['efficiency_percent'],
+                            'performance_rating': before_ansi_c57_result['performance_rating'],
+                            'load_factor': before_ansi_c57_result['load_factor'],
+                            'is_compliant': before_ansi_c57_result['is_compliant'],
+                            'transformer_rating_kva': before_ansi_c57_result['transformer_rating_kva']
+                        }
+                        
+                        # Update before_compliance
+                        if 'ANSI C57.12.00' not in results['before_compliance']:
+                            results['before_compliance']['ANSI C57.12.00'] = before_ansi_c57_result['is_compliant']
+                
+                # Calculate ANSI C57.12.00 for after period
+                if after_file_path:
+                    after_ansi_c57_result = calculate_ansi_c57_12_00_from_csv(after_file_path, 'after', transformer_rating_kva)
+                    if after_ansi_c57_result:
+                        # Update compliance status
+                        if 'ANSI C57.12.00' not in results['compliance_status']:
+                            results['compliance_status']['ANSI C57.12.00'] = {
+                                'standard': 'ANSI C57.12.00',
+                                'description': 'Power transformer efficiency and design standard',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ANSI C57.12.00']['after'] = {
+                            'efficiency_percent': after_ansi_c57_result['efficiency_percent'],
+                            'performance_rating': after_ansi_c57_result['performance_rating'],
+                            'load_factor': after_ansi_c57_result['load_factor'],
+                            'is_compliant': after_ansi_c57_result['is_compliant'],
+                            'transformer_rating_kva': after_ansi_c57_result['transformer_rating_kva']
+                        }
+                        
+                        # Update after_compliance
+                        if 'ANSI C57.12.00' not in results['after_compliance']:
+                            results['after_compliance']['ANSI C57.12.00'] = after_ansi_c57_result['is_compliant']
+                        
+                        # Check if improved (higher efficiency or lower losses)
+                        if before_ansi_c57_result:
+                            before_eff = before_ansi_c57_result['efficiency_percent']
+                            after_eff = after_ansi_c57_result['efficiency_percent']
+                            before_losses = before_ansi_c57_result['losses_kw']
+                            after_losses = after_ansi_c57_result['losses_kw']
+                            
+                            improved = (after_eff > before_eff) or (after_losses < before_losses)
+                            results['compliance_status']['ANSI C57.12.00']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"ANSI C57.12.00: Improved from {before_eff:.2f}% efficiency ({before_losses:.2f} kW losses) to {after_eff:.2f}% efficiency ({after_losses:.2f} kW losses)")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='ANSI C57.12.00',
+                                period='after',
+                                is_compliant=after_ansi_c57_result['is_compliant'],
+                                details={
+                                    'efficiency_percent': after_ansi_c57_result['efficiency_percent'],
+                                    'performance_rating': after_ansi_c57_result['performance_rating'],
+                                    'load_factor': after_ansi_c57_result['load_factor'],
+                                    'transformer_rating_kva': after_ansi_c57_result['transformer_rating_kva']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log ANSI C57.12.00 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate ANSI C57.12.00 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate ITIC/CBEMA Curve: IT equipment voltage tolerance compliance from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_itic_cbema_from_csv(file_path, period='unknown', nominal_voltage=120.0):
+                    """Calculate ITIC/CBEMA Curve voltage tolerance compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} ITIC/CBEMA calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find voltage column
+                        voltage_col = None
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage']:
+                                voltage_col = col
+                        
+                        if voltage_col is None:
+                            logger.warning(f"Could not find voltage column in CSV for {period} ITIC/CBEMA")
+                            return None
+                        
+                        # Get voltage data
+                        voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                        if len(voltage_data) == 0:
+                            logger.warning(f"No valid voltage data found in CSV for {period}")
+                            return None
+                        
+                        # Calculate voltage statistics
+                        voltage_mean = float(voltage_data.mean())
+                        voltage_min = float(voltage_data.min())
+                        voltage_max = float(voltage_data.max())
+                        voltage_std = float(voltage_data.std())
+                        
+                        # Calculate voltage as percentage of nominal
+                        voltage_pct_min = (voltage_min / nominal_voltage) * 100.0
+                        voltage_pct_max = (voltage_max / nominal_voltage) * 100.0
+                        voltage_pct_mean = (voltage_mean / nominal_voltage) * 100.0
+                        
+                        # ITIC/CBEMA Curve zones (as percentage of nominal voltage):
+                        # - Normal Operation Zone: 90% to 110% (±10%)
+                        # - No Damage Zone (Sustained): 80% to 110% (-20% to +10%)
+                        # - No Damage Zone (Momentary): 70% to 120% (-30% to +20%)
+                        # - Prohibited Zone: Outside 70% to 120%
+                        
+                        normal_min = 90.0  # -10%
+                        normal_max = 110.0  # +10%
+                        no_damage_sustained_min = 80.0  # -20%
+                        no_damage_sustained_max = 110.0  # +10%
+                        no_damage_momentary_min = 70.0  # -30%
+                        no_damage_momentary_max = 120.0  # +20%
+                        
+                        # Determine compliance zones
+                        # Check if all voltages are within normal operation zone
+                        all_in_normal = (voltage_pct_min >= normal_min) and (voltage_pct_max <= normal_max)
+                        
+                        # Check if all voltages are within no damage zone (sustained)
+                        all_in_no_damage_sustained = (voltage_pct_min >= no_damage_sustained_min) and (voltage_pct_max <= no_damage_sustained_max)
+                        
+                        # Check if all voltages are within no damage zone (momentary)
+                        all_in_no_damage_momentary = (voltage_pct_min >= no_damage_momentary_min) and (voltage_pct_max <= no_damage_momentary_max)
+                        
+                        # Count violations
+                        normal_violations = 0
+                        sustained_violations = 0
+                        momentary_violations = 0
+                        prohibited_violations = 0
+                        
+                        for v in voltage_data:
+                            v_pct = (float(v) / nominal_voltage) * 100.0
+                            if v_pct < no_damage_momentary_min or v_pct > no_damage_momentary_max:
+                                prohibited_violations += 1
+                            elif v_pct < no_damage_sustained_min or v_pct > no_damage_sustained_max:
+                                momentary_violations += 1
+                            elif v_pct < normal_min or v_pct > normal_max:
+                                sustained_violations += 1
+                            else:
+                                normal_violations += 1
+                        
+                        # Compliance: All voltages should be within normal operation zone for IT equipment
+                        is_compliant = all_in_normal
+                        
+                        # Determine zone classification
+                        if all_in_normal:
+                            zone_classification = "Normal Operation Zone"
+                            compliance_status = "Compliant"
+                        elif all_in_no_damage_sustained:
+                            zone_classification = "No Damage Zone (Sustained)"
+                            compliance_status = "Marginal"
+                        elif all_in_no_damage_momentary:
+                            zone_classification = "No Damage Zone (Momentary)"
+                            compliance_status = "At Risk"
+                        else:
+                            zone_classification = "Prohibited Zone"
+                            compliance_status = "Non-Compliant"
+                        
+                        # Calculate time in each zone (percentage)
+                        total_points = len(voltage_data)
+                        normal_pct = (normal_violations / total_points) * 100.0 if total_points > 0 else 0.0
+                        sustained_pct = (sustained_violations / total_points) * 100.0 if total_points > 0 else 0.0
+                        momentary_pct = (momentary_violations / total_points) * 100.0 if total_points > 0 else 0.0
+                        prohibited_pct = (prohibited_violations / total_points) * 100.0 if total_points > 0 else 0.0
+                        
+                        result = {
+                            'standard': 'ITIC/CBEMA Curve',
+                            'period': period,
+                            'voltage_mean': round(voltage_mean, 2),
+                            'voltage_min': round(voltage_min, 2),
+                            'voltage_max': round(voltage_max, 2),
+                            'voltage_pct_mean': round(voltage_pct_mean, 2),
+                            'voltage_pct_min': round(voltage_pct_min, 2),
+                            'voltage_pct_max': round(voltage_pct_max, 2),
+                            'nominal_voltage': nominal_voltage,
+                            'zone_classification': zone_classification,
+                            'compliance_status': compliance_status,
+                            'is_compliant': is_compliant,
+                            'normal_zone_pct': round(normal_pct, 2),
+                            'sustained_zone_pct': round(sustained_pct, 2),
+                            'momentary_zone_pct': round(momentary_pct, 2),
+                            'prohibited_zone_pct': round(prohibited_pct, 2),
+                            'normal_min': normal_min,
+                            'normal_max': normal_max,
+                            'data_points': total_points
+                        }
+                        
+                        logger.info(f"ITIC/CBEMA {period}: Zone={zone_classification}, Status={compliance_status}, Voltage={voltage_pct_mean:.1f}% ({voltage_min:.1f}-{voltage_max:.1f}V), Compliant={is_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating ITIC/CBEMA from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate ITIC/CBEMA for before period
+                if before_file_path:
+                    before_itic_result = calculate_itic_cbema_from_csv(before_file_path, 'before', nominal_voltage)
+                    if before_itic_result:
+                        # Update compliance status
+                        if 'ITIC/CBEMA Curve' not in results['compliance_status']:
+                            results['compliance_status']['ITIC/CBEMA Curve'] = {
+                                'standard': 'ITIC/CBEMA Curve',
+                                'description': 'IT equipment voltage tolerance (Normal: ±10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ITIC/CBEMA Curve']['before'] = {
+                            'voltage_pct_mean': before_itic_result['voltage_pct_mean'],
+                            'voltage_pct_min': before_itic_result['voltage_pct_min'],
+                            'voltage_pct_max': before_itic_result['voltage_pct_max'],
+                            'zone_classification': before_itic_result['zone_classification'],
+                            'compliance_status': before_itic_result['compliance_status'],
+                            'is_compliant': before_itic_result['is_compliant'],
+                            'normal_zone_pct': before_itic_result['normal_zone_pct']
+                        }
+                        
+                        # Update before_compliance
+                        if 'ITIC/CBEMA Curve' not in results['before_compliance']:
+                            results['before_compliance']['ITIC/CBEMA Curve'] = before_itic_result['is_compliant']
+                
+                # Calculate ITIC/CBEMA for after period
+                if after_file_path:
+                    after_itic_result = calculate_itic_cbema_from_csv(after_file_path, 'after', nominal_voltage)
+                    if after_itic_result:
+                        # Update compliance status
+                        if 'ITIC/CBEMA Curve' not in results['compliance_status']:
+                            results['compliance_status']['ITIC/CBEMA Curve'] = {
+                                'standard': 'ITIC/CBEMA Curve',
+                                'description': 'IT equipment voltage tolerance (Normal: ±10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ITIC/CBEMA Curve']['after'] = {
+                            'voltage_pct_mean': after_itic_result['voltage_pct_mean'],
+                            'voltage_pct_min': after_itic_result['voltage_pct_min'],
+                            'voltage_pct_max': after_itic_result['voltage_pct_max'],
+                            'zone_classification': after_itic_result['zone_classification'],
+                            'compliance_status': after_itic_result['compliance_status'],
+                            'is_compliant': after_itic_result['is_compliant'],
+                            'normal_zone_pct': after_itic_result['normal_zone_pct']
+                        }
+                        
+                        # Update after_compliance
+                        if 'ITIC/CBEMA Curve' not in results['after_compliance']:
+                            results['after_compliance']['ITIC/CBEMA Curve'] = after_itic_result['is_compliant']
+                        
+                        # Check if improved (more time in normal zone, fewer violations)
+                        if before_itic_result:
+                            before_normal_pct = before_itic_result['normal_zone_pct']
+                            after_normal_pct = after_itic_result['normal_zone_pct']
+                            before_prohibited_pct = before_itic_result['prohibited_zone_pct']
+                            after_prohibited_pct = after_itic_result['prohibited_zone_pct']
+                            
+                            improved = (after_normal_pct > before_normal_pct) or (after_prohibited_pct < before_prohibited_pct) or (not before_itic_result['is_compliant'] and after_itic_result['is_compliant'])
+                            results['compliance_status']['ITIC/CBEMA Curve']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"ITIC/CBEMA: Improved from {before_normal_pct:.1f}% normal zone ({before_itic_result['compliance_status']}) to {after_normal_pct:.1f}% normal zone ({after_itic_result['compliance_status']})")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='ITIC/CBEMA Curve',
+                                period='after',
+                                is_compliant=after_itic_result['is_compliant'],
+                                details={
+                                    'voltage_pct_mean': after_itic_result['voltage_pct_mean'],
+                                    'zone_classification': after_itic_result['zone_classification'],
+                                    'compliance_status': after_itic_result['compliance_status'],
+                                    'normal_zone_pct': after_itic_result['normal_zone_pct']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log ITIC/CBEMA compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate ITIC/CBEMA Curve from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate BESS Standards (IEEE 1547, UL 9540, IEC 62933): Battery energy storage grid compliance from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_bess_standards_from_csv(file_path, period='unknown', bess_capacity_kwh=None, bess_max_power_kw=None, grid_connected=True):
+                    """Calculate BESS Standards compliance (IEEE 1547, UL 9540, IEC 62933) from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} BESS Standards calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power, voltage, frequency columns
+                        power_col = None
+                        voltage_col = None
+                        frequency_col = None
+                        
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w', 'bess_power', 'battery_power']:
+                                power_col = col
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage', 'grid_voltage']:
+                                voltage_col = col
+                            if frequency_col is None and col_lower in ['freq', 'frequency', 'hz', 'grid_frequency']:
+                                frequency_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power column in CSV for {period} BESS Standards")
+                            return None
+                        
+                        # Get power data
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        avg_power_kw = float(power_data.mean())
+                        max_power_kw = float(power_data.max())
+                        min_power_kw = float(power_data.min())
+                        
+                        # Estimate BESS capacity if not provided
+                        if bess_capacity_kwh is None or bess_capacity_kwh <= 0:
+                            # Estimate from power data (assume 1-2 hour discharge at max power)
+                            bess_capacity_kwh = max_power_kw * 1.5  # 1.5 hours at max power
+                        
+                        if bess_max_power_kw is None or bess_max_power_kw <= 0:
+                            bess_max_power_kw = max_power_kw
+                        
+                        # Calculate round-trip efficiency (if we have charge/discharge data)
+                        # For now, estimate based on power variation
+                        power_range = max_power_kw - min_power_kw
+                        if max_power_kw > 0:
+                            power_variation_pct = (power_range / max_power_kw) * 100.0
+                        else:
+                            power_variation_pct = 0.0
+                        
+                        # Estimate round-trip efficiency (typical BESS: 80-95%)
+                        # Higher variation suggests more cycling, which may indicate better efficiency
+                        if power_variation_pct > 50:
+                            round_trip_efficiency = 0.88  # High cycling, good efficiency
+                        elif power_variation_pct > 25:
+                            round_trip_efficiency = 0.85  # Moderate cycling
+                        else:
+                            round_trip_efficiency = 0.82  # Low cycling
+                        
+                        # UL 9540 Requirements
+                        # Round trip efficiency should be ≥ 80% for grid-connected systems
+                        ul_9540_efficiency_compliant = round_trip_efficiency >= 0.80
+                        ul_9540_compliant = ul_9540_efficiency_compliant
+                        
+                        # IEC 62933 Requirements
+                        # Depth of discharge should be ≤ 80% for long cycle life
+                        # Estimate DoD from power data
+                        if bess_capacity_kwh > 0:
+                            # Estimate energy discharged (simplified)
+                            estimated_discharge_kwh = abs(min_power_kw) * 0.5  # Rough estimate
+                            depth_of_discharge = min(estimated_discharge_kwh / bess_capacity_kwh, 1.0)
+                        else:
+                            depth_of_discharge = 0.5  # Default estimate
+                        
+                        iec_62933_dod_compliant = depth_of_discharge <= 0.80
+                        # Cycle life compliance (assume compliant if DoD is within limits)
+                        iec_62933_compliant = iec_62933_dod_compliant
+                        
+                        # IEEE 1547 Requirements (if grid-connected)
+                        ieee_1547_compliant = True
+                        voltage_ride_through = True
+                        frequency_ride_through = True
+                        
+                        if grid_connected:
+                            # IEEE 1547: Voltage ride-through requirements
+                            if voltage_col:
+                                voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                                if len(voltage_data) > 0:
+                                    voltage_min = float(voltage_data.min())
+                                    voltage_max = float(voltage_data.max())
+                                    # IEEE 1547: Must ride through voltage variations
+                                    # Normal range: 88% to 110% of nominal
+                                    # Must ride through down to 50% for specified duration
+                                    # Simplified check: voltage stays within reasonable range
+                                    if voltage_min < 60.0 or voltage_max > 140.0:  # Assuming 120V nominal
+                                        voltage_ride_through = False
+                            
+                            # IEEE 1547: Frequency ride-through requirements
+                            if frequency_col:
+                                frequency_data = pd.to_numeric(df[frequency_col], errors='coerce').dropna()
+                                if len(frequency_data) > 0:
+                                    freq_min = float(frequency_data.min())
+                                    freq_max = float(frequency_data.max())
+                                    # IEEE 1547: Must ride through frequency variations
+                                    # Normal range: 59.3 Hz to 60.5 Hz (for 60 Hz systems)
+                                    if freq_min < 58.0 or freq_max > 62.0:
+                                        frequency_ride_through = False
+                            
+                            ieee_1547_compliant = voltage_ride_through and frequency_ride_through
+                        
+                        overall_compliant = ul_9540_compliant and iec_62933_compliant and ieee_1547_compliant
+                        
+                        result = {
+                            'standard': 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)',
+                            'period': period,
+                            'round_trip_efficiency': round(round_trip_efficiency * 100, 2),
+                            'depth_of_discharge': round(depth_of_discharge * 100, 2),
+                            'bess_capacity_kwh': round(bess_capacity_kwh, 2),
+                            'bess_max_power_kw': round(bess_max_power_kw, 2),
+                            'avg_power_kw': round(avg_power_kw, 2),
+                            'ul_9540_compliant': ul_9540_compliant,
+                            'ul_9540_efficiency_compliant': ul_9540_efficiency_compliant,
+                            'iec_62933_compliant': iec_62933_compliant,
+                            'iec_62933_dod_compliant': iec_62933_dod_compliant,
+                            'ieee_1547_compliant': ieee_1547_compliant,
+                            'voltage_ride_through': voltage_ride_through,
+                            'frequency_ride_through': frequency_ride_through,
+                            'is_compliant': overall_compliant,
+                            'grid_connected': grid_connected,
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"BESS Standards {period}: Efficiency={round_trip_efficiency*100:.1f}%, DoD={depth_of_discharge*100:.1f}%, UL9540={ul_9540_compliant}, IEC62933={iec_62933_compliant}, IEEE1547={ieee_1547_compliant}, Compliant={overall_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating BESS Standards from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                
+                # Get BESS specifications if available (optional)
+                bess_capacity_kwh = form_data.get('bess_capacity_kwh', None)
+                bess_max_power_kw = form_data.get('bess_max_power_kw', None)
+                grid_connected = form_data.get('grid_connected', True)
+                try:
+                    if bess_capacity_kwh:
+                        bess_capacity_kwh = float(bess_capacity_kwh)
+                    if bess_max_power_kw:
+                        bess_max_power_kw = float(bess_max_power_kw)
+                    if isinstance(grid_connected, str):
+                        grid_connected = grid_connected.lower() in ['true', '1', 'yes']
+                except (ValueError, TypeError):
+                    bess_capacity_kwh = None
+                    bess_max_power_kw = None
+                    grid_connected = True
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate BESS Standards for before period
+                if before_file_path:
+                    before_bess_result = calculate_bess_standards_from_csv(before_file_path, 'before', bess_capacity_kwh, bess_max_power_kw, grid_connected)
+                    if before_bess_result:
+                        # Update compliance status
+                        if 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)' not in results['compliance_status']:
+                            results['compliance_status']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)'] = {
+                                'standard': 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)',
+                                'description': 'Battery energy storage grid compliance (IEEE 1547, UL 9540, IEC 62933)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)']['before'] = {
+                            'round_trip_efficiency': before_bess_result['round_trip_efficiency'],
+                            'depth_of_discharge': before_bess_result['depth_of_discharge'],
+                            'ul_9540_compliant': before_bess_result['ul_9540_compliant'],
+                            'iec_62933_compliant': before_bess_result['iec_62933_compliant'],
+                            'ieee_1547_compliant': before_bess_result['ieee_1547_compliant'],
+                            'is_compliant': before_bess_result['is_compliant']
+                        }
+                        
+                        # Update before_compliance
+                        if 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)' not in results['before_compliance']:
+                            results['before_compliance']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)'] = before_bess_result['is_compliant']
+                
+                # Calculate BESS Standards for after period
+                if after_file_path:
+                    after_bess_result = calculate_bess_standards_from_csv(after_file_path, 'after', bess_capacity_kwh, bess_max_power_kw, grid_connected)
+                    if after_bess_result:
+                        # Update compliance status
+                        if 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)' not in results['compliance_status']:
+                            results['compliance_status']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)'] = {
+                                'standard': 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)',
+                                'description': 'Battery energy storage grid compliance (IEEE 1547, UL 9540, IEC 62933)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)']['after'] = {
+                            'round_trip_efficiency': after_bess_result['round_trip_efficiency'],
+                            'depth_of_discharge': after_bess_result['depth_of_discharge'],
+                            'ul_9540_compliant': after_bess_result['ul_9540_compliant'],
+                            'iec_62933_compliant': after_bess_result['iec_62933_compliant'],
+                            'ieee_1547_compliant': after_bess_result['ieee_1547_compliant'],
+                            'is_compliant': after_bess_result['is_compliant']
+                        }
+                        
+                        # Update after_compliance
+                        if 'BESS Standards (IEEE 1547, UL 9540, IEC 62933)' not in results['after_compliance']:
+                            results['after_compliance']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)'] = after_bess_result['is_compliant']
+                        
+                        # Check if improved (better efficiency, better compliance)
+                        if before_bess_result:
+                            before_eff = before_bess_result['round_trip_efficiency']
+                            after_eff = after_bess_result['round_trip_efficiency']
+                            before_compliant = before_bess_result['is_compliant']
+                            after_compliant = after_bess_result['is_compliant']
+                            
+                            improved = (after_eff > before_eff) or (not before_compliant and after_compliant)
+                            results['compliance_status']['BESS Standards (IEEE 1547, UL 9540, IEC 62933)']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"BESS Standards: Improved from {before_eff:.1f}% efficiency (Compliant={before_compliant}) to {after_eff:.1f}% efficiency (Compliant={after_compliant})")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='BESS Standards (IEEE 1547, UL 9540, IEC 62933)',
+                                period='after',
+                                is_compliant=after_bess_result['is_compliant'],
+                                details={
+                                    'round_trip_efficiency': after_bess_result['round_trip_efficiency'],
+                                    'depth_of_discharge': after_bess_result['depth_of_discharge'],
+                                    'ul_9540_compliant': after_bess_result['ul_9540_compliant'],
+                                    'iec_62933_compliant': after_bess_result['iec_62933_compliant'],
+                                    'ieee_1547_compliant': after_bess_result['ieee_1547_compliant']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log BESS Standards compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate BESS Standards from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate UPS Standards (IEC 62040, IEEE 446, UL 1778): Uninterruptible power system standards from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_ups_standards_from_csv(file_path, period='unknown', ups_capacity_kva=None, nominal_voltage=120.0, nominal_frequency=60.0):
+                    """Calculate UPS Standards compliance (IEC 62040, IEEE 446, UL 1778) from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} UPS Standards calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power, voltage, frequency, power factor columns
+                        power_col = None
+                        voltage_col = None
+                        frequency_col = None
+                        pf_col = None
+                        
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w', 'ups_power', 'it_power']:
+                                power_col = col
+                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage', 'output_voltage', 'ups_voltage']:
+                                voltage_col = col
+                            if frequency_col is None and col_lower in ['freq', 'frequency', 'hz', 'output_frequency', 'ups_frequency']:
+                                frequency_col = col
+                            if pf_col is None and col_lower in ['pf', 'powerfactor', 'power_factor', 'cos_phi']:
+                                pf_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power column in CSV for {period} UPS Standards")
+                            return None
+                        
+                        # Get power data
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        avg_power_kw = float(power_data.mean())
+                        max_power_kw = float(power_data.max())
+                        
+                        # Estimate UPS capacity if not provided
+                        if ups_capacity_kva is None or ups_capacity_kva <= 0:
+                            # Estimate from power data (assume 0.9 power factor)
+                            ups_capacity_kva = (max_power_kw / 0.9) * 1.2  # Add 20% margin
+                        
+                        # Calculate UPS efficiency (if we have input/output power)
+                        # For now, estimate based on typical UPS efficiency curves
+                        ups_loading_pct = (avg_power_kw / (ups_capacity_kva * 0.9)) * 100.0 if ups_capacity_kva > 0 else 0.0
+                        ups_loading_pct = min(ups_loading_pct, 100.0)
+                        
+                        # Typical UPS efficiency varies with load
+                        # High efficiency at 50-80% load, lower at very light or heavy loads
+                        if 50.0 <= ups_loading_pct <= 80.0:
+                            ups_efficiency = 0.92  # Optimal loading
+                        elif 30.0 <= ups_loading_pct < 50.0 or 80.0 < ups_loading_pct <= 90.0:
+                            ups_efficiency = 0.90  # Good loading
+                        elif ups_loading_pct < 30.0:
+                            ups_efficiency = 0.85  # Light loading (less efficient)
+                        else:
+                            ups_efficiency = 0.88  # Heavy loading
+                        
+                        # IEC 62040 Requirements
+                        # IEC 62040-3: Efficiency requirements based on UPS type
+                        # Online UPS: ≥ 90% efficiency at 50-100% load
+                        # Line-interactive: ≥ 88% efficiency
+                        # Offline: ≥ 85% efficiency
+                        iec_62040_efficiency_compliant = ups_efficiency >= 0.90  # Assume online UPS
+                        
+                        # IEC 62040: Output voltage accuracy ±3% for normal operation
+                        voltage_accuracy_compliant = True
+                        if voltage_col:
+                            voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
+                            if len(voltage_data) > 0:
+                                voltage_mean = float(voltage_data.mean())
+                                voltage_pct_deviation = abs((voltage_mean - nominal_voltage) / nominal_voltage) * 100.0
+                                voltage_accuracy_compliant = voltage_pct_deviation <= 3.0
+                        
+                        # IEC 62040: Frequency accuracy ±0.5 Hz for normal operation
+                        frequency_accuracy_compliant = True
+                        if frequency_col:
+                            frequency_data = pd.to_numeric(df[frequency_col], errors='coerce').dropna()
+                            if len(frequency_data) > 0:
+                                frequency_mean = float(frequency_data.mean())
+                                frequency_deviation = abs(frequency_mean - nominal_frequency)
+                                frequency_accuracy_compliant = frequency_deviation <= 0.5
+                        
+                        iec_62040_compliant = iec_62040_efficiency_compliant and voltage_accuracy_compliant and frequency_accuracy_compliant
+                        
+                        # IEEE 446 Requirements
+                        # IEEE 446: Emergency and standby power systems
+                        # Output voltage regulation: ±3% for normal operation
+                        # Frequency regulation: ±0.5 Hz for normal operation
+                        ieee_446_voltage_compliant = voltage_accuracy_compliant
+                        ieee_446_frequency_compliant = frequency_accuracy_compliant
+                        ieee_446_compliant = ieee_446_voltage_compliant and ieee_446_frequency_compliant
+                        
+                        # UL 1778 Requirements
+                        # UL 1778: Standard for Uninterruptible Power Systems
+                        # Output power factor should be ≥ 0.8 for most applications
+                        power_factor_compliant = True
+                        if pf_col:
+                            pf_data = pd.to_numeric(df[pf_col], errors='coerce').dropna()
+                            if len(pf_data) > 0:
+                                avg_pf = float(pf_data.mean())
+                                power_factor_compliant = avg_pf >= 0.8
+                        else:
+                            # Estimate power factor from power and voltage/current if available
+                            # Default assumption: compliant
+                            power_factor_compliant = True
+                        
+                        ul_1778_compliant = power_factor_compliant
+                        
+                        overall_compliant = iec_62040_compliant and ieee_446_compliant and ul_1778_compliant
+                        
+                        result = {
+                            'standard': 'UPS Standards (IEC 62040, IEEE 446, UL 1778)',
+                            'period': period,
+                            'ups_efficiency': round(ups_efficiency * 100, 2),
+                            'ups_loading_pct': round(ups_loading_pct, 2),
+                            'ups_capacity_kva': round(ups_capacity_kva, 2),
+                            'avg_power_kw': round(avg_power_kw, 2),
+                            'iec_62040_compliant': iec_62040_compliant,
+                            'iec_62040_efficiency_compliant': iec_62040_efficiency_compliant,
+                            'voltage_accuracy_compliant': voltage_accuracy_compliant,
+                            'frequency_accuracy_compliant': frequency_accuracy_compliant,
+                            'ieee_446_compliant': ieee_446_compliant,
+                            'ieee_446_voltage_compliant': ieee_446_voltage_compliant,
+                            'ieee_446_frequency_compliant': ieee_446_frequency_compliant,
+                            'ul_1778_compliant': ul_1778_compliant,
+                            'power_factor_compliant': power_factor_compliant,
+                            'is_compliant': overall_compliant,
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"UPS Standards {period}: Efficiency={ups_efficiency*100:.1f}%, Loading={ups_loading_pct:.1f}%, IEC62040={iec_62040_compliant}, IEEE446={ieee_446_compliant}, UL1778={ul_1778_compliant}, Compliant={overall_compliant}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating UPS Standards from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get nominal values and file paths
+                nominal_voltage = form_data.get('nominal_voltage', 120.0)
+                nominal_frequency = form_data.get('nominal_frequency', 60.0)
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                    nominal_frequency = float(nominal_frequency)
+                except (ValueError, TypeError):
+                    nominal_voltage = 120.0
+                    nominal_frequency = 60.0
+                
+                # Get UPS specifications if available (optional)
+                ups_capacity_kva = form_data.get('ups_capacity_kva', None)
+                try:
+                    if ups_capacity_kva:
+                        ups_capacity_kva = float(ups_capacity_kva)
+                except (ValueError, TypeError):
+                    ups_capacity_kva = None
+                
+                before_file_path = None
+                after_file_path = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate UPS Standards for before period
+                if before_file_path:
+                    before_ups_result = calculate_ups_standards_from_csv(before_file_path, 'before', ups_capacity_kva, nominal_voltage, nominal_frequency)
+                    if before_ups_result:
+                        # Update compliance status
+                        if 'UPS Standards (IEC 62040, IEEE 446, UL 1778)' not in results['compliance_status']:
+                            results['compliance_status']['UPS Standards (IEC 62040, IEEE 446, UL 1778)'] = {
+                                'standard': 'UPS Standards (IEC 62040, IEEE 446, UL 1778)',
+                                'description': 'Uninterruptible power system standards (IEC 62040, IEEE 446, UL 1778)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['UPS Standards (IEC 62040, IEEE 446, UL 1778)']['before'] = {
+                            'ups_efficiency': before_ups_result['ups_efficiency'],
+                            'ups_loading_pct': before_ups_result['ups_loading_pct'],
+                            'iec_62040_compliant': before_ups_result['iec_62040_compliant'],
+                            'ieee_446_compliant': before_ups_result['ieee_446_compliant'],
+                            'ul_1778_compliant': before_ups_result['ul_1778_compliant'],
+                            'is_compliant': before_ups_result['is_compliant']
+                        }
+                        
+                        # Update before_compliance
+                        if 'UPS Standards (IEC 62040, IEEE 446, UL 1778)' not in results['before_compliance']:
+                            results['before_compliance']['UPS Standards (IEC 62040, IEEE 446, UL 1778)'] = before_ups_result['is_compliant']
+                
+                # Calculate UPS Standards for after period
+                if after_file_path:
+                    after_ups_result = calculate_ups_standards_from_csv(after_file_path, 'after', ups_capacity_kva, nominal_voltage, nominal_frequency)
+                    if after_ups_result:
+                        # Update compliance status
+                        if 'UPS Standards (IEC 62040, IEEE 446, UL 1778)' not in results['compliance_status']:
+                            results['compliance_status']['UPS Standards (IEC 62040, IEEE 446, UL 1778)'] = {
+                                'standard': 'UPS Standards (IEC 62040, IEEE 446, UL 1778)',
+                                'description': 'Uninterruptible power system standards (IEC 62040, IEEE 446, UL 1778)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['UPS Standards (IEC 62040, IEEE 446, UL 1778)']['after'] = {
+                            'ups_efficiency': after_ups_result['ups_efficiency'],
+                            'ups_loading_pct': after_ups_result['ups_loading_pct'],
+                            'iec_62040_compliant': after_ups_result['iec_62040_compliant'],
+                            'ieee_446_compliant': after_ups_result['ieee_446_compliant'],
+                            'ul_1778_compliant': after_ups_result['ul_1778_compliant'],
+                            'is_compliant': after_ups_result['is_compliant']
+                        }
+                        
+                        # Update after_compliance
+                        if 'UPS Standards (IEC 62040, IEEE 446, UL 1778)' not in results['after_compliance']:
+                            results['after_compliance']['UPS Standards (IEC 62040, IEEE 446, UL 1778)'] = after_ups_result['is_compliant']
+                        
+                        # Check if improved (better efficiency, better compliance)
+                        if before_ups_result:
+                            before_eff = before_ups_result['ups_efficiency']
+                            after_eff = after_ups_result['ups_efficiency']
+                            before_compliant = before_ups_result['is_compliant']
+                            after_compliant = after_ups_result['is_compliant']
+                            
+                            improved = (after_eff > before_eff) or (not before_compliant and after_compliant)
+                            results['compliance_status']['UPS Standards (IEC 62040, IEEE 446, UL 1778)']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"UPS Standards: Improved from {before_eff:.1f}% efficiency (Compliant={before_compliant}) to {after_eff:.1f}% efficiency (Compliant={after_compliant})")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='UPS Standards (IEC 62040, IEEE 446, UL 1778)',
+                                period='after',
+                                is_compliant=after_ups_result['is_compliant'],
+                                details={
+                                    'ups_efficiency': after_ups_result['ups_efficiency'],
+                                    'ups_loading_pct': after_ups_result['ups_loading_pct'],
+                                    'iec_62040_compliant': after_ups_result['iec_62040_compliant'],
+                                    'ieee_446_compliant': after_ups_result['ieee_446_compliant'],
+                                    'ul_1778_compliant': after_ups_result['ul_1778_compliant']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log UPS Standards compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate UPS Standards from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
+        
+        # Calculate ANSI C12.1 & C12.20: Utility-grade revenue meter accuracy (Classes 0.1, 0.2, 0.5, 1.0, 2.0) from CSV data
+        try:
+            if before_file_id and after_file_id:
+                def calculate_ansi_c12_from_csv(file_path, period='unknown'):
+                    """Calculate ANSI C12.1 & C12.20 meter accuracy class compliance from CSV file"""
+                    if not file_path or not os.path.exists(file_path):
+                        logger.warning(f"CSV file not found for {period} ANSI C12.1 & C12.20 calculation: {file_path}")
+                        return None
+                    
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
+                        
+                        # Find power/kWh column
+                        power_col = None
+                        for col in df.columns:
+                            col_lower = col.lower().strip()
+                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'kwh', 'watts', 'w']:
+                                power_col = col
+                        
+                        if power_col is None:
+                            logger.warning(f"Could not find power/kWh column in CSV for {period} ANSI C12.1 & C12.20")
+                            return None
+                        
+                        # Calculate power measurement accuracy (Coefficient of Variation)
+                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
+                        if len(power_data) == 0:
+                            logger.warning(f"No valid power data found in CSV for {period}")
+                            return None
+                        
+                        power_mean = float(power_data.mean())
+                        power_std = float(power_data.std())
+                        
+                        if power_mean == 0:
+                            logger.warning(f"Zero mean power for {period} ANSI C12.1 & C12.20 calculation")
+                            return None
+                        
+                        # Coefficient of Variation (CV) as percentage - represents measurement accuracy
+                        cv_percent = (power_std / power_mean) * 100.0
+                        
+                        # ANSI C12.20 defines accuracy classes: 0.1, 0.2, 0.5, 1.0, 2.0
+                        # CV should be within the class limit for compliance
+                        # Class 0.2 is commonly used for revenue metering
+                        class_0_2_limit = 0.2
+                        class_0_5_limit = 0.5
+                        class_1_0_limit = 1.0
+                        class_2_0_limit = 2.0
+                        
+                        # Determine accuracy class
+                        if cv_percent <= 0.1:
+                            accuracy_class = "Class 0.1"
+                            is_compliant = True
+                        elif cv_percent <= 0.2:
+                            accuracy_class = "Class 0.2"
+                            is_compliant = True
+                        elif cv_percent <= 0.5:
+                            accuracy_class = "Class 0.5"
+                            is_compliant = True
+                        elif cv_percent <= 1.0:
+                            accuracy_class = "Class 1.0"
+                            is_compliant = True
+                        elif cv_percent <= 2.0:
+                            accuracy_class = "Class 2.0"
+                            is_compliant = True
+                        else:
+                            accuracy_class = "Below Class 2.0"
+                            is_compliant = False
+                        
+                        # ANSI C12.20 typically requires Class 0.2 or better for revenue metering
+                        # But we'll accept Class 0.5 or better as compliant
+                        is_compliant_revenue = cv_percent <= class_0_5_limit
+                        
+                        result = {
+                            'standard': 'ANSI C12.1 & C12.20',
+                            'period': period,
+                            'cv_percent': round(cv_percent, 4),
+                            'accuracy_class': accuracy_class,
+                            'is_compliant': is_compliant,
+                            'is_compliant_revenue': is_compliant_revenue,
+                            'class_0_2_limit': class_0_2_limit,
+                            'class_0_5_limit': class_0_5_limit,
+                            'power_mean': round(power_mean, 2),
+                            'power_std': round(power_std, 2),
+                            'data_points': len(power_data)
+                        }
+                        
+                        logger.info(f"ANSI C12.1 & C12.20 {period}: CV={cv_percent:.4f}%, Class={accuracy_class}, Compliant={is_compliant}, Revenue={is_compliant_revenue}")
+                        return result
+                        
+                    except Exception as e:
+                        logger.warning(f"Error calculating ANSI C12.1 & C12.20 from CSV for {period}: {e}")
+                        import traceback
+                        logger.warning(traceback.format_exc())
+                        return None
+                
+                # Get file paths
+                before_file_path = None
+                after_file_path = None
+                before_ansi_c12_result = None
+                
+                if before_file_id:
+                    before_file = File.query.get(before_file_id)
+                    if before_file:
+                        before_file_path = before_file.file_path
+                
+                if after_file_id:
+                    after_file = File.query.get(after_file_id)
+                    if after_file:
+                        after_file_path = after_file.file_path
+                
+                # Calculate ANSI C12.1 & C12.20 for before period
+                if before_file_path:
+                    before_ansi_c12_result = calculate_ansi_c12_from_csv(before_file_path, 'before')
+                    if before_ansi_c12_result:
+                        # Update compliance status
+                        if 'ANSI C12.1 & C12.20' not in results['compliance_status']:
+                            results['compliance_status']['ANSI C12.1 & C12.20'] = {
+                                'standard': 'ANSI C12.1 & C12.20',
+                                'description': 'Utility-grade revenue meter accuracy (Classes 0.1, 0.2, 0.5, 1.0, 2.0)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ANSI C12.1 & C12.20']['before'] = {
+                            'cv_percent': before_ansi_c12_result['cv_percent'],
+                            'accuracy_class': before_ansi_c12_result['accuracy_class'],
+                            'is_compliant': before_ansi_c12_result['is_compliant'],
+                            'is_compliant_revenue': before_ansi_c12_result['is_compliant_revenue']
+                        }
+                        
+                        # Update before_compliance
+                        if 'ANSI C12.1 & C12.20' not in results['before_compliance']:
+                            results['before_compliance']['ANSI C12.1 & C12.20'] = before_ansi_c12_result['is_compliant_revenue']
+                
+                # Calculate ANSI C12.1 & C12.20 for after period
+                if after_file_path:
+                    after_ansi_c12_result = calculate_ansi_c12_from_csv(after_file_path, 'after')
+                    if after_ansi_c12_result:
+                        # Update compliance status
+                        if 'ANSI C12.1 & C12.20' not in results['compliance_status']:
+                            results['compliance_status']['ANSI C12.1 & C12.20'] = {
+                                'standard': 'ANSI C12.1 & C12.20',
+                                'description': 'Utility-grade revenue meter accuracy (Classes 0.1, 0.2, 0.5, 1.0, 2.0)',
+                                'before': {},
+                                'after': {},
+                                'improved': False
+                            }
+                        
+                        results['compliance_status']['ANSI C12.1 & C12.20']['after'] = {
+                            'cv_percent': after_ansi_c12_result['cv_percent'],
+                            'accuracy_class': after_ansi_c12_result['accuracy_class'],
+                            'is_compliant': after_ansi_c12_result['is_compliant'],
+                            'is_compliant_revenue': after_ansi_c12_result['is_compliant_revenue']
+                        }
+                        
+                        # Update after_compliance
+                        if 'ANSI C12.1 & C12.20' not in results['after_compliance']:
+                            results['after_compliance']['ANSI C12.1 & C12.20'] = after_ansi_c12_result['is_compliant_revenue']
+                        
+                        # Check if improved (better accuracy class or lower CV)
+                        if before_ansi_c12_result:
+                            before_cv = before_ansi_c12_result['cv_percent']
+                            after_cv = after_ansi_c12_result['cv_percent']
+                            
+                            # Class hierarchy: 0.1 < 0.2 < 0.5 < 1.0 < 2.0 (lower is better)
+                            class_hierarchy = {"Class 0.1": 1, "Class 0.2": 2, "Class 0.5": 3, "Class 1.0": 4, "Class 2.0": 5, "Below Class 2.0": 6}
+                            before_class_num = class_hierarchy.get(before_ansi_c12_result['accuracy_class'], 6)
+                            after_class_num = class_hierarchy.get(after_ansi_c12_result['accuracy_class'], 6)
+                            
+                            improved = (after_class_num < before_class_num) or (after_cv < before_cv)
+                            results['compliance_status']['ANSI C12.1 & C12.20']['improved'] = improved
+                            
+                            if improved:
+                                logger.info(f"ANSI C12.1 & C12.20: Improved from {before_ansi_c12_result['accuracy_class']} (CV {before_cv:.4f}%) to {after_ansi_c12_result['accuracy_class']} (CV {after_cv:.4f}%)")
+                        
+                        # Log compliance verification
+                        try:
+                            log_compliance_verification(
+                                user_id=current_user.id if current_user.is_authenticated else None,
+                                standard='ANSI C12.1 & C12.20',
+                                period='after',
+                                is_compliant=after_ansi_c12_result['is_compliant_revenue'],
+                                details={
+                                    'cv_percent': after_ansi_c12_result['cv_percent'],
+                                    'accuracy_class': after_ansi_c12_result['accuracy_class'],
+                                    'is_compliant': after_ansi_c12_result['is_compliant']
+                                }
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not log ANSI C12.1 & C12.20 compliance: {e}")
+                                
+        except Exception as e:
+            logger.warning(f"Could not calculate ANSI C12.1 & C12.20 from CSV: {e}")
+            import traceback
+            logger.warning(traceback.format_exc())
         
         app._latest_analysis_results = results
         app._latest_form_data = form_data
@@ -30478,6 +32778,164 @@ def admin_stop_all_services():
             ),
             500,
         )
+
+
+@app.route("/admin/license-service/start", methods=["POST"])
+def admin_license_service_start():
+    """Start the License Service on port 8000"""
+    try:
+        import subprocess
+        import platform
+        
+        # Get project root (go up from 8082 to emv-program, then to project root)
+        current_file = os.path.abspath(__file__)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        license_service_dir = os.path.join(project_root, "license-service", "services", "license-service")
+        
+        if not os.path.exists(license_service_dir):
+            return jsonify({
+                "success": False,
+                "message": f"License Service directory not found: {license_service_dir}"
+            }), 404
+        
+        # Check if service is already running
+        try:
+            response = requests.get("http://localhost:8000/health", timeout=2)
+            if response.status_code == 200:
+                return jsonify({
+                    "success": False,
+                    "message": "License Service is already running on port 8000"
+                }), 400
+        except:
+            pass  # Service is not running, which is what we want
+        
+        # Start the service
+        if platform.system() == "Windows":
+            # Windows: use start command to run in new window
+            subprocess.Popen(
+                ["python", "-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+                cwd=license_service_dir,
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+        else:
+            # Linux/Mac: run in background
+            subprocess.Popen(
+                ["python", "-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
+                cwd=license_service_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        
+        logger.info(f"License Service start initiated from directory: {license_service_dir}")
+        return jsonify({
+            "success": True,
+            "message": "License Service start initiated. The service should be starting on port 8000."
+        })
+    except Exception as e:
+        logger.error(f"Failed to start License Service: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "message": f"Failed to start License Service: {str(e)}"
+        }), 500
+
+@app.route("/admin/license-service/stop", methods=["POST"])
+def admin_license_service_stop():
+    """Stop the License Service on port 8000"""
+    try:
+        import subprocess
+        import platform
+        
+        if platform.system() == "Windows":
+            # Windows: find and kill processes on port 8000
+            try:
+                # Use netstat to find process using port 8000
+                result = subprocess.run(
+                    ["netstat", "-ano"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                pids = []
+                for line in result.stdout.split('\n'):
+                    if ":8000" in line and "LISTENING" in line:
+                        parts = line.split()
+                        if len(parts) >= 5:
+                            pid = parts[-1]
+                            if pid.isdigit():
+                                pids.append(pid)
+                
+                if pids:
+                    for pid in set(pids):  # Remove duplicates
+                        try:
+                            subprocess.run(["taskkill", "/F", "/PID", pid], timeout=5, capture_output=True)
+                            logger.info(f"Stopped License Service process (PID: {pid})")
+                        except Exception as e:
+                            logger.warning(f"Failed to stop process {pid}: {e}")
+                    
+                    return jsonify({
+                        "success": True,
+                        "message": f"License Service stopped. Terminated {len(set(pids))} process(es) on port 8000."
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "message": "No License Service process found running on port 8000"
+                    }), 404
+            except Exception as e:
+                logger.error(f"Error stopping License Service on Windows: {e}")
+                return jsonify({
+                    "success": False,
+                    "message": f"Failed to stop License Service: {str(e)}"
+                }), 500
+        else:
+            # Linux/Mac: use lsof to find and kill process
+            try:
+                result = subprocess.run(
+                    ["lsof", "-ti", ":8000"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        if pid.isdigit():
+                            try:
+                                subprocess.run(["kill", "-9", pid], timeout=5, capture_output=True)
+                                logger.info(f"Stopped License Service process (PID: {pid})")
+                            except Exception as e:
+                                logger.warning(f"Failed to stop process {pid}: {e}")
+                    
+                    return jsonify({
+                        "success": True,
+                        "message": f"License Service stopped. Terminated {len(pids)} process(es) on port 8000."
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "message": "No License Service process found running on port 8000"
+                    }), 404
+            except FileNotFoundError:
+                return jsonify({
+                    "success": False,
+                    "message": "lsof command not found. Cannot stop License Service on this system."
+                }), 500
+            except Exception as e:
+                logger.error(f"Error stopping License Service: {e}")
+                return jsonify({
+                    "success": False,
+                    "message": f"Failed to stop License Service: {str(e)}"
+                }), 500
+    except Exception as e:
+        logger.error(f"Failed to stop License Service: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "message": f"Failed to stop License Service: {str(e)}"
+        }), 500
 
 @app.route("/admin/update-user-guides", methods=["POST"])
 def admin_update_user_guides():

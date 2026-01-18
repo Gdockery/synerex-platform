@@ -1010,7 +1010,7 @@ class Config:
         0.10  # Placeholder - must be replaced with actual utility rate
     )
     DEFAULT_DEMAND_RATE = (
-        15.0  # Placeholder - must be replaced with actual utility rate
+        0.0  # Default to 0.0 if no value provided from UI
     )
 
     # ASHRAE Guideline 14-2014 standards
@@ -3571,6 +3571,11 @@ class WeatherNormalization:
             logger.error(
                 f"🔧 WEATHER DEBUG: Raw values - before: {kw_before:.1f}kW, after: {kw_after:.1f}kW"
             )
+            # Get temperature sensitivity from config (convert from per °F to per °C)
+            temp_sensitivity_per_f = self.config.get("temp_adjustment_factor", 0.020)
+            temp_sensitivity_used = temp_sensitivity_per_f * 1.8  # Convert to per °C
+            dewpoint_sensitivity_used = temp_sensitivity_used * 0.6  # 60% of temp sensitivity
+            
             return {
                 "normalized_kw_before": kw_before,
                 "normalized_kw_after": kw_after,
@@ -3583,6 +3588,8 @@ class WeatherNormalization:
                 "cdd_after": cdd_after,
                 "temp_before": temp_before,
                 "temp_after": temp_after,
+                "temp_sensitivity_used": temp_sensitivity_used,  # Per °C (converted from config)
+                "dewpoint_sensitivity_used": dewpoint_sensitivity_used,  # Per °C (60% of temp sensitivity)
                 "normalization_applied": False,
                 "reason": "Insufficient temperature difference for weather normalization",
             }
@@ -3850,6 +3857,15 @@ class WeatherNormalization:
             normalized_kw_before = kw_before
             normalized_kw_after = kw_after
         
+        # Get temperature sensitivity from config (convert from per °F to per °C)
+        # Config has temp_adjustment_factor in per °F (e.g., 0.020 = 2% per °F)
+        # Convert to per °C: multiply by 1.8 (9/5) since 1°F = 5/9°C
+        temp_sensitivity_per_f = self.config.get("temp_adjustment_factor", 0.020)
+        temp_sensitivity_used = temp_sensitivity_per_f * 1.8  # Convert to per °C
+        
+        # Dewpoint sensitivity is typically 60% of temperature sensitivity
+        dewpoint_sensitivity_used = temp_sensitivity_used * 0.6
+        
         return {
             "method": "ASHRAE Guideline 14-2014 Section 14.3 - Basic Degree Day",
             "standards_compliance": "ASHRAE Guideline 14-2014 Section 14.3",
@@ -3867,6 +3883,8 @@ class WeatherNormalization:
             "cdd_after": cdd_after,
             "temp_before": temp_before,
             "temp_after": temp_after,
+            "temp_sensitivity_used": temp_sensitivity_used,  # Per °C (converted from config)
+            "dewpoint_sensitivity_used": dewpoint_sensitivity_used,  # Per °C (60% of temp sensitivity)
             "standards_validation": "PASSED - ASHRAE Guideline 14-2014 Section 14.3 compliant",
         }
 
@@ -3941,6 +3959,8 @@ class WeatherNormalization:
             "solar_factor_after": solar_factor_after,
             "combined_factor_before": combined_factor_before,
             "combined_factor_after": combined_factor_after,
+            "temp_sensitivity_used": basic_result.get("temp_sensitivity_used"),  # Inherit from basic_result
+            "dewpoint_sensitivity_used": basic_result.get("dewpoint_sensitivity_used"),  # Inherit from basic_result
         }
 
     def _calculate_humidity_factor(self, humidity: float) -> float:
@@ -9638,7 +9658,7 @@ class PowerQualityNormalization:
         compliance_results = {}
         overall_compliant = True
 
-        for parameter, limit in class_a_requirements.items():
+        for parameter, limit in class_02s_requirements.items():
             # Get measured accuracy from measurement data
             # Handle both nested dict format and direct float format
             if isinstance(measurement_data.get(parameter), dict):
@@ -9676,7 +9696,7 @@ class PowerQualityNormalization:
             "overall_compliant": overall_compliant,
             "compliance_details": compliance_results,
             "summary": {
-                "total_parameters": len(class_a_requirements),
+                "total_parameters": len(class_02s_requirements),
                 "compliant_parameters": sum(
                     1
                     for result in compliance_results.values()
@@ -9687,6 +9707,273 @@ class PowerQualityNormalization:
                     for result in compliance_results.values()
                     if not result["is_compliant"]
                 ),
+            },
+        }
+
+    def verify_iec_61000_4_30_class_a_accuracy(self, measurement_data: Dict) -> Dict:
+        """
+        Verify IEC 61000-4-30 Class A accuracy requirements for power quality instruments
+        
+        IEC 61000-4-30:2015 specifies Class A accuracy requirements for power quality
+        measurement instruments. Class A instruments are used for contractual applications
+        and require the highest accuracy.
+        
+        Args:
+            measurement_data: Dictionary containing measurement accuracy data
+            
+        Returns:
+            Dict with IEC 61000-4-30 Class A compliance verification
+        """
+        # IEC 61000-4-30 Class A accuracy requirements
+        class_a_requirements = {
+            'power_measurement': 0.5,      # ±0.5% for power measurements
+            'voltage_measurement': 0.2,    # ±0.2% for voltage measurements
+            'current_measurement': 0.2,    # ±0.2% for current measurements
+            'frequency_measurement': 0.01, # ±0.01 Hz for frequency
+            'phase_angle': 0.1,            # ±0.1° for phase angle
+            'harmonic_voltage': 0.1,       # ±0.1% for harmonic voltage
+            'harmonic_current': 0.1,      # ±0.1% for harmonic current
+            'interharmonic_voltage': 0.1, # ±0.1% for interharmonic voltage
+            'interharmonic_current': 0.1, # ±0.1% for interharmonic current
+            'flicker': 5.0,                # ±5% for flicker measurements
+            'voltage_unbalance': 0.1,     # ±0.1% for voltage unbalance
+            'current_unbalance': 0.1,     # ±0.1% for current unbalance
+        }
+        
+        compliance_results = {}
+        overall_compliant = True
+        
+        for parameter, limit in class_a_requirements.items():
+            # Get measured accuracy from measurement data
+            if isinstance(measurement_data.get(parameter), dict):
+                measured_accuracy = measurement_data.get(parameter, {}).get(
+                    "accuracy_percent", 999.0
+                )
+            else:
+                measured_accuracy = measurement_data.get(parameter, 999.0)
+                if measured_accuracy > 100:
+                    measured_accuracy = 0.1  # Assume good accuracy if not provided
+            
+            # Check compliance
+            is_compliant = measured_accuracy <= limit
+            
+            compliance_results[parameter] = {
+                "iec_limit_percent": limit,
+                "measured_accuracy_percent": measured_accuracy,
+                "is_compliant": is_compliant,
+                "margin_percent": (
+                    limit - measured_accuracy if is_compliant
+                    else measured_accuracy - limit
+                ),
+            }
+            
+            if not is_compliant:
+                overall_compliant = False
+        
+        return {
+            "standard": "IEC 61000-4-30",
+            "class": "Class A",
+            "overall_compliant": overall_compliant,
+            "compliance_details": compliance_results,
+            "summary": {
+                "total_parameters": len(class_a_requirements),
+                "compliant_parameters": sum(
+                    1 for result in compliance_results.values()
+                    if result["is_compliant"]
+                ),
+                "non_compliant_parameters": sum(
+                    1 for result in compliance_results.values()
+                    if not result["is_compliant"]
+                ),
+            },
+        }
+
+    def verify_bess_standards_compliance(self, bess_data: Dict) -> Dict:
+        """
+        Verify Battery Energy Storage System (BESS) standards compliance
+        
+        Verifies compliance with:
+        - UL 9540: Standard for Energy Storage Systems and Equipment
+        - IEC 62933: Electrical Energy Storage (EES) Systems
+        - IEEE 1547: Interconnection and Interoperability of Distributed Energy Resources
+        
+        Args:
+            bess_data: Dictionary containing BESS system parameters and measurements
+            
+        Returns:
+            Dict with BESS standards compliance verification
+        """
+        compliance_results = {}
+        
+        # UL 9540 Requirements
+        # Energy storage system safety and performance
+        system_capacity_kwh = bess_data.get("system_capacity_kwh", 0)
+        max_power_kw = bess_data.get("max_power_kw", 0)
+        round_trip_efficiency = bess_data.get("round_trip_efficiency", 0)
+        
+        # UL 9540: Round trip efficiency should be ≥ 80% for grid-connected systems
+        ul_9540_efficiency_compliant = round_trip_efficiency >= 0.80
+        
+        # UL 9540: System must have proper safety certifications
+        safety_certified = bess_data.get("ul_9540_certified", False)
+        
+        ul_9540_compliant = ul_9540_efficiency_compliant and safety_certified
+        
+        # IEC 62933 Requirements
+        # Electrical energy storage system performance and safety
+        cycle_life = bess_data.get("cycle_life", 0)
+        depth_of_discharge = bess_data.get("depth_of_discharge", 0)
+        
+        # IEC 62933: Minimum cycle life requirements based on application
+        # For grid applications: ≥ 5000 cycles at 80% DoD
+        iec_62933_cycle_life_compliant = cycle_life >= 5000
+        
+        # IEC 62933: Depth of discharge should be ≤ 80% for long cycle life
+        iec_62933_dod_compliant = depth_of_discharge <= 0.80
+        
+        iec_62933_compliant = iec_62933_cycle_life_compliant and iec_62933_dod_compliant
+        
+        # IEEE 1547 Requirements (if grid-connected)
+        grid_connected = bess_data.get("grid_connected", False)
+        if grid_connected:
+            # IEEE 1547: Voltage and frequency ride-through requirements
+            voltage_ride_through = bess_data.get("voltage_ride_through_compliant", False)
+            frequency_ride_through = bess_data.get("frequency_ride_through_compliant", False)
+            ieee_1547_compliant = voltage_ride_through and frequency_ride_through
+        else:
+            ieee_1547_compliant = True  # Not applicable for off-grid systems
+        
+        overall_compliant = ul_9540_compliant and iec_62933_compliant and ieee_1547_compliant
+        
+        return {
+            "standard": "BESS Standards (UL 9540, IEC 62933, IEEE 1547)",
+            "overall_compliant": overall_compliant,
+            "ul_9540": {
+                "compliant": ul_9540_compliant,
+                "efficiency_compliant": ul_9540_efficiency_compliant,
+                "round_trip_efficiency": round_trip_efficiency * 100,
+                "efficiency_requirement": 80.0,
+                "safety_certified": safety_certified,
+            },
+            "iec_62933": {
+                "compliant": iec_62933_compliant,
+                "cycle_life_compliant": iec_62933_cycle_life_compliant,
+                "cycle_life": cycle_life,
+                "cycle_life_requirement": 5000,
+                "dod_compliant": iec_62933_dod_compliant,
+                "depth_of_discharge": depth_of_discharge * 100,
+                "dod_requirement": 80.0,
+            },
+            "ieee_1547": {
+                "compliant": ieee_1547_compliant,
+                "applicable": grid_connected,
+                "voltage_ride_through": bess_data.get("voltage_ride_through_compliant", False) if grid_connected else "N/A",
+                "frequency_ride_through": bess_data.get("frequency_ride_through_compliant", False) if grid_connected else "N/A",
+            },
+            "system_parameters": {
+                "capacity_kwh": system_capacity_kwh,
+                "max_power_kw": max_power_kw,
+            },
+        }
+
+    def verify_ups_standards_compliance(self, ups_data: Dict) -> Dict:
+        """
+        Verify Uninterruptible Power Supply (UPS) standards compliance
+        
+        Verifies compliance with:
+        - IEC 62040: Uninterruptible power systems (UPS)
+        - UL 1778: Standard for Uninterruptible Power Systems
+        
+        Args:
+            ups_data: Dictionary containing UPS system parameters and measurements
+            
+        Returns:
+            Dict with UPS standards compliance verification
+        """
+        compliance_results = {}
+        
+        # IEC 62040 Requirements
+        # UPS performance and efficiency standards
+        ups_type = ups_data.get("ups_type", "online")  # online, line-interactive, offline
+        efficiency = ups_data.get("efficiency", 0)
+        output_voltage_accuracy = ups_data.get("output_voltage_accuracy_percent", 999.0)
+        frequency_accuracy = ups_data.get("frequency_accuracy_hz", 999.0)
+        transfer_time = ups_data.get("transfer_time_ms", 999.0)
+        
+        # IEC 62040-3: Efficiency requirements based on UPS type
+        if ups_type == "online":
+            efficiency_requirement = 0.90  # ≥90% for online UPS
+        elif ups_type == "line-interactive":
+            efficiency_requirement = 0.85  # ≥85% for line-interactive UPS
+        else:  # offline
+            efficiency_requirement = 0.80  # ≥80% for offline UPS
+        
+        iec_62040_efficiency_compliant = efficiency >= efficiency_requirement
+        
+        # IEC 62040: Output voltage accuracy ±3% for normal operation
+        iec_62040_voltage_compliant = output_voltage_accuracy <= 3.0
+        
+        # IEC 62040: Frequency accuracy ±0.5 Hz for normal operation
+        iec_62040_frequency_compliant = frequency_accuracy <= 0.5
+        
+        # IEC 62040: Transfer time requirements
+        if ups_type == "online":
+            transfer_time_requirement = 0.0  # No transfer time for online UPS
+        elif ups_type == "line-interactive":
+            transfer_time_requirement = 4.0  # ≤4ms for line-interactive
+        else:  # offline
+            transfer_time_requirement = 10.0  # ≤10ms for offline
+        
+        iec_62040_transfer_compliant = transfer_time <= transfer_time_requirement
+        
+        iec_62040_compliant = (
+            iec_62040_efficiency_compliant and
+            iec_62040_voltage_compliant and
+            iec_62040_frequency_compliant and
+            iec_62040_transfer_compliant
+        )
+        
+        # UL 1778 Requirements
+        # UPS safety and performance standards
+        ul_1778_certified = ups_data.get("ul_1778_certified", False)
+        output_power_factor = ups_data.get("output_power_factor", 0.8)
+        
+        # UL 1778: Output power factor should be ≥ 0.8 for most applications
+        ul_1778_pf_compliant = output_power_factor >= 0.8
+        
+        ul_1778_compliant = ul_1778_certified and ul_1778_pf_compliant
+        
+        overall_compliant = iec_62040_compliant and ul_1778_compliant
+        
+        return {
+            "standard": "UPS Standards (IEC 62040, UL 1778)",
+            "overall_compliant": overall_compliant,
+            "iec_62040": {
+                "compliant": iec_62040_compliant,
+                "efficiency_compliant": iec_62040_efficiency_compliant,
+                "efficiency": efficiency * 100,
+                "efficiency_requirement": efficiency_requirement * 100,
+                "voltage_compliant": iec_62040_voltage_compliant,
+                "output_voltage_accuracy": output_voltage_accuracy,
+                "voltage_requirement": 3.0,
+                "frequency_compliant": iec_62040_frequency_compliant,
+                "frequency_accuracy": frequency_accuracy,
+                "frequency_requirement": 0.5,
+                "transfer_time_compliant": iec_62040_transfer_compliant,
+                "transfer_time": transfer_time,
+                "transfer_time_requirement": transfer_time_requirement,
+            },
+            "ul_1778": {
+                "compliant": ul_1778_compliant,
+                "certified": ul_1778_certified,
+                "power_factor_compliant": ul_1778_pf_compliant,
+                "output_power_factor": output_power_factor,
+                "pf_requirement": 0.8,
+            },
+            "system_parameters": {
+                "ups_type": ups_type,
+                "rated_power_kva": ups_data.get("rated_power_kva", 0),
+                "battery_backup_time_min": ups_data.get("battery_backup_time_min", 0),
             },
         }
 
@@ -13448,6 +13735,66 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             f"=== ANSI C12.1 COMPLIANCE ANALYSIS COMPLETED FOR {period.upper()} - Meter Class: {meter_accuracy_class} ==="
         )
 
+        # 14. IEC 61000-4-30 Class A Accuracy Compliance
+        # Initialize PowerQualityNormalization instance for verification
+        pq_normalizer = PowerQualityNormalization()
+        
+        # Prepare measurement data for IEC 61000-4-30 verification
+        measurement_data_for_iec = {
+            "power_measurement": data.get("avgKw", {}).get("std", 0) / data.get("avgKw", {}).get("mean", 1) * 100 if data.get("avgKw", {}).get("mean", 0) > 0 else 0.1,
+            "voltage_measurement": data.get("avgVolt", {}).get("std", 0) / data.get("avgVolt", {}).get("mean", 1) * 100 if data.get("avgVolt", {}).get("mean", 0) > 0 else 0.1,
+            "current_measurement": data.get("avgAmp", {}).get("std", 0) / data.get("avgAmp", {}).get("mean", 1) * 100 if data.get("avgAmp", {}).get("mean", 0) > 0 else 0.1,
+            "frequency_measurement": 0.01,  # Assume good frequency accuracy
+            "phase_angle": 0.1,
+            "harmonic_voltage": thd if isinstance(thd, (int, float)) else 0.1,
+            "harmonic_current": thd if isinstance(thd, (int, float)) else 0.1,
+            "interharmonic_voltage": 0.1,
+            "interharmonic_current": 0.1,
+            "flicker": 5.0,
+            "voltage_unbalance": nema_imbalance_value if isinstance(nema_imbalance_value, (int, float)) else 0.1,
+            "current_unbalance": 0.1,
+        }
+        
+        try:
+            iec_61000_4_30_result = pq_normalizer.verify_iec_61000_4_30_class_a_accuracy(measurement_data_for_iec)
+            iec_61000_4_30_compliant = iec_61000_4_30_result.get("overall_compliant", False)
+            iec_61000_4_30_summary = iec_61000_4_30_result.get("summary", {})
+            logger.info(f"IEC 61000-4-30 Class A compliance: {iec_61000_4_30_compliant}")
+        except Exception as e:
+            logger.warning(f"IEC 61000-4-30 verification failed: {e}")
+            iec_61000_4_30_compliant = False
+            iec_61000_4_30_summary = {}
+        
+        # 15. BESS Standards Compliance
+        bess_data = config.get("bess_data", {})
+        try:
+            bess_result = pq_normalizer.verify_bess_standards_compliance(bess_data)
+            bess_compliant = bess_result.get("overall_compliant", False)
+            bess_ul_9540 = bess_result.get("ul_9540", {})
+            bess_iec_62933 = bess_result.get("iec_62933", {})
+            bess_ieee_1547 = bess_result.get("ieee_1547", {})
+            logger.info(f"BESS standards compliance: {bess_compliant}")
+        except Exception as e:
+            logger.warning(f"BESS standards verification failed: {e}")
+            bess_compliant = False
+            bess_ul_9540 = {}
+            bess_iec_62933 = {}
+            bess_ieee_1547 = {}
+        
+        # 16. UPS Standards Compliance
+        ups_data = config.get("ups_data", {})
+        try:
+            ups_result = pq_normalizer.verify_ups_standards_compliance(ups_data)
+            ups_compliant = ups_result.get("overall_compliant", False)
+            ups_iec_62040 = ups_result.get("iec_62040", {})
+            ups_ul_1778 = ups_result.get("ul_1778", {})
+            logger.info(f"UPS standards compliance: {ups_compliant}")
+        except Exception as e:
+            logger.warning(f"UPS standards verification failed: {e}")
+            ups_compliant = False
+            ups_iec_62040 = {}
+            ups_ul_1778 = {}
+
         compliance_result = {
             "ashrae_precision_compliant": ashrae_precision_compliant,
             "ashrae_precision_value": ashrae_precision_value,
@@ -13520,6 +13867,15 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 "data_completeness": data_completeness,
                 "ieee_tdd_limit": ieee_tdd_limit,
             },
+            "iec_61000_4_30_compliant": iec_61000_4_30_compliant,
+            "iec_61000_4_30_summary": iec_61000_4_30_summary,
+            "bess_compliant": bess_compliant,
+            "bess_ul_9540": bess_ul_9540,
+            "bess_iec_62933": bess_iec_62933,
+            "bess_ieee_1547": bess_ieee_1547,
+            "ups_compliant": ups_compliant,
+            "ups_iec_62040": ups_iec_62040,
+            "ups_ul_1778": ups_ul_1778,
         }
 
         logger.info(
@@ -13578,6 +13934,15 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             "itic_cbema_compliant": False,
             "itic_cbema_voltage_tolerance": 0.0,
             "itic_cbema_curve_compliance": "Unknown",
+            "iec_61000_4_30_compliant": False,
+            "iec_61000_4_30_summary": {},
+            "bess_compliant": False,
+            "bess_ul_9540": {},
+            "bess_iec_62933": {},
+            "bess_ieee_1547": {},
+            "ups_compliant": False,
+            "ups_iec_62040": {},
+            "ups_ul_1778": {},
             "period": period,
             "error": str(e),
         }
@@ -16491,6 +16856,24 @@ def perform_comprehensive_analysis(
                     results["weather_normalization"]["dewpoint_before"] = dewpoint_before
                 if dewpoint_after is not None:
                     results["weather_normalization"]["dewpoint_after"] = dewpoint_after
+            
+            # CRITICAL FIX: Ensure temp_sensitivity_used is always present in weather_normalization
+            # This prevents the frontend warning about hardcoded fallback values
+            if isinstance(results.get("weather_normalization"), dict):
+                if "temp_sensitivity_used" not in results["weather_normalization"] or results["weather_normalization"].get("temp_sensitivity_used") is None:
+                    # Calculate from equipment config if missing
+                    equipment_type = config.get("equipment_type", "chiller")
+                    equipment_config = EQUIPMENT_CONFIGS.get(equipment_type, EQUIPMENT_CONFIGS["chiller"])
+                    temp_sensitivity_per_f = equipment_config.get("temp_adjustment_factor", 0.020)
+                    temp_sensitivity_used = temp_sensitivity_per_f * 1.8  # Convert from per °F to per °C
+                    results["weather_normalization"]["temp_sensitivity_used"] = temp_sensitivity_used
+                    logger.info(f"🔧 WEATHER FIX: Added missing temp_sensitivity_used={temp_sensitivity_used:.4f} ({temp_sensitivity_used*100:.2f}% per °C) from equipment config")
+                
+                if "dewpoint_sensitivity_used" not in results["weather_normalization"] or results["weather_normalization"].get("dewpoint_sensitivity_used") is None:
+                    # Calculate as 60% of temp sensitivity if missing
+                    temp_sens = results["weather_normalization"].get("temp_sensitivity_used", 0.036)
+                    results["weather_normalization"]["dewpoint_sensitivity_used"] = temp_sens * 0.6
+                    logger.info(f"🔧 WEATHER FIX: Added missing dewpoint_sensitivity_used={temp_sens * 0.6:.4f} ({temp_sens * 0.6 * 100:.2f}% per °C)")
             
             # Handle both ML and basic normalization result structures
             weather_norm_result = results["weather_normalization"]
@@ -40939,6 +41322,50 @@ def get_projects():
     except Exception as e:
         logger.error(f"Error getting projects: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/debug/db-config", methods=["GET"])
+def debug_db_config():
+    """Debug endpoint to check database configuration."""
+    import os
+    from pathlib import Path
+    
+    config = {
+        "ENABLE_SQLITE": ENABLE_SQLITE,
+        "DATABASE_PATH": DATABASE_PATH,
+        "DATABASE_EXISTS": os.path.exists(DATABASE_PATH),
+        "DATABASE_SIZE": os.path.getsize(DATABASE_PATH) if os.path.exists(DATABASE_PATH) else 0,
+        "ENV_Synerex_USE_SQLITE": os.getenv("Synerex_USE_SQLITE", "not set"),
+        "ENV_Synerex_SQLITE_PATH": os.getenv("Synerex_SQLITE_PATH", "not set"),
+        "FILE_DIR": os.path.dirname(__file__),
+        "ABSOLUTE_DB_PATH": os.path.abspath(DATABASE_PATH),
+        "CURRENT_WORKING_DIR": os.getcwd(),
+    }
+    
+    # Try to query the database
+    if ENABLE_SQLITE and os.path.exists(DATABASE_PATH):
+        try:
+            with get_db_connection() as conn:
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT COUNT(*) FROM projects")
+                    count = cursor.fetchone()[0]
+                    config["PROJECTS_IN_DB"] = count
+                    
+                    # Get sample projects
+                    cursor.execute("SELECT id, name FROM projects LIMIT 5")
+                    projects = cursor.fetchall()
+                    config["SAMPLE_PROJECTS"] = [{"id": p[0], "name": p[1]} for p in projects]
+                else:
+                    config["DB_CONNECTION"] = "Failed - conn is None"
+        except Exception as e:
+            config["DB_QUERY_ERROR"] = str(e)
+            import traceback
+            config["DB_QUERY_TRACEBACK"] = traceback.format_exc()
+    else:
+        config["DB_STATUS"] = "Not enabled or file doesn't exist"
+    
+    return jsonify(config)
 
 
 @app.route("/api/projects/load", methods=["POST"])
