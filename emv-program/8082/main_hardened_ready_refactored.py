@@ -653,6 +653,10 @@ def get_current_org_id(request):
         if not session_token:
             return None
         
+        # Strip "Bearer " prefix if present
+        if session_token.startswith('Bearer '):
+            session_token = session_token[7:]  # Remove "Bearer " (7 characters)
+        
         # Query shared sessions database to get org_id
         with get_db_connection(use_sessions_db=True) as conn:
             cursor = conn.cursor()
@@ -31524,6 +31528,8 @@ def admin_panel():
                         const username = document.getElementById('username').value;
                         const password = document.getElementById('password').value;
                         const role = document.getElementById('role').value;
+                        // Use default org_id of "admin" for admin panel login
+                        const org_id = 'admin';
                         
                         try {
                             const controller = new AbortController();
@@ -31532,7 +31538,7 @@ def admin_panel():
                             const response = await fetch('/api/auth/login', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ username, password, role }),
+                                body: JSON.stringify({ username, password, role, org_id }),
                                 signal: controller.signal
                             });
                             

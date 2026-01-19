@@ -249,6 +249,10 @@ class MainDashboard {
         const password = document.getElementById('password').value;
         const role = document.getElementById('user-role').value;
         
+        // Get org_id from form field if it exists, otherwise default to "admin"
+        const orgIdInput = document.getElementById('org-id');
+        const org_id = orgIdInput ? orgIdInput.value || 'admin' : 'admin';
+        
         if (!username || !password || !role) {
             this.showNotification('Please fill in all fields', 'error');
             return;
@@ -258,7 +262,7 @@ class MainDashboard {
         this.clearAllSpinners();
         
         try {
-            console.log('🔐 Login attempt:', { username, role });
+            console.log('🔐 Login attempt:', { username, role, org_id });
             this.setLoading(true);
             
             // Add timeout controller to prevent infinite spinner
@@ -278,7 +282,7 @@ class MainDashboard {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, role }),
+                    body: JSON.stringify({ username, password, role, org_id }),
                     signal: controller.signal
                 });
                 
@@ -3118,9 +3122,7 @@ class MainDashboard {
             
             const response = await fetch('/api/projects/load', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify({
                     project_id: projectId
                 })
@@ -3205,9 +3207,7 @@ class MainDashboard {
             // Load project data
             const loadResponse = await fetch('/api/projects/load', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: this.getAuthHeaders(),
                 body: JSON.stringify({
                     project_id: projectId
                 })
