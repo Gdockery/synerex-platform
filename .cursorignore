@@ -1,0 +1,29 @@
+# Exclude large directories from Cursor indexing
+**/reports/**
+**/files/**
+**/node_modules/**
+**/__pycache__/**
+**/uploads/**
+**/temp/**
+**/dist/**
+**/build/**
+**/venv/**
+
+# Exclude large file types
+**/*.csv
+**/*.log
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.html
+
+# Exclude generated files
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.egg-info/
+
+# Exclude specific large directories
+emv-program/8082/reports/**
+emv-program/8082/files/**
+emv-program/8082/venv/**

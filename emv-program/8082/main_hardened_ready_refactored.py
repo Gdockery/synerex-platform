@@ -649,11 +649,16 @@ def get_current_org_id(request):
         org_id (str) or None if not found or session invalid
     """
     try:
-        session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
+        # Check multiple header formats for session token
+        session_token = (
+            request.headers.get('Authorization') or 
+            request.headers.get('X-Session-Token') or 
+            request.cookies.get('session_token')
+        )
         if not session_token:
             return None
         
-        # Strip "Bearer " prefix if present
+        # Strip "Bearer " prefix if present (from Authorization header)
         if session_token.startswith('Bearer '):
             session_token = session_token[7:]  # Remove "Bearer " (7 characters)
         
@@ -2033,12 +2038,12 @@ class WeatherNormalizationML:
     normalized values for the compensated period, accounting for both temperature and humidity (dewpoint) effects.
     """
     
-    def __init__(self, base_temp_celsius=10.0, equipment_type="chiller"):
+    def __init__(self, base_temp_celsius=18.3, equipment_type="chiller"):
         """
         Initialize the ML normalization class.
         
         Args:
-            base_temp_celsius: Base temperature for degree day calculations (default 10.0°C)
+            base_temp_celsius: Base temperature for degree day calculations (default 18.3°C per ASHRAE Guideline 14-2014 for commercial buildings)
             equipment_type: Type of equipment (e.g., "chiller") to use equipment-specific sensitivity factors
         """
         self.base_temp = base_temp_celsius
@@ -2248,21 +2253,28 @@ class WeatherNormalizationML:
                     "method": "Optimization failed - no valid models found"
                 }
             
-            # CRITICAL: Base temperature is fixed at 10.0°C per requirements
-            # Do not update base_temp from optimization - always use 10.0°C
+            # Use optimized base temperature if found, otherwise use ASHRAE standard
             old_base = self.base_temp
-            self.base_temp = 10.0
-            self.optimized_base_temp = 10.0
-            self.base_temp_optimized = False  # Not optimized, using fixed 10.0°C
-            
-            logger.info(f"Base temperature fixed at 10.0°C (per requirements, optimization disabled)")
+            if best_base_temp is not None and best_base_temp > 0 and best_r2 > 0:
+                self.base_temp = best_base_temp
+                self.optimized_base_temp = best_base_temp
+                self.base_temp_optimized = True
+                logger.info(f"Base temperature optimized from baseline data: {best_base_temp:.1f}°C (R²={best_r2:.3f})")
+                return_base_temp = best_base_temp
+            else:
+                # Fallback to ASHRAE standard for commercial buildings
+                self.base_temp = 18.3
+                self.optimized_base_temp = 18.3
+                self.base_temp_optimized = False
+                logger.info(f"Base temperature optimization completed, using ASHRAE standard: 18.3°C (65°F) for commercial buildings")
+                return_base_temp = 18.3
             
             return {
                 "success": True,
-                "optimized_base_temp": 10.0,  # Always return 10.0°C
+                "optimized_base_temp": return_base_temp,
                 "best_r2": best_r2,
                 "previous_base_temp": old_base,
-                "method": f"Base temperature fixed at 10.0°C (optimization disabled per requirements)"
+                "method": f"Base temperature optimized to {return_base_temp:.1f}°C (R²={best_r2:.3f})" if return_base_temp != 18.3 else f"Base temperature using ASHRAE standard: 18.3°C (65°F) for commercial buildings"
             }
             
         except Exception as e:
@@ -2320,11 +2332,19 @@ class WeatherNormalizationML:
                 
                 if base_opt_result.get("success", False):
                     # Update base temperature (could be from grid search optimization or median fallback)
-                    # CRITICAL: Force base temperature to 10.0°C as required
-                    self.base_temp = 10.0
-                    self.optimized_base_temp = 10.0
-                    self.base_temp_optimized = False  # Not optimized, using fixed 10.0°C
-                    logger.info(f"Base temperature fixed at 10.0°C (optimization disabled per requirements)")
+                    # Use optimized base temperature if available, otherwise use ASHRAE standard
+                    opt_temp = base_opt_result.get("optimized_base_temp")
+                    if opt_temp is not None and opt_temp > 0:
+                        self.base_temp = opt_temp
+                        self.optimized_base_temp = opt_temp
+                        self.base_temp_optimized = True
+                        logger.info(f"Using optimized base temperature from baseline data: {opt_temp:.1f}°C")
+                    else:
+                        # Fallback to ASHRAE standard for commercial buildings
+                        self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                        self.optimized_base_temp = 18.3
+                        self.base_temp_optimized = False
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
                     # Even if optimization failed, ALWAYS calculate from baseline temperature data
                     # No fallback to default - must use baseline data
@@ -2690,7 +2710,7 @@ class WeatherNormalizationML:
                     baseline_energy_series,
                     baseline_temp_series,
                     baseline_dewpoint_series,
-                    optimize_base_temp=False  # Disable optimization to keep base_temp at 10.0°C
+                    optimize_base_temp=True  # Enable optimization to find best base_temp from baseline data (ASHRAE-compliant)
                 )
                 
                 if regression_result is not None and regression_result.get("success", False):
@@ -2715,22 +2735,38 @@ class WeatherNormalizationML:
                             self.regression_mean_energy = mean_energy
                             logger.info(f"Calculated regression coefficients from sensitivity: β₁={self.regression_beta_1:.4f}, β₂={self.regression_beta_2:.4f if self.regression_beta_2 is not None else 'N/A'}")
                     
-                    # CRITICAL: Force base temperature to 10.0°C as required
-                    self.base_temp = 10.0
-                    self.optimized_base_temp = 10.0
-                    self.base_temp_optimized = False  # Not optimized, using fixed 10.0°C
-                    logger.info("Base temperature fixed at 10.0°C (per requirements)")
+                    # Use optimized base temperature if available, otherwise use ASHRAE standard
+                    opt_temp = regression_result.get("optimized_base_temp")
+                    if opt_temp is not None and opt_temp > 0:
+                        self.base_temp = opt_temp
+                        self.optimized_base_temp = opt_temp
+                        self.base_temp_optimized = True
+                        logger.info(f"Using optimized base temperature from regression: {opt_temp:.1f}°C")
+                    else:
+                        # Fallback to ASHRAE standard for commercial buildings
+                        self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                        self.optimized_base_temp = 18.3
+                        self.base_temp_optimized = False
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
                     # Regression failed or R² too low, but base temperature was still calculated from baseline data
                     # The base temperature optimization in calculate_sensitivity_from_regression should have set it
                     error_msg = regression_result.get('error', 'Unknown error') if regression_result is not None else 'Regression returned None'
                     logger.warning(f"Regression analysis failed or R² too low: {error_msg}")
                     logger.warning("Falling back to equipment-specific fixed factors (not fully ASHRAE-compliant)")
-                    # CRITICAL: Force base temperature to 10.0°C as required
-                    self.base_temp = 10.0
-                    self.optimized_base_temp = 10.0
-                    self.base_temp_optimized = False  # Not optimized, using fixed 10.0°C
-                    logger.info("Base temperature fixed at 10.0°C (per requirements)")
+                    # Use optimized base temperature if available, otherwise use ASHRAE standard
+                    opt_temp = regression_result.get("optimized_base_temp") if regression_result else None
+                    if opt_temp is not None and opt_temp > 0:
+                        self.base_temp = opt_temp
+                        self.optimized_base_temp = opt_temp
+                        self.base_temp_optimized = True
+                        logger.info(f"Using optimized base temperature (regression failed): {opt_temp:.1f}°C")
+                    else:
+                        # Fallback to ASHRAE standard for commercial buildings
+                        self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                        self.optimized_base_temp = 18.3
+                        self.base_temp_optimized = False
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
             else:
                 # CRITICAL: Time series data should always be available
                 # If it's missing, we need to calculate base temperature from baseline temperature data
@@ -2748,29 +2784,38 @@ class WeatherNormalizationML:
                         median_temp = np.median(valid_temps)
                         min_temp = np.min(valid_temps)
                         percentile_25 = np.percentile(valid_temps, 25)
-                        # CRITICAL: Force base temperature to 10.0°C as required
-                        self.base_temp = 10.0
-                        self.optimized_base_temp = 10.0
-                        self.base_temp_optimized = False
-                        logger.info(f"Base temperature fixed at 10.0°C (per requirements, baseline temp series available)")
+                        # Use calculated balance point or ASHRAE standard
+                        calculated_base = max(min_temp, min(percentile_25, median_temp - 3.0))
+                        # Ensure calculated base is reasonable (between 5°C and 25°C)
+                        if 5.0 <= calculated_base <= 25.0:
+                            self.base_temp = calculated_base
+                            self.optimized_base_temp = calculated_base
+                            self.base_temp_optimized = True
+                            logger.info(f"Using calculated balance point from baseline data: {calculated_base:.1f}°C")
+                        else:
+                            # Fallback to ASHRAE standard
+                            self.base_temp = 18.3
+                            self.optimized_base_temp = 18.3
+                            self.base_temp_optimized = False
+                            logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                     else:
-                        # CRITICAL: Force base temperature to 10.0°C as required
-                        self.base_temp = 10.0
-                        self.optimized_base_temp = 10.0
+                        # No valid temps - use ASHRAE standard
+                        self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                        self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Base temperature fixed at 10.0°C (per requirements, no baseline temp series available)")
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 elif temp_before is not None:
-                    # CRITICAL: Force base temperature to 10.0°C as required
-                    self.base_temp = 10.0
-                    self.optimized_base_temp = 10.0
+                    # Use ASHRAE standard when only average temp is available
+                    self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                    self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Base temperature fixed at 10.0°C (per requirements)")
+                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
-                    # CRITICAL: Force base temperature to 10.0°C as required
-                    self.base_temp = 10.0
-                    self.optimized_base_temp = 10.0
+                    # No baseline data - use ASHRAE standard
+                    self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
+                    self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Base temperature fixed at 10.0°C (per requirements, no baseline data available)")
+                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
             
             # CRITICAL: Base temperature is fixed at 10.0°C per requirements
             # Skip all base temperature adjustments - use fixed 10.0°C value
@@ -2924,13 +2969,31 @@ class WeatherNormalizationML:
                     # Optimized value is too high - must adjust downward
                     should_adjust = True
                     logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) is too high (min: {overall_min:.1f}°C)")
+                    # Use adjusted_base_temp that was calculated above, or recalculate if needed
+                    if 'adjusted_base_temp' not in locals():
+                        if 18.3 < overall_min:
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                        else:
+                            adjusted_base_temp = 18.3
                     logger.info(f"[FIX] Adjusting base temperature DOWNWARD: {self.base_temp:.1f}°C → {adjusted_base_temp:.1f}°C")
                     logger.info(f"   Reason: Optimized value is too high (would cause zero weather effects)")
+                    self.base_temp = adjusted_base_temp
+                    self.optimized_base_temp = adjusted_base_temp
+                    self.base_temp_optimized = False
                 elif not base_temp_was_optimized:
                     # No optimization performed - use calculated value
                     should_adjust = True
+                    # Use adjusted_base_temp that was calculated above, or recalculate if needed
+                    if 'adjusted_base_temp' not in locals():
+                        if 18.3 < overall_min:
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                        else:
+                            adjusted_base_temp = 18.3
                     logger.info(f"[FIX] Adjusting base temperature: {self.base_temp:.1f}°C → {adjusted_base_temp:.1f}°C")
                     logger.info(f"   Reason: No base temperature optimization performed")
+                    self.base_temp = adjusted_base_temp
+                    self.optimized_base_temp = adjusted_base_temp
+                    self.base_temp_optimized = False
                 elif base_temp_was_optimized and optimized_is_valid:
                     # Optimized value is valid - keep it
                     logger.info(f"[OK] Keeping optimized base_temp: {self.base_temp:.1f}°C")
@@ -2938,38 +3001,61 @@ class WeatherNormalizationML:
                     if baseline_dewpoint_min is not None or after_dewpoint_min is not None:
                         logger.info(f"   Baseline dewpoint min: {baseline_dewpoint_min:.1f}°C, After dewpoint min: {after_dewpoint_min:.1f}°C")
                     logger.info(f"   Overall min (temp + dewpoint): {overall_min:.1f}°C")
-                
-                # CRITICAL: Base temperature is fixed at 10.0°C per requirements - skip all adjustments
-                self.base_temp = 10.0
-                self.optimized_base_temp = 10.0
-                self.base_temp_optimized = False
-                logger.info(f"Base temperature fixed at 10.0°C (per requirements, skipping temperature-based adjustments)")
+                else:
+                    # Fallback: Preserve optimized base temperature if valid, otherwise ensure it's below minimum temperatures
+                    if self.base_temp_optimized and self.base_temp < overall_min:
+                        # Optimized value is valid - keep it
+                        logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
+                    else:
+                        # Adjust base_temp to be below minimum, but not lower than ASHRAE standard allows
+                        # Use ASHRAE standard (18.3°C) if it's below minimum, otherwise use minimum - 1.5°C
+                        if 'adjusted_base_temp' not in locals():
+                            if 18.3 < overall_min:
+                                adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                            else:
+                                adjusted_base_temp = 18.3
+                        self.base_temp = adjusted_base_temp
+                        self.optimized_base_temp = adjusted_base_temp
+                        self.base_temp_optimized = False
+                        logger.info(f"Using base temperature: {adjusted_base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
             elif baseline_min is not None:
                 # Only baseline available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
-                base_temp_was_optimized = (
-                    self.base_temp_optimized and
-                    abs(self.base_temp - self.optimized_base_temp) < 0.1
-                )
-                
-                # CRITICAL: Base temperature is fixed at 10.0°C per requirements - skip all adjustments
-                self.base_temp = 10.0
-                self.optimized_base_temp = 10.0
-                self.base_temp_optimized = False
-                logger.info(f"Base temperature fixed at 10.0°C (per requirements, skipping baseline min adjustments)")
+                if self.base_temp_optimized and self.base_temp < baseline_min:
+                    # Optimized value is valid - keep it
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
+                else:
+                    # Adjust base_temp to be below baseline minimum
+                    if 18.3 < baseline_min:
+                        adjusted_base_temp = max(5.0, baseline_min - 1.5)
+                        self.base_temp = adjusted_base_temp
+                        self.optimized_base_temp = adjusted_base_temp
+                        self.base_temp_optimized = False
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
+                    else:
+                        self.base_temp = 18.3
+                        self.optimized_base_temp = 18.3
+                        self.base_temp_optimized = False
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below baseline minimum: {baseline_min:.1f}°C)")
             elif after_min is not None:
                 # Only after available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
-                base_temp_was_optimized = (
-                    self.base_temp_optimized and
-                    abs(self.base_temp - self.optimized_base_temp) < 0.1
-                )
-                
-                # CRITICAL: Base temperature is fixed at 10.0°C per requirements - skip all adjustments
-                self.base_temp = 10.0
-                self.optimized_base_temp = 10.0
-                self.base_temp_optimized = False
-                logger.info(f"Base temperature fixed at 10.0°C (per requirements, skipping after period min adjustments)")
+                if self.base_temp_optimized and self.base_temp < after_min:
+                    # Optimized value is valid - keep it
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
+                else:
+                    # Adjust base_temp to be below after minimum
+                    if 18.3 < after_min:
+                        adjusted_base_temp = max(5.0, after_min - 1.5)
+                        self.base_temp = adjusted_base_temp
+                        self.optimized_base_temp = adjusted_base_temp
+                        self.base_temp_optimized = False
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
+                    else:
+                        self.base_temp = 18.3
+                        self.optimized_base_temp = 18.3
+                        self.base_temp_optimized = False
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below after minimum: {after_min:.1f}°C)")
             
             # Input validation
             temp_before = float(temp_before) if temp_before is not None else self.base_temp
@@ -2977,16 +3063,36 @@ class WeatherNormalizationML:
             kw_before = float(kw_before) if kw_before is not None else 0.0
             kw_after = float(kw_after) if kw_after is not None else 0.0
             
-            # CRITICAL: Base temperature is fixed at 10.0°C per requirements
-            # Ensure base_temp is always 10.0°C (skip validation adjustments)
-            self.base_temp = 10.0
-            self.optimized_base_temp = 10.0
-            self.base_temp_optimized = False
+            # Ensure base_temp is below minimum temperatures for proper normalization
+            # If optimized base_temp is valid, keep it; otherwise use ASHRAE standard or adjust
             if temp_before is not None and temp_after is not None:
                 min_temp = min(temp_before, temp_after)
                 if self.base_temp >= min_temp:
-                    logger.warning(f"[WARNING] base_temp (10.0°C) >= min_temp ({min_temp:.2f}°C) - this may cause zero weather effects")
-                    logger.warning(f"   Base temperature is fixed at 10.0°C per requirements, normalization may be limited")
+                    # Base temp is too high - adjust it
+                    if self.base_temp_optimized:
+                        # Optimized value is too high - recalculate
+                        adjusted_base_temp = max(5.0, min_temp - 1.5)
+                        self.base_temp = adjusted_base_temp
+                        self.optimized_base_temp = adjusted_base_temp
+                        self.base_temp_optimized = False
+                        logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
+                    else:
+                        # Use ASHRAE standard if it's below minimum, otherwise adjust
+                        if 18.3 < min_temp:
+                            adjusted_base_temp = max(5.0, min_temp - 1.5)
+                            self.base_temp = adjusted_base_temp
+                            self.optimized_base_temp = adjusted_base_temp
+                            logger.warning(f"[WARNING] base_temp >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
+                        else:
+                            self.base_temp = 18.3
+                            self.optimized_base_temp = 18.3
+                            logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
+                elif not self.base_temp_optimized and self.base_temp != 18.3:
+                    # If not optimized and not using standard, ensure we're using standard
+                    if 18.3 < min_temp:
+                        self.base_temp = 18.3
+                        self.optimized_base_temp = 18.3
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
             
             # Check if dewpoint values are available for humidity normalization
             # Handle dewpoint the same as temperature - validate and convert consistently
@@ -5372,6 +5478,14 @@ def analyze():
         logger.warning("Analysis request without org_id - rejecting for security")
         return jsonify({"error": "Organization ID required. Please log in again."}), 401
     
+    # CRITICAL: Clear cached analysis results before running new analysis
+    # This ensures fresh calculations with new form inputs (e.g., target_pf)
+    if hasattr(app, '_latest_analysis_results'):
+        logger.info("🧹 Clearing cached analysis results before new analysis")
+        app._latest_analysis_results = None
+    if hasattr(app, '_latest_form_data'):
+        app._latest_form_data = None
+    
     # Get file IDs for session creation
     form = request.form if hasattr(request, 'form') and request.form else {}
     before_id = form.get("before_file_id")
@@ -5646,6 +5760,16 @@ def analyze():
                                     logger.info(f"[FIX] Config: Converted escalation_rate from percentage to decimal: {float_val}% -> {cfg_raw[key]:.4f}")
                                 else:
                                     cfg_raw[key] = float_val
+                            # Special handling for target_pf: can be percentage (95) or decimal (0.95)
+                            elif key == "target_pf" or key == "target_power_factor":
+                                float_val = float(value)
+                                # If > 1, it's a percentage, convert to decimal
+                                if float_val > 1.0:
+                                    cfg_raw[key] = float_val / 100.0
+                                    logger.info(f"[FIX] Config: Converted target_pf from percentage to decimal: {float_val}% -> {cfg_raw[key]:.4f}")
+                                else:
+                                    cfg_raw[key] = float_val
+                                logger.info(f"[FIX] Config: target_pf = {cfg_raw[key]:.4f} (from form field '{key}')")
                             else:
                                 cfg_raw[key] = float(value)
                         elif isinstance(value, (int, float)):
@@ -5673,6 +5797,16 @@ def analyze():
                                     logger.info(f"[FIX] Config: Converted escalation_rate from percentage to decimal: {float_val}% -> {cfg_raw[key]:.4f}")
                                 else:
                                     cfg_raw[key] = float_val
+                            # Special handling for target_pf: can be percentage (95) or decimal (0.95)
+                            elif key == "target_pf" or key == "target_power_factor":
+                                float_val = float(value)
+                                # If > 1, it's a percentage, convert to decimal
+                                if float_val > 1.0:
+                                    cfg_raw[key] = float_val / 100.0
+                                    logger.info(f"[FIX] Config: Converted target_pf from percentage to decimal: {float_val}% -> {cfg_raw[key]:.4f}")
+                                else:
+                                    cfg_raw[key] = float_val
+                                logger.info(f"[FIX] Config: target_pf = {cfg_raw[key]:.4f} (from form field '{key}')")
                             else:
                                 cfg_raw[key] = float(value)
                         else:
@@ -5706,6 +5840,15 @@ def analyze():
                                     normalized[key] = float_val / 100.0
                                 else:
                                     normalized[key] = float_val
+                            # Special handling for target_pf: can be percentage (95) or decimal (0.95)
+                            elif key == "target_pf" or key == "target_power_factor":
+                                float_val = float(value)
+                                if float_val > 1.0:
+                                    normalized[key] = float_val / 100.0
+                                    logger.info(f"[FIX] Normalize: Converted target_pf from percentage to decimal: {float_val}% -> {normalized[key]:.4f}")
+                                else:
+                                    normalized[key] = float_val
+                                logger.info(f"[FIX] Normalize: target_pf = {normalized[key]:.4f}")
                             else:
                                 # Try to convert to float
                                 float_val = float(value)
@@ -5717,6 +5860,9 @@ def analyze():
                         # Already numeric, ensure it's float
                         if key == "confidence_level" and value > 1:
                             normalized[key] = float(value) / 100.0
+                        elif (key == "target_pf" or key == "target_power_factor") and value > 1.0:
+                            normalized[key] = float(value) / 100.0
+                            logger.info(f"[FIX] Normalize: Converted target_pf from percentage to decimal: {value}% -> {normalized[key]:.4f}")
                         else:
                             normalized[key] = float(value)
                     elif isinstance(value, dict):
@@ -6242,6 +6388,26 @@ def analyze():
                 demand_savings = results.get("demand_analysis", {}).get("annual_demand_savings", 0.0)
                 kva_reduction = results.get("demand_analysis", {}).get("kva_reduction", 0.0)
                 
+                # Calculate delta_kw_avg from normalized kW savings (matches UI Analysis)
+                # PRIORITIZE: Use calculated_normalized_kw_savings from power_quality (same as UI uses)
+                power_quality = results.get("power_quality", {})
+                delta_kw_avg = (
+                    power_quality.get("calculated_normalized_kw_savings") or  # Step 4 PF-normalized savings (most accurate)
+                    power_quality.get("total_normalized_savings_kw") or  # Alternative normalized savings
+                    power_quality.get("pf_normalized_savings_kw") or  # Step 3 PF normalized savings
+                    (power_quality.get("calculated_pf_normalized_kw_before", 0) - power_quality.get("calculated_pf_normalized_kw_after", 0)) or  # Calculate from stored values
+                    (power_quality.get("normalized_kw_before", 0) - power_quality.get("normalized_kw_after", 0)) or  # Fallback to normalized values
+                    kva_reduction  # Final fallback to kva_reduction if no normalized values available
+                )
+                
+                # Ensure delta_kw_avg is a valid number
+                try:
+                    delta_kw_avg = float(delta_kw_avg) if delta_kw_avg is not None else 0.0
+                except (ValueError, TypeError):
+                    delta_kw_avg = 0.0
+                
+                logger.info(f"[FIX] DELTA_KW_AVG: Using normalized kW savings = {delta_kw_avg:.2f} kW (was kva_reduction = {kva_reduction:.2f} kW)")
+                
                 # DIAGNOSTIC: Comprehensive financial breakdown to find 50% inflation
                 logger.info(f"[DIAGNOSTIC] ========== FINANCIAL CALCULATION BREAKDOWN ==========")
                 logger.info(f"[DIAGNOSTIC] SOURCE VALUES:")
@@ -6305,7 +6471,7 @@ def analyze():
                     "annual_total_dollars": financial_total,
                     "annual_energy_dollars": energy_dollars,
                     "annual_demand_dollars": demand_savings,
-                    "delta_kw_avg": kva_reduction,
+                    "delta_kw_avg": delta_kw_avg,
                     "kva_demand_dollars": demand_savings,
                     "pf_adjustment_dollars": 0.0,
                     "reactive_adder_dollars": 0.0,
@@ -9290,6 +9456,17 @@ def analyze():
             logger.debug(traceback.format_exc())
             # Don't fail the analysis if Sankey generation fails
         
+        # CRITICAL: Log target_pf in config to verify it's being sent to frontend
+        target_pf_in_config = cfg.get('target_pf') or cfg.get('target_power_factor')
+        logger.info(f"[ANALYSIS RESPONSE] Sending config to frontend - target_pf = {target_pf_in_config}")
+        logger.info(f"[ANALYSIS RESPONSE] Config keys: {list(cfg.keys())[:20]}...")  # Log first 20 keys
+        
+        # Also log the calculated_pf_normalized values being sent
+        if isinstance(results, dict) and "power_quality" in results:
+            pq = results.get("power_quality", {})
+            logger.info(f"[ANALYSIS RESPONSE] calculated_pf_normalized_kw_before = {pq.get('calculated_pf_normalized_kw_before')}")
+            logger.info(f"[ANALYSIS RESPONSE] calculated_pf_normalized_kw_after = {pq.get('calculated_pf_normalized_kw_after')}")
+        
         return jsonify({
             "success": True,
             "results": results,
@@ -10293,22 +10470,83 @@ def get_analysis_results():
 def generate_audit_package():
     """Generate comprehensive audit package - using original implementation"""
     try:
+        # Extract org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
         # Simply call the function from the fixed module
         # It will use Flask's request directly since we added 'global request' to it
         from main_hardened_ready_fixed import generate_audit_package as original_generate_audit_package
         
         # Make get_audit_trail_for_session available to prevent circular import
+        # Create a wrapper function that includes org_id
         import sys
         import main_hardened_ready_fixed as fixed_module
-        current_module = sys.modules[__name__]
-        if not hasattr(fixed_module, 'get_audit_trail_for_session'):
-            if hasattr(current_module, 'get_audit_trail_for_session'):
-                fixed_module.get_audit_trail_for_session = getattr(current_module, 'get_audit_trail_for_session')
         
-        logger.info("Calling original generate_audit_package function")
-        result = original_generate_audit_package()
-        logger.info("Audit package generation completed successfully")
-        return result
+        # Store original function for restoration
+        original_get_audit_trail = get_audit_trail_for_session
+        
+        # Create a wrapper function that includes org_id from closure
+        # This wrapper MUST accept a single argument to match fixed module's call signature
+        def get_audit_trail_with_org_id(analysis_session_id, org_id_param=None):
+            # Always use org_id from the closure (from request context)
+            # The fixed module calls this with only one argument, so org_id_param will be None
+            # We ignore org_id_param and always use the org_id from the request
+            return original_get_audit_trail(analysis_session_id, org_id=org_id)
+        
+        # Patch the refactored module in sys.modules BEFORE fixed module imports
+        # This ensures when fixed module does: from main_hardened_ready_refactored import get_audit_trail_for_session
+        # it gets our org_id-aware version
+        refactored_module = sys.modules[__name__]
+        original_function = refactored_module.get_audit_trail_for_session
+        refactored_module.get_audit_trail_for_session = get_audit_trail_with_org_id
+        
+        # Also inject directly into fixed module's namespace
+        # Clear any cached version first
+        if hasattr(fixed_module, '__dict__'):
+            if 'get_audit_trail_for_session' in fixed_module.__dict__:
+                delattr(fixed_module, 'get_audit_trail_for_session')
+        fixed_module.get_audit_trail_for_session = get_audit_trail_with_org_id
+        
+        try:
+            logger.info(f"Calling original generate_audit_package function (org_id={org_id})")
+            result = original_generate_audit_package()
+            logger.info("Audit package generation completed successfully")
+            
+            # Ensure the result is a valid Flask response
+            # The fixed module's function should return a send_file() response
+            if result is None:
+                logger.error("generate_audit_package returned None")
+                return jsonify({"ok": False, "error": "Audit package generation returned no result"}), 500
+            
+            # If it's already a Flask Response, return it directly
+            from flask import Response
+            if isinstance(result, Response):
+                logger.info("Returning Flask Response from generate_audit_package")
+                return result
+            
+            # If it's a tuple (response, status_code), return it
+            if isinstance(result, tuple) and len(result) == 2:
+                logger.info(f"Returning tuple response from generate_audit_package: {type(result[0])}, status={result[1]}")
+                return result
+            
+            # Otherwise, log warning and try to return as-is
+            logger.warning(f"Unexpected return type from generate_audit_package: {type(result)}")
+            return result
+            
+        except Exception as inner_e:
+            logger.error(f"Error in generate_audit_package execution: {inner_e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise  # Re-raise to be caught by outer exception handler
+        finally:
+            # Restore original function to avoid side effects on other requests
+            refactored_module.get_audit_trail_for_session = original_function
+            # Also clear from fixed module
+            if hasattr(fixed_module, '__dict__'):
+                if 'get_audit_trail_for_session' in fixed_module.__dict__:
+                    delattr(fixed_module, 'get_audit_trail_for_session')
         
     except Exception as e:
         logger.error(f"Generate audit package failed: {e}")
@@ -10396,24 +10634,36 @@ def fetch_weather_legacy():
                 "error": "Both before and after files must be selected"
             }), 200
 
-        # Resolve file paths from DB
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            logger.error("❌ Weather fetch failed: No org_id found")
+            return jsonify({"success": False, "error": "Organization ID required. Please log in again."}), 401
+
+        # Resolve file paths from DB using org-specific database
         base_dir = Path(__file__).parent
         def _resolve_path(file_id: str):
-            with get_db_connection() as conn:
+            with get_db_connection(org_id=org_id) as conn:
                 if conn is None:
+                    logger.error(f"❌ Database connection failed for org_id={org_id}")
                     return None
                 cur = conn.cursor()
                 cur.execute("SELECT file_path FROM raw_meter_data WHERE id = ? AND file_path IS NOT NULL", (file_id,))
                 row = cur.fetchone()
                 if not row:
+                    logger.warning(f"⚠️ File ID {file_id} not found in org_id={org_id} database")
                     return None
                 rel = row[0]
                 p = (base_dir / rel).resolve()
-                return p if p.exists() else None
+                if not p.exists():
+                    logger.warning(f"⚠️ File path does not exist: {p}")
+                    return None
+                return p
 
         before_path = _resolve_path(before_file_id)
         after_path = _resolve_path(after_file_id)
         if not before_path or not after_path:
+            logger.error(f"❌ Could not find files - before_file_id={before_file_id}, after_file_id={after_file_id}, org_id={org_id}")
             return jsonify({"success": False, "error": "Could not find the selected verified files"}), 200
 
         # Derive date ranges from CSVs
@@ -10797,6 +11047,18 @@ def handle_license_token_login(token: str):
             )
             
             sessions_conn.commit()
+            
+            # Verify session was saved
+            sessions_cursor.execute(
+                "SELECT user_id, org_id FROM user_sessions WHERE session_token = ?",
+                (session_token,)
+            )
+            verify_row = sessions_cursor.fetchone()
+            if not verify_row:
+                logger.error(f"❌ ERROR: Session token was not saved to database after license token login!")
+                return jsonify({"status": "error", "error": "Failed to create session"}), 500
+            else:
+                logger.info(f"✅ Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
         
         return jsonify({
             "status": "success",
@@ -10931,6 +11193,18 @@ def login_user():
             )
 
             sessions_conn.commit()
+            
+            # Verify session was saved
+            sessions_cursor.execute(
+                "SELECT user_id, org_id FROM user_sessions WHERE session_token = ?",
+                (session_token,)
+            )
+            verify_row = sessions_cursor.fetchone()
+            if not verify_row:
+                logger.error(f"❌ ERROR: Session token was not saved to database after login!")
+                return jsonify({"status": "error", "error": "Failed to create session"}), 500
+            else:
+                logger.info(f"✅ Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
 
             return jsonify(
                 {
@@ -10965,23 +11239,43 @@ def validate_session():
         # First, get session info from shared sessions database
         with get_db_connection(use_sessions_db=True) as sessions_conn:
             if sessions_conn is None:
+                logger.error("❌ Sessions database not available for validation")
                 return jsonify({"status": "error", "error": "Sessions database not available"}), 500
 
             sessions_cursor = sessions_conn.cursor()
             
+            # Log the session token being searched (first 20 chars for security)
+            logger.info(f"🔍 Validating session token: {session_token[:20]}... (length: {len(session_token) if session_token else 0})")
+            
             # Find valid session and get org_id
+            # Use datetime() function to ensure proper comparison with ISO format strings
             sessions_cursor.execute(
                 """
-                SELECT user_id, org_id
+                SELECT user_id, org_id, expires_at
                 FROM user_sessions
-                WHERE session_token = ? AND expires_at > datetime('now')
+                WHERE session_token = ? AND datetime(expires_at) > datetime('now')
             """,
                 (session_token,),
             )
 
             session_row = sessions_cursor.fetchone()
             if not session_row:
-                return jsonify({"status": "error", "error": "Invalid or expired session"}), 401
+                # Check if session exists but expired
+                sessions_cursor.execute(
+                    """
+                    SELECT user_id, org_id, expires_at
+                    FROM user_sessions
+                    WHERE session_token = ?
+                """,
+                    (session_token,),
+                )
+                expired_row = sessions_cursor.fetchone()
+                if expired_row:
+                    logger.warning(f"⚠️ Session token found but expired. Expires at: {expired_row[2]}")
+                    return jsonify({"status": "error", "error": "Session expired"}), 401
+                else:
+                    logger.warning(f"⚠️ Session token not found in database: {session_token[:20]}...")
+                    return jsonify({"status": "error", "error": "Invalid or expired session"}), 401
             
             user_id = session_row[0]
             org_id = session_row[1]
@@ -11550,14 +11844,28 @@ def load_project():
             
             # Load by ID or name
             if project_id:
+                logger.info(f"📥 Loading project by ID: {project_id} (org_id={org_id})")
                 cursor.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
             elif project_name:
+                logger.info(f"📥 Loading project by name: '{project_name}' (org_id={org_id})")
+                # Check for similar project names to help diagnose duplicates
+                cursor.execute("SELECT id, name FROM projects WHERE name LIKE ?", (f"%{project_name}%",))
+                similar_projects = cursor.fetchall()
+                if len(similar_projects) > 1:
+                    logger.warning(f"⚠️ Found {len(similar_projects)} projects with similar names:")
+                    for proj in similar_projects:
+                        logger.warning(f"   - ID: {proj[0]}, Name: '{proj[1]}'")
                 cursor.execute("SELECT * FROM projects WHERE name = ?", (project_name,))
             else:
                 return jsonify({"error": "Project ID or name required"}), 400
             
             row = cursor.fetchone()
             if not row:
+                logger.error(f"❌ Project not found - project_id: {project_id}, project_name: '{project_name}', org_id: {org_id}")
+                # List all projects to help diagnose
+                cursor.execute("SELECT id, name FROM projects LIMIT 10")
+                all_projects = cursor.fetchall()
+                logger.info(f"📋 Available projects in org_id={org_id} (first 10): {all_projects}")
                 return jsonify({"error": "Project not found"}), 404
             
             # Convert row to dict
@@ -11570,8 +11878,9 @@ def load_project():
                 try:
                     # Log what we got from database
                     raw_data = project.get('data')
-                    logger.info(f"📥 Loading project '{project.get('name')}' (ID: {project.get('id')})")
+                    logger.info(f"📥 Loading project '{project.get('name')}' (ID: {project.get('id')}) from org_id={org_id}")
                     logger.info(f"📥 Raw data from DB (first 500 chars): {str(raw_data)[:500]}")
+                    logger.info(f"📥 Raw data length: {len(str(raw_data)) if raw_data else 0} chars")
                     
                     project_data = json.loads(project['data'])
                     logger.info(f"📥 After first parse - type: {type(project_data)}, keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
@@ -11580,12 +11889,51 @@ def load_project():
                     if isinstance(project_data, dict) and "payload" in project_data:
                         logger.info(f"📥 Found payload key - type: {type(project_data['payload'])}, is string: {isinstance(project_data['payload'], str)}")
                         if isinstance(project_data["payload"], str):
-                            logger.info(f"📥 Payload string length: {len(project_data['payload'])}, first 200 chars: {project_data['payload'][:200]}")
-                            project_data = json.loads(project_data["payload"])
-                            logger.info(f"📥 After second parse - type: {type(project_data)}, keys: {list(project_data.keys())[:20] if isinstance(project_data, dict) else 'N/A'}")
+                            payload_content = project_data["payload"].strip()
+                            logger.info(f"📥 Payload string length: {len(payload_content)}, first 200 chars: {payload_content[:200]}")
+                            
+                            # Check if payload is empty or just "{}"
+                            if payload_content in ['', '{}', 'null', 'None']:
+                                logger.error(f"❌ Payload is empty or null: '{payload_content}'")
+                                logger.error(f"❌ This indicates the data was saved with an empty payload")
+                                logger.error(f"❌ Checking if data might be in outer dict...")
+                                
+                                # Try to use the outer dict if it has other keys besides 'payload'
+                                outer_keys = [k for k in project_data.keys() if k != 'payload']
+                                if outer_keys:
+                                    logger.warning(f"⚠️ Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
+                                    # Use outer dict data (excluding payload key)
+                                    project_data = {k: v for k, v in project_data.items() if k != 'payload'}
+                                    logger.info(f"⚠️ Using outer dict data with {len(project_data)} keys")
+                                else:
+                                    project_data = {}
+                                    logger.error(f"❌ No alternative data found - project_data will be empty")
+                            else:
+                                try:
+                                    project_data = json.loads(payload_content)
+                                    logger.info(f"📥 After second parse - type: {type(project_data)}, keys: {list(project_data.keys())[:20] if isinstance(project_data, dict) else 'N/A'}")
+                                except json.JSONDecodeError as e:
+                                    logger.error(f"❌ Failed to parse payload JSON: {e}")
+                                    logger.error(f"❌ Payload content: {payload_content[:500]}")
+                                    project_data = {}
                         elif isinstance(project_data["payload"], dict):
                             project_data = project_data["payload"]
                             logger.info(f"📥 Using payload dict directly - keys: {list(project_data.keys())[:20]}")
+                        else:
+                            logger.warning(f"⚠️ Payload is neither string nor dict: {type(project_data['payload'])}")
+                            # Try to use outer dict if it has other keys
+                            outer_keys = [k for k in project_data.keys() if k != 'payload']
+                            if outer_keys:
+                                logger.warning(f"⚠️ Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
+                                project_data = {k: v for k, v in project_data.items() if k != 'payload'}
+                            else:
+                                project_data = {}
+                    else:
+                        logger.warning(f"⚠️ No payload key found in project data. Keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
+                        logger.warning(f"⚠️ This may indicate data was saved in a different format")
+                        # If no payload key but we have other keys, use the data directly
+                        if isinstance(project_data, dict) and len(project_data) > 0:
+                            logger.info(f"⚠️ Using project_data directly (no payload wrapper, {len(project_data)} keys)")
                     
                     # Log specific Project Information fields
                     project_info_fields = {
@@ -11601,21 +11949,46 @@ def load_project():
                     logger.info(f"📥 Project Information fields in loaded data: {project_info_fields}")
                     logger.info(f"📥 Total fields in loaded data: {len(project_data) if isinstance(project_data, dict) else 0}")
                     
+                    if len(project_data) == 0:
+                        logger.error(f"❌ WARNING: Project '{project.get('name')}' (ID: {project.get('id')}) has no field data after parsing!")
+                        logger.error(f"❌ This may indicate the data was not saved correctly or is in a different format")
+                        logger.error(f"❌ Raw data was: {str(raw_data)[:200]}")
+                        # Check if there are other projects with similar names that might have the data
+                        cursor.execute("SELECT id, name, LENGTH(data) as data_length FROM projects WHERE name LIKE ? AND id != ?", 
+                                     (f"%{project.get('name')}%", project.get('id')))
+                        similar_with_data = cursor.fetchall()
+                        if similar_with_data:
+                            logger.warning(f"⚠️ Found {len(similar_with_data)} other projects with similar names:")
+                            for proj in similar_with_data:
+                                logger.warning(f"   - ID: {proj[0]}, Name: '{proj[1]}', Data length: {proj[2] or 0} chars")
+                    
                 except (json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"Failed to parse project data: {e}")
+                    logger.error(f"❌ Failed to parse project data: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
+                    logger.error(f"❌ Raw data that failed to parse: {str(raw_data)[:1000] if raw_data else 'None'}")
                     project_data = {}
+            else:
+                logger.warning(f"⚠️ Project '{project.get('name')}' (ID: {project.get('id')}) has no data column or data is NULL")
+                logger.warning(f"⚠️ This project may have been created but never saved with field data")
             
             # Return in format expected by JavaScript
             # JavaScript expects: data.project.data to contain JSON string with payload field
             # So we need to wrap it properly
+            response_data = json.dumps({"payload": json.dumps(project_data)})
+            logger.info(f"📤 Preparing response for project '{project.get('name')}' (ID: {project.get('id')})")
+            logger.info(f"📤 Response data length: {len(response_data)} chars")
+            logger.info(f"📤 Response data (first 500 chars): {response_data[:500]}")
+            logger.info(f"📤 Project data field count: {len(project_data) if isinstance(project_data, dict) else 0}")
+            if isinstance(project_data, dict) and len(project_data) > 0:
+                logger.info(f"📤 Sample project data keys (first 20): {list(project_data.keys())[:20]}")
+            
             return jsonify({
                 "project": {
                     "id": project.get('id'),
                     "name": project.get('name'),
                     "description": project.get('description'),
-                    "data": json.dumps({"payload": json.dumps(project_data)})
+                    "data": response_data
                 }
             })
 
@@ -11624,12 +11997,502 @@ def load_project():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/projects/search/<path:search_term>", methods=["GET"])
+def search_projects(search_term):
+    """Search for projects by name and show which ones have data"""
+    try:
+        import json
+        
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        with get_db_connection(org_id=org_id) as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+            
+            cursor = conn.cursor()
+            
+            # Search for projects with similar names
+            cursor.execute(
+                """
+                SELECT id, name, LENGTH(data) as data_length, 
+                       CASE WHEN data IS NULL OR data = '' THEN 0 ELSE 1 END as has_data
+                FROM projects 
+                WHERE name LIKE ? COLLATE NOCASE
+                ORDER BY has_data DESC, data_length DESC, id DESC
+                LIMIT 20
+                """,
+                (f"%{search_term}%",)
+            )
+            
+            projects = []
+            for row in cursor.fetchall():
+                project_id, name, data_length, has_data = row
+                
+                # Try to get sample fields if data exists
+                sample_fields = {}
+                if has_data and data_length > 0:
+                    try:
+                        cursor.execute("SELECT data FROM projects WHERE id = ?", (project_id,))
+                        data_row = cursor.fetchone()
+                        if data_row and data_row[0]:
+                            data_obj = json.loads(data_row[0])
+                            if isinstance(data_obj, dict) and "payload" in data_obj:
+                                payload_str = data_obj["payload"]
+                                if isinstance(payload_str, str):
+                                    payload = json.loads(payload_str)
+                                else:
+                                    payload = payload_str
+                                
+                                # Get sample Project Information fields
+                                sample_fields = {
+                                    "company": payload.get("company"),
+                                    "facility_address": payload.get("facility_address"),
+                                    "location": payload.get("location"),
+                                    "facility_state": payload.get("facility_state"),
+                                    "field_count": len(payload) if isinstance(payload, dict) else 0
+                                }
+                    except Exception as e:
+                        sample_fields = {"error": str(e)}
+                
+                projects.append({
+                    "id": project_id,
+                    "name": name,
+                    "data_length": data_length or 0,
+                    "has_data": bool(has_data),
+                    "sample_fields": sample_fields
+                })
+            
+            return jsonify({
+                "search_term": search_term,
+                "org_id": org_id,
+                "projects": projects,
+                "count": len(projects)
+            })
+    
+    except Exception as e:
+        logger.error(f"Error searching projects: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/projects/find-cloud-kitchen", methods=["GET"])
+def find_cloud_kitchen_with_data():
+    """Find Cloud Kitchen projects and identify which one has 160+ fields"""
+    try:
+        import json
+        
+        logger.info("=" * 80)
+        logger.info("🔍 /api/projects/find-cloud-kitchen endpoint called")
+        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
+        
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        logger.info(f"🔑 Extracted org_id: {org_id}")
+        
+        if not org_id:
+            logger.warning("❌ find-cloud-kitchen: No org_id found - authentication required")
+            logger.warning(f"   Request headers: {dict(request.headers)}")
+            logger.warning(f"   Request cookies: {dict(request.cookies)}")
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        logger.info(f"🔍 Searching for Cloud Kitchen projects in org_id={org_id}")
+        
+        with get_db_connection(org_id=org_id) as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+            
+            cursor = conn.cursor()
+            
+            # Search for all Cloud Kitchen projects - try multiple patterns
+            search_patterns = [
+                '%Cloud Kitchen - Dallas-001%',  # Exact match for the specific project
+                '%Cloud Kitchen - Dallas%',      # Match Dallas variations
+                '%Cloud Kitchen - Dallas-%',    # Match with dash
+                '%Cloud Kitchen%',              # General Cloud Kitchen match
+                '%CloudKitchen%',                # No space variation
+                '%cloud kitchen%',              # Lowercase
+                '%Dallas-001%',                 # Just the identifier
+                '%Cloud%'                       # Broadest match
+            ]
+            
+            all_matching_projects = []
+            for pattern in search_patterns:
+                cursor.execute(
+                    """
+                    SELECT id, name, data 
+                    FROM projects 
+                    WHERE name LIKE ? COLLATE NOCASE
+                    ORDER BY id DESC
+                    """,
+                    (pattern,)
+                )
+                pattern_rows = cursor.fetchall()
+                logger.info(f"🔍 Search pattern '{pattern}': Found {len(pattern_rows)} projects")
+                for row in pattern_rows:
+                    # Avoid duplicates
+                    if not any(p[0] == row[0] for p in all_matching_projects):
+                        all_matching_projects.append(row)
+            
+            logger.info(f"🔍 Total unique Cloud Kitchen projects found: {len(all_matching_projects)}")
+            
+            cloud_kitchen_projects = []
+            project_with_160_plus = None
+            
+            for row in all_matching_projects:
+                project_id, name, data = row
+                field_count = 0
+                sample_fields = {}
+                
+                if data:
+                    try:
+                        data_obj = json.loads(data)
+                        if isinstance(data_obj, dict) and "payload" in data_obj:
+                            payload_str = data_obj["payload"]
+                            if isinstance(payload_str, str):
+                                payload = json.loads(payload_str)
+                            else:
+                                payload = payload_str
+                            
+                            if isinstance(payload, dict):
+                                field_count = len(payload)
+                                logger.info(f"📊 Project {project_id} ('{name}'): {field_count} fields")
+                                
+                                # Get sample Project Information fields
+                                sample_fields = {
+                                    "company": payload.get("company"),
+                                    "facility_address": payload.get("facility_address"),
+                                    "location": payload.get("location"),
+                                    "facility_state": payload.get("facility_state"),
+                                    "facility_zip": payload.get("facility_zip"),
+                                    "contact": payload.get("contact"),
+                                    "phone": payload.get("phone"),
+                                    "email": payload.get("email")
+                                }
+                                
+                                if field_count >= 160:
+                                    logger.info(f"✅ Found project with 160+ fields: ID {project_id}, Name '{name}', Fields: {field_count}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Error parsing project {project_id} ('{name}'): {e}")
+                
+                project_info = {
+                    "id": project_id,
+                    "name": name,
+                    "field_count": field_count,
+                    "data_length": len(data) if data else 0,
+                    "has_data": field_count > 0,
+                    "sample_fields": sample_fields
+                }
+                
+                cloud_kitchen_projects.append(project_info)
+                
+                # Track the project with 160+ fields
+                if field_count >= 160 and project_with_160_plus is None:
+                    project_with_160_plus = project_info
+            
+            # Sort by field count (descending)
+            cloud_kitchen_projects.sort(key=lambda x: x["field_count"], reverse=True)
+            
+            logger.info(f"📋 Returning {len(cloud_kitchen_projects)} Cloud Kitchen projects")
+            if project_with_160_plus:
+                logger.info(f"✅ Project with 160+ fields: ID {project_with_160_plus['id']}, Name '{project_with_160_plus['name']}', Fields: {project_with_160_plus['field_count']}")
+            else:
+                logger.warning(f"⚠️ No Cloud Kitchen project found with 160+ fields. Highest field count: {cloud_kitchen_projects[0]['field_count'] if cloud_kitchen_projects else 0}")
+            
+            # If no Cloud Kitchen projects found, list all projects for diagnostics
+            all_projects_list = []
+            if len(cloud_kitchen_projects) == 0:
+                logger.warning(f"⚠️ No Cloud Kitchen projects found. Listing ALL projects in org_id={org_id} for diagnostics...")
+                cursor.execute("SELECT id, name, LENGTH(data) as data_length FROM projects ORDER BY id DESC LIMIT 20")
+                all_projects = cursor.fetchall()
+                for proj in all_projects:
+                    all_projects_list.append({
+                        "id": proj[0],
+                        "name": proj[1],
+                        "data_length": proj[2] or 0
+                    })
+                    logger.info(f"   📁 Project ID {proj[0]}: '{proj[1]}' (data length: {proj[2] or 0} chars)")
+            
+            return jsonify({
+                "org_id": org_id,
+                "total_cloud_kitchen_projects": len(cloud_kitchen_projects),
+                "project_with_160_plus_fields": project_with_160_plus,
+                "all_cloud_kitchen_projects": cloud_kitchen_projects,
+                "all_projects_sample": all_projects_list if len(cloud_kitchen_projects) == 0 else None,
+                "message": f"Found project with 160+ fields: {project_with_160_plus['name']} (ID: {project_with_160_plus['id']})" if project_with_160_plus else "No Cloud Kitchen project found with 160+ fields"
+            })
+    
+    except Exception as e:
+        logger.error(f"Error finding Cloud Kitchen project: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/find-cloud-kitchen", methods=["GET"])
+def find_cloud_kitchen_page():
+    """HTML page that automatically searches for Cloud Kitchen projects with 160+ fields"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Find Cloud Kitchen Project</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+            .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            h1 { color: #333; }
+            .loading { color: #666; }
+            .success { color: #28a745; background: #d4edda; padding: 15px; border-radius: 4px; margin: 10px 0; }
+            .error { color: #dc3545; background: #f8d7da; padding: 15px; border-radius: 4px; margin: 10px 0; }
+            .project { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #007bff; }
+            .project-160 { border-left-color: #28a745; background: #d4edda; }
+            .project-id { font-weight: bold; color: #007bff; }
+            .field-count { font-size: 1.2em; font-weight: bold; }
+            button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+            button:hover { background: #0056b3; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔍 Finding Cloud Kitchen Projects with 160+ Fields</h1>
+            <div id="status" class="loading">⏳ Searching...</div>
+            <div id="results"></div>
+        </div>
+        
+        <script>
+            async function searchCloudKitchen() {
+                const statusDiv = document.getElementById('status');
+                const resultsDiv = document.getElementById('results');
+                
+                console.log('🔍 Starting Cloud Kitchen search...');
+                
+                // Get session token
+                const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+                console.log('🔑 Session token found:', sessionToken ? 'Yes (' + sessionToken.substring(0, 20) + '...)' : 'No');
+                
+                if (!sessionToken) {
+                    statusDiv.className = 'error';
+                    statusDiv.innerHTML = '❌ No session token found. Please <a href="/main-dashboard">log in first</a>.';
+                    return;
+                }
+                
+                try {
+                    console.log('📡 Calling /api/projects/find-cloud-kitchen...');
+                    // Try the find-cloud-kitchen endpoint first
+                    let response = await fetch('/api/projects/find-cloud-kitchen', {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${sessionToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    console.log('📥 Response status:', response.status, response.statusText);
+                    
+                    // If that fails, try the search endpoint
+                    if (!response.ok) {
+                        console.log('find-cloud-kitchen endpoint not available, trying search endpoint...');
+                        response = await fetch('/api/projects/search/Cloud%20Kitchen', {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${sessionToken}`,
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('📊 Response data:', data);
+                    
+                    statusDiv.className = 'success';
+                    statusDiv.innerHTML = '✅ Search completed!';
+                    
+                    // Display results
+                    let html = '<h2>Results:</h2>';
+                    
+                    // Check for project_with_160_plus_fields (from find-cloud-kitchen endpoint)
+                    if (data.project_with_160_plus_fields) {
+                        const proj = data.project_with_160_plus_fields;
+                        html += `
+                            <div class="project project-160">
+                                <h3>🎯 Project with 160+ Fields Found!</h3>
+                                <p><span class="project-id">ID: ${proj.id}</span></p>
+                                <p><strong>Name:</strong> ${proj.name}</p>
+                                <p><span class="field-count">Fields: ${proj.field_count}</span></p>
+                                <p><strong>Data Length:</strong> ${proj.data_length} characters</p>
+                                <p><strong>Sample Fields:</strong></p>
+                                <ul>
+                                    <li>Company: ${proj.sample_fields.company || 'N/A'}</li>
+                                    <li>Address: ${proj.sample_fields.facility_address || 'N/A'}</li>
+                                    <li>Location: ${proj.sample_fields.location || 'N/A'}</li>
+                                    <li>State: ${proj.sample_fields.facility_state || 'N/A'}</li>
+                                </ul>
+                                <button onclick="loadProject(${proj.id})">Load This Project</button>
+                            </div>
+                        `;
+                    }
+                    
+                    // Display all projects (from either endpoint)
+                    const projects = data.all_cloud_kitchen_projects || data.projects || [];
+                    if (projects.length > 0) {
+                        html += '<h3>All Cloud Kitchen Projects (sorted by field count):</h3>';
+                        projects.forEach(proj => {
+                            const fieldCount = proj.sample_fields?.field_count || proj.field_count || 0;
+                            const is160Plus = fieldCount >= 160;
+                            html += `
+                                <div class="project ${is160Plus ? 'project-160' : ''}">
+                                    <p><span class="project-id">ID: ${proj.id}</span> - <strong>${proj.name}</strong></p>
+                                    <p><span class="field-count">Fields: ${fieldCount}</span> | Data Length: ${proj.data_length || 0} chars</p>
+                                    ${is160Plus ? '<p style="color: #28a745; font-weight: bold;">✅ Has 160+ fields!</p>' : ''}
+                                    <button onclick="loadProject(${proj.id})">Load This Project</button>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<p>No Cloud Kitchen projects found.</p>';
+                        
+                        // Show diagnostic information if available
+                        if (data.all_projects_sample && data.all_projects_sample.length > 0) {
+                            html += '<h3>🔍 Diagnostic: All Projects in Database (showing first 20):</h3>';
+                            html += `<p><strong>Organization ID:</strong> ${data.org_id || 'Unknown'}</p>`;
+                            html += '<p style="color: #dc3545;">⚠️ The project "Cloud Kitchen - Dallas-001" might be in a different organization database.</p>';
+                            html += '<div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin: 10px 0;">';
+                            html += '<p><strong>All projects found in this org_id:</strong></p>';
+                            html += '<ul>';
+                            data.all_projects_sample.forEach(proj => {
+                                html += `<li><strong>ID ${proj.id}:</strong> "${proj.name}" (data: ${proj.data_length} chars)</li>`;
+                            });
+                            html += '</ul>';
+                            html += '</div>';
+                        } else {
+                            html += '<p style="color: #dc3545;">⚠️ No projects found in database at all. This might indicate:</p>';
+                            html += '<ul>';
+                            html += '<li>The project is in a different organization database (check org_id)</li>';
+                            html += '<li>Database connection issue</li>';
+                            html += '<li>You need to log in again to refresh your session</li>';
+                            html += '</ul>';
+                        }
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                    
+                } catch (error) {
+                    console.error('❌ Error in searchCloudKitchen:', error);
+                    console.error('❌ Error stack:', error.stack);
+                    statusDiv.className = 'error';
+                    statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                }
+            }
+            
+            function loadProject(projectId) {
+                // Store project ID and redirect to legacy page
+                sessionStorage.setItem('loadProjectId', projectId);
+                window.location.href = '/legacy';
+            }
+            
+            // Run search automatically when page loads
+            window.addEventListener('DOMContentLoaded', searchCloudKitchen);
+        </script>
+    </body>
+    </html>
+    """
+    return html
+
+
+@app.route("/api/projects/debug-raw/<int:project_id>", methods=["GET"])
+def debug_project_raw(project_id):
+    """Debug endpoint to see raw database contents for a specific project"""
+    try:
+        import json
+        
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        with get_db_connection(org_id=org_id) as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+            
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name, data, LENGTH(data) as data_length FROM projects WHERE id = ?", (project_id,))
+            row = cursor.fetchone()
+            
+            if not row:
+                return jsonify({"error": f"Project {project_id} not found in org_id={org_id}"}), 404
+            
+            project_id_db, name, data, data_length = row
+            
+            # Try to parse the data
+            parsed_data = None
+            parse_error = None
+            if data:
+                try:
+                    parsed_data = json.loads(data)
+                except json.JSONDecodeError as e:
+                    parse_error = str(e)
+            
+            # Extract payload info if available
+            payload_info = {}
+            if isinstance(parsed_data, dict) and "payload" in parsed_data:
+                payload_info = {
+                    "has_payload_key": True,
+                    "payload_type": type(parsed_data["payload"]).__name__,
+                    "payload_preview": str(parsed_data["payload"])[:200] if parsed_data["payload"] else None
+                }
+                if isinstance(parsed_data["payload"], str):
+                    payload_info["payload_string_length"] = len(parsed_data["payload"])
+                    try:
+                        payload_parsed = json.loads(parsed_data["payload"])
+                        payload_info["payload_parsed_keys"] = list(payload_parsed.keys())[:20] if isinstance(payload_parsed, dict) else None
+                        payload_info["payload_parsed_key_count"] = len(payload_parsed) if isinstance(payload_parsed, dict) else 0
+                    except:
+                        payload_info["payload_parse_error"] = "Failed to parse payload JSON"
+            else:
+                payload_info = {
+                    "has_payload_key": False,
+                    "outer_keys": list(parsed_data.keys())[:20] if isinstance(parsed_data, dict) else None,
+                    "outer_key_count": len(parsed_data) if isinstance(parsed_data, dict) else 0
+                }
+            
+            return jsonify({
+                "project_id": project_id_db,
+                "name": name,
+                "data_length": data_length or 0,
+                "raw_data_preview": str(data)[:500] if data else None,
+                "parsed_data_type": type(parsed_data).__name__ if parsed_data else None,
+                "parsed_data_keys": list(parsed_data.keys()) if isinstance(parsed_data, dict) else None,
+                "parse_error": parse_error,
+                "payload_info": payload_info,
+                "org_id": org_id
+            })
+    
+    except Exception as e:
+        logger.error(f"Error in debug_project_raw: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/projects/debug/<int:project_id>", methods=["GET"])
 def debug_project(project_id):
     """Debug endpoint to see raw database contents"""
     try:
         import json
-        with get_db_connection() as conn:
+        
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
             
@@ -11638,7 +12501,15 @@ def debug_project(project_id):
             row = cursor.fetchone()
             
             if not row:
-                return jsonify({"error": "Project not found"}), 404
+                # Also check if there are projects with similar names
+                cursor.execute("SELECT id, name, LENGTH(data) as data_length FROM projects WHERE name LIKE ? LIMIT 10", 
+                             (f"%Cloud%",))
+                similar = cursor.fetchall()
+                return jsonify({
+                    "error": "Project not found",
+                    "org_id": org_id,
+                    "similar_projects": [{"id": p[0], "name": p[1], "data_length": p[2] or 0} for p in similar]
+                }), 404
             
             columns = [description[0] for description in cursor.description]
             project = dict(zip(columns, row))
@@ -11718,6 +12589,11 @@ def projects_save():
             logger.error(f"Invalid JSON in payload: {e}")
             return jsonify({"error": "Invalid JSON in payload"}), 400
         
+        # CRITICAL: Validate that payload is not empty
+        if not project_data or len(project_data) == 0:
+            logger.error(f"❌ Attempted to save project '{name}' with empty payload!")
+            return jsonify({"error": "Cannot save project with empty data. Please fill in at least one form field."}), 400
+        
         # Log detailed information about what's being saved
         field_keys = list(project_data.keys())
         logger.info(f"Saving project '{name}' with {len(project_data)} fields")
@@ -11754,7 +12630,11 @@ def projects_save():
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
+            auth_header = request.headers.get('Authorization', 'None')
+            logger.error(f"❌ Save failed: No org_id found. Authorization header: {auth_header[:50] if auth_header != 'None' else 'None'}")
             return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
+        logger.info(f"💾 Save request - org_id: {org_id}, project_name: '{name}', project_id: {project_id}")
         
         with get_db_connection(org_id=org_id) as conn:
             if conn is None:
@@ -11762,14 +12642,19 @@ def projects_save():
 
             cursor = conn.cursor()
             
+            # Track the final project_id that will be returned
+            final_project_id = None
+            
             # If project_id is provided, use it directly (most reliable - prevents duplicates)
             if project_id:
-                cursor.execute("SELECT id, name FROM projects WHERE id = ?", (project_id,))
+                cursor.execute("SELECT id, name, data FROM projects WHERE id = ?", (project_id,))
                 project_row = cursor.fetchone()
                 if project_row:
                     logger.info(f"Found project by ID {project_id}: '{project_row[1]}' (will update this project regardless of name '{name}')")
+                    logger.info(f"Current data in DB: {len(project_row[2]) if project_row[2] else 0} chars")
+                    final_project_id = project_id
                 else:
-                    logger.warning(f"Project ID {project_id} not found, will create new project with name '{name}'")
+                    logger.warning(f"Project ID {project_id} not found in org_id={org_id}, will create new project with name '{name}'")
                     project_row = None
             else:
                 # No project_id provided - check if project exists by name (case-insensitive)
@@ -11779,6 +12664,7 @@ def projects_save():
                 project_row = cursor.fetchone()
                 if project_row:
                     logger.info(f"Found project by name: ID {project_row[0]}, name '{project_row[1]}'")
+                    final_project_id = project_row[0]
 
             if not project_row:
                 # Create new project if it doesn't exist
@@ -11803,14 +12689,15 @@ def projects_save():
                 """,
                     (name, "", data_to_save),
                 )
-                logger.info(f"[OK] Created new project '{name}' and saved data with {len(project_data)} fields")
+                final_project_id = cursor.lastrowid
+                logger.info(f"[OK] Created new project '{name}' (ID: {final_project_id}) and saved data with {len(project_data)} fields")
             else:
                 # Update existing project - use ID to avoid name mismatch issues
-                project_id = project_row[0]
+                final_project_id = project_row[0]
                 actual_name = project_row[1]  # Get the actual name from database
                 
                 # Log what we're about to save
-                logger.info(f"Updating project ID {project_id} ('{actual_name}')")
+                logger.info(f"Updating project ID {final_project_id} ('{actual_name}')")
                 logger.info(f"Payload string length: {len(payload_str)}, first 200 chars: {payload_str[:200]}")
                 logger.info(f"Project data dict has {len(project_data)} keys")
                 
@@ -11827,16 +12714,40 @@ def projects_save():
                     """
                     UPDATE projects SET data = ?, updated_at = datetime('now') WHERE id = ?
                 """,
-                    (data_to_save, project_id),
+                    (data_to_save, final_project_id),
                 )
-                logger.info(f"[OK] Project '{actual_name}' (ID: {project_id}) updated with {len(project_data)} fields")
+                logger.info(f"[OK] Project '{actual_name}' (ID: {final_project_id}) updated with {len(project_data)} fields")
 
             conn.commit()
+            
+            # CRITICAL: Verify commit succeeded
+            logger.info(f"💾 Commit completed for project ID {final_project_id}")
+            
+            # Verify the data was actually saved
+            cursor.execute("SELECT data FROM projects WHERE id = ?", (final_project_id,))
+            saved_row = cursor.fetchone()
+            if saved_row and saved_row[0]:
+                try:
+                    saved_data = json.loads(saved_row[0])
+                    if isinstance(saved_data, dict) and "payload" in saved_data:
+                        saved_payload = json.loads(saved_data["payload"])
+                        logger.info(f"✅ Verified: Saved {len(saved_payload)} fields to database for project ID {final_project_id}")
+                        logger.info(f"✅ Sample saved fields: {list(saved_payload.keys())[:10]}")
+                    else:
+                        logger.warning(f"⚠️ Saved data format unexpected for project ID {final_project_id}: {type(saved_data)}")
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.warning(f"⚠️ Could not verify saved data: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
+            else:
+                logger.error(f"❌ ERROR: Data not found after save for project ID {final_project_id}")
+                logger.error(f"❌ This indicates the save operation may have failed silently")
 
             return jsonify({
                 "ok": True,
                 "method": "database",
                 "field_count": len(project_data),
+                "project_id": final_project_id,
             })
 
     except Exception as e:
@@ -12031,7 +12942,20 @@ def get_pe_stats():
 def get_csv_fingerprints():
     """Get fingerprints for all CSV files"""
     try:
-        with get_db_connection() as conn:
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        logger.info(f"🔍 /api/csv/fingerprints endpoint called - org_id: {org_id}")
+        
+        if not org_id:
+            logger.warning("❌ /api/csv/fingerprints: No org_id found - returning empty list")
+            return jsonify({
+                "status": "success",
+                "fingerprints": [],
+                "total_count": 0,
+            }), 200
+        
+        # Use org-specific database connection
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -12039,20 +12963,58 @@ def get_csv_fingerprints():
                 )
 
             cursor = conn.cursor()
+            script_dir = Path(__file__).parent.absolute()
 
             # Get fingerprints from raw_meter_data table
             try:
                 cursor.execute(
                     """
-                    SELECT id, file_name, file_size, fingerprint, created_at, uploaded_by
+                    SELECT id, file_name, file_path, file_size, fingerprint, created_at, uploaded_by
                     FROM raw_meter_data 
                     WHERE fingerprint IS NOT NULL
                     ORDER BY created_at DESC
                 """
                 )
                 raw_files = cursor.fetchall()
+                logger.info(f"📊 Found {len(raw_files)} files with fingerprints in raw_meter_data for org_id={org_id}")
+                
+                # Log sample of files found
+                if raw_files:
+                    logger.info(f"📋 Sample files found:")
+                    for i, row in enumerate(raw_files[:5]):  # Log first 5
+                        file_id, file_name, file_path, file_size, fingerprint, created_at, uploaded_by = row
+                        logger.info(f"   {i+1}. ID: {file_id}, Name: {file_name}, Path: {file_path}, Fingerprint: {fingerprint[:32] if fingerprint else 'None'}...")
+                else:
+                    logger.warning(f"⚠️ No files with fingerprints found in raw_meter_data for org_id={org_id}")
+                    
+                    # Check if there are any files at all
+                    cursor.execute("SELECT COUNT(*) FROM raw_meter_data")
+                    total_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Total files in raw_meter_data: {total_count}")
+                    
+                    # Check how many have NULL fingerprint
+                    cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NULL")
+                    null_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Files with NULL fingerprint: {null_count}")
+                    
+                    # Check how many have non-NULL fingerprint
+                    cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL")
+                    not_null_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Files with non-NULL fingerprint: {not_null_count}")
+                    
+                    # Check files in verified directory
+                    cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE file_path LIKE '%protected/verified%'")
+                    verified_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Files in verified directory (by path): {verified_count}")
+                    
+                    # Check files in verified directory with fingerprint
+                    cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE file_path LIKE '%protected/verified%' AND fingerprint IS NOT NULL")
+                    verified_with_fp_count = cursor.fetchone()[0]
+                    logger.info(f"📊 Files in verified directory WITH fingerprint: {verified_with_fp_count}")
             except Exception as e:
                 logger.error(f"Error fetching raw files fingerprints: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
                 raw_files = []
 
             # Get fingerprints from project_files table
@@ -12066,6 +13028,7 @@ def get_csv_fingerprints():
                 """
                 )
                 project_files = cursor.fetchall()
+                logger.info(f"📊 Found {len(project_files)} files with fingerprints in project_files for org_id={org_id}")
             except Exception as e:
                 logger.error(f"Error fetching project files fingerprints: {e}")
                 project_files = []
@@ -12074,39 +13037,64 @@ def get_csv_fingerprints():
             fingerprints = []
 
             for row in raw_files:
+                file_id, file_name, file_path, file_size, fingerprint, created_at, uploaded_by = row
+                
+                # Resolve file path to absolute for file size check
+                if file_path:
+                    if not Path(file_path).is_absolute():
+                        file_path_absolute = script_dir / file_path
+                    else:
+                        file_path_absolute = Path(file_path)
+                    
+                    # Update file size from actual file if available
+                    try:
+                        if file_path_absolute.exists():
+                            file_size = file_path_absolute.stat().st_size
+                    except:
+                        pass  # Keep original file_size from database
+                
                 fingerprints.append(
                     {
-                        "id": row[0],
-                        "file_name": row[1],
-                        "file_size": row[2],
-                        "fingerprint": row[3],
-                        "created_at": row[4],
+                        "id": file_id,
+                        "file_name": file_name,
+                        "file_size": file_size or 0,
+                        "fingerprint": fingerprint,
+                        "created_at": created_at,
                         "type": "raw_meter_data",
-                        "source_id": row[5],  # uploaded_by
+                        "source_id": uploaded_by,
                     }
                 )
 
             for row in project_files:
+                file_id, file_name, file_path, fingerprint, created_at, project_name = row
+                
                 # Try to get file size from the file system
                 file_size = 0
                 try:
-                    if os.path.exists(row[2]):  # file_path
-                        file_size = os.path.getsize(row[2])
+                    if file_path:
+                        if not Path(file_path).is_absolute():
+                            file_path_absolute = script_dir / file_path
+                        else:
+                            file_path_absolute = Path(file_path)
+                        
+                        if file_path_absolute.exists():
+                            file_size = file_path_absolute.stat().st_size
                 except:
                     file_size = 0
 
                 fingerprints.append(
                     {
-                        "id": row[0],
-                        "file_name": row[1],
+                        "id": file_id,
+                        "file_name": file_name,
                         "file_size": file_size,
-                        "fingerprint": row[3],
-                        "created_at": row[4],
+                        "fingerprint": fingerprint,
+                        "created_at": created_at,
                         "type": "project_file",
-                        "source_id": row[5],  # project_name
+                        "source_id": project_name,
                     }
                 )
 
+            logger.info(f"✅ Returning {len(fingerprints)} total fingerprints for org_id={org_id}")
             return jsonify(
                 {
                     "status": "success",
@@ -15812,9 +16800,14 @@ def upload_raw_meter_data():
 def list_original_files():
     """List all original raw meter data files"""
     try:
+        logger.info("🔍 /api/original-files endpoint called")
+        
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
+        logger.info(f"🔑 Extracted org_id: {org_id}")
+        
         if not org_id:
+            logger.warning("❌ /api/original-files: No org_id found - authentication required")
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
         
         with get_db_connection(org_id=org_id) as conn:
@@ -15832,20 +16825,35 @@ def list_original_files():
                 ORDER BY created_at DESC
             """
             )
+            
+            db_results = cursor.fetchall()
+            logger.info(f"📊 Found {len(db_results)} files in database for org_id={org_id}")
 
             files = []
-            for row in cursor.fetchall():
+            for row in db_results:
+                file_id, file_name, file_path, file_size, fingerprint, created_at = row
+                
+                # Check if file exists on disk
+                file_path_obj = Path(file_path) if file_path else None
+                file_exists = file_path_obj and file_path_obj.exists() if file_path else False
+                
+                # Determine if file is verified (in protected/verified directory)
+                is_verified = file_path and 'protected/verified' in str(file_path) if file_path else False
+                
                 files.append(
                     {
-                        "id": row[0],
-                        "file_name": row[1],
-                        "file_path": row[2],
-                        "file_size": row[3],
-                        "fingerprint": row[4],
-                        "created_at": row[5],
+                        "id": file_id,
+                        "file_name": file_name,
+                        "file_path": str(file_path) if file_path else None,
+                        "file_size": file_size,
+                        "fingerprint": fingerprint,
+                        "created_at": created_at,
+                        "exists": file_exists,
+                        "is_verified": is_verified,
                     }
                 )
-
+            
+            logger.info(f"✅ Returning {len(files)} files (verified: {sum(1 for f in files if f.get('is_verified'))}, unverified: {sum(1 for f in files if not f.get('is_verified'))})")
             return jsonify({"status": "success", "files": files})
 
     except Exception as e:
@@ -16065,12 +17073,25 @@ def get_file_for_clipping(file_id):
 def apply_clipping_to_original_file(file_id):
     """Apply clipping modifications to an original file"""
     try:
+        logger.info("=" * 80)
+        logger.info(f"🔧 /api/original-files/{file_id}/apply-clipping endpoint called")
+        logger.info(f"📥 Request method: {request.method}")
+        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, Content-Type={request.headers.get('Content-Type')}")
+        logger.info(f"📥 Request content length: {request.content_length}")
+        
         data = request.get_json()
+        if not data:
+            logger.error("❌ No JSON data received in request")
+            return jsonify({"status": "error", "error": "No data received"}), 400
+        
         modified_content = data.get("modified_content", "")
         modification_reason = data.get("modification_reason", "")
         modification_details = data.get("modification_details", "")
+        
+        logger.info(f"📋 Received data - Content length: {len(modified_content) if modified_content else 0}, Reason: {modification_reason}, Details: {len(modification_details) if modification_details else 0} chars")
 
         if not modified_content or not modification_reason:
+            logger.error(f"❌ Missing required fields - Content: {bool(modified_content)}, Reason: {bool(modification_reason)}")
             return (
                 jsonify(
                     {
@@ -16111,6 +17132,34 @@ def apply_clipping_to_original_file(file_id):
         if not user_id:
             return jsonify({"status": "error", "error": "Invalid session"}), 401
 
+        # Get user information from org-specific database
+        with get_db_connection(org_id=org_id) as user_conn:
+            if user_conn is None:
+                return jsonify({"status": "error", "error": "Database connection failed"}), 500
+            
+            user_cursor = user_conn.cursor()
+            user_cursor.execute(
+                """
+                SELECT id, full_name, email, username, role
+                FROM users
+                WHERE id = ?
+            """,
+                (user_id,),
+            )
+            
+            user_row = user_cursor.fetchone()
+            if not user_row:
+                return jsonify({"status": "error", "error": "User not found"}), 404
+            
+            # Create user dictionary for compatibility with existing code
+            user = {
+                "id": user_row[0],
+                "full_name": user_row[1] or user_row[3],  # Use full_name or fallback to username
+                "email": user_row[2],
+                "username": user_row[3],
+                "role": user_row[4]
+            }
+
         with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return (
@@ -16132,19 +17181,50 @@ def apply_clipping_to_original_file(file_id):
                 return jsonify({"status": "error", "error": "File not found"}), 404
 
             filename, file_path, original_fingerprint = row
-            logger.info(f"Apply clipping - Original file path: {file_path}")
+            logger.info(f"Apply clipping - Original file path from DB: {file_path}")
 
-            # Normalize path separators for Windows
-            file_path = file_path.replace("\\", "/")
-            logger.info(f"Apply clipping - Fixed file path: {file_path}")
+            # Resolve file_path to absolute path based on script directory
+            script_dir = Path(__file__).parent.absolute()
+            if file_path and not Path(file_path).is_absolute():
+                # If path is relative, make it absolute relative to script directory
+                file_path_absolute = script_dir / file_path
+            else:
+                file_path_absolute = Path(file_path) if file_path else None
+            
+            logger.info(f"Apply clipping - Resolved absolute file path: {file_path_absolute}")
+            
+            # Verify the original file exists
+            if not file_path_absolute or not file_path_absolute.exists():
+                logger.error(f"❌ Original file does not exist: {file_path_absolute}")
+                return jsonify({"status": "error", "error": f"Original file not found: {file_path}"}), 404
+
+            # Normalize path separators for Windows (for display/logging)
+            file_path_normalized = str(file_path_absolute).replace("\\", "/")
+            logger.info(f"Apply clipping - Normalized file path: {file_path_normalized}")
 
             # Create backup of original file
-            backup_path = f"{file_path}.backup_{int(time.time())}"
-            shutil.copy2(file_path, backup_path)
+            backup_path = file_path_absolute.parent / f"{file_path_absolute.name}.backup_{int(time.time())}"
+            logger.info(f"📋 Creating backup: {backup_path}")
+            try:
+                shutil.copy2(file_path_absolute, backup_path)
+                logger.info(f"✅ Backup created successfully: {backup_path}")
+            except Exception as backup_error:
+                logger.error(f"❌ Failed to create backup: {backup_error}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return jsonify({"status": "error", "error": f"Failed to create backup: {str(backup_error)}"}), 500
 
             # Write modified content to file
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(modified_content)
+            logger.info(f"📝 Writing modified content to: {file_path_absolute}")
+            try:
+                with open(file_path_absolute, "w", encoding="utf-8") as f:
+                    f.write(modified_content)
+                logger.info(f"✅ Modified content written successfully")
+            except Exception as write_error:
+                logger.error(f"❌ Failed to write modified content: {write_error}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return jsonify({"status": "error", "error": f"Failed to write file: {str(write_error)}"}), 500
 
             # Create new fingerprint for modified file
             csv_integrity = CSVIntegrityProtection()
@@ -16154,6 +17234,8 @@ def apply_clipping_to_original_file(file_id):
             new_fingerprint = new_fingerprint_data["content_hash"]
 
             # Update file fingerprint in database
+            logger.info(f"💾 Updating fingerprint in database for file_id={file_id}")
+            logger.info(f"💾 New fingerprint: {new_fingerprint[:32]}...")
             cursor.execute(
                 """
                 UPDATE raw_meter_data 
@@ -16162,6 +17244,16 @@ def apply_clipping_to_original_file(file_id):
             """,
                 (new_fingerprint, file_id),
             )
+            
+            # Verify the update
+            cursor.execute("SELECT fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
+            verify_row = cursor.fetchone()
+            if verify_row and verify_row[0] == new_fingerprint:
+                logger.info(f"✅ Fingerprint updated successfully in database for file_id={file_id}")
+            else:
+                logger.error(f"❌ Fingerprint update verification failed for file_id={file_id}")
+                logger.error(f"   Expected: {new_fingerprint[:32]}...")
+                logger.error(f"   Got: {verify_row[0][:32] if verify_row and verify_row[0] else 'None'}...")
 
             # Create original custody record for tracking
             original_custody_record = csv_integrity.create_chain_of_custody(
@@ -16244,8 +17336,13 @@ def apply_clipping_to_original_file(file_id):
             )
 
             # Move file to verified directory
-            verified_dir = Path("files/protected/verified")
+            # Use absolute path based on script location to ensure correct directory
+            script_dir = Path(__file__).parent.absolute()
+            verified_dir = script_dir / "files" / "protected" / "verified"
             verified_dir.mkdir(parents=True, exist_ok=True)
+            
+            logger.info(f"📁 Verified directory: {verified_dir}")
+            logger.info(f"📁 Verified directory exists: {verified_dir.exists()}")
 
             # Create verified filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -16253,40 +17350,102 @@ def apply_clipping_to_original_file(file_id):
             verified_path = verified_dir / verified_filename
 
             # Copy file to verified directory
-            shutil.copy2(file_path, verified_path)
+            logger.info(f"📋 Copying file from {file_path_absolute} to {verified_path}")
+            try:
+                shutil.copy2(file_path_absolute, verified_path)
+                
+                # Verify file was copied
+                if verified_path.exists():
+                    file_size = verified_path.stat().st_size
+                    logger.info(f"✅ File successfully copied to verified directory: {verified_path} ({file_size:,} bytes)")
+                else:
+                    logger.error(f"❌ File copy failed - verified_path does not exist: {verified_path}")
+                    return jsonify({"status": "error", "error": "Failed to copy file to verified directory"}), 500
+            except Exception as copy_error:
+                logger.error(f"❌ Error copying file to verified directory: {copy_error}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return jsonify({"status": "error", "error": f"Failed to copy file: {str(copy_error)}"}), 500
 
             # Update database with new verified file path
+            # Store relative path for consistency with other file paths
+            relative_verified_path = f"files/protected/verified/{verified_filename}"
+            logger.info(f"💾 Updating database with verified path: {relative_verified_path}")
+            logger.info(f"💾 Updating fingerprint: {new_fingerprint[:32]}...")
             cursor.execute(
                 """
                 UPDATE raw_meter_data 
                 SET file_path = ?, fingerprint = ?
                 WHERE id = ?
             """,
-                (str(verified_path), new_fingerprint, file_id),
+                (relative_verified_path, new_fingerprint, file_id),
             )
+            
+            # Verify the update before commit
+            cursor.execute("SELECT file_path, fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
+            verify_row = cursor.fetchone()
+            if verify_row:
+                logger.info(f"✅ Database update verified before commit:")
+                logger.info(f"   file_path: {verify_row[0]}")
+                logger.info(f"   fingerprint: {verify_row[1][:32] if verify_row[1] else 'None'}...")
+            else:
+                logger.error(f"❌ File not found in database after update for file_id={file_id}")
 
             conn.commit()
+            logger.info(f"✅ Database commit completed for file_id={file_id}")
+            
+            # Verify after commit
+            cursor.execute("SELECT file_path, fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
+            post_commit_row = cursor.fetchone()
+            if post_commit_row:
+                logger.info(f"✅ Post-commit verification:")
+                logger.info(f"   file_path: {post_commit_row[0]}")
+                logger.info(f"   fingerprint: {post_commit_row[1][:32] if post_commit_row[1] else 'None'}...")
+            else:
+                logger.error(f"❌ File not found in database after commit for file_id={file_id}")
 
             logger.info(
-                f"File clipping applied and moved to verified: {filename} -> {verified_path} by {user['full_name']} - Reason: {modification_reason}"
+                f"✅ File clipping applied and moved to verified: {filename} -> {relative_verified_path} by {user['full_name']} - Reason: {modification_reason}"
             )
 
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": "File clipping applied successfully and moved to verified directory",
-                    "backup_path": backup_path,
-                    "verified_path": str(verified_path),
-                    "new_fingerprint": new_fingerprint,
-                    "custody_record": clipped_custody_record,
-                }
-            )
+            # Prepare response data
+            response_data = {
+                "status": "success",
+                "message": "File clipping applied successfully and moved to verified directory",
+                "backup_path": str(backup_path),
+                "verified_path": relative_verified_path,
+                "verified_path_absolute": str(verified_path),
+                "new_fingerprint": new_fingerprint,
+                "custody_record": clipped_custody_record,
+            }
+            
+            logger.info(f"📤 Preparing response with status: {response_data['status']}")
+            logger.info(f"📤 Response keys: {list(response_data.keys())}")
+            logger.info(f"📤 Response message: {response_data['message']}")
+            
+            # Create JSON response
+            response = jsonify(response_data)
+            logger.info(f"📤 Response created, status code will be 200")
+            logger.info(f"📤 Response content type: {response.content_type}")
+            logger.info(f"📤 Response data length: {len(response.get_data())} bytes")
+            
+            return response
 
     except Exception as e:
-        logger.error(f"Error applying clipping to file: {e}")
+        logger.error("=" * 80)
+        logger.error(f"❌ EXCEPTION in apply_clipping_to_original_file: {type(e).__name__}")
+        logger.error(f"❌ Error message: {str(e)}")
         import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({"status": "error", "error": str(e)}), 500
+        logger.error(f"❌ Full traceback:\n{traceback.format_exc()}")
+        logger.error("=" * 80)
+        
+        # Ensure we return a proper JSON response even on error
+        error_response = jsonify({"status": "error", "error": str(e)})
+        logger.info(f"📤 Returning error response with status code 500")
+        logger.info(f"📤 Error response content type: {error_response.content_type}")
+        logger.info(f"📤 Error response data: {error_response.get_data(as_text=True)[:200]}")
+        
+        return error_response, 500
 
 
 @app.route("/pe-dashboard")
@@ -17826,9 +18985,18 @@ def get_dashboard_statistics():
 def list_verified_files():
     """List all verified CSV files from the file system"""
     try:
+        logger.info("=" * 80)
+        logger.info("🔍 /api/verified-files endpoint called")
+        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
+        
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
+        logger.info(f"🔑 Extracted org_id: {org_id}")
+        
         if not org_id:
+            logger.warning("❌ /api/verified-files: No org_id found - returning empty list")
+            logger.warning(f"   Request headers: {dict(request.headers)}")
+            logger.warning(f"   Request cookies: {dict(request.cookies)}")
             return jsonify({"status": "success", "files": [], "total_count": 0}), 200
         
         # Use proper database connection
@@ -17840,23 +19008,76 @@ def list_verified_files():
                 )
 
             cursor = conn.cursor()
+            # Only get files that are in the verified directory (files/protected/verified/)
+            # These are files that have been through the clipping/verification process
             cursor.execute(
                 """
                 SELECT id, file_name, file_path, file_size, created_at, fingerprint
                 FROM raw_meter_data 
-                WHERE file_path IS NOT NULL AND fingerprint IS NOT NULL
+                WHERE file_path IS NOT NULL 
+                  AND fingerprint IS NOT NULL
+                  AND file_path LIKE '%protected/verified%'
                 ORDER BY created_at DESC
             """
             )
             db_results = cursor.fetchall()
+            logger.info(f"📊 Found {len(db_results)} verified files (in protected/verified directory) for org_id={org_id}")
+            
+            # Also check for files that might not have the path updated but are verified
+            # This is a fallback in case the path wasn't updated correctly
+            if len(db_results) == 0:
+                logger.info("⚠️ No files found in verified directory, checking all files with fingerprint...")
+                cursor.execute(
+                    """
+                    SELECT id, file_name, file_path, file_size, created_at, fingerprint
+                    FROM raw_meter_data 
+                    WHERE file_path IS NOT NULL AND fingerprint IS NOT NULL
+                    ORDER BY created_at DESC
+                """
+                )
+                all_files = cursor.fetchall()
+                logger.info(f"📊 Found {len(all_files)} total files with fingerprint (including unverified)")
+                # Filter to only include files that exist in verified directory on disk
+                verified_files_on_disk = []
+                script_dir = Path(__file__).parent.absolute()
+                verified_dir = script_dir / "files" / "protected" / "verified"
+                logger.info(f"📁 Checking verified directory: {verified_dir}")
+                if verified_dir.exists():
+                    for row in all_files:
+                        file_id, file_name, file_path, file_size, created_at, fingerprint = row
+                        # Resolve file path to absolute
+                        if file_path:
+                            if not Path(file_path).is_absolute():
+                                file_path_absolute = script_dir / file_path
+                            else:
+                                file_path_absolute = Path(file_path)
+                            
+                            # Check if file exists in verified directory
+                            if file_path_absolute.exists() and verified_dir in file_path_absolute.parents:
+                                verified_files_on_disk.append(row)
+                                logger.debug(f"✅ Found verified file on disk: {file_path_absolute}")
+                            else:
+                                logger.debug(f"⚠️ File not in verified directory: {file_path_absolute}")
+                    logger.info(f"📊 Found {len(verified_files_on_disk)} files that exist in verified directory on disk")
+                    db_results = verified_files_on_disk
+                else:
+                    logger.warning(f"⚠️ Verified directory does not exist: {verified_dir}")
 
             files = []
+            script_dir = Path(__file__).parent.absolute()
             for row in db_results:
                 file_id, file_name, file_path, file_size, created_at, fingerprint = row
 
                 # Only include files that actually exist
-                # Construct full path relative to current directory (8082)
-                full_path = Path(file_path) if file_path else None
+                # Resolve file path to absolute path
+                if file_path:
+                    if not Path(file_path).is_absolute():
+                        full_path = script_dir / file_path
+                    else:
+                        full_path = Path(file_path)
+                else:
+                    full_path = None
+                    
                 if file_path and full_path and full_path.exists():
                     files.append(
                         {
@@ -17872,7 +19093,10 @@ def list_verified_files():
                             "is_shared": False,
                         }
                     )
+                else:
+                    logger.warning(f"⚠️ File path does not exist: {file_path} (file_id={file_id}, file_name={file_name})")
 
+            logger.info(f"✅ Returning {len(files)} verified files (out of {len(db_results)} database records)")
             return jsonify(
                 {"status": "success", "files": files, "total_count": len(files)}
             )
@@ -21651,14 +22875,25 @@ def generate_iso_50001_report(results_data):
                 power_quality.get('power_factor_after') or
                 0.95  # Default target PF
             )
-            target_pf = 0.95
+            # Read target_pf from config (user input from UI form), with fallback to 0.95
+            target_pf = safe_float(
+                config.get('target_pf') or
+                config.get('target_power_factor') or
+                power_quality.get('target_pf') or
+                0.95  # Default to 0.95 if not specified (IEEE 519 standard)
+            )
+            
+            # CRITICAL: Log target_pf value to verify it's being used correctly
+            logger.info(f"[POWER FACTOR NORMALIZATION] target_pf = {target_pf:.4f} (from config: target_pf={config.get('target_pf')}, target_power_factor={config.get('target_power_factor')})")
             
             # Calculate PF normalization for savings: normalize both to the SAME PF
-            # Use the better PF (higher value) as normalization target to show true savings benefit
-            # This ensures savings percentage increases when PF improves
+            # Uses target_pf from UI form configuration (defaults to 0.95 per IEEE 519 and utility billing standards)
+            # Using max() can artificially inflate savings when before PF is much lower than after PF
+            # User-specified target PF provides flexibility while maintaining standard-compliant comparison
             if pf_before > 0 and pf_after > 0:
-                # Use max of before, after, and target to normalize both periods to same PF
-                normalization_pf = max(pf_before, pf_after, target_pf)
+                # Use target_pf from config (user input from UI form) for normalization
+                normalization_pf = target_pf  # Uses user-specified target PF (defaults to 0.95 if not specified)
+                logger.info(f"[POWER FACTOR NORMALIZATION] Using normalization_pf = {normalization_pf:.4f} (pf_before = {pf_before:.4f}, pf_after = {pf_after:.4f})")
                 
                 pf_adjustment_before = normalization_pf / pf_before
                 pf_adjustment_after = normalization_pf / pf_after
@@ -23775,12 +25010,12 @@ def generate_incentive_submission_guide_text(incentives, location_data):
     text += "5. Submit applications before deadlines\n"
     return text
 
-def get_audit_trail_for_session(analysis_session_id):
+def get_audit_trail_for_session(analysis_session_id, org_id=None):
     """Get all audit trail entries for an analysis session"""
     try:
         entries = []
         
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=org_id) as conn:
             if conn:
                 cursor = conn.cursor()
                 
@@ -29899,92 +31134,161 @@ def generate_utility_submission_package(results_data):
                                             zipf.write(fingerprint_file, f"06_Data_Quality/Source_Data_Files/{prefix}_verified_data_fingerprint.txt")
                                         
                                         # ============================================
-                                        # 2. TRY TO FIND AND INCLUDE ORIGINAL RAW FILE
+                                        # 2. FIND AND INCLUDE ORIGINAL RAW FILE
                                         # ============================================
-                                        # Search for original raw file in files/raw/ directories
-                                        raw_base_dir = base_dir / "files" / "raw"
-                                        logger.info(f"UTILITY SUBMISSION PACKAGE - Searching for original raw file in: {raw_base_dir}")
+                                        # Use multiple strategies to find the raw file
                                         original_raw_file = None
+                                        original_raw_fingerprint = None
                                         
-                                        if raw_base_dir.exists():
-                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Raw base directory exists, searching for: {file_name}")
-                                            # Search all date subdirectories in files/raw/
-                                            for date_dir in raw_base_dir.iterdir():
-                                                if date_dir.is_dir():
-                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Checking date directory: {date_dir}")
-                                                    # Look for files matching the original filename
-                                                    # Try exact match first, then partial match
-                                                    for raw_file in date_dir.glob("*.csv"):
-                                                        # Check if filename matches (accounting for date prefix)
-                                                        raw_filename = raw_file.name
-                                                        # Remove date prefix if present (format: YYYY-MM-DD_filename.csv)
-                                                        if raw_filename.startswith(date_dir.name + "_"):
-                                                            base_filename = raw_filename[len(date_dir.name) + 1:]
-                                                        else:
-                                                            base_filename = raw_filename
+                                        # STRATEGY 1: Check if verified file has original_file_id link in database
+                                        # NOTE: Verified files are in raw_meter_data, but original_file_id might be in project_files
+                                        # Try both tables to find the link
+                                        try:
+                                            # First, try to find if this verified file has an original_file_id in project_files
+                                            cursor.execute(
+                                                "SELECT original_file_id FROM project_files WHERE file_id = ? OR id = ?",
+                                                (int(file_id), int(file_id))
+                                            )
+                                            orig_id_row = cursor.fetchone()
+                                            
+                                            # If not found in project_files, try to find raw file by matching file_name
+                                            # (The raw file should have the same name but be in files/raw/ instead of files/protected/verified/)
+                                            if not orig_id_row or not orig_id_row[0]:
+                                                logger.debug(f"UTILITY SUBMISSION PACKAGE - No original_file_id in project_files, trying file_name match for: {file_name}")
+                                                cursor.execute(
+                                                    "SELECT id FROM raw_meter_data WHERE file_name = ? AND file_path NOT LIKE '%verified%' AND file_path LIKE '%raw%' ORDER BY created_at ASC LIMIT 1",
+                                                    (file_name,)
+                                                )
+                                                raw_file_row = cursor.fetchone()
+                                                if raw_file_row:
+                                                    orig_file_id = raw_file_row[0]
+                                                    orig_id_row = (orig_file_id,)
+                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Found raw file by name match: ID {orig_file_id}")
+                                            
+                                            if orig_id_row and orig_id_row[0]:
+                                                orig_file_id = orig_id_row[0]
+                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Found original_file_id: {orig_file_id} for verified file {file_id}")
+                                                cursor.execute(
+                                                    "SELECT file_name, file_path, fingerprint FROM raw_meter_data WHERE id = ?",
+                                                    (orig_file_id,)
+                                                )
+                                                orig_row = cursor.fetchone()
+                                                if orig_row:
+                                                    orig_name, orig_path, orig_fp = orig_row
+                                                    if orig_path:
+                                                        orig_abs_path = (base_dir / orig_path).resolve()
+                                                        if orig_abs_path.exists():
+                                                            original_raw_file = orig_abs_path
+                                                            original_raw_fingerprint = orig_fp
+                                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via original_file_id: {original_raw_file}")
+                                        except Exception as e:
+                                            logger.debug(f"UTILITY SUBMISSION PACKAGE - Could not find original_file_id: {e}")
+                                        
+                                        # STRATEGY 2: Search files/raw/ directories (existing logic)
+                                        if not original_raw_file:
+                                            raw_base_dir = base_dir / "files" / "raw"
+                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Searching for original raw file in: {raw_base_dir}")
+                                            
+                                            if raw_base_dir.exists():
+                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Raw base directory exists, searching for: {file_name}")
+                                                # Search all date subdirectories in files/raw/
+                                                for date_dir in raw_base_dir.iterdir():
+                                                    if date_dir.is_dir():
+                                                        logger.info(f"UTILITY SUBMISSION PACKAGE - Checking date directory: {date_dir}")
+                                                        # Look for files matching the original filename
+                                                        # Try exact match first, then partial match
+                                                        for raw_file in date_dir.glob("*.csv"):
+                                                            # Check if filename matches (accounting for date prefix)
+                                                            raw_filename = raw_file.name
+                                                            # Remove date prefix if present (format: YYYY-MM-DD_filename.csv)
+                                                            if raw_filename.startswith(date_dir.name + "_"):
+                                                                base_filename = raw_filename[len(date_dir.name) + 1:]
+                                                            else:
+                                                                base_filename = raw_filename
+                                                            
+                                                            logger.debug(f"UTILITY SUBMISSION PACKAGE - Comparing: '{base_filename.lower()}' with '{file_name.lower()}'")
+                                                            # Compare with original file_name (case-insensitive)
+                                                            if base_filename.lower() == file_name.lower() or file_name.lower() in raw_filename.lower():
+                                                                original_raw_file = raw_file
+                                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file: {original_raw_file}")
+                                                                break
                                                         
-                                                        logger.debug(f"UTILITY SUBMISSION PACKAGE - Comparing: '{base_filename.lower()}' with '{file_name.lower()}'")
-                                                        # Compare with original file_name (case-insensitive)
-                                                        if base_filename.lower() == file_name.lower() or file_name.lower() in raw_filename.lower():
-                                                            original_raw_file = raw_file
-                                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file: {original_raw_file}")
+                                                        if original_raw_file:
                                                             break
-                                                    
-                                                    if original_raw_file:
-                                                        break
-                                        else:
-                                            logger.warning(f"UTILITY SUBMISSION PACKAGE - Raw base directory does not exist: {raw_base_dir}")
+                                                
+                                                # STRATEGY 3: Recursive search if still not found
+                                                if not original_raw_file:
+                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Performing recursive search for: {file_name}")
+                                                    for raw_file in raw_base_dir.rglob("*.csv"):
+                                                        if file_name.lower() in raw_file.name.lower():
+                                                            original_raw_file = raw_file
+                                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via recursive search: {original_raw_file}")
+                                                            break
+                                            else:
+                                                logger.warning(f"UTILITY SUBMISSION PACKAGE - Raw base directory does not exist: {raw_base_dir}")
                                         
-                                        # If original raw file found, include it
+                                        # STRATEGY 4: Try path-based search (replace 'verified' with 'raw' in path)
+                                        if not original_raw_file and rel_path:
+                                            raw_path_candidate = rel_path.replace('verified', 'raw').replace('protected/verified', 'raw')
+                                            if raw_path_candidate != rel_path:
+                                                raw_candidate = (base_dir / raw_path_candidate).resolve()
+                                                if raw_candidate.exists() and raw_candidate.suffix == '.csv':
+                                                    original_raw_file = raw_candidate
+                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via path replacement: {original_raw_file}")
+                                        
+                                        # If original raw file found, include it with fingerprint
                                         if original_raw_file and original_raw_file.exists():
                                             # Copy original raw file
                                             raw_dest_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data.csv")
                                             shutil.copy2(str(original_raw_file), raw_dest_file)
                                             zipf.write(raw_dest_file, f"06_Data_Quality/Source_Data_Files/{prefix}_original_raw_data.csv")
                                             
-                                            # Generate fingerprint for original raw file using same method as upload
-                                            # Try to find fingerprint in database first, otherwise calculate using CSVIntegrityProtection
-                                            raw_fingerprint = None
-                                            try:
-                                                # Try to find this file in database by filename
-                                                with get_db_connection() as conn:
-                                                    if conn:
-                                                        cursor = conn.cursor()
-                                                        cursor.execute(
-                                                            "SELECT fingerprint FROM raw_meter_data WHERE file_name = ? ORDER BY created_at DESC LIMIT 1",
-                                                            (original_raw_file.name,)
-                                                        )
-                                                        row = cursor.fetchone()
-                                                        if row and row[0]:
-                                                            raw_fingerprint = row[0]
-                                            except Exception as e:
-                                                logger.warning(f"Could not find raw file fingerprint in database: {e}")
+                                            # Get or calculate fingerprint for raw file
+                                            if not original_raw_fingerprint:
+                                                # Try to find fingerprint in database
+                                                try:
+                                                    # Get org_id from results_data if available
+                                                    org_id_for_db = results_data.get('_org_id')
+                                                    with get_db_connection(org_id=org_id_for_db) as conn:
+                                                        if conn:
+                                                            cursor2 = conn.cursor()
+                                                            cursor2.execute(
+                                                                "SELECT fingerprint FROM raw_meter_data WHERE file_name = ? OR file_path LIKE ? ORDER BY created_at DESC LIMIT 1",
+                                                                (original_raw_file.name, f"%{original_raw_file.name}%")
+                                                            )
+                                                            fp_row = cursor2.fetchone()
+                                                            if fp_row and fp_row[0]:
+                                                                original_raw_fingerprint = fp_row[0]
+                                                except Exception as e:
+                                                    logger.debug(f"Could not find raw file fingerprint in database: {e}")
                                             
-                                            # If not found in database, calculate using CSVIntegrityProtection (same method as upload)
-                                            if not raw_fingerprint:
+                                            # If still not found, calculate using CSVIntegrityProtection
+                                            if not original_raw_fingerprint:
                                                 try:
                                                     from main_hardened_ready_fixed import CSVIntegrityProtection
                                                     csv_integrity = CSVIntegrityProtection()
                                                     with open(str(original_raw_file), "r", encoding="utf-8") as f:
                                                         file_content = f.read()
                                                     fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
-                                                    raw_fingerprint = fingerprint_data["content_hash"]
+                                                    original_raw_fingerprint = fingerprint_data["content_hash"]
                                                 except Exception as e:
                                                     logger.warning(f"Could not calculate raw file fingerprint: {e}")
-                                                    raw_fingerprint = "ERROR - Fingerprint not available"
+                                                    original_raw_fingerprint = "ERROR - Fingerprint not available"
+                                            
+                                            # Create fingerprint file for raw data
                                             raw_fingerprint_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data_fingerprint.txt")
                                             with open(raw_fingerprint_file, "w", encoding="utf-8") as f:
-                                                f.write(f"SHA-256 Fingerprint: {raw_fingerprint}\n")
+                                                f.write(f"SHA-256 Fingerprint: {original_raw_fingerprint}\n")
                                                 f.write(f"File: {original_raw_file.name}\n")
                                                 f.write(f"File Type: Original Raw Upload (Before Verification)\n")
                                                 f.write(f"File Path: {original_raw_file.relative_to(base_dir)}\n")
                                                 f.write(f"Generated: {datetime.now().isoformat()}\n")
                                             zipf.write(raw_fingerprint_file, f"06_Data_Quality/Source_Data_Files/{prefix}_original_raw_data_fingerprint.txt")
                                             
-                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Added original raw file: {prefix}_original_raw_data.csv")
+                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Added original raw file: {prefix}_original_raw_data.csv with fingerprint")
                                             files_added_count += 1
                                         else:
-                                            logger.warning(f"UTILITY SUBMISSION PACKAGE - Original raw file not found for {prefix} (searched in {raw_base_dir})")
+                                            logger.warning(f"UTILITY SUBMISSION PACKAGE - Original raw file not found for {prefix} after all search strategies")
                                     else:
                                         logger.warning(f"UTILITY SUBMISSION PACKAGE - No database record found for {prefix} file ID: {file_id}")
                                 except Exception as e:
@@ -30004,12 +31308,13 @@ def generate_utility_submission_package(results_data):
             
             # Get audit trail data
             analysis_session_id = results_data.get('analysis_session_id')
+            org_id = results_data.get('_org_id')  # Extract org_id passed from endpoint
             if analysis_session_id:
-                audit_entries = get_audit_trail_for_session(analysis_session_id)
+                audit_entries = get_audit_trail_for_session(analysis_session_id, org_id=org_id)
                 
                 # Add PE-related audit information
                 try:
-                    with get_db_connection() as conn:
+                    with get_db_connection(org_id=org_id) as conn:
                         if conn:
                             cursor = conn.cursor()
                             cursor.execute("""
@@ -30929,14 +32234,20 @@ If this error persists, please contact support.
 def generate_utility_submission_package_endpoint():
     """Generate comprehensive Utility Submission Package"""
     try:
+        # Extract org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        
         # Get results data from request
         results_data = request.get_json()
         if not results_data:
             return jsonify({"error": "No results data provided"}), 400
         
-        logger.info("UTILITY SUBMISSION PACKAGE - API endpoint called")
+        logger.info(f"UTILITY SUBMISSION PACKAGE - API endpoint called (org_id={org_id})")
         
-        # Generate the package
+        # Generate the package (pass org_id in results_data for use in the function)
+        results_data['_org_id'] = org_id
         zip_buffer = generate_utility_submission_package(results_data)
         
         # Generate filename
@@ -31580,65 +32891,26 @@ def admin_panel():
             </html>
             """
 
-        # Verify session and get user info
-        db_path = os.path.join(RESULTS_DIR, "app.db")
-        if not os.path.exists(db_path):
-                return jsonify({"error": "Database not available"}), 500
-
-        conn = sqlite3.connect(db_path)
-        try:
-            cursor = conn.cursor()
+        # Verify session and get user info using multi-tenant structure
+        # First, get session info from shared sessions database
+        with get_db_connection(use_sessions_db=True) as sessions_conn:
+            if sessions_conn is None:
+                return jsonify({"error": "Sessions database not available"}), 500
             
-            # First, try to find the session (with or without expiration check for debugging)
-            cursor.execute(
+            sessions_cursor = sessions_conn.cursor()
+            
+            # Find valid session and get org_id
+            sessions_cursor.execute(
                 """
-                SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state, s.expires_at
-                FROM users u
-                JOIN user_sessions s ON u.id = s.user_id
-                WHERE s.session_token = ?
+                SELECT user_id, org_id, expires_at
+                FROM user_sessions
+                WHERE session_token = ? AND expires_at > datetime('now')
             """,
                 (session_token,),
             )
             
-            session_data = cursor.fetchone()
-            
-            if session_data:
-                # Check expiration manually to handle ISO format dates
-                expires_at_str = session_data[7]
-                if expires_at_str:
-                    try:
-                        from datetime import datetime as dt
-                        # Parse ISO format or SQLite datetime format
-                        if 'T' in expires_at_str:
-                            expires_at = dt.fromisoformat(expires_at_str.replace('Z', '+00:00'))
-                        else:
-                            expires_at = dt.strptime(expires_at_str, '%Y-%m-%d %H:%M:%S')
-                        
-                        if expires_at > dt.now():
-                            user_data = session_data
-                        else:
-                            logger.warning(f"Session expired: {expires_at} < {dt.now()}")
-                            user_data = None
-                    except Exception as e:
-                        logger.error(f"Error parsing expires_at '{expires_at_str}': {e}")
-                        # Fallback: use SQLite datetime comparison
-                        cursor.execute(
-                            """
-                            SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state, s.expires_at
-                            FROM users u
-                            JOIN user_sessions s ON u.id = s.user_id
-                            WHERE s.session_token = ? AND s.expires_at > datetime('now')
-                        """,
-                            (session_token,),
-                        )
-                        user_data = cursor.fetchone()
-                else:
-                    user_data = session_data
-            else:
-                logger.warning(f"Session token not found in database: {session_token[:8]}...")
-                user_data = None
-
-            if not user_data:
+            session_row = sessions_cursor.fetchone()
+            if not session_row:
                 # Return login page for invalid/expired session
                 return """
                 <!DOCTYPE html>
@@ -31662,7 +32934,57 @@ def admin_panel():
                 </body>
                 </html>
                 """
-
+            
+            user_id = session_row[0]
+            org_id = session_row[1]
+            
+            if not org_id:
+                return jsonify({"error": "Session missing org_id"}), 401
+        
+        # Then, get user details from org-specific database
+        with get_db_connection(org_id=org_id) as org_conn:
+            if org_conn is None:
+                return jsonify({"error": "Organization database not available"}), 500
+            
+            org_cursor = org_conn.cursor()
+            
+            # Find user in org-specific database
+            org_cursor.execute(
+                """
+                SELECT id, full_name, email, username, role, pe_license_number, state
+                FROM users
+                WHERE id = ?
+            """,
+                (user_id,),
+            )
+            
+            user_data = org_cursor.fetchone()
+            
+            if not user_data:
+                # Return login page for invalid user
+                return """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Admin Panel - Access Denied</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+                        .login-box { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+                        .btn { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin: 10px; }
+                        .btn:hover { background: #0056b3; }
+                    </style>
+                </head>
+                <body>
+                    <div class="login-box">
+                        <h2>❌ Access Denied</h2>
+                        <p>User not found. Please log in again.</p>
+                        <a href="/admin-panel" class="btn" onclick="localStorage.removeItem('session_token'); sessionStorage.removeItem('session_token'); document.cookie = 'session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'; window.location.href='/admin-panel'; return false;">Login Again</a>
+                        <a href="/main-dashboard" class="btn" style="background: #6c757d;">Go to Dashboard</a>
+                    </div>
+                </body>
+                </html>
+                """
+            
             # Check if user is administrator
             if user_data[4] != "administrator":
                 # Return access denied page
@@ -31693,8 +33015,6 @@ def admin_panel():
                 </html>
                 """
                 )
-        finally:
-            conn.close()
 
         # Use Flask's send_from_directory which handles paths correctly
         admin_panel_path = os.path.join(os.path.dirname(__file__), "static", "admin_panel.html")

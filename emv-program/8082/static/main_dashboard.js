@@ -180,6 +180,14 @@ class MainDashboard {
     async checkAuthentication() {
         console.log('🔐 checkAuthentication() called');
         
+        // CRITICAL: Refresh session token from localStorage (may have been set after constructor)
+        this.sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+        if (this.sessionToken) {
+            console.log('🔑 Session token found in storage, length:', this.sessionToken.length);
+        } else {
+            console.log('ℹ️ No session token found in storage');
+        }
+        
         // CRITICAL: Clear spinners immediately before starting auth check
         this.clearAllSpinners();
         
@@ -210,6 +218,31 @@ class MainDashboard {
                     clearTimeout(timeoutId);
                     clearTimeout(fallbackTimeout); // Clear fallback when request completes
                     
+                    // Check if response is ok before parsing
+                    if (!response.ok) {
+                        console.error(`❌ Session validation failed with status: ${response.status}`);
+                        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                            console.error('❌ Server error message:', errorMessage);
+                            
+                            // If session is invalid or expired, clear it from storage
+                            if (response.status === 401 && (errorMessage.includes('expired') || errorMessage.includes('Invalid') || errorMessage.includes('expired'))) {
+                                console.log('🧹 Clearing invalid/expired session token from storage');
+                                localStorage.removeItem('session_token');
+                                sessionStorage.removeItem('session_token');
+                                this.sessionToken = null;
+                            }
+                        } catch (e) {
+                            console.error('❌ Could not parse error response as JSON');
+                        }
+                        console.log('❌ Session invalid:', errorMessage);
+                        this.clearAllSpinners();
+                        this.showLoginSection();
+                        return;
+                    }
+                    
                     const result = await response.json();
                     if (result.status === 'success') {
                         console.log('✅ Session valid, showing dashboard');
@@ -221,13 +254,19 @@ class MainDashboard {
                             console.error('Stats load failed (non-critical):', err);
                         });
                     } else {
-                        console.log('❌ Session invalid, showing login');
+                        console.log('❌ Session invalid:', result.error || 'Unknown error');
+                        console.log('❌ Response status:', response.status);
                         this.clearAllSpinners();
                         this.showLoginSection();
                     }
                 } catch (error) {
                     clearTimeout(fallbackTimeout); // Clear fallback on error
                     console.error('❌ Session validation error:', error);
+                    if (error.name === 'AbortError') {
+                        console.error('❌ Request was aborted (timeout)');
+                    } else if (error.message) {
+                        console.error('❌ Error message:', error.message);
+                    }
                     // Always clear spinners and show login section on any error
                     this.clearAllSpinners();
                     this.showLoginSection();
@@ -432,10 +471,39 @@ class MainDashboard {
             }
         }
         
-        // Show admin button if user is administrator
+        // Show/hide admin button based on user role
+        let adminBtn = document.getElementById('admin-btn');
+        
         if (this.currentUser && this.currentUser.role === 'administrator') {
-            const adminBtn = document.getElementById('admin-btn');
-            if (adminBtn) adminBtn.style.display = 'inline-block';
+            // Create button if it doesn't exist
+            if (!adminBtn) {
+                adminBtn = document.createElement('button');
+                adminBtn.id = 'admin-btn';
+                adminBtn.textContent = 'Admin Panel';
+                adminBtn.className = 'btn btn-primary';
+                adminBtn.style.cssText = 'margin-left: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;';
+                
+                // Try to add it to user-info section
+                if (userInfo) {
+                    userInfo.appendChild(adminBtn);
+                } else if (currentUserName && currentUserName.parentElement) {
+                    currentUserName.parentElement.appendChild(adminBtn);
+                }
+            }
+            
+            // Show button and attach onclick handler
+            adminBtn.style.display = 'inline-block';
+            adminBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Admin button clicked, opening admin panel...');
+                openAdminPanel();
+            };
+        } else {
+            // Hide admin button for non-admin users
+            if (adminBtn) {
+                adminBtn.style.display = 'none';
+            }
         }
     }
     
@@ -447,6 +515,12 @@ class MainDashboard {
         if (loginSection) loginSection.style.display = 'block';
         if (mainSections) mainSections.style.display = 'none';
         if (userInfo) userInfo.style.display = 'none';
+        
+        // Hide admin button when showing login section
+        const adminBtn = document.getElementById('admin-btn');
+        if (adminBtn) {
+            adminBtn.style.display = 'none';
+        }
     }
     
     logout() {
@@ -2893,7 +2967,7 @@ class MainDashboard {
                 try {
                     const response = await fetch('/api/projects', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: this.getAuthHeaders(),
                         body: JSON.stringify({
                             name: formData.get('project_name'),
                             description: formData.get('description'),
@@ -2906,6 +2980,16 @@ class MainDashboard {
                     if (response.ok) {
                         this.showNotification('Project created successfully!', 'success');
                         modal.remove();
+                        
+                        // CRITICAL: Store project_id in hidden field if it exists
+                        if (result.id) {
+                            const projectIdField = document.getElementById('current_project_id');
+                            if (projectIdField) {
+                                projectIdField.value = result.id;
+                                console.log(`💾 Stored project_id ${result.id} from create response`);
+                            }
+                        }
+                        
                         // Refresh project list if needed
                         this.refreshProjectList();
                     } else {

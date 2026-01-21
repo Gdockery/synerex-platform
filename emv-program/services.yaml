@@ -2,7 +2,7 @@ services:
   main_app:
     name: "Main App"
     port: 8082
-    script: "main_hardened_ready_fixed.py"
+    script: "main_hardened_ready_refactored.py"
     directory: "8082"
     dependencies: ["weather"]  # Ensure weather service starts before main app
     health_endpoint: "/health"

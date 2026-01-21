@@ -161,7 +161,7 @@ def _issue_license_from_authorization(
     
     return rec, signed
 
-@router.get("", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 def registration_page(
     request: Request,
     program: Optional[str] = None,
@@ -672,7 +672,7 @@ def resend_receipt(
         }
     )
 
-@router.post("", response_class=HTMLResponse)
+@router.post("/", response_class=HTMLResponse)
 def register_submit(
     request: Request,
     org_name: str = Form(...),

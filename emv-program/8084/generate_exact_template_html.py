@@ -1134,19 +1134,38 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 safe_get(power_quality, "pf_normalized_kw_before") or
                 normalized_kw_before  # Fallback (should be PF-normalized after fix above)
             )
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
-            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">Total Normalized Savings (%)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(pf_normalized_kw_before_display, 2)}) x 100</td></tr>')
+            
+            # Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
+            if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
+                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
+                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
+                html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_energy_savings_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_energy_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>')
+            
+            # Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
+            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(pf_normalized_kw_before_display, 2)}) × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>')
             html.append('</table>')
             
             # Verification summary - Enhanced with detailed breakdown
             html.append('<div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">')
             html.append('<strong>✅ Verification Summary:</strong><br/>')
             html.append('<div style="margin-top: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #ffc107;">')
+            
+            # Show both metrics clearly
+            if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
+                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
+                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
+                html.append(f'<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: {equipment_color}; font-size: 1.2em;">{format_number(equipment_energy_savings_percent, 2)}%</span></strong><br/>')
+                html.append('<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>')
+            
             color = 'green' if total_normalized_percent > 0 else 'red'
-            html.append(f'<strong style="color: #2e7d32; font-size: 1.1em;">🎯 Final Total Normalized Savings: <span style="color: {color}; font-size: 1.2em;">{format_number(total_normalized_percent, 2)}%</span></strong><br/>')
+            html.append(f'<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: {color}; font-size: 1.2em;">{format_number(total_normalized_percent, 2)}%</span></strong><br/>')
+            html.append('<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>')
             html.append('<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">')
             html.append('<strong>Detailed Calculation Breakdown:</strong><br/>')
             html.append('<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">')
@@ -1174,7 +1193,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {weather_color};">{format_number(weather_savings_percent_step, 2)}%</td></tr>')
             
             # Step 3: PF Normalized (Final)
-            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">Weather + Power Factor normalized</small></td>')
+            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</small></td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(total_savings_kw, 2)}</td>')
@@ -1190,8 +1209,20 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 weather_savings_kw_step = weather_normalized_kw_before - weather_normalized_kw_after
                 weather_savings_percent_step = (weather_savings_kw_step / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
                 html.append(f'<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>{format_number(weather_savings_percent_step, 2)}%</strong> weather-normalized savings ({format_number(weather_savings_kw_step, 2)} kW)</li>')
-            html.append(f'<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (0.95) for utility billing → <strong>{format_number(total_normalized_percent, 2)}%</strong> total normalized savings ({format_number(total_savings_kw, 2)} kW)</li>')
-            html.append(f'<li><strong>Key Point:</strong> The final {format_number(total_normalized_percent, 2)}% is calculated from PF-normalized values, which includes weather% and PF%. This represents the true utility billing impact.</li>')
+            # Get target_pf from config for display
+            config = safe_get(r, "config", default={})
+            target_pf_display = safe_get(config, "target_pf") or safe_get(config, "target_power_factor") or 0.95
+            target_pf_percent = int(target_pf_display * 100) if isinstance(target_pf_display, (int, float)) and target_pf_display <= 1 else int(target_pf_display) if isinstance(target_pf_display, (int, float)) else 95
+            
+            html.append(f'<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF ({target_pf_percent}%) for utility billing → <strong>{format_number(total_normalized_percent, 2)}%</strong> total utility billing impact ({format_number(total_savings_kw, 2)} kW)</li>')
+            
+            # Add Equipment Energy Savings explanation if available
+            if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
+                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
+                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                html.append(f'<li><strong>Equipment Energy Savings:</strong> <strong>{format_number(equipment_energy_savings_percent, 2)}%</strong> ({format_number(equipment_energy_savings_kw, 2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>')
+            
+            html.append(f'<li><strong>Total Utility Billing Impact:</strong> <strong>{format_number(total_normalized_percent, 2)}%</strong> ({format_number(total_savings_kw, 2)} kW) - This includes both equipment energy savings and power factor correction benefits. This represents the true utility billing impact.</li>')
             html.append('</ul>')
             html.append('</div>')
             html.append('</div>')
@@ -4229,9 +4260,10 @@ def generate_exact_template_html(r):
     # IEEE 519 Volts - GET the value calculated by UI HTML Report generator (README.md protocol)
     ieee_volts_improvement = safe_get(power_quality, "voltage_improvement_pct", default="0.0%")
     
-    # Add "improvement" text to IEEE Volts improvement if it's not already there
-    if ieee_volts_improvement and ieee_volts_improvement != "0.0%" and "improvement" not in ieee_volts_improvement.lower():
-        ieee_volts_improvement = ieee_volts_improvement.replace("%", "% improvement")
+    # Remove "improvement" text to match UI Analysis (UI shows just the percentage)
+    # UI shows: -0.3% (no "improvement" text)
+    if ieee_volts_improvement and "improvement" in ieee_volts_improvement.lower():
+        ieee_volts_improvement = ieee_volts_improvement.replace(" improvement", "").replace("improvement", "")
     
     # Debug logging for IEEE Volts
     print(f"IEEE VOLTS DEBUG: voltage_improvement_pct = {safe_get(power_quality, 'voltage_improvement_pct', default='NOT_FOUND')}")
@@ -4240,28 +4272,47 @@ def generate_exact_template_html(r):
     
     # IEEE 519 kW analysis - GET weather-normalized values from UI HTML Report generator (README.md protocol)
     # Use weather-normalized values to match ASHRAE Weather Normalization section
-    ieee_kw_normalized_before = (
+    ieee_kw_weather_normalized_before = (
         safe_get(power_quality, "weather_normalized_kw_before") or 
-        safe_get(power_quality, "normalized_kw_before") or 
         safe_get(envelope_analysis, "before_kw") or 
         safe_get(energy, "before_kw") or 
-        safe_get(r, "normalized_kw_before") or 
         707.2  # Default from your example
     )
     
-    ieee_kw_normalized_after = (
+    ieee_kw_weather_normalized_after = (
         safe_get(power_quality, "weather_normalized_kw_after") or 
-        safe_get(power_quality, "normalized_kw_after") or 
         safe_get(envelope_analysis, "after_kw") or 
         safe_get(energy, "after_kw") or 
-        safe_get(r, "normalized_kw_after") or 
         623.7  # Default from your example
     )
     
-    # IEEE kW improvement - Calculate from weather-normalized values (README.md protocol)
+    # Calculate weather-normalized improvement percentage
+    if ieee_kw_weather_normalized_before > 0 and ieee_kw_weather_normalized_after > 0:
+        ieee_kw_weather_improvement_pct = ((ieee_kw_weather_normalized_before - ieee_kw_weather_normalized_after) / ieee_kw_weather_normalized_before) * 100
+        ieee_kw_weather_normalized_improvement = f"{ieee_kw_weather_improvement_pct:.2f}% reduction"
+    else:
+        ieee_kw_weather_normalized_improvement = "N/A"
+    
+    # IEEE 519 kW (Fully Normalized) - ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards - MATCHES Step 3 and Step 4
+    # This is the primary value that should match Step 3 and Step 4
+    ieee_kw_normalized_before = (
+        safe_get(power_quality, "calculated_pf_normalized_kw_before") or  # Step 4 PF-normalized (most accurate)
+        safe_get(power_quality, "pf_normalized_kw_before") or  # Step 3 PF-normalized
+        safe_get(power_quality, "normalized_kw_before") or  # Fallback (should be PF-normalized)
+        ieee_kw_weather_normalized_before  # Final fallback to weather-normalized
+    )
+    
+    ieee_kw_normalized_after = (
+        safe_get(power_quality, "calculated_pf_normalized_kw_after") or  # Step 4 PF-normalized (most accurate)
+        safe_get(power_quality, "pf_normalized_kw_after") or  # Step 3 PF-normalized
+        safe_get(power_quality, "normalized_kw_after") or  # Fallback (should be PF-normalized)
+        ieee_kw_weather_normalized_after  # Final fallback to weather-normalized
+    )
+    
+    # IEEE kW improvement - Calculate from fully normalized values (matches Step 3 and Step 4)
     if ieee_kw_normalized_before > 0 and ieee_kw_normalized_after > 0:
         ieee_kw_improvement_pct = ((ieee_kw_normalized_before - ieee_kw_normalized_after) / ieee_kw_normalized_before) * 100
-        ieee_kw_normalized_improvement = f"{ieee_kw_improvement_pct:.1f}% reduction"
+        ieee_kw_normalized_improvement = f"{ieee_kw_improvement_pct:.2f}% reduction"
     else:
         # Fallback to GET from UI HTML Report generator
         ieee_kw_normalized_improvement = (
@@ -4279,7 +4330,14 @@ def generate_exact_template_html(r):
     # IEEE 519 kVA - use raw kVA values (not weather normalized) to match UI exactly
     ieee_kva_before = safe_get(power_quality, "kva_before", default=0)
     ieee_kva_after = safe_get(power_quality, "kva_after", default=0)
-    ieee_kva_improvement = safe_get(power_quality, "kva_improvement_pct", default="0.0%")
+    
+    # Calculate kVA improvement with reverseLogic=true (lower kVA is better, so reduction is improvement)
+    # UI shows: -7.1% reduction (negative because kVA increased, which is bad)
+    if ieee_kva_before > 0 and ieee_kva_after > 0:
+        kva_improvement_pct = ((ieee_kva_before - ieee_kva_after) / ieee_kva_before) * 100
+        ieee_kva_improvement = f"{kva_improvement_pct:.1f}% reduction"
+    else:
+        ieee_kva_improvement = safe_get(power_quality, "kva_improvement_pct", default="0.0%")
     
     # IEEE 519 Power Factor analysis - use raw values from UI
     ieee_pf_before = safe_get(power_quality, "pf_before", default=0)
@@ -4291,7 +4349,11 @@ def generate_exact_template_html(r):
     ieee_thd_before = safe_get(power_quality, "thd_before", default=0)
     ieee_thd_after = safe_get(power_quality, "thd_after", default=0)
     # IEEE 519 THD - GET the value calculated by UI HTML Report generator (README.md protocol)
-    ieee_thd_improvement = safe_get(power_quality, "thd_improvement_pct", default="0.0%")
+    # UI shows "N/A" when both values are 0.0%
+    if ieee_thd_before == 0 and ieee_thd_after == 0:
+        ieee_thd_improvement = "N/A"
+    else:
+        ieee_thd_improvement = safe_get(power_quality, "thd_improvement_pct", default="0.0%")
     
     # IEEE 519 section matches UI exactly - no Amps (RMS) or kVAR in IEEE 519 section
     # UI only shows: Volts (L-N), kW (Weather Normalized), kVA, Power Factor, THD, Voltage Unbalance
@@ -4299,31 +4361,45 @@ def generate_exact_template_html(r):
     # IEEE 519 Voltage Unbalance analysis (three-phase balance) - get pre-calculated values from UI
     ieee_voltage_unbalance_before = safe_get(power_quality, "voltage_unbalance_before", default=0)
     ieee_voltage_unbalance_after = safe_get(power_quality, "voltage_unbalance_after", default=0)
-    ieee_voltage_unbalance_improvement = safe_get(power_quality, "voltage_unbalance_improvement_pct", default="0.0%")
+    
+    # Calculate voltage unbalance improvement with reverseLogic=true (lower unbalance is better)
+    # UI shows: 26.93% improvement (2 decimals)
+    if ieee_voltage_unbalance_before > 0 and ieee_voltage_unbalance_after >= 0:
+        unbalance_improvement_pct = ((ieee_voltage_unbalance_before - ieee_voltage_unbalance_after) / ieee_voltage_unbalance_before) * 100
+        ieee_voltage_unbalance_improvement = f"{unbalance_improvement_pct:.2f}% improvement"
+    else:
+        ieee_voltage_unbalance_improvement = safe_get(power_quality, "voltage_unbalance_improvement_pct", default="0.0%")
     
     # Replace IEEE 519 template variables
-    # Use 2 decimal places for IEEE 519-2014/2022 Power Quality Analysis section
-    template_content = template_content.replace('{{IEEE_VOLTS_BEFORE}}', f"{format_number(ieee_volts_before, 2)} V")
-    template_content = template_content.replace('{{IEEE_VOLTS_AFTER}}', f"{format_number(ieee_volts_after, 2)} V")
+    # Use 1 decimal place for Volts to match UI (213.8 V not 213.84 V)
+    template_content = template_content.replace('{{IEEE_VOLTS_BEFORE}}', f"{format_number(ieee_volts_before, 1)} V")
+    template_content = template_content.replace('{{IEEE_VOLTS_AFTER}}', f"{format_number(ieee_volts_after, 1)} V")
     template_content = template_content.replace('{{IEEE_VOLTS_IMPROVEMENT}}', ieee_volts_improvement)
     
+    # Add weather-normalized kW row (matches UI Analysis - first kW row)
+    template_content = template_content.replace('{{IEEE_KW_WEATHER_NORMALIZED_BEFORE}}', f"{format_number(ieee_kw_weather_normalized_before, 2)} kW")
+    template_content = template_content.replace('{{IEEE_KW_WEATHER_NORMALIZED_AFTER}}', f"{format_number(ieee_kw_weather_normalized_after, 2)} kW")
+    template_content = template_content.replace('{{IEEE_KW_WEATHER_NORMALIZED_IMPROVEMENT}}', ieee_kw_weather_normalized_improvement)
+    
+    # Add fully normalized kW row (matches UI Analysis - second kW row, matches Step 3 & Step 4)
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_BEFORE}}', f"{format_number(ieee_kw_normalized_before, 2)} kW")
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_AFTER}}', f"{format_number(ieee_kw_normalized_after, 2)} kW")
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_IMPROVEMENT}}', ieee_kw_normalized_improvement)
     
-    # Extract percentage value for T-Statistic annotation
-    # Extract number from string like "11.8% reduction" -> "11.8"
+    # Extract percentage value for T-Statistic annotation (use fully normalized)
     kw_normalized_percent_match = re.search(r'(\d+\.?\d*)%', ieee_kw_normalized_improvement)
     kw_normalized_savings_percent = kw_normalized_percent_match.group(1) if kw_normalized_percent_match else "11.8"
     template_content = template_content.replace('{{KW_NORMALIZED_SAVINGS_PERCENT}}', kw_normalized_savings_percent)
     
-    template_content = template_content.replace('{{IEEE_KVA_BEFORE}}', f"{format_number(ieee_kva_before, 2)} kVA")
-    template_content = template_content.replace('{{IEEE_KVA_AFTER}}', f"{format_number(ieee_kva_after, 2)} kVA")
+    template_content = template_content.replace('{{IEEE_KVA_BEFORE}}', f"{format_number(ieee_kva_before, 1)} kVA")
+    template_content = template_content.replace('{{IEEE_KVA_AFTER}}', f"{format_number(ieee_kva_after, 1)} kVA")
     template_content = template_content.replace('{{IEEE_KVA_IMPROVEMENT}}', ieee_kva_improvement)
     
-    # Display Power Factor as decimal (e.g., 0.999 instead of 99.9%) for IEEE 519 section
-    template_content = template_content.replace('{{IEEE_PF_BEFORE}}', f"{format_number(ieee_pf_before, 2)}")
-    template_content = template_content.replace('{{IEEE_PF_AFTER}}', f"{format_number(ieee_pf_after, 2)}")
+    # Display Power Factor as percentage (e.g., 96.4% instead of 0.964) to match UI Analysis
+    ieee_pf_before_pct = ieee_pf_before * 100 if ieee_pf_before else 0
+    ieee_pf_after_pct = ieee_pf_after * 100 if ieee_pf_after else 0
+    template_content = template_content.replace('{{IEEE_PF_BEFORE}}', f"{format_number(ieee_pf_before_pct, 1)}%")
+    template_content = template_content.replace('{{IEEE_PF_AFTER}}', f"{format_number(ieee_pf_after_pct, 1)}%")
     template_content = template_content.replace('{{IEEE_PF_IMPROVEMENT}}', ieee_pf_improvement)
     
     template_content = template_content.replace('{{IEEE_THD_BEFORE}}', f"{format_number(ieee_thd_before, 2)}%")

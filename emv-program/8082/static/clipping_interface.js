@@ -1426,6 +1426,15 @@ class ClippingInterface {
             // Convert modified data back to CSV format
             const csvContent = this.convertToCSV(this.modifiedData);
             
+            console.log('📤 Sending clipping request:', {
+                fileId: this.currentFile.id,
+                fileName: this.currentFile.file_name,
+                contentLength: csvContent.length,
+                reason: reason,
+                hasDetails: !!details,
+                sessionToken: this.getSessionToken() ? 'Found' : 'Missing'
+            });
+            
             const response = await fetch(`/api/original-files/${this.currentFile.id}/apply-clipping`, {
                 method: 'POST',
                 headers: {
@@ -1439,9 +1448,60 @@ class ClippingInterface {
                 })
             });
             
-            const result = await response.json();
+            console.log('📥 Response received:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+            
+            // Check if response has content
+            const contentType = response.headers.get('content-type');
+            console.log('📥 Response content-type:', contentType);
+            
+            if (!response.ok) {
+                let errorText = '';
+                try {
+                    errorText = await response.text();
+                    console.error('❌ Server error response (text):', errorText);
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        console.error('❌ Server error response (parsed):', errorData);
+                        this.showNotification('Error applying modifications: ' + (errorData.error || errorData.message || 'Unknown error'), 'error');
+                    } catch {
+                        this.showNotification(`Error applying modifications: HTTP ${response.status} - ${response.statusText}`, 'error');
+                    }
+                } catch (e) {
+                    console.error('❌ Error reading error response:', e);
+                    this.showNotification(`Error applying modifications: HTTP ${response.status} - ${response.statusText}`, 'error');
+                }
+                return;
+            }
+            
+            // Try to parse JSON response
+            let result;
+            try {
+                const responseText = await response.text();
+                console.log('📥 Response text length:', responseText.length);
+                console.log('📥 Response text (first 500 chars):', responseText.substring(0, 500));
+                
+                if (!responseText || responseText.trim() === '') {
+                    console.error('❌ Response is empty!');
+                    this.showNotification('Error: Server returned empty response', 'error');
+                    return;
+                }
+                
+                result = JSON.parse(responseText);
+                console.log('📥 Response data (parsed):', result);
+            } catch (parseError) {
+                console.error('❌ Error parsing response:', parseError);
+                console.error('❌ Response might not be JSON');
+                this.showNotification('Error: Could not parse server response', 'error');
+                return;
+            }
             
             if (result.status === 'success') {
+                console.log('✅ Save successful!', result);
                 this.showNotification('Modifications applied successfully', 'success');
                 this.hasChanges = false;
                 this.hideReasonSection();
@@ -1457,11 +1517,15 @@ class ClippingInterface {
                 const editorSection = document.getElementById('editor-section');
                 if (editorSection) editorSection.style.display = 'block';
             } else {
-                this.showNotification('Error applying modifications: ' + result.error, 'error');
+                console.error('❌ Server returned error status:', result);
+                this.showNotification('Error applying modifications: ' + (result.error || 'Unknown error'), 'error');
             }
         } catch (error) {
-            console.error('Error applying modifications:', error);
-            this.showNotification('Error applying modifications', 'error');
+            console.error('❌ Error applying modifications:', error);
+            console.error('❌ Error name:', error.name);
+            console.error('❌ Error message:', error.message);
+            console.error('❌ Error stack:', error.stack);
+            this.showNotification('Error applying modifications: ' + error.message, 'error');
         }
     }
     

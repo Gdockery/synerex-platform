@@ -17393,7 +17393,9 @@ def perform_comprehensive_analysis(
     if weather_norm_before is not None and weather_norm_after is not None:
         pf_before = power_quality.get("pf_before")
         pf_after = power_quality.get("pf_after")
-        target_pf = 0.95  # Standard utility target
+        # CRITICAL: Read target_pf from config (user input from UI form), with fallback to 0.95
+        target_pf = float(config.get("target_pf") or config.get("target_power_factor") or 0.95)
+        logger.info(f"[POWER FACTOR NORMALIZATION] Using target_pf = {target_pf:.4f} from config (user input from UI form)")
         
         if pf_before is not None and pf_after is not None and pf_before > 0 and pf_after > 0:
             # Apply PF normalization to weather-normalized values
@@ -17424,6 +17426,11 @@ def perform_comprehensive_analysis(
             results["power_quality"]["total_normalized_kw_after"] = total_normalized_kw_after
             results["power_quality"]["total_normalized_savings_kw"] = total_normalized_savings_kw
             results["power_quality"]["total_normalized_savings_percent"] = total_normalized_savings_percent
+            # CRITICAL: Also store as calculated_pf_normalized_kw_before/after for frontend Step 4 to use
+            results["power_quality"]["calculated_pf_normalized_kw_before"] = total_normalized_kw_before
+            results["power_quality"]["calculated_pf_normalized_kw_after"] = total_normalized_kw_after
+            results["power_quality"]["normalized_kw_before"] = total_normalized_kw_before
+            results["power_quality"]["normalized_kw_after"] = total_normalized_kw_after
         else:
             logger.warning(f"⚠ PF values not available, cannot apply PF normalization to weather-normalized values")
             # Use weather-normalized values as total normalized if PF not available
@@ -30000,82 +30007,153 @@ Values extracted from: financial, executive_summary, statistical, after_complian
                                             else:
                                                 logger.warning(f"AUDIT PACKAGE - Verified file does not exist at path: {abs_path}")
                                             
-                                            # Try to find and include original raw file
-                                            raw_base_dir = base_dir / "files" / "raw"
-                                            logger.info(f"AUDIT PACKAGE - Searching for original raw file in: {raw_base_dir}")
+                                            # ============================================
+                                            # 2. FIND AND INCLUDE ORIGINAL RAW FILE
+                                            # ============================================
+                                            # Use multiple strategies to find the raw file
                                             original_raw_file = None
+                                            original_raw_fingerprint = None
                                             
-                                            if raw_base_dir.exists():
-                                                logger.info(f"AUDIT PACKAGE - Raw base directory exists, searching for: {file_name}")
-                                                for date_dir in raw_base_dir.iterdir():
-                                                    if date_dir.is_dir():
-                                                        logger.info(f"AUDIT PACKAGE - Checking date directory: {date_dir}")
-                                                        for raw_file in date_dir.glob("*.csv"):
-                                                            raw_filename = raw_file.name
-                                                            if raw_filename.startswith(date_dir.name + "_"):
-                                                                base_filename = raw_filename[len(date_dir.name) + 1:]
-                                                            else:
-                                                                base_filename = raw_filename
-                                                            
-                                                            logger.debug(f"AUDIT PACKAGE - Comparing: '{base_filename.lower()}' with '{file_name.lower()}'")
-                                                            if base_filename.lower() == file_name.lower() or file_name.lower() in raw_filename.lower():
-                                                                original_raw_file = raw_file
-                                                                logger.info(f"AUDIT PACKAGE - Found original raw file: {original_raw_file}")
-                                                                break
+                                            # STRATEGY 1: Check if verified file has original_file_id link in database
+                                            # NOTE: Verified files are in raw_meter_data, but original_file_id might be in project_files
+                                            # Try both tables to find the link
+                                            try:
+                                                # First, try to find if this verified file has an original_file_id in project_files
+                                                cursor.execute(
+                                                    "SELECT original_file_id FROM project_files WHERE file_id = ? OR id = ?",
+                                                    (int(file_id), int(file_id))
+                                                )
+                                                orig_id_row = cursor.fetchone()
+                                                
+                                                # If not found in project_files, try to find raw file by matching file_name
+                                                # (The raw file should have the same name but be in files/raw/ instead of files/protected/verified/)
+                                                if not orig_id_row or not orig_id_row[0]:
+                                                    logger.debug(f"AUDIT PACKAGE - No original_file_id in project_files, trying file_name match for: {file_name}")
+                                                    cursor.execute(
+                                                        "SELECT id FROM raw_meter_data WHERE file_name = ? AND file_path NOT LIKE '%verified%' AND file_path LIKE '%raw%' ORDER BY created_at ASC LIMIT 1",
+                                                        (file_name,)
+                                                    )
+                                                    raw_file_row = cursor.fetchone()
+                                                    if raw_file_row:
+                                                        orig_file_id = raw_file_row[0]
+                                                        orig_id_row = (orig_file_id,)
+                                                        logger.info(f"AUDIT PACKAGE - Found raw file by name match: ID {orig_file_id}")
+                                                
+                                                if orig_id_row and orig_id_row[0]:
+                                                    orig_file_id = orig_id_row[0]
+                                                    logger.info(f"AUDIT PACKAGE - Found original_file_id: {orig_file_id} for verified file {file_id}")
+                                                    cursor.execute(
+                                                        "SELECT file_name, file_path, fingerprint FROM raw_meter_data WHERE id = ?",
+                                                        (orig_file_id,)
+                                                    )
+                                                    orig_row = cursor.fetchone()
+                                                    if orig_row:
+                                                        orig_name, orig_path, orig_fp = orig_row
+                                                        if orig_path:
+                                                            orig_abs_path = (base_dir / orig_path).resolve()
+                                                            if orig_abs_path.exists():
+                                                                original_raw_file = orig_abs_path
+                                                                original_raw_fingerprint = orig_fp
+                                                                logger.info(f"AUDIT PACKAGE - Found original raw file via original_file_id: {original_raw_file}")
+                                            except Exception as e:
+                                                logger.debug(f"AUDIT PACKAGE - Could not find original_file_id: {e}")
+                                            
+                                            # STRATEGY 2: Search files/raw/ directories (existing logic)
+                                            if not original_raw_file:
+                                                raw_base_dir = base_dir / "files" / "raw"
+                                                logger.info(f"AUDIT PACKAGE - Searching for original raw file in: {raw_base_dir}")
+                                                
+                                                if raw_base_dir.exists():
+                                                    logger.info(f"AUDIT PACKAGE - Raw base directory exists, searching for: {file_name}")
+                                                    # Search all date subdirectories in files/raw/
+                                                    for date_dir in raw_base_dir.iterdir():
+                                                        if date_dir.is_dir():
+                                                            logger.info(f"AUDIT PACKAGE - Checking date directory: {date_dir}")
+                                                            for raw_file in date_dir.glob("*.csv"):
+                                                                raw_filename = raw_file.name
+                                                                if raw_filename.startswith(date_dir.name + "_"):
+                                                                    base_filename = raw_filename[len(date_dir.name) + 1:]
+                                                                else:
+                                                                    base_filename = raw_filename
+                                                                
+                                                                logger.debug(f"AUDIT PACKAGE - Comparing: '{base_filename.lower()}' with '{file_name.lower()}'")
+                                                                if base_filename.lower() == file_name.lower() or file_name.lower() in raw_filename.lower():
+                                                                    original_raw_file = raw_file
+                                                                    logger.info(f"AUDIT PACKAGE - Found original raw file: {original_raw_file}")
+                                                                    break
+                                                        
+                                                        if original_raw_file:
+                                                            break
                                                     
-                                                    if original_raw_file:
-                                                        break
-                                            else:
-                                                logger.warning(f"AUDIT PACKAGE - Raw base directory does not exist: {raw_base_dir}")
+                                                    # STRATEGY 3: Recursive search if still not found
+                                                    if not original_raw_file:
+                                                        logger.info(f"AUDIT PACKAGE - Performing recursive search for: {file_name}")
+                                                        for raw_file in raw_base_dir.rglob("*.csv"):
+                                                            if file_name.lower() in raw_file.name.lower():
+                                                                original_raw_file = raw_file
+                                                                logger.info(f"AUDIT PACKAGE - Found original raw file via recursive search: {original_raw_file}")
+                                                                break
+                                                else:
+                                                    logger.warning(f"AUDIT PACKAGE - Raw base directory does not exist: {raw_base_dir}")
                                             
-                                            # If original raw file found, include it
+                                            # STRATEGY 4: Try path-based search (replace 'verified' with 'raw' in path)
+                                            if not original_raw_file and rel_path:
+                                                raw_path_candidate = rel_path.replace('verified', 'raw').replace('protected/verified', 'raw')
+                                                if raw_path_candidate != rel_path:
+                                                    raw_candidate = (base_dir / raw_path_candidate).resolve()
+                                                    if raw_candidate.exists() and raw_candidate.suffix == '.csv':
+                                                        original_raw_file = raw_candidate
+                                                        logger.info(f"AUDIT PACKAGE - Found original raw file via path replacement: {original_raw_file}")
+                                            
+                                            # If original raw file found, include it with fingerprint
                                             if original_raw_file and original_raw_file.exists():
                                                 raw_dest_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data.csv")
                                                 shutil.copy2(str(original_raw_file), raw_dest_file)
                                                 zipf.write(raw_dest_file, f"11_Source_Data_Files/{prefix}_original_raw_data.csv")
                                                 
-                                                # Generate fingerprint for original raw file using same method as upload
-                                                # Try to find fingerprint in database first, otherwise calculate using CSVIntegrityProtection
-                                                raw_fingerprint = None
-                                                try:
-                                                    # Try to find this file in database by filename
-                                                    with get_db_connection() as conn:
-                                                        if conn:
-                                                            cursor = conn.cursor()
-                                                            cursor.execute(
-                                                                "SELECT fingerprint FROM raw_meter_data WHERE file_name = ? ORDER BY created_at DESC LIMIT 1",
-                                                                (original_raw_file.name,)
-                                                            )
-                                                            row = cursor.fetchone()
-                                                            if row and row[0]:
-                                                                raw_fingerprint = row[0]
-                                                except Exception as e:
-                                                    logger.warning(f"Could not find raw file fingerprint in database: {e}")
+                                                # Get or calculate fingerprint for raw file
+                                                if not original_raw_fingerprint:
+                                                    # Try to find fingerprint in database
+                                                    try:
+                                                        with get_db_connection() as conn:
+                                                            if conn:
+                                                                cursor2 = conn.cursor()
+                                                                cursor2.execute(
+                                                                    "SELECT fingerprint FROM raw_meter_data WHERE file_name = ? OR file_path LIKE ? ORDER BY created_at DESC LIMIT 1",
+                                                                    (original_raw_file.name, f"%{original_raw_file.name}%")
+                                                                )
+                                                                fp_row = cursor2.fetchone()
+                                                                if fp_row and fp_row[0]:
+                                                                    original_raw_fingerprint = fp_row[0]
+                                                    except Exception as e:
+                                                        logger.debug(f"Could not find raw file fingerprint in database: {e}")
                                                 
-                                                # If not found in database, calculate using CSVIntegrityProtection (same method as upload)
-                                                if not raw_fingerprint:
+                                                # If still not found, calculate using CSVIntegrityProtection
+                                                if not original_raw_fingerprint:
                                                     try:
                                                         csv_integrity = CSVIntegrityProtection()
                                                         with open(str(original_raw_file), "r", encoding="utf-8") as f:
                                                             file_content = f.read()
                                                         fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
-                                                        raw_fingerprint = fingerprint_data["content_hash"]
+                                                        original_raw_fingerprint = fingerprint_data["content_hash"]
                                                     except Exception as e:
                                                         logger.warning(f"Could not calculate raw file fingerprint: {e}")
-                                                        raw_fingerprint = "ERROR - Fingerprint not available"
+                                                        original_raw_fingerprint = "ERROR - Fingerprint not available"
+                                                
+                                                # Create fingerprint file for raw data
                                                 raw_fingerprint_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data_fingerprint.txt")
                                                 with open(raw_fingerprint_file, "w", encoding="utf-8") as f:
-                                                    f.write(f"SHA-256 Fingerprint: {raw_fingerprint}\n")
+                                                    f.write(f"SHA-256 Fingerprint: {original_raw_fingerprint}\n")
                                                     f.write(f"File: {original_raw_file.name}\n")
                                                     f.write(f"File Type: Original Raw Upload (Before Verification)\n")
                                                     f.write(f"File Path: {original_raw_file.relative_to(base_dir)}\n")
                                                     f.write(f"Generated: {datetime.now().isoformat()}\n")
                                                 zipf.write(raw_fingerprint_file, f"11_Source_Data_Files/{prefix}_original_raw_data_fingerprint.txt")
                                                 
-                                                logger.info(f"AUDIT PACKAGE - Added original raw file: {prefix}_original_raw_data.csv")
+                                                logger.info(f"AUDIT PACKAGE - Added original raw file: {prefix}_original_raw_data.csv with fingerprint")
                                                 files_added_count += 1
                                             else:
-                                                logger.warning(f"AUDIT PACKAGE - Original raw file not found for {prefix} (searched in {raw_base_dir})")
+                                                logger.warning(f"AUDIT PACKAGE - Original raw file not found for {prefix} after all search strategies")
                                         else:
                                             logger.warning(f"AUDIT PACKAGE - No database record found for {prefix} file ID: {file_id}")
                                     except Exception as e:
@@ -36939,6 +37017,10 @@ def generate_risk_assessment_document(data):
     
     # Check if both periods meet ASHRAE data quality requirements
     # If we have data, evaluate based on actual values; if not, assume good quality (defaults)
+    
+    # Initialize avg_quality to avoid UnboundLocalError
+    avg_quality = 100.0  # Default to perfect quality
+    
     if has_completeness_data or has_outlier_data:
         before_meets_ashrae = (completeness_before >= 95.0 and outliers_before <= 5.0)
         after_meets_ashrae = (completeness_after >= 95.0 and outliers_after <= 5.0)
@@ -36958,6 +37040,9 @@ def generate_risk_assessment_document(data):
                 data_quality_risk = 'HIGH'
             else:
                 data_quality_risk = 'MEDIUM'
+        # Calculate avg_quality for use in has_good_data_quality check
+        # Use average of completeness scores as proxy for quality
+        avg_quality = ((completeness_before + completeness_after) / 2) if (completeness_before > 0 or completeness_after > 0) else 100.0
     else:
         # Fallback to quality score if completeness/outliers not available
         avg_quality = (quality_score_before + quality_score_after) / 2 if (quality_score_before != 100.0 or quality_score_after != 100.0) else 100.0

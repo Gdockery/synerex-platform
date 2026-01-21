@@ -1757,6 +1757,33 @@ function saveProject() {
   });
   console.log('💾 Project Information fields with non-empty values:', projectInfoWithValues);
 
+  // CRITICAL: Check if payload is empty before saving
+  const payloadKeys = Object.keys(payload);
+  if (payloadKeys.length === 0) {
+    console.error('❌ ERROR: Cannot save project with empty payload!');
+    console.error('❌ This usually means form fields were not found or form is not ready.');
+    console.error('❌ Total inputs found:', inputs.length);
+    console.error('❌ Skipped fields:', skippedFields.length);
+    console.error('❌ Form element:', form ? 'Found' : 'Not found');
+    showNotification('Cannot save: No form fields found. Please ensure the form is loaded and try again.', 'error');
+    return;
+  }
+  
+  // Also check if payload only has empty values (all fields are empty strings/null/undefined)
+  const nonEmptyFields = payloadKeys.filter(key => {
+    const value = payload[key];
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    if (typeof value === 'object' && Object.keys(value).length === 0) return false;
+    return true;
+  });
+  
+  if (nonEmptyFields.length === 0) {
+    console.warn('⚠️ WARNING: Payload has fields but all values are empty. Saving anyway...');
+    console.warn('⚠️ This might indicate the form was saved before any data was entered.');
+  }
+
   formData.append('project_name', projectName);
   if (projectId) {
     formData.append('project_id', projectId);
@@ -1784,9 +1811,28 @@ function saveProject() {
   } else {
     console.log('💾 No after_file found or file not selected');
   }
-
+  
+  // Get session token for authentication (don't set Content-Type for FormData - browser does it)
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {};
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+    console.log('🔑 Session token found, adding to save request');
+  } else {
+    console.error('❌ No session token found - save will likely fail!');
+  }
+  
+  console.log('💾 Sending save request with:', {
+    project_name: projectName,
+    project_id: projectId || 'none',
+    field_count: fieldCount,
+    payload_keys: Object.keys(payload).length,
+    has_auth_header: !!headers['Authorization']
+  });
+  
   fetch('/api/projects/save', {
       method: 'POST',
+      headers: headers,
       body: formData
     })
     .then(response => {
@@ -1895,12 +1941,20 @@ function reanalyzeProject() {
   btn.innerHTML = '⏳ Re-analyzing...';
   btn.disabled = true;
   
+  // Get session token for authentication
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+  }
+  
   // Load project data first
   fetch('/api/projects/load', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: headers,
     body: JSON.stringify({
       project_name: projectName
     })
@@ -2038,7 +2092,16 @@ function validateAndRestoreFile(fileId, fileType) {
   // Return a Promise so callers can chain .then()
   return new Promise((resolve, reject) => {
     // First, check if the file ID exists in the verified files
-    fetch('/api/verified-files')
+    // Get session token for authentication
+    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+    
+    fetch('/api/verified-files', { headers: headers })
       .then(response => response.json())
       .then(data => {
         if (data.status === 'success' && data.files) {
@@ -2129,7 +2192,16 @@ function saveFileSelectionsToStorage(beforeFileId, afterFileId) {
 function fetchFileInfoAndRestore(fileId, fileType) {
 
   // Fetch file information from the verified files API
-  fetch('/api/verified-files')
+  // Get session token for authentication
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken}`;
+  }
+  
+  fetch('/api/verified-files', { headers: headers })
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success' && data.files) {
@@ -2264,11 +2336,19 @@ function loadProject() {
     console.warn('⚠️ Project ID not found in dropdown, will try to get from response');
   }
 
+  // Get session token for authentication
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+  }
+
   fetch('/api/projects/load', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify({
         project_id: projectId || undefined,
         project_name: projectName
@@ -2299,11 +2379,71 @@ function loadProject() {
           console.log(`💾 Got project_id ${projectId} from response`);
         }
         
-        // Parse the project data from the new response format
-        // The data is double-encoded: data.project.data contains JSON string with payload field
-        const parsedData = JSON.parse(data.project.data);
-        const projectData = JSON.parse(parsedData.payload);
-        let loadedCount = 1;
+        // Store project_id immediately (CRITICAL for saving, even if data is empty)
+        if (projectId) {
+          const projectIdField = document.getElementById('current_project_id');
+          if (projectIdField) {
+            projectIdField.value = projectId;
+            console.log(`💾 Stored project_id ${projectId} in hidden field for future saves`);
+          }
+        }
+        
+        // CRITICAL: Declare projectData at function scope to avoid scoping issues
+        let projectData;
+        
+        // Check if data exists
+        if (!data.project.data) {
+          console.warn('⚠️ Project data is empty or missing');
+          console.warn('⚠️ This project may have been created but never saved with field data');
+          console.warn('⚠️ You can fill in the form fields and save to add data to this project');
+          showNotification('Project loaded. This project has no saved data yet - fill in the form and save to add data.', 'info');
+          // Don't return - allow user to continue working on the project
+          projectData = {};
+        } else {
+          // Parse the project data from the new response format
+          // The data is double-encoded: data.project.data contains JSON string with payload field
+          let parsedData;
+          try {
+            parsedData = JSON.parse(data.project.data);
+            console.log('📥 Parsed data structure:', Object.keys(parsedData));
+            
+            if (parsedData.payload) {
+              projectData = typeof parsedData.payload === 'string' ? JSON.parse(parsedData.payload) : parsedData.payload;
+              console.log('📥 Extracted payload, keys:', Object.keys(projectData).length);
+            } else {
+              console.warn('⚠️ No payload in parsed data, using parsed data directly');
+              projectData = parsedData;
+            }
+            
+            if (!projectData || Object.keys(projectData).length === 0) {
+              console.warn('⚠️ This project has no saved form data yet.');
+              console.warn('⚠️ You can fill in the form fields and save to add data to this project.');
+              console.warn('⚠️ If you expected data to be here, check:');
+              console.warn('   1. Server logs for what was actually loaded from database');
+              console.warn('   2. That you selected the correct project');
+              console.warn('   3. That the project was saved with data (check save logs)');
+              showNotification('Project loaded. This project has no saved data yet - fill in the form and save to add data.', 'info');
+              // Set projectData to empty object and continue - don't block the user
+              projectData = {};
+            }
+          } catch (e) {
+            console.error('❌ Error parsing project data:', e);
+            console.error('❌ Raw data:', data.project.data);
+            console.error('❌ Error stack:', e.stack);
+            console.warn('⚠️ Will continue with empty project data - you can fill in the form and save');
+            showNotification('Error parsing project data. You can still fill in the form and save.', 'warning');
+            // Don't return - allow user to continue working
+            projectData = {};
+          }
+        }
+        
+        // Ensure projectData is defined (should always be set by now, but double-check)
+        if (typeof projectData === 'undefined') {
+          console.error('❌ CRITICAL: projectData is still undefined after all checks!');
+          projectData = {};
+        }
+        
+        let loadedCount = 0;
 
         // Pre-cache all form elements for performance
         const allInputs = document.querySelectorAll('input, select, textarea');
@@ -3592,6 +3732,31 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       e.stopPropagation();
 
+      // CRITICAL: Clear cache before running new analysis to ensure fresh calculations
+      // This prevents old cached results from being used with new form inputs (e.g., target_pf)
+      try {
+        const keysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && (key.includes('project') || key.includes('analysis') || key.includes('results'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+        
+        // Also clear any cached analysis results
+        if (window.analysisResults) {
+          delete window.analysisResults;
+        }
+        
+        // Clear backend cache by sending a clear request (optional - backend should handle this)
+        // But we'll ensure frontend doesn't use cached values
+        
+        console.log('🧹 Cleared frontend cache before new analysis');
+      } catch (e) {
+        console.warn('⚠️ Could not clear frontend cache:', e);
+      }
+
       if (!preflightCheck()) {
         return;
       }
@@ -3643,6 +3808,46 @@ document.addEventListener('DOMContentLoaded', function() {
           return [k, String(v).substring(0, 100)]; // Truncate long values
         });
         console.log('🔬 FormData entries (first 30):', formDataEntries.slice(0, 30));
+        
+        // CRITICAL: Log all power factor related fields to identify field name conflicts
+        const pfRelatedFields = formDataEntries.filter(([k, v]) => 
+          k.toLowerCase().includes('pf') || 
+          k.toLowerCase().includes('power') || 
+          k.toLowerCase().includes('target')
+        );
+        console.log('🔍 [FORM DEBUG] All PF/Power/Target related fields:', pfRelatedFields);
+        console.log('🔍 [FORM DEBUG] target_pf value:', formData.get('target_pf'));
+        console.log('🔍 [FORM DEBUG] target_power_factor value:', formData.get('target_power_factor'));
+        console.log('🔍 [FORM DEBUG] power_factor_after value:', formData.get('power_factor_after'));
+        console.log('🔍 [FORM DEBUG] power_factor_before value:', formData.get('power_factor_before'));
+        
+        // CRITICAL: Check the actual DOM value of target_pf field before submission
+        const targetPfField = document.querySelector('input[name="target_pf"]');
+        if (targetPfField) {
+          console.log('🔍 [FORM DEBUG] target_pf DOM field value:', targetPfField.value);
+          console.log('🔍 [FORM DEBUG] target_pf DOM field type:', targetPfField.type);
+          console.log('🔍 [FORM DEBUG] target_pf DOM field name:', targetPfField.name);
+          console.log('🔍 [FORM DEBUG] target_pf DOM field id:', targetPfField.id);
+          
+          // If DOM value doesn't match FormData value, there's a problem
+          const domValue = targetPfField.value;
+          const formDataValue = formData.get('target_pf');
+          if (domValue !== formDataValue) {
+            console.error(`❌ ERROR: target_pf DOM value (${domValue}) doesn't match FormData value (${formDataValue})!`);
+          }
+        } else {
+          console.warn('⚠️ [FORM DEBUG] target_pf field not found in DOM!');
+        }
+        
+        // CRITICAL: Verify target_pf is in form data
+        const targetPfValue = formData.get('target_pf') || formData.get('target_power_factor');
+        console.log('🔬 Target Power Factor in form data:', targetPfValue);
+        if (!targetPfValue) {
+          console.warn('⚠️ WARNING: target_pf not found in form data! Power factor normalization will use default 0.95');
+        } else if (targetPfValue == formData.get('power_factor_after')) {
+          console.error('❌ ERROR: target_pf is the same as power_factor_after! This is a field name conflict. The form field for "Target Power Factor" may have the wrong name attribute.');
+          console.error('❌ ERROR: This will cause incorrect power factor normalization calculations!');
+        }
         
         const startTime = Date.now();
         console.log('🔬 Sending analysis request to /api/analyze at', new Date().toISOString());
@@ -3714,6 +3919,50 @@ document.addEventListener('DOMContentLoaded', function() {
               if (durationField) {
                 durationField.value = data.config.test_duration;
               }
+            }
+          }
+
+          // Auto-populate After Power Factor from CSV analysis results
+          if (data.results) {
+            const powerQuality = data.results.power_quality || {};
+            const afterData = data.results.after_data || {};
+            
+            // Extract After Power Factor from CSV data (multiple possible sources)
+            let pfAfter = null;
+            if (powerQuality.pf_after !== undefined && powerQuality.pf_after !== null && powerQuality.pf_after > 0) {
+              pfAfter = Number(powerQuality.pf_after);
+            } else if (afterData.avgPf && afterData.avgPf.mean !== undefined && afterData.avgPf.mean > 0) {
+              pfAfter = Number(afterData.avgPf.mean);
+            }
+            
+            // If we found a power factor value, populate the field (capped at 95% for utility billing)
+            if (pfAfter !== null && !isNaN(pfAfter) && pfAfter > 0) {
+              // Cap at 95% (0.95) since utility billing stops at 95%
+              const cappedPfAfter = Math.min(0.95, Math.max(0.0, pfAfter));
+              
+              // Find the power_factor_after input field
+              const pfAfterField = document.querySelector('input[name="power_factor_after"]');
+              
+              if (pfAfterField) {
+                // Check if field expects percentage (0-100) or decimal (0-1) format
+                const maxValue = pfAfterField.getAttribute('max');
+                if (maxValue && parseFloat(maxValue) > 1) {
+                  // Field expects percentage format (0-100)
+                  pfAfterField.value = (cappedPfAfter * 100).toFixed(1);
+                } else {
+                  // Field expects decimal format (0-1)
+                  pfAfterField.value = cappedPfAfter.toFixed(3);
+                }
+                
+                // Mark as auto-populated (optional - for visual indication)
+                pfAfterField.classList.add('auto-populated');
+                
+                console.log(`✅ Auto-populated After Power Factor: ${(cappedPfAfter * 100).toFixed(1)}% (from CSV: ${(pfAfter * 100).toFixed(1)}%, capped at 95% for utility billing)`);
+              } else {
+                console.warn('⚠️ After Power Factor field (name="power_factor_after") not found in form');
+              }
+            } else {
+              console.log('ℹ️ After Power Factor not available in analysis results to auto-populate');
             }
           }
 
@@ -6268,10 +6517,8 @@ function displayResults(r) {
                           c.beforeValue === undefined || c.afterValue === undefined;
       
       if (needsRecalc) {
-        console.log('⚠️ Found NEMA MG1 item with missing values (N/A/null/undefined), attempting recalculation.');
-        console.log('  Standard:', c.standard, 'Requirement:', c.requirement);
-        console.log('  Before:', c.beforeValue, '-> parsed as:', beforeValueNum);
-        console.log('  After:', c.afterValue, '-> parsed as:', afterValueNum);
+        // Debug: NEMA MG1 recalculation (values found via fallback, no action needed)
+        console.debug('ℹ️ NEMA MG1 recalculation:', c.standard, c.requirement);
         
         // Use the same calculation function that works in Performance section
         const beforeData = r?.before_data || {};
@@ -6300,7 +6547,8 @@ function displayResults(r) {
                   const v23 = Math.sqrt(v2 * v2 + v3 * v3 + v2 * v3);
                   const v31 = Math.sqrt(v3 * v3 + v1 * v1 + v3 * v1);
                   
-                  console.log(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
+                  // Debug: Calculated line-to-line voltages (commented out to reduce console noise)
+                  // console.debug(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
                   
                   // NEMA MG1 formula using line-to-line voltages
                   // Formula: Unbalance % = (Max Deviation from Average / Average) × 100
@@ -6310,7 +6558,7 @@ function displayResults(r) {
                   if (avgVoltage > 0) {
                     const maxDeviation = Math.max(Math.abs(v12 - avgVoltage), Math.abs(v23 - avgVoltage), Math.abs(v31 - avgVoltage));
                     const unbalance = (maxDeviation / avgVoltage) * 100;
-                    console.log(`✅ [${period}] Calculated NEMA MG1 voltage unbalance from line-to-line voltages: ${unbalance.toFixed(2)}%`);
+                    console.debug(`✅ [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
                     return unbalance;
                   }
                 }
@@ -6344,7 +6592,8 @@ function displayResults(r) {
                   const v23 = Math.sqrt(v2 * v2 + v3 * v3 + v2 * v3);
                   const v31 = Math.sqrt(v3 * v3 + v1 * v1 + v3 * v1);
                   
-                  console.log(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
+                  // Debug: Calculated line-to-line voltages (commented out to reduce console noise)
+                  // console.debug(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
                   
                   // NEMA MG1 formula using line-to-line voltages
                   // Formula: Unbalance % = (Max Deviation from Average / Average) × 100
@@ -6354,7 +6603,7 @@ function displayResults(r) {
                   if (avgVoltage > 0) {
                     const maxDeviation = Math.max(Math.abs(v12 - avgVoltage), Math.abs(v23 - avgVoltage), Math.abs(v31 - avgVoltage));
                     const unbalance = (maxDeviation / avgVoltage) * 100;
-                    console.log(`✅ [${period}] Calculated NEMA MG1 voltage unbalance from line-to-line voltages: ${unbalance.toFixed(2)}%`);
+                    console.debug(`✅ [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
                     return unbalance;
                   }
                 }
@@ -6363,14 +6612,8 @@ function displayResults(r) {
             
             // If we have file_path but no phase data, log what we found for debugging
             if (data.file_path) {
-              console.log(`⚠️ [${period}] Found file_path but no phase voltage data. File: ${data.file_path}`);
-              console.log(`⚠️ [${period}] Available keys:`, Object.keys(data));
-              if (data.detected_columns) {
-                console.log(`⚠️ [${period}] Detected columns:`, data.detected_columns);
-              }
-              if (data.voltage_quality) {
-                console.log(`⚠️ [${period}] voltage_quality keys:`, Object.keys(data.voltage_quality));
-              }
+              // Debug: Phase voltage data not in expected location, using fallback (power_quality)
+              console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
             }
             
             // Also try power_quality data as fallback (only if reasonable)
@@ -6379,44 +6622,40 @@ function displayResults(r) {
             if (powerQuality[unbalanceKey] !== undefined && powerQuality[unbalanceKey] !== null && powerQuality[unbalanceKey] !== "N/A") {
               const val = powerQuality[unbalanceKey];
               if (typeof val === 'number' && val >= 0 && val <= 1.0) {  // Only use if reasonable
-                console.log(`✅ [${period}] Found voltage unbalance in power_quality: ${val.toFixed(2)}%`);
+                console.debug(`✅ [${period}] Found voltage unbalance in power_quality: ${val.toFixed(2)}%`);
                 return val;
               }
             }
           } catch (e) {
-            console.warn(`⚠️ Could not calculate ${period} voltage unbalance from phase data:`, e);
+            console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
           }
           return null;
         }
         
         // Calculate before value if missing OR suspiciously high
         if (c.beforeValue === "N/A" || (beforeValueNum !== null && beforeValueNum > 1.0)) {
-          console.log(`🔄 Recalculating NEMA MG1 before value (current: ${c.beforeValue}, parsed: ${beforeValueNum})...`);
+          // Debug: Recalculating NEMA MG1 before value
           const calculated = calcUnbalanceFromPhase(beforeData, 'before');
           if (calculated !== null && calculated !== undefined && !isNaN(calculated)) {
             c.beforeValue = calculated.toFixed(2) + '%';
             c.before = calculated <= 1.0;
-            console.log('✅ Updated NEMA MG1 before value:', c.beforeValue, 'Compliant:', c.before);
+            console.debug('✅ NEMA MG1 before:', c.beforeValue, 'Compliant:', c.before);
           } else {
-            console.warn('⚠️ Could not calculate NEMA MG1 before value. beforeData keys:', Object.keys(beforeData));
-            // Log voltage_quality structure if it exists
-            if (beforeData.voltage_quality) {
-              console.log('⚠️ beforeData.voltage_quality structure:', beforeData.voltage_quality);
-              console.log('⚠️ voltage_quality keys:', Object.keys(beforeData.voltage_quality));
-            }
+            console.debug('ℹ️ NEMA MG1 before: Using fallback value from power_quality');
           }
         } else {
-          console.log(`ℹ️ [before] NEMA MG1 value ${c.beforeValue} (parsed: ${beforeValueNum}) is acceptable, not recalculating`);
+          // Value is acceptable, no recalculation needed
+          console.debug(`ℹ️ [before] NEMA MG1 value acceptable: ${c.beforeValue}`);
         }
         
         // Calculate after value if missing OR suspiciously high
         if (c.afterValue === "N/A" || (afterValueNum !== null && afterValueNum > 1.0)) {
-          console.log(`🔄 Recalculating NEMA MG1 after value (current: ${c.afterValue}, parsed: ${afterValueNum})...`);
+          // Debug: Recalculating NEMA MG1 after value
           const calculated = calcUnbalanceFromPhase(afterData, 'after');
           if (calculated !== null && calculated !== undefined && !isNaN(calculated)) {
             c.afterValue = calculated.toFixed(2) + '%';
             c.after = calculated <= 1.0;
-            console.log('✅ Updated NEMA MG1 after value:', c.afterValue, 'Compliant:', c.after);
+            console.debug('✅ NEMA MG1 after:', c.afterValue, 'Compliant:', c.after);
           } else {
             console.warn('⚠️ Could not calculate NEMA MG1 after value. afterData keys:', Object.keys(afterData));
             // Log voltage_quality structure if it exists
@@ -6426,7 +6665,7 @@ function displayResults(r) {
             }
           }
         } else {
-          console.log(`ℹ️ [after] NEMA MG1 value ${c.afterValue} (parsed: ${afterValueNum}) is acceptable, not recalculating`);
+          console.debug(`ℹ️ [after] NEMA MG1 value acceptable: ${c.afterValue}`);
         }
       }
     }
@@ -6844,7 +7083,7 @@ function displayResults(r) {
           }
         }
       } catch (e) {
-        console.warn(`⚠️ Could not calculate ${period} voltage unbalance from phase data:`, e);
+            console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
       }
       return null;
     }
@@ -7682,45 +7921,66 @@ function displayResults(r) {
   // Calculate normalized kW savings using the same method as Step 4
   // This ensures consistency across all sections (Bill-Weighted Savings, Main Results Summary, Verification Summary)
   // Calculate this early so it's available throughout the function
+  // CRITICAL: PRIORITIZE backend-calculated values over frontend recalculation
+  // The backend has already calculated these with the correct target_pf from config
+  // Only recalculate if backend values are not available
   let calculatedNormalizedKwSavings = null;
-  const hasFullyNormalizedEarly = powerQualityNormalized.normalized_kw_before && powerQualityNormalized.normalized_kw_after;
-  if (hasFullyNormalizedEarly) {
-    const weatherBefore = powerQualityNormalized.weather_normalized_kw_before;
-    const weatherAfter = powerQualityNormalized.weather_normalized_kw_after;
-    const pfBefore = powerQualityNormalized.pf_before;
-    const pfAfter = powerQualityNormalized.pf_after;
-    const targetPF = 0.95;
-    
-    if (pfBefore && pfAfter && weatherBefore && weatherAfter) {
-      // Calculate PF normalization for savings: normalize both to the SAME PF
-      // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
-      // Using max() can artificially inflate savings when before PF is much lower than after PF
-      // Standard utility target (0.95) provides consistent, fair comparison
-      const normalizationPF = targetPF; // Always use 0.95 (standard utility target)
-      const pfAdjustmentBefore = normalizationPF / pfBefore;
-      const pfAdjustmentAfter = normalizationPF / pfAfter;
-      const pfNormalizedKwBefore = weatherBefore * pfAdjustmentBefore;
-      const pfNormalizedKwAfter = weatherAfter * pfAdjustmentAfter;
-      calculatedNormalizedKwSavings = pfNormalizedKwBefore - pfNormalizedKwAfter;
+  
+  // First, try to use backend-calculated values (these are authoritative)
+  if (r.power_quality?.calculated_pf_normalized_kw_before && r.power_quality?.calculated_pf_normalized_kw_after) {
+    calculatedNormalizedKwSavings = r.power_quality.calculated_pf_normalized_kw_before - r.power_quality.calculated_pf_normalized_kw_after;
+    console.log('✅ Using backend-calculated normalized kW values (authoritative)');
+    console.log(`   calculated_pf_normalized_kw_before = ${r.power_quality.calculated_pf_normalized_kw_before}`);
+    console.log(`   calculated_pf_normalized_kw_after = ${r.power_quality.calculated_pf_normalized_kw_after}`);
+    console.log(`   calculatedNormalizedKwSavings = ${calculatedNormalizedKwSavings}`);
+  }
+  // Fallback: Recalculate if backend values not available
+  else {
+    const hasFullyNormalizedEarly = powerQualityNormalized.normalized_kw_before && powerQualityNormalized.normalized_kw_after;
+    if (hasFullyNormalizedEarly) {
+      const weatherBefore = powerQualityNormalized.weather_normalized_kw_before;
+      const weatherAfter = powerQualityNormalized.weather_normalized_kw_after;
+      const pfBefore = powerQualityNormalized.pf_before;
+      const pfAfter = powerQualityNormalized.pf_after;
+      // Read targetPF from config (user input from UI form), with fallback to 0.95
+      const targetPF = r.config?.target_pf || 
+                       r.config?.target_power_factor || 
+                       powerQualityNormalized?.target_pf || 
+                       0.95; // Default to 0.95 if not specified (IEEE 519 standard)
       
-      // STORE CALCULATED NORMALIZED KW SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-      // CRITICAL: Also update the main normalized_kw_before/after fields so they're used in IEEE 519 section
-      if (!r.power_quality) r.power_quality = {};
-      r.power_quality.calculated_normalized_kw_savings = calculatedNormalizedKwSavings;
-      r.power_quality.calculated_pf_normalized_kw_before = pfNormalizedKwBefore;
-      r.power_quality.calculated_pf_normalized_kw_after = pfNormalizedKwAfter;
-      // Update main normalized fields so IEEE 519 section and other sections use new formula values
-      r.power_quality.normalized_kw_before = pfNormalizedKwBefore;
-      r.power_quality.normalized_kw_after = pfNormalizedKwAfter;
-      r.power_quality.pf_normalized_kw_before = pfNormalizedKwBefore;
-      r.power_quality.pf_normalized_kw_after = pfNormalizedKwAfter;
-    } else if (powerQualityNormalized.normalized_kw_before && powerQualityNormalized.normalized_kw_after) {
-      // Fallback to stored normalized values if PF data not available
-      calculatedNormalizedKwSavings = powerQualityNormalized.normalized_kw_before - powerQualityNormalized.normalized_kw_after;
+      console.log('⚠️ Backend values not available, recalculating with target_pf =', targetPF);
       
-      // STORE FALLBACK CALCULATED NORMALIZED KW SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-      if (!r.power_quality) r.power_quality = {};
-      r.power_quality.calculated_normalized_kw_savings = calculatedNormalizedKwSavings;
+      if (pfBefore && pfAfter && weatherBefore && weatherAfter) {
+        // Calculate PF normalization for savings: normalize both to the SAME PF
+        // Uses targetPF from UI form configuration (defaults to 0.95 per IEEE 519 and utility billing standards)
+        // Using max() can artificially inflate savings when before PF is much lower than after PF
+        // User-specified target PF provides flexibility while maintaining standard-compliant comparison
+        const normalizationPF = targetPF; // Uses user-specified target PF (defaults to 0.95 if not specified)
+        const pfAdjustmentBefore = normalizationPF / pfBefore;
+        const pfAdjustmentAfter = normalizationPF / pfAfter;
+        const pfNormalizedKwBefore = weatherBefore * pfAdjustmentBefore;
+        const pfNormalizedKwAfter = weatherAfter * pfAdjustmentAfter;
+        calculatedNormalizedKwSavings = pfNormalizedKwBefore - pfNormalizedKwAfter;
+        
+        // STORE CALCULATED NORMALIZED KW SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
+        // CRITICAL: Also update the main normalized_kw_before/after fields so they're used in IEEE 519 section
+        if (!r.power_quality) r.power_quality = {};
+        r.power_quality.calculated_normalized_kw_savings = calculatedNormalizedKwSavings;
+        r.power_quality.calculated_pf_normalized_kw_before = pfNormalizedKwBefore;
+        r.power_quality.calculated_pf_normalized_kw_after = pfNormalizedKwAfter;
+        // Update main normalized fields so IEEE 519 section and other sections use new formula values
+        r.power_quality.normalized_kw_before = pfNormalizedKwBefore;
+        r.power_quality.normalized_kw_after = pfNormalizedKwAfter;
+        r.power_quality.pf_normalized_kw_before = pfNormalizedKwBefore;
+        r.power_quality.pf_normalized_kw_after = pfNormalizedKwAfter;
+      } else if (powerQualityNormalized.normalized_kw_before && powerQualityNormalized.normalized_kw_after) {
+        // Fallback to stored normalized values if PF data not available
+        calculatedNormalizedKwSavings = powerQualityNormalized.normalized_kw_before - powerQualityNormalized.normalized_kw_after;
+        
+        // STORE FALLBACK CALCULATED NORMALIZED KW SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
+        if (!r.power_quality) r.power_quality = {};
+        r.power_quality.calculated_normalized_kw_savings = calculatedNormalizedKwSavings;
+      }
     }
   }
 
@@ -7768,21 +8028,35 @@ function displayResults(r) {
                     </tr>`;
     }
 
-    // kW (Weather Normalized) - Use preserved weather-normalized values to match ASHRAE section
+    // kW (Weather Normalized) - Show for ASHRAE compliance reference
     // Match the format from Detailed Breakdown section (2 decimal places)
     if (powerQualityNormalized.weather_normalized_kw_before != null && powerQualityNormalized.weather_normalized_kw_after != null && 
         !isNaN(powerQualityNormalized.weather_normalized_kw_before) && !isNaN(powerQualityNormalized.weather_normalized_kw_after)) {
       const kw_percent = calcPercentImprovement(powerQualityNormalized.weather_normalized_kw_before,
         powerQualityNormalized.weather_normalized_kw_after, true);
       html += `<tr>
-                        <td><strong>kW (Weather Normalized)</strong></td>
+                        <td><strong>kW (Weather Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.weather_normalized_kw_before).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center; color: ${kw_percent > 0 ? 'green' : 'red'}">${kw_percent ? kw_percent.toFixed(2) + '% reduction' : 'N/A'}</td>
                     </tr>`;
+    }
+    
+    // kW (Fully Normalized) - Weather + Power Factor normalized - MATCHES Step 3 and Step 4
+    // This is the primary value that should match Step 3 and Step 4
+    if (powerQualityNormalized.calculated_pf_normalized_kw_before != null && powerQualityNormalized.calculated_pf_normalized_kw_after != null && 
+        !isNaN(powerQualityNormalized.calculated_pf_normalized_kw_before) && !isNaN(powerQualityNormalized.calculated_pf_normalized_kw_after)) {
+      const fully_normalized_kw_percent = calcPercentImprovement(powerQualityNormalized.calculated_pf_normalized_kw_before,
+        powerQualityNormalized.calculated_pf_normalized_kw_after, true);
+      html += `<tr>
+                        <td><strong>kW (Fully Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Matches Step 3 & Step 4)</em></small></td>
+                        <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.calculated_pf_normalized_kw_before).toFixed(2)} kW</td>
+                        <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.calculated_pf_normalized_kw_after).toFixed(2)} kW</td>
+                        <td class="value-cell" style="text-align: center; color: ${fully_normalized_kw_percent > 0 ? 'green' : 'red'}">${fully_normalized_kw_percent ? fully_normalized_kw_percent.toFixed(2) + '% reduction' : 'N/A'}</td>
+                    </tr>`;
     } else if (powerQualityNormalized.normalized_kw_before != null && powerQualityNormalized.normalized_kw_after != null && 
                !isNaN(powerQualityNormalized.normalized_kw_before) && !isNaN(powerQualityNormalized.normalized_kw_after)) {
-      // Fallback to power-factor-adjusted values if weather-normalized not available
+      // Fallback to stored normalized values if calculated values not available
       const kw_percent = calcPercentImprovement(powerQualityNormalized.normalized_kw_before, powerQualityNormalized
         .normalized_kw_after, true);
       html += `<tr>
@@ -7910,7 +8184,11 @@ function displayResults(r) {
       // Get power factor data
       const pfBefore = powerQualityNormalized.pf_before || powerQualityNormalized.power_factor_before;
       const pfAfter = powerQualityNormalized.pf_after || powerQualityNormalized.power_factor_after;
-      const targetPF = 0.95; // Standard utility target
+      // Read targetPF from config (user input from UI form), with fallback to 0.95
+      const targetPF = r.config?.target_pf || 
+                       r.config?.target_power_factor || 
+                       powerQualityNormalized?.target_pf || 
+                       0.95; // Default to 0.95 if not specified (IEEE 519 standard)
       
       // Calculate all values
       let rawSavingsKw = null;
@@ -7923,12 +8201,16 @@ function displayResults(r) {
       let totalNormalizedPercent = null;
       
       // Step 1: Raw calculations
+      // NOTE: This section is informational only - values are calculated for display purposes only
+      // and are NOT stored in r.power_quality to prevent double-counting in other sections
       if (hasRawKw) {
         rawSavingsKw = powerQualityNormalized.kw_before - powerQualityNormalized.kw_after;
         rawSavingsPercent = (rawSavingsKw / powerQualityNormalized.kw_before) * 100;
       }
       
       // Step 2: Weather normalization
+      // NOTE: This section is informational only - values are calculated for display purposes only
+      // and are NOT stored in r.power_quality to prevent double-counting in other sections
       if (hasWeatherNormalized) {
         weatherSavingsKw = powerQualityNormalized.weather_normalized_kw_before - powerQualityNormalized.weather_normalized_kw_after;
         weatherSavingsPercent = (weatherSavingsKw / powerQualityNormalized.weather_normalized_kw_before) * 100;
@@ -7989,6 +8271,7 @@ function displayResults(r) {
       // Create enhanced breakdown section
       html += `<div style="margin-top: 1.5rem; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #1976d2; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
       html += `<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">📊 Detailed kW Normalization Savings Breakdown</h3>`;
+      html += `<p style="margin-bottom: 10px; color: #dc3545; font-size: 0.95em; line-height: 1.6; font-weight: bold; background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;"><strong>⚠️ Note:</strong> This section is for informational purposes only and shows how weather and power factor normalization percentages are calculated. These values are NOT added to the savings totals in other sections (Raw Meter Test Data, IEEE 519 Power Quality Analysis, Bill-Weighted Savings) to prevent double-counting.</p>`;
       html += `<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">This detailed breakdown shows step-by-step how raw meter data is transformed through weather normalization (ASHRAE Guideline 14) and power factor normalization (utility billing standard) to arrive at the final normalized savings percentage.</p>`;
       
       // STEP 1: Raw Data
@@ -8105,7 +8388,7 @@ function displayResults(r) {
         if (baseTemp === null || baseTemp === undefined || isNaN(baseTemp)) {
           baseTempDisplay = 'Not available (baseline data required)';
         } else {
-          // Always show the base temperature value (should be 10.0°C)
+          // Always show the base temperature value (should be 18.3°C per ASHRAE Guideline 14-2014 for commercial, or optimized from baseline data)
           const isOptimized = weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null;
           baseTempDisplay = `${baseTemp.toFixed(1)}°C${isOptimized ? ' (optimized from baseline data)' : ' (fixed at 18.3°C per ASHRAE Guideline 14 standard)'}`;
         }
@@ -8430,58 +8713,66 @@ function displayResults(r) {
       // STEP 3: Power Factor Normalization
       html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">`;
       html += `<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>`;
-      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to standard utility target power factor (0.95) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = 0.95 (utility standard per IEEE 519 and utility billing practices)</p>`;
+      // Get targetPF for display in description (use the same value from earlier in the function)
+      const targetPFForDescription = r.config?.target_pf || 
+                                       r.config?.target_power_factor || 
+                                       powerQualityNormalized?.target_pf || 
+                                       0.95; // Default to 0.95 if not specified
+      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to target power factor (${(targetPFForDescription * 100).toFixed(0)}%) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = ${(targetPFForDescription * 100).toFixed(0)}% (user-specified from UI form, defaults to 95% per IEEE 519 and utility billing practices)</p>`;
       
       if (hasFullyNormalized && pfBefore && pfAfter) {
-        // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
-        // Using max() can artificially inflate savings when before PF is much lower than after PF
-        // Standard utility target (0.95) provides consistent, fair comparison
-        const normalizationPF = targetPF; // Always use 0.95 (standard utility target)
+        // CRITICAL: Use the normalized values calculated by the IEEE 519 section to ensure consistency
+        // The IEEE 519 section (lines 7812-7855) calculates and stores these values earlier
+        // We use those stored values here so Step 3 matches the IEEE 519 section exactly
+        let pfNormalizedKwBefore = r.power_quality?.calculated_pf_normalized_kw_before || r.power_quality?.normalized_kw_before;
+        let pfNormalizedKwAfter = r.power_quality?.calculated_pf_normalized_kw_after || r.power_quality?.normalized_kw_after;
+        
+        // Get weather normalized values and PF adjustment factors for display
+        const weatherBeforeForDisplay = powerQualityNormalized.weather_normalized_kw_before;
+        const weatherAfterForDisplay = powerQualityNormalized.weather_normalized_kw_after;
+        // Use targetPF from config (user input from UI form), with fallback to 0.95
+        const targetPFForStep3 = r.config?.target_pf || 
+                                  r.config?.target_power_factor || 
+                                  powerQualityNormalized?.target_pf || 
+                                  0.95; // Default to 0.95 if not specified
+        const normalizationPF = targetPFForStep3; // Uses user-specified target PF (defaults to 0.95 if not specified)
         const pfAdjustmentBefore = normalizationPF / pfBefore;
         const pfAdjustmentAfter = normalizationPF / pfAfter;
         
-        // Use the stored Weather Normalized kW values from Step 2
-        // These are the actual weather-normalized values that were displayed in Step 2
-        let weatherBeforeForDisplay = powerQualityNormalized.weather_normalized_kw_before;
-        let weatherAfterForDisplay = powerQualityNormalized.weather_normalized_kw_after;
-        
-        // If stored values are not available, calculate backwards from PF Normalized values as fallback
-        if (!weatherBeforeForDisplay || !weatherAfterForDisplay) {
-          const calculatedWeatherBefore = powerQualityNormalized.normalized_kw_before / pfAdjustmentBefore;
-          const calculatedWeatherAfter = powerQualityNormalized.normalized_kw_after / pfAdjustmentAfter;
-          weatherBeforeForDisplay = calculatedWeatherBefore;
-          weatherAfterForDisplay = calculatedWeatherAfter;
+        // If IEEE 519 section hasn't calculated them yet, calculate them the same way
+        if (!pfNormalizedKwBefore || !pfNormalizedKwAfter) {
+          if (weatherBeforeForDisplay && weatherAfterForDisplay) {
+            pfNormalizedKwBefore = weatherBeforeForDisplay * pfAdjustmentBefore;
+            pfNormalizedKwAfter = weatherAfterForDisplay * pfAdjustmentAfter;
+          } else {
+            // Fallback to stored normalized values if weather-normalized not available
+            pfNormalizedKwBefore = powerQualityNormalized.normalized_kw_before;
+            pfNormalizedKwAfter = powerQualityNormalized.normalized_kw_after;
+          }
         }
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF = 0.95 (utility standard)</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</td></tr>`;
+        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF = ${(normalizationPF != null && !isNaN(normalizationPF) ? (Number(normalizationPF) * 100).toFixed(0) : '95')}% (user-specified from UI form${normalizationPF === 0.95 ? ', defaults to 95% per IEEE 519 standard' : ''})</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</td></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherBeforeForDisplay != null && !isNaN(weatherBeforeForDisplay) ? Number(weatherBeforeForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherAfterForDisplay != null && !isNaN(weatherAfterForDisplay) ? Number(weatherAfterForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>`;
         // PF Adjustment Factor calculation formula
         const pfFactorCalcText = `<strong>Factor Calculation:</strong> Before: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')} = ${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')}<br/>After: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')} = ${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')}<br/>= Normalization PF ÷ Actual PF`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${pfFactorCalcText}</td></tr>`;
         
-        // Calculate PF Normalized kW by multiplying Weather Normalized kW by PF Adjustment Factor
-        const pfNormalizedKwBefore = weatherBeforeForDisplay * pfAdjustmentBefore;
-        const pfNormalizedKwAfter = weatherAfterForDisplay * pfAdjustmentAfter;
-        
-        // STORE CALCULATED VALUES IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-        if (!r.power_quality) r.power_quality = {};
-        r.power_quality.pf_normalized_kw_before = pfNormalizedKwBefore;
-        r.power_quality.pf_normalized_kw_after = pfNormalizedKwAfter;
-        r.power_quality.pf_adjustment_factor_before = pfAdjustmentBefore;
-        r.power_quality.pf_adjustment_factor_after = pfAdjustmentAfter;
-        
-        html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: ${(weatherBeforeForDisplay != null && !isNaN(weatherBeforeForDisplay) ? Number(weatherBeforeForDisplay).toFixed(2) : 'N/A')} × ${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')} = ${(pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A')}<br/>After: ${(weatherAfterForDisplay != null && !isNaN(weatherAfterForDisplay) ? Number(weatherAfterForDisplay).toFixed(2) : 'N/A')} × ${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')} = ${(pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A')}</td></tr>`;
+        // Use the normalized values from IEEE 519 section (already calculated and stored)
+        // REMOVED: Don't store these values - this section is informational only to prevent double-counting
+        // The actual normalized values used in other sections are calculated independently in the IEEE 519 section
+        html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section for consistency)</em></small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${weatherBeforeForDisplay && pfAdjustmentBefore ? `Before: ${Number(weatherBeforeForDisplay).toFixed(2)} × ${Number(pfAdjustmentBefore).toFixed(4)} = ${Number(pfNormalizedKwBefore).toFixed(2)}<br/>` : ''}${weatherAfterForDisplay && pfAdjustmentAfter ? `After: ${Number(weatherAfterForDisplay).toFixed(2)} × ${Number(pfAdjustmentAfter).toFixed(4)} = ${Number(pfNormalizedKwAfter).toFixed(2)}` : ''}</td></tr>`;
         
         // Calculate PF Normalized Savings using the calculated PF Normalized values
         const pfNormalizedSavingsKw = pfNormalizedKwBefore - pfNormalizedKwAfter;
         const pfNormalizedSavingsPercent = (pfNormalizedKwBefore > 0) ? (pfNormalizedSavingsKw / pfNormalizedKwBefore) * 100 : 0;
         
-        // STORE PF NORMALIZED SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-        r.power_quality.pf_normalized_savings_kw = pfNormalizedSavingsKw;
-        r.power_quality.pf_normalized_savings_percent = pfNormalizedSavingsPercent;
+        // REMOVED: Don't store these values - this section is informational only to prevent double-counting
+        // The actual normalized savings used in other sections are calculated independently in the IEEE 519 section
+        // r.power_quality.pf_normalized_savings_kw = pfNormalizedSavingsKw;
+        // r.power_quality.pf_normalized_savings_percent = pfNormalizedSavingsPercent;
         
         // Always display PF Normalized Savings rows
         html += `<tr style="background: #ffe0b2;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: ${(pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) && pfNormalizedSavingsKw > 0) ? 'green' : 'red'};">${(pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A')} kW</td></tr>`;
@@ -8515,74 +8806,91 @@ function displayResults(r) {
       html += `<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Step 4: Final Normalized Savings Result</h4>`;
       
       if (hasFullyNormalized) {
-        // Calculate PF Normalized kW values the same way as Step 3
-        // Use stored Weather Normalized kW values
+        // CRITICAL: Use the normalized values calculated by the IEEE 519 section to ensure consistency
+        // The IEEE 519 section (lines 7812-7855) calculates and stores these values earlier
+        // We use those stored values here so Step 4 matches the IEEE 519 section exactly
+        let pfNormalizedKwBeforeStep4 = r.power_quality?.calculated_pf_normalized_kw_before || r.power_quality?.normalized_kw_before;
+        let pfNormalizedKwAfterStep4 = r.power_quality?.calculated_pf_normalized_kw_after || r.power_quality?.normalized_kw_after;
+        
+        // DEBUG: Log target_pf and normalized values to diagnose the 26.64% issue
+        const targetPFForStep4 = r.config?.target_pf || 
+                                 r.config?.target_power_factor || 
+                                 powerQualityNormalized?.target_pf || 
+                                 0.95;
+        console.log('🔍 [STEP 4 DEBUG] target_pf from config:', r.config?.target_pf, 'target_power_factor:', r.config?.target_power_factor);
+        console.log('🔍 [STEP 4 DEBUG] targetPFForStep4 =', targetPFForStep4);
+        console.log('🔍 [STEP 4 DEBUG] calculated_pf_normalized_kw_before =', r.power_quality?.calculated_pf_normalized_kw_before);
+        console.log('🔍 [STEP 4 DEBUG] calculated_pf_normalized_kw_after =', r.power_quality?.calculated_pf_normalized_kw_after);
+        console.log('🔍 [STEP 4 DEBUG] normalized_kw_before =', r.power_quality?.normalized_kw_before);
+        console.log('🔍 [STEP 4 DEBUG] normalized_kw_after =', r.power_quality?.normalized_kw_after);
+        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
+        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
+        
+        // Get weather normalized values for display in verification summary table
         const weatherBeforeForStep4 = powerQualityNormalized.weather_normalized_kw_before;
         const weatherAfterForStep4 = powerQualityNormalized.weather_normalized_kw_after;
         
-        // CRITICAL: Get PF values explicitly (same as Step 3) to ensure PF normalization is calculated
-        const pfBeforeStep4 = powerQualityNormalized.pf_before || powerQualityNormalized.power_factor_before;
-        const pfAfterStep4 = powerQualityNormalized.pf_after || powerQualityNormalized.power_factor_after;
-        const targetPFStep4 = 0.95;
-        
-        // Calculate PF Normalized kW values if we have PF data
-        let pfNormalizedKwBeforeStep4 = powerQualityNormalized.normalized_kw_before;
-        let pfNormalizedKwAfterStep4 = powerQualityNormalized.normalized_kw_after;
-        
-        // CRITICAL: Always recalculate PF normalization if we have the required data
-        // Use the better PF (higher value) as normalization target to show true savings benefit
-        // This ensures savings percentage increases when PF improves
-        if (pfBeforeStep4 && pfAfterStep4 && weatherBeforeForStep4 && weatherAfterForStep4) {
-          // CRITICAL FIX: Always use standard utility target (0.95) to prevent inflation
-          // Using max() can artificially inflate savings when before PF is much lower than after PF
-          // Standard utility target (0.95) provides consistent, fair comparison
-          const normalizationPFStep4 = targetPFStep4; // Always use 0.95 (standard utility target)
-          const pfAdjustmentBeforeStep4 = normalizationPFStep4 / pfBeforeStep4;
-          const pfAdjustmentAfterStep4 = normalizationPFStep4 / pfAfterStep4;
-          pfNormalizedKwBeforeStep4 = weatherBeforeForStep4 * pfAdjustmentBeforeStep4;
-          pfNormalizedKwAfterStep4 = weatherAfterForStep4 * pfAdjustmentAfterStep4;
-          
-          // STORE STEP 4 CALCULATED VALUES IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-          // CRITICAL: Update all normalized fields to ensure consistency across all sections
-          if (!r.power_quality) r.power_quality = {};
-          r.power_quality.normalized_kw_before = pfNormalizedKwBeforeStep4;
-          r.power_quality.normalized_kw_after = pfNormalizedKwAfterStep4;
-          r.power_quality.pf_normalized_kw_before = pfNormalizedKwBeforeStep4;
-          r.power_quality.pf_normalized_kw_after = pfNormalizedKwAfterStep4;
-          r.power_quality.calculated_pf_normalized_kw_before = pfNormalizedKwBeforeStep4;
-          r.power_quality.calculated_pf_normalized_kw_after = pfNormalizedKwAfterStep4;
-        } else {
-          // Log warning if PF normalization cannot be calculated
-          console.warn('⚠️ Step 4: Cannot calculate PF normalization - missing data:', {
-            pfBeforeStep4: !!pfBeforeStep4,
-            pfAfterStep4: !!pfAfterStep4,
-            weatherBeforeForStep4: !!weatherBeforeForStep4,
-            weatherAfterForStep4: !!weatherAfterForStep4
-          });
+        // If IEEE 519 section hasn't calculated them yet, use fallback
+        if (!pfNormalizedKwBeforeStep4 || !pfNormalizedKwAfterStep4) {
+          pfNormalizedKwBeforeStep4 = powerQualityNormalized.normalized_kw_before;
+          pfNormalizedKwAfterStep4 = powerQualityNormalized.normalized_kw_after;
+          console.log('🔍 [STEP 4 DEBUG] Using fallback values:', pfNormalizedKwBeforeStep4, pfNormalizedKwAfterStep4);
         }
         
-        // Calculate total normalized savings using the calculated values
+        // Calculate total normalized savings using the values from IEEE 519 section
         const totalSavingsKwStep4 = pfNormalizedKwBeforeStep4 - pfNormalizedKwAfterStep4;
         const totalNormalizedPercentStep4 = (pfNormalizedKwBeforeStep4 > 0) ? (totalSavingsKwStep4 / pfNormalizedKwBeforeStep4) * 100 : 0;
+        console.log('🔍 [STEP 4 DEBUG] totalSavingsKwStep4 =', totalSavingsKwStep4);
+        console.log('🔍 [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
         
-        // STORE TOTAL NORMALIZED SAVINGS IN RESULTS OBJECT FOR HTML REPORT TRANSFER
-        if (!r.power_quality) r.power_quality = {};
-        r.power_quality.total_normalized_savings_kw = totalSavingsKwStep4;
-        r.power_quality.total_normalized_savings_percent = totalNormalizedPercentStep4;
+        // REMOVED: Don't store these values - this section is informational only to prevent double-counting
+        // The actual normalized savings used in other sections are calculated independently in the IEEE 519 section
+        // if (!r.power_quality) r.power_quality = {};
+        // r.power_quality.total_normalized_savings_kw = totalSavingsKwStep4;
+        // r.power_quality.total_normalized_savings_percent = totalNormalizedPercentStep4;
+        
+        // Calculate Equipment Energy Savings (weather-normalized only)
+        let equipmentEnergySavingsKw = null;
+        let equipmentEnergySavingsPercent = null;
+        if (weatherBeforeForStep4 && weatherAfterForStep4) {
+          equipmentEnergySavingsKw = weatherBeforeForStep4 - weatherAfterForStep4;
+          equipmentEnergySavingsPercent = weatherBeforeForStep4 > 0 ? (equipmentEnergySavingsKw / weatherBeforeForStep4) * 100 : 0;
+        }
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>`;
-        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
-        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
-        html += `<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red'};">${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')} - ${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td></tr>`;
-        html += `<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">🎯 Total Normalized Savings (%)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red'};">${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A')}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')} / ${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}) × 100</td></tr>`;
+        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
+        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
+        html += `<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red'};">${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')} - ${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td></tr>`;
+        
+        // Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
+        if (equipmentEnergySavingsKw != null && equipmentEnergySavingsPercent != null) {
+          const eqKw = equipmentEnergySavingsKw != null && !isNaN(equipmentEnergySavingsKw) ? Number(equipmentEnergySavingsKw).toFixed(2) : 'N/A';
+          const eqPct = equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent) ? Number(equipmentEnergySavingsPercent).toFixed(2) : 'N/A';
+          const wBefore = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
+          const eqColor = (equipmentEnergySavingsPercent > 0) ? 'green' : 'red';
+          html += '<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: ' + eqColor + ';">' + eqPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">(' + eqKw + ' / ' + wBefore + ') × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>';
+        }
+        
+        // Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
+        const totKw = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
+        const totPct = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
+        const pfBef = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
+        const totColor = (totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
+        html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + pfBef + ') × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>';
         html += `</table>`;
         
         // Verification summary - Enhanced with detailed breakdown
         html += `<div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">`;
         html += `<strong>✅ Verification Summary:</strong><br/>`;
         html += `<div style="margin-top: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #ffc107;">`;
-        html += `<strong style="color: #2e7d32; font-size: 1.1em;">🎯 Final Total Normalized Savings: <span style="color: ${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red'}; font-size: 1.2em;">${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A')}%</span></strong><br/>`;
+        // Show both metrics clearly
+        if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
+          html += `<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: ${(equipmentEnergySavingsPercent > 0) ? 'green' : 'red'}; font-size: 1.2em;">${Number(equipmentEnergySavingsPercent).toFixed(2)}%</span></strong><br/>`;
+          html += `<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>`;
+        }
+        html += `<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: ${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red'}; font-size: 1.2em;">${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A')}%</span></strong><br/>`;
+        html += `<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>`;
         html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">`;
         html += `<strong>Detailed Calculation Breakdown:</strong><br/>`;
         html += `<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">`;
@@ -8611,7 +8919,7 @@ function displayResults(r) {
         }
         
         // Step 3: PF Normalized (Final)
-        html += `<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">Weather + Power Factor normalized</small></td>`;
+        html += `<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section)</em></small></td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}</td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red'};">${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')}</td>`;
@@ -8628,8 +8936,11 @@ function displayResults(r) {
           const weatherSavingsPercentStep4 = weatherBeforeForStep4 > 0 ? (weatherSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
           html += `<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>${weatherSavingsPercentStep4.toFixed(2)}%</strong> weather-normalized savings (${weatherSavingsKwStep4.toFixed(2)} kW)</li>`;
         }
-        html += `<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (0.95) for utility billing → <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> total normalized savings (${totalSavingsKwStep4.toFixed(2)} kW)</li>`;
-        html += `<li><strong>Key Point:</strong> The final ${totalNormalizedPercentStep4.toFixed(2)}% is calculated from PF-normalized values, which includes weather% and PF%. This represents the true utility billing impact.</li>`;
+        html += `<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (${(targetPFForStep4 != null && !isNaN(targetPFForStep4) ? (Number(targetPFForStep4) * 100).toFixed(0) : '95')}%) for utility billing → <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> total utility billing impact (${totalSavingsKwStep4.toFixed(2)} kW)</li>`;
+        if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
+          html += `<li><strong>Equipment Energy Savings:</strong> <strong>${equipmentEnergySavingsPercent.toFixed(2)}%</strong> (${equipmentEnergySavingsKw.toFixed(2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>`;
+        }
+        html += `<li><strong>Total Utility Billing Impact:</strong> <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> (${totalSavingsKwStep4.toFixed(2)} kW) - This includes both equipment energy savings and power factor correction benefits. This represents the true utility billing impact.</li>`;
         html += `</ul>`;
         html += `</div>`;
         html += `</div>`;
@@ -11693,11 +12004,19 @@ function createProject() {
     return;
   }
 
+  // Get session token for authentication
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+  }
+
   fetch('/api/projects', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify({
         name,
         description
@@ -11711,7 +12030,12 @@ function createProject() {
         showNotification(`Project "${data.name}" created successfully!`);
         document.getElementById('new_project_name').value = '';
         document.getElementById('new_project_desc').value = '';
-        loadProjects();
+        // Refresh project list if function exists
+        if (typeof loadProjectList === 'function') {
+          loadProjectList();
+        } else if (typeof loadProjects === 'function') {
+          loadProjects();
+        }
       }
     })
     .catch(error => {
@@ -12076,6 +12400,74 @@ if (typeof window !== 'undefined') {
   window.closeModals = closeAllModals;
 }
 
+// Function to find Cloud Kitchen projects with 160+ fields (callable from console)
+function findCloudKitchenWithData() {
+  console.log('🔍 Searching for Cloud Kitchen projects with 160+ fields...');
+  
+  // Get session token
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  
+  if (!sessionToken) {
+    console.error('❌ No session token found. Please log in first.');
+    return;
+  }
+  
+  console.log('🔑 Using session token:', sessionToken.substring(0, 20) + '...');
+  
+  fetch('/api/projects/find-cloud-kitchen', {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${sessionToken}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    console.log('📥 Response status:', response.status, response.statusText);
+    if (!response.ok) {
+      return response.json().then(err => {
+        throw new Error(err.error || `HTTP ${response.status}`);
+      });
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('✅ Cloud Kitchen projects found:', data);
+    
+    if (data.project_with_160_plus_fields) {
+      console.log('');
+      console.log('🎯 PROJECT WITH 160+ FIELDS FOUND:');
+      console.log('   ID:', data.project_with_160_plus_fields.id);
+      console.log('   Name:', data.project_with_160_plus_fields.name);
+      console.log('   Field Count:', data.project_with_160_plus_fields.field_count);
+      console.log('   Data Length:', data.project_with_160_plus_fields.data_length, 'chars');
+      console.log('   Sample Fields:', data.project_with_160_plus_fields.sample_fields);
+      console.log('');
+      console.log('💡 To load this project:');
+      console.log('   1. Select it from the project dropdown');
+      console.log('   2. Or use project ID:', data.project_with_160_plus_fields.id);
+      console.log('   3. Or run: loadProjectById(' + data.project_with_160_plus_fields.id + ')');
+    } else {
+      console.log('⚠️ No Cloud Kitchen project found with 160+ fields');
+      console.log('📋 All Cloud Kitchen projects found:');
+      data.all_cloud_kitchen_projects.forEach((proj, idx) => {
+        console.log(`   ${idx + 1}. ID: ${proj.id}, Name: "${proj.name}", Fields: ${proj.field_count}, Has Data: ${proj.has_data}`);
+      });
+    }
+    
+    return data;
+  })
+  .catch(error => {
+    console.error('❌ Error finding Cloud Kitchen projects:', error);
+    console.error('❌ Error details:', error.message);
+  });
+}
+
+// Make function globally available for browser console
+if (typeof window !== 'undefined') {
+  window.findCloudKitchenWithData = findCloudKitchenWithData;
+  window.findCloudKitchen = findCloudKitchenWithData; // Shorter alias
+}
+
 // File selection modal function
 function showFileSelectionModal(fileType) {
   console.log('📂 showFileSelectionModal called with fileType:', fileType);
@@ -12083,22 +12475,42 @@ function showFileSelectionModal(fileType) {
   // CRITICAL FIX: Remove any existing modals first to prevent black boxes
   closeAllModals();
 
-  // Fetch verified files from the API
-  console.log('📡 Fetching verified files from /api/verified-files...');
-  fetch('/api/verified-files')
+  // Get session token for authentication
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (sessionToken) {
+    headers['Authorization'] = `Bearer ${sessionToken}`;
+    console.log('🔑 Using session token for file request');
+  } else {
+    console.warn('⚠️ No session token found - file request may fail');
+  }
+
+  // Fetch ALL files (both verified and unverified) from the API
+  // This allows users to select files that need to be verified/clipped
+  console.log('📡 Fetching files from /api/original-files...');
+  fetch('/api/original-files', {
+    headers: headers
+  })
     .then(response => {
+      console.log('📥 Files response status:', response.status);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
       return response.json();
     })
     .then(data => {
-
+      console.log('📊 Files response:', data);
       if (data.status === 'success' && data.files && data.files.length > 0) {
         showFileSelectionModalWithFiles(data.files, fileType);
       } else {
-        showNotification('No verified files available. Please upload CSV files first.');
+        showNotification('No files available. Please upload CSV files first.');
       }
     })
     .catch(error => {
-      console.error('=== ERROR FETCHING VERIFIED FILES ===');
+      console.error('=== ERROR FETCHING FILES ===');
       console.error('Error type:', typeof error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);

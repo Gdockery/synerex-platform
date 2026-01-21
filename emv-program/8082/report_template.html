@@ -1108,7 +1108,8 @@
             <table class="compliance-table">
                 <tr><th>Parameter</th><th style="text-align: center;">Before {{BEFORE_LABEL}}</th><th style="text-align: center;">After {{AFTER_LABEL}}</th><th style="text-align: center;">% Improvement</th></tr>
                 <tr><td><strong>Volts (L-N)</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTS_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTS_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTS_IMPROVEMENT}}</td></tr>
-                <tr><td><strong>kW (Normalized)</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_IMPROVEMENT}}</td></tr>
+                <tr><td><strong>kW (Weather Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td><td class="value-cell" style="text-align: center;">{{IEEE_KW_WEATHER_NORMALIZED_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_WEATHER_NORMALIZED_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_WEATHER_NORMALIZED_IMPROVEMENT}}</td></tr>
+                <tr><td><strong>kW (Fully Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Matches Step 3 & Step 4)</em></small></td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KW_NORMALIZED_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>kVA</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>Power Factor</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_PF_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PF_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PF_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>THD</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_THD_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_THD_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_THD_IMPROVEMENT}}</td></tr>
@@ -1809,3 +1810,5 @@ audit_trail.export_audit_trail("audit_trail.json")
 
 </body>
 </html>
+
+
