@@ -43,10 +43,10 @@ build/
 *.zip
 *.tar.gz
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Database - now tracked in repo
+# *.db
+# *.sqlite
+# *.sqlite3
 
 # Temporary files
 tmp/

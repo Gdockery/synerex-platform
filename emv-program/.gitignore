@@ -41,11 +41,11 @@ desktop.ini
 .pydevproject
 .settings/
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-*.db-journal
+# Database files - now tracked in repo
+# *.db
+# *.sqlite
+# *.sqlite3
+# *.db-journal
 
 # Generated files
 **/generated_pdfs/
