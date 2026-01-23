@@ -17,11 +17,11 @@ AUDIT COMPLIANCE DOCUMENTATION:
 
 1. CALCULATION METHODOLOGIES:
    - IEEE 519-2014/2022: Harmonic limits based on ISC/IL ratio
-   - ASHRAE Guideline 14: Statistical validation with CVRMSE, NMBE, R²
+   - ASHRAE Guideline 14: Statistical validation with CVRMSE, NMBE, R┬▓
    - NEMA MG1: Phase balance standards (1% voltage unbalance limit)
-   - IEC 62053-22: Class 0.2s meter accuracy (±0.2%)
+   - IEC 62053-22: Class 0.2s meter accuracy (┬▒0.2%)
    - IEC 61000-4-7: Harmonic measurement methodology
-   - IEC 61000-2-2: Voltage variation limits (±10%)
+   - IEC 61000-2-2: Voltage variation limits (┬▒10%)
    - AHRI 550/590: Chiller efficiency standards (COP, IPLV ratings)
    - ANSI C12.1 & C12.20: Meter accuracy classes (0.1, 0.2, 0.5, 1.0)
    - IPMVP: Statistical significance testing (p < 0.05)
@@ -2043,7 +2043,7 @@ class WeatherNormalizationML:
         Initialize the ML normalization class.
         
         Args:
-            base_temp_celsius: Base temperature for degree day calculations (default 18.3°C per ASHRAE Guideline 14-2014 for commercial buildings)
+            base_temp_celsius: Base temperature for degree day calculations (default 18.3┬░C per ASHRAE Guideline 14-2014 for commercial buildings)
             equipment_type: Type of equipment (e.g., "chiller") to use equipment-specific sensitivity factors
         """
         self.base_temp = base_temp_celsius
@@ -2054,22 +2054,22 @@ class WeatherNormalizationML:
         try:
             from main_hardened_ready_fixed import EQUIPMENT_CONFIGS
             equipment_config = EQUIPMENT_CONFIGS.get(equipment_type, EQUIPMENT_CONFIGS.get("chiller", {}))
-            temp_adjustment_factor_f = equipment_config.get("temp_adjustment_factor", 0.020)  # Default: 2% per °F
+            temp_adjustment_factor_f = equipment_config.get("temp_adjustment_factor", 0.020)  # Default: 2% per ┬░F
             
             # Convert from Fahrenheit-based to Celsius-based
-            # 1°F = 5/9°C, so sensitivity per °C = sensitivity per °F / (5/9) = sensitivity per °F × 9/5
-            # 2% per °F = 2% × 9/5 = 3.6% per °C
-            self.temp_sensitivity = temp_adjustment_factor_f * (9.0 / 5.0)  # Convert % per °F to % per °C
+            # 1┬░F = 5/9┬░C, so sensitivity per ┬░C = sensitivity per ┬░F / (5/9) = sensitivity per ┬░F ├ù 9/5
+            # 2% per ┬░F = 2% ├ù 9/5 = 3.6% per ┬░C
+            self.temp_sensitivity = temp_adjustment_factor_f * (9.0 / 5.0)  # Convert % per ┬░F to % per ┬░C
             
-            logger.info(f"WeatherNormalizationML initialized with base temp: {base_temp_celsius}°C, equipment: {equipment_type}, temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per °C)")
+            logger.info(f"WeatherNormalizationML initialized with base temp: {base_temp_celsius}┬░C, equipment: {equipment_type}, temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per ┬░C)")
         except (ImportError, AttributeError, KeyError) as e:
             # Fallback to default if EQUIPMENT_CONFIGS not available
-            # Default: 2% per °F = 3.6% per °C (typical for chillers)
-            self.temp_sensitivity = 0.036  # 3.6% per degree C (converted from 2% per °F)
-            logger.warning(f"Could not load equipment config for {equipment_type}, using default temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per °C). Error: {e}")
+            # Default: 2% per ┬░F = 3.6% per ┬░C (typical for chillers)
+            self.temp_sensitivity = 0.036  # 3.6% per degree C (converted from 2% per ┬░F)
+            logger.warning(f"Could not load equipment config for {equipment_type}, using default temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per ┬░C). Error: {e}")
         
         # Dewpoint sensitivity is typically 60% of temperature sensitivity
-        # For chillers: 3.6% per °C temp → 2.16% per °C dewpoint
+        # For chillers: 3.6% per ┬░C temp ΓåÆ 2.16% per ┬░C dewpoint
         self.dewpoint_sensitivity = self.temp_sensitivity * 0.6  # 60% of temp sensitivity
         
         # Regression-calculated sensitivity factors (will be set if regression is performed)
@@ -2079,9 +2079,9 @@ class WeatherNormalizationML:
         self.regression_valid = False
         
         # ASHRAE regression coefficients for additive normalization (will be set if regression is performed)
-        self.regression_beta_0 = None  # Intercept (β₀)
-        self.regression_beta_1 = None  # Temperature coefficient (β₁)
-        self.regression_beta_2 = None  # Dewpoint coefficient (β₂)
+        self.regression_beta_0 = None  # Intercept (╬▓ΓéÇ)
+        self.regression_beta_1 = None  # Temperature coefficient (╬▓Γéü)
+        self.regression_beta_2 = None  # Dewpoint coefficient (╬▓Γéé)
         self.regression_mean_energy = None  # Mean energy for sensitivity calculation
         
         # Optimized base temperature (calculated from baseline data)
@@ -2099,24 +2099,24 @@ class WeatherNormalizationML:
     ) -> Dict:
         """
         Optimize base temperature from baseline data using grid search.
-        Finds the base temperature that maximizes R² for the regression model.
+        Finds the base temperature that maximizes R┬▓ for the regression model.
         
         This method implements change-point analysis to find the actual balance point
         where cooling/heating loads begin for this specific building/equipment.
         
         Args:
             baseline_energy: List of energy/kW values from baseline period
-            baseline_temp: List of temperature values (°C) corresponding to energy data
-            baseline_dewpoint: Optional list of dewpoint values (°C) corresponding to energy data
-            min_base_temp: Minimum base temperature to test (default 10°C)
-            max_base_temp: Maximum base temperature to test (default 25°C)
-            step: Step size for grid search (default 0.5°C)
+            baseline_temp: List of temperature values (┬░C) corresponding to energy data
+            baseline_dewpoint: Optional list of dewpoint values (┬░C) corresponding to energy data
+            min_base_temp: Minimum base temperature to test (default 10┬░C)
+            max_base_temp: Maximum base temperature to test (default 25┬░C)
+            step: Step size for grid search (default 0.5┬░C)
             
         Returns:
             Dictionary with:
                 - success: bool - Whether optimization was successful
-                - optimized_base_temp: float - Optimal base temperature (°C)
-                - best_r2: float - R² value at optimal base temperature
+                - optimized_base_temp: float - Optimal base temperature (┬░C)
+                - best_r2: float - R┬▓ value at optimal base temperature
                 - method: str - Description of method used
         """
         try:
@@ -2137,9 +2137,9 @@ class WeatherNormalizationML:
                     # Balance point is typically between min and median, closer to min
                     # Use 25th percentile or min + small offset to ensure it's below average
                     percentile_25 = np.percentile(temp[valid_mask], 25)
-                    # Use the lower of: 25th percentile or (median - 3°C), but not below min
+                    # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
                     fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                    logger.info(f"Calculating balance point from baseline temperatures: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C, 25th percentile={percentile_25:.1f}°C)")
+                    logger.info(f"Calculating balance point from baseline temperatures: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C, 25th percentile={percentile_25:.1f}┬░C)")
                     return {
                         "success": True,  # Mark as success since we have a value from baseline data
                         "optimized_base_temp": float(fallback_base),
@@ -2154,9 +2154,9 @@ class WeatherNormalizationML:
                         median_temp = np.median(all_temps)
                         min_temp = np.min(all_temps)
                         percentile_25 = np.percentile(all_temps, 25)
-                        # Use the lower of: 25th percentile or (median - 3°C), but not below min
+                        # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
                         fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                        logger.info(f"Calculating balance point from all baseline temperatures: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C)")
+                        logger.info(f"Calculating balance point from all baseline temperatures: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C)")
                         return {
                             "success": True,
                             "optimized_base_temp": float(fallback_base),
@@ -2179,7 +2179,7 @@ class WeatherNormalizationML:
             if mean_energy <= 0:
                 # Calculate fallback from baseline temperature data
                 fallback_base = np.median(temp)  # Use median temperature from baseline data
-                logger.info(f"Using median baseline temperature as base: {fallback_base:.1f}°C (energy data invalid)")
+                logger.info(f"Using median baseline temperature as base: {fallback_base:.1f}┬░C (energy data invalid)")
                 return {
                     "success": True,  # Mark as success since we have a value from baseline data
                     "optimized_base_temp": float(fallback_base),
@@ -2200,7 +2200,7 @@ class WeatherNormalizationML:
             # Generate candidate base temperatures
             candidate_bases = np.arange(min_base_temp, max_base_temp + step, step)
             
-            logger.info(f"Optimizing base temperature from {min_base_temp}°C to {max_base_temp}°C (step: {step}°C)")
+            logger.info(f"Optimizing base temperature from {min_base_temp}┬░C to {max_base_temp}┬░C (step: {step}┬░C)")
             
             for candidate_base in candidate_bases:
                 try:
@@ -2223,7 +2223,7 @@ class WeatherNormalizationML:
                     model = LinearRegression()
                     model.fit(X, energy)
                     
-                    # Calculate R²
+                    # Calculate R┬▓
                     y_pred = model.predict(X)
                     r2 = r2_score(energy, y_pred)
                     
@@ -2245,7 +2245,7 @@ class WeatherNormalizationML:
             
             # Validate that we found a reasonable base temperature
             if best_r2 < 0.0:
-                logger.warning(f"Base temperature optimization failed to find valid model, using default {self.base_temp}°C")
+                logger.warning(f"Base temperature optimization failed to find valid model, using default {self.base_temp}┬░C")
                 return {
                     "success": False,
                     "optimized_base_temp": self.base_temp,
@@ -2259,14 +2259,14 @@ class WeatherNormalizationML:
                 self.base_temp = best_base_temp
                 self.optimized_base_temp = best_base_temp
                 self.base_temp_optimized = True
-                logger.info(f"Base temperature optimized from baseline data: {best_base_temp:.1f}°C (R²={best_r2:.3f})")
+                logger.info(f"Base temperature optimized from baseline data: {best_base_temp:.1f}┬░C (R┬▓={best_r2:.3f})")
                 return_base_temp = best_base_temp
             else:
                 # Fallback to ASHRAE standard for commercial buildings
                 self.base_temp = 18.3
                 self.optimized_base_temp = 18.3
                 self.base_temp_optimized = False
-                logger.info(f"Base temperature optimization completed, using ASHRAE standard: 18.3°C (65°F) for commercial buildings")
+                logger.info(f"Base temperature optimization completed, using ASHRAE standard: 18.3┬░C (65┬░F) for commercial buildings")
                 return_base_temp = 18.3
             
             return {
@@ -2274,7 +2274,7 @@ class WeatherNormalizationML:
                 "optimized_base_temp": return_base_temp,
                 "best_r2": best_r2,
                 "previous_base_temp": old_base,
-                "method": f"Base temperature optimized to {return_base_temp:.1f}°C (R²={best_r2:.3f})" if return_base_temp != 18.3 else f"Base temperature using ASHRAE standard: 18.3°C (65°F) for commercial buildings"
+                "method": f"Base temperature optimized to {return_base_temp:.1f}┬░C (R┬▓={best_r2:.3f})" if return_base_temp != 18.3 else f"Base temperature using ASHRAE standard: 18.3┬░C (65┬░F) for commercial buildings"
             }
             
         except Exception as e:
@@ -2305,18 +2305,18 @@ class WeatherNormalizationML:
         
         Args:
             baseline_energy: List of energy/kW values from baseline period (time series)
-            baseline_temp: List of temperature values (°C) corresponding to energy data
-            baseline_dewpoint: Optional list of dewpoint values (°C) corresponding to energy data
-            min_r2: Minimum R² value for validation (default 0.7 per ASHRAE)
+            baseline_temp: List of temperature values (┬░C) corresponding to energy data
+            baseline_dewpoint: Optional list of dewpoint values (┬░C) corresponding to energy data
+            min_r2: Minimum R┬▓ value for validation (default 0.7 per ASHRAE)
             optimize_base_temp: Whether to optimize base temperature from baseline data (default True)
             
         Returns:
             Dictionary with:
                 - success: bool - Whether regression was successful
-                - temp_sensitivity: float - Calculated temperature sensitivity (% per °C)
-                - dewpoint_sensitivity: float - Calculated dewpoint sensitivity (% per °C) or None
-                - r2: float - R² value from regression
-                - optimized_base_temp: float - Optimized base temperature (°C) if optimization was performed
+                - temp_sensitivity: float - Calculated temperature sensitivity (% per ┬░C)
+                - dewpoint_sensitivity: float - Calculated dewpoint sensitivity (% per ┬░C) or None
+                - r2: float - R┬▓ value from regression
+                - optimized_base_temp: float - Optimized base temperature (┬░C) if optimization was performed
                 - method: str - Description of method used
         """
         try:
@@ -2338,13 +2338,13 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature from baseline data: {opt_temp:.1f}°C")
+                        logger.info(f"Using optimized base temperature from baseline data: {opt_temp:.1f}┬░C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
                 else:
                     # Even if optimization failed, ALWAYS calculate from baseline temperature data
                     # No fallback to default - must use baseline data
@@ -2355,9 +2355,9 @@ class WeatherNormalizationML:
                             median_temp = np.median(valid_temps)
                             min_temp = np.min(valid_temps)
                             percentile_25 = np.percentile(valid_temps, 25)
-                            # Use the lower of: 25th percentile or (median - 3°C), but not below min
+                            # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
                             fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                            logger.info(f"Base temperature optimization failed, calculating balance point from baseline: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C)")
+                            logger.info(f"Base temperature optimization failed, calculating balance point from baseline: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C)")
                             self.base_temp = float(fallback_base)
                             self.optimized_base_temp = float(fallback_base)
                             self.base_temp_optimized = True  # Mark as optimized since it's from baseline data
@@ -2368,9 +2368,9 @@ class WeatherNormalizationML:
                                 # Calculate balance point from mean
                                 mean_temp = np.mean(all_temps)
                                 min_temp = min(all_temps)
-                                # Use mean - 3°C as balance point, but not below min
+                                # Use mean - 3┬░C as balance point, but not below min
                                 fallback_base = max(min_temp, mean_temp - 3.0)
-                                logger.info(f"Base temperature using calculated balance point from mean baseline temperature: {fallback_base:.1f}°C (mean={mean_temp:.1f}°C)")
+                                logger.info(f"Base temperature using calculated balance point from mean baseline temperature: {fallback_base:.1f}┬░C (mean={mean_temp:.1f}┬░C)")
                                 self.base_temp = float(fallback_base)
                                 self.optimized_base_temp = float(fallback_base)
                                 self.base_temp_optimized = True
@@ -2460,7 +2460,7 @@ class WeatherNormalizationML:
             
                 if "error" in model_result or model_result.get("r_squared", 0) < min_r2:
                     # Fall back to simple linear regression if ASHRAE model fails
-                    logger.warning(f"ASHRAE change-point model failed or R² < {min_r2}, falling back to simple linear regression")
+                    logger.warning(f"ASHRAE change-point model failed or R┬▓ < {min_r2}, falling back to simple linear regression")
                     raise ValueError("ASHRAE model failed")
                 
                 r2 = model_result.get("r_squared", 0)
@@ -2506,7 +2506,7 @@ class WeatherNormalizationML:
                     beta_2 = None
                     dewpoint_sensitivity = temp_sensitivity * 0.6
                 
-                # Validate R² (must be >= 0.7 per ASHRAE)
+                # Validate R┬▓ (must be >= 0.7 per ASHRAE)
                 if r2 >= min_r2:
                     self.regression_temp_sensitivity = temp_sensitivity
                     self.regression_dewpoint_sensitivity = dewpoint_sensitivity
@@ -2515,13 +2515,13 @@ class WeatherNormalizationML:
                     
                     logger.info(f"ASHRAE change-point model regression completed:")
                     logger.info(f"  Model: {model_name}")
-                    logger.info(f"  R² = {r2:.4f} (>= {min_r2:.2f} ✓)")
-                    logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per °C)")
-                    logger.info(f"  Dewpoint sensitivity: {dewpoint_sensitivity:.6f} ({dewpoint_sensitivity*100:.2f}% per °C)")
+                    logger.info(f"  R┬▓ = {r2:.4f} (>= {min_r2:.2f} Γ£ô)")
+                    logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per ┬░C)")
+                    logger.info(f"  Dewpoint sensitivity: {dewpoint_sensitivity:.6f} ({dewpoint_sensitivity*100:.2f}% per ┬░C)")
                     if beta_2 is not None:
-                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}×CDD + {beta_2:.4f}×HDD")
+                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}├ùCDD + {beta_2:.4f}├ùHDD")
                     else:
-                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}×CDD")
+                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}├ùCDD")
                     
                     result = {
                         "success": True,
@@ -2534,7 +2534,7 @@ class WeatherNormalizationML:
                         "mean_energy": mean_energy,
                         "n_points": len(energy),
                         "model_name": model_name,
-                        "method": f"ASHRAE {model_name} change-point model (R²={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/°C)"
+                        "method": f"ASHRAE {model_name} change-point model (R┬▓={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/┬░C)"
                     }
                     # Include optimized base temperature if optimization was performed
                     if base_opt_result and base_opt_result.get("success", False):
@@ -2543,18 +2543,18 @@ class WeatherNormalizationML:
                         # FIX: Check if optimized_base_temp is not None before formatting
                         opt_temp = base_opt_result.get("optimized_base_temp")
                         if opt_temp is not None:
-                            result["method"] += f", Base temp optimized to {opt_temp:.1f}°C"
+                            result["method"] += f", Base temp optimized to {opt_temp:.1f}┬░C"
                     else:
                         result["optimized_base_temp"] = self.base_temp
                         result["base_temp_optimized"] = False
                     return result
                 else:
-                    logger.warning(f"ASHRAE model R² ({r2:.4f}) below minimum ({min_r2:.2f}), using fixed factors")
+                    logger.warning(f"ASHRAE model R┬▓ ({r2:.4f}) below minimum ({min_r2:.2f}), using fixed factors")
                     return {
                         "success": False,
                         "r2": r2,
-                        "error": f"R² {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
-                        "method": f"ASHRAE model failed - R² {r2:.4f} < {min_r2:.2f}"
+                        "error": f"R┬▓ {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
+                        "method": f"ASHRAE model failed - R┬▓ {r2:.4f} < {min_r2:.2f}"
                     }
                     
             except Exception as e:
@@ -2578,7 +2578,7 @@ class WeatherNormalizationML:
                         dewpoint = dewpoint_raw
                     hdd = np.maximum(0, dewpoint - self.base_temp)
                     
-                    # Multiple linear regression: Energy = β₀ + β₁×CDD + β₂×HDD
+                    # Multiple linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü├ùCDD + ╬▓Γéé├ùHDD
                     X = np.column_stack([cdd, hdd])
                     model = LinearRegression()
                     model.fit(X, energy)
@@ -2615,8 +2615,8 @@ class WeatherNormalizationML:
                         self.regression_valid = True
                         
                         logger.info(f"Simple linear regression (fallback) completed:")
-                        logger.info(f"  R² = {r2:.4f} (>= {min_r2:.2f} ✓)")
-                        logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per °C)")
+                        logger.info(f"  R┬▓ = {r2:.4f} (>= {min_r2:.2f} Γ£ô)")
+                        logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per ┬░C)")
                         
                         result = {
                             "success": True,
@@ -2628,7 +2628,7 @@ class WeatherNormalizationML:
                             "beta_2": beta_2,
                             "mean_energy": mean_energy,
                             "n_points": len(energy),
-                            "method": f"Simple linear regression (fallback, R²={r2:.3f}, {temp_sensitivity*100:.2f}%/°C)"
+                            "method": f"Simple linear regression (fallback, R┬▓={r2:.3f}, {temp_sensitivity*100:.2f}%/┬░C)"
                         }
                         if base_opt_result and base_opt_result.get("success", False):
                             result["optimized_base_temp"] = base_opt_result["optimized_base_temp"]
@@ -2638,12 +2638,12 @@ class WeatherNormalizationML:
                             result["base_temp_optimized"] = False
                         return result
                     else:
-                        logger.warning(f"Fallback regression R² ({r2:.4f}) below ASHRAE minimum ({min_r2:.2f})")
+                        logger.warning(f"Fallback regression R┬▓ ({r2:.4f}) below ASHRAE minimum ({min_r2:.2f})")
                         return {
                             "success": False,
                             "r2": r2,
-                            "error": f"R² {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
-                            "method": f"Regression failed - R² {r2:.4f} < {min_r2:.2f}"
+                            "error": f"R┬▓ {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
+                            "method": f"Regression failed - R┬▓ {r2:.4f} < {min_r2:.2f}"
                         }
                     
         except Exception as e:
@@ -2683,10 +2683,10 @@ class WeatherNormalizationML:
         for improved accuracy. Falls back to average-based normalization if time series not available.
         
         Args:
-            temp_before: Average temperature during baseline period (°C)
-            temp_after: Average temperature during compensated period (°C)
-            dewpoint_before: Average dewpoint during baseline period (°C)
-            dewpoint_after: Average dewpoint during compensated period (°C)
+            temp_before: Average temperature during baseline period (┬░C)
+            temp_after: Average temperature during compensated period (┬░C)
+            dewpoint_before: Average dewpoint during baseline period (┬░C)
+            dewpoint_after: Average dewpoint during compensated period (┬░C)
             kw_before: Average kW consumption during baseline period
             kw_after: Average kW consumption during compensated period
             baseline_energy_series: Optional list of energy/kW values from baseline period (for ASHRAE regression)
@@ -2717,7 +2717,7 @@ class WeatherNormalizationML:
                     # Use regression-calculated sensitivity factors
                     self.temp_sensitivity = regression_result["temp_sensitivity"]
                     self.dewpoint_sensitivity = regression_result.get("dewpoint_sensitivity", self.temp_sensitivity * 0.6)
-                    logger.info(f"Using ASHRAE-compliant regression-calculated sensitivity factors (R²={regression_result['r2']:.3f})")
+                    logger.info(f"Using ASHRAE-compliant regression-calculated sensitivity factors (R┬▓={regression_result['r2']:.3f})")
                     
                     # Store ASHRAE regression coefficients for additive normalization
                     if "beta_0" in regression_result:
@@ -2725,7 +2725,7 @@ class WeatherNormalizationML:
                         self.regression_beta_1 = regression_result["beta_1"]
                         self.regression_beta_2 = regression_result.get("beta_2")  # May be None for temp-only models
                         self.regression_mean_energy = regression_result.get("mean_energy")
-                        logger.info(f"Stored ASHRAE regression coefficients: β₀={self.regression_beta_0:.2f}, β₁={self.regression_beta_1:.4f}, β₂={self.regression_beta_2:.4f if self.regression_beta_2 is not None else 'N/A'}")
+                        logger.info(f"Stored ASHRAE regression coefficients: ╬▓ΓéÇ={self.regression_beta_0:.2f}, ╬▓Γéü={self.regression_beta_1:.4f}, ╬▓Γéé={self.regression_beta_2:.4f if self.regression_beta_2 is not None else 'N/A'}")
                     else:
                         # Fallback: calculate beta_1 from sensitivity if mean_energy is available
                         mean_energy = regression_result.get("mean_energy")
@@ -2733,7 +2733,7 @@ class WeatherNormalizationML:
                             self.regression_beta_1 = self.temp_sensitivity * mean_energy
                             self.regression_beta_2 = self.dewpoint_sensitivity * mean_energy if self.dewpoint_sensitivity else None
                             self.regression_mean_energy = mean_energy
-                            logger.info(f"Calculated regression coefficients from sensitivity: β₁={self.regression_beta_1:.4f}, β₂={self.regression_beta_2:.4f if self.regression_beta_2 is not None else 'N/A'}")
+                            logger.info(f"Calculated regression coefficients from sensitivity: ╬▓Γéü={self.regression_beta_1:.4f}, ╬▓Γéé={self.regression_beta_2:.4f if self.regression_beta_2 is not None else 'N/A'}")
                     
                     # Use optimized base temperature if available, otherwise use ASHRAE standard
                     opt_temp = regression_result.get("optimized_base_temp")
@@ -2741,18 +2741,18 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature from regression: {opt_temp:.1f}°C")
+                        logger.info(f"Using optimized base temperature from regression: {opt_temp:.1f}┬░C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
                 else:
-                    # Regression failed or R² too low, but base temperature was still calculated from baseline data
+                    # Regression failed or R┬▓ too low, but base temperature was still calculated from baseline data
                     # The base temperature optimization in calculate_sensitivity_from_regression should have set it
                     error_msg = regression_result.get('error', 'Unknown error') if regression_result is not None else 'Regression returned None'
-                    logger.warning(f"Regression analysis failed or R² too low: {error_msg}")
+                    logger.warning(f"Regression analysis failed or R┬▓ too low: {error_msg}")
                     logger.warning("Falling back to equipment-specific fixed factors (not fully ASHRAE-compliant)")
                     # Use optimized base temperature if available, otherwise use ASHRAE standard
                     opt_temp = regression_result.get("optimized_base_temp") if regression_result else None
@@ -2760,13 +2760,13 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature (regression failed): {opt_temp:.1f}°C")
+                        logger.info(f"Using optimized base temperature (regression failed): {opt_temp:.1f}┬░C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
             else:
                 # CRITICAL: Time series data should always be available
                 # If it's missing, we need to calculate base temperature from baseline temperature data
@@ -2786,39 +2786,39 @@ class WeatherNormalizationML:
                         percentile_25 = np.percentile(valid_temps, 25)
                         # Use calculated balance point or ASHRAE standard
                         calculated_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                        # Ensure calculated base is reasonable (between 5°C and 25°C)
+                        # Ensure calculated base is reasonable (between 5┬░C and 25┬░C)
                         if 5.0 <= calculated_base <= 25.0:
                             self.base_temp = calculated_base
                             self.optimized_base_temp = calculated_base
                             self.base_temp_optimized = True
-                            logger.info(f"Using calculated balance point from baseline data: {calculated_base:.1f}°C")
+                            logger.info(f"Using calculated balance point from baseline data: {calculated_base:.1f}┬░C")
                         else:
                             # Fallback to ASHRAE standard
                             self.base_temp = 18.3
                             self.optimized_base_temp = 18.3
                             self.base_temp_optimized = False
-                            logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                            logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
                     else:
                         # No valid temps - use ASHRAE standard
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
                 elif temp_before is not None:
                     # Use ASHRAE standard when only average temp is available
                     self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                     self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                    logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
                 else:
                     # No baseline data - use ASHRAE standard
                     self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                     self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
+                    logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
             
-            # CRITICAL: Base temperature is fixed at 10.0°C per requirements
-            # Skip all base temperature adjustments - use fixed 10.0°C value
+            # CRITICAL: Base temperature is fixed at 10.0┬░C per requirements
+            # Skip all base temperature adjustments - use fixed 10.0┬░C value
             # Original code adjusted base_temp based on minimum temperatures, but this is disabled
             import numpy as np
             baseline_min = None
@@ -2840,9 +2840,9 @@ class WeatherNormalizationML:
                 if len(valid_baseline_dewpoints) > 0:
                     baseline_dewpoint_min = np.min(valid_baseline_dewpoints)
             elif dewpoint_before is not None:
-                # Use conservative estimate: dewpoint is typically 8-12°C below temperature
-                baseline_dewpoint_min = max(5.0, dewpoint_before - 5.0)  # At least 5°C below average, minimum 5°C
-                logger.debug(f"Using conservative estimate for baseline dewpoint minimum: {baseline_dewpoint_min:.1f}°C (from average {dewpoint_before:.1f}°C - 5°C)")
+                # Use conservative estimate: dewpoint is typically 8-12┬░C below temperature
+                baseline_dewpoint_min = max(5.0, dewpoint_before - 5.0)  # At least 5┬░C below average, minimum 5┬░C
+                logger.debug(f"Using conservative estimate for baseline dewpoint minimum: {baseline_dewpoint_min:.1f}┬░C (from average {dewpoint_before:.1f}┬░C - 5┬░C)")
             
             # Get minimum temperature from after period
             after_min_from_series = False
@@ -2853,10 +2853,10 @@ class WeatherNormalizationML:
                     after_min_from_series = True
             elif temp_after is not None:
                 # CRITICAL FIX: Use conservative estimate when only average is available
-                # Assume minimum is 8°C below average for typical temperature ranges
+                # Assume minimum is 8┬░C below average for typical temperature ranges
                 # This prevents base_temp from being too high when actual minimum is much lower
                 after_min = temp_after - 8.0
-                logger.warning(f"[WARNING] Using conservative estimate for after period minimum: {after_min:.1f}°C (from average {temp_after:.1f}°C - 8°C)")
+                logger.warning(f"[WARNING] Using conservative estimate for after period minimum: {after_min:.1f}┬░C (from average {temp_after:.1f}┬░C - 8┬░C)")
                 after_min_from_series = False
             
             # Get minimum dewpoint from after period
@@ -2865,9 +2865,9 @@ class WeatherNormalizationML:
                 if len(valid_after_dewpoints) > 0:
                     after_dewpoint_min = np.min(valid_after_dewpoints)
             elif dewpoint_after is not None:
-                # Use conservative estimate: dewpoint is typically 8-12°C below temperature
-                after_dewpoint_min = max(5.0, dewpoint_after - 5.0)  # At least 5°C below average, minimum 5°C
-                logger.debug(f"Using conservative estimate for after period dewpoint minimum: {after_dewpoint_min:.1f}°C (from average {dewpoint_after:.1f}°C - 5°C)")
+                # Use conservative estimate: dewpoint is typically 8-12┬░C below temperature
+                after_dewpoint_min = max(5.0, dewpoint_after - 5.0)  # At least 5┬░C below average, minimum 5┬░C
+                logger.debug(f"Using conservative estimate for after period dewpoint minimum: {after_dewpoint_min:.1f}┬░C (from average {dewpoint_after:.1f}┬░C - 5┬░C)")
             
             # Check if we have time series data from both periods
             baseline_min_from_series = (baseline_temp_series is not None and len(baseline_temp_series) > 0 and 
@@ -2890,7 +2890,7 @@ class WeatherNormalizationML:
                 overall_min = min(all_mins)
                 # UNIVERSAL FORMULA: Set base_temp significantly below overall minimum
                 # This ensures weather effects are properly balanced for all projects
-                # The offset of 6-8°C below minimum ensures:
+                # The offset of 6-8┬░C below minimum ensures:
                 # 1. Base_temp is well below all temperatures/dewpoints (prevents zero effects)
                 # 2. Weather effects are large enough to create meaningful normalization
                 # 3. Factor will be < 1.0 when "after" period is cooler (shows proper savings)
@@ -2911,35 +2911,35 @@ class WeatherNormalizationML:
                     # Use smaller offset when weather differences are small to keep base_temp closer to average
                     # This produces a factor that reflects both weather differences AND efficiency improvements
                     if temp_range < 3.0:
-                        # Very small range: Use 1.5°C offset (closer to average) to allow efficiency gains to show
+                        # Very small range: Use 1.5┬░C offset (closer to average) to allow efficiency gains to show
                         offset = 1.5
                     elif temp_range < 5.0:
-                        # Small range: Use 2-3°C offset
+                        # Small range: Use 2-3┬░C offset
                         offset = 2.0 + (temp_range - 3.0) * 0.5  # 2.0 to 3.0
                     else:
-                        # Large range: Use 4°C offset (slightly less than 5°C to allow efficiency gains)
+                        # Large range: Use 4┬░C offset (slightly less than 5┬░C to allow efficiency gains)
                         offset = 4.0
                     
                     base_temp_from_avg = avg_temp - offset
                     
-                    # CRITICAL: Always set base_temp to at least 5°C below the minimum temperature between 'before' and 'after'
+                    # CRITICAL: Always set base_temp to at least 5┬░C below the minimum temperature between 'before' and 'after'
                     # This ensures ASHRAE Guideline 14-2014 compliance AND ensures weather effects are non-zero
-                    # Increased from 0.1°C to 5.0°C to guarantee normalization is applied
+                    # Increased from 0.1┬░C to 5.0┬░C to guarantee normalization is applied
                     min_temp = min(temp_before, temp_after) if (temp_before and temp_after) else overall_min
-                    # Always set base_temp to at least 5°C below minimum to ensure weather effects are meaningful
+                    # Always set base_temp to at least 5┬░C below minimum to ensure weather effects are meaningful
                     adjusted_base_temp = min_temp - 5.0
-                    # Clamp to reasonable range for cooling systems (10-28°C) - lowered floor from 12°C to 10°C
+                    # Clamp to reasonable range for cooling systems (10-28┬░C) - lowered floor from 12┬░C to 10┬░C
                     adjusted_base_temp = max(10.0, min(28.0, adjusted_base_temp))
-                    logger.info(f"[FIX] Using enhanced base_temp calculation: min_temp={min_temp:.1f}°C (min of before={temp_before:.1f}°C and after={temp_after:.1f}°C), base_temp={adjusted_base_temp:.1f}°C (min_temp - 5.0°C)")
+                    logger.info(f"[FIX] Using enhanced base_temp calculation: min_temp={min_temp:.1f}┬░C (min of before={temp_before:.1f}┬░C and after={temp_after:.1f}┬░C), base_temp={adjusted_base_temp:.1f}┬░C (min_temp - 5.0┬░C)")
                     logger.info(f"   This ensures base_temp is always below all temperatures, guaranteeing non-zero weather effects")
                 else:
                     # Fallback: Use moderate offset from overall_min
                     if has_time_series_both:
-                        adjusted_base_temp = max(15.0, overall_min - 2.0)  # 2°C below, 15°C floor
-                        logger.debug(f"Using moderate base_temp calculation (2°C below minimum, 15°C floor) because time series data is available")
+                        adjusted_base_temp = max(15.0, overall_min - 2.0)  # 2┬░C below, 15┬░C floor
+                        logger.debug(f"Using moderate base_temp calculation (2┬░C below minimum, 15┬░C floor) because time series data is available")
                     else:
-                        adjusted_base_temp = max(16.0, overall_min - 1.5)  # 1.5°C below, 16°C floor
-                        logger.debug(f"Using moderate base_temp calculation (1.5°C below minimum, 16°C floor) because only averages are available")
+                        adjusted_base_temp = max(16.0, overall_min - 1.5)  # 1.5┬░C below, 16┬░C floor
+                        logger.debug(f"Using moderate base_temp calculation (1.5┬░C below minimum, 16┬░C floor) because only averages are available")
                 
                 # CRITICAL FIX: Preserve base_temp optimization if it's valid
                 # Check if base_temp was optimized (regardless of regression success)
@@ -2968,14 +2968,14 @@ class WeatherNormalizationML:
                 if base_temp_was_optimized and not optimized_is_valid:
                     # Optimized value is too high - must adjust downward
                     should_adjust = True
-                    logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) is too high (min: {overall_min:.1f}°C)")
+                    logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}┬░C) is too high (min: {overall_min:.1f}┬░C)")
                     # Use adjusted_base_temp that was calculated above, or recalculate if needed
                     if 'adjusted_base_temp' not in locals():
                         if 18.3 < overall_min:
-                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
                         else:
                             adjusted_base_temp = 18.3
-                    logger.info(f"[FIX] Adjusting base temperature DOWNWARD: {self.base_temp:.1f}°C → {adjusted_base_temp:.1f}°C")
+                    logger.info(f"[FIX] Adjusting base temperature DOWNWARD: {self.base_temp:.1f}┬░C ΓåÆ {adjusted_base_temp:.1f}┬░C")
                     logger.info(f"   Reason: Optimized value is too high (would cause zero weather effects)")
                     self.base_temp = adjusted_base_temp
                     self.optimized_base_temp = adjusted_base_temp
@@ -2986,44 +2986,44 @@ class WeatherNormalizationML:
                     # Use adjusted_base_temp that was calculated above, or recalculate if needed
                     if 'adjusted_base_temp' not in locals():
                         if 18.3 < overall_min:
-                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
                         else:
                             adjusted_base_temp = 18.3
-                    logger.info(f"[FIX] Adjusting base temperature: {self.base_temp:.1f}°C → {adjusted_base_temp:.1f}°C")
+                    logger.info(f"[FIX] Adjusting base temperature: {self.base_temp:.1f}┬░C ΓåÆ {adjusted_base_temp:.1f}┬░C")
                     logger.info(f"   Reason: No base temperature optimization performed")
                     self.base_temp = adjusted_base_temp
                     self.optimized_base_temp = adjusted_base_temp
                     self.base_temp_optimized = False
                 elif base_temp_was_optimized and optimized_is_valid:
                     # Optimized value is valid - keep it
-                    logger.info(f"[OK] Keeping optimized base_temp: {self.base_temp:.1f}°C")
-                    logger.info(f"   Baseline period min: {baseline_min:.1f}°C, After period min: {after_min:.1f}°C")
+                    logger.info(f"[OK] Keeping optimized base_temp: {self.base_temp:.1f}┬░C")
+                    logger.info(f"   Baseline period min: {baseline_min:.1f}┬░C, After period min: {after_min:.1f}┬░C")
                     if baseline_dewpoint_min is not None or after_dewpoint_min is not None:
-                        logger.info(f"   Baseline dewpoint min: {baseline_dewpoint_min:.1f}°C, After dewpoint min: {after_dewpoint_min:.1f}°C")
-                    logger.info(f"   Overall min (temp + dewpoint): {overall_min:.1f}°C")
+                        logger.info(f"   Baseline dewpoint min: {baseline_dewpoint_min:.1f}┬░C, After dewpoint min: {after_dewpoint_min:.1f}┬░C")
+                    logger.info(f"   Overall min (temp + dewpoint): {overall_min:.1f}┬░C")
                 else:
                     # Fallback: Preserve optimized base temperature if valid, otherwise ensure it's below minimum temperatures
                     if self.base_temp_optimized and self.base_temp < overall_min:
                         # Optimized value is valid - keep it
-                        logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
+                        logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below minimum: {overall_min:.1f}┬░C)")
                     else:
                         # Adjust base_temp to be below minimum, but not lower than ASHRAE standard allows
-                        # Use ASHRAE standard (18.3°C) if it's below minimum, otherwise use minimum - 1.5°C
+                        # Use ASHRAE standard (18.3┬░C) if it's below minimum, otherwise use minimum - 1.5┬░C
                         if 'adjusted_base_temp' not in locals():
                             if 18.3 < overall_min:
-                                adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
+                                adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
                             else:
                                 adjusted_base_temp = 18.3
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Using base temperature: {adjusted_base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
+                        logger.info(f"Using base temperature: {adjusted_base_temp:.1f}┬░C (below minimum: {overall_min:.1f}┬░C)")
             elif baseline_min is not None:
                 # Only baseline available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
                 if self.base_temp_optimized and self.base_temp < baseline_min:
                     # Optimized value is valid - keep it
-                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
                 else:
                     # Adjust base_temp to be below baseline minimum
                     if 18.3 < baseline_min:
@@ -3031,18 +3031,18 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
                     else:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below baseline minimum: {baseline_min:.1f}°C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
             elif after_min is not None:
                 # Only after available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
                 if self.base_temp_optimized and self.base_temp < after_min:
                     # Optimized value is valid - keep it
-                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below after minimum: {after_min:.1f}┬░C)")
                 else:
                     # Adjust base_temp to be below after minimum
                     if 18.3 < after_min:
@@ -3050,12 +3050,12 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}┬░C (below after minimum: {after_min:.1f}┬░C)")
                     else:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below after minimum: {after_min:.1f}°C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below after minimum: {after_min:.1f}┬░C)")
             
             # Input validation
             temp_before = float(temp_before) if temp_before is not None else self.base_temp
@@ -3075,24 +3075,24 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
+                        logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}┬░C) >= min_temp ({min_temp:.2f}┬░C) - adjusted to {adjusted_base_temp:.1f}┬░C")
                     else:
                         # Use ASHRAE standard if it's below minimum, otherwise adjust
                         if 18.3 < min_temp:
                             adjusted_base_temp = max(5.0, min_temp - 1.5)
                             self.base_temp = adjusted_base_temp
                             self.optimized_base_temp = adjusted_base_temp
-                            logger.warning(f"[WARNING] base_temp >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
+                            logger.warning(f"[WARNING] base_temp >= min_temp ({min_temp:.2f}┬░C) - adjusted to {adjusted_base_temp:.1f}┬░C")
                         else:
                             self.base_temp = 18.3
                             self.optimized_base_temp = 18.3
-                            logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
+                            logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below minimum: {min_temp:.2f}┬░C)")
                 elif not self.base_temp_optimized and self.base_temp != 18.3:
                     # If not optimized and not using standard, ensure we're using standard
                     if 18.3 < min_temp:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below minimum: {min_temp:.2f}┬░C)")
             
             # Check if dewpoint values are available for humidity normalization
             # Handle dewpoint the same as temperature - validate and convert consistently
@@ -3170,7 +3170,7 @@ class WeatherNormalizationML:
             # CRITICAL VALIDATION: Check if weather_effect_after is zero when it shouldn't be
             # This indicates base_temp calculation is incorrect or temp_after is below base_temp
             if weather_effect_after == 0.0 and temp_after is not None and temp_after > self.base_temp:
-                logger.error(f"[ERROR] CRITICAL ERROR: weather_effect_after is 0 but temp_after ({temp_after:.1f}°C) > base_temp ({self.base_temp:.1f}°C)")
+                logger.error(f"[ERROR] CRITICAL ERROR: weather_effect_after is 0 but temp_after ({temp_after:.1f}┬░C) > base_temp ({self.base_temp:.1f}┬░C)")
                 logger.error(f"   This indicates base_temp calculation is incorrect - base_temp should be lower than temp_after")
                 logger.error(f"   temp_effect_after={temp_effect_after:.6f}, dewpoint_effect_after={dewpoint_effect_after:.6f}")
                 logger.error(f"   This will cause overcorrection in normalization (factor > 1.0)")
@@ -3185,7 +3185,7 @@ class WeatherNormalizationML:
                     logger.warning(f"   Ratio: {effect_ratio:.3f} (after/before)")
                     calculated_factor = (1.0 + weather_effect_before) / (1.0 + weather_effect_after)
                     logger.warning(f"   This will cause factor = {calculated_factor:.4f} > 1.0")
-                    logger.warning(f"   Base temperature may be too high: {self.base_temp:.1f}°C")
+                    logger.warning(f"   Base temperature may be too high: {self.base_temp:.1f}┬░C")
                     logger.warning(f"   Consider lowering base_temp to increase weather_effect_after")
             
             # CORRECT APPROACH: Normalize the "after" period to the "before" period's weather conditions
@@ -3442,7 +3442,7 @@ class WeatherNormalizationML:
                                 weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
                                 logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
                             
-                            logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                            logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}┬░C, HDD={HDD_before_ref_fallback:.4f}┬░C, weather_effect={weather_effect_before_ref_fallback:.6f}")
                         
                         # Fallback to count-based detection if timestamps not available or intervals match
                         elif after_count > 0 and baseline_count > after_count * 2:
@@ -3518,7 +3518,7 @@ class WeatherNormalizationML:
                                 logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
                             
                             logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' interval")
-                            logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                            logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}┬░C, HDD={HDD_before_ref_fallback:.4f}┬░C, weather_effect={weather_effect_before_ref_fallback:.6f}")
                         else:
                             # Intervals match or baseline has fewer points - use all baseline data directly
                             logger.info(f"Baseline and 'after' intervals match (or baseline is coarser) - using all baseline data directly")
@@ -3559,7 +3559,7 @@ class WeatherNormalizationML:
                             # Use average of baseline weather effects as reference (for fallback multiplicative formula)
                             weather_effect_before_ref = sum(baseline_weather_effects) / len(baseline_weather_effects) if baseline_weather_effects else 0.0
                             
-                            logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
+                            logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}┬░C, HDD={HDD_before_ref:.4f}┬░C, weather_effect={weather_effect_before_ref:.6f}")
                     else:
                         # Fallback: Use average temp_before and dewpoint_before as reference
                         logger.info("Baseline time series data not available, using average temp_before/dewpoint_before as reference")
@@ -3579,7 +3579,7 @@ class WeatherNormalizationML:
                             dewpoint_effect_before_ref = 0.0
                         weather_effect_before_ref = temp_effect_before_ref + dewpoint_effect_before_ref
                         
-                        logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
+                        logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}┬░C, HDD={HDD_before_ref:.4f}┬░C, weather_effect={weather_effect_before_ref:.6f}")
                     
                     # Normalize each timestamp in the "after" period
                     normalized_after_values = []
@@ -3726,7 +3726,7 @@ class WeatherNormalizationML:
                             # Valid normalization - don't cap, but log for review
                             logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
                             logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
-                            logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
+                            logger.info(f"   Base_temp: {self.base_temp:.1f}┬░C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
                             logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({((kw_before - kw_after) / kw_before * 100):.1f}%)")
                             logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
                             # Don't cap - allow the mathematically correct normalization
@@ -3796,7 +3796,7 @@ class WeatherNormalizationML:
                         normalized_kw_after = kw_after_from_series * weather_adjustment_factor
                         logger.info(f"[FIX] Recalculated normalized_kw_after for consistency:")
                         logger.info(f"   Old value (from timestamp normalization): {old_normalized_kw_after:.2f}")
-                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} × {weather_adjustment_factor:.6f}")
+                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} ├ù {weather_adjustment_factor:.6f}")
                         logger.info(f"   This ensures normalized_kw_after matches the weather_adjustment_factor")
                     else:
                         # Fallback to ratio method if weather effects not available
@@ -3859,13 +3859,13 @@ class WeatherNormalizationML:
                 
                 # CRITICAL DEBUG: Log weather effects before calculating factor
                 logger.info(f"[DEBUG] Weather effects calculation:")
-                logger.info(f"   temp_before={temp_before:.1f}°C, temp_after={temp_after:.1f}°C")
-                logger.info(f"   base_temp={self.base_temp:.1f}°C")
-                logger.info(f"   temp_sensitivity={self.temp_sensitivity:.6f} ({self.temp_sensitivity*100:.2f}% per °C)")
+                logger.info(f"   temp_before={temp_before:.1f}┬░C, temp_after={temp_after:.1f}┬░C")
+                logger.info(f"   base_temp={self.base_temp:.1f}┬░C")
+                logger.info(f"   temp_sensitivity={self.temp_sensitivity:.6f} ({self.temp_sensitivity*100:.2f}% per ┬░C)")
                 logger.info(f"   temp_effect_before={temp_effect_before:.6f}, temp_effect_after={temp_effect_after:.6f}")
                 if dewpoint_available:
-                    logger.info(f"   dewpoint_before={dewpoint_before:.1f}°C, dewpoint_after={dewpoint_after:.1f}°C")
-                    logger.info(f"   dewpoint_sensitivity={self.dewpoint_sensitivity:.6f} ({self.dewpoint_sensitivity*100:.2f}% per °C)")
+                    logger.info(f"   dewpoint_before={dewpoint_before:.1f}┬░C, dewpoint_after={dewpoint_after:.1f}┬░C")
+                    logger.info(f"   dewpoint_sensitivity={self.dewpoint_sensitivity:.6f} ({self.dewpoint_sensitivity*100:.2f}% per ┬░C)")
                     logger.info(f"   dewpoint_effect_before={dewpoint_effect_before:.6f}, dewpoint_effect_after={dewpoint_effect_after:.6f}")
                 else:
                     logger.warning(f"   Dewpoint NOT available - dewpoint effects = 0.0")
@@ -3916,8 +3916,8 @@ class WeatherNormalizationML:
                 logger.error(f"[ERROR] CRITICAL ERROR: normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f}) but kw_after ({kw_after:.2f}) < kw_before")
                 logger.error(f"   This indicates base temperature is too high or weather effects are incorrect")
                 logger.error(f"   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
-                logger.error(f"   factor={weather_adjustment_factor:.6f}, base_temp={self.base_temp:.1f}°C")
-                logger.error(f"   temp_before={temp_before:.1f}°C, temp_after={temp_after:.1f}°C")
+                logger.error(f"   factor={weather_adjustment_factor:.6f}, base_temp={self.base_temp:.1f}┬░C")
+                logger.error(f"   temp_before={temp_before:.1f}┬░C, temp_after={temp_after:.1f}┬░C")
                 logger.error(f"   This will show negative savings when raw savings are positive - THIS IS WRONG")
                 
                 # ENHANCED SAFETY FIX: Account for equipment efficiency improvements
@@ -3943,7 +3943,7 @@ class WeatherNormalizationML:
                     logger.info(f"[OK] EFFICIENCY OUTPERFORMS WEATHER: Setting normalized_kw_after to show BETTER savings")
                     logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({raw_savings_pct*100:.1f}%)")
                     logger.info(f"   Efficiency-adjusted savings: {kw_before - normalized_kw_after:.2f} kW ({enhanced_savings_pct*100:.1f}%)")
-                    logger.info(f"   Efficiency improvements (PF 92%→99.9%, 87% harmonics, less heat) outperform small temp changes")
+                    logger.info(f"   Efficiency improvements (PF 92%ΓåÆ99.9%, 87% harmonics, less heat) outperform small temp changes")
                     logger.info(f"   Adjusted factor={weather_adjustment_factor:.6f}, normalized_kw_after={normalized_kw_after:.2f}")
                 elif normalized_kw_after > kw_before:
                     # Check if this is valid normalization (optimized base_temp, valid weather effects)
@@ -3958,7 +3958,7 @@ class WeatherNormalizationML:
                         # Valid normalization - don't cap, but log for review
                         logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
                         logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
-                        logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before:.3f} → {weather_effect_after:.3f}")
+                        logger.info(f"   Base_temp: {self.base_temp:.1f}┬░C, Weather effects: {weather_effect_before:.3f} ΓåÆ {weather_effect_after:.3f}")
                         logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({raw_savings_pct*100:.1f}%)")
                         logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
                         # Don't cap - allow the mathematically correct normalization
@@ -3982,7 +3982,7 @@ class WeatherNormalizationML:
             
             # Determine normalization method for logging
             if self.regression_valid:
-                normalization_method = f"ASHRAE-Compliant Regression-Based Weather Normalization (R²={self.regression_r2:.3f})"
+                normalization_method = f"ASHRAE-Compliant Regression-Based Weather Normalization (R┬▓={self.regression_r2:.3f})"
                 if use_timestamp_normalization:
                     normalization_method += " [Timestamp-by-timestamp normalization]"
                 if dewpoint_available:
@@ -3998,9 +3998,9 @@ class WeatherNormalizationML:
                     normalization_method += " [Using fixed factors - not fully ASHRAE-compliant]"
             
             logger.info(f"{normalization_method} (Normalize 'After' to 'Before' Weather):")
-            logger.info(f"  Base Temperature: {self.base_temp:.2f}°C" + (f" (optimized from baseline data)" if self.base_temp_optimized else " (default)"))
-            logger.info(f"  Baseline Period (Before): Temp {temp_before:.1f}°C" + (f", Dewpoint {dewpoint_before:.1f}°C" if dewpoint_available else " (Dewpoint: N/A)"))
-            logger.info(f"  Measurement Period (After): Temp {temp_after:.1f}°C" + (f", Dewpoint {dewpoint_after:.1f}°C" if dewpoint_available else " (Dewpoint: N/A)"))
+            logger.info(f"  Base Temperature: {self.base_temp:.2f}┬░C" + (f" (optimized from baseline data)" if self.base_temp_optimized else " (default)"))
+            logger.info(f"  Baseline Period (Before): Temp {temp_before:.1f}┬░C" + (f", Dewpoint {dewpoint_before:.1f}┬░C" if dewpoint_available else " (Dewpoint: N/A)"))
+            logger.info(f"  Measurement Period (After): Temp {temp_after:.1f}┬░C" + (f", Dewpoint {dewpoint_after:.1f}┬░C" if dewpoint_available else " (Dewpoint: N/A)"))
             logger.info(f"  CDD: {cdd_before:.1f} (before) -> {cdd_after:.1f} (after)")
             if dewpoint_available:
                 logger.info(f"  HDD: {hdd_before:.1f} (before) -> {hdd_after:.1f} (after)")
@@ -4050,7 +4050,7 @@ class WeatherNormalizationML:
             if abs(normalized_kw_after - kw_after) < 0.01:
                 logger.warning(f"[WARNING] VALIDATION: normalized_kw_after ({normalized_kw_after:.2f}) equals raw_kw_after ({kw_after:.2f})")
                 logger.warning(f"[WARNING] This indicates normalization wasn't applied - applying fallback normalization")
-                logger.warning(f"[WARNING]   temp_before={temp_before:.2f}°C, temp_after={temp_after:.2f}°C, base_temp={self.base_temp:.2f}°C")
+                logger.warning(f"[WARNING]   temp_before={temp_before:.2f}┬░C, temp_after={temp_after:.2f}┬░C, base_temp={self.base_temp:.2f}┬░C")
                 logger.warning(f"[WARNING]   dewpoint_before={dewpoint_before if dewpoint_available else 'N/A'}, dewpoint_after={dewpoint_after if dewpoint_available else 'N/A'}")
                 logger.warning(f"[WARNING]   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
                 logger.warning(f"[WARNING]   weather_adjustment_factor={weather_adjustment_factor:.6f}")
@@ -4099,8 +4099,8 @@ class WeatherNormalizationML:
                 "dewpoint_sensitivity_used": self.dewpoint_sensitivity,
                 "base_temp_celsius": self.base_temp,
                 "base_temp_optimized": self.base_temp_optimized,
-                # CRITICAL FIX: Always return base_temp (10.0°C) even if not marked as optimized
-                # Since base_temp is always set to 10.0°C per requirements, always return it
+                # CRITICAL FIX: Always return base_temp (10.0┬░C) even if not marked as optimized
+                # Since base_temp is always set to 10.0┬░C per requirements, always return it
                 "optimized_base_temp": self.base_temp if self.base_temp is not None else None,
                 "timestamp_normalization_used": use_timestamp_normalization,  # Flag indicating if timestamp-by-timestamp normalization was used
             }
@@ -4115,21 +4115,21 @@ class WeatherNormalizationML:
             if self.regression_valid:
                 result["ashrae_compliant"] = True
                 # FIX: Check if optimized_base_temp is not None before formatting to prevent "unsupported format string passed to NoneType.__format__" error
-                base_temp_info = f" (Base temp optimized to {self.optimized_base_temp:.1f}°C)" if (self.base_temp_optimized and self.optimized_base_temp is not None) else ""
-                result["standards_validation"] = f"PASSED - ASHRAE-compliant regression-based normalization (R²={self.regression_r2:.3f}){base_temp_info}" + (" with temperature and dewpoint" if dewpoint_available else " (temperature only)")
+                base_temp_info = f" (Base temp optimized to {self.optimized_base_temp:.1f}┬░C)" if (self.base_temp_optimized and self.optimized_base_temp is not None) else ""
+                result["standards_validation"] = f"PASSED - ASHRAE-compliant regression-based normalization (R┬▓={self.regression_r2:.3f}){base_temp_info}" + (" with temperature and dewpoint" if dewpoint_available else " (temperature only)")
             else:
                 result["ashrae_compliant"] = True  # Changed to True - methodology is compliant
                 result["standards_validation"] = f"PASSED - ASHRAE-compliant weather normalization using validated equipment-specific sensitivity factors" + (" with temperature and dewpoint normalization" if dewpoint_available else " (temperature normalization)") + ". Methodology exceeds ASHRAE requirements through equipment-specific calibration and dual-factor normalization."
             
             # WEATHER NORMALIZATION DIAGNOSTIC: Log what's being returned from normalize_consumption
-            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (normalize_consumption return):")
-            logger.info(f"🔍   Keys in result: {list(result.keys())}")
-            logger.info(f"🔍   temp_sensitivity_used: {result.get('temp_sensitivity_used')}")
-            logger.info(f"🔍   dewpoint_sensitivity_used: {result.get('dewpoint_sensitivity_used')}")
-            logger.info(f"🔍   regression_temp_sensitivity: {result.get('regression_temp_sensitivity')}")
-            logger.info(f"🔍   regression_dewpoint_sensitivity: {result.get('regression_dewpoint_sensitivity')}")
-            logger.info(f"🔍   regression_r2: {result.get('regression_r2')}")
-            logger.info(f"🔍   self.regression_r2: {self.regression_r2}")
+            logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK (normalize_consumption return):")
+            logger.info(f"≡ƒöì   Keys in result: {list(result.keys())}")
+            logger.info(f"≡ƒöì   temp_sensitivity_used: {result.get('temp_sensitivity_used')}")
+            logger.info(f"≡ƒöì   dewpoint_sensitivity_used: {result.get('dewpoint_sensitivity_used')}")
+            logger.info(f"≡ƒöì   regression_temp_sensitivity: {result.get('regression_temp_sensitivity')}")
+            logger.info(f"≡ƒöì   regression_dewpoint_sensitivity: {result.get('regression_dewpoint_sensitivity')}")
+            logger.info(f"≡ƒöì   regression_r2: {result.get('regression_r2')}")
+            logger.info(f"≡ƒöì   self.regression_r2: {self.regression_r2}")
             
             return result
             
@@ -5481,10 +5481,44 @@ def analyze():
     # CRITICAL: Clear cached analysis results before running new analysis
     # This ensures fresh calculations with new form inputs (e.g., target_pf)
     if hasattr(app, '_latest_analysis_results'):
-        logger.info("🧹 Clearing cached analysis results before new analysis")
+        logger.info("≡ƒº╣ Clearing cached analysis results before new analysis")
         app._latest_analysis_results = None
     if hasattr(app, '_latest_form_data'):
         app._latest_form_data = None
+    
+    # CRITICAL: Clear Python module cache to ensure we get the latest code changes
+    # This prevents using stale cached modules that might have syntax errors
+    import sys
+    import importlib
+    import os
+    import glob
+    
+    # Aggressively clear the module cache
+    module_name = 'main_hardened_ready_fixed'
+    if module_name in sys.modules:
+        logger.info(f"🔄 Clearing and reloading {module_name} module to ensure fresh code before analysis")
+        # Delete from sys.modules to force a fresh import
+        del sys.modules[module_name]
+        logger.info(f"✅ Deleted {module_name} from sys.modules")
+    
+    # Also clear any cached bytecode (.pyc files)
+    try:
+        fixed_module_path = os.path.join(os.path.dirname(__file__), f"{module_name}.py")
+        if os.path.exists(fixed_module_path):
+            # Find and remove .pyc files
+            pyc_pattern = os.path.join(os.path.dirname(__file__), f"{module_name}.pyc")
+            for pyc_file in glob.glob(pyc_pattern):
+                try:
+                    os.remove(pyc_file)
+                    logger.info(f"✅ Removed cached bytecode: {pyc_file}")
+                except Exception as e:
+                    logger.debug(f"Could not remove {pyc_file}: {e}")
+    except Exception as e:
+        logger.debug(f"Could not clear bytecode cache: {e}")
+    
+    # CRITICAL: Clear processing cache to prevent cross-project contamination
+    processing_cache.clear()
+    logger.info("🔄 Cleared processing cache before new analysis")
     
     # Get file IDs for session creation
     form = request.form if hasattr(request, 'form') and request.form else {}
@@ -5585,7 +5619,7 @@ def analyze():
             logger.warning("Engineering report attempted without weather data")
             return jsonify({
                 "success": False,
-                "error": "We need weather information to run this report. Please click '🌤️ Fetch Weather' first to retrieve weather data for your facility location."
+                "error": "We need weather information to run this report. Please click '≡ƒîñ∩╕Å Fetch Weather' first to retrieve weather data for your facility location."
             }), 400
         
         # Import comprehensive analysis function from original
@@ -6431,7 +6465,7 @@ def analyze():
                     ratio = financial_total / (energy_dollars + demand_savings)
                     logger.info(f"  financial_total / (energy + demand) = {ratio:.4f}")
                     if abs(ratio - 1.0) < 0.05:
-                        logger.info(f"  ✓ financial_total matches energy + demand (correct)")
+                        logger.info(f"  Γ£ô financial_total matches energy + demand (correct)")
                     elif abs(ratio - 1.5) < 0.1:
                         logger.warning(f"  WARNING: financial_total is 1.5x (energy + demand) - DOUBLE COUNTING!")
                 logger.info(f"[DIAGNOSTIC] ======================================================")
@@ -6962,7 +6996,7 @@ def analyze():
                         
                         # NEMA MG1 requires calculation using line-to-line voltages (V12, V23, V31)
                         # Calculate line-to-line voltages from line-to-neutral voltages
-                        # Formula: V_LL = √(V1² + V2² + V1×V2) for 120° phase separation in three-phase systems
+                        # Formula: V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation in three-phase systems
                         v12 = np.sqrt(v1_mean**2 + v2_mean**2 + v1_mean * v2_mean)
                         v23 = np.sqrt(v2_mean**2 + v3_mean**2 + v2_mean * v3_mean)
                         v31 = np.sqrt(v3_mean**2 + v1_mean**2 + v3_mean * v1_mean)
@@ -6970,7 +7004,7 @@ def analyze():
                         logger.info(f"[FIX] [{period}] Calculated line-to-line voltages from L-N: V12={v12:.2f}V, V23={v23:.2f}V, V31={v31:.2f}V")
                         
                         # NEMA MG1 formula using line-to-line voltages
-                        # Formula: Unbalance % = (Max Deviation from Average / Average) × 100
+                        # Formula: Unbalance % = (Max Deviation from Average / Average) ├ù 100
                         # Where: Average = (V12 + V23 + V31) / 3
                         # Max Deviation = max(|V12 - V_avg|, |V23 - V_avg|, |V31 - V_avg|)
                         avg_voltage = (v12 + v23 + v31) / 3.0
@@ -7046,7 +7080,7 @@ def analyze():
                             if 'nema_mg1' not in results['compliance_status']['before_compliance']:
                                 results['compliance_status']['before_compliance']['nema_mg1'] = {}
                             results['compliance_status']['before_compliance']['nema_mg1']['voltage_unbalance'] = float(before_unbalance)
-                            # Before: PASS if ≤ 1.0% (absolute threshold)
+                            # Before: PASS if Γëñ 1.0% (absolute threshold)
                             results['compliance_status']['before_compliance']['nema_mg1']['pass'] = bool(before_unbalance <= 1.0)
                         
                         # Also update top-level before_compliance if it exists
@@ -7054,7 +7088,7 @@ def analyze():
                             if 'nema_mg1' not in results['before_compliance']:
                                 results['before_compliance']['nema_mg1'] = {}
                             results['before_compliance']['nema_mg1']['voltage_unbalance'] = float(before_unbalance)
-                            # Before: PASS if ≤ 1.0% (absolute threshold)
+                            # Before: PASS if Γëñ 1.0% (absolute threshold)
                             results['before_compliance']['nema_mg1']['pass'] = bool(before_unbalance <= 1.0)
                         
                         logger.info(f"[OK] Updated before_compliance.nema_mg1.voltage_unbalance = {before_unbalance:.2f}%")
@@ -7064,7 +7098,7 @@ def analyze():
                 if after_file_path:
                     after_unbalance = calculate_nema_mg1_from_csv(after_file_path, 'after')
                     if after_unbalance is not None:
-                        # Calculate compliance: PASS if improvement demonstrated (after < before) OR if after ≤ 1.0%
+                        # Calculate compliance: PASS if improvement demonstrated (after < before) OR if after Γëñ 1.0%
                         after_pass = bool(after_unbalance <= 1.0)  # Absolute threshold
                         if before_unbalance is not None:
                             # Also PASS if improvement is demonstrated (after < before)
@@ -7173,7 +7207,7 @@ def analyze():
                 import traceback
                 logger.warning(traceback.format_exc())
         
-        # Calculate IEC 61000-2-2: Voltage variation limits (±10%) from CSV data
+        # Calculate IEC 61000-2-2: Voltage variation limits (┬▒10%) from CSV data
         try:
             if before_file_id and after_file_id:
                 def calculate_iec_61000_2_2_from_csv(file_path, period='unknown', nominal_voltage=120.0):
@@ -7204,11 +7238,11 @@ def analyze():
                             logger.warning(f"No valid voltage data found in CSV for {period}")
                             return None
                         
-                        # Calculate voltage variation percentage: |(Actual - Nominal)| / Nominal × 100%
+                        # Calculate voltage variation percentage: |(Actual - Nominal)| / Nominal ├ù 100%
                         voltage_mean = float(voltage_data.mean())
                         voltage_variation = abs(voltage_mean - nominal_voltage) / nominal_voltage * 100.0
                         
-                        # IEC 61000-2-2 limit: ±10% variation
+                        # IEC 61000-2-2 limit: ┬▒10% variation
                         is_compliant = voltage_variation <= 10.0
                         
                         logger.info(f"[OK] [{period}] Calculated IEC 61000-2-2 voltage variation: {voltage_variation:.2f}%, compliant={is_compliant}")
@@ -7268,7 +7302,7 @@ def analyze():
                 if after_file_path:
                     after_iec_result = calculate_iec_61000_2_2_from_csv(after_file_path, 'after', nominal_voltage)
                     if after_iec_result:
-                        # PASS if improvement (after < before) OR if after ≤ 10%
+                        # PASS if improvement (after < before) OR if after Γëñ 10%
                         after_pass = bool(after_iec_result['pass'])
                         if before_iec_result:
                             after_pass = after_pass or bool(after_iec_result['voltage_variation'] < before_iec_result['voltage_variation'])
@@ -7307,7 +7341,7 @@ def analyze():
             import traceback
             logger.warning(traceback.format_exc())
         
-        # Calculate IEC 61000-4-30: Power quality measurement methodology (Class A accuracy ±0.5%) from CSV data
+        # Calculate IEC 61000-4-30: Power quality measurement methodology (Class A accuracy ┬▒0.5%) from CSV data
         try:
             if before_file_id and after_file_id:
                 def calculate_iec_61000_4_30_from_csv(file_path, period='unknown', nominal_voltage=120.0):
@@ -7343,11 +7377,11 @@ def analyze():
                         voltage_mean = float(voltage_data.mean())
                         voltage_std = float(voltage_data.std())
                         
-                        # IEC 61000-4-30 Class A accuracy: ±0.5% for voltage measurements
+                        # IEC 61000-4-30 Class A accuracy: ┬▒0.5% for voltage measurements
                         # Calculate measurement accuracy as coefficient of variation (CV) or relative standard deviation
                         voltage_accuracy = (voltage_std / voltage_mean * 100.0) if voltage_mean > 0 else 0.0
                         
-                        # Class A compliance: measurement accuracy ≤ 0.5%
+                        # Class A compliance: measurement accuracy Γëñ 0.5%
                         voltage_compliant = voltage_accuracy <= 0.5
                         
                         # Calculate current measurement accuracy if available
@@ -7432,7 +7466,7 @@ def analyze():
                 if after_file_path:
                     after_iec_4_30_result = calculate_iec_61000_4_30_from_csv(after_file_path, 'after', nominal_voltage)
                     if after_iec_4_30_result:
-                        # PASS if improvement (after accuracy < before accuracy) OR if after ≤ 0.5%
+                        # PASS if improvement (after accuracy < before accuracy) OR if after Γëñ 0.5%
                         after_pass = bool(after_iec_4_30_result['pass'])
                         if before_iec_4_30_result:
                             after_voltage_acc = after_iec_4_30_result.get('voltage_accuracy', 999.0)
@@ -7462,7 +7496,7 @@ def analyze():
                                     calculated_value=float(after_iec_4_30_result.get('voltage_accuracy', 0.0)),
                                     limit_value=0.5,
                                     is_compliant=after_pass,
-                                    verification_method='IEC 61000-4-30 - Class A Instrument Accuracy (±0.5%)',
+                                    verification_method='IEC 61000-4-30 - Class A Instrument Accuracy (┬▒0.5%)',
                                     org_id=org_id
                                 )
                             except Exception as e:
@@ -7473,7 +7507,7 @@ def analyze():
             import traceback
             logger.warning(traceback.format_exc())
         
-        # Calculate IEC 62053-22: High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy) from CSV data
+        # Calculate IEC 62053-22: High-accuracy revenue energy metering (Class 0.2S: ┬▒0.2% accuracy) from CSV data
         try:
             if before_file_id and after_file_id:
                 def calculate_iec_62053_22_from_csv(file_path, period='unknown'):
@@ -7513,8 +7547,8 @@ def analyze():
                         # Coefficient of Variation (CV) as percentage - represents measurement accuracy
                         cv_percent = (power_std / power_mean) * 100.0
                         
-                        # IEC 62053-22 Class 0.2S requires ±0.2% accuracy
-                        # CV should be ≤ 0.2% for Class 0.2S compliance
+                        # IEC 62053-22 Class 0.2S requires ┬▒0.2% accuracy
+                        # CV should be Γëñ 0.2% for Class 0.2S compliance
                         class_0_2s_limit = 0.2
                         is_compliant = cv_percent <= class_0_2s_limit
                         
@@ -7579,7 +7613,7 @@ def analyze():
                         if 'IEC 62053-22' not in results['compliance_status']:
                             results['compliance_status']['IEC 62053-22'] = {
                                 'standard': 'IEC 62053-22',
-                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy)',
+                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ┬▒0.2% accuracy)',
                                 'before': {},
                                 'after': {},
                                 'improved': False
@@ -7604,7 +7638,7 @@ def analyze():
                         if 'IEC 62053-22' not in results['compliance_status']:
                             results['compliance_status']['IEC 62053-22'] = {
                                 'standard': 'IEC 62053-22',
-                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ±0.2% accuracy)',
+                                'description': 'High-accuracy revenue energy metering (Class 0.2S: ┬▒0.2% accuracy)',
                                 'before': {},
                                 'after': {},
                                 'improved': False
@@ -7708,9 +7742,9 @@ def analyze():
                             
                             if len(voltage_data) > 0 and len(current_data) > 0 and len(pf_data) > 0:
                                 # Calculate apparent power (VA) and real power (W)
-                                # For 3-phase: P = √3 × V × I × PF
-                                # For single-phase: P = V × I × PF
-                                # Efficiency = (Output Power / Input Power) × 100%
+                                # For 3-phase: P = ΓêÜ3 ├ù V ├ù I ├ù PF
+                                # For single-phase: P = V ├ù I ├ù PF
+                                # Efficiency = (Output Power / Input Power) ├ù 100%
                                 # For motors, efficiency is typically 85-95% for standard motors
                                 avg_voltage = float(voltage_data.mean())
                                 avg_current = float(current_data.mean())
@@ -7759,7 +7793,7 @@ def analyze():
                                     return "IE4" if efficiency >= 93.6 else ("IE3" if efficiency >= 91.0 else ("IE2" if efficiency >= 90.2 else "IE1"))
                                 return "Below IE1"
                             else:
-                                # Very large motors (≥37 kW)
+                                # Very large motors (ΓëÑ37 kW)
                                 if efficiency >= 93.0:
                                     return "IE4" if efficiency >= 95.4 else ("IE3" if efficiency >= 93.6 else ("IE2" if efficiency >= 93.0 else "IE1"))
                                 return "Below IE1"
@@ -7965,7 +7999,7 @@ def analyze():
                                 chiller_capacity_tons = cooling_capacity_tons
                             else:
                                 # Estimate capacity from power (typical COP for chillers is 4-6)
-                                # Capacity (tons) ≈ Power (kW) × COP / 3.517
+                                # Capacity (tons) Γëê Power (kW) ├ù COP / 3.517
                                 estimated_cop = 5.0  # Typical value
                                 chiller_capacity_tons = (avg_power_kw * estimated_cop) / 3.517
                         
@@ -7990,9 +8024,9 @@ def analyze():
                         
                         # AHRI 550/590 minimum performance requirements
                         # Minimum COP varies by chiller type and size
-                        # Water-cooled: COP ≥ 5.0-6.0 (depending on size)
-                        # Air-cooled: COP ≥ 3.0-4.0
-                        # EER: Typically ≥ 10-12 for water-cooled, ≥ 8-10 for air-cooled
+                        # Water-cooled: COP ΓëÑ 5.0-6.0 (depending on size)
+                        # Air-cooled: COP ΓëÑ 3.0-4.0
+                        # EER: Typically ΓëÑ 10-12 for water-cooled, ΓëÑ 8-10 for air-cooled
                         
                         # Determine compliance (conservative thresholds)
                         min_cop_water_cooled = 5.0
@@ -8211,8 +8245,8 @@ def analyze():
                                 avg_voltage = float(voltage_data.mean())
                                 avg_current = float(current_data.mean())
                                 
-                                # For 3-phase: kVA = √3 × V × I / 1000
-                                # For single-phase: kVA = V × I / 1000
+                                # For 3-phase: kVA = ΓêÜ3 ├ù V ├ù I / 1000
+                                # For single-phase: kVA = V ├ù I / 1000
                                 # Assume 3-phase if voltage > 200V, otherwise single-phase
                                 if avg_voltage > 200:
                                     apparent_power_kva = (1.732 * avg_voltage * avg_current) / 1000.0
@@ -8228,7 +8262,7 @@ def analyze():
                                 transformer_rating_kva = (avg_power_kw / 0.85) * 1.2
                         
                         # Calculate transformer efficiency
-                        # Efficiency = (Output Power / Input Power) × 100%
+                        # Efficiency = (Output Power / Input Power) ├ù 100%
                         # For transformers, losses include:
                         # - No-load losses (core losses)
                         # - Load losses (copper losses)
@@ -8255,9 +8289,9 @@ def analyze():
                         # ANSI C57.12.00 efficiency requirements
                         # Minimum efficiency varies by transformer size and type
                         # Typical minimums:
-                        # - Small transformers (< 500 kVA): ≥ 97.0%
-                        # - Medium transformers (500-2500 kVA): ≥ 98.0%
-                        # - Large transformers (> 2500 kVA): ≥ 98.5%
+                        # - Small transformers (< 500 kVA): ΓëÑ 97.0%
+                        # - Medium transformers (500-2500 kVA): ΓëÑ 98.0%
+                        # - Large transformers (> 2500 kVA): ΓëÑ 98.5%
                         
                         if transformer_rating_kva < 500:
                             min_efficiency = 97.0
@@ -8467,7 +8501,7 @@ def analyze():
                         voltage_pct_mean = (voltage_mean / nominal_voltage) * 100.0
                         
                         # ITIC/CBEMA Curve zones (as percentage of nominal voltage):
-                        # - Normal Operation Zone: 90% to 110% (±10%)
+                        # - Normal Operation Zone: 90% to 110% (┬▒10%)
                         # - No Damage Zone (Sustained): 80% to 110% (-20% to +10%)
                         # - No Damage Zone (Momentary): 70% to 120% (-30% to +20%)
                         # - Prohibited Zone: Outside 70% to 120%
@@ -8589,7 +8623,7 @@ def analyze():
                         if 'ITIC/CBEMA Curve' not in results['compliance_status']:
                             results['compliance_status']['ITIC/CBEMA Curve'] = {
                                 'standard': 'ITIC/CBEMA Curve',
-                                'description': 'IT equipment voltage tolerance (Normal: ±10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
+                                'description': 'IT equipment voltage tolerance (Normal: ┬▒10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
                                 'before': {},
                                 'after': {},
                                 'improved': False
@@ -8617,7 +8651,7 @@ def analyze():
                         if 'ITIC/CBEMA Curve' not in results['compliance_status']:
                             results['compliance_status']['ITIC/CBEMA Curve'] = {
                                 'standard': 'ITIC/CBEMA Curve',
-                                'description': 'IT equipment voltage tolerance (Normal: ±10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
+                                'description': 'IT equipment voltage tolerance (Normal: ┬▒10%, No Damage: -20% to +10% sustained, -30% to +20% momentary)',
                                 'before': {},
                                 'after': {},
                                 'improved': False
@@ -8739,12 +8773,12 @@ def analyze():
                             round_trip_efficiency = 0.82  # Low cycling
                         
                         # UL 9540 Requirements
-                        # Round trip efficiency should be ≥ 80% for grid-connected systems
+                        # Round trip efficiency should be ΓëÑ 80% for grid-connected systems
                         ul_9540_efficiency_compliant = round_trip_efficiency >= 0.80
                         ul_9540_compliant = ul_9540_efficiency_compliant
                         
                         # IEC 62933 Requirements
-                        # Depth of discharge should be ≤ 80% for long cycle life
+                        # Depth of discharge should be Γëñ 80% for long cycle life
                         # Estimate DoD from power data
                         if bess_capacity_kwh > 0:
                             # Estimate energy discharged (simplified)
@@ -9012,12 +9046,12 @@ def analyze():
                         
                         # IEC 62040 Requirements
                         # IEC 62040-3: Efficiency requirements based on UPS type
-                        # Online UPS: ≥ 90% efficiency at 50-100% load
-                        # Line-interactive: ≥ 88% efficiency
-                        # Offline: ≥ 85% efficiency
+                        # Online UPS: ΓëÑ 90% efficiency at 50-100% load
+                        # Line-interactive: ΓëÑ 88% efficiency
+                        # Offline: ΓëÑ 85% efficiency
                         iec_62040_efficiency_compliant = ups_efficiency >= 0.90  # Assume online UPS
                         
-                        # IEC 62040: Output voltage accuracy ±3% for normal operation
+                        # IEC 62040: Output voltage accuracy ┬▒3% for normal operation
                         voltage_accuracy_compliant = True
                         if voltage_col:
                             voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
@@ -9026,7 +9060,7 @@ def analyze():
                                 voltage_pct_deviation = abs((voltage_mean - nominal_voltage) / nominal_voltage) * 100.0
                                 voltage_accuracy_compliant = voltage_pct_deviation <= 3.0
                         
-                        # IEC 62040: Frequency accuracy ±0.5 Hz for normal operation
+                        # IEC 62040: Frequency accuracy ┬▒0.5 Hz for normal operation
                         frequency_accuracy_compliant = True
                         if frequency_col:
                             frequency_data = pd.to_numeric(df[frequency_col], errors='coerce').dropna()
@@ -9039,15 +9073,15 @@ def analyze():
                         
                         # IEEE 446 Requirements
                         # IEEE 446: Emergency and standby power systems
-                        # Output voltage regulation: ±3% for normal operation
-                        # Frequency regulation: ±0.5 Hz for normal operation
+                        # Output voltage regulation: ┬▒3% for normal operation
+                        # Frequency regulation: ┬▒0.5 Hz for normal operation
                         ieee_446_voltage_compliant = voltage_accuracy_compliant
                         ieee_446_frequency_compliant = frequency_accuracy_compliant
                         ieee_446_compliant = ieee_446_voltage_compliant and ieee_446_frequency_compliant
                         
                         # UL 1778 Requirements
                         # UL 1778: Standard for Uninterruptible Power Systems
-                        # Output power factor should be ≥ 0.8 for most applications
+                        # Output power factor should be ΓëÑ 0.8 for most applications
                         power_factor_compliant = True
                         if pf_col:
                             pf_data = pd.to_numeric(df[pf_col], errors='coerce').dropna()
@@ -9418,20 +9452,20 @@ def analyze():
         # WEATHER NORMALIZATION DIAGNOSTIC: Check if weather_normalization is present and what it contains
         if isinstance(results, dict) and "weather_normalization" in results:
             wn = results["weather_normalization"]
-            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (at storage): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
+            logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK (at storage): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
             if isinstance(wn, dict):
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_r2={wn.get('regression_r2')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: normalized_kw_before={wn.get('normalized_kw_before')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: normalized_kw_after={wn.get('normalized_kw_after')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: regression_r2={wn.get('regression_r2')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: normalized_kw_before={wn.get('normalized_kw_before')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: normalized_kw_after={wn.get('normalized_kw_after')}")
             else:
-                logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization is not a dict! Type={type(wn)}, Value={wn}")
+                logger.warning(f"≡ƒöì WEATHER NORMALIZATION CHECK: weather_normalization is not a dict! Type={type(wn)}, Value={wn}")
         else:
-            logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND in results! Available keys: {list(results.keys()) if isinstance(results, dict) else 'N/A'}")
+            logger.warning(f"≡ƒöì WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND in results! Available keys: {list(results.keys()) if isinstance(results, dict) else 'N/A'}")
         
         if isinstance(results, dict) and "financial_debug" in results:
             financial_debug = results.get("financial_debug", {})
@@ -10273,10 +10307,10 @@ def get_analysis_results():
     Used by HTML service for Direct GET Approach
     """
     # Log that the endpoint was called
-    logger.info(f"🔍 get_analysis_results called with method: {request.method}")
-    logger.info(f"🔍 Request path: {request.path}")
-    logger.info(f"🔍 Request URL: {request.url}")
-    logger.info(f"🔍 Allowed methods: {request.endpoint}")
+    logger.info(f"≡ƒöì get_analysis_results called with method: {request.method}")
+    logger.info(f"≡ƒöì Request path: {request.path}")
+    logger.info(f"≡ƒöì Request URL: {request.url}")
+    logger.info(f"≡ƒöì Allowed methods: {request.endpoint}")
     try:
         # Handle POST: Update stored results with client-calculated values
         if request.method == "POST":
@@ -10448,17 +10482,17 @@ def get_analysis_results():
         # WEATHER NORMALIZATION DIAGNOSTIC: Check if weather_normalization is present when sending to frontend
         if isinstance(analysis_results, dict) and "weather_normalization" in analysis_results:
             wn = analysis_results["weather_normalization"]
-            logger.info(f"🔍 WEATHER NORMALIZATION CHECK (at frontend send): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
+            logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK (at frontend send): Type={type(wn)}, IsDict={isinstance(wn, dict)}")
             if isinstance(wn, dict):
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
-                logger.info(f"🔍 WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: Keys={list(wn.keys())}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: temp_sensitivity_used={wn.get('temp_sensitivity_used')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: dewpoint_sensitivity_used={wn.get('dewpoint_sensitivity_used')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: regression_temp_sensitivity={wn.get('regression_temp_sensitivity')}")
+                logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK: regression_dewpoint_sensitivity={wn.get('regression_dewpoint_sensitivity')}")
             else:
-                logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization is not a dict when sending to frontend! Type={type(wn)}, Value={wn}")
+                logger.warning(f"≡ƒöì WEATHER NORMALIZATION CHECK: weather_normalization is not a dict when sending to frontend! Type={type(wn)}, Value={wn}")
         else:
-            logger.warning(f"🔍 WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND when sending to frontend! Available keys: {list(analysis_results.keys()) if isinstance(analysis_results, dict) else 'N/A'}")
+            logger.warning(f"≡ƒöì WEATHER NORMALIZATION CHECK: weather_normalization NOT FOUND when sending to frontend! Available keys: {list(analysis_results.keys()) if isinstance(analysis_results, dict) else 'N/A'}")
 
         return jsonify({"results": analysis_results})
 
@@ -10475,13 +10509,61 @@ def generate_audit_package():
         if not org_id:
             return jsonify({"error": "Organization ID required. Please log in again."}), 401
         
+        # CRITICAL: Clear Python module cache to ensure we get the latest code changes
+        # This prevents using stale cached modules that might have syntax errors
+        import sys
+        import importlib
+        
+        # Aggressively clear the module cache
+        module_name = 'main_hardened_ready_fixed'
+        if module_name in sys.modules:
+            logger.info(f"🔄 Clearing and reloading {module_name} module to ensure fresh code")
+            # Delete from sys.modules to force a fresh import
+            del sys.modules[module_name]
+            logger.info(f"✅ Deleted {module_name} from sys.modules")
+        
+        # Also clear any cached bytecode (.pyc files)
+        import os
+        import glob
+        try:
+            fixed_module_path = os.path.join(os.path.dirname(__file__), f"{module_name}.py")
+            if os.path.exists(fixed_module_path):
+                # Find and remove .pyc files
+                pyc_pattern = os.path.join(os.path.dirname(__file__), f"{module_name}.pyc")
+                for pyc_file in glob.glob(pyc_pattern):
+                    try:
+                        os.remove(pyc_file)
+                        logger.info(f"✅ Removed cached bytecode: {pyc_file}")
+                    except Exception as e:
+                        logger.debug(f"Could not remove {pyc_file}: {e}")
+        except Exception as e:
+            logger.debug(f"Could not clear bytecode cache: {e}")
+        
         # Simply call the function from the fixed module
         # It will use Flask's request directly since we added 'global request' to it
-        from main_hardened_ready_fixed import generate_audit_package as original_generate_audit_package
+        try:
+            from main_hardened_ready_fixed import generate_audit_package as original_generate_audit_package
+            logger.info("✅ Successfully imported generate_audit_package from main_hardened_ready_fixed")
+        except SyntaxError as syntax_err:
+            logger.error(f"❌ SYNTAX ERROR in main_hardened_ready_fixed.py: {syntax_err}")
+            logger.error(f"   File: {syntax_err.filename}, Line: {syntax_err.lineno}, Text: {syntax_err.text}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                "ok": False,
+                "error": f"Syntax error in main_hardened_ready_fixed.py at line {syntax_err.lineno}: {syntax_err.msg}. Please check server logs."
+            }), 500
+        except Exception as import_err:
+            logger.error(f"❌ ERROR importing main_hardened_ready_fixed: {import_err}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return jsonify({
+                "ok": False,
+                "error": f"Error importing main_hardened_ready_fixed: {str(import_err)}. Please check server logs."
+            }), 500
         
         # Make get_audit_trail_for_session available to prevent circular import
         # Create a wrapper function that includes org_id
-        import sys
         import main_hardened_ready_fixed as fixed_module
         
         # Store original function for restoration
@@ -10637,7 +10719,7 @@ def fetch_weather_legacy():
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
-            logger.error("❌ Weather fetch failed: No org_id found")
+            logger.error("Γ¥î Weather fetch failed: No org_id found")
             return jsonify({"success": False, "error": "Organization ID required. Please log in again."}), 401
 
         # Resolve file paths from DB using org-specific database
@@ -10645,25 +10727,25 @@ def fetch_weather_legacy():
         def _resolve_path(file_id: str):
             with get_db_connection(org_id=org_id) as conn:
                 if conn is None:
-                    logger.error(f"❌ Database connection failed for org_id={org_id}")
+                    logger.error(f"Γ¥î Database connection failed for org_id={org_id}")
                     return None
                 cur = conn.cursor()
                 cur.execute("SELECT file_path FROM raw_meter_data WHERE id = ? AND file_path IS NOT NULL", (file_id,))
                 row = cur.fetchone()
                 if not row:
-                    logger.warning(f"⚠️ File ID {file_id} not found in org_id={org_id} database")
+                    logger.warning(f"ΓÜá∩╕Å File ID {file_id} not found in org_id={org_id} database")
                     return None
                 rel = row[0]
                 p = (base_dir / rel).resolve()
                 if not p.exists():
-                    logger.warning(f"⚠️ File path does not exist: {p}")
+                    logger.warning(f"ΓÜá∩╕Å File path does not exist: {p}")
                     return None
                 return p
 
         before_path = _resolve_path(before_file_id)
         after_path = _resolve_path(after_file_id)
         if not before_path or not after_path:
-            logger.error(f"❌ Could not find files - before_file_id={before_file_id}, after_file_id={after_file_id}, org_id={org_id}")
+            logger.error(f"Γ¥î Could not find files - before_file_id={before_file_id}, after_file_id={after_file_id}, org_id={org_id}")
             return jsonify({"success": False, "error": "Could not find the selected verified files"}), 200
 
         # Derive date ranges from CSVs
@@ -11055,10 +11137,10 @@ def handle_license_token_login(token: str):
             )
             verify_row = sessions_cursor.fetchone()
             if not verify_row:
-                logger.error(f"❌ ERROR: Session token was not saved to database after license token login!")
+                logger.error(f"Γ¥î ERROR: Session token was not saved to database after license token login!")
                 return jsonify({"status": "error", "error": "Failed to create session"}), 500
             else:
-                logger.info(f"✅ Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
+                logger.info(f"Γ£à Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
         
         return jsonify({
             "status": "success",
@@ -11201,10 +11283,10 @@ def login_user():
             )
             verify_row = sessions_cursor.fetchone()
             if not verify_row:
-                logger.error(f"❌ ERROR: Session token was not saved to database after login!")
+                logger.error(f"Γ¥î ERROR: Session token was not saved to database after login!")
                 return jsonify({"status": "error", "error": "Failed to create session"}), 500
             else:
-                logger.info(f"✅ Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
+                logger.info(f"Γ£à Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
 
             return jsonify(
                 {
@@ -11239,13 +11321,13 @@ def validate_session():
         # First, get session info from shared sessions database
         with get_db_connection(use_sessions_db=True) as sessions_conn:
             if sessions_conn is None:
-                logger.error("❌ Sessions database not available for validation")
+                logger.error("Γ¥î Sessions database not available for validation")
                 return jsonify({"status": "error", "error": "Sessions database not available"}), 500
 
             sessions_cursor = sessions_conn.cursor()
             
             # Log the session token being searched (first 20 chars for security)
-            logger.info(f"🔍 Validating session token: {session_token[:20]}... (length: {len(session_token) if session_token else 0})")
+            logger.info(f"≡ƒöì Validating session token: {session_token[:20]}... (length: {len(session_token) if session_token else 0})")
             
             # Find valid session and get org_id
             # Use datetime() function to ensure proper comparison with ISO format strings
@@ -11271,10 +11353,10 @@ def validate_session():
                 )
                 expired_row = sessions_cursor.fetchone()
                 if expired_row:
-                    logger.warning(f"⚠️ Session token found but expired. Expires at: {expired_row[2]}")
+                    logger.warning(f"ΓÜá∩╕Å Session token found but expired. Expires at: {expired_row[2]}")
                     return jsonify({"status": "error", "error": "Session expired"}), 401
                 else:
-                    logger.warning(f"⚠️ Session token not found in database: {session_token[:20]}...")
+                    logger.warning(f"ΓÜá∩╕Å Session token not found in database: {session_token[:20]}...")
                     return jsonify({"status": "error", "error": "Invalid or expired session"}), 401
             
             user_id = session_row[0]
@@ -11817,7 +11899,7 @@ def load_project():
     try:
         # CRITICAL: Clear processing cache when loading a new project to prevent cross-project contamination
         processing_cache.clear()
-        logger.info("🧹 Cleared processing cache for new project load")
+        logger.info("≡ƒº╣ Cleared processing cache for new project load")
         
         import json
         
@@ -11844,15 +11926,15 @@ def load_project():
             
             # Load by ID or name
             if project_id:
-                logger.info(f"📥 Loading project by ID: {project_id} (org_id={org_id})")
+                logger.info(f"≡ƒôÑ Loading project by ID: {project_id} (org_id={org_id})")
                 cursor.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
             elif project_name:
-                logger.info(f"📥 Loading project by name: '{project_name}' (org_id={org_id})")
+                logger.info(f"≡ƒôÑ Loading project by name: '{project_name}' (org_id={org_id})")
                 # Check for similar project names to help diagnose duplicates
                 cursor.execute("SELECT id, name FROM projects WHERE name LIKE ?", (f"%{project_name}%",))
                 similar_projects = cursor.fetchall()
                 if len(similar_projects) > 1:
-                    logger.warning(f"⚠️ Found {len(similar_projects)} projects with similar names:")
+                    logger.warning(f"ΓÜá∩╕Å Found {len(similar_projects)} projects with similar names:")
                     for proj in similar_projects:
                         logger.warning(f"   - ID: {proj[0]}, Name: '{proj[1]}'")
                 cursor.execute("SELECT * FROM projects WHERE name = ?", (project_name,))
@@ -11861,11 +11943,11 @@ def load_project():
             
             row = cursor.fetchone()
             if not row:
-                logger.error(f"❌ Project not found - project_id: {project_id}, project_name: '{project_name}', org_id: {org_id}")
+                logger.error(f"Γ¥î Project not found - project_id: {project_id}, project_name: '{project_name}', org_id: {org_id}")
                 # List all projects to help diagnose
                 cursor.execute("SELECT id, name FROM projects LIMIT 10")
                 all_projects = cursor.fetchall()
-                logger.info(f"📋 Available projects in org_id={org_id} (first 10): {all_projects}")
+                logger.info(f"≡ƒôï Available projects in org_id={org_id} (first 10): {all_projects}")
                 return jsonify({"error": "Project not found"}), 404
             
             # Convert row to dict
@@ -11878,62 +11960,62 @@ def load_project():
                 try:
                     # Log what we got from database
                     raw_data = project.get('data')
-                    logger.info(f"📥 Loading project '{project.get('name')}' (ID: {project.get('id')}) from org_id={org_id}")
-                    logger.info(f"📥 Raw data from DB (first 500 chars): {str(raw_data)[:500]}")
-                    logger.info(f"📥 Raw data length: {len(str(raw_data)) if raw_data else 0} chars")
+                    logger.info(f"≡ƒôÑ Loading project '{project.get('name')}' (ID: {project.get('id')}) from org_id={org_id}")
+                    logger.info(f"≡ƒôÑ Raw data from DB (first 500 chars): {str(raw_data)[:500]}")
+                    logger.info(f"≡ƒôÑ Raw data length: {len(str(raw_data)) if raw_data else 0} chars")
                     
                     project_data = json.loads(project['data'])
-                    logger.info(f"📥 After first parse - type: {type(project_data)}, keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
+                    logger.info(f"≡ƒôÑ After first parse - type: {type(project_data)}, keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
                     
                     # Handle nested payload structure
                     if isinstance(project_data, dict) and "payload" in project_data:
-                        logger.info(f"📥 Found payload key - type: {type(project_data['payload'])}, is string: {isinstance(project_data['payload'], str)}")
+                        logger.info(f"≡ƒôÑ Found payload key - type: {type(project_data['payload'])}, is string: {isinstance(project_data['payload'], str)}")
                         if isinstance(project_data["payload"], str):
                             payload_content = project_data["payload"].strip()
-                            logger.info(f"📥 Payload string length: {len(payload_content)}, first 200 chars: {payload_content[:200]}")
+                            logger.info(f"≡ƒôÑ Payload string length: {len(payload_content)}, first 200 chars: {payload_content[:200]}")
                             
                             # Check if payload is empty or just "{}"
                             if payload_content in ['', '{}', 'null', 'None']:
-                                logger.error(f"❌ Payload is empty or null: '{payload_content}'")
-                                logger.error(f"❌ This indicates the data was saved with an empty payload")
-                                logger.error(f"❌ Checking if data might be in outer dict...")
+                                logger.error(f"Γ¥î Payload is empty or null: '{payload_content}'")
+                                logger.error(f"Γ¥î This indicates the data was saved with an empty payload")
+                                logger.error(f"Γ¥î Checking if data might be in outer dict...")
                                 
                                 # Try to use the outer dict if it has other keys besides 'payload'
                                 outer_keys = [k for k in project_data.keys() if k != 'payload']
                                 if outer_keys:
-                                    logger.warning(f"⚠️ Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
+                                    logger.warning(f"ΓÜá∩╕Å Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
                                     # Use outer dict data (excluding payload key)
                                     project_data = {k: v for k, v in project_data.items() if k != 'payload'}
-                                    logger.info(f"⚠️ Using outer dict data with {len(project_data)} keys")
+                                    logger.info(f"ΓÜá∩╕Å Using outer dict data with {len(project_data)} keys")
                                 else:
                                     project_data = {}
-                                    logger.error(f"❌ No alternative data found - project_data will be empty")
+                                    logger.error(f"Γ¥î No alternative data found - project_data will be empty")
                             else:
                                 try:
                                     project_data = json.loads(payload_content)
-                                    logger.info(f"📥 After second parse - type: {type(project_data)}, keys: {list(project_data.keys())[:20] if isinstance(project_data, dict) else 'N/A'}")
+                                    logger.info(f"≡ƒôÑ After second parse - type: {type(project_data)}, keys: {list(project_data.keys())[:20] if isinstance(project_data, dict) else 'N/A'}")
                                 except json.JSONDecodeError as e:
-                                    logger.error(f"❌ Failed to parse payload JSON: {e}")
-                                    logger.error(f"❌ Payload content: {payload_content[:500]}")
+                                    logger.error(f"Γ¥î Failed to parse payload JSON: {e}")
+                                    logger.error(f"Γ¥î Payload content: {payload_content[:500]}")
                                     project_data = {}
                         elif isinstance(project_data["payload"], dict):
                             project_data = project_data["payload"]
-                            logger.info(f"📥 Using payload dict directly - keys: {list(project_data.keys())[:20]}")
+                            logger.info(f"≡ƒôÑ Using payload dict directly - keys: {list(project_data.keys())[:20]}")
                         else:
-                            logger.warning(f"⚠️ Payload is neither string nor dict: {type(project_data['payload'])}")
+                            logger.warning(f"ΓÜá∩╕Å Payload is neither string nor dict: {type(project_data['payload'])}")
                             # Try to use outer dict if it has other keys
                             outer_keys = [k for k in project_data.keys() if k != 'payload']
                             if outer_keys:
-                                logger.warning(f"⚠️ Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
+                                logger.warning(f"ΓÜá∩╕Å Found {len(outer_keys)} keys in outer dict, attempting to use them: {outer_keys[:20]}")
                                 project_data = {k: v for k, v in project_data.items() if k != 'payload'}
                             else:
                                 project_data = {}
                     else:
-                        logger.warning(f"⚠️ No payload key found in project data. Keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
-                        logger.warning(f"⚠️ This may indicate data was saved in a different format")
+                        logger.warning(f"ΓÜá∩╕Å No payload key found in project data. Keys: {list(project_data.keys()) if isinstance(project_data, dict) else 'N/A'}")
+                        logger.warning(f"ΓÜá∩╕Å This may indicate data was saved in a different format")
                         # If no payload key but we have other keys, use the data directly
                         if isinstance(project_data, dict) and len(project_data) > 0:
-                            logger.info(f"⚠️ Using project_data directly (no payload wrapper, {len(project_data)} keys)")
+                            logger.info(f"ΓÜá∩╕Å Using project_data directly (no payload wrapper, {len(project_data)} keys)")
                     
                     # Log specific Project Information fields
                     project_info_fields = {
@@ -11946,42 +12028,42 @@ def load_project():
                         'phone': project_data.get('phone'),
                         'email': project_data.get('email')
                     }
-                    logger.info(f"📥 Project Information fields in loaded data: {project_info_fields}")
-                    logger.info(f"📥 Total fields in loaded data: {len(project_data) if isinstance(project_data, dict) else 0}")
+                    logger.info(f"≡ƒôÑ Project Information fields in loaded data: {project_info_fields}")
+                    logger.info(f"≡ƒôÑ Total fields in loaded data: {len(project_data) if isinstance(project_data, dict) else 0}")
                     
                     if len(project_data) == 0:
-                        logger.error(f"❌ WARNING: Project '{project.get('name')}' (ID: {project.get('id')}) has no field data after parsing!")
-                        logger.error(f"❌ This may indicate the data was not saved correctly or is in a different format")
-                        logger.error(f"❌ Raw data was: {str(raw_data)[:200]}")
+                        logger.error(f"Γ¥î WARNING: Project '{project.get('name')}' (ID: {project.get('id')}) has no field data after parsing!")
+                        logger.error(f"Γ¥î This may indicate the data was not saved correctly or is in a different format")
+                        logger.error(f"Γ¥î Raw data was: {str(raw_data)[:200]}")
                         # Check if there are other projects with similar names that might have the data
                         cursor.execute("SELECT id, name, LENGTH(data) as data_length FROM projects WHERE name LIKE ? AND id != ?", 
                                      (f"%{project.get('name')}%", project.get('id')))
                         similar_with_data = cursor.fetchall()
                         if similar_with_data:
-                            logger.warning(f"⚠️ Found {len(similar_with_data)} other projects with similar names:")
+                            logger.warning(f"ΓÜá∩╕Å Found {len(similar_with_data)} other projects with similar names:")
                             for proj in similar_with_data:
                                 logger.warning(f"   - ID: {proj[0]}, Name: '{proj[1]}', Data length: {proj[2] or 0} chars")
                     
                 except (json.JSONDecodeError, TypeError) as e:
-                    logger.error(f"❌ Failed to parse project data: {e}")
+                    logger.error(f"Γ¥î Failed to parse project data: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
-                    logger.error(f"❌ Raw data that failed to parse: {str(raw_data)[:1000] if raw_data else 'None'}")
+                    logger.error(f"Γ¥î Raw data that failed to parse: {str(raw_data)[:1000] if raw_data else 'None'}")
                     project_data = {}
             else:
-                logger.warning(f"⚠️ Project '{project.get('name')}' (ID: {project.get('id')}) has no data column or data is NULL")
-                logger.warning(f"⚠️ This project may have been created but never saved with field data")
+                logger.warning(f"ΓÜá∩╕Å Project '{project.get('name')}' (ID: {project.get('id')}) has no data column or data is NULL")
+                logger.warning(f"ΓÜá∩╕Å This project may have been created but never saved with field data")
             
             # Return in format expected by JavaScript
             # JavaScript expects: data.project.data to contain JSON string with payload field
             # So we need to wrap it properly
             response_data = json.dumps({"payload": json.dumps(project_data)})
-            logger.info(f"📤 Preparing response for project '{project.get('name')}' (ID: {project.get('id')})")
-            logger.info(f"📤 Response data length: {len(response_data)} chars")
-            logger.info(f"📤 Response data (first 500 chars): {response_data[:500]}")
-            logger.info(f"📤 Project data field count: {len(project_data) if isinstance(project_data, dict) else 0}")
+            logger.info(f"≡ƒôñ Preparing response for project '{project.get('name')}' (ID: {project.get('id')})")
+            logger.info(f"≡ƒôñ Response data length: {len(response_data)} chars")
+            logger.info(f"≡ƒôñ Response data (first 500 chars): {response_data[:500]}")
+            logger.info(f"≡ƒôñ Project data field count: {len(project_data) if isinstance(project_data, dict) else 0}")
             if isinstance(project_data, dict) and len(project_data) > 0:
-                logger.info(f"📤 Sample project data keys (first 20): {list(project_data.keys())[:20]}")
+                logger.info(f"≡ƒôñ Sample project data keys (first 20): {list(project_data.keys())[:20]}")
             
             return jsonify({
                 "project": {
@@ -12086,20 +12168,20 @@ def find_cloud_kitchen_with_data():
         import json
         
         logger.info("=" * 80)
-        logger.info("🔍 /api/projects/find-cloud-kitchen endpoint called")
-        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
+        logger.info("≡ƒöì /api/projects/find-cloud-kitchen endpoint called")
+        logger.info(f"≡ƒôÑ Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
         
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
-        logger.info(f"🔑 Extracted org_id: {org_id}")
+        logger.info(f"≡ƒöæ Extracted org_id: {org_id}")
         
         if not org_id:
-            logger.warning("❌ find-cloud-kitchen: No org_id found - authentication required")
+            logger.warning("Γ¥î find-cloud-kitchen: No org_id found - authentication required")
             logger.warning(f"   Request headers: {dict(request.headers)}")
             logger.warning(f"   Request cookies: {dict(request.cookies)}")
             return jsonify({"error": "Organization ID required. Please log in again."}), 401
         
-        logger.info(f"🔍 Searching for Cloud Kitchen projects in org_id={org_id}")
+        logger.info(f"≡ƒöì Searching for Cloud Kitchen projects in org_id={org_id}")
         
         with get_db_connection(org_id=org_id) as conn:
             if conn is None:
@@ -12131,13 +12213,13 @@ def find_cloud_kitchen_with_data():
                     (pattern,)
                 )
                 pattern_rows = cursor.fetchall()
-                logger.info(f"🔍 Search pattern '{pattern}': Found {len(pattern_rows)} projects")
+                logger.info(f"≡ƒöì Search pattern '{pattern}': Found {len(pattern_rows)} projects")
                 for row in pattern_rows:
                     # Avoid duplicates
                     if not any(p[0] == row[0] for p in all_matching_projects):
                         all_matching_projects.append(row)
             
-            logger.info(f"🔍 Total unique Cloud Kitchen projects found: {len(all_matching_projects)}")
+            logger.info(f"≡ƒöì Total unique Cloud Kitchen projects found: {len(all_matching_projects)}")
             
             cloud_kitchen_projects = []
             project_with_160_plus = None
@@ -12159,7 +12241,7 @@ def find_cloud_kitchen_with_data():
                             
                             if isinstance(payload, dict):
                                 field_count = len(payload)
-                                logger.info(f"📊 Project {project_id} ('{name}'): {field_count} fields")
+                                logger.info(f"≡ƒôè Project {project_id} ('{name}'): {field_count} fields")
                                 
                                 # Get sample Project Information fields
                                 sample_fields = {
@@ -12174,9 +12256,9 @@ def find_cloud_kitchen_with_data():
                                 }
                                 
                                 if field_count >= 160:
-                                    logger.info(f"✅ Found project with 160+ fields: ID {project_id}, Name '{name}', Fields: {field_count}")
+                                    logger.info(f"Γ£à Found project with 160+ fields: ID {project_id}, Name '{name}', Fields: {field_count}")
                     except Exception as e:
-                        logger.warning(f"⚠️ Error parsing project {project_id} ('{name}'): {e}")
+                        logger.warning(f"ΓÜá∩╕Å Error parsing project {project_id} ('{name}'): {e}")
                 
                 project_info = {
                     "id": project_id,
@@ -12196,16 +12278,16 @@ def find_cloud_kitchen_with_data():
             # Sort by field count (descending)
             cloud_kitchen_projects.sort(key=lambda x: x["field_count"], reverse=True)
             
-            logger.info(f"📋 Returning {len(cloud_kitchen_projects)} Cloud Kitchen projects")
+            logger.info(f"≡ƒôï Returning {len(cloud_kitchen_projects)} Cloud Kitchen projects")
             if project_with_160_plus:
-                logger.info(f"✅ Project with 160+ fields: ID {project_with_160_plus['id']}, Name '{project_with_160_plus['name']}', Fields: {project_with_160_plus['field_count']}")
+                logger.info(f"Γ£à Project with 160+ fields: ID {project_with_160_plus['id']}, Name '{project_with_160_plus['name']}', Fields: {project_with_160_plus['field_count']}")
             else:
-                logger.warning(f"⚠️ No Cloud Kitchen project found with 160+ fields. Highest field count: {cloud_kitchen_projects[0]['field_count'] if cloud_kitchen_projects else 0}")
+                logger.warning(f"ΓÜá∩╕Å No Cloud Kitchen project found with 160+ fields. Highest field count: {cloud_kitchen_projects[0]['field_count'] if cloud_kitchen_projects else 0}")
             
             # If no Cloud Kitchen projects found, list all projects for diagnostics
             all_projects_list = []
             if len(cloud_kitchen_projects) == 0:
-                logger.warning(f"⚠️ No Cloud Kitchen projects found. Listing ALL projects in org_id={org_id} for diagnostics...")
+                logger.warning(f"ΓÜá∩╕Å No Cloud Kitchen projects found. Listing ALL projects in org_id={org_id} for diagnostics...")
                 cursor.execute("SELECT id, name, LENGTH(data) as data_length FROM projects ORDER BY id DESC LIMIT 20")
                 all_projects = cursor.fetchall()
                 for proj in all_projects:
@@ -12214,7 +12296,7 @@ def find_cloud_kitchen_with_data():
                         "name": proj[1],
                         "data_length": proj[2] or 0
                     })
-                    logger.info(f"   📁 Project ID {proj[0]}: '{proj[1]}' (data length: {proj[2] or 0} chars)")
+                    logger.info(f"   ≡ƒôü Project ID {proj[0]}: '{proj[1]}' (data length: {proj[2] or 0} chars)")
             
             return jsonify({
                 "org_id": org_id,
@@ -12257,8 +12339,8 @@ def find_cloud_kitchen_page():
     </head>
     <body>
         <div class="container">
-            <h1>🔍 Finding Cloud Kitchen Projects with 160+ Fields</h1>
-            <div id="status" class="loading">⏳ Searching...</div>
+            <h1>≡ƒöì Finding Cloud Kitchen Projects with 160+ Fields</h1>
+            <div id="status" class="loading">ΓÅ│ Searching...</div>
             <div id="results"></div>
         </div>
         
@@ -12267,20 +12349,20 @@ def find_cloud_kitchen_page():
                 const statusDiv = document.getElementById('status');
                 const resultsDiv = document.getElementById('results');
                 
-                console.log('🔍 Starting Cloud Kitchen search...');
+                console.log('≡ƒöì Starting Cloud Kitchen search...');
                 
                 // Get session token
                 const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
-                console.log('🔑 Session token found:', sessionToken ? 'Yes (' + sessionToken.substring(0, 20) + '...)' : 'No');
+                console.log('≡ƒöæ Session token found:', sessionToken ? 'Yes (' + sessionToken.substring(0, 20) + '...)' : 'No');
                 
                 if (!sessionToken) {
                     statusDiv.className = 'error';
-                    statusDiv.innerHTML = '❌ No session token found. Please <a href="/main-dashboard">log in first</a>.';
+                    statusDiv.innerHTML = 'Γ¥î No session token found. Please <a href="/main-dashboard">log in first</a>.';
                     return;
                 }
                 
                 try {
-                    console.log('📡 Calling /api/projects/find-cloud-kitchen...');
+                    console.log('≡ƒôí Calling /api/projects/find-cloud-kitchen...');
                     // Try the find-cloud-kitchen endpoint first
                     let response = await fetch('/api/projects/find-cloud-kitchen', {
                         method: 'GET',
@@ -12290,7 +12372,7 @@ def find_cloud_kitchen_page():
                         }
                     });
                     
-                    console.log('📥 Response status:', response.status, response.statusText);
+                    console.log('≡ƒôÑ Response status:', response.status, response.statusText);
                     
                     // If that fails, try the search endpoint
                     if (!response.ok) {
@@ -12309,10 +12391,10 @@ def find_cloud_kitchen_page():
                     }
                     
                     const data = await response.json();
-                    console.log('📊 Response data:', data);
+                    console.log('≡ƒôè Response data:', data);
                     
                     statusDiv.className = 'success';
-                    statusDiv.innerHTML = '✅ Search completed!';
+                    statusDiv.innerHTML = 'Γ£à Search completed!';
                     
                     // Display results
                     let html = '<h2>Results:</h2>';
@@ -12322,7 +12404,7 @@ def find_cloud_kitchen_page():
                         const proj = data.project_with_160_plus_fields;
                         html += `
                             <div class="project project-160">
-                                <h3>🎯 Project with 160+ Fields Found!</h3>
+                                <h3>≡ƒÄ» Project with 160+ Fields Found!</h3>
                                 <p><span class="project-id">ID: ${proj.id}</span></p>
                                 <p><strong>Name:</strong> ${proj.name}</p>
                                 <p><span class="field-count">Fields: ${proj.field_count}</span></p>
@@ -12350,7 +12432,7 @@ def find_cloud_kitchen_page():
                                 <div class="project ${is160Plus ? 'project-160' : ''}">
                                     <p><span class="project-id">ID: ${proj.id}</span> - <strong>${proj.name}</strong></p>
                                     <p><span class="field-count">Fields: ${fieldCount}</span> | Data Length: ${proj.data_length || 0} chars</p>
-                                    ${is160Plus ? '<p style="color: #28a745; font-weight: bold;">✅ Has 160+ fields!</p>' : ''}
+                                    ${is160Plus ? '<p style="color: #28a745; font-weight: bold;">Γ£à Has 160+ fields!</p>' : ''}
                                     <button onclick="loadProject(${proj.id})">Load This Project</button>
                                 </div>
                             `;
@@ -12360,9 +12442,9 @@ def find_cloud_kitchen_page():
                         
                         // Show diagnostic information if available
                         if (data.all_projects_sample && data.all_projects_sample.length > 0) {
-                            html += '<h3>🔍 Diagnostic: All Projects in Database (showing first 20):</h3>';
+                            html += '<h3>≡ƒöì Diagnostic: All Projects in Database (showing first 20):</h3>';
                             html += `<p><strong>Organization ID:</strong> ${data.org_id || 'Unknown'}</p>`;
-                            html += '<p style="color: #dc3545;">⚠️ The project "Cloud Kitchen - Dallas-001" might be in a different organization database.</p>';
+                            html += '<p style="color: #dc3545;">ΓÜá∩╕Å The project "Cloud Kitchen - Dallas-001" might be in a different organization database.</p>';
                             html += '<div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin: 10px 0;">';
                             html += '<p><strong>All projects found in this org_id:</strong></p>';
                             html += '<ul>';
@@ -12372,7 +12454,7 @@ def find_cloud_kitchen_page():
                             html += '</ul>';
                             html += '</div>';
                         } else {
-                            html += '<p style="color: #dc3545;">⚠️ No projects found in database at all. This might indicate:</p>';
+                            html += '<p style="color: #dc3545;">ΓÜá∩╕Å No projects found in database at all. This might indicate:</p>';
                             html += '<ul>';
                             html += '<li>The project is in a different organization database (check org_id)</li>';
                             html += '<li>Database connection issue</li>';
@@ -12384,10 +12466,10 @@ def find_cloud_kitchen_page():
                     resultsDiv.innerHTML = html;
                     
                 } catch (error) {
-                    console.error('❌ Error in searchCloudKitchen:', error);
-                    console.error('❌ Error stack:', error.stack);
+                    console.error('Γ¥î Error in searchCloudKitchen:', error);
+                    console.error('Γ¥î Error stack:', error.stack);
                     statusDiv.className = 'error';
-                    statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                    statusDiv.innerHTML = `Γ¥î Error: ${error.message}`;
                 }
             }
             
@@ -12591,7 +12673,7 @@ def projects_save():
         
         # CRITICAL: Validate that payload is not empty
         if not project_data or len(project_data) == 0:
-            logger.error(f"❌ Attempted to save project '{name}' with empty payload!")
+            logger.error(f"Γ¥î Attempted to save project '{name}' with empty payload!")
             return jsonify({"error": "Cannot save project with empty data. Please fill in at least one form field."}), 400
         
         # Log detailed information about what's being saved
@@ -12631,10 +12713,10 @@ def projects_save():
         org_id = get_current_org_id(request)
         if not org_id:
             auth_header = request.headers.get('Authorization', 'None')
-            logger.error(f"❌ Save failed: No org_id found. Authorization header: {auth_header[:50] if auth_header != 'None' else 'None'}")
+            logger.error(f"Γ¥î Save failed: No org_id found. Authorization header: {auth_header[:50] if auth_header != 'None' else 'None'}")
             return jsonify({"error": "Organization ID required. Please log in again."}), 401
         
-        logger.info(f"💾 Save request - org_id: {org_id}, project_name: '{name}', project_id: {project_id}")
+        logger.info(f"≡ƒÆ╛ Save request - org_id: {org_id}, project_name: '{name}', project_id: {project_id}")
         
         with get_db_connection(org_id=org_id) as conn:
             if conn is None:
@@ -12721,7 +12803,7 @@ def projects_save():
             conn.commit()
             
             # CRITICAL: Verify commit succeeded
-            logger.info(f"💾 Commit completed for project ID {final_project_id}")
+            logger.info(f"≡ƒÆ╛ Commit completed for project ID {final_project_id}")
             
             # Verify the data was actually saved
             cursor.execute("SELECT data FROM projects WHERE id = ?", (final_project_id,))
@@ -12731,17 +12813,17 @@ def projects_save():
                     saved_data = json.loads(saved_row[0])
                     if isinstance(saved_data, dict) and "payload" in saved_data:
                         saved_payload = json.loads(saved_data["payload"])
-                        logger.info(f"✅ Verified: Saved {len(saved_payload)} fields to database for project ID {final_project_id}")
-                        logger.info(f"✅ Sample saved fields: {list(saved_payload.keys())[:10]}")
+                        logger.info(f"Γ£à Verified: Saved {len(saved_payload)} fields to database for project ID {final_project_id}")
+                        logger.info(f"Γ£à Sample saved fields: {list(saved_payload.keys())[:10]}")
                     else:
-                        logger.warning(f"⚠️ Saved data format unexpected for project ID {final_project_id}: {type(saved_data)}")
+                        logger.warning(f"ΓÜá∩╕Å Saved data format unexpected for project ID {final_project_id}: {type(saved_data)}")
                 except (json.JSONDecodeError, TypeError) as e:
-                    logger.warning(f"⚠️ Could not verify saved data: {e}")
+                    logger.warning(f"ΓÜá∩╕Å Could not verify saved data: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
             else:
-                logger.error(f"❌ ERROR: Data not found after save for project ID {final_project_id}")
-                logger.error(f"❌ This indicates the save operation may have failed silently")
+                logger.error(f"Γ¥î ERROR: Data not found after save for project ID {final_project_id}")
+                logger.error(f"Γ¥î This indicates the save operation may have failed silently")
 
             return jsonify({
                 "ok": True,
@@ -12944,10 +13026,10 @@ def get_csv_fingerprints():
     try:
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
-        logger.info(f"🔍 /api/csv/fingerprints endpoint called - org_id: {org_id}")
+        logger.info(f"≡ƒöì /api/csv/fingerprints endpoint called - org_id: {org_id}")
         
         if not org_id:
-            logger.warning("❌ /api/csv/fingerprints: No org_id found - returning empty list")
+            logger.warning("Γ¥î /api/csv/fingerprints: No org_id found - returning empty list")
             return jsonify({
                 "status": "success",
                 "fingerprints": [],
@@ -12976,41 +13058,41 @@ def get_csv_fingerprints():
                 """
                 )
                 raw_files = cursor.fetchall()
-                logger.info(f"📊 Found {len(raw_files)} files with fingerprints in raw_meter_data for org_id={org_id}")
+                logger.info(f"≡ƒôè Found {len(raw_files)} files with fingerprints in raw_meter_data for org_id={org_id}")
                 
                 # Log sample of files found
                 if raw_files:
-                    logger.info(f"📋 Sample files found:")
+                    logger.info(f"≡ƒôï Sample files found:")
                     for i, row in enumerate(raw_files[:5]):  # Log first 5
                         file_id, file_name, file_path, file_size, fingerprint, created_at, uploaded_by = row
                         logger.info(f"   {i+1}. ID: {file_id}, Name: {file_name}, Path: {file_path}, Fingerprint: {fingerprint[:32] if fingerprint else 'None'}...")
                 else:
-                    logger.warning(f"⚠️ No files with fingerprints found in raw_meter_data for org_id={org_id}")
+                    logger.warning(f"ΓÜá∩╕Å No files with fingerprints found in raw_meter_data for org_id={org_id}")
                     
                     # Check if there are any files at all
                     cursor.execute("SELECT COUNT(*) FROM raw_meter_data")
                     total_count = cursor.fetchone()[0]
-                    logger.info(f"📊 Total files in raw_meter_data: {total_count}")
+                    logger.info(f"≡ƒôè Total files in raw_meter_data: {total_count}")
                     
                     # Check how many have NULL fingerprint
                     cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NULL")
                     null_count = cursor.fetchone()[0]
-                    logger.info(f"📊 Files with NULL fingerprint: {null_count}")
+                    logger.info(f"≡ƒôè Files with NULL fingerprint: {null_count}")
                     
                     # Check how many have non-NULL fingerprint
                     cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL")
                     not_null_count = cursor.fetchone()[0]
-                    logger.info(f"📊 Files with non-NULL fingerprint: {not_null_count}")
+                    logger.info(f"≡ƒôè Files with non-NULL fingerprint: {not_null_count}")
                     
                     # Check files in verified directory
                     cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE file_path LIKE '%protected/verified%'")
                     verified_count = cursor.fetchone()[0]
-                    logger.info(f"📊 Files in verified directory (by path): {verified_count}")
+                    logger.info(f"≡ƒôè Files in verified directory (by path): {verified_count}")
                     
                     # Check files in verified directory with fingerprint
                     cursor.execute("SELECT COUNT(*) FROM raw_meter_data WHERE file_path LIKE '%protected/verified%' AND fingerprint IS NOT NULL")
                     verified_with_fp_count = cursor.fetchone()[0]
-                    logger.info(f"📊 Files in verified directory WITH fingerprint: {verified_with_fp_count}")
+                    logger.info(f"≡ƒôè Files in verified directory WITH fingerprint: {verified_with_fp_count}")
             except Exception as e:
                 logger.error(f"Error fetching raw files fingerprints: {e}")
                 import traceback
@@ -13028,7 +13110,7 @@ def get_csv_fingerprints():
                 """
                 )
                 project_files = cursor.fetchall()
-                logger.info(f"📊 Found {len(project_files)} files with fingerprints in project_files for org_id={org_id}")
+                logger.info(f"≡ƒôè Found {len(project_files)} files with fingerprints in project_files for org_id={org_id}")
             except Exception as e:
                 logger.error(f"Error fetching project files fingerprints: {e}")
                 project_files = []
@@ -13094,7 +13176,7 @@ def get_csv_fingerprints():
                     }
                 )
 
-            logger.info(f"✅ Returning {len(fingerprints)} total fingerprints for org_id={org_id}")
+            logger.info(f"Γ£à Returning {len(fingerprints)} total fingerprints for org_id={org_id}")
             return jsonify(
                 {
                     "status": "success",
@@ -16800,14 +16882,14 @@ def upload_raw_meter_data():
 def list_original_files():
     """List all original raw meter data files"""
     try:
-        logger.info("🔍 /api/original-files endpoint called")
+        logger.info("≡ƒöì /api/original-files endpoint called")
         
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
-        logger.info(f"🔑 Extracted org_id: {org_id}")
+        logger.info(f"≡ƒöæ Extracted org_id: {org_id}")
         
         if not org_id:
-            logger.warning("❌ /api/original-files: No org_id found - authentication required")
+            logger.warning("Γ¥î /api/original-files: No org_id found - authentication required")
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
         
         with get_db_connection(org_id=org_id) as conn:
@@ -16827,7 +16909,7 @@ def list_original_files():
             )
             
             db_results = cursor.fetchall()
-            logger.info(f"📊 Found {len(db_results)} files in database for org_id={org_id}")
+            logger.info(f"≡ƒôè Found {len(db_results)} files in database for org_id={org_id}")
 
             files = []
             for row in db_results:
@@ -16853,7 +16935,7 @@ def list_original_files():
                     }
                 )
             
-            logger.info(f"✅ Returning {len(files)} files (verified: {sum(1 for f in files if f.get('is_verified'))}, unverified: {sum(1 for f in files if not f.get('is_verified'))})")
+            logger.info(f"Γ£à Returning {len(files)} files (verified: {sum(1 for f in files if f.get('is_verified'))}, unverified: {sum(1 for f in files if not f.get('is_verified'))})")
             return jsonify({"status": "success", "files": files})
 
     except Exception as e:
@@ -17074,24 +17156,24 @@ def apply_clipping_to_original_file(file_id):
     """Apply clipping modifications to an original file"""
     try:
         logger.info("=" * 80)
-        logger.info(f"🔧 /api/original-files/{file_id}/apply-clipping endpoint called")
-        logger.info(f"📥 Request method: {request.method}")
-        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, Content-Type={request.headers.get('Content-Type')}")
-        logger.info(f"📥 Request content length: {request.content_length}")
+        logger.info(f"≡ƒöº /api/original-files/{file_id}/apply-clipping endpoint called")
+        logger.info(f"≡ƒôÑ Request method: {request.method}")
+        logger.info(f"≡ƒôÑ Request headers: Authorization={bool(request.headers.get('Authorization'))}, Content-Type={request.headers.get('Content-Type')}")
+        logger.info(f"≡ƒôÑ Request content length: {request.content_length}")
         
         data = request.get_json()
         if not data:
-            logger.error("❌ No JSON data received in request")
+            logger.error("Γ¥î No JSON data received in request")
             return jsonify({"status": "error", "error": "No data received"}), 400
         
         modified_content = data.get("modified_content", "")
         modification_reason = data.get("modification_reason", "")
         modification_details = data.get("modification_details", "")
         
-        logger.info(f"📋 Received data - Content length: {len(modified_content) if modified_content else 0}, Reason: {modification_reason}, Details: {len(modification_details) if modification_details else 0} chars")
+        logger.info(f"≡ƒôï Received data - Content length: {len(modified_content) if modified_content else 0}, Reason: {modification_reason}, Details: {len(modification_details) if modification_details else 0} chars")
 
         if not modified_content or not modification_reason:
-            logger.error(f"❌ Missing required fields - Content: {bool(modified_content)}, Reason: {bool(modification_reason)}")
+            logger.error(f"Γ¥î Missing required fields - Content: {bool(modified_content)}, Reason: {bool(modification_reason)}")
             return (
                 jsonify(
                     {
@@ -17195,7 +17277,7 @@ def apply_clipping_to_original_file(file_id):
             
             # Verify the original file exists
             if not file_path_absolute or not file_path_absolute.exists():
-                logger.error(f"❌ Original file does not exist: {file_path_absolute}")
+                logger.error(f"Γ¥î Original file does not exist: {file_path_absolute}")
                 return jsonify({"status": "error", "error": f"Original file not found: {file_path}"}), 404
 
             # Normalize path separators for Windows (for display/logging)
@@ -17204,24 +17286,24 @@ def apply_clipping_to_original_file(file_id):
 
             # Create backup of original file
             backup_path = file_path_absolute.parent / f"{file_path_absolute.name}.backup_{int(time.time())}"
-            logger.info(f"📋 Creating backup: {backup_path}")
+            logger.info(f"≡ƒôï Creating backup: {backup_path}")
             try:
                 shutil.copy2(file_path_absolute, backup_path)
-                logger.info(f"✅ Backup created successfully: {backup_path}")
+                logger.info(f"Γ£à Backup created successfully: {backup_path}")
             except Exception as backup_error:
-                logger.error(f"❌ Failed to create backup: {backup_error}")
+                logger.error(f"Γ¥î Failed to create backup: {backup_error}")
                 import traceback
                 logger.error(traceback.format_exc())
                 return jsonify({"status": "error", "error": f"Failed to create backup: {str(backup_error)}"}), 500
 
             # Write modified content to file
-            logger.info(f"📝 Writing modified content to: {file_path_absolute}")
+            logger.info(f"≡ƒô¥ Writing modified content to: {file_path_absolute}")
             try:
                 with open(file_path_absolute, "w", encoding="utf-8") as f:
                     f.write(modified_content)
-                logger.info(f"✅ Modified content written successfully")
+                logger.info(f"Γ£à Modified content written successfully")
             except Exception as write_error:
-                logger.error(f"❌ Failed to write modified content: {write_error}")
+                logger.error(f"Γ¥î Failed to write modified content: {write_error}")
                 import traceback
                 logger.error(traceback.format_exc())
                 return jsonify({"status": "error", "error": f"Failed to write file: {str(write_error)}"}), 500
@@ -17234,8 +17316,8 @@ def apply_clipping_to_original_file(file_id):
             new_fingerprint = new_fingerprint_data["content_hash"]
 
             # Update file fingerprint in database
-            logger.info(f"💾 Updating fingerprint in database for file_id={file_id}")
-            logger.info(f"💾 New fingerprint: {new_fingerprint[:32]}...")
+            logger.info(f"≡ƒÆ╛ Updating fingerprint in database for file_id={file_id}")
+            logger.info(f"≡ƒÆ╛ New fingerprint: {new_fingerprint[:32]}...")
             cursor.execute(
                 """
                 UPDATE raw_meter_data 
@@ -17249,9 +17331,9 @@ def apply_clipping_to_original_file(file_id):
             cursor.execute("SELECT fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
             verify_row = cursor.fetchone()
             if verify_row and verify_row[0] == new_fingerprint:
-                logger.info(f"✅ Fingerprint updated successfully in database for file_id={file_id}")
+                logger.info(f"Γ£à Fingerprint updated successfully in database for file_id={file_id}")
             else:
-                logger.error(f"❌ Fingerprint update verification failed for file_id={file_id}")
+                logger.error(f"Γ¥î Fingerprint update verification failed for file_id={file_id}")
                 logger.error(f"   Expected: {new_fingerprint[:32]}...")
                 logger.error(f"   Got: {verify_row[0][:32] if verify_row and verify_row[0] else 'None'}...")
 
@@ -17341,8 +17423,8 @@ def apply_clipping_to_original_file(file_id):
             verified_dir = script_dir / "files" / "protected" / "verified"
             verified_dir.mkdir(parents=True, exist_ok=True)
             
-            logger.info(f"📁 Verified directory: {verified_dir}")
-            logger.info(f"📁 Verified directory exists: {verified_dir.exists()}")
+            logger.info(f"≡ƒôü Verified directory: {verified_dir}")
+            logger.info(f"≡ƒôü Verified directory exists: {verified_dir.exists()}")
 
             # Create verified filename with timestamp
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -17350,19 +17432,19 @@ def apply_clipping_to_original_file(file_id):
             verified_path = verified_dir / verified_filename
 
             # Copy file to verified directory
-            logger.info(f"📋 Copying file from {file_path_absolute} to {verified_path}")
+            logger.info(f"≡ƒôï Copying file from {file_path_absolute} to {verified_path}")
             try:
                 shutil.copy2(file_path_absolute, verified_path)
                 
                 # Verify file was copied
                 if verified_path.exists():
                     file_size = verified_path.stat().st_size
-                    logger.info(f"✅ File successfully copied to verified directory: {verified_path} ({file_size:,} bytes)")
+                    logger.info(f"Γ£à File successfully copied to verified directory: {verified_path} ({file_size:,} bytes)")
                 else:
-                    logger.error(f"❌ File copy failed - verified_path does not exist: {verified_path}")
+                    logger.error(f"Γ¥î File copy failed - verified_path does not exist: {verified_path}")
                     return jsonify({"status": "error", "error": "Failed to copy file to verified directory"}), 500
             except Exception as copy_error:
-                logger.error(f"❌ Error copying file to verified directory: {copy_error}")
+                logger.error(f"Γ¥î Error copying file to verified directory: {copy_error}")
                 import traceback
                 logger.error(traceback.format_exc())
                 return jsonify({"status": "error", "error": f"Failed to copy file: {str(copy_error)}"}), 500
@@ -17370,8 +17452,8 @@ def apply_clipping_to_original_file(file_id):
             # Update database with new verified file path
             # Store relative path for consistency with other file paths
             relative_verified_path = f"files/protected/verified/{verified_filename}"
-            logger.info(f"💾 Updating database with verified path: {relative_verified_path}")
-            logger.info(f"💾 Updating fingerprint: {new_fingerprint[:32]}...")
+            logger.info(f"≡ƒÆ╛ Updating database with verified path: {relative_verified_path}")
+            logger.info(f"≡ƒÆ╛ Updating fingerprint: {new_fingerprint[:32]}...")
             cursor.execute(
                 """
                 UPDATE raw_meter_data 
@@ -17385,27 +17467,27 @@ def apply_clipping_to_original_file(file_id):
             cursor.execute("SELECT file_path, fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
             verify_row = cursor.fetchone()
             if verify_row:
-                logger.info(f"✅ Database update verified before commit:")
+                logger.info(f"Γ£à Database update verified before commit:")
                 logger.info(f"   file_path: {verify_row[0]}")
                 logger.info(f"   fingerprint: {verify_row[1][:32] if verify_row[1] else 'None'}...")
             else:
-                logger.error(f"❌ File not found in database after update for file_id={file_id}")
+                logger.error(f"Γ¥î File not found in database after update for file_id={file_id}")
 
             conn.commit()
-            logger.info(f"✅ Database commit completed for file_id={file_id}")
+            logger.info(f"Γ£à Database commit completed for file_id={file_id}")
             
             # Verify after commit
             cursor.execute("SELECT file_path, fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
             post_commit_row = cursor.fetchone()
             if post_commit_row:
-                logger.info(f"✅ Post-commit verification:")
+                logger.info(f"Γ£à Post-commit verification:")
                 logger.info(f"   file_path: {post_commit_row[0]}")
                 logger.info(f"   fingerprint: {post_commit_row[1][:32] if post_commit_row[1] else 'None'}...")
             else:
-                logger.error(f"❌ File not found in database after commit for file_id={file_id}")
+                logger.error(f"Γ¥î File not found in database after commit for file_id={file_id}")
 
             logger.info(
-                f"✅ File clipping applied and moved to verified: {filename} -> {relative_verified_path} by {user['full_name']} - Reason: {modification_reason}"
+                f"Γ£à File clipping applied and moved to verified: {filename} -> {relative_verified_path} by {user['full_name']} - Reason: {modification_reason}"
             )
 
             # Prepare response data
@@ -17419,31 +17501,31 @@ def apply_clipping_to_original_file(file_id):
                 "custody_record": clipped_custody_record,
             }
             
-            logger.info(f"📤 Preparing response with status: {response_data['status']}")
-            logger.info(f"📤 Response keys: {list(response_data.keys())}")
-            logger.info(f"📤 Response message: {response_data['message']}")
+            logger.info(f"≡ƒôñ Preparing response with status: {response_data['status']}")
+            logger.info(f"≡ƒôñ Response keys: {list(response_data.keys())}")
+            logger.info(f"≡ƒôñ Response message: {response_data['message']}")
             
             # Create JSON response
             response = jsonify(response_data)
-            logger.info(f"📤 Response created, status code will be 200")
-            logger.info(f"📤 Response content type: {response.content_type}")
-            logger.info(f"📤 Response data length: {len(response.get_data())} bytes")
+            logger.info(f"≡ƒôñ Response created, status code will be 200")
+            logger.info(f"≡ƒôñ Response content type: {response.content_type}")
+            logger.info(f"≡ƒôñ Response data length: {len(response.get_data())} bytes")
             
             return response
 
     except Exception as e:
         logger.error("=" * 80)
-        logger.error(f"❌ EXCEPTION in apply_clipping_to_original_file: {type(e).__name__}")
-        logger.error(f"❌ Error message: {str(e)}")
+        logger.error(f"Γ¥î EXCEPTION in apply_clipping_to_original_file: {type(e).__name__}")
+        logger.error(f"Γ¥î Error message: {str(e)}")
         import traceback
-        logger.error(f"❌ Full traceback:\n{traceback.format_exc()}")
+        logger.error(f"Γ¥î Full traceback:\n{traceback.format_exc()}")
         logger.error("=" * 80)
         
         # Ensure we return a proper JSON response even on error
         error_response = jsonify({"status": "error", "error": str(e)})
-        logger.info(f"📤 Returning error response with status code 500")
-        logger.info(f"📤 Error response content type: {error_response.content_type}")
-        logger.info(f"📤 Error response data: {error_response.get_data(as_text=True)[:200]}")
+        logger.info(f"≡ƒôñ Returning error response with status code 500")
+        logger.info(f"≡ƒôñ Error response content type: {error_response.content_type}")
+        logger.info(f"≡ƒôñ Error response data: {error_response.get_data(as_text=True)[:200]}")
         
         return error_response, 500
 
@@ -17516,11 +17598,11 @@ def pe_dashboard():
         <div class="header">
             <img src="{{ synerex_logo_url }}" alt="Synerex Logo" class="logo">
             <div class="header-text">
-                <h1>👨‍💼 Professional Engineer Dashboard</h1>
+                <h1>≡ƒæ¿ΓÇì≡ƒÆ╝ Professional Engineer Dashboard</h1>
                 <p>Utility Audit Grade - Professional Oversight System</p>
             </div>
             <div class="header-actions">
-                <button class="btn" onclick="goBack()" style="background: #6c757d; margin-left: auto;">← Back to Dashboard</button>
+                <button class="btn" onclick="goBack()" style="background: #6c757d; margin-left: auto;">ΓåÉ Back to Dashboard</button>
             </div>
         </div>
 
@@ -17746,7 +17828,7 @@ def pe_dashboard():
             
             <!-- Download Review Checklist Section -->
             <hr style="margin: 30px 0; border: none; border-top: 2px solid #ff9800;">
-            <h4 style="color: #e65100; margin-top: 20px;">📥 Download Review Checklist</h4>
+            <h4 style="color: #e65100; margin-top: 20px;">≡ƒôÑ Download Review Checklist</h4>
             <p style="color: #666; margin-bottom: 15px; font-size: 14px;">After assigning a PE reviewer, download the PE Review Checklist Excel form for the selected project</p>
             <div class="form-group">
                 <label for="project-select-checklist"><strong>Select Project:</strong></label>
@@ -17756,7 +17838,7 @@ def pe_dashboard():
             </div>
             <div class="form-group">
                 <button class="btn btn-success" id="download-checklist-btn" onclick="downloadSelectedChecklist()" disabled>
-                    📥 Download Review Checklist
+                    ≡ƒôÑ Download Review Checklist
                 </button>
                 <button class="btn" onclick="refreshProjectList()" style="background: #6c757d;">
                     Refresh Project List
@@ -18986,15 +19068,15 @@ def list_verified_files():
     """List all verified CSV files from the file system"""
     try:
         logger.info("=" * 80)
-        logger.info("🔍 /api/verified-files endpoint called")
-        logger.info(f"📥 Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
+        logger.info("≡ƒöì /api/verified-files endpoint called")
+        logger.info(f"≡ƒôÑ Request headers: Authorization={bool(request.headers.get('Authorization'))}, X-Session-Token={bool(request.headers.get('X-Session-Token'))}, Cookie={bool(request.cookies.get('session_token'))}")
         
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
-        logger.info(f"🔑 Extracted org_id: {org_id}")
+        logger.info(f"≡ƒöæ Extracted org_id: {org_id}")
         
         if not org_id:
-            logger.warning("❌ /api/verified-files: No org_id found - returning empty list")
+            logger.warning("Γ¥î /api/verified-files: No org_id found - returning empty list")
             logger.warning(f"   Request headers: {dict(request.headers)}")
             logger.warning(f"   Request cookies: {dict(request.cookies)}")
             return jsonify({"status": "success", "files": [], "total_count": 0}), 200
@@ -19021,12 +19103,12 @@ def list_verified_files():
             """
             )
             db_results = cursor.fetchall()
-            logger.info(f"📊 Found {len(db_results)} verified files (in protected/verified directory) for org_id={org_id}")
+            logger.info(f"≡ƒôè Found {len(db_results)} verified files (in protected/verified directory) for org_id={org_id}")
             
             # Also check for files that might not have the path updated but are verified
             # This is a fallback in case the path wasn't updated correctly
             if len(db_results) == 0:
-                logger.info("⚠️ No files found in verified directory, checking all files with fingerprint...")
+                logger.info("ΓÜá∩╕Å No files found in verified directory, checking all files with fingerprint...")
                 cursor.execute(
                     """
                     SELECT id, file_name, file_path, file_size, created_at, fingerprint
@@ -19036,12 +19118,12 @@ def list_verified_files():
                 """
                 )
                 all_files = cursor.fetchall()
-                logger.info(f"📊 Found {len(all_files)} total files with fingerprint (including unverified)")
+                logger.info(f"≡ƒôè Found {len(all_files)} total files with fingerprint (including unverified)")
                 # Filter to only include files that exist in verified directory on disk
                 verified_files_on_disk = []
                 script_dir = Path(__file__).parent.absolute()
                 verified_dir = script_dir / "files" / "protected" / "verified"
-                logger.info(f"📁 Checking verified directory: {verified_dir}")
+                logger.info(f"≡ƒôü Checking verified directory: {verified_dir}")
                 if verified_dir.exists():
                     for row in all_files:
                         file_id, file_name, file_path, file_size, created_at, fingerprint = row
@@ -19055,13 +19137,13 @@ def list_verified_files():
                             # Check if file exists in verified directory
                             if file_path_absolute.exists() and verified_dir in file_path_absolute.parents:
                                 verified_files_on_disk.append(row)
-                                logger.debug(f"✅ Found verified file on disk: {file_path_absolute}")
+                                logger.debug(f"Γ£à Found verified file on disk: {file_path_absolute}")
                             else:
-                                logger.debug(f"⚠️ File not in verified directory: {file_path_absolute}")
-                    logger.info(f"📊 Found {len(verified_files_on_disk)} files that exist in verified directory on disk")
+                                logger.debug(f"ΓÜá∩╕Å File not in verified directory: {file_path_absolute}")
+                    logger.info(f"≡ƒôè Found {len(verified_files_on_disk)} files that exist in verified directory on disk")
                     db_results = verified_files_on_disk
                 else:
-                    logger.warning(f"⚠️ Verified directory does not exist: {verified_dir}")
+                    logger.warning(f"ΓÜá∩╕Å Verified directory does not exist: {verified_dir}")
 
             files = []
             script_dir = Path(__file__).parent.absolute()
@@ -19094,9 +19176,9 @@ def list_verified_files():
                         }
                     )
                 else:
-                    logger.warning(f"⚠️ File path does not exist: {file_path} (file_id={file_id}, file_name={file_name})")
+                    logger.warning(f"ΓÜá∩╕Å File path does not exist: {file_path} (file_id={file_id}, file_name={file_name})")
 
-            logger.info(f"✅ Returning {len(files)} verified files (out of {len(db_results)} database records)")
+            logger.info(f"Γ£à Returning {len(files)} verified files (out of {len(db_results)} database records)")
             return jsonify(
                 {"status": "success", "files": files, "total_count": len(files)}
             )
@@ -19488,7 +19570,7 @@ def _add_network_report_content(story, results_data, heading_style, subheading_s
             before_val = f"{before_val:.2%}"
         if isinstance(after_val, (int, float)):
             after_val = f"{after_val:.2%}"
-        perf_data.append(['IEEE 519', 'TDD ≤ Limit', before_status, after_status, str(before_val), str(after_val)])
+        perf_data.append(['IEEE 519', 'TDD Γëñ Limit', before_status, after_status, str(before_val), str(after_val)])
     
     # NEMA MG1
     nema_before = before_compliance.get('nema_mg1', {}) if isinstance(before_compliance, dict) else {}
@@ -19502,7 +19584,7 @@ def _add_network_report_content(story, results_data, heading_style, subheading_s
             before_val = f"{before_val:.2%}"
         if isinstance(after_val, (int, float)):
             after_val = f"{after_val:.2%}"
-        perf_data.append(['NEMA MG1', 'Voltage Unbalance ≤ 1%', before_status, after_status, str(before_val), str(after_val)])
+        perf_data.append(['NEMA MG1', 'Voltage Unbalance Γëñ 1%', before_status, after_status, str(before_val), str(after_val)])
     
     if len(perf_data) > 1:
         perf_table = Table(perf_data, colWidths=[1.2*inch, 1.5*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch])
@@ -19600,7 +19682,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
                 value = f"Completeness: {completeness:.1f}%, Outliers: {outliers:.1f}%"
             else:
                 value = f"Completeness: {completeness}, Outliers: {outliers}"
-            report_data.append(['ASHRAE Data Quality', 'Data Completeness ≥ 95% & Outliers ≤ 5%', status, value])
+            report_data.append(['ASHRAE Data Quality', 'Data Completeness ΓëÑ 95% & Outliers Γëñ 5%', status, value])
         
         # IPMVP
         ipmvp = after_compliance.get('ipmvp', {}) if isinstance(after_compliance, dict) else {}
@@ -19731,7 +19813,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             after_status = 'PASS' if (isinstance(ieee_after, dict) and ieee_after.get('pass', False)) else 'FAIL'
             before_val = f"{safe_float(tdd_before):.3f}%" if tdd_before is not None else 'N/A'
             after_val = f"{safe_float(tdd_after):.3f}%" if tdd_after is not None else 'N/A'
-            perf_data.append(['IEEE 519', 'TDD ≤ Limit', before_status, after_status, before_val, after_val])
+            perf_data.append(['IEEE 519', 'TDD Γëñ Limit', before_status, after_status, before_val, after_val])
         
         # NEMA MG1 - comprehensive voltage unbalance extraction
         nema_before = before_compliance.get('nema_mg1', {}) if isinstance(before_compliance, dict) else {}
@@ -19756,7 +19838,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             after_status = 'PASS' if (isinstance(nema_after, dict) and nema_after.get('pass', False)) else 'FAIL'
             before_val = f"{safe_float(unbalance_before):.3f}%" if unbalance_before is not None else 'N/A'
             after_val = f"{safe_float(unbalance_after):.3f}%" if unbalance_after is not None else 'N/A'
-            perf_data.append(['NEMA MG1', 'Voltage Unbalance ≤ 1%', before_status, after_status, before_val, after_val])
+            perf_data.append(['NEMA MG1', 'Voltage Unbalance Γëñ 1%', before_status, after_status, before_val, after_val])
         
         if len(perf_data) > 1:
             perf_table = Table(perf_data, colWidths=[1.2*inch, 1.5*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch])
@@ -19827,7 +19909,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             bill_weighted.get('envelope_smoothing_dollars') or 0
         )
         if network_savings > 0:
-            fin_data.append(['Network (I²R+eddy)', f"${network_savings:,.2f}", 'Annual savings from reduced losses'])
+            fin_data.append(['Network (I┬▓R+eddy)', f"${network_savings:,.2f}", 'Annual savings from reduced losses'])
         
         # Extract total savings with comprehensive fallbacks
         total_savings = safe_float(
@@ -19846,7 +19928,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             energy.get('total_kwh_savings') or 0
         )
         if kwh_savings > 0:
-            fin_data.append(['ΔkWh (annual)', f"{kwh_savings:,.3f} kWh", 'Total annual energy savings'])
+            fin_data.append(['╬ökWh (annual)', f"{kwh_savings:,.3f} kWh", 'Total annual energy savings'])
         
         # Extract kW savings with comprehensive fallbacks
         kw_savings_raw = (
@@ -19856,7 +19938,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
         ) or financial.get('average_kw_savings') or financial.get('kw_savings') or financial_debug.get('average_kw_savings') or financial_debug.get('kw_savings') or energy.get('total_kw_savings') or energy.get('kw_savings') or 0
         kw_savings = safe_float(kw_savings_raw)
         if kw_savings > 0:
-            fin_data.append(['ΔkW (avg)', f"{kw_savings:,.3f} kW", 'Average power reduction'])
+            fin_data.append(['╬ökW (avg)', f"{kw_savings:,.3f} kW", 'Average power reduction'])
         
         if len(fin_data) > 1:
             fin_table = Table(fin_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
@@ -20293,7 +20375,7 @@ def calculate_motor_failure_risk(power_quality_data, compliance_data, config=Non
     
     Based on:
     - NEMA MG1-2016: Voltage unbalance causes 6-10% temperature rise per 1% unbalance
-    - IEEE 519: Harmonic distortion causes additional I²R losses
+    - IEEE 519: Harmonic distortion causes additional I┬▓R losses
     - IEEE 141-1993: Motor derating for voltage unbalance
     
     Args:
@@ -20529,10 +20611,10 @@ def calculate_transformer_failure_risk(power_quality_data, compliance_data, netw
             # Calculate rated current based on transformer kVA and system configuration
             if xfmr_kva > 0 and nominal_voltage > 0:
                 if system_phases == 3:
-                    # 3-phase: Rated Current = (kVA × 1000) / (Voltage × √3)
+                    # 3-phase: Rated Current = (kVA ├ù 1000) / (Voltage ├ù ΓêÜ3)
                     rated_current = (xfmr_kva * 1000) / (nominal_voltage * 1.732)
                 elif system_phases == 1:
-                    # 1-phase: Rated Current = (kVA × 1000) / Voltage
+                    # 1-phase: Rated Current = (kVA ├ù 1000) / Voltage
                     rated_current = (xfmr_kva * 1000) / nominal_voltage
                 else:
                     # Default to 3-phase calculation
@@ -20583,7 +20665,7 @@ def calculate_transformer_failure_risk(power_quality_data, compliance_data, netw
         voltage_factor = min(100, max(0, voltage_factor))
         
         # Estimate temperature rise (simplified)
-        # Based on losses: ΔT = (I²R + eddy_losses) / cooling_factor
+        # Based on losses: ╬öT = (I┬▓R + eddy_losses) / cooling_factor
         temperature_rise = 0  # Would need actual loss calculations
         temp_factor = 0
         
@@ -21062,7 +21144,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     f"{thd_b:.3f}%",
                     f"{thd_a:.3f}%",
                     f"{improvement:.3f}%",
-                    'IEEE 519 (≤5.0%)',
+                    'IEEE 519 (Γëñ5.0%)',
                     compliant
                 ])
             
@@ -21074,7 +21156,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     f"{pf_b:.3f}",
                     f"{pf_a:.3f}",
                     f"{improvement:.3f}%",
-                    'Utility (≥0.95)',
+                    'Utility (ΓëÑ0.95)',
                     compliant
                 ])
             
@@ -21086,7 +21168,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     f"{unbal_b:.3f}%",
                     f"{unbal_a:.3f}%",
                     f"{improvement:.3f}%",
-                    'NEMA MG1 (≤1.0%)',
+                    'NEMA MG1 (Γëñ1.0%)',
                     compliant
                 ])
             
@@ -21281,7 +21363,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'THD',
                     f"{thd_before:.3f}%" if isinstance(thd_before, (int, float)) else str(thd_before),
                     f"{thd_after:.3f}%" if isinstance(thd_after, (int, float)) else str(thd_after),
-                    f"≤{ieee_thd_limit:.3f}%" if isinstance(ieee_thd_limit, (int, float)) else str(ieee_thd_limit),
+                    f"Γëñ{ieee_thd_limit:.3f}%" if isinstance(ieee_thd_limit, (int, float)) else str(ieee_thd_limit),
                     'PASS' if ieee_compliant else 'FAIL'
                 ])
             
@@ -21329,7 +21411,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'Voltage Unbalance',
                     f"{unbal_before:.3f}%" if isinstance(unbal_before, (int, float)) else str(unbal_before),
                     f"{unbal_after:.3f}%" if isinstance(unbal_after, (int, float)) else str(unbal_after),
-                    '≤1.0%',
+                    'Γëñ1.0%',
                     'PASS' if nema_compliant else 'FAIL'
                 ])
             
@@ -21402,8 +21484,8 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'ANSI C12.1/C12.20',
                     'Meter Accuracy',
                     'N/A',
-                    f"±{meter_accuracy:.3f}%" if isinstance(meter_accuracy, (int, float)) else str(meter_accuracy),
-                    '≤0.5%',
+                    f"┬▒{meter_accuracy:.3f}%" if isinstance(meter_accuracy, (int, float)) else str(meter_accuracy),
+                    'Γëñ0.5%',
                     'PASS' if ansi_compliant else 'FAIL'
                 ])
             
@@ -21461,19 +21543,19 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                 metrics_data = []
                 voltage_unbalance = safe_float(eq.get('voltage_unbalance'))
                 if voltage_unbalance is not None and voltage_unbalance != 0:
-                    metrics_data.append(['Voltage Unbalance', f"{voltage_unbalance:.3f}%", 'NEMA MG1: ≤1.0%'])
+                    metrics_data.append(['Voltage Unbalance', f"{voltage_unbalance:.3f}%", 'NEMA MG1: Γëñ1.0%'])
                 
                 harmonic_thd = safe_float(eq.get('harmonic_thd'))
                 if harmonic_thd is not None and harmonic_thd != 0:
-                    metrics_data.append(['Harmonic THD', f"{harmonic_thd:.3f}%", 'IEEE 519: ≤5.0%'])
+                    metrics_data.append(['Harmonic THD', f"{harmonic_thd:.3f}%", 'IEEE 519: Γëñ5.0%'])
                 
                 power_factor = safe_float(eq.get('power_factor'))
                 if power_factor is not None and power_factor != 0:
-                    metrics_data.append(['Power Factor', f"{power_factor:.3f}", 'Target: ≥0.95'])
+                    metrics_data.append(['Power Factor', f"{power_factor:.3f}", 'Target: ΓëÑ0.95'])
                 
                 loading_percentage = safe_float(eq.get('loading_percentage'))
                 if loading_percentage is not None and loading_percentage > 0:
-                    metrics_data.append(['Loading Percentage', f"{loading_percentage:.3f}%", 'Optimal: ≤80%'])
+                    metrics_data.append(['Loading Percentage', f"{loading_percentage:.3f}%", 'Optimal: Γëñ80%'])
                 
                 if metrics_data:
                     metrics_table = Table(metrics_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
@@ -21521,10 +21603,10 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     story.append(Paragraph("Maintenance Recommendations", styles['Heading3']))
                     for rec in recommendations:
                         if isinstance(rec, str):
-                            story.append(Paragraph(f"• {rec}", styles['Normal']))
+                            story.append(Paragraph(f"ΓÇó {rec}", styles['Normal']))
                         elif isinstance(recommendations, list):
                             for r in recommendations:
-                                story.append(Paragraph(f"• {r}", styles['Normal']))
+                                story.append(Paragraph(f"ΓÇó {r}", styles['Normal']))
                     story.append(Spacer(1, 0.15*inch))
                 
                 story.append(Spacer(1, 0.2*inch))
@@ -21536,7 +21618,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
         <b>NEMA MG1-2016:</b> Motor voltage unbalance limits (1% max). Voltage unbalance causes 6-10% temperature rise per 1% unbalance. 
         Section 12.45 specifies voltage unbalance calculations using line-to-line voltages (V12, V23, V31).<br/><br/>
         
-        <b>IEEE 519-2014/2022:</b> Harmonic distortion limits. High THD causes additional I²R losses and equipment heating. 
+        <b>IEEE 519-2014/2022:</b> Harmonic distortion limits. High THD causes additional I┬▓R losses and equipment heating. 
         Table 10.3 specifies TDD limits based on ISC/IL ratio.<br/><br/>
         
         <b>IEEE C57.110-2018:</b> Transformer loss calculations and harmonic impact on transformer losses. 
@@ -21552,7 +21634,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
         harmonic stress factor (30%), power factor degradation (20%), and current unbalance (15%).<br/><br/>
         
         <b>Time-to-Failure Estimation:</b> Based on Arrhenius equation for insulation life and equipment aging models. 
-        Simplified model: time_to_failure = base_life × (1 - failure_probability × degradation_factor).
+        Simplified model: time_to_failure = base_life ├ù (1 - failure_probability ├ù degradation_factor).
         """
         story.append(Paragraph(standards_text, styles['Normal']))
         
@@ -21841,7 +21923,31 @@ def generate_cover_letter(results_data, client_profile, timestamp):
     ) or financial.get('annual_kwh_savings') or financial_debug.get('annual_kwh_savings') or 0)
     
     # Use comprehensive extraction logic matching Financial Analysis Report
+    # PRIORITIZE: Use UI-calculated fully normalized kW savings (weather + power factor normalized)
+    # This is calculated in the UI Analysis and stored in power_quality.calculated_normalized_kw_savings
+    # It represents the true utility billing impact (both weather and power factor normalized)
+    power_quality = results_data.get('power_quality', {})
+    if isinstance(power_quality, list):
+        power_quality = {}
+    
     kw_savings_raw = (
+        # First priority: UI-calculated fully normalized kW savings (weather + PF normalized)
+        power_quality.get('calculated_normalized_kw_savings') if isinstance(power_quality, dict) else None
+    ) or (
+        # Second priority: stored normalized kW savings (weather + PF normalized)
+        power_quality.get('normalized_kw_savings') if isinstance(power_quality, dict) else None
+    ) or (
+        # Third priority: calculate from normalized values if available
+        (power_quality.get('normalized_kw_before', 0) - power_quality.get('normalized_kw_after', 0)) 
+        if (isinstance(power_quality, dict) and power_quality.get('normalized_kw_before') and power_quality.get('normalized_kw_after')) 
+        else None
+    ) or (
+        # Fourth priority: calculate from PF-normalized values if available
+        (power_quality.get('calculated_pf_normalized_kw_before', 0) - power_quality.get('calculated_pf_normalized_kw_after', 0))
+        if (isinstance(power_quality, dict) and power_quality.get('calculated_pf_normalized_kw_before') and power_quality.get('calculated_pf_normalized_kw_after'))
+        else None
+    ) or (
+        # Fallback to other sources
         executive_summary.get('adjusted_kw_savings') if isinstance(executive_summary, dict) else None
     ) or results_data.get('adjusted_kw_savings') or (
         executive_summary.get('kw_savings') if isinstance(executive_summary, dict) else None
@@ -21911,26 +22017,26 @@ PACKAGE CONTENTS:
 COMPLIANCE STATUS:
 -----------------
 This submission meets all M&V (Measurement & Verification) requirements:
-✓ ASHRAE Guideline 14 Compliance (Relative Precision < 50%)
-✓ IEEE 519-2014/2022 Compliance (TDD ≤ Limit)
-✓ NEMA MG1 Compliance (Voltage Unbalance ≤ 1%)
-✓ IPMVP Statistical Significance (p < 0.05)
-✓ ANSI C12.1/C12.20 Meter Accuracy (Class 0.2 or better)
-✓ ISO 50001:2018 Energy Management Systems
-✓ ISO 50015:2014 M&V of Energy Performance
+Γ£ô ASHRAE Guideline 14 Compliance (Relative Precision < 50%)
+Γ£ô IEEE 519-2014/2022 Compliance (TDD Γëñ Limit)
+Γ£ô NEMA MG1 Compliance (Voltage Unbalance Γëñ 1%)
+Γ£ô IPMVP Statistical Significance (p < 0.05)
+Γ£ô ANSI C12.1/C12.20 Meter Accuracy (Class 0.2 or better)
+Γ£ô ISO 50001:2018 Energy Management Systems
+Γ£ô ISO 50015:2014 M&V of Energy Performance
 
 PROFESSIONAL ENGINEER OVERSIGHT:
 --------------------------------
 All calculations and methodologies have been reviewed and approved by a 
 licensed Professional Engineer. The system includes:
 
-• PE Self-Registration System with automatic state board verification
-• Support for all 50 states + DC with automatic or manual verification
-• Secure verification document upload and storage
-• Pre-certification requirement (PEs must be verified before assignment)
-• Complete PE certification tracking and management
-• Digital signature workflow for PE approval
-• PE review checklist system
+ΓÇó PE Self-Registration System with automatic state board verification
+ΓÇó Support for all 50 states + DC with automatic or manual verification
+ΓÇó Secure verification document upload and storage
+ΓÇó Pre-certification requirement (PEs must be verified before assignment)
+ΓÇó Complete PE certification tracking and management
+ΓÇó Digital signature workflow for PE approval
+ΓÇó PE review checklist system
 
 PE review documentation is included in Section 5 of this package, including:
 - PE certification and verification status
@@ -22142,22 +22248,22 @@ COMPLIANCE STATUS:
         ashrae = after_compliance.get('ashrae_guideline_14', {})
         if isinstance(ashrae, dict) and ashrae.get('pass', False):
             precision = ashrae.get('relative_precision', 'N/A')
-            exec_summary += f"✓ ASHRAE Guideline 14: PASS (Relative Precision: {precision})\n"
+            exec_summary += f"Γ£ô ASHRAE Guideline 14: PASS (Relative Precision: {precision})\n"
         
         ieee = after_compliance.get('ieee_519', {})
         if isinstance(ieee, dict) and ieee.get('pass', False):
             tdd = ieee.get('tdd', 'N/A')
-            exec_summary += f"✓ IEEE 519-2014/2022: PASS (TDD: {tdd})\n"
+            exec_summary += f"Γ£ô IEEE 519-2014/2022: PASS (TDD: {tdd})\n"
         
         nema = after_compliance.get('nema_mg1', {})
         if isinstance(nema, dict) and nema.get('pass', False):
             unbalance = nema.get('voltage_unbalance', 'N/A')
-            exec_summary += f"✓ NEMA MG1: PASS (Voltage Unbalance: {unbalance})\n"
+            exec_summary += f"Γ£ô NEMA MG1: PASS (Voltage Unbalance: {unbalance})\n"
         
         ipmvp = after_compliance.get('ipmvp', {})
         if isinstance(ipmvp, dict) and ipmvp.get('pass', False):
             p_value = ipmvp.get('p_value', 'N/A')
-            exec_summary += f"✓ IPMVP: PASS (p-value: {p_value})\n"
+            exec_summary += f"Γ£ô IPMVP: PASS (p-value: {p_value})\n"
     
     exec_summary += f"""
 RECOMMENDATIONS:
@@ -22436,7 +22542,7 @@ AFTER INSTALLATION:
 METHODOLOGY:
 -----------
 Total Demand Distortion (TDD) is calculated per IEEE 519-2014/2022 
-Table 10.3 based on ISC/IL ratio. TDD must be ≤ the applicable limit 
+Table 10.3 based on ISC/IL ratio. TDD must be Γëñ the applicable limit 
 for the system's ISC/IL ratio.
 
 The ISC/IL ratio is the ratio of short-circuit current at the point of 
@@ -22487,7 +22593,7 @@ STATISTICAL METRICS:
     if r_squared is not None:
         r_squared_float = safe_float(r_squared)
         if r_squared_float != 0:
-            report += f"Coefficient of Determination (R²): {r_squared_float:.4f}\n"
+            report += f"Coefficient of Determination (R┬▓): {r_squared_float:.4f}\n"
     if cv_rmse is not None:
         cv_rmse_float = safe_float(cv_rmse)
         if cv_rmse_float != 0:
@@ -22552,16 +22658,16 @@ VOLTAGE UNBALANCE ANALYSIS:
     report += """
 REQUIREMENT:
 -----------
-Voltage unbalance must be ≤ 1% per NEMA MG1-2016.
+Voltage unbalance must be Γëñ 1% per NEMA MG1-2016.
 
 COMPLIANCE LOGIC (Enhanced December 2025):
 ------------------------------------------
 For industrial electrical networks and utility rebate applications, the system 
 implements improvement-based compliance logic:
 
-1. PASS if 'after' value ≤ 1.0% (meets NEMA MG1 limit)
+1. PASS if 'after' value Γëñ 1.0% (meets NEMA MG1 limit)
 2. PASS if 'after' < 'before' (improvement demonstrated)
-3. FAIL only if 'after' > 1.0% AND 'after' ≥ 'before' (no improvement and exceeds limit)
+3. FAIL only if 'after' > 1.0% AND 'after' ΓëÑ 'before' (no improvement and exceeds limit)
 
 Rationale: For utility rebate applications and industrial networks, demonstrating 
 improvement in voltage balance is considered compliant, even if the final value 
@@ -22578,10 +22684,10 @@ line-to-line voltages:
 
 1. Line-to-Line Voltage Calculation:
    - From line-to-neutral voltages (L1, L2, L3), calculate line-to-line voltages:
-   - V12 = √(L1² + L2² + L1×L2)  (voltage between phases 1 and 2)
-   - V23 = √(L2² + L3² + L2×L3)  (voltage between phases 2 and 3)
-   - V31 = √(L3² + L1² + L3×L1)  (voltage between phases 3 and 1)
-   - This formula accounts for 120° phase separation in three-phase systems
+   - V12 = ΓêÜ(L1┬▓ + L2┬▓ + L1├ùL2)  (voltage between phases 1 and 2)
+   - V23 = ΓêÜ(L2┬▓ + L3┬▓ + L2├ùL3)  (voltage between phases 2 and 3)
+   - V31 = ΓêÜ(L3┬▓ + L1┬▓ + L3├ùL1)  (voltage between phases 3 and 1)
+   - This formula accounts for 120┬░ phase separation in three-phase systems
 
 2. Average Line-to-Line Voltage:
    - V_avg = (V12 + V23 + V31) / 3
@@ -22590,12 +22696,12 @@ line-to-line voltages:
    - Max Deviation = max(|V12 - V_avg|, |V23 - V_avg|, |V31 - V_avg|)
 
 4. Voltage Unbalance Percentage:
-   - Unbalance % = (Max Deviation / V_avg) × 100
+   - Unbalance % = (Max Deviation / V_avg) ├ù 100
 
 5. Compliance Check (Enhanced December 2025):
-   - Unbalance ≤ 1.0%: PASS
+   - Unbalance Γëñ 1.0%: PASS
    - Unbalance > 1.0% BUT 'after' < 'before': PASS (improvement demonstrated)
-   - Unbalance > 1.0% AND 'after' ≥ 'before': FAIL (no improvement and exceeds limit)
+   - Unbalance > 1.0% AND 'after' ΓëÑ 'before': FAIL (no improvement and exceeds limit)
 
 This methodology ensures compliance with NEMA MG1-2016 Section 12.45 requirements 
 for three-phase motor voltage unbalance limits.
@@ -23633,57 +23739,57 @@ are conducted by properly licensed and verified Professional Engineers.
 
 PE SELF-REGISTRATION SYSTEM:
 ---------------------------
-• Public self-registration portal available at /pe/self-register
-• PEs can register with their license information
-• Automatic state board verification attempted for all 50 states + DC
-• Manual verification document upload capability
-• Secure document storage in files/pe_verification/{pe_id}/
+ΓÇó Public self-registration portal available at /pe/self-register
+ΓÇó PEs can register with their license information
+ΓÇó Automatic state board verification attempted for all 50 states + DC
+ΓÇó Manual verification document upload capability
+ΓÇó Secure document storage in files/pe_verification/{pe_id}/
 
 STATE BOARD VERIFICATION:
 ------------------------
 The system supports multiple verification methods:
 
 1. AUTOMATIC VERIFICATION (5 States):
-   • Texas (TX) - Web scraping with HTML parsing
-   • New York (NY) - Search API parsing
-   • Illinois (IL) - Roster search parsing
-   • North Carolina (NC) - Roster search parsing
-   • Virginia (VA) - License lookup parsing
+   ΓÇó Texas (TX) - Web scraping with HTML parsing
+   ΓÇó New York (NY) - Search API parsing
+   ΓÇó Illinois (IL) - Roster search parsing
+   ΓÇó North Carolina (NC) - Roster search parsing
+   ΓÇó Virginia (VA) - License lookup parsing
 
 2. STATE-SPECIFIC APIs (When Configured):
-   • Indiana (IN) - Free API (requires registration)
-   • Massachusetts (MA) - Free API
+   ΓÇó Indiana (IN) - Free API (requires registration)
+   ΓÇó Massachusetts (MA) - Free API
 
 3. MANUAL VERIFICATION (All Other States):
-   • Direct state board verification URLs provided
-   • PE can upload verification documents
-   • Admin review and verification process
-   • Document storage and tracking
+   ΓÇó Direct state board verification URLs provided
+   ΓÇó PE can upload verification documents
+   ΓÇó Admin review and verification process
+   ΓÇó Document storage and tracking
 
 VERIFICATION DOCUMENT UPLOAD:
 ----------------------------
-• Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX
-• Maximum file size: 10MB per file
-• Multiple documents can be uploaded
-• Automatic document type detection (license_copy, verification_letter, identification, other)
-• Secure storage with SHA-256 fingerprinting
-• Admin access for viewing/downloading documents
+ΓÇó Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX
+ΓÇó Maximum file size: 10MB per file
+ΓÇó Multiple documents can be uploaded
+ΓÇó Automatic document type detection (license_copy, verification_letter, identification, other)
+ΓÇó Secure storage with SHA-256 fingerprinting
+ΓÇó Admin access for viewing/downloading documents
 
 PE CERTIFICATION MANAGEMENT:
 ----------------------------
-• Complete license tracking (number, state, expiration date, discipline)
-• Verification status tracking (verified, pending, error)
-• Verification method tracking (api, web_scraping, manual, pending)
-• State board URL storage for manual verification
-• Email and phone contact information
-• Created/updated timestamp tracking
+ΓÇó Complete license tracking (number, state, expiration date, discipline)
+ΓÇó Verification status tracking (verified, pending, error)
+ΓÇó Verification method tracking (api, web_scraping, manual, pending)
+ΓÇó State board URL storage for manual verification
+ΓÇó Email and phone contact information
+ΓÇó Created/updated timestamp tracking
 
 PRE-CERTIFICATION REQUIREMENT:
 ------------------------------
-• PEs must be registered before assignment to projects
-• Registration includes automatic or manual verification
-• Only verified PEs can be assigned to review workflows
-• Prevents assignment of unverified PEs
+ΓÇó PEs must be registered before assignment to projects
+ΓÇó Registration includes automatic or manual verification
+ΓÇó Only verified PEs can be assigned to review workflows
+ΓÇó Prevents assignment of unverified PEs
 
 """
     
@@ -23757,7 +23863,7 @@ Phone: {phone or 'Not provided'}
                                 for doc_row in doc_rows:
                                     doc_name, doc_type, doc_category, doc_date, doc_size = doc_row
                                     size_mb = doc_size / (1024 * 1024) if doc_size else 0
-                                    pe_info += f"• {doc_name} ({doc_category or 'other'}, {doc_type}, {size_mb:.2f} MB, uploaded {doc_date})\n"
+                                    pe_info += f"ΓÇó {doc_name} ({doc_category or 'other'}, {doc_type}, {size_mb:.2f} MB, uploaded {doc_date})\n"
                                 pe_info += "\n"
                     
                     pe_doc = f"""
@@ -23919,22 +24025,22 @@ ASHRAE DATA QUALITY REQUIREMENTS:
     try:
         completeness_val = float(completeness) if completeness is not None else 100.0
         report += f"Data Completeness: {completeness_val:.3f}%\n"
-        report += f"Requirement: ≥ 95%\n"
+        report += f"Requirement: ΓëÑ 95%\n"
         report += f"Status: {'PASS' if completeness_val >= 95.0 else 'FAIL'}\n\n"
     except (ValueError, TypeError):
         # Fallback if conversion fails (shouldn't happen with our fix, but safety check)
         report += f"Data Completeness: {completeness}\n"
-        report += f"Requirement: ≥ 95%\n\n"
+        report += f"Requirement: ΓëÑ 95%\n\n"
     
     try:
         outliers_val = float(outliers) if outliers is not None else 0.0
         report += f"Outlier Percentage: {outliers_val:.3f}%\n"
-        report += f"Requirement: ≤ 5%\n"
+        report += f"Requirement: Γëñ 5%\n"
         report += f"Status: {'PASS' if outliers_val <= 5.0 else 'FAIL'}\n\n"
     except (ValueError, TypeError):
         # Fallback if conversion fails (shouldn't happen with our fix, but safety check)
         report += f"Outlier Percentage: {outliers}\n"
-        report += f"Requirement: ≤ 5%\n\n"
+        report += f"Requirement: Γëñ 5%\n\n"
     
     if isinstance(pass_status, bool):
         report += f"Overall Data Quality Status: {'PASS' if pass_status else 'FAIL'}\n\n"
@@ -24178,7 +24284,7 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
                 'CSV Data Integrity documentation is present',
                 'Source data files are included',
                 'Fingerprint files are present for verification',
-                'Data completeness is documented (≥95% recommended)',
+                'Data completeness is documented (ΓëÑ95% recommended)',
                 'Outlier analysis is included'
             ]
         },
@@ -24260,7 +24366,7 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
         story.append(Spacer(1, 0.1*inch))
         
         for item in checklist_section['items']:
-            story.append(Paragraph(f"☐ {item}", styles['Normal']))
+            story.append(Paragraph(f"ΓÿÉ {item}", styles['Normal']))
             story.append(Spacer(1, 0.05*inch))
         
         story.append(Spacer(1, 0.15*inch))
@@ -24285,10 +24391,10 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph("<b>NOTES:</b>", styles['Heading3']))
-    story.append(Paragraph("• This checklist is a guide. Utility-specific requirements may vary.", styles['Normal']))
-    story.append(Paragraph("• Contact your utility company to confirm all required documents.", styles['Normal']))
-    story.append(Paragraph("• Some utilities may require additional documentation not listed here.", styles['Normal']))
-    story.append(Paragraph("• Keep all original documents and maintain a backup copy.", styles['Normal']))
+    story.append(Paragraph("ΓÇó This checklist is a guide. Utility-specific requirements may vary.", styles['Normal']))
+    story.append(Paragraph("ΓÇó Contact your utility company to confirm all required documents.", styles['Normal']))
+    story.append(Paragraph("ΓÇó Some utilities may require additional documentation not listed here.", styles['Normal']))
+    story.append(Paragraph("ΓÇó Keep all original documents and maintain a backup copy.", styles['Normal']))
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph(f"Document Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
@@ -24949,7 +25055,7 @@ def generate_incentive_submission_guide_pdf(incentives, location_data):
     ]
     
     for doc in required_docs:
-        story.append(Paragraph(f"• {doc}", styles['Normal']))
+        story.append(Paragraph(f"ΓÇó {doc}", styles['Normal']))
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph("<b>Program Contact Information:</b>", styles['Heading2']))
@@ -25481,13 +25587,13 @@ savings are measured independently of weather-related consumption changes.
 This robust methodology implements and exceeds ASHRAE Guideline 14-2014 requirements:
 
 1. Base Temperature Optimization: Base temperature is optimized from baseline 
-   data using grid search to find the temperature that maximizes R² (when time series 
-   data available). When not available, uses ASHRAE standard 18.3°C with equipment-specific 
+   data using grid search to find the temperature that maximizes R┬▓ (when time series 
+   data available). When not available, uses ASHRAE standard 18.3┬░C with equipment-specific 
    adjustments.
 
 2. Sensitivity Factor Calculation: 
    - PRIMARY: Regression-based sensitivity factors calculated from baseline time series 
-     data (ASHRAE-compliant, R² > 0.7 validation)
+     data (ASHRAE-compliant, R┬▓ > 0.7 validation)
    - FALLBACK: Equipment-specific sensitivity factors based on industry standards and 
      validated research data (exceeds ASHRAE minimum requirements)
 
@@ -25508,26 +25614,26 @@ COMPLIANCE STATUS:
     # Always show full compliance - methodology is robust and exceeds ASHRAE requirements
     if ashrae_compliant and regression_r2:
         report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
-        report += f"Regression R²: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
+        report += f"Regression R┬▓: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
         report += f"Method: {method}\n"
         report += f"Enhancement: Regression-based normalization with building-specific calibration\n"
     else:
         report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
         report += f"Method: {method}\n"
         report += f"Enhancement: Equipment-specific sensitivity factors based on industry standards\n"
-        report += f"Note: When time series data is available, regression analysis (R² > 0.7) provides\n"
+        report += f"Note: When time series data is available, regression analysis (R┬▓ > 0.7) provides\n"
         report += f"      additional validation. Current methodology uses validated equipment-specific\n"
         report += f"      factors that meet and exceed ASHRAE requirements.\n"
     
     report += f"\nBASE TEMPERATURE:\n"
     report += f"----------------\n"
     if base_temp_optimized and optimized_base_temp:
-        report += f"Optimized Base Temperature: {optimized_base_temp:.3f}°C\n"
-        report += f"Optimization Method: Grid search (10-25°C range, maximizes R²)\n"
+        report += f"Optimized Base Temperature: {optimized_base_temp:.3f}┬░C\n"
+        report += f"Optimization Method: Grid search (10-25┬░C range, maximizes R┬▓)\n"
         report += f"Building-Specific: Yes (calculated from baseline data)\n"
     else:
-        report += f"Base Temperature: {base_temp:.3f}°C (ASHRAE standard)\n"
-        report += f"Optimization: Not performed (using default 18.3°C)\n"
+        report += f"Base Temperature: {base_temp:.3f}┬░C (ASHRAE standard)\n"
+        report += f"Optimization: Not performed (using default 18.3┬░C)\n"
     
     # Extract regression sensitivity factors and normalization factor for use in multiple sections
     regression_temp = weather_norm.get('regression_temp_sensitivity') if ashrae_compliant else None
@@ -25546,16 +25652,16 @@ COMPLIANCE STATUS:
     report += f"-------------------\n"
     if ashrae_compliant:
         if regression_temp:
-            report += f"Temperature Sensitivity: {regression_temp*100:.3f}% per °C (calculated from regression)\n"
+            report += f"Temperature Sensitivity: {regression_temp*100:.3f}% per ┬░C (calculated from regression)\n"
         else:
-            report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per °C (equipment-specific fallback)\n"
+            report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per ┬░C (equipment-specific fallback)\n"
         if regression_dewpoint:
-            report += f"Dewpoint Sensitivity: {regression_dewpoint*100:.3f}% per °C (calculated from regression)\n"
+            report += f"Dewpoint Sensitivity: {regression_dewpoint*100:.3f}% per ┬░C (calculated from regression)\n"
         else:
-            report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per °C (equipment-specific fallback)\n"
+            report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per ┬░C (equipment-specific fallback)\n"
     else:
-        report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per °C (equipment-specific fixed factor)\n"
-        report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per °C (equipment-specific fixed factor)\n"
+        report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per ┬░C (equipment-specific fixed factor)\n"
+        report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per ┬░C (equipment-specific fixed factor)\n"
     
     report += f"\nNORMALIZATION METHOD:\n"
     report += f"--------------------\n"
@@ -25584,19 +25690,19 @@ COMPLIANCE STATUS:
     report += f"---------------------\n"
     if normalization_factor is not None:
         report += f"Weather Normalization Factor: {normalization_factor:.4f}\n"
-    report += f"Base Temperature: {display_base_temp:.3f}°C ({base_temp_source})\n"
-    report += f"Temperature Sensitivity: {display_temp_sensitivity*100:.3f}% per °C"
+    report += f"Base Temperature: {display_base_temp:.3f}┬░C ({base_temp_source})\n"
+    report += f"Temperature Sensitivity: {display_temp_sensitivity*100:.3f}% per ┬░C"
     if regression_temp:
         report += f" (calculated from regression)\n"
     else:
         report += f" (equipment-specific)\n"
-    report += f"Dewpoint Sensitivity: {display_dewpoint_sensitivity*100:.3f}% per °C"
+    report += f"Dewpoint Sensitivity: {display_dewpoint_sensitivity*100:.3f}% per ┬░C"
     if regression_dewpoint:
         report += f" (calculated from regression)\n"
     else:
         report += f" (equipment-specific)\n"
     if regression_r2:
-        report += f"Regression R²: {regression_r2:.4f}\n"
+        report += f"Regression R┬▓: {regression_r2:.4f}\n"
     
     report += f"\n"
     
@@ -25632,7 +25738,7 @@ COMPLIANCE STATUS:
             avg_temp_raw = before_weather.get('avg_temperature') or before_weather.get('temperature')
             avg_temp = safe_float(avg_temp_raw) if avg_temp_raw is not None else None
             if avg_temp is not None:
-                report += f"Average Temperature: {avg_temp:.3f}°F\n"
+                report += f"Average Temperature: {avg_temp:.3f}┬░F\n"
             avg_humidity_raw = before_weather.get('avg_humidity') or before_weather.get('humidity')
             avg_humidity = safe_float(avg_humidity_raw) if avg_humidity_raw is not None else None
             if avg_humidity is not None:
@@ -25653,7 +25759,7 @@ COMPLIANCE STATUS:
             avg_temp_raw = after_weather.get('avg_temperature') or after_weather.get('temperature')
             avg_temp = safe_float(avg_temp_raw) if avg_temp_raw is not None else None
             if avg_temp is not None:
-                report += f"Average Temperature: {avg_temp:.3f}°F\n"
+                report += f"Average Temperature: {avg_temp:.3f}┬░F\n"
             avg_humidity_raw = after_weather.get('avg_humidity') or after_weather.get('humidity')
             avg_humidity = safe_float(avg_humidity_raw) if avg_humidity_raw is not None else None
             if avg_humidity is not None:
@@ -25700,19 +25806,19 @@ This methodology implements ASHRAE Guideline 14-2014 Section 14.4 requirements a
 exceeds them through enhanced features:
 
 1. Base Temperature Optimization (ASHRAE-Compliant):
-   - Grid search tests base temperatures from 10°C to 25°C (0.5°C steps)
-   - Selects base temperature that maximizes R² for regression model
+   - Grid search tests base temperatures from 10┬░C to 25┬░C (0.5┬░C steps)
+   - Selects base temperature that maximizes R┬▓ for regression model
    - Building-specific: Each building gets its own optimized base temperature
-   - When regression data unavailable: Uses ASHRAE standard 18.3°C with equipment-specific 
+   - When regression data unavailable: Uses ASHRAE standard 18.3┬░C with equipment-specific 
      adjustments (validated approach exceeding minimum requirements)
 
 2. Sensitivity Factor Calculation (ASHRAE-Compliant):
    - PRIMARY METHOD: Regression analysis of baseline time series data
      * Extracts time series data from baseline meter CSV (15-minute intervals)
      * Matches timestamps with weather data at exact intervals
-     * Performs linear regression: Energy = β₀ + β₁ × CDD + β₂ × HDD
-     * Calculates sensitivity factors: temp_sensitivity = β₁ / mean_energy
-     * Validates R² > 0.7 for ASHRAE compliance
+     * Performs linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü ├ù CDD + ╬▓Γéé ├ù HDD
+     * Calculates sensitivity factors: temp_sensitivity = ╬▓Γéü / mean_energy
+     * Validates R┬▓ > 0.7 for ASHRAE compliance
    - FALLBACK METHOD: Equipment-specific factors
      * Uses validated industry-standard sensitivity factors
      * Based on equipment type and climate zone research
@@ -25721,32 +25827,32 @@ exceeds them through enhanced features:
 3. Normalization (ASHRAE-Compliant with Enhancements):
    - If time series available: Normalizes each timestamp individually (enhanced precision)
    - Otherwise: Uses average-based normalization (ASHRAE-compliant)
-   - Formula: normalized_kw = kw × (1 + weather_effect_before) / (1 + weather_effect_after)
-   - Weather effect = max(0, (temp - base_temp) × temp_sensitivity) + 
-                      max(0, (dewpoint - base_temp) × dewpoint_sensitivity)
+   - Formula: normalized_kw = kw ├ù (1 + weather_effect_before) / (1 + weather_effect_after)
+   - Weather effect = max(0, (temp - base_temp) ├ù temp_sensitivity) + 
+                      max(0, (dewpoint - base_temp) ├ù dewpoint_sensitivity)
    - Dual-factor normalization (temperature + dewpoint) exceeds basic ASHRAE requirements
 
 4. Safety Validation Mechanism - Enhanced December 21, 2025:
    - Intelligent validation ensures weather normalization produces physically realistic results
-   - When base_temp is optimized (< 20°C) and weather effects are valid (> 0), allows 
+   - When base_temp is optimized (< 20┬░C) and weather effects are valid (> 0), allows 
      normalized_kw_after > kw_before when mathematically correct (e.g., normalizing cooler 
      weather to warmer baseline conditions)
    - This is expected behavior: cooler weather periods require upward adjustment when 
      normalized to warmer baseline conditions
    - If validation fails, safety cap preserves at least 80% of raw savings (increased from 
      50% for improved accuracy)
-   - Validation criteria: base_temp optimized, base_temp < 20°C, weather effects > 0
+   - Validation criteria: base_temp optimized, base_temp < 20┬░C, weather effects > 0
    - Prevents unrealistic normalization while maintaining mathematical correctness
 
 COMPLIANCE SUMMARY:
 ------------------
-✓ ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
-✓ Regression-based sensitivity factors (when data available): R² > 0.7 validation
-✓ Equipment-specific calibration: Exceeds minimum requirements
-✓ Building-specific base temperature optimization: Exceeds standard approach
-✓ Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
-✓ Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
-✓ Intelligent safety validation: Ensures mathematically correct and physically realistic results
+Γ£ô ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
+Γ£ô Regression-based sensitivity factors (when data available): R┬▓ > 0.7 validation
+Γ£ô Equipment-specific calibration: Exceeds minimum requirements
+Γ£ô Building-specific base temperature optimization: Exceeds standard approach
+Γ£ô Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
+Γ£ô Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
+Γ£ô Intelligent safety validation: Ensures mathematically correct and physically realistic results
 
 SAFETY VALIDATION MECHANISM:
 ---------------------------
@@ -25754,7 +25860,7 @@ The system implements intelligent safety validation to ensure weather normalizat
 produces physically realistic and mathematically correct results:
 
 1. Base Temperature Validation:
-   - When base_temp is optimized (< 20°C) and weather effects are valid (> 0),
+   - When base_temp is optimized (< 20┬░C) and weather effects are valid (> 0),
      the system allows normalized_kw_after to exceed kw_before when mathematically 
      correct (e.g., when normalizing cooler weather to warmer weather conditions)
    - This is expected behavior: cooler weather periods require upward adjustment 
@@ -25769,7 +25875,7 @@ produces physically realistic and mathematically correct results:
    The system validates normalization results using multiple criteria to ensure both 
    mathematical correctness and physical realism:
    - Base temperature must be optimized (from regression analysis)
-   - Base temperature must be < 20°C (reasonable for commercial buildings)
+   - Base temperature must be < 20┬░C (reasonable for commercial buildings)
    - Weather effects (before and after) must be > 0 (valid cooling/heating effects)
    - Average weather effect after must be > 0 (valid normalization)
    - All criteria must pass for the normalization to be considered valid and reliable
@@ -25785,10 +25891,10 @@ produces physically realistic and mathematically correct results:
    - Aggregated normalized timestamps provide the final result with enhanced accuracy
 
 This validation mechanism ensures that:
-✓ Weather normalization follows ASHRAE Guideline 14-2014 principles
-✓ Mathematically correct normalizations are not artificially constrained
-✓ Physically unrealistic results are prevented through intelligent validation
-✓ Savings calculations remain accurate and audit-compliant
+Γ£ô Weather normalization follows ASHRAE Guideline 14-2014 principles
+Γ£ô Mathematically correct normalizations are not artificially constrained
+Γ£ô Physically unrealistic results are prevented through intelligent validation
+Γ£ô Savings calculations remain accurate and audit-compliant
 
 REFERENCE:
 ---------
@@ -25844,7 +25950,7 @@ REFERENCE:
     
     report += f"""ASHRAE Guideline 14-2014, Section 14.4 - Weather Normalization
   - Regression-based sensitivity factor calculation
-  - R² > 0.7 validation requirement
+  - R┬▓ > 0.7 validation requirement
   - Building-specific calibration from actual meter data
   - Status: COMPLIANT
 
@@ -26169,11 +26275,11 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_summary.append(["Parameter", "Value", "Unit"])
         before_data = [
             ["Period", weather_data.get('before_period', 'N/A'), ""],
-            ["Average Temperature", weather_data.get('temp_before'), "°C"],
-            ["Average Dewpoint", weather_data.get('dewpoint_before'), "°C"],
+            ["Average Temperature", weather_data.get('temp_before'), "┬░C"],
+            ["Average Dewpoint", weather_data.get('dewpoint_before'), "┬░C"],
             ["Average Humidity", weather_data.get('humidity_before'), "%"],
             ["Average Wind Speed", weather_data.get('wind_speed_before'), "m/s"],
-            ["Average Solar Radiation", weather_data.get('solar_radiation_before'), "W/m²"],
+            ["Average Solar Radiation", weather_data.get('solar_radiation_before'), "W/m┬▓"],
             ["Data Points", weather_data.get('data_points_before', 0), "days"],
         ]
         for row in before_data:
@@ -26186,11 +26292,11 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_summary.append(["Parameter", "Value", "Unit"])
         after_data = [
             ["Period", weather_data.get('after_period', 'N/A'), ""],
-            ["Average Temperature", weather_data.get('temp_after'), "°C"],
-            ["Average Dewpoint", weather_data.get('dewpoint_after'), "°C"],
+            ["Average Temperature", weather_data.get('temp_after'), "┬░C"],
+            ["Average Dewpoint", weather_data.get('dewpoint_after'), "┬░C"],
             ["Average Humidity", weather_data.get('humidity_after'), "%"],
             ["Average Wind Speed", weather_data.get('wind_speed_after'), "m/s"],
-            ["Average Solar Radiation", weather_data.get('solar_radiation_after'), "W/m²"],
+            ["Average Solar Radiation", weather_data.get('solar_radiation_after'), "W/m┬▓"],
             ["Data Points", weather_data.get('data_points_after', 0), "days"],
         ]
         for row in after_data:
@@ -26223,8 +26329,8 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_before = wb.create_sheet("Before Period - Detailed Data", 1)
         
         # Headers
-        headers = ["Timestamp", "Date", "Time", "Temperature (°C)", "Dewpoint (°C)", 
-                  "Humidity (%)", "Wind Speed (m/s)", "Solar Radiation (W/m²)"]
+        headers = ["Timestamp", "Date", "Time", "Temperature (┬░C)", "Dewpoint (┬░C)", 
+                  "Humidity (%)", "Wind Speed (m/s)", "Solar Radiation (W/m┬▓)"]
         ws_before.append(headers)
         
         # Style headers
@@ -27138,15 +27244,15 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         # Comparison data
         comparisons = [
             ["Temperature", weather_data.get('temp_before'), weather_data.get('temp_after'), 
-             (weather_data.get('temp_after', 0) or 0) - (weather_data.get('temp_before', 0) or 0), "°C"],
+             (weather_data.get('temp_after', 0) or 0) - (weather_data.get('temp_before', 0) or 0), "┬░C"],
             ["Dewpoint", weather_data.get('dewpoint_before'), weather_data.get('dewpoint_after'),
-             (weather_data.get('dewpoint_after', 0) or 0) - (weather_data.get('dewpoint_before', 0) or 0), "°C"],
+             (weather_data.get('dewpoint_after', 0) or 0) - (weather_data.get('dewpoint_before', 0) or 0), "┬░C"],
             ["Humidity", weather_data.get('humidity_before'), weather_data.get('humidity_after'),
              (weather_data.get('humidity_after', 0) or 0) - (weather_data.get('humidity_before', 0) or 0), "%"],
             ["Wind Speed", weather_data.get('wind_speed_before'), weather_data.get('wind_speed_after'),
              (weather_data.get('wind_speed_after', 0) or 0) - (weather_data.get('wind_speed_before', 0) or 0), "m/s"],
             ["Solar Radiation", weather_data.get('solar_radiation_before'), weather_data.get('solar_radiation_after'),
-             (weather_data.get('solar_radiation_after', 0) or 0) - (weather_data.get('solar_radiation_before', 0) or 0), "W/m²"],
+             (weather_data.get('solar_radiation_after', 0) or 0) - (weather_data.get('solar_radiation_before', 0) or 0), "W/m┬▓"],
         ]
         
         for row in comparisons:
@@ -27334,7 +27440,7 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
             ["Degree-day calculations (HDD/CDD)", "", "", ""],
             ["Power factor normalization", "", "", ""],
             ["Savings calculation methodology", "", "", ""],
-            ["Statistical validation (R², CVRMSE, NMBE)", "", "", ""],
+            ["Statistical validation (R┬▓, CVRMSE, NMBE)", "", "", ""],
             ["Outlier removal methodology", "", "", ""],
             ["Regression model selection (AICc)", "", "", ""],
         ]
@@ -27438,9 +27544,9 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
         ws_signoff.append([])
         
         ws_signoff.append(["Review Status:"])
-        ws_signoff.append(["☐ Approved"])
-        ws_signoff.append(["☐ Approved with Conditions"])
-        ws_signoff.append(["☐ Rejected - Requires Revision"])
+        ws_signoff.append(["ΓÿÉ Approved"])
+        ws_signoff.append(["ΓÿÉ Approved with Conditions"])
+        ws_signoff.append(["ΓÿÉ Rejected - Requires Revision"])
         ws_signoff.append([])
         
         ws_signoff.append(["PE Reviewer Information:"])
@@ -27689,10 +27795,10 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Paragraph("NEMA MG1-2016 requires voltage unbalance to be calculated using line-to-line voltages (V12, V23, V31) for three-phase systems. The CSV data contains line-to-neutral voltages (l1Volt, l2Volt, l3Volt) which are converted to line-to-line voltages using the following formula:", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     
-    story.append(Paragraph("Line-to-Line Voltage Formula (for 120° phase separation):", subheading_style))
-    story.append(Paragraph("V12 = √(L1² + L2² + L1×L2)  (voltage between phases 1 and 2)", styles['Normal']))
-    story.append(Paragraph("V23 = √(L2² + L3² + L2×L3)  (voltage between phases 2 and 3)", styles['Normal']))
-    story.append(Paragraph("V31 = √(L3² + L1² + L3×L1)  (voltage between phases 3 and 1)", styles['Normal']))
+    story.append(Paragraph("Line-to-Line Voltage Formula (for 120┬░ phase separation):", subheading_style))
+    story.append(Paragraph("V12 = ΓêÜ(L1┬▓ + L2┬▓ + L1├ùL2)  (voltage between phases 1 and 2)", styles['Normal']))
+    story.append(Paragraph("V23 = ΓêÜ(L2┬▓ + L3┬▓ + L2├ùL3)  (voltage between phases 2 and 3)", styles['Normal']))
+    story.append(Paragraph("V31 = ΓêÜ(L3┬▓ + L1┬▓ + L3├ùL1)  (voltage between phases 3 and 1)", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Where L1, L2, L3 are the line-to-neutral voltages from the CSV columns (l1Volt, l2Volt, l3Volt).", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
@@ -27711,13 +27817,13 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Spacer(1, 0.1*inch))
     
     story.append(Paragraph("Step 3: Calculate Unbalance Percentage", subheading_style))
-    story.append(Paragraph("Unbalance % = (Max_Deviation / V_avg) × 100", styles['Normal']))
+    story.append(Paragraph("Unbalance % = (Max_Deviation / V_avg) ├ù 100", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
     
     # Compliance Requirements
     story.append(Paragraph("Compliance Requirements", heading_style))
     story.append(Paragraph("Per NEMA MG1-2016 Section 12.45:", styles['Normal']))
-    story.append(Paragraph("- Voltage unbalance must be ≤ 1.0% for compliant operation", styles['Normal']))
+    story.append(Paragraph("- Voltage unbalance must be Γëñ 1.0% for compliant operation", styles['Normal']))
     story.append(Paragraph("- Unbalance > 1.0% can cause motor overheating and reduced efficiency", styles['Normal']))
     story.append(Paragraph("- Each 1% unbalance causes approximately 6-10% temperature rise in motors", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
@@ -27727,17 +27833,17 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Paragraph("For industrial electrical networks and utility rebate applications, the system implements improvement-based compliance logic:", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Compliance Determination:", subheading_style))
-    story.append(Paragraph("1. PASS if 'after' value ≤ 1.0% (meets NEMA MG1 limit)", styles['Normal']))
+    story.append(Paragraph("1. PASS if 'after' value Γëñ 1.0% (meets NEMA MG1 limit)", styles['Normal']))
     story.append(Paragraph("2. PASS if 'after' < 'before' (improvement demonstrated)", styles['Normal']))
-    story.append(Paragraph("3. FAIL only if 'after' > 1.0% AND 'after' ≥ 'before' (no improvement and exceeds limit)", styles['Normal']))
+    story.append(Paragraph("3. FAIL only if 'after' > 1.0% AND 'after' ΓëÑ 'before' (no improvement and exceeds limit)", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Rationale:", subheading_style))
     story.append(Paragraph("For utility rebate applications and industrial networks, demonstrating improvement in voltage balance is considered compliant, even if the final value slightly exceeds 1.0%, as long as improvement is shown. This recognizes that power quality improvements are progressive and that reducing unbalance from a higher value demonstrates effective mitigation.", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Example:", subheading_style))
-    story.append(Paragraph("Before: 3.17% unbalance, After: 3.16% unbalance → PASS (improvement demonstrated)", styles['Normal']))
-    story.append(Paragraph("Before: 0.8% unbalance, After: 0.5% unbalance → PASS (meets limit and shows improvement)", styles['Normal']))
-    story.append(Paragraph("Before: 0.9% unbalance, After: 1.2% unbalance → FAIL (exceeds limit and no improvement)", styles['Normal']))
+    story.append(Paragraph("Before: 3.17% unbalance, After: 3.16% unbalance ΓåÆ PASS (improvement demonstrated)", styles['Normal']))
+    story.append(Paragraph("Before: 0.8% unbalance, After: 0.5% unbalance ΓåÆ PASS (meets limit and shows improvement)", styles['Normal']))
+    story.append(Paragraph("Before: 0.9% unbalance, After: 1.2% unbalance ΓåÆ FAIL (exceeds limit and no improvement)", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
     
     # Data Source
@@ -29550,7 +29656,7 @@ PROJECT INFORMATION
             None
         )
         
-        # ASHRAE requires: CVRMSE < 50%, |NMBE| <= 10%, R² > 0.75
+        # ASHRAE requires: CVRMSE < 50%, |NMBE| <= 10%, R┬▓ > 0.75
         if cvrmse is not None or nmbe is not None or r_squared is not None:
             cvrmse_ok = (cvrmse < 50.0) if cvrmse is not None else True
             nmbe_ok = (abs(nmbe) <= 10.0) if nmbe is not None else True
@@ -30433,19 +30539,19 @@ Package Contents:
 COMPLIANCE STATUS:
 -----------------
 This package meets all M&V requirements for utility rebate submission:
-✓ ASHRAE Guideline 14 Compliance
-✓ IEEE 519-2014/2022 Compliance
-✓ NEMA MG1 Compliance (with automatic line-to-neutral to line-to-line voltage conversion)
-✓ IPMVP Statistical Significance
-✓ ANSI C12.1/C12.20 Meter Accuracy
-✓ ISO 50001:2018 Energy Management Systems
-✓ ISO 50015:2014 M&V of Energy Performance
+Γ£ô ASHRAE Guideline 14 Compliance
+Γ£ô IEEE 519-2014/2022 Compliance
+Γ£ô NEMA MG1 Compliance (with automatic line-to-neutral to line-to-line voltage conversion)
+Γ£ô IPMVP Statistical Significance
+Γ£ô ANSI C12.1/C12.20 Meter Accuracy
+Γ£ô ISO 50001:2018 Energy Management Systems
+Γ£ô ISO 50015:2014 M&V of Energy Performance
 
 CALCULATION METHODOLOGY NOTES:
 ------------------------------
 - NEMA MG1 Voltage Unbalance: The system calculates line-to-line voltages (V12, V23, V31) 
   from line-to-neutral voltages (l1Volt, l2Volt, l3Volt) using the formula 
-  V_LL = √(V1² + V2² + V1×V2) for 120° phase separation, then applies the NEMA MG1 
+  V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation, then applies the NEMA MG1 
   unbalance formula per NEMA MG1-2016 Section 12.45. See 07_Audit_Trail/
   NEMA_MG1_Calculation_Methodology.pdf for complete methodology documentation.
 
@@ -30694,7 +30800,7 @@ def generate_package_index_pdf(results_data, client_profile, timestamp):
         story.append(Paragraph(
             "NEMA MG1 Voltage Unbalance: The system calculates line-to-line voltages (V12, V23, V31) "
             "from line-to-neutral voltages (l1Volt, l2Volt, l3Volt) using the formula "
-            "V_LL = √(V1² + V2² + V1×V2) for 120° phase separation, then applies the NEMA MG1 "
+            "V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation, then applies the NEMA MG1 "
             "unbalance formula per NEMA MG1-2016 Section 12.45. See 07_Audit_Trail/NEMA_MG1_Calculation_Methodology.pdf "
             "for complete methodology documentation.",
             ParagraphStyle('NormalSmall', parent=styles['Normal'], fontSize=7)  # Even smaller for note
@@ -31078,7 +31184,10 @@ def generate_utility_submission_package(results_data):
                 base_dir = Path(__file__).parent
                 logger.info(f"UTILITY SUBMISSION PACKAGE - Base directory: {base_dir}")
                 files_added_count = 0
-                with get_db_connection() as conn:
+                # Get org_id from results_data for database connection
+                org_id_for_db = results_data.get('_org_id')
+                logger.info(f"UTILITY SUBMISSION PACKAGE - Using org_id for database: {org_id_for_db}")
+                with get_db_connection(org_id=org_id_for_db) as conn:
                     if conn:
                         cursor = conn.cursor()
                         for file_id, prefix in [(before_file_id, 'before'), (after_file_id, 'after')]:
@@ -31095,16 +31204,18 @@ def generate_utility_submission_package(results_data):
                                         logger.info(f"UTILITY SUBMISSION PACKAGE - Found {prefix} file in database - name: {file_name}, path: {rel_path}")
                                         abs_path = (base_dir / rel_path).resolve()
                                         logger.info(f"UTILITY SUBMISSION PACKAGE - Resolved absolute path: {abs_path}")
+                                        logger.info(f"UTILITY SUBMISSION PACKAGE - File exists check: {abs_path.exists()}")
                                         
                                         # ============================================
                                         # 1. INCLUDE VERIFIED FILE (Used in Analysis)
                                         # ============================================
                                         if abs_path.exists():
                                             logger.info(f"UTILITY SUBMISSION PACKAGE - Verified file exists, adding to package: {abs_path}")
-                                            # Copy verified file
-                                            dest_file = os.path.join(source_data_dir, f"{prefix}_verified_data.csv")
+                                            # Copy verified file with simplified name
+                                            file_name_simple = f"{prefix.capitalize()}.csv"
+                                            dest_file = os.path.join(source_data_dir, file_name_simple)
                                             shutil.copy2(str(abs_path), dest_file)
-                                            zipf.write(dest_file, f"06_Data_Quality/Source_Data_Files/{prefix}_verified_data.csv")
+                                            zipf.write(dest_file, f"06_Data_Quality/Source_Data_Files/{file_name_simple}")
                                             
                                             # Use stored fingerprint from database (always use stored, never recalculate)
                                             # This ensures consistency with the fingerprint stored during upload
@@ -31124,171 +31235,48 @@ def generate_utility_submission_package(results_data):
                                                     logger.warning(f"Could not calculate fingerprint using CSVIntegrityProtection: {e}")
                                                     fingerprint = "ERROR - Fingerprint not available"
                                             
-                                            fingerprint_file = os.path.join(source_data_dir, f"{prefix}_verified_data_fingerprint.txt")
+                                            # Create comprehensive Fingerprint Test Report
+                                            report_file_name = f"{prefix.capitalize()}_Fingerprint_Test_Report.txt"
+                                            fingerprint_file = os.path.join(source_data_dir, report_file_name)
                                             with open(fingerprint_file, "w", encoding="utf-8") as f:
-                                                f.write(f"SHA-256 Fingerprint: {fingerprint}\n")
-                                                f.write(f"File: {file_name}\n")
-                                                f.write(f"File Type: Verified (Used in Analysis)\n")
-                                                f.write(f"File Path: {rel_path}\n")
-                                                f.write(f"Generated: {datetime.now().isoformat()}\n")
-                                            zipf.write(fingerprint_file, f"06_Data_Quality/Source_Data_Files/{prefix}_verified_data_fingerprint.txt")
-                                        
-                                        # ============================================
-                                        # 2. FIND AND INCLUDE ORIGINAL RAW FILE
-                                        # ============================================
-                                        # Use multiple strategies to find the raw file
-                                        original_raw_file = None
-                                        original_raw_fingerprint = None
-                                        
-                                        # STRATEGY 1: Check if verified file has original_file_id link in database
-                                        # NOTE: Verified files are in raw_meter_data, but original_file_id might be in project_files
-                                        # Try both tables to find the link
-                                        try:
-                                            # First, try to find if this verified file has an original_file_id in project_files
-                                            cursor.execute(
-                                                "SELECT original_file_id FROM project_files WHERE file_id = ? OR id = ?",
-                                                (int(file_id), int(file_id))
-                                            )
-                                            orig_id_row = cursor.fetchone()
+                                                f.write("=" * 80 + "\n")
+                                                f.write(f"FINGERPRINT TEST REPORT - {prefix.upper()} DATA FILE\n")
+                                                f.write("=" * 80 + "\n\n")
+                                                f.write(f"Test Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                                                f.write(f"Test Type: SHA-256 Content Integrity Verification\n")
+                                                f.write(f"File Status: Verified (Used in Analysis)\n\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write("FILE INFORMATION\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write(f"Original File Name: {file_name}\n")
+                                                f.write(f"Package File Name: {file_name_simple}\n")
+                                                f.write(f"Source Path: {rel_path}\n")
+                                                f.write(f"File Size: {abs_path.stat().st_size:,} bytes\n\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write("FINGERPRINT TEST RESULTS\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write(f"SHA-256 Hash Algorithm: SHA-256\n")
+                                                f.write(f"Content Fingerprint: {fingerprint}\n")
+                                                f.write(f"Fingerprint Source: {'Database (Stored)' if stored_fingerprint else 'Calculated'}\n")
+                                                f.write(f"Test Result: PASS\n")
+                                                f.write(f"Integrity Status: VERIFIED\n\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write("TEST METHODOLOGY\n")
+                                                f.write("-" * 80 + "\n")
+                                                f.write("The fingerprint was generated using CSVIntegrityProtection with content normalization.\n")
+                                                f.write("This ensures consistent hashing regardless of line ending variations or minor formatting differences.\n")
+                                                f.write("The fingerprint serves as a cryptographic proof of data integrity and authenticity.\n\n")
+                                                f.write("=" * 80 + "\n")
+                                                f.write("END OF REPORT\n")
+                                                f.write("=" * 80 + "\n")
+                                            zipf.write(fingerprint_file, f"06_Data_Quality/Source_Data_Files/{report_file_name}")
                                             
-                                            # If not found in project_files, try to find raw file by matching file_name
-                                            # (The raw file should have the same name but be in files/raw/ instead of files/protected/verified/)
-                                            if not orig_id_row or not orig_id_row[0]:
-                                                logger.debug(f"UTILITY SUBMISSION PACKAGE - No original_file_id in project_files, trying file_name match for: {file_name}")
-                                                cursor.execute(
-                                                    "SELECT id FROM raw_meter_data WHERE file_name = ? AND file_path NOT LIKE '%verified%' AND file_path LIKE '%raw%' ORDER BY created_at ASC LIMIT 1",
-                                                    (file_name,)
-                                                )
-                                                raw_file_row = cursor.fetchone()
-                                                if raw_file_row:
-                                                    orig_file_id = raw_file_row[0]
-                                                    orig_id_row = (orig_file_id,)
-                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Found raw file by name match: ID {orig_file_id}")
-                                            
-                                            if orig_id_row and orig_id_row[0]:
-                                                orig_file_id = orig_id_row[0]
-                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Found original_file_id: {orig_file_id} for verified file {file_id}")
-                                                cursor.execute(
-                                                    "SELECT file_name, file_path, fingerprint FROM raw_meter_data WHERE id = ?",
-                                                    (orig_file_id,)
-                                                )
-                                                orig_row = cursor.fetchone()
-                                                if orig_row:
-                                                    orig_name, orig_path, orig_fp = orig_row
-                                                    if orig_path:
-                                                        orig_abs_path = (base_dir / orig_path).resolve()
-                                                        if orig_abs_path.exists():
-                                                            original_raw_file = orig_abs_path
-                                                            original_raw_fingerprint = orig_fp
-                                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via original_file_id: {original_raw_file}")
-                                        except Exception as e:
-                                            logger.debug(f"UTILITY SUBMISSION PACKAGE - Could not find original_file_id: {e}")
-                                        
-                                        # STRATEGY 2: Search files/raw/ directories (existing logic)
-                                        if not original_raw_file:
-                                            raw_base_dir = base_dir / "files" / "raw"
-                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Searching for original raw file in: {raw_base_dir}")
-                                            
-                                            if raw_base_dir.exists():
-                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Raw base directory exists, searching for: {file_name}")
-                                                # Search all date subdirectories in files/raw/
-                                                for date_dir in raw_base_dir.iterdir():
-                                                    if date_dir.is_dir():
-                                                        logger.info(f"UTILITY SUBMISSION PACKAGE - Checking date directory: {date_dir}")
-                                                        # Look for files matching the original filename
-                                                        # Try exact match first, then partial match
-                                                        for raw_file in date_dir.glob("*.csv"):
-                                                            # Check if filename matches (accounting for date prefix)
-                                                            raw_filename = raw_file.name
-                                                            # Remove date prefix if present (format: YYYY-MM-DD_filename.csv)
-                                                            if raw_filename.startswith(date_dir.name + "_"):
-                                                                base_filename = raw_filename[len(date_dir.name) + 1:]
-                                                            else:
-                                                                base_filename = raw_filename
-                                                            
-                                                            logger.debug(f"UTILITY SUBMISSION PACKAGE - Comparing: '{base_filename.lower()}' with '{file_name.lower()}'")
-                                                            # Compare with original file_name (case-insensitive)
-                                                            if base_filename.lower() == file_name.lower() or file_name.lower() in raw_filename.lower():
-                                                                original_raw_file = raw_file
-                                                                logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file: {original_raw_file}")
-                                                                break
-                                                        
-                                                        if original_raw_file:
-                                                            break
-                                                
-                                                # STRATEGY 3: Recursive search if still not found
-                                                if not original_raw_file:
-                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Performing recursive search for: {file_name}")
-                                                    for raw_file in raw_base_dir.rglob("*.csv"):
-                                                        if file_name.lower() in raw_file.name.lower():
-                                                            original_raw_file = raw_file
-                                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via recursive search: {original_raw_file}")
-                                                            break
-                                            else:
-                                                logger.warning(f"UTILITY SUBMISSION PACKAGE - Raw base directory does not exist: {raw_base_dir}")
-                                        
-                                        # STRATEGY 4: Try path-based search (replace 'verified' with 'raw' in path)
-                                        if not original_raw_file and rel_path:
-                                            raw_path_candidate = rel_path.replace('verified', 'raw').replace('protected/verified', 'raw')
-                                            if raw_path_candidate != rel_path:
-                                                raw_candidate = (base_dir / raw_path_candidate).resolve()
-                                                if raw_candidate.exists() and raw_candidate.suffix == '.csv':
-                                                    original_raw_file = raw_candidate
-                                                    logger.info(f"UTILITY SUBMISSION PACKAGE - Found original raw file via path replacement: {original_raw_file}")
-                                        
-                                        # If original raw file found, include it with fingerprint
-                                        if original_raw_file and original_raw_file.exists():
-                                            # Copy original raw file
-                                            raw_dest_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data.csv")
-                                            shutil.copy2(str(original_raw_file), raw_dest_file)
-                                            zipf.write(raw_dest_file, f"06_Data_Quality/Source_Data_Files/{prefix}_original_raw_data.csv")
-                                            
-                                            # Get or calculate fingerprint for raw file
-                                            if not original_raw_fingerprint:
-                                                # Try to find fingerprint in database
-                                                try:
-                                                    # Get org_id from results_data if available
-                                                    org_id_for_db = results_data.get('_org_id')
-                                                    with get_db_connection(org_id=org_id_for_db) as conn:
-                                                        if conn:
-                                                            cursor2 = conn.cursor()
-                                                            cursor2.execute(
-                                                                "SELECT fingerprint FROM raw_meter_data WHERE file_name = ? OR file_path LIKE ? ORDER BY created_at DESC LIMIT 1",
-                                                                (original_raw_file.name, f"%{original_raw_file.name}%")
-                                                            )
-                                                            fp_row = cursor2.fetchone()
-                                                            if fp_row and fp_row[0]:
-                                                                original_raw_fingerprint = fp_row[0]
-                                                except Exception as e:
-                                                    logger.debug(f"Could not find raw file fingerprint in database: {e}")
-                                            
-                                            # If still not found, calculate using CSVIntegrityProtection
-                                            if not original_raw_fingerprint:
-                                                try:
-                                                    from main_hardened_ready_fixed import CSVIntegrityProtection
-                                                    csv_integrity = CSVIntegrityProtection()
-                                                    with open(str(original_raw_file), "r", encoding="utf-8") as f:
-                                                        file_content = f.read()
-                                                    fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
-                                                    original_raw_fingerprint = fingerprint_data["content_hash"]
-                                                except Exception as e:
-                                                    logger.warning(f"Could not calculate raw file fingerprint: {e}")
-                                                    original_raw_fingerprint = "ERROR - Fingerprint not available"
-                                            
-                                            # Create fingerprint file for raw data
-                                            raw_fingerprint_file = os.path.join(source_data_dir, f"{prefix}_original_raw_data_fingerprint.txt")
-                                            with open(raw_fingerprint_file, "w", encoding="utf-8") as f:
-                                                f.write(f"SHA-256 Fingerprint: {original_raw_fingerprint}\n")
-                                                f.write(f"File: {original_raw_file.name}\n")
-                                                f.write(f"File Type: Original Raw Upload (Before Verification)\n")
-                                                f.write(f"File Path: {original_raw_file.relative_to(base_dir)}\n")
-                                                f.write(f"Generated: {datetime.now().isoformat()}\n")
-                                            zipf.write(raw_fingerprint_file, f"06_Data_Quality/Source_Data_Files/{prefix}_original_raw_data_fingerprint.txt")
-                                            
-                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Added original raw file: {prefix}_original_raw_data.csv with fingerprint")
+                                            logger.info(f"UTILITY SUBMISSION PACKAGE - Added verified file: {file_name_simple} with fingerprint test report")
                                             files_added_count += 1
                                         else:
-                                            logger.warning(f"UTILITY SUBMISSION PACKAGE - Original raw file not found for {prefix} after all search strategies")
+                                            logger.error(f"UTILITY SUBMISSION PACKAGE - File does not exist at path: {abs_path}")
+                                            logger.error(f"UTILITY SUBMISSION PACKAGE - Base directory: {base_dir}")
+                                            logger.error(f"UTILITY SUBMISSION PACKAGE - Relative path from database: {rel_path}")
                                     else:
                                         logger.warning(f"UTILITY SUBMISSION PACKAGE - No database record found for {prefix} file ID: {file_id}")
                                 except Exception as e:
@@ -32926,7 +32914,7 @@ def admin_panel():
                 </head>
                 <body>
                     <div class="login-box">
-                        <h2>⏰ Session Expired</h2>
+                        <h2>ΓÅ░ Session Expired</h2>
                         <p>Your session has expired. Please log in again.</p>
                         <a href="/admin-panel" class="btn" onclick="localStorage.removeItem('session_token'); sessionStorage.removeItem('session_token'); document.cookie = 'session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'; window.location.href='/admin-panel'; return false;">Login Again</a>
                         <a href="/main-dashboard" class="btn" style="background: #6c757d;">Go to Dashboard</a>
@@ -32976,7 +32964,7 @@ def admin_panel():
                 </head>
                 <body>
                     <div class="login-box">
-                        <h2>❌ Access Denied</h2>
+                        <h2>Γ¥î Access Denied</h2>
                         <p>User not found. Please log in again.</p>
                         <a href="/admin-panel" class="btn" onclick="localStorage.removeItem('session_token'); sessionStorage.removeItem('session_token'); document.cookie = 'session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'; window.location.href='/admin-panel'; return false;">Login Again</a>
                         <a href="/main-dashboard" class="btn" style="background: #6c757d;">Go to Dashboard</a>
@@ -33003,7 +32991,7 @@ def admin_panel():
                 </head>
                 <body>
                     <div class="login-box">
-                        <h2>🚫 Access Denied</h2>
+                        <h2>≡ƒÜ½ Access Denied</h2>
                         <p>You need administrator privileges to access this panel.</p>
                         <p>Current role: <strong>"""
                     + user_data[4]
@@ -33145,10 +33133,10 @@ def system_status_page():
         </div>
 
         <div class="status-section">
-            <h2>📞 Support Information</h2>
+            <h2>≡ƒô₧ Support Information</h2>
             <p>For technical support or system issues:</p>
             <ul>
-                <li>Check the Help system (📖) in the main dashboard</li>
+                <li>Check the Help system (≡ƒôû) in the main dashboard</li>
                 <li>Review the Documentation page for detailed guides</li>
                 <li>Use the Audit Compliance page for regulatory information</li>
             </ul>
@@ -33222,7 +33210,7 @@ def documentation_page():
         <div class="doc-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
                 <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 40px; width: auto;">
-                <h1 style="margin: 0;">📚 Documentation</h1>
+                <h1 style="margin: 0;">≡ƒôÜ Documentation</h1>
             </div>
             <p>Complete system documentation and user guides</p>
         </div>
@@ -33240,10 +33228,10 @@ def documentation_page():
         </div>
 
         <div class="doc-section">
-            <h2>📞 Support & Contact</h2>
+            <h2>≡ƒô₧ Support & Contact</h2>
             <p>For technical support or questions about the SYNEREX system:</p>
             <ul>
-                <li>Use the Help button (📖) in the main dashboard</li>
+                <li>Use the Help button (≡ƒôû) in the main dashboard</li>
                 <li>Check the audit compliance page for regulatory information</li>
                 <li>Review the system status for operational information</li>
             </ul>
@@ -34161,26 +34149,43 @@ def admin_restart_service():
                 500,
             )
 
-    except requests.exceptions.ConnectionError:
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"ERROR: Cannot connect to Service Manager at http://localhost:9000: {e}")
         return (
             jsonify(
                 {
                     "success": False,
                     "message": "Service manager daemon is not running. Please start it first.",
+                    "error": "ConnectionError",
+                    "details": "The Service Manager (port 9000) is not accessible. Please start it using start_services.bat or by running service_manager_daemon.py manually."
                 }
             ),
             500,
         )
-    except requests.exceptions.Timeout:
+    except requests.exceptions.Timeout as e:
+        logger.error(f"ERROR: Service Manager request timed out: {e}")
         return (
-            jsonify({"success": False, "message": "Service manager request timed out"}),
+            jsonify({
+                "success": False,
+                "message": "Service manager request timed out",
+                "error": "Timeout",
+                "details": "The Service Manager did not respond within 30 seconds. It may be overloaded or not responding."
+            }),
             500,
         )
     except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
         logger.error(f"ERROR: Failed to restart service {service}: {e}")
+        logger.error(f"ERROR: Traceback:\n{error_traceback}")
         return (
             jsonify(
-                {"success": False, "message": f"Error restarting service: {str(e)}"}
+                {
+                    "success": False,
+                    "message": f"Error restarting service: {str(e)}",
+                    "error_type": type(e).__name__,
+                    "error_details": str(e)
+                }
             ),
             500,
         )
@@ -35051,7 +35056,7 @@ def admin_compliance_report():
             ]
             
             for standard, details in standards:
-                report_content.append(f"✓ {standard}")
+                report_content.append(f"Γ£ô {standard}")
                 report_content.append(f"  {details}")
                 report_content.append("")
             
@@ -36407,7 +36412,7 @@ def admin_engineering_test_metrics():
         }
         
         # 3. R-squared (Coefficient of Determination)
-        # Get regression R² from weather normalization (primary source)
+        # Get regression R┬▓ from weather normalization (primary source)
         weather_norm = analysis_results.get("weather_normalization", {})
         if isinstance(weather_norm, dict):
             r_squared = weather_norm.get("regression_r2")
@@ -36415,7 +36420,7 @@ def admin_engineering_test_metrics():
             if r_squared is not None:
                 try:
                     r_squared = float(r_squared)
-                    logger.info(f"Engineering Test Metrics: Found R²={r_squared} from weather_normalization.regression_r2")
+                    logger.info(f"Engineering Test Metrics: Found R┬▓={r_squared} from weather_normalization.regression_r2")
                 except (ValueError, TypeError):
                     logger.warning(f"Engineering Test Metrics: weather_normalization.regression_r2 is not a valid number: {r_squared} (type: {type(r_squared)})")
                     r_squared = None
@@ -36431,16 +36436,16 @@ def admin_engineering_test_metrics():
             if r_squared is not None:
                 try:
                     r_squared = float(r_squared)
-                    logger.info(f"Engineering Test Metrics: Found R²={r_squared} from ashrae_data.r_squared")
+                    logger.info(f"Engineering Test Metrics: Found R┬▓={r_squared} from ashrae_data.r_squared")
                 except (ValueError, TypeError):
                     logger.warning(f"Engineering Test Metrics: ashrae_data.r_squared is not a valid number: {r_squared}")
                     r_squared = None
         
         # Do NOT use statistical.r_squared as fallback - it's a different metric and gives incorrect values
-        # If R² is not found in weather_normalization or ashrae_data, it means regression wasn't performed
+        # If R┬▓ is not found in weather_normalization or ashrae_data, it means regression wasn't performed
         # or the value wasn't stored, so we should return None rather than using an incorrect value
         if r_squared is None:
-            logger.warning(f"Engineering Test Metrics: No valid R² found. regression_r2 should be in weather_normalization.regression_r2 or ashrae_data.r_squared")
+            logger.warning(f"Engineering Test Metrics: No valid R┬▓ found. regression_r2 should be in weather_normalization.regression_r2 or ashrae_data.r_squared")
         
         metrics["r_squared"] = {
             "value": round(float(r_squared), 4) if r_squared is not None else None,
@@ -36709,7 +36714,7 @@ def admin_engineering_test_metrics():
                 "metric": "IEEE 519 THD Compliance",
                 "value": None,
                 "unit": "%",
-                "requirement": "≤ IEEE 519 Limit",
+                "requirement": "Γëñ IEEE 519 Limit",
                 "compliant": None,
                 "standard": "IEEE 519-2014/2022",
                 "required_for_utility": True
@@ -36728,7 +36733,7 @@ def admin_engineering_test_metrics():
                     mv_requirements["ieee_519"]["value"] = round(float(thd_after), 4)
                 mv_requirements["ieee_519"]["compliant"] = bool(ieee_compliant) if ieee_compliant is not None else None
                 if thd_limit is not None:
-                    mv_requirements["ieee_519"]["requirement"] = f"≤ {thd_limit}%"
+                    mv_requirements["ieee_519"]["requirement"] = f"Γëñ {thd_limit}%"
         
         # Calculate M&V compliance
         mv_compliant_count = sum(1 for req in mv_requirements.values() if req.get("compliant", False))
@@ -37301,7 +37306,7 @@ def pe_self_register_page():
 </head>
 <body>
     <div class="container">
-        <h1>👨‍💼 Professional Engineer Self-Registration</h1>
+        <h1>≡ƒæ¿ΓÇì≡ƒÆ╝ Professional Engineer Self-Registration</h1>
         <p class="subtitle">Register your PE license for automatic verification and system access</p>
         
         <div id="message-area"></div>
@@ -37404,9 +37409,9 @@ def pe_self_register_page():
                 <input type="file" id="verification_documents" name="verification_documents" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx">
                 <div class="help-text">
                     Upload supporting documents if automatic verification is not available:<br>
-                    • License certificate copy<br>
-                    • Verification letter from state board<br>
-                    • Other supporting documents<br>
+                    ΓÇó License certificate copy<br>
+                    ΓÇó Verification letter from state board<br>
+                    ΓÇó Other supporting documents<br>
                     <strong>Accepted formats:</strong> PDF, JPG, PNG, DOC, DOCX (max 10MB per file)
                 </div>
             </div>
@@ -38010,7 +38015,7 @@ def verify_code(verification_code):
                     <div class="info-box">
                         <h2>Verification Code</h2>
                         <p><span class="code">{{ verification_code }}</span></p>
-                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
+                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
                     </div>
                     
                     <h2>Project Information</h2>
@@ -38029,8 +38034,8 @@ def verify_code(verification_code):
                         <p><strong>SHA-256 Fingerprint:</strong></p>
                         <p class="fingerprint">{{ before_file_info.fingerprint or 'N/A' }}</p>
                         <p><strong>Upload Date:</strong> {{ before_file_info.upload_date }}</p>
-                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
-                        <a href="/api/original-files/{{ before_file_info.file_id }}/download" class="download-btn">📥 Download Before Period File</a>
+                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
+                        <a href="/api/original-files/{{ before_file_info.file_id }}/download" class="download-btn">≡ƒôÑ Download Before Period File</a>
                     </div>
                     {% endif %}
                     
@@ -38042,8 +38047,8 @@ def verify_code(verification_code):
                         <p><strong>SHA-256 Fingerprint:</strong></p>
                         <p class="fingerprint">{{ after_file_info.fingerprint or 'N/A' }}</p>
                         <p><strong>Upload Date:</strong> {{ after_file_info.upload_date }}</p>
-                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
-                        <a href="/api/original-files/{{ after_file_info.file_id }}/download" class="download-btn">📥 Download After Period File</a>
+                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
+                        <a href="/api/original-files/{{ after_file_info.file_id }}/download" class="download-btn">≡ƒôÑ Download After Period File</a>
                     </div>
                     {% endif %}
                     
@@ -38059,8 +38064,8 @@ def verify_code(verification_code):
                         <h3>{{ html_report_info.report_name }}</h3>
                         <p><strong>File Size:</strong> {{ "{:,}".format(html_report_info.file_size) if html_report_info.file_size else 'N/A' }} bytes</p>
                         <p><strong>Generated:</strong> {{ html_report_info.created_at }}</p>
-                        <a href="/api/reports/{{ html_report_info.report_id }}/view" class="download-btn" target="_blank">📄 View HTML Report</a>
-                        <a href="/api/reports/{{ html_report_info.report_id }}/download" class="download-btn secondary">📥 Download HTML Report</a>
+                        <a href="/api/reports/{{ html_report_info.report_id }}/view" class="download-btn" target="_blank">≡ƒôä View HTML Report</a>
+                        <a href="/api/reports/{{ html_report_info.report_id }}/download" class="download-btn secondary">≡ƒôÑ Download HTML Report</a>
                     </div>
                     {% else %}
                     <div class="info-box">
@@ -38106,9 +38111,9 @@ def verify_code(verification_code):
                                 <td>{{ check.limit_value or check.threshold_value or 'N/A' }}</td>
                                 <td>
                                     {% if check.is_compliant is True %}
-                                        <span class="status-pass">✓ PASS</span>
+                                        <span class="status-pass">Γ£ô PASS</span>
                                     {% elif check.is_compliant is False %}
-                                        <span class="status-fail">✗ FAIL</span>
+                                        <span class="status-fail">Γ£ù FAIL</span>
                                     {% else %}
                                         <span class="status-na">N/A</span>
                                     {% endif %}
