@@ -153,7 +153,7 @@ def restart_services():
                     log_file.write(f"  [INFO] Port {port} error: {e}\n")
                     log_file.flush()
             
-            time.sleep(2)  # Wait for ports to be released
+            time.sleep(3)  # Wait for ports to be released
             log_file.write(f"[OK] Stopped services on {stopped_count} ports\n\n")
             log_file.flush()
             
@@ -275,7 +275,7 @@ def restart_services():
                 log_file.write(f"  [INFO] Main App (8082) stop error: {e}\n")
                 log_file.flush()
             
-            time.sleep(2)  # Wait for port to be released
+            time.sleep(3)  # Wait for port to be released
             
             # Start 8082 - simple approach with log redirection
             log_file.write("  Starting Main App (8082)...\n")
@@ -426,7 +426,7 @@ def restart_services():
                         log_file.flush()
                         
                         # Wait a bit for service to start
-                        time.sleep(2)
+                        time.sleep(5)
                         
                     except Exception as e:
                         log_file.write(f"  [ERROR] Failed to start {service_name}: {e}\n")

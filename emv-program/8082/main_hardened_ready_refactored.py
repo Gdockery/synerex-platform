@@ -17,7 +17,7 @@ AUDIT COMPLIANCE DOCUMENTATION:
 
 1. CALCULATION METHODOLOGIES:
    - IEEE 519-2014/2022: Harmonic limits based on ISC/IL ratio
-   - ASHRAE Guideline 14: Statistical validation with CVRMSE, NMBE, R┬▓
+   - ASHRAE Guideline 14: Statistical validation with CVRMSE, NMBE, R²
    - NEMA MG1: Phase balance standards (1% voltage unbalance limit)
    - IEC 62053-22: Class 0.2s meter accuracy (┬▒0.2%)
    - IEC 61000-4-7: Harmonic measurement methodology
@@ -2043,7 +2043,7 @@ class WeatherNormalizationML:
         Initialize the ML normalization class.
         
         Args:
-            base_temp_celsius: Base temperature for degree day calculations (default 18.3┬░C per ASHRAE Guideline 14-2014 for commercial buildings)
+            base_temp_celsius: Base temperature for degree day calculations (default 18.3°C per ASHRAE Guideline 14-2014 for commercial buildings)
             equipment_type: Type of equipment (e.g., "chiller") to use equipment-specific sensitivity factors
         """
         self.base_temp = base_temp_celsius
@@ -2054,22 +2054,22 @@ class WeatherNormalizationML:
         try:
             from main_hardened_ready_fixed import EQUIPMENT_CONFIGS
             equipment_config = EQUIPMENT_CONFIGS.get(equipment_type, EQUIPMENT_CONFIGS.get("chiller", {}))
-            temp_adjustment_factor_f = equipment_config.get("temp_adjustment_factor", 0.020)  # Default: 2% per ┬░F
+            temp_adjustment_factor_f = equipment_config.get("temp_adjustment_factor", 0.020)  # Default: 2% per °F
             
             # Convert from Fahrenheit-based to Celsius-based
-            # 1┬░F = 5/9┬░C, so sensitivity per ┬░C = sensitivity per ┬░F / (5/9) = sensitivity per ┬░F ├ù 9/5
-            # 2% per ┬░F = 2% ├ù 9/5 = 3.6% per ┬░C
-            self.temp_sensitivity = temp_adjustment_factor_f * (9.0 / 5.0)  # Convert % per ┬░F to % per ┬░C
+            # 1°F = 5/9°C, so sensitivity per °C = sensitivity per °F / (5/9) = sensitivity per °F × 9/5
+            # 2% per °F = 2% × 9/5 = 3.6% per °C
+            self.temp_sensitivity = temp_adjustment_factor_f * (9.0 / 5.0)  # Convert % per °F to % per °C
             
-            logger.info(f"WeatherNormalizationML initialized with base temp: {base_temp_celsius}┬░C, equipment: {equipment_type}, temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per ┬░C)")
+            logger.info(f"WeatherNormalizationML initialized with base temp: {base_temp_celsius}°C, equipment: {equipment_type}, temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per °C)")
         except (ImportError, AttributeError, KeyError) as e:
             # Fallback to default if EQUIPMENT_CONFIGS not available
-            # Default: 2% per ┬░F = 3.6% per ┬░C (typical for chillers)
-            self.temp_sensitivity = 0.036  # 3.6% per degree C (converted from 2% per ┬░F)
-            logger.warning(f"Could not load equipment config for {equipment_type}, using default temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per ┬░C). Error: {e}")
+            # Default: 2% per °F = 3.6% per °C (typical for chillers)
+            self.temp_sensitivity = 0.036  # 3.6% per degree C (converted from 2% per °F)
+            logger.warning(f"Could not load equipment config for {equipment_type}, using default temp sensitivity: {self.temp_sensitivity:.3f} ({self.temp_sensitivity*100:.1f}% per °C). Error: {e}")
         
         # Dewpoint sensitivity is typically 60% of temperature sensitivity
-        # For chillers: 3.6% per ┬░C temp ΓåÆ 2.16% per ┬░C dewpoint
+        # For chillers: 3.6% per °C temp ΓåÆ 2.16% per °C dewpoint
         self.dewpoint_sensitivity = self.temp_sensitivity * 0.6  # 60% of temp sensitivity
         
         # Regression-calculated sensitivity factors (will be set if regression is performed)
@@ -2099,24 +2099,24 @@ class WeatherNormalizationML:
     ) -> Dict:
         """
         Optimize base temperature from baseline data using grid search.
-        Finds the base temperature that maximizes R┬▓ for the regression model.
+        Finds the base temperature that maximizes R² for the regression model.
         
         This method implements change-point analysis to find the actual balance point
         where cooling/heating loads begin for this specific building/equipment.
         
         Args:
             baseline_energy: List of energy/kW values from baseline period
-            baseline_temp: List of temperature values (┬░C) corresponding to energy data
-            baseline_dewpoint: Optional list of dewpoint values (┬░C) corresponding to energy data
-            min_base_temp: Minimum base temperature to test (default 10┬░C)
-            max_base_temp: Maximum base temperature to test (default 25┬░C)
-            step: Step size for grid search (default 0.5┬░C)
+            baseline_temp: List of temperature values (°C) corresponding to energy data
+            baseline_dewpoint: Optional list of dewpoint values (°C) corresponding to energy data
+            min_base_temp: Minimum base temperature to test (default 10°C)
+            max_base_temp: Maximum base temperature to test (default 25°C)
+            step: Step size for grid search (default 0.5°C)
             
         Returns:
             Dictionary with:
                 - success: bool - Whether optimization was successful
-                - optimized_base_temp: float - Optimal base temperature (┬░C)
-                - best_r2: float - R┬▓ value at optimal base temperature
+                - optimized_base_temp: float - Optimal base temperature (°C)
+                - best_r2: float - R² value at optimal base temperature
                 - method: str - Description of method used
         """
         try:
@@ -2137,9 +2137,9 @@ class WeatherNormalizationML:
                     # Balance point is typically between min and median, closer to min
                     # Use 25th percentile or min + small offset to ensure it's below average
                     percentile_25 = np.percentile(temp[valid_mask], 25)
-                    # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
+                    # Use the lower of: 25th percentile or (median - 3°C), but not below min
                     fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                    logger.info(f"Calculating balance point from baseline temperatures: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C, 25th percentile={percentile_25:.1f}┬░C)")
+                    logger.info(f"Calculating balance point from baseline temperatures: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C, 25th percentile={percentile_25:.1f}°C)")
                     return {
                         "success": True,  # Mark as success since we have a value from baseline data
                         "optimized_base_temp": float(fallback_base),
@@ -2154,9 +2154,9 @@ class WeatherNormalizationML:
                         median_temp = np.median(all_temps)
                         min_temp = np.min(all_temps)
                         percentile_25 = np.percentile(all_temps, 25)
-                        # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
+                        # Use the lower of: 25th percentile or (median - 3°C), but not below min
                         fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                        logger.info(f"Calculating balance point from all baseline temperatures: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C)")
+                        logger.info(f"Calculating balance point from all baseline temperatures: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C)")
                         return {
                             "success": True,
                             "optimized_base_temp": float(fallback_base),
@@ -2179,7 +2179,7 @@ class WeatherNormalizationML:
             if mean_energy <= 0:
                 # Calculate fallback from baseline temperature data
                 fallback_base = np.median(temp)  # Use median temperature from baseline data
-                logger.info(f"Using median baseline temperature as base: {fallback_base:.1f}┬░C (energy data invalid)")
+                logger.info(f"Using median baseline temperature as base: {fallback_base:.1f}°C (energy data invalid)")
                 return {
                     "success": True,  # Mark as success since we have a value from baseline data
                     "optimized_base_temp": float(fallback_base),
@@ -2200,7 +2200,7 @@ class WeatherNormalizationML:
             # Generate candidate base temperatures
             candidate_bases = np.arange(min_base_temp, max_base_temp + step, step)
             
-            logger.info(f"Optimizing base temperature from {min_base_temp}┬░C to {max_base_temp}┬░C (step: {step}┬░C)")
+            logger.info(f"Optimizing base temperature from {min_base_temp}°C to {max_base_temp}°C (step: {step}°C)")
             
             for candidate_base in candidate_bases:
                 try:
@@ -2223,7 +2223,7 @@ class WeatherNormalizationML:
                     model = LinearRegression()
                     model.fit(X, energy)
                     
-                    # Calculate R┬▓
+                    # Calculate R²
                     y_pred = model.predict(X)
                     r2 = r2_score(energy, y_pred)
                     
@@ -2245,7 +2245,7 @@ class WeatherNormalizationML:
             
             # Validate that we found a reasonable base temperature
             if best_r2 < 0.0:
-                logger.warning(f"Base temperature optimization failed to find valid model, using default {self.base_temp}┬░C")
+                logger.warning(f"Base temperature optimization failed to find valid model, using default {self.base_temp}°C")
                 return {
                     "success": False,
                     "optimized_base_temp": self.base_temp,
@@ -2259,14 +2259,14 @@ class WeatherNormalizationML:
                 self.base_temp = best_base_temp
                 self.optimized_base_temp = best_base_temp
                 self.base_temp_optimized = True
-                logger.info(f"Base temperature optimized from baseline data: {best_base_temp:.1f}┬░C (R┬▓={best_r2:.3f})")
+                logger.info(f"Base temperature optimized from baseline data: {best_base_temp:.1f}°C (R²={best_r2:.3f})")
                 return_base_temp = best_base_temp
             else:
                 # Fallback to ASHRAE standard for commercial buildings
                 self.base_temp = 18.3
                 self.optimized_base_temp = 18.3
                 self.base_temp_optimized = False
-                logger.info(f"Base temperature optimization completed, using ASHRAE standard: 18.3┬░C (65┬░F) for commercial buildings")
+                logger.info(f"Base temperature optimization completed, using ASHRAE standard: 18.3°C (65°F) for commercial buildings")
                 return_base_temp = 18.3
             
             return {
@@ -2274,7 +2274,7 @@ class WeatherNormalizationML:
                 "optimized_base_temp": return_base_temp,
                 "best_r2": best_r2,
                 "previous_base_temp": old_base,
-                "method": f"Base temperature optimized to {return_base_temp:.1f}┬░C (R┬▓={best_r2:.3f})" if return_base_temp != 18.3 else f"Base temperature using ASHRAE standard: 18.3┬░C (65┬░F) for commercial buildings"
+                "method": f"Base temperature optimized to {return_base_temp:.1f}°C (R²={best_r2:.3f})" if return_base_temp != 18.3 else f"Base temperature using ASHRAE standard: 18.3°C (65°F) for commercial buildings"
             }
             
         except Exception as e:
@@ -2305,18 +2305,18 @@ class WeatherNormalizationML:
         
         Args:
             baseline_energy: List of energy/kW values from baseline period (time series)
-            baseline_temp: List of temperature values (┬░C) corresponding to energy data
-            baseline_dewpoint: Optional list of dewpoint values (┬░C) corresponding to energy data
-            min_r2: Minimum R┬▓ value for validation (default 0.7 per ASHRAE)
+            baseline_temp: List of temperature values (°C) corresponding to energy data
+            baseline_dewpoint: Optional list of dewpoint values (°C) corresponding to energy data
+            min_r2: Minimum R² value for validation (default 0.7 per ASHRAE)
             optimize_base_temp: Whether to optimize base temperature from baseline data (default True)
             
         Returns:
             Dictionary with:
                 - success: bool - Whether regression was successful
-                - temp_sensitivity: float - Calculated temperature sensitivity (% per ┬░C)
-                - dewpoint_sensitivity: float - Calculated dewpoint sensitivity (% per ┬░C) or None
-                - r2: float - R┬▓ value from regression
-                - optimized_base_temp: float - Optimized base temperature (┬░C) if optimization was performed
+                - temp_sensitivity: float - Calculated temperature sensitivity (% per °C)
+                - dewpoint_sensitivity: float - Calculated dewpoint sensitivity (% per °C) or None
+                - r2: float - R² value from regression
+                - optimized_base_temp: float - Optimized base temperature (°C) if optimization was performed
                 - method: str - Description of method used
         """
         try:
@@ -2338,13 +2338,13 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature from baseline data: {opt_temp:.1f}┬░C")
+                        logger.info(f"Using optimized base temperature from baseline data: {opt_temp:.1f}°C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
                     # Even if optimization failed, ALWAYS calculate from baseline temperature data
                     # No fallback to default - must use baseline data
@@ -2355,9 +2355,9 @@ class WeatherNormalizationML:
                             median_temp = np.median(valid_temps)
                             min_temp = np.min(valid_temps)
                             percentile_25 = np.percentile(valid_temps, 25)
-                            # Use the lower of: 25th percentile or (median - 3┬░C), but not below min
+                            # Use the lower of: 25th percentile or (median - 3°C), but not below min
                             fallback_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                            logger.info(f"Base temperature optimization failed, calculating balance point from baseline: {fallback_base:.1f}┬░C (median={median_temp:.1f}┬░C, min={min_temp:.1f}┬░C)")
+                            logger.info(f"Base temperature optimization failed, calculating balance point from baseline: {fallback_base:.1f}°C (median={median_temp:.1f}°C, min={min_temp:.1f}°C)")
                             self.base_temp = float(fallback_base)
                             self.optimized_base_temp = float(fallback_base)
                             self.base_temp_optimized = True  # Mark as optimized since it's from baseline data
@@ -2368,9 +2368,9 @@ class WeatherNormalizationML:
                                 # Calculate balance point from mean
                                 mean_temp = np.mean(all_temps)
                                 min_temp = min(all_temps)
-                                # Use mean - 3┬░C as balance point, but not below min
+                                # Use mean - 3°C as balance point, but not below min
                                 fallback_base = max(min_temp, mean_temp - 3.0)
-                                logger.info(f"Base temperature using calculated balance point from mean baseline temperature: {fallback_base:.1f}┬░C (mean={mean_temp:.1f}┬░C)")
+                                logger.info(f"Base temperature using calculated balance point from mean baseline temperature: {fallback_base:.1f}°C (mean={mean_temp:.1f}°C)")
                                 self.base_temp = float(fallback_base)
                                 self.optimized_base_temp = float(fallback_base)
                                 self.base_temp_optimized = True
@@ -2460,7 +2460,7 @@ class WeatherNormalizationML:
             
                 if "error" in model_result or model_result.get("r_squared", 0) < min_r2:
                     # Fall back to simple linear regression if ASHRAE model fails
-                    logger.warning(f"ASHRAE change-point model failed or R┬▓ < {min_r2}, falling back to simple linear regression")
+                    logger.warning(f"ASHRAE change-point model failed or R² < {min_r2}, falling back to simple linear regression")
                     raise ValueError("ASHRAE model failed")
                 
                 r2 = model_result.get("r_squared", 0)
@@ -2506,7 +2506,7 @@ class WeatherNormalizationML:
                     beta_2 = None
                     dewpoint_sensitivity = temp_sensitivity * 0.6
                 
-                # Validate R┬▓ (must be >= 0.7 per ASHRAE)
+                # Validate R² (must be >= 0.7 per ASHRAE)
                 if r2 >= min_r2:
                     self.regression_temp_sensitivity = temp_sensitivity
                     self.regression_dewpoint_sensitivity = dewpoint_sensitivity
@@ -2515,13 +2515,13 @@ class WeatherNormalizationML:
                     
                     logger.info(f"ASHRAE change-point model regression completed:")
                     logger.info(f"  Model: {model_name}")
-                    logger.info(f"  R┬▓ = {r2:.4f} (>= {min_r2:.2f} Γ£ô)")
-                    logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per ┬░C)")
-                    logger.info(f"  Dewpoint sensitivity: {dewpoint_sensitivity:.6f} ({dewpoint_sensitivity*100:.2f}% per ┬░C)")
+                    logger.info(f"  R² = {r2:.4f} (>= {min_r2:.2f} ✓)")
+                    logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per °C)")
+                    logger.info(f"  Dewpoint sensitivity: {dewpoint_sensitivity:.6f} ({dewpoint_sensitivity*100:.2f}% per °C)")
                     if beta_2 is not None:
-                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}├ùCDD + {beta_2:.4f}├ùHDD")
+                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}×CDD + {beta_2:.4f}×HDD")
                     else:
-                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}├ùCDD")
+                        logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}×CDD")
                     
                     result = {
                         "success": True,
@@ -2534,7 +2534,7 @@ class WeatherNormalizationML:
                         "mean_energy": mean_energy,
                         "n_points": len(energy),
                         "model_name": model_name,
-                        "method": f"ASHRAE {model_name} change-point model (R┬▓={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/┬░C)"
+                        "method": f"ASHRAE {model_name} change-point model (R²={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/°C)"
                     }
                     # Include optimized base temperature if optimization was performed
                     if base_opt_result and base_opt_result.get("success", False):
@@ -2543,18 +2543,18 @@ class WeatherNormalizationML:
                         # FIX: Check if optimized_base_temp is not None before formatting
                         opt_temp = base_opt_result.get("optimized_base_temp")
                         if opt_temp is not None:
-                            result["method"] += f", Base temp optimized to {opt_temp:.1f}┬░C"
+                            result["method"] += f", Base temp optimized to {opt_temp:.1f}°C"
                     else:
                         result["optimized_base_temp"] = self.base_temp
                         result["base_temp_optimized"] = False
                     return result
                 else:
-                    logger.warning(f"ASHRAE model R┬▓ ({r2:.4f}) below minimum ({min_r2:.2f}), using fixed factors")
+                    logger.warning(f"ASHRAE model R² ({r2:.4f}) below minimum ({min_r2:.2f}), using fixed factors")
                     return {
                         "success": False,
                         "r2": r2,
-                        "error": f"R┬▓ {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
-                        "method": f"ASHRAE model failed - R┬▓ {r2:.4f} < {min_r2:.2f}"
+                        "error": f"R² {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
+                        "method": f"ASHRAE model failed - R² {r2:.4f} < {min_r2:.2f}"
                     }
                     
             except Exception as e:
@@ -2578,7 +2578,7 @@ class WeatherNormalizationML:
                         dewpoint = dewpoint_raw
                     hdd = np.maximum(0, dewpoint - self.base_temp)
                     
-                    # Multiple linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü├ùCDD + ╬▓Γéé├ùHDD
+                    # Multiple linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü×CDD + ╬▓Γéé×HDD
                     X = np.column_stack([cdd, hdd])
                     model = LinearRegression()
                     model.fit(X, energy)
@@ -2615,8 +2615,8 @@ class WeatherNormalizationML:
                         self.regression_valid = True
                         
                         logger.info(f"Simple linear regression (fallback) completed:")
-                        logger.info(f"  R┬▓ = {r2:.4f} (>= {min_r2:.2f} Γ£ô)")
-                        logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per ┬░C)")
+                        logger.info(f"  R² = {r2:.4f} (>= {min_r2:.2f} ✓)")
+                        logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per °C)")
                         
                         result = {
                             "success": True,
@@ -2628,7 +2628,7 @@ class WeatherNormalizationML:
                             "beta_2": beta_2,
                             "mean_energy": mean_energy,
                             "n_points": len(energy),
-                            "method": f"Simple linear regression (fallback, R┬▓={r2:.3f}, {temp_sensitivity*100:.2f}%/┬░C)"
+                            "method": f"Simple linear regression (fallback, R²={r2:.3f}, {temp_sensitivity*100:.2f}%/°C)"
                         }
                         if base_opt_result and base_opt_result.get("success", False):
                             result["optimized_base_temp"] = base_opt_result["optimized_base_temp"]
@@ -2638,12 +2638,12 @@ class WeatherNormalizationML:
                             result["base_temp_optimized"] = False
                         return result
                     else:
-                        logger.warning(f"Fallback regression R┬▓ ({r2:.4f}) below ASHRAE minimum ({min_r2:.2f})")
+                        logger.warning(f"Fallback regression R² ({r2:.4f}) below ASHRAE minimum ({min_r2:.2f})")
                         return {
                             "success": False,
                             "r2": r2,
-                            "error": f"R┬▓ {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
-                            "method": f"Regression failed - R┬▓ {r2:.4f} < {min_r2:.2f}"
+                            "error": f"R² {r2:.4f} < {min_r2:.2f} (ASHRAE minimum)",
+                            "method": f"Regression failed - R² {r2:.4f} < {min_r2:.2f}"
                         }
                     
         except Exception as e:
@@ -2683,10 +2683,10 @@ class WeatherNormalizationML:
         for improved accuracy. Falls back to average-based normalization if time series not available.
         
         Args:
-            temp_before: Average temperature during baseline period (┬░C)
-            temp_after: Average temperature during compensated period (┬░C)
-            dewpoint_before: Average dewpoint during baseline period (┬░C)
-            dewpoint_after: Average dewpoint during compensated period (┬░C)
+            temp_before: Average temperature during baseline period (°C)
+            temp_after: Average temperature during compensated period (°C)
+            dewpoint_before: Average dewpoint during baseline period (°C)
+            dewpoint_after: Average dewpoint during compensated period (°C)
             kw_before: Average kW consumption during baseline period
             kw_after: Average kW consumption during compensated period
             baseline_energy_series: Optional list of energy/kW values from baseline period (for ASHRAE regression)
@@ -2717,7 +2717,7 @@ class WeatherNormalizationML:
                     # Use regression-calculated sensitivity factors
                     self.temp_sensitivity = regression_result["temp_sensitivity"]
                     self.dewpoint_sensitivity = regression_result.get("dewpoint_sensitivity", self.temp_sensitivity * 0.6)
-                    logger.info(f"Using ASHRAE-compliant regression-calculated sensitivity factors (R┬▓={regression_result['r2']:.3f})")
+                    logger.info(f"Using ASHRAE-compliant regression-calculated sensitivity factors (R²={regression_result['r2']:.3f})")
                     
                     # Store ASHRAE regression coefficients for additive normalization
                     if "beta_0" in regression_result:
@@ -2741,18 +2741,18 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature from regression: {opt_temp:.1f}┬░C")
+                        logger.info(f"Using optimized base temperature from regression: {opt_temp:.1f}°C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
-                    # Regression failed or R┬▓ too low, but base temperature was still calculated from baseline data
+                    # Regression failed or R² too low, but base temperature was still calculated from baseline data
                     # The base temperature optimization in calculate_sensitivity_from_regression should have set it
                     error_msg = regression_result.get('error', 'Unknown error') if regression_result is not None else 'Regression returned None'
-                    logger.warning(f"Regression analysis failed or R┬▓ too low: {error_msg}")
+                    logger.warning(f"Regression analysis failed or R² too low: {error_msg}")
                     logger.warning("Falling back to equipment-specific fixed factors (not fully ASHRAE-compliant)")
                     # Use optimized base temperature if available, otherwise use ASHRAE standard
                     opt_temp = regression_result.get("optimized_base_temp") if regression_result else None
@@ -2760,13 +2760,13 @@ class WeatherNormalizationML:
                         self.base_temp = opt_temp
                         self.optimized_base_temp = opt_temp
                         self.base_temp_optimized = True
-                        logger.info(f"Using optimized base temperature (regression failed): {opt_temp:.1f}┬░C")
+                        logger.info(f"Using optimized base temperature (regression failed): {opt_temp:.1f}°C")
                     else:
                         # Fallback to ASHRAE standard for commercial buildings
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
             else:
                 # CRITICAL: Time series data should always be available
                 # If it's missing, we need to calculate base temperature from baseline temperature data
@@ -2786,39 +2786,39 @@ class WeatherNormalizationML:
                         percentile_25 = np.percentile(valid_temps, 25)
                         # Use calculated balance point or ASHRAE standard
                         calculated_base = max(min_temp, min(percentile_25, median_temp - 3.0))
-                        # Ensure calculated base is reasonable (between 5┬░C and 25┬░C)
+                        # Ensure calculated base is reasonable (between 5°C and 25°C)
                         if 5.0 <= calculated_base <= 25.0:
                             self.base_temp = calculated_base
                             self.optimized_base_temp = calculated_base
                             self.base_temp_optimized = True
-                            logger.info(f"Using calculated balance point from baseline data: {calculated_base:.1f}┬░C")
+                            logger.info(f"Using calculated balance point from baseline data: {calculated_base:.1f}°C")
                         else:
                             # Fallback to ASHRAE standard
                             self.base_temp = 18.3
                             self.optimized_base_temp = 18.3
                             self.base_temp_optimized = False
-                            logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                            logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                     else:
                         # No valid temps - use ASHRAE standard
                         self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                        logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 elif temp_before is not None:
                     # Use ASHRAE standard when only average temp is available
                     self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                     self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
                 else:
                     # No baseline data - use ASHRAE standard
                     self.base_temp = 18.3  # ASHRAE Guideline 14-2014 standard for commercial
                     self.optimized_base_temp = 18.3
                     self.base_temp_optimized = False
-                    logger.info("Using ASHRAE standard base temperature: 18.3┬░C (65┬░F) for commercial buildings")
+                    logger.info("Using ASHRAE standard base temperature: 18.3°C (65°F) for commercial buildings")
             
-            # CRITICAL: Base temperature is fixed at 10.0┬░C per requirements
-            # Skip all base temperature adjustments - use fixed 10.0┬░C value
+            # CRITICAL: Base temperature is fixed at 10.0°C per requirements
+            # Skip all base temperature adjustments - use fixed 10.0°C value
             # Original code adjusted base_temp based on minimum temperatures, but this is disabled
             import numpy as np
             baseline_min = None
@@ -2840,9 +2840,9 @@ class WeatherNormalizationML:
                 if len(valid_baseline_dewpoints) > 0:
                     baseline_dewpoint_min = np.min(valid_baseline_dewpoints)
             elif dewpoint_before is not None:
-                # Use conservative estimate: dewpoint is typically 8-12┬░C below temperature
-                baseline_dewpoint_min = max(5.0, dewpoint_before - 5.0)  # At least 5┬░C below average, minimum 5┬░C
-                logger.debug(f"Using conservative estimate for baseline dewpoint minimum: {baseline_dewpoint_min:.1f}┬░C (from average {dewpoint_before:.1f}┬░C - 5┬░C)")
+                # Use conservative estimate: dewpoint is typically 8-12°C below temperature
+                baseline_dewpoint_min = max(5.0, dewpoint_before - 5.0)  # At least 5°C below average, minimum 5°C
+                logger.debug(f"Using conservative estimate for baseline dewpoint minimum: {baseline_dewpoint_min:.1f}°C (from average {dewpoint_before:.1f}°C - 5°C)")
             
             # Get minimum temperature from after period
             after_min_from_series = False
@@ -2853,10 +2853,10 @@ class WeatherNormalizationML:
                     after_min_from_series = True
             elif temp_after is not None:
                 # CRITICAL FIX: Use conservative estimate when only average is available
-                # Assume minimum is 8┬░C below average for typical temperature ranges
+                # Assume minimum is 8°C below average for typical temperature ranges
                 # This prevents base_temp from being too high when actual minimum is much lower
                 after_min = temp_after - 8.0
-                logger.warning(f"[WARNING] Using conservative estimate for after period minimum: {after_min:.1f}┬░C (from average {temp_after:.1f}┬░C - 8┬░C)")
+                logger.warning(f"[WARNING] Using conservative estimate for after period minimum: {after_min:.1f}°C (from average {temp_after:.1f}°C - 8°C)")
                 after_min_from_series = False
             
             # Get minimum dewpoint from after period
@@ -2865,9 +2865,9 @@ class WeatherNormalizationML:
                 if len(valid_after_dewpoints) > 0:
                     after_dewpoint_min = np.min(valid_after_dewpoints)
             elif dewpoint_after is not None:
-                # Use conservative estimate: dewpoint is typically 8-12┬░C below temperature
-                after_dewpoint_min = max(5.0, dewpoint_after - 5.0)  # At least 5┬░C below average, minimum 5┬░C
-                logger.debug(f"Using conservative estimate for after period dewpoint minimum: {after_dewpoint_min:.1f}┬░C (from average {dewpoint_after:.1f}┬░C - 5┬░C)")
+                # Use conservative estimate: dewpoint is typically 8-12°C below temperature
+                after_dewpoint_min = max(5.0, dewpoint_after - 5.0)  # At least 5°C below average, minimum 5°C
+                logger.debug(f"Using conservative estimate for after period dewpoint minimum: {after_dewpoint_min:.1f}°C (from average {dewpoint_after:.1f}°C - 5°C)")
             
             # Check if we have time series data from both periods
             baseline_min_from_series = (baseline_temp_series is not None and len(baseline_temp_series) > 0 and 
@@ -2890,7 +2890,7 @@ class WeatherNormalizationML:
                 overall_min = min(all_mins)
                 # UNIVERSAL FORMULA: Set base_temp significantly below overall minimum
                 # This ensures weather effects are properly balanced for all projects
-                # The offset of 6-8┬░C below minimum ensures:
+                # The offset of 6-8°C below minimum ensures:
                 # 1. Base_temp is well below all temperatures/dewpoints (prevents zero effects)
                 # 2. Weather effects are large enough to create meaningful normalization
                 # 3. Factor will be < 1.0 when "after" period is cooler (shows proper savings)
@@ -2911,35 +2911,35 @@ class WeatherNormalizationML:
                     # Use smaller offset when weather differences are small to keep base_temp closer to average
                     # This produces a factor that reflects both weather differences AND efficiency improvements
                     if temp_range < 3.0:
-                        # Very small range: Use 1.5┬░C offset (closer to average) to allow efficiency gains to show
+                        # Very small range: Use 1.5°C offset (closer to average) to allow efficiency gains to show
                         offset = 1.5
                     elif temp_range < 5.0:
-                        # Small range: Use 2-3┬░C offset
+                        # Small range: Use 2-3°C offset
                         offset = 2.0 + (temp_range - 3.0) * 0.5  # 2.0 to 3.0
                     else:
-                        # Large range: Use 4┬░C offset (slightly less than 5┬░C to allow efficiency gains)
+                        # Large range: Use 4°C offset (slightly less than 5°C to allow efficiency gains)
                         offset = 4.0
                     
                     base_temp_from_avg = avg_temp - offset
                     
-                    # CRITICAL: Always set base_temp to at least 5┬░C below the minimum temperature between 'before' and 'after'
+                    # CRITICAL: Always set base_temp to at least 5°C below the minimum temperature between 'before' and 'after'
                     # This ensures ASHRAE Guideline 14-2014 compliance AND ensures weather effects are non-zero
-                    # Increased from 0.1┬░C to 5.0┬░C to guarantee normalization is applied
+                    # Increased from 0.1°C to 5.0°C to guarantee normalization is applied
                     min_temp = min(temp_before, temp_after) if (temp_before and temp_after) else overall_min
-                    # Always set base_temp to at least 5┬░C below minimum to ensure weather effects are meaningful
+                    # Always set base_temp to at least 5°C below minimum to ensure weather effects are meaningful
                     adjusted_base_temp = min_temp - 5.0
-                    # Clamp to reasonable range for cooling systems (10-28┬░C) - lowered floor from 12┬░C to 10┬░C
+                    # Clamp to reasonable range for cooling systems (10-28°C) - lowered floor from 12°C to 10°C
                     adjusted_base_temp = max(10.0, min(28.0, adjusted_base_temp))
-                    logger.info(f"[FIX] Using enhanced base_temp calculation: min_temp={min_temp:.1f}┬░C (min of before={temp_before:.1f}┬░C and after={temp_after:.1f}┬░C), base_temp={adjusted_base_temp:.1f}┬░C (min_temp - 5.0┬░C)")
+                    logger.info(f"[FIX] Using enhanced base_temp calculation: min_temp={min_temp:.1f}°C (min of before={temp_before:.1f}°C and after={temp_after:.1f}°C), base_temp={adjusted_base_temp:.1f}°C (min_temp - 5.0°C)")
                     logger.info(f"   This ensures base_temp is always below all temperatures, guaranteeing non-zero weather effects")
                 else:
                     # Fallback: Use moderate offset from overall_min
                     if has_time_series_both:
-                        adjusted_base_temp = max(15.0, overall_min - 2.0)  # 2┬░C below, 15┬░C floor
-                        logger.debug(f"Using moderate base_temp calculation (2┬░C below minimum, 15┬░C floor) because time series data is available")
+                        adjusted_base_temp = max(15.0, overall_min - 2.0)  # 2°C below, 15°C floor
+                        logger.debug(f"Using moderate base_temp calculation (2°C below minimum, 15°C floor) because time series data is available")
                     else:
-                        adjusted_base_temp = max(16.0, overall_min - 1.5)  # 1.5┬░C below, 16┬░C floor
-                        logger.debug(f"Using moderate base_temp calculation (1.5┬░C below minimum, 16┬░C floor) because only averages are available")
+                        adjusted_base_temp = max(16.0, overall_min - 1.5)  # 1.5°C below, 16°C floor
+                        logger.debug(f"Using moderate base_temp calculation (1.5°C below minimum, 16°C floor) because only averages are available")
                 
                 # CRITICAL FIX: Preserve base_temp optimization if it's valid
                 # Check if base_temp was optimized (regardless of regression success)
@@ -2968,14 +2968,14 @@ class WeatherNormalizationML:
                 if base_temp_was_optimized and not optimized_is_valid:
                     # Optimized value is too high - must adjust downward
                     should_adjust = True
-                    logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}┬░C) is too high (min: {overall_min:.1f}┬░C)")
+                    logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) is too high (min: {overall_min:.1f}°C)")
                     # Use adjusted_base_temp that was calculated above, or recalculate if needed
                     if 'adjusted_base_temp' not in locals():
                         if 18.3 < overall_min:
-                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
                         else:
                             adjusted_base_temp = 18.3
-                    logger.info(f"[FIX] Adjusting base temperature DOWNWARD: {self.base_temp:.1f}┬░C ΓåÆ {adjusted_base_temp:.1f}┬░C")
+                    logger.info(f"[FIX] Adjusting base temperature DOWNWARD: {self.base_temp:.1f}°C ΓåÆ {adjusted_base_temp:.1f}°C")
                     logger.info(f"   Reason: Optimized value is too high (would cause zero weather effects)")
                     self.base_temp = adjusted_base_temp
                     self.optimized_base_temp = adjusted_base_temp
@@ -2986,44 +2986,44 @@ class WeatherNormalizationML:
                     # Use adjusted_base_temp that was calculated above, or recalculate if needed
                     if 'adjusted_base_temp' not in locals():
                         if 18.3 < overall_min:
-                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
+                            adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
                         else:
                             adjusted_base_temp = 18.3
-                    logger.info(f"[FIX] Adjusting base temperature: {self.base_temp:.1f}┬░C ΓåÆ {adjusted_base_temp:.1f}┬░C")
+                    logger.info(f"[FIX] Adjusting base temperature: {self.base_temp:.1f}°C ΓåÆ {adjusted_base_temp:.1f}°C")
                     logger.info(f"   Reason: No base temperature optimization performed")
                     self.base_temp = adjusted_base_temp
                     self.optimized_base_temp = adjusted_base_temp
                     self.base_temp_optimized = False
                 elif base_temp_was_optimized and optimized_is_valid:
                     # Optimized value is valid - keep it
-                    logger.info(f"[OK] Keeping optimized base_temp: {self.base_temp:.1f}┬░C")
-                    logger.info(f"   Baseline period min: {baseline_min:.1f}┬░C, After period min: {after_min:.1f}┬░C")
+                    logger.info(f"[OK] Keeping optimized base_temp: {self.base_temp:.1f}°C")
+                    logger.info(f"   Baseline period min: {baseline_min:.1f}°C, After period min: {after_min:.1f}°C")
                     if baseline_dewpoint_min is not None or after_dewpoint_min is not None:
-                        logger.info(f"   Baseline dewpoint min: {baseline_dewpoint_min:.1f}┬░C, After dewpoint min: {after_dewpoint_min:.1f}┬░C")
-                    logger.info(f"   Overall min (temp + dewpoint): {overall_min:.1f}┬░C")
+                        logger.info(f"   Baseline dewpoint min: {baseline_dewpoint_min:.1f}°C, After dewpoint min: {after_dewpoint_min:.1f}°C")
+                    logger.info(f"   Overall min (temp + dewpoint): {overall_min:.1f}°C")
                 else:
                     # Fallback: Preserve optimized base temperature if valid, otherwise ensure it's below minimum temperatures
                     if self.base_temp_optimized and self.base_temp < overall_min:
                         # Optimized value is valid - keep it
-                        logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below minimum: {overall_min:.1f}┬░C)")
+                        logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
                     else:
                         # Adjust base_temp to be below minimum, but not lower than ASHRAE standard allows
-                        # Use ASHRAE standard (18.3┬░C) if it's below minimum, otherwise use minimum - 1.5┬░C
+                        # Use ASHRAE standard (18.3°C) if it's below minimum, otherwise use minimum - 1.5°C
                         if 'adjusted_base_temp' not in locals():
                             if 18.3 < overall_min:
-                                adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5┬░C below minimum, minimum 5┬░C
+                                adjusted_base_temp = max(5.0, overall_min - 1.5)  # At least 1.5°C below minimum, minimum 5°C
                             else:
                                 adjusted_base_temp = 18.3
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Using base temperature: {adjusted_base_temp:.1f}┬░C (below minimum: {overall_min:.1f}┬░C)")
+                        logger.info(f"Using base temperature: {adjusted_base_temp:.1f}°C (below minimum: {overall_min:.1f}°C)")
             elif baseline_min is not None:
                 # Only baseline available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
                 if self.base_temp_optimized and self.base_temp < baseline_min:
                     # Optimized value is valid - keep it
-                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
                 else:
                     # Adjust base_temp to be below baseline minimum
                     if 18.3 < baseline_min:
@@ -3031,18 +3031,18 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below baseline minimum: {baseline_min:.1f}°C)")
                     else:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below baseline minimum: {baseline_min:.1f}┬░C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below baseline minimum: {baseline_min:.1f}°C)")
             elif after_min is not None:
                 # Only after available, ensure base_temp is below it (if current base_temp is higher)
                 # But preserve optimized value if it's valid
                 if self.base_temp_optimized and self.base_temp < after_min:
                     # Optimized value is valid - keep it
-                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}┬░C (below after minimum: {after_min:.1f}┬░C)")
+                    logger.info(f"Keeping optimized base temperature: {self.base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
                 else:
                     # Adjust base_temp to be below after minimum
                     if 18.3 < after_min:
@@ -3050,12 +3050,12 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}┬░C (below after minimum: {after_min:.1f}┬░C)")
+                        logger.info(f"Adjusted base temperature: {adjusted_base_temp:.1f}°C (below after minimum: {after_min:.1f}°C)")
                     else:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
                         self.base_temp_optimized = False
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below after minimum: {after_min:.1f}┬░C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below after minimum: {after_min:.1f}°C)")
             
             # Input validation
             temp_before = float(temp_before) if temp_before is not None else self.base_temp
@@ -3075,24 +3075,24 @@ class WeatherNormalizationML:
                         self.base_temp = adjusted_base_temp
                         self.optimized_base_temp = adjusted_base_temp
                         self.base_temp_optimized = False
-                        logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}┬░C) >= min_temp ({min_temp:.2f}┬░C) - adjusted to {adjusted_base_temp:.1f}┬░C")
+                        logger.warning(f"[WARNING] Optimized base_temp ({self.base_temp:.1f}°C) >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
                     else:
                         # Use ASHRAE standard if it's below minimum, otherwise adjust
                         if 18.3 < min_temp:
                             adjusted_base_temp = max(5.0, min_temp - 1.5)
                             self.base_temp = adjusted_base_temp
                             self.optimized_base_temp = adjusted_base_temp
-                            logger.warning(f"[WARNING] base_temp >= min_temp ({min_temp:.2f}┬░C) - adjusted to {adjusted_base_temp:.1f}┬░C")
+                            logger.warning(f"[WARNING] base_temp >= min_temp ({min_temp:.2f}°C) - adjusted to {adjusted_base_temp:.1f}°C")
                         else:
                             self.base_temp = 18.3
                             self.optimized_base_temp = 18.3
-                            logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below minimum: {min_temp:.2f}┬░C)")
+                            logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
                 elif not self.base_temp_optimized and self.base_temp != 18.3:
                     # If not optimized and not using standard, ensure we're using standard
                     if 18.3 < min_temp:
                         self.base_temp = 18.3
                         self.optimized_base_temp = 18.3
-                        logger.info(f"Using ASHRAE standard base temperature: 18.3┬░C (below minimum: {min_temp:.2f}┬░C)")
+                        logger.info(f"Using ASHRAE standard base temperature: 18.3°C (below minimum: {min_temp:.2f}°C)")
             
             # Check if dewpoint values are available for humidity normalization
             # Handle dewpoint the same as temperature - validate and convert consistently
@@ -3170,7 +3170,7 @@ class WeatherNormalizationML:
             # CRITICAL VALIDATION: Check if weather_effect_after is zero when it shouldn't be
             # This indicates base_temp calculation is incorrect or temp_after is below base_temp
             if weather_effect_after == 0.0 and temp_after is not None and temp_after > self.base_temp:
-                logger.error(f"[ERROR] CRITICAL ERROR: weather_effect_after is 0 but temp_after ({temp_after:.1f}┬░C) > base_temp ({self.base_temp:.1f}┬░C)")
+                logger.error(f"[ERROR] CRITICAL ERROR: weather_effect_after is 0 but temp_after ({temp_after:.1f}°C) > base_temp ({self.base_temp:.1f}°C)")
                 logger.error(f"   This indicates base_temp calculation is incorrect - base_temp should be lower than temp_after")
                 logger.error(f"   temp_effect_after={temp_effect_after:.6f}, dewpoint_effect_after={dewpoint_effect_after:.6f}")
                 logger.error(f"   This will cause overcorrection in normalization (factor > 1.0)")
@@ -3185,7 +3185,7 @@ class WeatherNormalizationML:
                     logger.warning(f"   Ratio: {effect_ratio:.3f} (after/before)")
                     calculated_factor = (1.0 + weather_effect_before) / (1.0 + weather_effect_after)
                     logger.warning(f"   This will cause factor = {calculated_factor:.4f} > 1.0")
-                    logger.warning(f"   Base temperature may be too high: {self.base_temp:.1f}┬░C")
+                    logger.warning(f"   Base temperature may be too high: {self.base_temp:.1f}°C")
                     logger.warning(f"   Consider lowering base_temp to increase weather_effect_after")
             
             # CORRECT APPROACH: Normalize the "after" period to the "before" period's weather conditions
@@ -3442,7 +3442,7 @@ class WeatherNormalizationML:
                                 weather_effect_before_ref_fallback = sum(all_baseline_weather_effects) / len(all_baseline_weather_effects) if all_baseline_weather_effects else weather_effect_before_ref_fallback
                                 logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
                             
-                            logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}┬░C, HDD={HDD_before_ref_fallback:.4f}┬░C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                            logger.info(f"Fallback baseline reference: CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
                         
                         # Fallback to count-based detection if timestamps not available or intervals match
                         elif after_count > 0 and baseline_count > after_count * 2:
@@ -3518,7 +3518,7 @@ class WeatherNormalizationML:
                                 logger.info(f"Using average weather effect from ALL baseline data: {weather_effect_before_ref_fallback:.6f} ({weather_effect_before_ref_fallback*100:.2f}%)")
                             
                             logger.info(f"Aggregated baseline from {baseline_count} points to {len(aggregated_CDD_values)} buckets matching 'after' interval")
-                            logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}┬░C, HDD={HDD_before_ref_fallback:.4f}┬░C, weather_effect={weather_effect_before_ref_fallback:.6f}")
+                            logger.info(f"Calculated baseline reference (aggregated): CDD={CDD_before_ref_fallback:.4f}°C, HDD={HDD_before_ref_fallback:.4f}°C, weather_effect={weather_effect_before_ref_fallback:.6f}")
                         else:
                             # Intervals match or baseline has fewer points - use all baseline data directly
                             logger.info(f"Baseline and 'after' intervals match (or baseline is coarser) - using all baseline data directly")
@@ -3559,7 +3559,7 @@ class WeatherNormalizationML:
                             # Use average of baseline weather effects as reference (for fallback multiplicative formula)
                             weather_effect_before_ref = sum(baseline_weather_effects) / len(baseline_weather_effects) if baseline_weather_effects else 0.0
                             
-                            logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}┬░C, HDD={HDD_before_ref:.4f}┬░C, weather_effect={weather_effect_before_ref:.6f}")
+                            logger.info(f"Calculated baseline reference: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
                     else:
                         # Fallback: Use average temp_before and dewpoint_before as reference
                         logger.info("Baseline time series data not available, using average temp_before/dewpoint_before as reference")
@@ -3579,7 +3579,7 @@ class WeatherNormalizationML:
                             dewpoint_effect_before_ref = 0.0
                         weather_effect_before_ref = temp_effect_before_ref + dewpoint_effect_before_ref
                         
-                        logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}┬░C, HDD={HDD_before_ref:.4f}┬░C, weather_effect={weather_effect_before_ref:.6f}")
+                        logger.info(f"Calculated reference from averages: CDD={CDD_before_ref:.4f}°C, HDD={HDD_before_ref:.4f}°C, weather_effect={weather_effect_before_ref:.6f}")
                     
                     # Normalize each timestamp in the "after" period
                     normalized_after_values = []
@@ -3726,7 +3726,7 @@ class WeatherNormalizationML:
                             # Valid normalization - don't cap, but log for review
                             logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
                             logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
-                            logger.info(f"   Base_temp: {self.base_temp:.1f}┬░C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
+                            logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
                             logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({((kw_before - kw_after) / kw_before * 100):.1f}%)")
                             logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
                             # Don't cap - allow the mathematically correct normalization
@@ -3756,10 +3756,14 @@ class WeatherNormalizationML:
                     # IMPORTANT: Use the simple average weather effects (temp_before/after, dewpoint_before/after)
                     # NOT the per-timestamp averages, to match the frontend calculation
                     # Get average weather effects from the simple averages (matches frontend calculation)
-                    if 'weather_effect_before' in locals() and weather_effect_before is not None:
-                        avg_weather_effect_before = weather_effect_before
-                    elif 'weather_effect_before_ref' in locals() and weather_effect_before_ref is not None:
-                        avg_weather_effect_before = weather_effect_before_ref
+                    # CRITICAL FIX: Always recalculate from simple averages (temp_before, dewpoint_before)
+                    # NOT from time series data, to match frontend calculation
+                    if 'temp_before' in locals() and temp_before is not None:
+                        temp_effect_before = max(0, (temp_before - self.base_temp) * self.temp_sensitivity)
+                        dewpoint_effect_before = 0.0
+                        if dewpoint_available and 'dewpoint_before' in locals() and dewpoint_before is not None:
+                            dewpoint_effect_before = max(0, (dewpoint_before - self.base_temp) * self.dewpoint_sensitivity)
+                        avg_weather_effect_before = temp_effect_before + dewpoint_effect_before
                     else:
                         avg_weather_effect_before = 0.0
                     
@@ -3796,7 +3800,7 @@ class WeatherNormalizationML:
                         normalized_kw_after = kw_after_from_series * weather_adjustment_factor
                         logger.info(f"[FIX] Recalculated normalized_kw_after for consistency:")
                         logger.info(f"   Old value (from timestamp normalization): {old_normalized_kw_after:.2f}")
-                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} ├ù {weather_adjustment_factor:.6f}")
+                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} × {weather_adjustment_factor:.6f}")
                         logger.info(f"   This ensures normalized_kw_after matches the weather_adjustment_factor")
                     else:
                         # Fallback to ratio method if weather effects not available
@@ -3859,13 +3863,13 @@ class WeatherNormalizationML:
                 
                 # CRITICAL DEBUG: Log weather effects before calculating factor
                 logger.info(f"[DEBUG] Weather effects calculation:")
-                logger.info(f"   temp_before={temp_before:.1f}┬░C, temp_after={temp_after:.1f}┬░C")
-                logger.info(f"   base_temp={self.base_temp:.1f}┬░C")
-                logger.info(f"   temp_sensitivity={self.temp_sensitivity:.6f} ({self.temp_sensitivity*100:.2f}% per ┬░C)")
+                logger.info(f"   temp_before={temp_before:.1f}°C, temp_after={temp_after:.1f}°C")
+                logger.info(f"   base_temp={self.base_temp:.1f}°C")
+                logger.info(f"   temp_sensitivity={self.temp_sensitivity:.6f} ({self.temp_sensitivity*100:.2f}% per °C)")
                 logger.info(f"   temp_effect_before={temp_effect_before:.6f}, temp_effect_after={temp_effect_after:.6f}")
                 if dewpoint_available:
-                    logger.info(f"   dewpoint_before={dewpoint_before:.1f}┬░C, dewpoint_after={dewpoint_after:.1f}┬░C")
-                    logger.info(f"   dewpoint_sensitivity={self.dewpoint_sensitivity:.6f} ({self.dewpoint_sensitivity*100:.2f}% per ┬░C)")
+                    logger.info(f"   dewpoint_before={dewpoint_before:.1f}°C, dewpoint_after={dewpoint_after:.1f}°C")
+                    logger.info(f"   dewpoint_sensitivity={self.dewpoint_sensitivity:.6f} ({self.dewpoint_sensitivity*100:.2f}% per °C)")
                     logger.info(f"   dewpoint_effect_before={dewpoint_effect_before:.6f}, dewpoint_effect_after={dewpoint_effect_after:.6f}")
                 else:
                     logger.warning(f"   Dewpoint NOT available - dewpoint effects = 0.0")
@@ -3916,8 +3920,8 @@ class WeatherNormalizationML:
                 logger.error(f"[ERROR] CRITICAL ERROR: normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f}) but kw_after ({kw_after:.2f}) < kw_before")
                 logger.error(f"   This indicates base temperature is too high or weather effects are incorrect")
                 logger.error(f"   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
-                logger.error(f"   factor={weather_adjustment_factor:.6f}, base_temp={self.base_temp:.1f}┬░C")
-                logger.error(f"   temp_before={temp_before:.1f}┬░C, temp_after={temp_after:.1f}┬░C")
+                logger.error(f"   factor={weather_adjustment_factor:.6f}, base_temp={self.base_temp:.1f}°C")
+                logger.error(f"   temp_before={temp_before:.1f}°C, temp_after={temp_after:.1f}°C")
                 logger.error(f"   This will show negative savings when raw savings are positive - THIS IS WRONG")
                 
                 # ENHANCED SAFETY FIX: Account for equipment efficiency improvements
@@ -3958,7 +3962,7 @@ class WeatherNormalizationML:
                         # Valid normalization - don't cap, but log for review
                         logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
                         logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
-                        logger.info(f"   Base_temp: {self.base_temp:.1f}┬░C, Weather effects: {weather_effect_before:.3f} ΓåÆ {weather_effect_after:.3f}")
+                        logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before:.3f} ΓåÆ {weather_effect_after:.3f}")
                         logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({raw_savings_pct*100:.1f}%)")
                         logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
                         # Don't cap - allow the mathematically correct normalization
@@ -3982,7 +3986,7 @@ class WeatherNormalizationML:
             
             # Determine normalization method for logging
             if self.regression_valid:
-                normalization_method = f"ASHRAE-Compliant Regression-Based Weather Normalization (R┬▓={self.regression_r2:.3f})"
+                normalization_method = f"ASHRAE-Compliant Regression-Based Weather Normalization (R²={self.regression_r2:.3f})"
                 if use_timestamp_normalization:
                     normalization_method += " [Timestamp-by-timestamp normalization]"
                 if dewpoint_available:
@@ -3998,9 +4002,9 @@ class WeatherNormalizationML:
                     normalization_method += " [Using fixed factors - not fully ASHRAE-compliant]"
             
             logger.info(f"{normalization_method} (Normalize 'After' to 'Before' Weather):")
-            logger.info(f"  Base Temperature: {self.base_temp:.2f}┬░C" + (f" (optimized from baseline data)" if self.base_temp_optimized else " (default)"))
-            logger.info(f"  Baseline Period (Before): Temp {temp_before:.1f}┬░C" + (f", Dewpoint {dewpoint_before:.1f}┬░C" if dewpoint_available else " (Dewpoint: N/A)"))
-            logger.info(f"  Measurement Period (After): Temp {temp_after:.1f}┬░C" + (f", Dewpoint {dewpoint_after:.1f}┬░C" if dewpoint_available else " (Dewpoint: N/A)"))
+            logger.info(f"  Base Temperature: {self.base_temp:.2f}°C" + (f" (optimized from baseline data)" if self.base_temp_optimized else " (default)"))
+            logger.info(f"  Baseline Period (Before): Temp {temp_before:.1f}°C" + (f", Dewpoint {dewpoint_before:.1f}°C" if dewpoint_available else " (Dewpoint: N/A)"))
+            logger.info(f"  Measurement Period (After): Temp {temp_after:.1f}°C" + (f", Dewpoint {dewpoint_after:.1f}°C" if dewpoint_available else " (Dewpoint: N/A)"))
             logger.info(f"  CDD: {cdd_before:.1f} (before) -> {cdd_after:.1f} (after)")
             if dewpoint_available:
                 logger.info(f"  HDD: {hdd_before:.1f} (before) -> {hdd_after:.1f} (after)")
@@ -4050,7 +4054,7 @@ class WeatherNormalizationML:
             if abs(normalized_kw_after - kw_after) < 0.01:
                 logger.warning(f"[WARNING] VALIDATION: normalized_kw_after ({normalized_kw_after:.2f}) equals raw_kw_after ({kw_after:.2f})")
                 logger.warning(f"[WARNING] This indicates normalization wasn't applied - applying fallback normalization")
-                logger.warning(f"[WARNING]   temp_before={temp_before:.2f}┬░C, temp_after={temp_after:.2f}┬░C, base_temp={self.base_temp:.2f}┬░C")
+                logger.warning(f"[WARNING]   temp_before={temp_before:.2f}°C, temp_after={temp_after:.2f}°C, base_temp={self.base_temp:.2f}°C")
                 logger.warning(f"[WARNING]   dewpoint_before={dewpoint_before if dewpoint_available else 'N/A'}, dewpoint_after={dewpoint_after if dewpoint_available else 'N/A'}")
                 logger.warning(f"[WARNING]   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
                 logger.warning(f"[WARNING]   weather_adjustment_factor={weather_adjustment_factor:.6f}")
@@ -4099,8 +4103,8 @@ class WeatherNormalizationML:
                 "dewpoint_sensitivity_used": self.dewpoint_sensitivity,
                 "base_temp_celsius": self.base_temp,
                 "base_temp_optimized": self.base_temp_optimized,
-                # CRITICAL FIX: Always return base_temp (10.0┬░C) even if not marked as optimized
-                # Since base_temp is always set to 10.0┬░C per requirements, always return it
+                # CRITICAL FIX: Always return base_temp (10.0°C) even if not marked as optimized
+                # Since base_temp is always set to 10.0°C per requirements, always return it
                 "optimized_base_temp": self.base_temp if self.base_temp is not None else None,
                 "timestamp_normalization_used": use_timestamp_normalization,  # Flag indicating if timestamp-by-timestamp normalization was used
             }
@@ -4115,8 +4119,8 @@ class WeatherNormalizationML:
             if self.regression_valid:
                 result["ashrae_compliant"] = True
                 # FIX: Check if optimized_base_temp is not None before formatting to prevent "unsupported format string passed to NoneType.__format__" error
-                base_temp_info = f" (Base temp optimized to {self.optimized_base_temp:.1f}┬░C)" if (self.base_temp_optimized and self.optimized_base_temp is not None) else ""
-                result["standards_validation"] = f"PASSED - ASHRAE-compliant regression-based normalization (R┬▓={self.regression_r2:.3f}){base_temp_info}" + (" with temperature and dewpoint" if dewpoint_available else " (temperature only)")
+                base_temp_info = f" (Base temp optimized to {self.optimized_base_temp:.1f}°C)" if (self.base_temp_optimized and self.optimized_base_temp is not None) else ""
+                result["standards_validation"] = f"PASSED - ASHRAE-compliant regression-based normalization (R²={self.regression_r2:.3f}){base_temp_info}" + (" with temperature and dewpoint" if dewpoint_available else " (temperature only)")
             else:
                 result["ashrae_compliant"] = True  # Changed to True - methodology is compliant
                 result["standards_validation"] = f"PASSED - ASHRAE-compliant weather normalization using validated equipment-specific sensitivity factors" + (" with temperature and dewpoint normalization" if dewpoint_available else " (temperature normalization)") + ". Methodology exceeds ASHRAE requirements through equipment-specific calibration and dual-factor normalization."
@@ -4180,14 +4184,17 @@ class DataProcessingPipeline:
         """Unified data processing pipeline"""
         logger.info("Starting unified data processing pipeline")
         
-        # Generate cache key
+        # CRITICAL: DISABLE CACHE during analysis to ensure fresh calculations every time
+        # Cache is cleared at the start of /api/analyze, but we skip cache here to guarantee fresh results
+        # Generate cache key (for reference only, not used)
         cache_key = self.cache.generate_key("process_data", before_data, after_data, config)
+        logger.info(f"🔄 Processing data with cache DISABLED (cache_key would be: {cache_key[:16]}...) - ensuring fresh calculations")
         
-        # Check cache first
-        cached_result = self.cache.get(cache_key)
-        if cached_result:
-            logger.info("Using cached processing result")
-            return cached_result
+        # SKIP cache check - always process fresh data to prevent stale results
+        # cached_result = self.cache.get(cache_key)
+        # if cached_result:
+        #     logger.info("Using cached processing result")
+        #     return cached_result
         
         # Step 1: Validate data once
         validation_results = self.validator.validate_all(before_data, after_data, config)
@@ -5478,13 +5485,46 @@ def analyze():
         logger.warning("Analysis request without org_id - rejecting for security")
         return jsonify({"error": "Organization ID required. Please log in again."}), 401
     
-    # CRITICAL: Clear cached analysis results before running new analysis
-    # This ensures fresh calculations with new form inputs (e.g., target_pf)
+    # CRITICAL: Extract file IDs FIRST before any cache operations
+    # This allows us to use file IDs for cache invalidation
+    form = request.form if hasattr(request, 'form') and request.form else {}
+    before_id = form.get("before_file_id")
+    after_id = form.get("after_file_id")
+    
+    # If JSON data provided, try to get file IDs from there too
+    if request.is_json and not before_id:
+        data = request.get_json()
+        before_id = data.get('before_file_id')
+        after_id = data.get('after_file_id')
+    
+    # Convert file IDs to integers if they're strings
+    try:
+        before_file_id = int(before_id) if before_id else None
+        after_file_id = int(after_id) if after_id else None
+    except (ValueError, TypeError):
+        before_file_id = None
+        after_file_id = None
+    
+    logger.info(f"📋 Extracted file IDs: before_file_id={before_file_id}, after_file_id={after_file_id}")
+    
+    # CRITICAL: ALWAYS clear ALL cached analysis results at the start of EVERY analysis
+    # This ensures each analysis starts completely clean with no old cached results
+    logger.info("🔄 COMPLETELY FLUSHING all cached analysis results for fresh analysis")
     if hasattr(app, '_latest_analysis_results'):
-        logger.info("≡ƒº╣ Clearing cached analysis results before new analysis")
         app._latest_analysis_results = None
     if hasattr(app, '_latest_form_data'):
         app._latest_form_data = None
+    
+    # Verify and clear processing cache
+    cache_size_before = len(processing_cache.cache)
+    processing_cache.clear()
+    cache_size_after = len(processing_cache.cache)
+    if cache_size_after > 0:
+        logger.error(f"⚠️ WARNING: Cache not fully cleared! Size before: {cache_size_before}, after: {cache_size_after}")
+        # Force clear again
+        processing_cache.cache.clear()
+    logger.info(f"✅ Cache verification: cleared {cache_size_before} entries, cache now empty: {len(processing_cache.cache) == 0}")
+    logger.info(f"✅ All cached results and processing cache cleared - starting fresh analysis (before_file_id={before_file_id}, after_file_id={after_file_id})")
     
     # CRITICAL: Clear Python module cache to ensure we get the latest code changes
     # This prevents using stale cached modules that might have syntax errors
@@ -5516,28 +5556,6 @@ def analyze():
     except Exception as e:
         logger.debug(f"Could not clear bytecode cache: {e}")
     
-    # CRITICAL: Clear processing cache to prevent cross-project contamination
-    processing_cache.clear()
-    logger.info("🔄 Cleared processing cache before new analysis")
-    
-    # Get file IDs for session creation
-    form = request.form if hasattr(request, 'form') and request.form else {}
-    before_id = form.get("before_file_id")
-    after_id = form.get("after_file_id")
-    
-    # If JSON data provided, try to get file IDs from there too
-    if request.is_json and not before_id:
-        data = request.get_json()
-        before_id = data.get('before_file_id')
-        after_id = data.get('after_file_id')
-    
-    # Convert file IDs to integers if they're strings
-    try:
-        before_file_id = int(before_id) if before_id else None
-        after_file_id = int(after_id) if after_id else None
-    except (ValueError, TypeError):
-        before_file_id = None
-        after_file_id = None
     
     # Create analysis session for audit trail
     project_name = form.get('project_name') or (request.get_json().get('project_name') if request.is_json else None)
@@ -5694,6 +5712,17 @@ def analyze():
                             # CRITICAL: Add file_path to before_data so voltage unbalance calculation can access CSV
                             if isinstance(before_data, dict):
                                 before_data["file_path"] = str(p)
+                                # Calculate peak from raw CSV (before filtering)
+                                try:
+                                    import pandas as pd
+                                    df = pd.read_csv(str(p))
+                                    if 'totalKw' in df.columns:
+                                        raw_peak = df['totalKw'].max()
+                                        if 'avgKw' in before_data and isinstance(before_data['avgKw'], dict):
+                                            before_data['avgKw']['maximum'] = float(raw_peak)
+                                            logger.info(f"Raw CSV peak (before): {raw_peak} kW")
+                                except Exception as e:
+                                    logger.error(f"Error calculating raw CSV peak for before file: {e}")
                             logger.info(f"Before data keys after processing: {list(before_data.keys()) if isinstance(before_data, dict) else 'not a dict'}")
                             logger.info(f"Before data avgKw: {before_data.get('avgKw', {}).get('mean', 'NOT FOUND') if isinstance(before_data.get('avgKw'), dict) else 'NOT DICT'}")
                             logger.info(f"Before data avgKva: {before_data.get('avgKva', {}).get('mean', 'NOT FOUND') if isinstance(before_data.get('avgKva'), dict) else 'NOT DICT'}")
@@ -5718,6 +5747,17 @@ def analyze():
                             # CRITICAL: Add file_path to after_data so voltage unbalance calculation can access CSV
                             if isinstance(after_data, dict):
                                 after_data["file_path"] = str(p)
+                                # Calculate peak from raw CSV (before filtering)
+                                try:
+                                    import pandas as pd
+                                    df = pd.read_csv(str(p))
+                                    if 'totalKw' in df.columns:
+                                        raw_peak = df['totalKw'].max()
+                                        if 'avgKw' in after_data and isinstance(after_data['avgKw'], dict):
+                                            after_data['avgKw']['maximum'] = float(raw_peak)
+                                            logger.info(f"Raw CSV peak (after): {raw_peak} kW")
+                                except Exception as e:
+                                    logger.error(f"Error calculating raw CSV peak for after file: {e}")
                             logger.info(f"After data keys after processing: {list(after_data.keys()) if isinstance(after_data, dict) else 'not a dict'}")
                             logger.info(f"After data avgKw: {after_data.get('avgKw', {}).get('mean', 'NOT FOUND') if isinstance(after_data.get('avgKw'), dict) else 'NOT DICT'}")
                             logger.info(f"After data avgKva: {after_data.get('avgKva', {}).get('mean', 'NOT FOUND') if isinstance(after_data.get('avgKva'), dict) else 'NOT DICT'}")
@@ -5955,6 +5995,14 @@ def analyze():
                     cfg['dewpoint_after'] = float(dewpoint_after)
                 except (ValueError, TypeError):
                     logger.warning(f"Could not convert dewpoint_after to float: {dewpoint_after}")
+            
+            # CRITICAL: Add file IDs to config so they're included in cache key generation
+            # This ensures different file IDs always generate different cache keys, preventing cross-contamination
+            if before_file_id is not None:
+                cfg['before_file_id'] = before_file_id
+            if after_file_id is not None:
+                cfg['after_file_id'] = after_file_id
+            logger.info(f"✅ Added file IDs to config for cache key: before_file_id={before_file_id}, after_file_id={after_file_id}")
                     
         except Exception as cfg_e:
             logger.error(f"Error validating/normalizing config: {cfg_e}")
@@ -6465,7 +6513,7 @@ def analyze():
                     ratio = financial_total / (energy_dollars + demand_savings)
                     logger.info(f"  financial_total / (energy + demand) = {ratio:.4f}")
                     if abs(ratio - 1.0) < 0.05:
-                        logger.info(f"  Γ£ô financial_total matches energy + demand (correct)")
+                        logger.info(f"  ✓ financial_total matches energy + demand (correct)")
                     elif abs(ratio - 1.5) < 0.1:
                         logger.warning(f"  WARNING: financial_total is 1.5x (energy + demand) - DOUBLE COUNTING!")
                 logger.info(f"[DIAGNOSTIC] ======================================================")
@@ -6996,7 +7044,7 @@ def analyze():
                         
                         # NEMA MG1 requires calculation using line-to-line voltages (V12, V23, V31)
                         # Calculate line-to-line voltages from line-to-neutral voltages
-                        # Formula: V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation in three-phase systems
+                        # Formula: V_LL = √(V1² + V2² + V1×V2) for 120° phase separation in three-phase systems
                         v12 = np.sqrt(v1_mean**2 + v2_mean**2 + v1_mean * v2_mean)
                         v23 = np.sqrt(v2_mean**2 + v3_mean**2 + v2_mean * v3_mean)
                         v31 = np.sqrt(v3_mean**2 + v1_mean**2 + v3_mean * v1_mean)
@@ -7004,7 +7052,7 @@ def analyze():
                         logger.info(f"[FIX] [{period}] Calculated line-to-line voltages from L-N: V12={v12:.2f}V, V23={v23:.2f}V, V31={v31:.2f}V")
                         
                         # NEMA MG1 formula using line-to-line voltages
-                        # Formula: Unbalance % = (Max Deviation from Average / Average) ├ù 100
+                        # Formula: Unbalance % = (Max Deviation from Average / Average) × 100
                         # Where: Average = (V12 + V23 + V31) / 3
                         # Max Deviation = max(|V12 - V_avg|, |V23 - V_avg|, |V31 - V_avg|)
                         avg_voltage = (v12 + v23 + v31) / 3.0
@@ -7080,7 +7128,7 @@ def analyze():
                             if 'nema_mg1' not in results['compliance_status']['before_compliance']:
                                 results['compliance_status']['before_compliance']['nema_mg1'] = {}
                             results['compliance_status']['before_compliance']['nema_mg1']['voltage_unbalance'] = float(before_unbalance)
-                            # Before: PASS if Γëñ 1.0% (absolute threshold)
+                            # Before: PASS if ≤ 1.0% (absolute threshold)
                             results['compliance_status']['before_compliance']['nema_mg1']['pass'] = bool(before_unbalance <= 1.0)
                         
                         # Also update top-level before_compliance if it exists
@@ -7088,7 +7136,7 @@ def analyze():
                             if 'nema_mg1' not in results['before_compliance']:
                                 results['before_compliance']['nema_mg1'] = {}
                             results['before_compliance']['nema_mg1']['voltage_unbalance'] = float(before_unbalance)
-                            # Before: PASS if Γëñ 1.0% (absolute threshold)
+                            # Before: PASS if ≤ 1.0% (absolute threshold)
                             results['before_compliance']['nema_mg1']['pass'] = bool(before_unbalance <= 1.0)
                         
                         logger.info(f"[OK] Updated before_compliance.nema_mg1.voltage_unbalance = {before_unbalance:.2f}%")
@@ -7098,7 +7146,7 @@ def analyze():
                 if after_file_path:
                     after_unbalance = calculate_nema_mg1_from_csv(after_file_path, 'after')
                     if after_unbalance is not None:
-                        # Calculate compliance: PASS if improvement demonstrated (after < before) OR if after Γëñ 1.0%
+                        # Calculate compliance: PASS if improvement demonstrated (after < before) OR if after ≤ 1.0%
                         after_pass = bool(after_unbalance <= 1.0)  # Absolute threshold
                         if before_unbalance is not None:
                             # Also PASS if improvement is demonstrated (after < before)
@@ -7238,7 +7286,7 @@ def analyze():
                             logger.warning(f"No valid voltage data found in CSV for {period}")
                             return None
                         
-                        # Calculate voltage variation percentage: |(Actual - Nominal)| / Nominal ├ù 100%
+                        # Calculate voltage variation percentage: |(Actual - Nominal)| / Nominal × 100%
                         voltage_mean = float(voltage_data.mean())
                         voltage_variation = abs(voltage_mean - nominal_voltage) / nominal_voltage * 100.0
                         
@@ -7252,12 +7300,26 @@ def analyze():
                         logger.warning(f"Error calculating IEC 61000-2-2 from CSV for {period}: {e}")
                         return None
                 
-                # Get nominal voltage from form/config (default 120V for residential, 480V for commercial)
-                voltage_level_str = form.get('voltage_level') or (data.get('voltage_level') if request.is_json and 'data' in locals() else None)
-                try:
-                    nominal_voltage = float(voltage_level_str) if voltage_level_str else 120.0
-                except (ValueError, TypeError):
-                    nominal_voltage = 120.0
+                # Get nominal voltage from config first, then form
+                # CRITICAL: Check config for voltage_nominal (not voltage_level), use field value only (no default)
+                nominal_voltage = None
+                if 'cfg' in locals() and isinstance(cfg, dict) and cfg.get('voltage_nominal'):
+                    try:
+                        nominal_voltage = float(cfg.get('voltage_nominal'))
+                    except (ValueError, TypeError):
+                        pass
+                
+                if nominal_voltage is None:
+                    voltage_nominal_str = form.get('voltage_nominal') or (data.get('voltage_nominal') if request.is_json and 'data' in locals() else None)
+                    if voltage_nominal_str:
+                        try:
+                            nominal_voltage = float(voltage_nominal_str)
+                        except (ValueError, TypeError):
+                            nominal_voltage = None
+                
+                # If still None, log warning but don't use default - let the calling function handle it
+                if nominal_voltage is None:
+                    logger.warning("voltage_nominal not found in config or form - voltage calculations may fail")
                 
                 # Get file paths
                 before_file_path = None
@@ -7302,7 +7364,7 @@ def analyze():
                 if after_file_path:
                     after_iec_result = calculate_iec_61000_2_2_from_csv(after_file_path, 'after', nominal_voltage)
                     if after_iec_result:
-                        # PASS if improvement (after < before) OR if after Γëñ 10%
+                        # PASS if improvement (after < before) OR if after ≤ 10%
                         after_pass = bool(after_iec_result['pass'])
                         if before_iec_result:
                             after_pass = after_pass or bool(after_iec_result['voltage_variation'] < before_iec_result['voltage_variation'])
@@ -7381,7 +7443,7 @@ def analyze():
                         # Calculate measurement accuracy as coefficient of variation (CV) or relative standard deviation
                         voltage_accuracy = (voltage_std / voltage_mean * 100.0) if voltage_mean > 0 else 0.0
                         
-                        # Class A compliance: measurement accuracy Γëñ 0.5%
+                        # Class A compliance: measurement accuracy ≤ 0.5%
                         voltage_compliant = voltage_accuracy <= 0.5
                         
                         # Calculate current measurement accuracy if available
@@ -7416,12 +7478,26 @@ def analyze():
                         logger.warning(f"Error calculating IEC 61000-4-30 from CSV for {period}: {e}")
                         return None
                 
-                # Get nominal voltage from form/config
-                voltage_level_str = form.get('voltage_level') or (data.get('voltage_level') if request.is_json and 'data' in locals() else None)
-                try:
-                    nominal_voltage = float(voltage_level_str) if voltage_level_str else 120.0
-                except (ValueError, TypeError):
-                    nominal_voltage = 120.0
+                # Get nominal voltage from config first, then form
+                # CRITICAL: Check config for voltage_nominal (not voltage_level), use field value only (no default)
+                nominal_voltage = None
+                if 'cfg' in locals() and isinstance(cfg, dict) and cfg.get('voltage_nominal'):
+                    try:
+                        nominal_voltage = float(cfg.get('voltage_nominal'))
+                    except (ValueError, TypeError):
+                        pass
+                
+                if nominal_voltage is None:
+                    voltage_nominal_str = form.get('voltage_nominal') or (data.get('voltage_nominal') if request.is_json and 'data' in locals() else None)
+                    if voltage_nominal_str:
+                        try:
+                            nominal_voltage = float(voltage_nominal_str)
+                        except (ValueError, TypeError):
+                            nominal_voltage = None
+                
+                # If still None, log warning but don't use default - let the calling function handle it
+                if nominal_voltage is None:
+                    logger.warning("voltage_nominal not found in config or form - voltage calculations may fail")
                 
                 # Get file paths
                 before_file_path = None
@@ -7466,7 +7542,7 @@ def analyze():
                 if after_file_path:
                     after_iec_4_30_result = calculate_iec_61000_4_30_from_csv(after_file_path, 'after', nominal_voltage)
                     if after_iec_4_30_result:
-                        # PASS if improvement (after accuracy < before accuracy) OR if after Γëñ 0.5%
+                        # PASS if improvement (after accuracy < before accuracy) OR if after ≤ 0.5%
                         after_pass = bool(after_iec_4_30_result['pass'])
                         if before_iec_4_30_result:
                             after_voltage_acc = after_iec_4_30_result.get('voltage_accuracy', 999.0)
@@ -7548,7 +7624,7 @@ def analyze():
                         cv_percent = (power_std / power_mean) * 100.0
                         
                         # IEC 62053-22 Class 0.2S requires ┬▒0.2% accuracy
-                        # CV should be Γëñ 0.2% for Class 0.2S compliance
+                        # CV should be ≤ 0.2% for Class 0.2S compliance
                         class_0_2s_limit = 0.2
                         is_compliant = cv_percent <= class_0_2s_limit
                         
@@ -7742,9 +7818,9 @@ def analyze():
                             
                             if len(voltage_data) > 0 and len(current_data) > 0 and len(pf_data) > 0:
                                 # Calculate apparent power (VA) and real power (W)
-                                # For 3-phase: P = ΓêÜ3 ├ù V ├ù I ├ù PF
-                                # For single-phase: P = V ├ù I ├ù PF
-                                # Efficiency = (Output Power / Input Power) ├ù 100%
+                                # For 3-phase: P = √3 × V × I × PF
+                                # For single-phase: P = V × I × PF
+                                # Efficiency = (Output Power / Input Power) × 100%
                                 # For motors, efficiency is typically 85-95% for standard motors
                                 avg_voltage = float(voltage_data.mean())
                                 avg_current = float(current_data.mean())
@@ -7999,7 +8075,7 @@ def analyze():
                                 chiller_capacity_tons = cooling_capacity_tons
                             else:
                                 # Estimate capacity from power (typical COP for chillers is 4-6)
-                                # Capacity (tons) Γëê Power (kW) ├ù COP / 3.517
+                                # Capacity (tons) ≈ Power (kW) × COP / 3.517
                                 estimated_cop = 5.0  # Typical value
                                 chiller_capacity_tons = (avg_power_kw * estimated_cop) / 3.517
                         
@@ -8245,8 +8321,8 @@ def analyze():
                                 avg_voltage = float(voltage_data.mean())
                                 avg_current = float(current_data.mean())
                                 
-                                # For 3-phase: kVA = ΓêÜ3 ├ù V ├ù I / 1000
-                                # For single-phase: kVA = V ├ù I / 1000
+                                # For 3-phase: kVA = √3 × V × I / 1000
+                                # For single-phase: kVA = V × I / 1000
                                 # Assume 3-phase if voltage > 200V, otherwise single-phase
                                 if avg_voltage > 200:
                                     apparent_power_kva = (1.732 * avg_voltage * avg_current) / 1000.0
@@ -8262,7 +8338,7 @@ def analyze():
                                 transformer_rating_kva = (avg_power_kw / 0.85) * 1.2
                         
                         # Calculate transformer efficiency
-                        # Efficiency = (Output Power / Input Power) ├ù 100%
+                        # Efficiency = (Output Power / Input Power) × 100%
                         # For transformers, losses include:
                         # - No-load losses (core losses)
                         # - Load losses (copper losses)
@@ -8778,7 +8854,7 @@ def analyze():
                         ul_9540_compliant = ul_9540_efficiency_compliant
                         
                         # IEC 62933 Requirements
-                        # Depth of discharge should be Γëñ 80% for long cycle life
+                        # Depth of discharge should be ≤ 80% for long cycle life
                         # Estimate DoD from power data
                         if bess_capacity_kwh > 0:
                             # Estimate energy discharged (simplified)
@@ -9501,13 +9577,34 @@ def analyze():
             logger.info(f"[ANALYSIS RESPONSE] calculated_pf_normalized_kw_before = {pq.get('calculated_pf_normalized_kw_before')}")
             logger.info(f"[ANALYSIS RESPONSE] calculated_pf_normalized_kw_after = {pq.get('calculated_pf_normalized_kw_after')}")
         
-        return jsonify({
+        # CRITICAL: Ensure weather normalization values are copied to power_quality for frontend display
+        if isinstance(results, dict) and "weather_normalization" in results and "power_quality" in results:
+            wn = results.get("weather_normalization", {})
+            pq = results.get("power_quality", {})
+            if isinstance(wn, dict) and isinstance(pq, dict):
+                # Copy weather normalization values to power_quality if they exist
+                if "normalized_kw_before" in wn:
+                    pq["weather_normalized_kw_before"] = wn.get("normalized_kw_before")
+                    logger.info(f"[WEATHER NORM COPY] Copied normalized_kw_before ({wn.get('normalized_kw_before')}) to power_quality.weather_normalized_kw_before")
+                if "normalized_kw_after" in wn:
+                    pq["weather_normalized_kw_after"] = wn.get("normalized_kw_after")
+                    logger.info(f"[WEATHER NORM COPY] Copied normalized_kw_after ({wn.get('normalized_kw_after')}) to power_quality.weather_normalized_kw_after")
+        
+        # Create response with cache-busting headers to prevent caching
+        response = make_response(jsonify({
             "success": True,
             "results": results,
             "analysis_session_id": analysis_session_id,
             "config": cfg,
             "message": "Analysis completed successfully"
-        }), 200
+        }), 200)
+        # Add cache-busting headers to prevent caching
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["Last-Modified"] = str(int(time.time()))
+        response.headers["ETag"] = f'"{int(time.time())}"'
+        return response
         
     except TypeError as type_e:
         # Handle type errors at the top level
@@ -17250,6 +17347,32 @@ def apply_clipping_to_original_file(file_id):
                 )
 
             cursor = conn.cursor()
+            # Ensure data_modifications table exists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS data_modifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_id INTEGER NOT NULL,
+                    modifier_id INTEGER NOT NULL,
+                    modification_type TEXT NOT NULL,
+                    reason TEXT,
+                    rows_removed INTEGER,
+                    rows_modified INTEGER,
+                    fingerprint_before TEXT,
+                    fingerprint_after TEXT,
+                    modification_details TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (file_id) REFERENCES raw_meter_data (id),
+                    FOREIGN KEY (modifier_id) REFERENCES users (id)
+                )
+            """)
+            
+            # Create index for better performance
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_modifications_file ON data_modifications(file_id)
+            """)
+            
+            conn.commit()
+            
             cursor.execute(
                 """
                 SELECT file_name, file_path, fingerprint
@@ -19570,7 +19693,7 @@ def _add_network_report_content(story, results_data, heading_style, subheading_s
             before_val = f"{before_val:.2%}"
         if isinstance(after_val, (int, float)):
             after_val = f"{after_val:.2%}"
-        perf_data.append(['IEEE 519', 'TDD Γëñ Limit', before_status, after_status, str(before_val), str(after_val)])
+        perf_data.append(['IEEE 519', 'TDD ≤ Limit', before_status, after_status, str(before_val), str(after_val)])
     
     # NEMA MG1
     nema_before = before_compliance.get('nema_mg1', {}) if isinstance(before_compliance, dict) else {}
@@ -19584,7 +19707,7 @@ def _add_network_report_content(story, results_data, heading_style, subheading_s
             before_val = f"{before_val:.2%}"
         if isinstance(after_val, (int, float)):
             after_val = f"{after_val:.2%}"
-        perf_data.append(['NEMA MG1', 'Voltage Unbalance Γëñ 1%', before_status, after_status, str(before_val), str(after_val)])
+        perf_data.append(['NEMA MG1', 'Voltage Unbalance ≤ 1%', before_status, after_status, str(before_val), str(after_val)])
     
     if len(perf_data) > 1:
         perf_table = Table(perf_data, colWidths=[1.2*inch, 1.5*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch])
@@ -19682,7 +19805,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
                 value = f"Completeness: {completeness:.1f}%, Outliers: {outliers:.1f}%"
             else:
                 value = f"Completeness: {completeness}, Outliers: {outliers}"
-            report_data.append(['ASHRAE Data Quality', 'Data Completeness ΓëÑ 95% & Outliers Γëñ 5%', status, value])
+            report_data.append(['ASHRAE Data Quality', 'Data Completeness ΓëÑ 95% & Outliers ≤ 5%', status, value])
         
         # IPMVP
         ipmvp = after_compliance.get('ipmvp', {}) if isinstance(after_compliance, dict) else {}
@@ -19813,7 +19936,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             after_status = 'PASS' if (isinstance(ieee_after, dict) and ieee_after.get('pass', False)) else 'FAIL'
             before_val = f"{safe_float(tdd_before):.3f}%" if tdd_before is not None else 'N/A'
             after_val = f"{safe_float(tdd_after):.3f}%" if tdd_after is not None else 'N/A'
-            perf_data.append(['IEEE 519', 'TDD Γëñ Limit', before_status, after_status, before_val, after_val])
+            perf_data.append(['IEEE 519', 'TDD ≤ Limit', before_status, after_status, before_val, after_val])
         
         # NEMA MG1 - comprehensive voltage unbalance extraction
         nema_before = before_compliance.get('nema_mg1', {}) if isinstance(before_compliance, dict) else {}
@@ -19838,7 +19961,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             after_status = 'PASS' if (isinstance(nema_after, dict) and nema_after.get('pass', False)) else 'FAIL'
             before_val = f"{safe_float(unbalance_before):.3f}%" if unbalance_before is not None else 'N/A'
             after_val = f"{safe_float(unbalance_after):.3f}%" if unbalance_after is not None else 'N/A'
-            perf_data.append(['NEMA MG1', 'Voltage Unbalance Γëñ 1%', before_status, after_status, before_val, after_val])
+            perf_data.append(['NEMA MG1', 'Voltage Unbalance ≤ 1%', before_status, after_status, before_val, after_val])
         
         if len(perf_data) > 1:
             perf_table = Table(perf_data, colWidths=[1.2*inch, 1.5*inch, 0.8*inch, 0.8*inch, 1*inch, 1*inch])
@@ -19909,7 +20032,7 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             bill_weighted.get('envelope_smoothing_dollars') or 0
         )
         if network_savings > 0:
-            fin_data.append(['Network (I┬▓R+eddy)', f"${network_savings:,.2f}", 'Annual savings from reduced losses'])
+            fin_data.append(['Network (I²R+eddy)', f"${network_savings:,.2f}", 'Annual savings from reduced losses'])
         
         # Extract total savings with comprehensive fallbacks
         total_savings = safe_float(
@@ -20375,7 +20498,7 @@ def calculate_motor_failure_risk(power_quality_data, compliance_data, config=Non
     
     Based on:
     - NEMA MG1-2016: Voltage unbalance causes 6-10% temperature rise per 1% unbalance
-    - IEEE 519: Harmonic distortion causes additional I┬▓R losses
+    - IEEE 519: Harmonic distortion causes additional I²R losses
     - IEEE 141-1993: Motor derating for voltage unbalance
     
     Args:
@@ -20611,10 +20734,10 @@ def calculate_transformer_failure_risk(power_quality_data, compliance_data, netw
             # Calculate rated current based on transformer kVA and system configuration
             if xfmr_kva > 0 and nominal_voltage > 0:
                 if system_phases == 3:
-                    # 3-phase: Rated Current = (kVA ├ù 1000) / (Voltage ├ù ΓêÜ3)
+                    # 3-phase: Rated Current = (kVA × 1000) / (Voltage × √3)
                     rated_current = (xfmr_kva * 1000) / (nominal_voltage * 1.732)
                 elif system_phases == 1:
-                    # 1-phase: Rated Current = (kVA ├ù 1000) / Voltage
+                    # 1-phase: Rated Current = (kVA × 1000) / Voltage
                     rated_current = (xfmr_kva * 1000) / nominal_voltage
                 else:
                     # Default to 3-phase calculation
@@ -20665,7 +20788,7 @@ def calculate_transformer_failure_risk(power_quality_data, compliance_data, netw
         voltage_factor = min(100, max(0, voltage_factor))
         
         # Estimate temperature rise (simplified)
-        # Based on losses: ╬öT = (I┬▓R + eddy_losses) / cooling_factor
+        # Based on losses: ╬öT = (I²R + eddy_losses) / cooling_factor
         temperature_rise = 0  # Would need actual loss calculations
         temp_factor = 0
         
@@ -21144,7 +21267,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     f"{thd_b:.3f}%",
                     f"{thd_a:.3f}%",
                     f"{improvement:.3f}%",
-                    'IEEE 519 (Γëñ5.0%)',
+                    'IEEE 519 (≤5.0%)',
                     compliant
                 ])
             
@@ -21168,7 +21291,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     f"{unbal_b:.3f}%",
                     f"{unbal_a:.3f}%",
                     f"{improvement:.3f}%",
-                    'NEMA MG1 (Γëñ1.0%)',
+                    'NEMA MG1 (≤1.0%)',
                     compliant
                 ])
             
@@ -21363,7 +21486,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'THD',
                     f"{thd_before:.3f}%" if isinstance(thd_before, (int, float)) else str(thd_before),
                     f"{thd_after:.3f}%" if isinstance(thd_after, (int, float)) else str(thd_after),
-                    f"Γëñ{ieee_thd_limit:.3f}%" if isinstance(ieee_thd_limit, (int, float)) else str(ieee_thd_limit),
+                    f"≤{ieee_thd_limit:.3f}%" if isinstance(ieee_thd_limit, (int, float)) else str(ieee_thd_limit),
                     'PASS' if ieee_compliant else 'FAIL'
                 ])
             
@@ -21411,7 +21534,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'Voltage Unbalance',
                     f"{unbal_before:.3f}%" if isinstance(unbal_before, (int, float)) else str(unbal_before),
                     f"{unbal_after:.3f}%" if isinstance(unbal_after, (int, float)) else str(unbal_after),
-                    'Γëñ1.0%',
+                    '≤1.0%',
                     'PASS' if nema_compliant else 'FAIL'
                 ])
             
@@ -21485,7 +21608,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     'Meter Accuracy',
                     'N/A',
                     f"┬▒{meter_accuracy:.3f}%" if isinstance(meter_accuracy, (int, float)) else str(meter_accuracy),
-                    'Γëñ0.5%',
+                    '≤0.5%',
                     'PASS' if ansi_compliant else 'FAIL'
                 ])
             
@@ -21543,11 +21666,11 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                 metrics_data = []
                 voltage_unbalance = safe_float(eq.get('voltage_unbalance'))
                 if voltage_unbalance is not None and voltage_unbalance != 0:
-                    metrics_data.append(['Voltage Unbalance', f"{voltage_unbalance:.3f}%", 'NEMA MG1: Γëñ1.0%'])
+                    metrics_data.append(['Voltage Unbalance', f"{voltage_unbalance:.3f}%", 'NEMA MG1: ≤1.0%'])
                 
                 harmonic_thd = safe_float(eq.get('harmonic_thd'))
                 if harmonic_thd is not None and harmonic_thd != 0:
-                    metrics_data.append(['Harmonic THD', f"{harmonic_thd:.3f}%", 'IEEE 519: Γëñ5.0%'])
+                    metrics_data.append(['Harmonic THD', f"{harmonic_thd:.3f}%", 'IEEE 519: ≤5.0%'])
                 
                 power_factor = safe_float(eq.get('power_factor'))
                 if power_factor is not None and power_factor != 0:
@@ -21555,7 +21678,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                 
                 loading_percentage = safe_float(eq.get('loading_percentage'))
                 if loading_percentage is not None and loading_percentage > 0:
-                    metrics_data.append(['Loading Percentage', f"{loading_percentage:.3f}%", 'Optimal: Γëñ80%'])
+                    metrics_data.append(['Loading Percentage', f"{loading_percentage:.3f}%", 'Optimal: ≤80%'])
                 
                 if metrics_data:
                     metrics_table = Table(metrics_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
@@ -21618,7 +21741,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
         <b>NEMA MG1-2016:</b> Motor voltage unbalance limits (1% max). Voltage unbalance causes 6-10% temperature rise per 1% unbalance. 
         Section 12.45 specifies voltage unbalance calculations using line-to-line voltages (V12, V23, V31).<br/><br/>
         
-        <b>IEEE 519-2014/2022:</b> Harmonic distortion limits. High THD causes additional I┬▓R losses and equipment heating. 
+        <b>IEEE 519-2014/2022:</b> Harmonic distortion limits. High THD causes additional I²R losses and equipment heating. 
         Table 10.3 specifies TDD limits based on ISC/IL ratio.<br/><br/>
         
         <b>IEEE C57.110-2018:</b> Transformer loss calculations and harmonic impact on transformer losses. 
@@ -21634,7 +21757,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
         harmonic stress factor (30%), power factor degradation (20%), and current unbalance (15%).<br/><br/>
         
         <b>Time-to-Failure Estimation:</b> Based on Arrhenius equation for insulation life and equipment aging models. 
-        Simplified model: time_to_failure = base_life ├ù (1 - failure_probability ├ù degradation_factor).
+        Simplified model: time_to_failure = base_life × (1 - failure_probability × degradation_factor).
         """
         story.append(Paragraph(standards_text, styles['Normal']))
         
@@ -22017,13 +22140,13 @@ PACKAGE CONTENTS:
 COMPLIANCE STATUS:
 -----------------
 This submission meets all M&V (Measurement & Verification) requirements:
-Γ£ô ASHRAE Guideline 14 Compliance (Relative Precision < 50%)
-Γ£ô IEEE 519-2014/2022 Compliance (TDD Γëñ Limit)
-Γ£ô NEMA MG1 Compliance (Voltage Unbalance Γëñ 1%)
-Γ£ô IPMVP Statistical Significance (p < 0.05)
-Γ£ô ANSI C12.1/C12.20 Meter Accuracy (Class 0.2 or better)
-Γ£ô ISO 50001:2018 Energy Management Systems
-Γ£ô ISO 50015:2014 M&V of Energy Performance
+✓ ASHRAE Guideline 14 Compliance (Relative Precision < 50%)
+✓ IEEE 519-2014/2022 Compliance (TDD ≤ Limit)
+✓ NEMA MG1 Compliance (Voltage Unbalance ≤ 1%)
+✓ IPMVP Statistical Significance (p < 0.05)
+✓ ANSI C12.1/C12.20 Meter Accuracy (Class 0.2 or better)
+✓ ISO 50001:2018 Energy Management Systems
+✓ ISO 50015:2014 M&V of Energy Performance
 
 PROFESSIONAL ENGINEER OVERSIGHT:
 --------------------------------
@@ -22248,22 +22371,22 @@ COMPLIANCE STATUS:
         ashrae = after_compliance.get('ashrae_guideline_14', {})
         if isinstance(ashrae, dict) and ashrae.get('pass', False):
             precision = ashrae.get('relative_precision', 'N/A')
-            exec_summary += f"Γ£ô ASHRAE Guideline 14: PASS (Relative Precision: {precision})\n"
+            exec_summary += f"✓ ASHRAE Guideline 14: PASS (Relative Precision: {precision})\n"
         
         ieee = after_compliance.get('ieee_519', {})
         if isinstance(ieee, dict) and ieee.get('pass', False):
             tdd = ieee.get('tdd', 'N/A')
-            exec_summary += f"Γ£ô IEEE 519-2014/2022: PASS (TDD: {tdd})\n"
+            exec_summary += f"✓ IEEE 519-2014/2022: PASS (TDD: {tdd})\n"
         
         nema = after_compliance.get('nema_mg1', {})
         if isinstance(nema, dict) and nema.get('pass', False):
             unbalance = nema.get('voltage_unbalance', 'N/A')
-            exec_summary += f"Γ£ô NEMA MG1: PASS (Voltage Unbalance: {unbalance})\n"
+            exec_summary += f"✓ NEMA MG1: PASS (Voltage Unbalance: {unbalance})\n"
         
         ipmvp = after_compliance.get('ipmvp', {})
         if isinstance(ipmvp, dict) and ipmvp.get('pass', False):
             p_value = ipmvp.get('p_value', 'N/A')
-            exec_summary += f"Γ£ô IPMVP: PASS (p-value: {p_value})\n"
+            exec_summary += f"✓ IPMVP: PASS (p-value: {p_value})\n"
     
     exec_summary += f"""
 RECOMMENDATIONS:
@@ -22542,7 +22665,7 @@ AFTER INSTALLATION:
 METHODOLOGY:
 -----------
 Total Demand Distortion (TDD) is calculated per IEEE 519-2014/2022 
-Table 10.3 based on ISC/IL ratio. TDD must be Γëñ the applicable limit 
+Table 10.3 based on ISC/IL ratio. TDD must be ≤ the applicable limit 
 for the system's ISC/IL ratio.
 
 The ISC/IL ratio is the ratio of short-circuit current at the point of 
@@ -22593,7 +22716,7 @@ STATISTICAL METRICS:
     if r_squared is not None:
         r_squared_float = safe_float(r_squared)
         if r_squared_float != 0:
-            report += f"Coefficient of Determination (R┬▓): {r_squared_float:.4f}\n"
+            report += f"Coefficient of Determination (R²): {r_squared_float:.4f}\n"
     if cv_rmse is not None:
         cv_rmse_float = safe_float(cv_rmse)
         if cv_rmse_float != 0:
@@ -22658,14 +22781,14 @@ VOLTAGE UNBALANCE ANALYSIS:
     report += """
 REQUIREMENT:
 -----------
-Voltage unbalance must be Γëñ 1% per NEMA MG1-2016.
+Voltage unbalance must be ≤ 1% per NEMA MG1-2016.
 
 COMPLIANCE LOGIC (Enhanced December 2025):
 ------------------------------------------
 For industrial electrical networks and utility rebate applications, the system 
 implements improvement-based compliance logic:
 
-1. PASS if 'after' value Γëñ 1.0% (meets NEMA MG1 limit)
+1. PASS if 'after' value ≤ 1.0% (meets NEMA MG1 limit)
 2. PASS if 'after' < 'before' (improvement demonstrated)
 3. FAIL only if 'after' > 1.0% AND 'after' ΓëÑ 'before' (no improvement and exceeds limit)
 
@@ -22684,10 +22807,10 @@ line-to-line voltages:
 
 1. Line-to-Line Voltage Calculation:
    - From line-to-neutral voltages (L1, L2, L3), calculate line-to-line voltages:
-   - V12 = ΓêÜ(L1┬▓ + L2┬▓ + L1├ùL2)  (voltage between phases 1 and 2)
-   - V23 = ΓêÜ(L2┬▓ + L3┬▓ + L2├ùL3)  (voltage between phases 2 and 3)
-   - V31 = ΓêÜ(L3┬▓ + L1┬▓ + L3├ùL1)  (voltage between phases 3 and 1)
-   - This formula accounts for 120┬░ phase separation in three-phase systems
+   - V12 = √(L1² + L2² + L1×L2)  (voltage between phases 1 and 2)
+   - V23 = √(L2² + L3² + L2×L3)  (voltage between phases 2 and 3)
+   - V31 = √(L3² + L1² + L3×L1)  (voltage between phases 3 and 1)
+   - This formula accounts for 120° phase separation in three-phase systems
 
 2. Average Line-to-Line Voltage:
    - V_avg = (V12 + V23 + V31) / 3
@@ -22696,10 +22819,10 @@ line-to-line voltages:
    - Max Deviation = max(|V12 - V_avg|, |V23 - V_avg|, |V31 - V_avg|)
 
 4. Voltage Unbalance Percentage:
-   - Unbalance % = (Max Deviation / V_avg) ├ù 100
+   - Unbalance % = (Max Deviation / V_avg) × 100
 
 5. Compliance Check (Enhanced December 2025):
-   - Unbalance Γëñ 1.0%: PASS
+   - Unbalance ≤ 1.0%: PASS
    - Unbalance > 1.0% BUT 'after' < 'before': PASS (improvement demonstrated)
    - Unbalance > 1.0% AND 'after' ΓëÑ 'before': FAIL (no improvement and exceeds limit)
 
@@ -24035,12 +24158,12 @@ ASHRAE DATA QUALITY REQUIREMENTS:
     try:
         outliers_val = float(outliers) if outliers is not None else 0.0
         report += f"Outlier Percentage: {outliers_val:.3f}%\n"
-        report += f"Requirement: Γëñ 5%\n"
+        report += f"Requirement: ≤ 5%\n"
         report += f"Status: {'PASS' if outliers_val <= 5.0 else 'FAIL'}\n\n"
     except (ValueError, TypeError):
         # Fallback if conversion fails (shouldn't happen with our fix, but safety check)
         report += f"Outlier Percentage: {outliers}\n"
-        report += f"Requirement: Γëñ 5%\n\n"
+        report += f"Requirement: ≤ 5%\n\n"
     
     if isinstance(pass_status, bool):
         report += f"Overall Data Quality Status: {'PASS' if pass_status else 'FAIL'}\n\n"
@@ -25587,13 +25710,13 @@ savings are measured independently of weather-related consumption changes.
 This robust methodology implements and exceeds ASHRAE Guideline 14-2014 requirements:
 
 1. Base Temperature Optimization: Base temperature is optimized from baseline 
-   data using grid search to find the temperature that maximizes R┬▓ (when time series 
-   data available). When not available, uses ASHRAE standard 18.3┬░C with equipment-specific 
+   data using grid search to find the temperature that maximizes R² (when time series 
+   data available). When not available, uses ASHRAE standard 18.3°C with equipment-specific 
    adjustments.
 
 2. Sensitivity Factor Calculation: 
    - PRIMARY: Regression-based sensitivity factors calculated from baseline time series 
-     data (ASHRAE-compliant, R┬▓ > 0.7 validation)
+     data (ASHRAE-compliant, R² > 0.7 validation)
    - FALLBACK: Equipment-specific sensitivity factors based on industry standards and 
      validated research data (exceeds ASHRAE minimum requirements)
 
@@ -25614,26 +25737,26 @@ COMPLIANCE STATUS:
     # Always show full compliance - methodology is robust and exceeds ASHRAE requirements
     if ashrae_compliant and regression_r2:
         report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
-        report += f"Regression R┬▓: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
+        report += f"Regression R²: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
         report += f"Method: {method}\n"
         report += f"Enhancement: Regression-based normalization with building-specific calibration\n"
     else:
         report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
         report += f"Method: {method}\n"
         report += f"Enhancement: Equipment-specific sensitivity factors based on industry standards\n"
-        report += f"Note: When time series data is available, regression analysis (R┬▓ > 0.7) provides\n"
+        report += f"Note: When time series data is available, regression analysis (R² > 0.7) provides\n"
         report += f"      additional validation. Current methodology uses validated equipment-specific\n"
         report += f"      factors that meet and exceed ASHRAE requirements.\n"
     
     report += f"\nBASE TEMPERATURE:\n"
     report += f"----------------\n"
     if base_temp_optimized and optimized_base_temp:
-        report += f"Optimized Base Temperature: {optimized_base_temp:.3f}┬░C\n"
-        report += f"Optimization Method: Grid search (10-25┬░C range, maximizes R┬▓)\n"
+        report += f"Optimized Base Temperature: {optimized_base_temp:.3f}°C\n"
+        report += f"Optimization Method: Grid search (10-25°C range, maximizes R²)\n"
         report += f"Building-Specific: Yes (calculated from baseline data)\n"
     else:
-        report += f"Base Temperature: {base_temp:.3f}┬░C (ASHRAE standard)\n"
-        report += f"Optimization: Not performed (using default 18.3┬░C)\n"
+        report += f"Base Temperature: {base_temp:.3f}°C (ASHRAE standard)\n"
+        report += f"Optimization: Not performed (using default 18.3°C)\n"
     
     # Extract regression sensitivity factors and normalization factor for use in multiple sections
     regression_temp = weather_norm.get('regression_temp_sensitivity') if ashrae_compliant else None
@@ -25652,16 +25775,16 @@ COMPLIANCE STATUS:
     report += f"-------------------\n"
     if ashrae_compliant:
         if regression_temp:
-            report += f"Temperature Sensitivity: {regression_temp*100:.3f}% per ┬░C (calculated from regression)\n"
+            report += f"Temperature Sensitivity: {regression_temp*100:.3f}% per °C (calculated from regression)\n"
         else:
-            report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per ┬░C (equipment-specific fallback)\n"
+            report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per °C (equipment-specific fallback)\n"
         if regression_dewpoint:
-            report += f"Dewpoint Sensitivity: {regression_dewpoint*100:.3f}% per ┬░C (calculated from regression)\n"
+            report += f"Dewpoint Sensitivity: {regression_dewpoint*100:.3f}% per °C (calculated from regression)\n"
         else:
-            report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per ┬░C (equipment-specific fallback)\n"
+            report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per °C (equipment-specific fallback)\n"
     else:
-        report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per ┬░C (equipment-specific fixed factor)\n"
-        report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per ┬░C (equipment-specific fixed factor)\n"
+        report += f"Temperature Sensitivity: {temp_sensitivity*100:.3f}% per °C (equipment-specific fixed factor)\n"
+        report += f"Dewpoint Sensitivity: {dewpoint_sensitivity*100:.3f}% per °C (equipment-specific fixed factor)\n"
     
     report += f"\nNORMALIZATION METHOD:\n"
     report += f"--------------------\n"
@@ -25690,19 +25813,19 @@ COMPLIANCE STATUS:
     report += f"---------------------\n"
     if normalization_factor is not None:
         report += f"Weather Normalization Factor: {normalization_factor:.4f}\n"
-    report += f"Base Temperature: {display_base_temp:.3f}┬░C ({base_temp_source})\n"
-    report += f"Temperature Sensitivity: {display_temp_sensitivity*100:.3f}% per ┬░C"
+    report += f"Base Temperature: {display_base_temp:.3f}°C ({base_temp_source})\n"
+    report += f"Temperature Sensitivity: {display_temp_sensitivity*100:.3f}% per °C"
     if regression_temp:
         report += f" (calculated from regression)\n"
     else:
         report += f" (equipment-specific)\n"
-    report += f"Dewpoint Sensitivity: {display_dewpoint_sensitivity*100:.3f}% per ┬░C"
+    report += f"Dewpoint Sensitivity: {display_dewpoint_sensitivity*100:.3f}% per °C"
     if regression_dewpoint:
         report += f" (calculated from regression)\n"
     else:
         report += f" (equipment-specific)\n"
     if regression_r2:
-        report += f"Regression R┬▓: {regression_r2:.4f}\n"
+        report += f"Regression R²: {regression_r2:.4f}\n"
     
     report += f"\n"
     
@@ -25738,7 +25861,7 @@ COMPLIANCE STATUS:
             avg_temp_raw = before_weather.get('avg_temperature') or before_weather.get('temperature')
             avg_temp = safe_float(avg_temp_raw) if avg_temp_raw is not None else None
             if avg_temp is not None:
-                report += f"Average Temperature: {avg_temp:.3f}┬░F\n"
+                report += f"Average Temperature: {avg_temp:.3f}°F\n"
             avg_humidity_raw = before_weather.get('avg_humidity') or before_weather.get('humidity')
             avg_humidity = safe_float(avg_humidity_raw) if avg_humidity_raw is not None else None
             if avg_humidity is not None:
@@ -25759,7 +25882,7 @@ COMPLIANCE STATUS:
             avg_temp_raw = after_weather.get('avg_temperature') or after_weather.get('temperature')
             avg_temp = safe_float(avg_temp_raw) if avg_temp_raw is not None else None
             if avg_temp is not None:
-                report += f"Average Temperature: {avg_temp:.3f}┬░F\n"
+                report += f"Average Temperature: {avg_temp:.3f}°F\n"
             avg_humidity_raw = after_weather.get('avg_humidity') or after_weather.get('humidity')
             avg_humidity = safe_float(avg_humidity_raw) if avg_humidity_raw is not None else None
             if avg_humidity is not None:
@@ -25806,19 +25929,19 @@ This methodology implements ASHRAE Guideline 14-2014 Section 14.4 requirements a
 exceeds them through enhanced features:
 
 1. Base Temperature Optimization (ASHRAE-Compliant):
-   - Grid search tests base temperatures from 10┬░C to 25┬░C (0.5┬░C steps)
-   - Selects base temperature that maximizes R┬▓ for regression model
+   - Grid search tests base temperatures from 10°C to 25°C (0.5°C steps)
+   - Selects base temperature that maximizes R² for regression model
    - Building-specific: Each building gets its own optimized base temperature
-   - When regression data unavailable: Uses ASHRAE standard 18.3┬░C with equipment-specific 
+   - When regression data unavailable: Uses ASHRAE standard 18.3°C with equipment-specific 
      adjustments (validated approach exceeding minimum requirements)
 
 2. Sensitivity Factor Calculation (ASHRAE-Compliant):
    - PRIMARY METHOD: Regression analysis of baseline time series data
      * Extracts time series data from baseline meter CSV (15-minute intervals)
      * Matches timestamps with weather data at exact intervals
-     * Performs linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü ├ù CDD + ╬▓Γéé ├ù HDD
+     * Performs linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü × CDD + ╬▓Γéé × HDD
      * Calculates sensitivity factors: temp_sensitivity = ╬▓Γéü / mean_energy
-     * Validates R┬▓ > 0.7 for ASHRAE compliance
+     * Validates R² > 0.7 for ASHRAE compliance
    - FALLBACK METHOD: Equipment-specific factors
      * Uses validated industry-standard sensitivity factors
      * Based on equipment type and climate zone research
@@ -25827,32 +25950,32 @@ exceeds them through enhanced features:
 3. Normalization (ASHRAE-Compliant with Enhancements):
    - If time series available: Normalizes each timestamp individually (enhanced precision)
    - Otherwise: Uses average-based normalization (ASHRAE-compliant)
-   - Formula: normalized_kw = kw ├ù (1 + weather_effect_before) / (1 + weather_effect_after)
-   - Weather effect = max(0, (temp - base_temp) ├ù temp_sensitivity) + 
-                      max(0, (dewpoint - base_temp) ├ù dewpoint_sensitivity)
+   - Formula: normalized_kw = kw × (1 + weather_effect_before) / (1 + weather_effect_after)
+   - Weather effect = max(0, (temp - base_temp) × temp_sensitivity) + 
+                      max(0, (dewpoint - base_temp) × dewpoint_sensitivity)
    - Dual-factor normalization (temperature + dewpoint) exceeds basic ASHRAE requirements
 
 4. Safety Validation Mechanism - Enhanced December 21, 2025:
    - Intelligent validation ensures weather normalization produces physically realistic results
-   - When base_temp is optimized (< 20┬░C) and weather effects are valid (> 0), allows 
+   - When base_temp is optimized (< 20°C) and weather effects are valid (> 0), allows 
      normalized_kw_after > kw_before when mathematically correct (e.g., normalizing cooler 
      weather to warmer baseline conditions)
    - This is expected behavior: cooler weather periods require upward adjustment when 
      normalized to warmer baseline conditions
    - If validation fails, safety cap preserves at least 80% of raw savings (increased from 
      50% for improved accuracy)
-   - Validation criteria: base_temp optimized, base_temp < 20┬░C, weather effects > 0
+   - Validation criteria: base_temp optimized, base_temp < 20°C, weather effects > 0
    - Prevents unrealistic normalization while maintaining mathematical correctness
 
 COMPLIANCE SUMMARY:
 ------------------
-Γ£ô ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
-Γ£ô Regression-based sensitivity factors (when data available): R┬▓ > 0.7 validation
-Γ£ô Equipment-specific calibration: Exceeds minimum requirements
-Γ£ô Building-specific base temperature optimization: Exceeds standard approach
-Γ£ô Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
-Γ£ô Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
-Γ£ô Intelligent safety validation: Ensures mathematically correct and physically realistic results
+✓ ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
+✓ Regression-based sensitivity factors (when data available): R² > 0.7 validation
+✓ Equipment-specific calibration: Exceeds minimum requirements
+✓ Building-specific base temperature optimization: Exceeds standard approach
+✓ Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
+✓ Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
+✓ Intelligent safety validation: Ensures mathematically correct and physically realistic results
 
 SAFETY VALIDATION MECHANISM:
 ---------------------------
@@ -25860,7 +25983,7 @@ The system implements intelligent safety validation to ensure weather normalizat
 produces physically realistic and mathematically correct results:
 
 1. Base Temperature Validation:
-   - When base_temp is optimized (< 20┬░C) and weather effects are valid (> 0),
+   - When base_temp is optimized (< 20°C) and weather effects are valid (> 0),
      the system allows normalized_kw_after to exceed kw_before when mathematically 
      correct (e.g., when normalizing cooler weather to warmer weather conditions)
    - This is expected behavior: cooler weather periods require upward adjustment 
@@ -25875,7 +25998,7 @@ produces physically realistic and mathematically correct results:
    The system validates normalization results using multiple criteria to ensure both 
    mathematical correctness and physical realism:
    - Base temperature must be optimized (from regression analysis)
-   - Base temperature must be < 20┬░C (reasonable for commercial buildings)
+   - Base temperature must be < 20°C (reasonable for commercial buildings)
    - Weather effects (before and after) must be > 0 (valid cooling/heating effects)
    - Average weather effect after must be > 0 (valid normalization)
    - All criteria must pass for the normalization to be considered valid and reliable
@@ -25891,10 +26014,10 @@ produces physically realistic and mathematically correct results:
    - Aggregated normalized timestamps provide the final result with enhanced accuracy
 
 This validation mechanism ensures that:
-Γ£ô Weather normalization follows ASHRAE Guideline 14-2014 principles
-Γ£ô Mathematically correct normalizations are not artificially constrained
-Γ£ô Physically unrealistic results are prevented through intelligent validation
-Γ£ô Savings calculations remain accurate and audit-compliant
+✓ Weather normalization follows ASHRAE Guideline 14-2014 principles
+✓ Mathematically correct normalizations are not artificially constrained
+✓ Physically unrealistic results are prevented through intelligent validation
+✓ Savings calculations remain accurate and audit-compliant
 
 REFERENCE:
 ---------
@@ -25950,7 +26073,7 @@ REFERENCE:
     
     report += f"""ASHRAE Guideline 14-2014, Section 14.4 - Weather Normalization
   - Regression-based sensitivity factor calculation
-  - R┬▓ > 0.7 validation requirement
+  - R² > 0.7 validation requirement
   - Building-specific calibration from actual meter data
   - Status: COMPLIANT
 
@@ -26275,11 +26398,11 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_summary.append(["Parameter", "Value", "Unit"])
         before_data = [
             ["Period", weather_data.get('before_period', 'N/A'), ""],
-            ["Average Temperature", weather_data.get('temp_before'), "┬░C"],
-            ["Average Dewpoint", weather_data.get('dewpoint_before'), "┬░C"],
+            ["Average Temperature", weather_data.get('temp_before'), "°C"],
+            ["Average Dewpoint", weather_data.get('dewpoint_before'), "°C"],
             ["Average Humidity", weather_data.get('humidity_before'), "%"],
             ["Average Wind Speed", weather_data.get('wind_speed_before'), "m/s"],
-            ["Average Solar Radiation", weather_data.get('solar_radiation_before'), "W/m┬▓"],
+            ["Average Solar Radiation", weather_data.get('solar_radiation_before'), "W/m²"],
             ["Data Points", weather_data.get('data_points_before', 0), "days"],
         ]
         for row in before_data:
@@ -26292,11 +26415,11 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_summary.append(["Parameter", "Value", "Unit"])
         after_data = [
             ["Period", weather_data.get('after_period', 'N/A'), ""],
-            ["Average Temperature", weather_data.get('temp_after'), "┬░C"],
-            ["Average Dewpoint", weather_data.get('dewpoint_after'), "┬░C"],
+            ["Average Temperature", weather_data.get('temp_after'), "°C"],
+            ["Average Dewpoint", weather_data.get('dewpoint_after'), "°C"],
             ["Average Humidity", weather_data.get('humidity_after'), "%"],
             ["Average Wind Speed", weather_data.get('wind_speed_after'), "m/s"],
-            ["Average Solar Radiation", weather_data.get('solar_radiation_after'), "W/m┬▓"],
+            ["Average Solar Radiation", weather_data.get('solar_radiation_after'), "W/m²"],
             ["Data Points", weather_data.get('data_points_after', 0), "days"],
         ]
         for row in after_data:
@@ -26329,8 +26452,8 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         ws_before = wb.create_sheet("Before Period - Detailed Data", 1)
         
         # Headers
-        headers = ["Timestamp", "Date", "Time", "Temperature (┬░C)", "Dewpoint (┬░C)", 
-                  "Humidity (%)", "Wind Speed (m/s)", "Solar Radiation (W/m┬▓)"]
+        headers = ["Timestamp", "Date", "Time", "Temperature (°C)", "Dewpoint (°C)", 
+                  "Humidity (%)", "Wind Speed (m/s)", "Solar Radiation (W/m²)"]
         ws_before.append(headers)
         
         # Style headers
@@ -27244,15 +27367,15 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         # Comparison data
         comparisons = [
             ["Temperature", weather_data.get('temp_before'), weather_data.get('temp_after'), 
-             (weather_data.get('temp_after', 0) or 0) - (weather_data.get('temp_before', 0) or 0), "┬░C"],
+             (weather_data.get('temp_after', 0) or 0) - (weather_data.get('temp_before', 0) or 0), "°C"],
             ["Dewpoint", weather_data.get('dewpoint_before'), weather_data.get('dewpoint_after'),
-             (weather_data.get('dewpoint_after', 0) or 0) - (weather_data.get('dewpoint_before', 0) or 0), "┬░C"],
+             (weather_data.get('dewpoint_after', 0) or 0) - (weather_data.get('dewpoint_before', 0) or 0), "°C"],
             ["Humidity", weather_data.get('humidity_before'), weather_data.get('humidity_after'),
              (weather_data.get('humidity_after', 0) or 0) - (weather_data.get('humidity_before', 0) or 0), "%"],
             ["Wind Speed", weather_data.get('wind_speed_before'), weather_data.get('wind_speed_after'),
              (weather_data.get('wind_speed_after', 0) or 0) - (weather_data.get('wind_speed_before', 0) or 0), "m/s"],
             ["Solar Radiation", weather_data.get('solar_radiation_before'), weather_data.get('solar_radiation_after'),
-             (weather_data.get('solar_radiation_after', 0) or 0) - (weather_data.get('solar_radiation_before', 0) or 0), "W/m┬▓"],
+             (weather_data.get('solar_radiation_after', 0) or 0) - (weather_data.get('solar_radiation_before', 0) or 0), "W/m²"],
         ]
         
         for row in comparisons:
@@ -27440,7 +27563,7 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
             ["Degree-day calculations (HDD/CDD)", "", "", ""],
             ["Power factor normalization", "", "", ""],
             ["Savings calculation methodology", "", "", ""],
-            ["Statistical validation (R┬▓, CVRMSE, NMBE)", "", "", ""],
+            ["Statistical validation (R², CVRMSE, NMBE)", "", "", ""],
             ["Outlier removal methodology", "", "", ""],
             ["Regression model selection (AICc)", "", "", ""],
         ]
@@ -27795,10 +27918,10 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Paragraph("NEMA MG1-2016 requires voltage unbalance to be calculated using line-to-line voltages (V12, V23, V31) for three-phase systems. The CSV data contains line-to-neutral voltages (l1Volt, l2Volt, l3Volt) which are converted to line-to-line voltages using the following formula:", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     
-    story.append(Paragraph("Line-to-Line Voltage Formula (for 120┬░ phase separation):", subheading_style))
-    story.append(Paragraph("V12 = ΓêÜ(L1┬▓ + L2┬▓ + L1├ùL2)  (voltage between phases 1 and 2)", styles['Normal']))
-    story.append(Paragraph("V23 = ΓêÜ(L2┬▓ + L3┬▓ + L2├ùL3)  (voltage between phases 2 and 3)", styles['Normal']))
-    story.append(Paragraph("V31 = ΓêÜ(L3┬▓ + L1┬▓ + L3├ùL1)  (voltage between phases 3 and 1)", styles['Normal']))
+    story.append(Paragraph("Line-to-Line Voltage Formula (for 120° phase separation):", subheading_style))
+    story.append(Paragraph("V12 = √(L1² + L2² + L1×L2)  (voltage between phases 1 and 2)", styles['Normal']))
+    story.append(Paragraph("V23 = √(L2² + L3² + L2×L3)  (voltage between phases 2 and 3)", styles['Normal']))
+    story.append(Paragraph("V31 = √(L3² + L1² + L3×L1)  (voltage between phases 3 and 1)", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Where L1, L2, L3 are the line-to-neutral voltages from the CSV columns (l1Volt, l2Volt, l3Volt).", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
@@ -27817,13 +27940,13 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Spacer(1, 0.1*inch))
     
     story.append(Paragraph("Step 3: Calculate Unbalance Percentage", subheading_style))
-    story.append(Paragraph("Unbalance % = (Max_Deviation / V_avg) ├ù 100", styles['Normal']))
+    story.append(Paragraph("Unbalance % = (Max_Deviation / V_avg) × 100", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
     
     # Compliance Requirements
     story.append(Paragraph("Compliance Requirements", heading_style))
     story.append(Paragraph("Per NEMA MG1-2016 Section 12.45:", styles['Normal']))
-    story.append(Paragraph("- Voltage unbalance must be Γëñ 1.0% for compliant operation", styles['Normal']))
+    story.append(Paragraph("- Voltage unbalance must be ≤ 1.0% for compliant operation", styles['Normal']))
     story.append(Paragraph("- Unbalance > 1.0% can cause motor overheating and reduced efficiency", styles['Normal']))
     story.append(Paragraph("- Each 1% unbalance causes approximately 6-10% temperature rise in motors", styles['Normal']))
     story.append(Spacer(1, 0.2*inch))
@@ -27833,7 +27956,7 @@ def generate_nema_mg1_methodology_pdf(analysis_session_id=None, results_data=Non
     story.append(Paragraph("For industrial electrical networks and utility rebate applications, the system implements improvement-based compliance logic:", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
     story.append(Paragraph("Compliance Determination:", subheading_style))
-    story.append(Paragraph("1. PASS if 'after' value Γëñ 1.0% (meets NEMA MG1 limit)", styles['Normal']))
+    story.append(Paragraph("1. PASS if 'after' value ≤ 1.0% (meets NEMA MG1 limit)", styles['Normal']))
     story.append(Paragraph("2. PASS if 'after' < 'before' (improvement demonstrated)", styles['Normal']))
     story.append(Paragraph("3. FAIL only if 'after' > 1.0% AND 'after' ΓëÑ 'before' (no improvement and exceeds limit)", styles['Normal']))
     story.append(Spacer(1, 0.1*inch))
@@ -29442,6 +29565,18 @@ PROJECT INFORMATION
     project_name_display = project_name if project_name else 'N/A'
     doc += f"Project Name: {project_name_display}\n"
     
+    # Extract Project Type
+    project_type = (
+        config.get('project_type') or
+        config.get('projectType') or
+        (client_profile.get('project_type') if isinstance(client_profile, dict) else None) or
+        (client_profile.get('projectType') if isinstance(client_profile, dict) else None) or
+        results_data.get('project_type') or
+        None
+    )
+    project_type_display = project_type if project_type else 'N/A'
+    doc += f"Project Type: {project_type_display}\n"
+    
     # Client information - comprehensive extraction
     if isinstance(client_profile, dict):
         company = (
@@ -29656,7 +29791,7 @@ PROJECT INFORMATION
             None
         )
         
-        # ASHRAE requires: CVRMSE < 50%, |NMBE| <= 10%, R┬▓ > 0.75
+        # ASHRAE requires: CVRMSE < 50%, |NMBE| <= 10%, R² > 0.75
         if cvrmse is not None or nmbe is not None or r_squared is not None:
             cvrmse_ok = (cvrmse < 50.0) if cvrmse is not None else True
             nmbe_ok = (abs(nmbe) <= 10.0) if nmbe is not None else True
@@ -30539,19 +30674,19 @@ Package Contents:
 COMPLIANCE STATUS:
 -----------------
 This package meets all M&V requirements for utility rebate submission:
-Γ£ô ASHRAE Guideline 14 Compliance
-Γ£ô IEEE 519-2014/2022 Compliance
-Γ£ô NEMA MG1 Compliance (with automatic line-to-neutral to line-to-line voltage conversion)
-Γ£ô IPMVP Statistical Significance
-Γ£ô ANSI C12.1/C12.20 Meter Accuracy
-Γ£ô ISO 50001:2018 Energy Management Systems
-Γ£ô ISO 50015:2014 M&V of Energy Performance
+✓ ASHRAE Guideline 14 Compliance
+✓ IEEE 519-2014/2022 Compliance
+✓ NEMA MG1 Compliance (with automatic line-to-neutral to line-to-line voltage conversion)
+✓ IPMVP Statistical Significance
+✓ ANSI C12.1/C12.20 Meter Accuracy
+✓ ISO 50001:2018 Energy Management Systems
+✓ ISO 50015:2014 M&V of Energy Performance
 
 CALCULATION METHODOLOGY NOTES:
 ------------------------------
 - NEMA MG1 Voltage Unbalance: The system calculates line-to-line voltages (V12, V23, V31) 
   from line-to-neutral voltages (l1Volt, l2Volt, l3Volt) using the formula 
-  V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation, then applies the NEMA MG1 
+  V_LL = √(V1² + V2² + V1×V2) for 120° phase separation, then applies the NEMA MG1 
   unbalance formula per NEMA MG1-2016 Section 12.45. See 07_Audit_Trail/
   NEMA_MG1_Calculation_Methodology.pdf for complete methodology documentation.
 
@@ -30800,7 +30935,7 @@ def generate_package_index_pdf(results_data, client_profile, timestamp):
         story.append(Paragraph(
             "NEMA MG1 Voltage Unbalance: The system calculates line-to-line voltages (V12, V23, V31) "
             "from line-to-neutral voltages (l1Volt, l2Volt, l3Volt) using the formula "
-            "V_LL = ΓêÜ(V1┬▓ + V2┬▓ + V1├ùV2) for 120┬░ phase separation, then applies the NEMA MG1 "
+            "V_LL = √(V1² + V2² + V1×V2) for 120° phase separation, then applies the NEMA MG1 "
             "unbalance formula per NEMA MG1-2016 Section 12.45. See 07_Audit_Trail/NEMA_MG1_Calculation_Methodology.pdf "
             "for complete methodology documentation.",
             ParagraphStyle('NormalSmall', parent=styles['Normal'], fontSize=7)  # Even smaller for note
@@ -35056,7 +35191,7 @@ def admin_compliance_report():
             ]
             
             for standard, details in standards:
-                report_content.append(f"Γ£ô {standard}")
+                report_content.append(f"✓ {standard}")
                 report_content.append(f"  {details}")
                 report_content.append("")
             
@@ -35520,6 +35655,31 @@ def admin_compliance_audit_trail():
         with get_db_connection() as conn:
             if conn:
                 cursor = conn.cursor()
+                # Ensure data_modifications table exists
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS data_modifications (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        file_id INTEGER NOT NULL,
+                        modifier_id INTEGER NOT NULL,
+                        modification_type TEXT NOT NULL,
+                        reason TEXT,
+                        rows_removed INTEGER,
+                        rows_modified INTEGER,
+                        fingerprint_before TEXT,
+                        fingerprint_after TEXT,
+                        modification_details TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (file_id) REFERENCES raw_meter_data (id),
+                        FOREIGN KEY (modifier_id) REFERENCES users (id)
+                    )
+                """)
+                
+                # Create index for better performance
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_modifications_file ON data_modifications(file_id)
+                """)
+                
+                conn.commit()
                 
                 # Build WHERE clause for date filtering
                 date_filter = ""
@@ -36412,7 +36572,7 @@ def admin_engineering_test_metrics():
         }
         
         # 3. R-squared (Coefficient of Determination)
-        # Get regression R┬▓ from weather normalization (primary source)
+        # Get regression R² from weather normalization (primary source)
         weather_norm = analysis_results.get("weather_normalization", {})
         if isinstance(weather_norm, dict):
             r_squared = weather_norm.get("regression_r2")
@@ -36420,7 +36580,7 @@ def admin_engineering_test_metrics():
             if r_squared is not None:
                 try:
                     r_squared = float(r_squared)
-                    logger.info(f"Engineering Test Metrics: Found R┬▓={r_squared} from weather_normalization.regression_r2")
+                    logger.info(f"Engineering Test Metrics: Found R²={r_squared} from weather_normalization.regression_r2")
                 except (ValueError, TypeError):
                     logger.warning(f"Engineering Test Metrics: weather_normalization.regression_r2 is not a valid number: {r_squared} (type: {type(r_squared)})")
                     r_squared = None
@@ -36436,16 +36596,16 @@ def admin_engineering_test_metrics():
             if r_squared is not None:
                 try:
                     r_squared = float(r_squared)
-                    logger.info(f"Engineering Test Metrics: Found R┬▓={r_squared} from ashrae_data.r_squared")
+                    logger.info(f"Engineering Test Metrics: Found R²={r_squared} from ashrae_data.r_squared")
                 except (ValueError, TypeError):
                     logger.warning(f"Engineering Test Metrics: ashrae_data.r_squared is not a valid number: {r_squared}")
                     r_squared = None
         
         # Do NOT use statistical.r_squared as fallback - it's a different metric and gives incorrect values
-        # If R┬▓ is not found in weather_normalization or ashrae_data, it means regression wasn't performed
+        # If R² is not found in weather_normalization or ashrae_data, it means regression wasn't performed
         # or the value wasn't stored, so we should return None rather than using an incorrect value
         if r_squared is None:
-            logger.warning(f"Engineering Test Metrics: No valid R┬▓ found. regression_r2 should be in weather_normalization.regression_r2 or ashrae_data.r_squared")
+            logger.warning(f"Engineering Test Metrics: No valid R² found. regression_r2 should be in weather_normalization.regression_r2 or ashrae_data.r_squared")
         
         metrics["r_squared"] = {
             "value": round(float(r_squared), 4) if r_squared is not None else None,
@@ -36714,7 +36874,7 @@ def admin_engineering_test_metrics():
                 "metric": "IEEE 519 THD Compliance",
                 "value": None,
                 "unit": "%",
-                "requirement": "Γëñ IEEE 519 Limit",
+                "requirement": "≤ IEEE 519 Limit",
                 "compliant": None,
                 "standard": "IEEE 519-2014/2022",
                 "required_for_utility": True
@@ -36733,7 +36893,7 @@ def admin_engineering_test_metrics():
                     mv_requirements["ieee_519"]["value"] = round(float(thd_after), 4)
                 mv_requirements["ieee_519"]["compliant"] = bool(ieee_compliant) if ieee_compliant is not None else None
                 if thd_limit is not None:
-                    mv_requirements["ieee_519"]["requirement"] = f"Γëñ {thd_limit}%"
+                    mv_requirements["ieee_519"]["requirement"] = f"≤ {thd_limit}%"
         
         # Calculate M&V compliance
         mv_compliant_count = sum(1 for req in mv_requirements.values() if req.get("compliant", False))
@@ -38015,7 +38175,7 @@ def verify_code(verification_code):
                     <div class="info-box">
                         <h2>Verification Code</h2>
                         <p><span class="code">{{ verification_code }}</span></p>
-                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
+                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
                     </div>
                     
                     <h2>Project Information</h2>
@@ -38034,7 +38194,7 @@ def verify_code(verification_code):
                         <p><strong>SHA-256 Fingerprint:</strong></p>
                         <p class="fingerprint">{{ before_file_info.fingerprint or 'N/A' }}</p>
                         <p><strong>Upload Date:</strong> {{ before_file_info.upload_date }}</p>
-                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
+                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
                         <a href="/api/original-files/{{ before_file_info.file_id }}/download" class="download-btn">≡ƒôÑ Download Before Period File</a>
                     </div>
                     {% endif %}
@@ -38047,7 +38207,7 @@ def verify_code(verification_code):
                         <p><strong>SHA-256 Fingerprint:</strong></p>
                         <p class="fingerprint">{{ after_file_info.fingerprint or 'N/A' }}</p>
                         <p><strong>Upload Date:</strong> {{ after_file_info.upload_date }}</p>
-                        <p><strong>Status:</strong> <span class="status-pass">Γ£ô VERIFIED</span></p>
+                        <p><strong>Status:</strong> <span class="status-pass">✓ VERIFIED</span></p>
                         <a href="/api/original-files/{{ after_file_info.file_id }}/download" class="download-btn">≡ƒôÑ Download After Period File</a>
                     </div>
                     {% endif %}
@@ -38111,7 +38271,7 @@ def verify_code(verification_code):
                                 <td>{{ check.limit_value or check.threshold_value or 'N/A' }}</td>
                                 <td>
                                     {% if check.is_compliant is True %}
-                                        <span class="status-pass">Γ£ô PASS</span>
+                                        <span class="status-pass">✓ PASS</span>
                                     {% elif check.is_compliant is False %}
                                         <span class="status-fail">Γ£ù FAIL</span>
                                     {% else %}

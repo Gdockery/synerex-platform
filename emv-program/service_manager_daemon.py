@@ -770,6 +770,24 @@ except Exception as e:
             'message': f'Failed to initiate restart: {str(e)}'
         }), 500
 
+@app.route('/', methods=['GET'])
+def root():
+    """Root route - shows Service Manager status"""
+    try:
+        service_statuses = service_manager.get_service_status()
+        return jsonify({
+            'service_manager': 'running',
+            'status': 'healthy',
+            'services_monitored': len(service_manager.services),
+            'services': service_statuses
+        })
+    except Exception as e:
+        return jsonify({
+            'service_manager': 'running',
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check for service manager"""

@@ -26,10 +26,10 @@ if not exist "services.yaml" (
 )
 
 REM Check Main App (8082)
-if not exist "8082\main_hardened_ready_refactored.py" (
-    echo [ERROR] Cannot find 8082\main_hardened_ready_refactored.py
+if not exist "8082\main_hardened_ready_fixed.py" (
+    echo [ERROR] Cannot find 8082\main_hardened_ready_fixed.py
     echo Current directory: %CD%
-    echo Expected: emv-program\8082\main_hardened_ready_refactored.py
+    echo Expected: emv-program\8082\main_hardened_ready_fixed.py
     goto :validation_failed
 )
 
@@ -414,7 +414,7 @@ if errorlevel 1 (
     echo Installing PyPDF2 (required for PDF merging)...
     python -m pip install "PyPDF2>=3.0.0" --quiet
 )
-start "Main App" /min cmd /c "cd /d %~dp0\8082 && python main_hardened_ready_refactored.py > ..\logs\main_app.log 2>&1"
+start "Main App" /min cmd /c "cd /d %~dp0\8082 && python main_hardened_ready_fixed.py > ..\logs\main_app.log 2>&1"
 
 echo Waiting 15 seconds for Main App to start...
 ping 127.0.0.1 -n 16 >nul

@@ -1,0 +1,2489 @@
+
+
+<script>
+  // Theme detection fallback
+  (function() {
+    try {
+      window.dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (e) {
+      window.dark = false;
+    }
+  })();
+</script>
+<script>
+  window.APP_VERSION = "{{ version }}";
+</script>
+
+<!-- Banner Notification System -->
+<div id="notification-banner" class="notification-banner" style="display: none;">
+  <div class="notification-content">
+    <span id="notification-text"></span>
+    <button id="notification-close" class="notification-close">&times;</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="brand-header">
+    <div class="brand-left">
+      <img src="{{ synerex_logo_url }}" alt="Synerex Logo" style="height:55px !important; width:auto;" />
+    </div>
+    <div class="brand-right">
+      <h1>Power Analysis System - Engineering Grade</h1>
+      <p class="subtitle">M&V Protocol Compliant Analysis per IPMVP, ASHRAE Guideline 14, and IEEE Standards</p>
+      <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+        <div id="appVersionBadge" class="version-badge" aria-label="Analysis version">Analysis version: {{ version }}
+        </div>
+        <button id="back-to-dashboard" class="btn btn-secondary"
+          style="padding: 8px 16px; font-size: 14px; border-radius: 4px; background-color: #6c757d; color: white; border: none; cursor: pointer; transition: background-color 0.2s;"
+          onmouseover="this.style.backgroundColor='#5a6268'" onmouseout="this.style.backgroundColor='#6c757d'">← Back to
+          Dashboard</button>
+        <button id="synerex-ai-chat-btn" class="btn btn-synerex-ai-chat" onclick="toggleSynerexAIChat()"
+          style="padding: 8px 16px; font-size: 14px; border-radius: 4px; background: linear-gradient(135deg, #2c5aa0, #1e3a5f); color: white; border: none; cursor: pointer; transition: all 0.3s ease; font-weight: 600;"
+          onmouseover="this.style.background='linear-gradient(135deg, #1e3a5f, #0f1f2f)'"
+          onmouseout="this.style.background='linear-gradient(135deg, #2c5aa0, #1e3a5f)'">Ask SynerexAI</button>
+        <button id="download-field-form-btn" class="btn btn-secondary"
+          style="padding: 8px 16px; font-size: 14px; border-radius: 4px; background-color: #28a745; color: white; border: none; cursor: pointer; transition: background-color 0.2s;"
+          onmouseover="this.style.backgroundColor='#218838'" 
+          onmouseout="this.style.backgroundColor='#28a745'"
+          onclick="window.open('/field-forms/general_field_form.pdf', '_blank')">
+          Download Field Form
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="compliance-badges">
+    <a href="https://www.energy.gov/femp/measurement-and-verification-options-federal-energy-and-water-saving-projects"
+      target="_blank" class="badge-link">IPMVP Option B</a>
+    <a href="https://www.ashrae.org/file%20library/technical%20resources/ashrae%20journal/haberl--additional-material--feb2023.pdf"
+      target="_blank" class="badge-link">ASHRAE Guideline 14</a>
+    <a href="https://powerquality.blog/2023/05/25/understanding-the-ieee-519-2014-standard-for-harmonics/"
+      target="_blank" class="badge-link">IEEE 519-2014</a>
+    <a href="https://www.nema.org/docs/default-source/standards-document-library/ansi_nema-mg-1-2016-contents-and-foreword.pdf?sfvrsn=f27547b8_1"
+      target="_blank" class="badge-link">NEMA MG1</a>
+    <a href="https://webstore.iec.ch/publication/21973" target="_blank" class="badge-link">IEC</a>
+    <a href="https://www.nema.org/docs/default-source/standards-document-library/ansi-c84-1-2020-contents-and-scope8cb6b1da-0402-4cde-a8ad-83177d02ae0f.pdf?sfvrsn=cb66d1e6_3"
+      target="_blank" class="badge-link">ANSI C84.1</a>
+    <a href="https://www.itic.org/itic-curve" target="_blank" class="badge-link"
+      style="background-color: #007bff; color: white;">ITIC/CBEMA</a>
+    <a href="https://www.ahrinet.org/search-standards/ahri-550590-i-p-and-551591-si-performance-rating-water-chilling-and-heat-pump-water-heating-packages"
+      target="_blank" class="badge-link" style="background-color: #28a745; color: white;">AHRI 550/590</a>
+    <a href="https://necaibewelectricians.com/wp-content/uploads/2013/11/Table_8-Conductor-Properties-.pdf"
+      target="_blank" class="badge-link">NEC Wire Guide</a>
+    <a href="/pe-dashboard" class="badge-link pe-dashboard-link">PE Dashboard</a>
+  </div>
+
+  <form id="analysisForm" method="POST" action="/api/analyze" enctype="multipart/form-data" novalidate>
+    <!-- Saved Projects -->
+    <div class="form-group">
+      <h3>Saved Projects</h3>
+      <div class="form-grid three-col">
+        <div class="field">
+          <label>Load Project</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="projectList" style="flex:1"></select>
+            <button type="button" id="btnLoadProject" class="btn secondary"
+              style="color: white !important;">Load</button>
+            <button type="button" id="btnReanalyzeProject" class="btn secondary"
+              style="color: white !important; background-color: #4CAF50;" 
+              title="Re-analyze this project with the latest code improvements">Re-analyze</button>
+          </div>
+          <div class="help">Pick a saved project and click Load, or Re-analyze to run analysis with latest code</div>
+        </div>
+        <div class="field">
+          <label>Actions</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" id="btnNewProject" class="btn secondary" style="color: white !important;"
+              onclick="if(typeof newProject === 'function') { newProject(); } else { console.error('newProject function not found'); showNotification('Error: New function not available. Please refresh the page.'); }">New</button>
+            <button type="button" id="btnSaveProject" class="btn secondary"
+              style="color: white !important;"
+              onclick="if(typeof saveProject === 'function') { saveProject(); } else { console.error('saveProject function not found'); showNotification('Error: Save function not available. Please refresh the page.'); }">Save</button>
+            <button type="button" id="btnSaveAsProject" class="btn secondary" style="color: white !important;"
+              onclick="if(typeof saveAsProject === 'function') { saveAsProject(); } else { console.error('saveAsProject function not found'); showNotification('Error: Save As function not available. Please refresh the page.'); }">Save
+              As</button>
+            <button type="button" id="btnDeleteProject" class="btn danger"
+              style="color: white !important;"
+              onclick="if(typeof deleteProject === 'function') { deleteProject(); } else { console.error('deleteProject function not found'); showNotification('Error: Delete function not available. Please refresh the page.'); }">Delete</button>
+          </div>
+          <div class="help">Saves all inputs for this project. Delete archives projects with double confirmation.</div>
+        </div>
+        <div class="field">
+          <label>Report Options</label>
+          <div class="toggle-row">
+            <input type="checkbox" name="show_methods_card" value="1" checked />
+            <span class="muted">Show "Methods & Formulas" in report</span>
+          </div>
+          <div class="help">Uncheck to hide the appendix card</div>
+
+          <!-- BESS Analysis Checkbox -->
+          <div class="toggle-row" style="margin-top: 8px;">
+            <input type="checkbox" name="include_bess" value="1" checked />
+            <span class="muted">Include BESS Analysis in Methods & Formulas</span>
+          </div>
+          <div class="help">Uncheck to exclude Battery Energy Storage System analysis from the report</div>
+
+          <!-- ITIC/CBEMA Analysis Checkbox -->
+          <div class="toggle-row" style="margin-top: 8px;">
+            <input type="checkbox" name="include_itic_cbema" value="1" checked />
+            <span class="muted">Include ITIC/CBEMA — Power Quality Tolerance Analysis in Methods & Formulas</span>
+          </div>
+          <div class="help">Uncheck to exclude ITIC/CBEMA Power Quality Tolerance Analysis from the report</div>
+
+          <!-- UPS Predictive Failure Analysis Checkbox -->
+          <div class="toggle-row" style="margin-top: 8px;">
+            <input type="checkbox" name="include_ups_failure" value="1" checked />
+            <span class="muted">Include UPS Predictive Failure Analysis in Methods & Formulas</span>
+          </div>
+          <div class="help">Uncheck to exclude UPS Predictive Failure Analysis from the report</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Client Information -->
+    <div class="form-group">
+      <h3>Client Information</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>Company</label>
+          <input type="text" id="cp_company" name="cp_company" placeholder="Company Name" />
+          <div class="help">Client company name</div>
+        </div>
+        <div class="field">
+          <label>Address</label>
+          <input type="text" id="cp_address" name="cp_address" placeholder="123 Main St" />
+          <div class="help">Street address</div>
+        </div>
+        <div class="field">
+          <label>Location</label>
+          <input type="text" id="cp_location" name="cp_location" placeholder="City, State" />
+          <div class="help">City and state</div>
+        </div>
+        <div class="field">
+          <label>ZIP / Postal Code</label>
+          <input type="text" id="cp_zip" name="cp_zip" placeholder="76104" />
+          <div class="help">Postal code</div>
+        </div>
+        <div class="field">
+          <label>Contact Name</label>
+          <input type="text" id="cp_contact" name="cp_contact" placeholder="Jane Smith" />
+          <div class="help">Primary contact person</div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="cp_email" name="cp_email" placeholder="name@example.com" />
+          <div class="help">Contact email address</div>
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input type="tel" id="cp_phone" name="cp_phone" placeholder="(555) 555-5555" maxlength="14"
+            pattern="[\(]?[0-9]{3}[\)]?[\s\-]?[0-9]{3}[\-]?[0-9]{4}"
+            title="Please enter a valid phone number in format (555) 555-5555" />
+          <div class="help">Contact phone number - will auto-format as you type</div>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="cp_include" checked / />
+        <span class="muted">Include client information in PDF report</span>
+      </div>
+    </div>
+
+    <!-- Project Information -->
+    <div class="form-group">
+      <h3>Project Information</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>Project Name</label>
+          <input type="hidden" id="current_project_id" name="current_project_id" />
+          <input type="text" id="projectName" name="company" placeholder="e.g., Synerex – Plant A (PJM 2025)"
+            aria-label="Project Name" aria-required="true" / />
+          <div class="help">Descriptive name for your analysis project. Example: "Synerex – Plant A (PJM 2025)" or
+            "Manufacturing Facility Energy Analysis"</div>
+        </div>
+        <div class="field">
+          <label>Project Type</label>
+          <select id="project-type" name="project_type" aria-label="Project Type">
+            <option value="">-- Select Project Type --</option>
+            <option value="energy_audit">Energy Audit</option>
+            <option value="power_quality">Power Quality Analysis</option>
+            <option value="load_study">Load Study</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div class="help">Select the type of project analysis. This will appear in your reports.</div>
+        </div>
+
+</div>
+        </div>
+        <div class="field">
+          <label>Facility Address</label>
+          <input type="text" id="facility_address" name="facility_address" placeholder="123 Main St"
+            aria-label="Facility Address" aria-required="true" />
+          <div class="help">Street address for weather data. Used to fetch historical weather data for analysis.
+            Example: "123 Main St" or "456 Industrial Blvd"</div>
+        </div>
+        <div class="field">
+          <label>City</label>
+          <input type="text" id="facility_city" name="location" placeholder="Dallas" aria-label="City"
+            aria-required="true" />
+          <div class="help">City name for weather data location. Example: "Dallas", "Houston", "Austin"</div>
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="facility_state" name="facility_state" placeholder="TX" aria-label="State"
+            aria-required="true" />
+          <div class="help">State abbreviation (2 letters). Example: "TX", "CA", "NY"</div>
+        </div>
+        <div class="field">
+          <label>Zip Code</label>
+          <input type="text" id="facility_zip" name="facility_zip" placeholder="75201" aria-label="ZIP Code"
+            aria-required="true" />
+          <div class="help">ZIP or postal code for precise weather location. Example: "75201", "90210", "10001"</div>
+        </div>
+        <div class="field">
+          <label>Point of Contact</label>
+          <input type="text" id="project_contact" name="contact" placeholder="John Smith" />
+          <div class="help">Primary contact for this project</div>
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input type="tel" id="project_phone" name="phone" placeholder="(555) 555-5555" maxlength="14"
+            pattern="[\(]?[0-9]{3}[\)]?[\s\-]?[0-9]{3}[\-]?[0-9]{4}"
+            title="Please enter a valid phone number in format (555) 555-5555" aria-label="Phone Number" />
+          <div class="help">Contact phone number for project communications. Example: "(555) 555-5555" or
+            "+1-555-555-5555"</div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="project_email" name="email" placeholder="john@company.com"
+            aria-label="Email Address" />
+          <div class="help">Contact email address for project communications. Example: "john@company.com"</div>
+        </div>
+        <div class="field">
+          <label>Currency</label>
+          <select name="currency_code" id="currency_code">
+            <option value="USD" selected>USD — $</option>
+            <option value="EUR">EUR — €</option>
+            <option value="GBP">GBP — £</option>
+            <option value="JPY">JPY — ¥</option>
+            <option value="INR">INR — ₹</option>
+            <option value="AUD">AUD — A$</option>
+            <option value="CAD">CAD — C$</option>
+            <option value="CHF">CHF — CHF</option>
+            <option value="SEK">SEK — kr</option>
+            <option value="NOK">NOK — kr</option>
+            <option value="DKK">DKK — kr</option>
+            <option value="BRL">BRL — R$</option>
+            <option value="MXN">MXN — Mex$</option>
+            <option value="ZAR">ZAR — R</option>
+            <option value="KRW">KRW — ₩</option>
+            <option value="HKD">HKD — HK$</option>
+            <option value="SGD">SGD — S$</option>
+            <option value="TWD">TWD — NT$</option>
+            <option value="TRY">TRY — ₺</option>
+            <option value="ILS">ILS — ₪</option>
+            <option value="AED">AED — د.إ</option>
+            <option value="SAR">SAR — ر.س</option>
+            <option value="PLN">PLN — zł</option>
+            <option value="CZK">CZK — Kč</option>
+            <option value="HUF">HUF — Ft</option>
+            <option value="THB">THB — ฿</option>
+            <option value="PHP">PHP — ₱</option>
+            <option value="UAH">UAH — ₴</option>
+          </select>
+          <div class="help">Controls how rates & totals are displayed</div>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    <div class="form-group">
+      <h3>Data Files</h3>
+      <div class="form-grid">
+        <div>
+          <label>Before File (Baseline)</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" id="choose-before-file" class="btn btn-secondary" style="flex: 1;">Choose
+              File</button>
+            <span id="before-file-selected" style="flex: 2; color: #28a745; font-weight: 500; display: none;">No file
+              selected</span>
+          </div>
+          <input type="hidden" name="before_file_id" id="before_file_id" />
+          <div class="help" id="before_file_help">Select baseline energy data from uploaded CSV files. This represents
+            your facility's energy consumption before the Synerex installation.</div>
+          <div class="form-group" style="margin-top:10px">
+            <h3>Manual Meter Summary (no file upload)</h3>
+            <label><input type="checkbox" id="manual_mode" name="manual_mode" value="1" /> Use manual Before/After
+              averages instead of files</label>
+            <div id="manual_inputs" style="display:none; margin-top:8px">
+              <div class="form-grid">
+                <div class="card" style="padding:10px">
+                  <h4>Before (Baseline)</h4>
+                  <div><label>Avg kVA</label><input type="number" name="manual_b_kva" step="0.01"
+                      placeholder="e.g., 210.9" /></div>
+                  <div><label>Avg PF (0–1)</label><input type="number" name="manual_b_pf" step="0.0001"
+                      placeholder="e.g., 0.91" /></div>
+                  <div><label>Avg THD (%)</label><input type="number" name="manual_b_thd" step="0.01"
+                      placeholder="e.g., 2.1" /></div>
+                </div>
+                <div class="card" style="padding:10px">
+                  <h4>After (Post-Retrofit)</h4>
+                  <div><label>Avg kVA</label><input type="number" name="manual_a_kva" step="0.01"
+                      placeholder="e.g., 201.0" /></div>
+                  <div><label>Avg PF (0–1)</label><input type="number" name="manual_a_pf" step="0.0001"
+                      placeholder="e.g., 0.96" /></div>
+                  <div><label>Avg THD (%)</label><input type="number" name="manual_a_thd" step="0.01"
+                      placeholder="e.g., 1.9" /></div>
+                </div>
+              </div>
+            </div>
+            <script>
+              (function() {
+                const cb = document.getElementById('manual_mode');
+                const panel = document.getElementById('manual_inputs');
+                const bf = document.querySelector('input[name="before_file"]');
+                const af = document.querySelector('input[name="after_file"]');
+
+                function sync() {
+                  if (!cb) return;
+                  const on = cb.checked;
+                  if (panel) panel.style.display = on ? '' : 'none';
+                  if (bf) bf.required = !on;
+                  if (af) af.required = !on;
+                }
+                if (cb) {
+                  cb.addEventListener('change', sync);
+                  sync();
+                }
+              })();
+            </script>
+          </div>
+
+        </div>
+        <div>
+          <label>After File (Post-Retrofit)</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button type="button" id="choose-after-file" class="btn btn-secondary" style="flex: 1;">Choose
+              File</button>
+            <span id="after-file-selected" style="flex: 2; color: #28a745; font-weight: 500; display: none;">No file
+              selected</span>
+          </div>
+          <input type="hidden" name="after_file_id" id="after_file_id" />
+          <div class="help" id="after_file_help">Select post-retrofit energy data from uploaded CSV files. This
+            represents your facility's energy consumption after the Synerex installation.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <h3>Weather Data & Normalization</h3>
+      <div class="help">Weather normalization is critical for accurate M&V analysis. Choose automatic API data fetching
+        or manual entry for temperature, humidity, wind, and solar radiation.</div>
+      <div class="form-grid">
+        <div>
+          <label>Weather Data Source</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <select name="weather_provider" id="weather_provider" onchange="toggleWeatherInputs()" style="flex: 1;">
+              <option value="open_meteo" selected>Automatic (Open-Meteo API)</option>
+              <option value="manual">Manual Entry</option>
+            </select>
+            <button type="button" id="fetch_weather_btn" onclick="fetchWeatherData()"
+              style="padding: 6px 12px; font-size: 12px;">
+              Fetch Weather
+            </button>
+            <span id="weather_status" style="font-size: 16px;"></span>
+          </div>
+          <div class="help">Automatic fetching uses facility address to get historical weather data</div>
+        </div>
+        <div>
+          <label><input type="checkbox" name="enhanced_weather_normalization" value="1" /> Enable Enhanced Weather
+            Normalization</label>
+          <div class="help">Include humidity, wind speed, and solar radiation for more accurate analysis</div>
+        </div>
+      </div>
+
+      <!-- Manual Weather Inputs (hidden by default) -->
+      <div id="manual_weather_inputs"
+        style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #dee2e6;">
+        <h5>Manual Weather Data Entry</h5>
+        <div class="form-grid">
+          <div>
+            <label>Ambient Temperature - Before Period (°C)</label>
+            <input type="number" name="temp_before" step="0.1" placeholder="e.g., 78.0" />
+            <div class="help">Average ambient temperature during baseline period</div>
+          </div>
+          <div>
+            <label>Ambient Temperature - After Period (°C)</label>
+            <input type="number" name="temp_after" step="0.1" placeholder="e.g., 74.0" />
+            <div class="help">Average ambient temperature during measurement period</div>
+          </div>
+          <div>
+            <label>Temperature Unit</label>
+            <select name="temp_unit">
+              <option value="F" selected>°F (Fahrenheit)</option>
+              <option value="C">°C (Celsius)</option>
+            </select>
+            <div class="help">Unit for temperature measurements</div>
+          </div>
+          <div>
+            <label>Humidity - Before Period (%)</label>
+            <input type="number" name="humidity_before" step="1" min="0" max="100" placeholder="e.g., 65" />
+            <div class="help">Average relative humidity during baseline period</div>
+          </div>
+          <div>
+            <label>Humidity - After Period (%)</label>
+            <input type="number" name="humidity_after" step="1" min="0" max="100" placeholder="e.g., 60" />
+            <div class="help">Average relative humidity during measurement period</div>
+          </div>
+          <div>
+            <label>Dewpoint - Before Period (°C)</label>
+            <input type="number" name="dewpoint_before" step="0.1" placeholder="e.g., 65.0" />
+            <div class="help">Average dewpoint temperature during baseline period (for ML normalization)</div>
+          </div>
+          <div>
+            <label>Dewpoint - After Period (°C)</label>
+            <input type="number" name="dewpoint_after" step="0.1" placeholder="e.g., 68.0" />
+            <div class="help">Average dewpoint temperature during measurement period (for ML normalization)</div>
+          </div>
+          <div>
+            <label>Wind Speed - Before Period (mph)</label>
+            <input type="number" name="wind_speed_before" step="0.1" min="0" max="50" placeholder="e.g., 8.5" />
+            <div class="help">Average wind speed during baseline period</div>
+          </div>
+          <div>
+            <label>Wind Speed - After Period (mph)</label>
+            <input type="number" name="wind_speed_after" step="0.1" min="0" max="50" placeholder="e.g., 7.2" />
+            <div class="help">Average wind speed during measurement period</div>
+          </div>
+          <div>
+            <label>Solar Radiation - Before Period (W/m²)</label>
+            <input type="number" name="solar_radiation_before" step="10" min="0" max="1000" placeholder="e.g., 450" />
+            <div class="help">Average solar radiation during baseline period</div>
+          </div>
+          <div>
+            <label>Solar Radiation - After Period (W/m²)</label>
+            <input type="number" name="solar_radiation_after" step="10" min="0" max="1000" placeholder="e.g., 380" />
+            <div class="help">Average solar radiation during measurement period</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="help" style="margin-top: 12px;">
+        <strong>Automatic Mode:</strong> Fetches temperature, humidity, wind speed, and solar radiation from
+        Open-Meteo API using facility address.<br />
+        <strong>Manual Mode:</strong> Enter weather data manually for both baseline and measurement periods.<br />
+        <strong>Enhanced Normalization:</strong> More accurate weather adjustment factors for buildings with significant
+        humidity, wind, or solar load impacts.
+        Recommended for facilities with large glazing areas, high humidity environments, or significant wind exposure.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <h3>Equipment Configuration</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>Equipment Type</label>
+          <select name="equipment_type">
+            <option value="main" selected>Main</option>
+            <option value="subpanel">SubPanel</option>
+            <option value="mcc">MCC</option>
+            <option value="chiller">Chiller</option>
+            <option value="hvac">HVAC</option>
+            <option value="other">Other</option>
+          </select>
+          <div class="help">Type of equipment being analyzed</div>
+        </div>
+        <div class="field">
+          <label>Equipment Description</label>
+          <input type="text" id="cp_equipment" name="equipment_description" placeholder="e.g., Chiller #1" />
+          <div class="help">Specific equipment identifier or description</div>
+        </div>
+        <div class="field">
+          <label>Meter Name</label>
+          <input type="text" id="cp_meter_name" name="meter_name" placeholder="e.g., Main Meter, Meter #1" />
+          <div class="help">Name or identifier of the power meter</div>
+        </div>
+        <div class="field">
+          <label>Meter Model</label>
+          <input type="text" id="cp_meter_model" name="meter_model" placeholder="e.g., Schneider ION7650, SEL-735, GE ION7650" />
+          <div class="help">Meter manufacturer and model number (e.g., Schneider ION7650, SEL-735, GE ION7650)</div>
+        </div>
+        <div class="field">
+          <label>Meter SN</label>
+          <input type="text" id="cp_meter_sn" name="meter_sn" placeholder="e.g., SN12345678" />
+          <div class="help">Meter serial number (required for engineering reports)</div>
+        </div>
+        <div class="field">
+          <div id="equipment_type_other_desc_container" style="display:none">
+            <label>Other Description</label>
+            <input type="text" name="equipment_type_other_desc" id="equipment_type_other_desc"
+              placeholder="Describe equipment (e.g., VFD bank, compressor)" />
+            <div class="help">Shown when "Other" is selected</div>
+          </div>
+        </div>
+        <div>
+          <label>Operating Hours/Year</label>
+          <input type="number" name="operating_hours" value="8760" min="0" max="8760" />
+          <div class="help">Example: 8760 (hours/year). Range 0–8760.</div>
+        </div>
+        <div>
+          <label>Confidence Level (%)</label>
+          <input type="number" name="confidence_level" value="95" min="80" max="99" />
+          <div class="help">Example: 95 (percent). Between 80 and 99.</div>
+        </div>
+        <div class="field">
+          <label>Test Period (Before)</label>
+          <input type="text" id="test_period_before" name="test_period_before"
+            placeholder="Auto-populated from CSV data" readonly />
+          <div class="help">Automatically extracted from Before CSV file timestamps</div>
+        </div>
+        <div class="field">
+          <label>Test Period (After)</label>
+          <input type="text" id="test_period_after" name="test_period_after" placeholder="Auto-populated from CSV data"
+            readonly />
+          <div class="help">Automatically extracted from After CSV file timestamps</div>
+        </div>
+        <div class="field">
+          <label>Before Period Label</label>
+          <input type="text" id="before_label" name="before_label" placeholder="e.g., XECO, Baseline, Pre-Installation" />
+          <div class="help">Custom label to display after "Before" in report headings (e.g., "Before XECO", "Before Baseline")</div>
+        </div>
+        <div class="field">
+          <label>After Period Label</label>
+          <input type="text" id="after_label" name="after_label" placeholder="e.g., XECO, Post-Retrofit, Post-Installation" />
+          <div class="help">Custom label to display after "After" in report headings (e.g., "After XECO", "After Post-Retrofit")</div>
+        </div>
+        <div class="field">
+          <label>% of Total PK Load</label>
+          <input type="number" id="total_load_pct" name="total_load_pct" placeholder="e.g., 100" min="0" max="100"
+            step="0.1" />
+          <div class="help">Percentage of total peak load represented by this equipment (0-100%)</div>
+        </div>
+        <div class="field">
+          <label>Test Duration</label>
+          <input type="text" id="test_duration" name="test_duration" placeholder="Auto-populated from CSV data"
+            readonly />
+          <div class="help">Automatically calculated from CSV data points</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <h3>Show Dollar Savings in Report</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>Show Dollar Savings in Report</label>
+          <div class="toggle-row">
+            <input type="hidden" name="show_dollars_hidden" value="off" />
+            <input type="checkbox" name="show_dollars" value="on" checked id="show_dollars_checkbox"
+              onchange="toggleBillingInformation()" />
+            <span class="muted">Show Dollar Savings in report</span>
+          </div>
+          <div class="help">Uncheck for technical-only report (hide all $ values, ROI/SIR/NPV).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group" id="billing_information_section">
+      <h3>Billing Information</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label for="last_month_bill_cost">Client's Last Monthly Bill (Total Cost)</label>
+          <input type="number" step="0.01" min="0" name="last_month_bill_cost" placeholder="e.g. 120000.00" />
+          <div class="help">Used to compute ROI as a percentage of the client's typical monthly bill.</div>
+        </div>
+        <div class="field">
+          <label>Project Cost ($)</label>
+          <input type="number" name="project_cost" value="10000" min="0" placeholder="e.g. 60000" />
+          <div class="help">Example: 10000 (USD). Numbers only; no $ or commas.</div>
+        </div>
+        <div class="field">
+          <label>Utility</label>
+          <input type="text" id="cp_utility" name="utility" placeholder="e.g., Oncor" />
+          <div class="help">Utility company name</div>
+        </div>
+        <div class="field">
+          <label>Utility Program Name</label>
+          <input type="text" id="utility_program" name="utility_program" placeholder="e.g., Energy Efficiency Rebate Program, Demand Response Program" />
+          <div class="help">Specific utility rebate/incentive program name (if applicable)</div>
+        </div>
+        <div class="field">
+          <label>Account #</label>
+          <input type="text" id="cp_account" name="account" placeholder="Optional" />
+          <div class="help">Utility account number</div>
+        </div>
+        <div class="field">
+          <label>Energy Rate ($/kWh)</label>
+          <input type="number" name="energy_rate" value="0.10" step="0.001" min="0"
+            placeholder="e.g. 0.05645 (per kWh)" />
+          <div class="help">Example: 0.10 (per kWh). Enter numbers only; currency shown by selector above.</div>
+        </div>
+        <div class="field">
+          <label>Demand Rate ($/kW-month)</label>
+          <input type="number" name="demand_rate" value="15" step="0.1" min="0" placeholder="e.g. 20.62 (per kW)" />
+          <div class="help">Example: 15 (per kW‑month). Enter numbers only; currency shown by selector above.</div>
+        </div>
+        <div class="field">
+          <label>Capacity Rate</label>
+          <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center;">
+            <input type="number" step="0.01" name="capacity_rate_per_kw" placeholder="e.g., 8.50" / />
+            <select id="capRateUnit">
+              <option value="per_kW_month" selected>$/kW-month</option>
+              <option value="per_MW_day">$/MW-day</option>
+              <option value="per_kW_year">$/kW-year</option>
+            </select>
+          </div>
+          <div class="help">If your invoice shows $/MW-day or $/kW-year, pick the unit and we'll convert to $/kW-month.
+          </div>
+          <div class="muted" id="capRateNote"></div>
+        </div>
+        <div class="field">
+          <label>Billing Model</label>
+          <select name="billing_method">
+            <option value="kw_pf_adjust">kW with PF Adjustment</option>
+            <option value="kva_demand">kVA Demand</option>
+            <option value="reactive_adder">Reactive Adder</option>
+          </select>
+          <div class="help">Choose the demand billing style that matches the utility tariff.</div>
+        </div>
+        <div class="field">
+          <label>kVA Demand Rate ($/kVA-month)</label>
+          <input type="number" name="demand_rate_kva" value="15" step="0.1" min="0" />
+          <div class="help">Rate for kVA-based demand billing</div>
+        </div>
+        <div class="field">
+          <label>Reactive Adder ($/kVAR-month)</label>
+          <input type="number" name="reactive_rate_per_kvar" value="0.30" step="0.01" min="0" />
+          <div class="help">Rate for reactive power above allowance</div>
+        </div>
+        <div class="field">
+          <label>NCP Demand Rate ($/kW-month)</label>
+          <input type="number" name="demand_rate_ncp" step="0.01" placeholder="e.g., 15.00" />
+          <div class="help">Non-coincident peak demand rate</div>
+        </div>
+        <div class="field">
+          <label>CP Demand Rate ($/kW-month)</label>
+          <input type="number" name="demand_rate_cp" step="0.01" placeholder="e.g., 25.00" />
+          <div class="help">Coincident peak demand rate</div>
+        </div>
+        <div class="field">
+          <label>Target Power Factor (0-1)</label>
+          <input type="number" name="target_pf" value="0.95" step="0.01" min="0.50" max="1.00"
+            placeholder="e.g. 0.95" />
+          <div class="help">Example: 0.95 (unitless). Used for PF normalization of Off/On demand.</div>
+        </div>
+        <div class="field">
+          <div class="toggle-row">
+            <input type="checkbox" name="power_factor_not_included" value="on"
+              id="power_factor_not_included_checkbox" />
+            <span class="muted">Power Factor is NOT included in billing</span>
+          </div>
+          <div class="help">Check this if the client's utility does not include Power Factor penalties in their billing
+            structure.</div>
+        </div>
+        <div class="field">
+          <label>Discount Rate (%)</label>
+          <input type="number" name="discount_rate" value="3" step="0.1" min="0" max="20" />
+          <div class="help">Discount rate for present value calculations</div>
+        </div>
+        <div class="field">
+          <label>Escalation Rate (%)</label>
+          <input type="number" name="escalation_rate" value="2" step="0.1" min="0" max="10" />
+          <div class="help">Annual escalation rate for savings</div>
+        </div>
+        <div class="field">
+          <label>Analysis Period (years)</label>
+          <input type="number" name="analysis_period" value="15" min="1" max="30" />
+          <div class="help">Project analysis period in years</div>
+        </div>
+      </div>
+      <h4>Tariff Configuration</h4>
+      <div class="form-grid">
+        <div>
+          <label>Tariff Type</label>
+          <select name="tariff_type">
+            <option value="flat" selected>Flat</option>
+            <option value="tou">Time-of-Use (TOU)</option>
+          </select>
+        </div>
+        <div>
+          <label>On-peak share of hours (%)</label>
+          <input type="number" name="onpeak_fraction_pct" value="40" step="0.1" min="0" max="100" />
+        </div>
+        <div>
+          <label>TOU On-Peak Rate ($/kWh)</label>
+          <input type="number" name="tou_rate_on" step="0.0001" />
+        </div>
+        <div>
+          <label>TOU Off-Peak Rate ($/kWh)</label>
+          <input type="number" name="tou_rate_off" step="0.0001" />
+        </div>
+      </div>
+      <h4>Seasonal (optional)</h4>
+      <div class="form-grid">
+        <div>
+          <label>Seasonal Mode</label>
+          <select name="seasonal_mode">
+            <option value="off" selected>Off</option>
+            <option value="on">On (summer/winter)</option>
+          </select>
+        </div>
+        <div>
+          <label>Summer fraction of year (%)</label>
+          <input type="number" name="summer_fraction_pct" value="55" step="0.1" min="0" max="100"
+            placeholder="e.g., 55" />
+          <div class="help">Percentage of year that is summer (typically 55-60%)</div>
+        </div>
+        <div>
+          <label>Summer On-Peak ($/kWh)</label>
+          <input type="number" name="summer_rate_on" step="0.0001" placeholder="e.g., 0.18" />
+          <div class="help">Summer on-peak rate</div>
+        </div>
+        <div>
+          <label>Summer Off-Peak ($/kWh)</label>
+          <input type="number" name="summer_rate_off" step="0.0001" placeholder="e.g., 0.10" />
+          <div class="help">Summer off-peak rate</div>
+        </div>
+        <div>
+          <label>Winter On-Peak ($/kWh)</label>
+          <input type="number" name="winter_rate_on" step="0.0001" placeholder="e.g., 0.12" />
+          <div class="help">Winter on-peak rate</div>
+        </div>
+        <div>
+          <label>Winter Off-Peak ($/kWh)</label>
+          <input type="number" name="winter_rate_off" step="0.0001" placeholder="e.g., 0.06" />
+          <div class="help">Winter off-peak rate</div>
+        </div>
+      </div>
+      <h4>Time-of-Use Rates (if TOU selected)</h4>
+      <div class="form-grid">
+        <div>
+          <label>On-Peak Share of Hours (%)</label>
+          <input type="number" name="onpeak_fraction_pct_seasonal" value="40" step="0.1" min="0" max="100" />
+          <div class="help">Percentage of hours that are on-peak (e.g., 40% for 9am-5pm)</div>
+        </div>
+        <div>
+          <label>TOU On-Peak Rate ($/kWh)</label>
+          <input type="number" name="tou_rate_on_seasonal" step="0.0001" placeholder="e.g., 0.15" />
+          <div class="help">Rate during on-peak hours</div>
+        </div>
+        <div>
+          <label>TOU Off-Peak Rate ($/kWh)</label>
+          <input type="number" name="tou_rate_off_seasonal" step="0.0001" placeholder="e.g., 0.08" />
+          <div class="help">Rate during off-peak hours</div>
+        </div>
+      </div>
+      <h4>Dual Demand & Ratchet</h4>
+      <div class="form-grid">
+        <div>
+          <label>NCP Demand Rate ($/kW-mo)</label>
+          <input type="number" name="demand_rate_ncp_tou" step="0.01" />
+        </div>
+        <div>
+          <label>On-peak CP Demand Rate ($/kW-mo)</label>
+          <input type="number" name="demand_rate_cp_tou" step="0.01" />
+        </div>
+        <div>
+          <label>Ratchet % of prior peak</label>
+          <input type="number" name="ratchet_percent" value="80" step="0.1" min="0" max="100" placeholder="e.g., 80" />
+          <div class="help">Percentage of prior peak to apply as minimum (typically 80%)</div>
+        </div>
+        <div>
+          <label>Ratchet reference peak (kW)</label>
+          <input type="number" name="ratchet_ref_kw" step="0.1" placeholder="prior 11-mo max" />
+          <div class="help">Reference peak from previous billing period</div>
+        </div>
+        <div>
+          <label>Ratchet applies to</label>
+          <select name="ratchet_applies_to">
+            <option value="ncp" selected>NCP only</option>
+            <option value="cp">On-peak CP only</option>
+            <option value="both">Both</option>
+          </select>
+          <div class="help">Which demand charges the ratchet applies to</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- CP/PLC Events Section -->
+    <div class="form-group">
+      <h3>CP/PLC Events</h3>
+      <div class="form-grid">
+        <div class="field">
+          <label>CP Timestamps (one per line)</label>
+          <textarea name="cp_timestamps" id="cp_timestamps" rows="4" readonly
+            placeholder="CP events will be auto-populated based on CP Year and Region"></textarea>
+          <div class="help">CP events are automatically loaded from ERCOT 4CP data based on the selected year and
+            region.</div>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" name="no_cp_event" id="no_cp_event" value="1" />
+            Client does not have a CP Event
+          </label>
+          <div class="help">Check this if the client does not have any CP (Coincident Peak) events to analyze.</div>
+        </div>
+        <div class="field">
+          <label>CP Window (minutes)</label>
+          <input type="number" name="cp_window_min" value="60" min="5" step="5" />
+          <div class="help">Average kW within ±(window/2) around each CP timestamp.</div>
+        </div>
+        <div class="field">
+          <label>Mode</label>
+          <select name="cp_event_mode" id="cp_event_mode">
+            <option value="auto_heuristic" selected>Auto (heuristic from meter)</option>
+            <option value="manual">Manual (paste official)</option>
+            <option value="fetch_official" disabled>Fetch official (coming soon)</option>
+          </select>
+          <div class="help">Auto (heuristic) picks candidate system-peak hours from your meter for screening. Paste
+            official times for bill-grade.</div>
+        </div>
+        <div class="field">
+          <label>Region</label>
+          <select name="cp_region" id="cp_region">
+            <option value="ERCOT" selected>ERCOT (4CP)</option>
+            <option value="PJM">PJM (5CP)</option>
+            <option value="ISO-NE">ISO-NE</option>
+            <option value="NYISO">NYISO</option>
+            <option value="MISO">MISO</option>
+            <option value="SPP">SPP</option>
+            <option value="CAISO">CAISO</option>
+          </select>
+          <div class="help">Used for heuristic event count & season window.</div>
+        </div>
+        <div class="field">
+          <label>CP Year</label>
+          <input type="number" name="cp_year" id="cp_year" readonly
+            placeholder="Auto-calculated from before data year - 1" />
+          <div class="help">Automatically set to one year before the before data year for ERCOT 4CP analysis.</div>
+        </div>
+        <div class="field">
+          <label>Zone (optional)</label>
+          <input type="text" name="cp_zone" id="cp_zone" placeholder="e.g., COMED, PENELEC, Ercot North" / />
+          <div class="help">Utility zone or sub-region</div>
+        </div>
+      </div>
+
+
+
+
+      <!-- Network Model Section -->
+      <div class="form-group">
+        <h3>Network Model (Multi‑Feeder) [use for Excel data input only][download template below]</h3>
+        <label style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input type="checkbox" id="enable_multi_feeder" / />
+          <span>Enable multi‑feeder network modeling</span>
+        </label>
+        <div id="feeders_editor" class="card" style="padding:10px;margin-bottom:8px;">
+          <h3 style="margin:0 0 8px 0">Feeders</h3>
+          <div id="feeders_list"></div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0;">
+            <!-- I²R Column -->
+            <div>
+              <h4 style="margin: 0 0 12px 0; color: #374151;">I²R Losses</h4>
+              <div style="margin-bottom: 12px;">
+                <button type="button" id="btn_template_feeders_before" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">I²R Before Template CSV</button>
+                <button type="button" id="btn_template_feeders_after" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">I²R After Template CSV</button>
+              </div>
+              <div style="margin-bottom: 12px;">
+                <input type="file" id="csv_file_before" accept=".csv" style="margin-bottom: 8px; width: 100%;" />
+                <button type="button" id="btn_import_feeders_before" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">Import I²R Before CSV</button>
+              </div>
+              <div>
+                <input type="file" id="csv_file_after" accept=".csv" style="margin-bottom: 8px; width: 100%;" />
+                <button type="button" id="btn_import_feeders_after" class="btn"
+                  style="display: block; width: 100%;">Import I²R After CSV</button>
+              </div>
+              <p class="muted" style="margin-top: 12px; font-size: 12px;">Enter per‑feeder per‑phase currents (A) and
+                THD (%). R_phase is round‑trip phase resistance (Ω). Add as many circuits as your switchgear requires.
+              </p>
+            </div>
+
+            <!-- Eddy Current Column -->
+            <div>
+              <h4 style="margin: 0 0 12px 0; color: #374151;">Eddy Current Losses</h4>
+              <div style="margin-bottom: 12px;">
+                <button type="button" id="btn_template_eddy_before" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">Eddy Current Before Template CSV</button>
+                <button type="button" id="btn_template_eddy_after" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">Eddy Current After Template CSV</button>
+              </div>
+              <div style="margin-bottom: 12px;">
+                <input type="file" id="eddy_csv_file_before" accept=".csv" style="margin-bottom: 8px; width: 100%;" />
+                <button type="button" id="btn_import_eddy_before" class="btn"
+                  style="margin-bottom: 8px; display: block; width: 100%;">Import Eddy Current Before CSV</button>
+              </div>
+              <div>
+                <input type="file" id="eddy_csv_file_after" accept=".csv" style="margin-bottom: 8px; width: 100%;" />
+                <button type="button" id="btn_import_eddy_after" class="btn" style="display: block; width: 100%;">Import
+                  Eddy Current After CSV</button>
+              </div>
+              <p class="muted" style="margin-top: 12px; font-size: 12px;">Provide per‑feeder per‑phase RMS currents (A)
+                and THD (%). R_phase_ohm is round‑trip resistance per phase.</p>
+            </div>
+          </div>
+
+          <!-- Export Button Below Columns -->
+          <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+            <button type="button" id="btn_export_feeders" class="btn">Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Circuits Section -->
+      <div class="form-group" id="feeders_section" style="margin-top:16px">
+        <h3>Main Circuits (Feeders) [use for data input HERE]</h3>
+        <div class="help">Enter per-feeder values (one row per main breaker/circuit). You can either enter
+          <b>R_phase_ohm</b> directly or use AWG/Material/Length with <i>Auto R</i>.</div>
+        <div class="card" style="padding:10px">
+
+          <div style="margin:6px 0 10px 0; display:flex; gap:12px; align-items:center;">
+            <label for="feeder_sort" class="muted">Feeder table sort</label>
+            <select name="feeder_sort" id="feeder_sort">
+              <option value="kw_desc" selected>ΔkW (largest first)</option>
+              <option value="kwh_desc">Annual ΔkWh (largest first)</option>
+              <option value="dollars_desc">Annual $ (largest first)</option>
+              <option value="name_asc">Name (A→Z)</option>
+            </select>
+            <div class="help">Controls order in the PDF Feeder Loss Breakdown.</div>
+          </div>
+          <table id="feeders_table" class="table small">
+            <thead>
+              <tr>
+                <th>Feeder</th>
+                <th>Xfmr</th>
+                <th>AWG</th>
+                <th>Material</th>
+                <th>Length</th>
+                <th>Units</th>
+                <th>Parallel</th>
+                <th>Auto R</th>
+                <th>R_phase_ohm</th>
+                <th colspan="3">I_before (A) A/B/C</th>
+                <th colspan="3">I_after (A) A/B/C</th>
+                <th colspan="3">THD_before (%) A/B/C</th>
+                <th colspan="3">THD_after (%) A/B/C</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="feeders_body"></tbody>
+          </table>
+          <button type="button" id="add_feeder_btn">+ Add Feeder</button>
+
+          <div class="form-group" id="transformers_section" style="margin-top:16px">
+            <h3>Transformers (optional)</h3>
+            <div class="help">Define one or more upstream transformers. If blank, the program uses the
+              single-transformer settings in I²R & Eddy Parameters. Assign feeders to a transformer by name in the
+              feeders grid.
+              <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                <label><input type="checkbox" id="xfmr_group_toggle" name="xfmr_group_view" value="1" checked /> Group
+                  transformer table by voltage in PDF</label>
+              </div>
+            </div>
+            <div class="card" style="padding:10px">
+              <table id="xfmrs_table" class="table small">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Rated kVA</th>
+                    <th>Voltage (V)</th>
+                    <th>V type</th>
+                    <th>Rated Load Loss (kW)</th>
+                    <th>Stray/Eddy Fraction (%)</th>
+                    <th>Core Loss (kW)</th>
+                    <th>K<sub>h</sub> (eddy factor)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="xfmrs_body"></tbody>
+              </table>
+              <button type="button" id="add_xfmr_btn">+ Add Transformer</button>
+              <button type="button" id="btn_export_transformers" class="btn" style="margin-left:8px">Export Transformers
+                CSV</button>
+            </div>
+            <textarea name="transformers_json" id="transformers_json" style="display:none"></textarea>
+            <script>
+              (function() {
+                const body = document.getElementById('xfmrs_body');
+                const addBtn = document.getElementById('add_xfmr_btn');
+                const formEl = document.querySelector('form');
+
+                function mkRow() {
+                  const tr = document.createElement('tr');
+                  tr.innerHTML = [
+                    '<td><input data-k="name" placeholder="TX-1"/></td>',
+                    '<td><input data-k="kva" type="number" step="0.1"/></td>',
+                    '<td><input data-k="voltage" type="number" step="1" placeholder="e.g., 480"/></td>',
+                    '<td><select data-k="vtype"><option value="LL" selected>LL</option><option value="LN">LN</option></select></td>',
+                    '<td><input data-k="load_loss_kw" type="number" step="0.001"/></td>',
+                    '<td><input data-k="stray_pct" type="number" step="0.1" placeholder="e.g., 20"/></td>',
+                    '<td><input data-k="core_kw" type="number" step="0.001" placeholder="0.0"/></td>',
+                    '<td><input data-k="kh" type="number" step="0.01" placeholder="0.5"/></td>',
+                    '<td><button type="button" class="danger" data-k="rm">✕</button></td>'
+                  ].join('');
+                  tr.querySelector('[data-k=rm]').addEventListener('click', () => tr.remove());
+                  return tr;
+                }
+                addBtn?.addEventListener('click', () => body.appendChild(mkRow()));
+                formEl?.addEventListener('submit', () => {
+                  const rows = Array.from(body.querySelectorAll('tr'));
+                  const list = rows.map(r => ({
+                    name: r.querySelector('[data-k=name]').value || null,
+                    kva: parseFloat(r.querySelector('[data-k=kva]').value || '0'),
+                    voltage: parseFloat(r.querySelector('[data-k=voltage]').value || '0'),
+                    vtype: (r.querySelector('[data-k=vtype]').value || 'LL'),
+                    load_loss_kw: parseFloat(r.querySelector('[data-k=load_loss_kw]').value || '0'),
+                    stray_pct: parseFloat(r.querySelector('[data-k=stray_pct]').value || '20'),
+                    core_kw: parseFloat(r.querySelector('[data-k=core_kw]').value || '0'),
+                    kh: parseFloat(r.querySelector('[data-k=kh]').value || '0.5')
+                  }));
+                  const ta = document.getElementById('transformers_json');
+                  if (ta) ta.value = JSON.stringify(list);
+                });
+              })();
+            </script>
+          </div>
+        </div>
+        <textarea name="feeders_json_manual" id="feeders_json_manual" style="display:none"></textarea>
+        <textarea name="feeders_json_csv" id="feeders_json_csv" style="display:none"></textarea>
+        <textarea name="feeders_json_combined" id="feeders_json_combined" style="display:none"></textarea>
+        <script>
+          (function() {
+            const body = document.getElementById('feeders_body');
+            const addBtn = document.getElementById('add_feeder_btn');
+            const formEl = document.querySelector('form');
+
+            function ohmsPerMeter(awg, material) {
+              try {
+                return awgToOhmsPerMeter(awg, material);
+              } catch (e) {
+                return NaN;
+              }
+            }
+
+            function computeR(row) {
+              const awg = row.querySelector('[data-k=awg]').value.trim();
+              const material = row.querySelector('[data-k=material]').value;
+              const L = parseFloat(row.querySelector('[data-k=length]').value || '0');
+              const units = row.querySelector('[data-k=units]').value;
+              const parallel = parseFloat(row.querySelector('[data-k=parallel]').value || '1');
+              const auto = row.querySelector('[data-k=auto_r]').checked;
+              const rEl = row.querySelector('[data-k=R_phase_ohm]');
+              if (!auto) return;
+              if (!awg || !isFinite(L) || L <= 0) {
+                return;
+              }
+              let rho = ohmsPerMeter(awg, material);
+              if (!isFinite(rho)) return;
+              const Lm = (units === 'ft') ? (L * 0.3048) : L;
+              const R = (2 * Lm * rho) / Math.max(1, parallel);
+              rEl.value = String((Math.round(R * 1e6) / 1e6) || '');
+            }
+
+            function mkRow() {
+              const tr = document.createElement('tr');
+              tr.innerHTML = [
+                '<td><input data-k="name" placeholder="Feeder 1"/></td>',
+                '<td><input data-k="xfmr" placeholder="(optional)"/></td>',
+                '<td><input data-k="awg" placeholder="e.g., 500kcmil or 2/0 or 2"/></td>',
+                '<td><select data-k="material"><option value="Cu" selected>Cu</option><option value="Al">Al</option></select></td>',
+                '<td><input data-k="length" type="number" step="0.1" placeholder="one-way"/></td>',
+                '<td><select data-k="units"><option value="ft" selected>ft</option><option value="m">m</option></select></td>',
+                '<td><input data-k="parallel" type="number" step="1" value="1"/></td>',
+                '<td style="text-align:center"><input data-k="auto_r" type="checkbox" checked/></td>',
+                '<td><input data-k="R_phase_ohm" type="number" step="0.000001" placeholder="Ω (round-trip/phase)"/></td>',
+                '<td><input data-k="IbA" type="number" step="0.01"/></td>',
+                '<td><input data-k="IbB" type="number" step="0.01"/></td>',
+                '<td><input data-k="IbC" type="number" step="0.01"/></td>',
+                '<td><input data-k="IaA" type="number" step="0.01"/></td>',
+                '<td><input data-k="IaB" type="number" step="0.01"/></td>',
+                '<td><input data-k="IaC" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDbA" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDbB" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDbC" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDaA" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDaB" type="number" step="0.01"/></td>',
+                '<td><input data-k="THDaC" type="number" step="0.01"/></td>',
+                '<td><button type="button" class="danger" data-k="rm">✕</button></td>'
+              ].join('');
+              tr.addEventListener('input', function(ev) {
+                if (['awg', 'material', 'length', 'units', 'parallel', 'auto_r'].includes(ev.target.getAttribute(
+                    'data-k'))) {
+                  computeR(tr);
+                }
+              });
+              tr.querySelector('[data-k=rm]').addEventListener('click', () => {
+                tr.remove();
+              });
+              setTimeout(() => computeR(tr), 0);
+              return tr;
+            }
+            addBtn?.addEventListener('click', () => {
+              body.appendChild(mkRow());
+            });
+            formEl?.addEventListener('submit', () => {
+              const rows = Array.from(body.querySelectorAll('tr'));
+              const feeders = rows.map(r => {
+                function num(k) {
+                  const v = r.querySelector('[data-k="' + k + '"]').value;
+                  return v === '' ? null : Number(v);
+                }
+
+                function str(k) {
+                  const v = r.querySelector('[data-k="' + k + '"]').value;
+                  return v === '' ? null : String(v);
+                }
+                const auto = r.querySelector('[data-k=auto_r]').checked;
+                const units = r.querySelector('[data-k=units]').value;
+                const f = {
+                  name: str('name'),
+                  xfmr: str('xfmr'),
+                  material: str('material') || 'Cu',
+                  awg: str('awg'),
+                  length_m: (units === 'ft' && num('length') != null) ? num('length') * 0.3048 : num(
+                    'length'),
+                  parallel: num('parallel') || 1,
+                  auto_r: auto ? 1 : 0,
+                  R_phase_ohm: num('R_phase_ohm'),
+                  I_before: [num('IbA'), num('IbB'), num('IbC')],
+                  I_after: [num('IaA'), num('IaB'), num('IaC')],
+                  THD_before: [num('THDbA'), num('THDbB'), num('THDbC')],
+                  THD_after: [num('THDaA'), num('THDaB'), num('THDaC')],
+                };
+                return f;
+              });
+              const ta = document.getElementById('feeders_json_manual');
+              if (ta) ta.value = JSON.stringify(feeders);
+            });
+          })();
+        </script>
+      </div>
+
+
+      <div class="form-group">
+        <h3>Conductor Configuration</h3>
+        <div class="form-grid">
+          <div>
+            <label>Conductor Resistance (Ω/phase)</label>
+            <input type="number" name="line_R_ref_ohm" step="0.001" placeholder="e.g., 0.05" value="0.0" />
+            <div class="help">Round-trip resistance per phase. Required for I²R loss calculations.</div>
+          </div>
+          <div>
+            <label>Temperature Coefficient (1/°C)</label>
+            <input type="number" name="alpha_conductor" value="0.00393" step="0.0001" min="0.001" max="0.01" />
+            <div class="help">Copper: 0.00393, Aluminum: 0.00403</div>
+          </div>
+          <div>
+            <label>Reference Temperature (°C)</label>
+            <input type="number" name="R_ref_temp_c" value="20" step="0.1" min="-40" max="100" />
+            <div class="help">Temperature at which resistance is specified</div>
+          </div>
+          <div>
+            <label>Conductor Temperature Rise (°C)</label>
+            <input type="number" name="conductor_temp_rise_c" value="15" step="0.1" min="0" max="100" />
+            <div class="help">Temperature rise above ambient for resistance correction</div>
+          </div>
+          <div>
+            <label>Wire Temperature Mode</label>
+            <select name="wire_temp_mode">
+              <option value="ambient_rise" selected>Ambient + Rise</option>
+              <option value="fixed_60">Fixed 60°C</option>
+            </select>
+            <div class="help">How to calculate conductor operating temperature</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <h3>Electrical Configuration</h3>
+        <div class="form-grid">
+          <div>
+            <label>Number of Phases</label>
+            <select name="phases">
+              <option value="1">1 (Single Phase)</option>
+              <option value="3" selected>3 (Three Phase)</option>
+            </select>
+            <div class="help">Affects voltage calculations and loss computations</div>
+          </div>
+          <div>
+            <label>Nominal Voltage (V)</label>
+            <input type="number" name="voltage_nominal" value="480" step="1" min="120" max="15000" />
+            <div class="help">System nominal voltage</div>
+          </div>
+          <div>
+            <label>Voltage Type</label>
+            <select name="voltage_type">
+              <option value="LL" selected>Line-to-Line</option>
+              <option value="LN">Line-to-Neutral</option>
+            </select>
+            <div class="help">Voltage reference for current calculations</div>
+          </div>
+          <div>
+            <label>Transformer kVA Rating</label>
+            <input type="number" name="xfmr_kva" step="0.1" placeholder="e.g., 1000" />
+            <div class="help">Rated kVA for loss scaling calculations</div>
+          </div>
+          <div>
+            <label>Load Loss at Rated Load (W)</label>
+            <input type="number" name="xfmr_load_loss_w" step="0.1" placeholder="e.g., 8500" />
+            <div class="help">Total load loss at rated kVA (copper + stray)</div>
+          </div>
+          <div>
+            <label>Core Loss (W)</label>
+            <input type="number" name="xfmr_core_loss_w" step="0.1" placeholder="e.g., 1200" />
+            <div class="help">No-load core loss (constant)</div>
+          </div>
+          <div>
+            <label>Stray Loss Fraction (%)</label>
+            <input type="number" name="xfmr_stray_fraction_pct" value="20" step="0.1" min="5" max="50" />
+            <div class="help">Percentage of load loss that is stray/eddy (typically 15-25%)</div>
+          </div>
+          <div>
+            <label>Transformer %Z (Impedance)</label>
+            <input type="number" name="xfmr_impedance_pct" value="5.75" step="0.01" min="1.0" max="15.0" />
+            <div class="help">Transformer impedance percentage (typically 5.75% for distribution transformers)</div>
+          </div>
+          <div>
+            <label>Harmonic Factor (K_h)</label>
+            <input type="number" name="kh_stray_factor" value="0.5" step="0.1" min="0.1" max="2.0" />
+            <div class="help">Harmonic magnification factor for stray losses (default: 0.5)</div>
+          </div>
+          <div>
+            <label>Short Circuit Current (Isc) - kA</label>
+            <input type="number" name="isc_kA" step="0.1" min="0.1" placeholder="Auto-calculated" readonly />
+            <div class="help">Calculated from Transformer kVA Rating and Nominal Voltage</div>
+          </div>
+          <div>
+            <label>Load Current (IL) - A</label>
+            <input type="number" name="il_A" step="1" min="1" placeholder="Auto-calculated" readonly />
+            <div class="help">Calculated from Transformer kVA Rating and Nominal Voltage</div>
+          </div>
+          <div>
+            <label>IEEE 519 Edition</label>
+            <select name="ieee_519_edition">
+              <option value="2014">IEEE 519-2014 (Industry Standard)</option>
+              <option value="2022">IEEE 519-2022 (Latest)</option>
+            </select>
+            <div class="help">IEEE 519 harmonic distortion standard edition for compliance checking</div>
+          </div>
+          <div>
+            <label>Point of Common Coupling (PCC)</label>
+            <input type="text" name="pcc_location" placeholder="e.g., Main Service Panel, Utility Meter" />
+            <div class="help">Measurement location for IEEE 519 harmonic compliance evaluation</div>
+          </div>
+          <div>
+            <label>ASHRAE Baseline Model</label>
+            <select name="ashrae_baseline_model">
+              <option value="auto" selected>Auto (AICc Selection)</option>
+              <option value="2P_linear">2P Linear (y = a + b×T)</option>
+              <option value="3P_cooling">3P Cooling Change-Point</option>
+              <option value="3P_heating">3P Heating Change-Point</option>
+              <option value="4P_linear_cooling">4P Linear Cooling</option>
+              <option value="4P_linear_heating">4P Linear Heating</option>
+              <option value="5P_combined">5P Combined Heating/Cooling</option>
+              <option value="6P_combined_linear">6P Combined Linear</option>
+            </select>
+            <div class="help">ASHRAE Guideline 14 baseline regression model selection</div>
+          </div>
+          <div>
+            <label>Data Quality Threshold (%)</label>
+            <input type="number" name="data_quality_threshold" value="95" min="80" max="100" step="1" />
+            <div class="help">ASHRAE data completeness requirement (default: 95%)</div>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <button type="button" id="btnCalculateTesting"
+            style="background: #0ea5e9; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Calculate
+            Testing Parameters</button>
+          <span id="testing_calc_result" class="pill" style="margin-left: 8px;">Ready to calculate</span>
+        </div>
+      </div>
+
+
+      <!-- I²R & Eddy Parameters -->
+      <div class="form-group">
+        <h3>I²R & Eddy Parameters</h3>
+        <div class="help" style="margin-bottom: 15px;">
+          <strong>Note:</strong> Electrical configuration (phases, voltage, voltage type) and transformer parameters
+          (kVA rating, losses) are set in the "Electrical Configuration" section above.
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Conductor R_ref per phase (Ω @20 deg C)</label>
+            <input type="number" name="conductor_R_ref_ohm" step="0.000001" placeholder="use Walk-Through calculator"
+              id="conductor_R_ref_ohm_input" />
+          </div>
+          <div>
+            <label>R_ref temperature ( deg C)</label>
+            <input type="number" name="R_ref_temp_c_i2r" value="20" step="0.1" />
+          </div>
+          <div>
+            <label>Conductor α (/ deg C)</label>
+            <input type="number" name="alpha_conductor_i2r" value="0.00393" step="0.00001" />
+          </div>
+          <div>
+            <label for="wire_temp_mode">Wire Temperature Mode</label>
+            <select name="wire_temp_mode_i2r" id="wire_temp_mode">
+              <option value="ambient_rise" selected>Ambient + Fixed Rise (default)</option>
+              <option value="fixed_60">Conservative Audit: Fixed 60 °C</option>
+            </select>
+            <div class="help">Controls how conductor temperature is estimated for I²R losses.</div>
+          </div>
+          <div>
+            <label>Wire Temp Rise (°C) over ambient</label>
+            <input type="number" name="conductor_temp_rise_c_i2r" value="15" step="0.1" />
+            <div class="help">Used only in Ambient + Fixed Rise mode.</div>
+          </div>
+          <div>
+
+          </div>
+          <div>
+            <label><input type="checkbox" name="include_network_losses" id="include_network_losses" checked />
+              Include network I²R + eddy losses in totals</label>
+          </div>
+          <div>
+            <label for="conductor_scope">Conductor modeling scope</label>
+            <select name="conductor_scope" id="conductor_scope">
+              <option value="network" selected>Network-wide (production)</option>
+              <option value="single">Single run (diagnostic)</option>
+            </select>
+          </div>
+
+          <div>
+            <label>IEEE C57.110 Harmonic Loss Method</label>
+            <select name="ieee_c57_110_method">
+              <option value="thd_approximation" selected>THD Approximation (Default)</option>
+              <option value="spectrum_based">Spectrum-Based (Full IEEE C57.110)</option>
+            </select>
+            <div class="help">IEEE C57.110 transformer harmonic loss calculation method</div>
+          </div>
+          <div>
+            <label>Individual Harmonic Analysis</label>
+            <select name="harmonic_analysis_depth">
+              <option value="basic" selected>Basic (THD only)</option>
+              <option value="detailed">Detailed (up to 50th order)</option>
+            </select>
+            <div class="help">Level of harmonic analysis per IEEE 519 requirements</div>
+          </div>
+          <div>
+            <label>Harmonic Spectrum Export</label>
+            <input type="checkbox" name="export_harmonic_spectrum" checked />
+            <div class="help">Export detailed harmonic spectrum data for audit purposes</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <h3>Walk-Through: Conductor Builder</h3>
+        <p class="help" style="margin-bottom: 15px; font-style: italic; color: #6b7280;">(Used for adding additional
+          conductors missing from the csv files above)</p>
+        <div class="form-grid">
+          <div><label>Material</label><select id="wt_material">
+              <option value="Cu" selected>Copper</option>
+              <option value="Al">Aluminum</option>
+            </select></div>
+          <div><label>Gauge (AWG)</label><input type="text" id="wt_awg" placeholder="e.g., 3/0 or 4" /></div>
+          <div><label>Cross-section</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="number" id="wt_mm2" step="0.01" placeholder="if not using AWG" style="flex: 1;" />
+              <select id="wt_area_unit" style="width: 40px;">
+                <option value="mm2" selected>mm²</option>
+                <option value="kcmil">kcmil</option>
+              </select>
+            </div>
+          </div>
+          <div><label>Length (one-way)</label><input type="number" id="wt_length" step="0.1" placeholder="e.g., 120" />
+          </div>
+          <div><label>Units</label><select id="length_units">
+              <option value="ft" selected>feet</option>
+              <option value="m">meters</option>
+            </select></div>
+          <div><label>Conductors in parallel/phase</label><input type="number" id="wt_parallel" min="1" value="1" />
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <button type="button" id="btnCalcR">Calc R_ref (Ω/phase @20  deg C)</button>
+          <span id="wt_R_result" class="pill">-</span>
+          <button type="button" id="btnApplyToAnalysis" disabled>Apply to Analysis</button>
+          <a href="https://necaibewelectricians.com/wp-content/uploads/2013/11/Table_8-Conductor-Properties-.pdf"
+            target="_blank" style="margin-left: 8px; color: #3b82f6; text-decoration: underline;">NEC Wire Guide</a>
+        </div>
+      </div>
+
+      <!-- Run Engineering Analysis Button -->
+      <div style="text-align: center; margin: 2rem 0; padding: 1rem;">
+        <button type="button" id="submitBtn"
+          style="font-size: 1.2rem; padding: 1rem 2rem; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
+          Run Engineering Analysis</button>
+      </div>
+
+      <script>
+        // Handle button click since it's now outside the form
+        document.getElementById('submitBtn').addEventListener('click', function() {
+          console.log("DEBUG: ===== BUTTON CLICK START =====");
+
+          const form = document.getElementById('analysisForm');
+          if (form) {
+            form.dispatchEvent(new Event('submit'));
+          } else {
+            console.error("DEBUG: ERROR - Form element not found!");
+          }
+          console.log("DEBUG: ===== BUTTON CLICK END =====");
+        });
+      </script>
+
+      <div id="loading" class="loading" style="display: none;">
+        <h3>Performing M&V Analysis...</h3>
+        <p>Validating data quality, calculating uncertainties, checking compliance...</p>
+      </div>
+
+      <!-- Manual Chart Controls Button -->
+      <div
+        style="text-align: center; margin: 20px 0; padding: 20px; background: #f0f8ff; border: 2px solid #007bff; border-radius: 8px;">
+        <h3 style="color: #007bff; margin-bottom: 15px;">Interactive Chart System</h3>
+        <p style="margin-bottom: 15px; color: #333;">Click the button below to show interactive charts for your analysis
+          data.</p>
+        <button onclick="showChartControlsManually()" class="btn"
+          style="background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600;">
+          Show Interactive Charts
+        </button>
+        <p style="margin-top: 10px; font-size: 12px; color: #666;">This will display chart controls for visualizing your
+          analysis data.</p>
+      </div>
+
+
+      <div id="results" style="display:none;"></div>
+
+      <!-- Chart Selection Section - MOVED TO NEW LOCATION - Cache Bust: {{ cache_bust }} -->
+      <div class="chart-selection-section"
+        style="margin: 20px 0; padding: 20px; border: 2px solid #28a745; border-radius: 8px; background: #f8fff8;">
+        <h3 style="margin-top: 0; color: #28a745; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Chart
+          Selection</h3>
+        <p style="color: #666; margin-bottom: 15px;">Select which charts to include in the generated HTML report.
+          Uncheck charts you don't want to include.</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+          <div class="toggle-row"
+            style="display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <input type="checkbox" name="include_avgkw_chart" value="1" checked id="include_avgkw_chart" />
+            <span style="color: #333; font-weight: 500;">Include AVGKW Network Envelope Chart</span>
+          </div>
+          <div class="toggle-row"
+            style="display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <input type="checkbox" name="include_avgkva_chart" value="1" checked id="include_avgkva_chart" />
+            <span style="color: #333; font-weight: 500;">Include AVGKVA Network Envelope Chart</span>
+          </div>
+          <div class="toggle-row"
+            style="display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <input type="checkbox" name="include_smoothing_chart" value="1" checked id="include_smoothing_chart" />
+            <span style="color: #333; font-weight: 500;">Include Smoothing Index Chart</span>
+          </div>
+          <div class="toggle-row"
+            style="display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <input type="checkbox" name="include_variance_chart" value="1" checked id="include_variance_chart" />
+            <span style="color: #333; font-weight: 500;">Include Variance Reduction Chart</span>
+          </div>
+          <div class="toggle-row"
+            style="display: flex; align-items: center; gap: 10px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e0e0e0;">
+            <input type="checkbox" name="include_cv_chart" value="1" checked id="include_cv_chart" />
+            <span style="color: #333; font-weight: 500;">Include CV Reduction Chart</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Chart Analysis Section -->
+      <div class="chart-analysis-section"
+        style="display: block; margin: 20px 0; padding: 20px; border: 2px solid #007bff; border-radius: 8px; background: #f0f8ff;">
+        <h3 style="margin-top: 0; color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
+          Interactive Visual Analysis - Chart Your Data!</h3>
+        <p style="color: #666; margin-bottom: 15px; font-style: italic;">Use the controls below to create interactive
+          charts from your analysis data. Select chart type, data metric, and time period to visualize your results.</p>
+
+        <div class="chart-controls" style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+          <div class="chart-group" style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="chartType" style="font-weight: bold; color: #333;">Chart Type:</label>
+            <select id="chartType" onchange="updateChart()"
+              style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; min-width: 200px;">
+              <option value="line">Line Chart (Timeline)</option>
+              <option value="bar">Bar Chart (Comparison)</option>
+              <option value="pie">Pie Chart (Distribution)</option>
+              <option value="scatter">Scatter Plot (Correlation)</option>
+              <option value="radar">Radar Chart (Multi-dimensional)</option>
+            </select>
+          </div>
+
+          <div class="chart-group" style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="dataMetric" style="font-weight: bold; color: #333;">Data Metric:</label>
+            <select id="dataMetric" onchange="updateChart()"
+              style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; min-width: 200px;">
+              <option value="avgKw">Average kW</option>
+              <option value="avgKva">Average kVA</option>
+              <option value="avgPf">Power Factor</option>
+              <option value="avgTHD">THD</option>
+              <option value="all">All Metrics</option>
+            </select>
+          </div>
+
+          <div class="chart-group" style="display: flex; flex-direction: column; gap: 5px;">
+            <label for="timePeriod" style="font-weight: bold; color: #333;">Time Period:</label>
+            <select id="timePeriod" onchange="updateChart()"
+              style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; background: white; min-width: 200px;">
+              <option value="comparison">Before vs After</option>
+              <option value="before">Before Synerex</option>
+              <option value="after">After Synerex</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="chart-container"
+          style="text-align: center; background: white; padding: 15px; border-radius: 8px; border: 1px solid #e0e0e0;">
+          <canvas id="chartjsAnalysisChart" width="800" height="400" style="max-width: 100%; height: auto;"></canvas>
+        </div>
+
+        <div class="chart-actions" style="margin-top: 15px; text-align: center;">
+          <button onclick="testChart()" class="btn"
+            style="background: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; font-weight: bold;">
+            Test Chart (Try This First!)</button>
+          <button onclick="exportChart()" class="btn"
+            style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Export
+            Chart</button>
+          <button onclick="resetChart()" class="btn"
+            style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Reset
+            Chart</button>
+        </div>
+      </div>
+
+      <div class="export-pdf-bottom" style="margin:16px 0; display:flex; justify-content:flex-end;">
+        <div class="flex items-center gap-3" style="margin: 10px 0 6px 0;">
+          <label for="regionSelect"><b>Region:</b></label>
+          <select id="regionSelect">
+            <option value="us">US (Imperial)</option>
+            <option value="metric">Canada/EU (Metric)</option>
+          </select>
+          <button id="btnDownloadFieldKit" type="button" class="btn">Download Field Kit (Light)</button>
+        </div>
+
+        <button type="button" id="btnExportPDF" class="btn" disabled
+          style="background-color: #00b894; color: white; border-color: #00b894;">Export HTML Report</button>
+        <button type="button" id="btnExportESGCaseStudy" class="btn" disabled
+          style="background-color: #667eea; color: white; border-color: #667eea; margin-left: 8px;">Generate ESG Case Study Report</button>
+        <button type="button" id="btnExportLaymanReport" class="btn" disabled
+          style="background-color: #2c5aa0; color: white; border-color: #2c5aa0; margin-left: 8px;">Executive Summary Report</button>
+        <div style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
+          <select id="pdfReportType" class="btn"
+            style="background: white; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; min-width: 200px;">
+            <option value="network">Network Analysis PDF</option>
+            <option value="summary">Summary Report PDF</option>
+            <option value="technical">Technical Report PDF</option>
+          </select>
+          <button type="button" id="btnExportSelectedPDF" class="btn" disabled>Export PDF</button>
+        </div>
+        <button type="button" id="btnGenerateAuditPackage" class="btn" disabled
+          style="background-color: #28a745; color: white; border-color: #28a745;">Generate Audit Package</button>
+        <button type="button" id="btnGenerateUtilityPackage" class="btn" disabled
+          style="background-color: #007bff; color: white; border-color: #007bff;">Generate Utility Submission Package</button>
+        <button type="button" id="btnViewEquipmentHealth" class="btn" disabled
+          style="background-color: #ff6b35; color: white; border-color: #ff6b35;">View Equipment Health Report</button>
+      </div>
+
+
+      <!-- Client Profiles panel (toggle with Alt+P) -->
+      <style>
+        .profile-panel {
+          position: fixed;
+          right: 12px;
+          bottom: 12px;
+          z-index: 9999;
+          background: #ffffffee;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, .1);
+          max-width: 360px;
+          font-family: system-ui, Segoe UI, Roboto, Arial, sans-serif
+        }
+
+        .profile-panel h4 {
+          margin: 0 0 8px 0;
+          font-size: 14px
+        }
+
+        .profile-panel .row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin: 6px 0
+        }
+
+        .profile-panel input[type="text"] {
+          flex: 1;
+          padding: 6px 8px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px
+        }
+
+        .profile-panel button {
+          padding: 6px 10px;
+          border: 1px solid #0ea5e9;
+          background: #0ea5e9;
+          color: white;
+          border-radius: 8px;
+          cursor: pointer
+        }
+
+        .profile-panel button.secondary {
+          background: white;
+          color: #0ea5e9
+        }
+
+        .profile-panel .list {
+          max-height: 160px;
+          overflow: auto;
+          border: 1px dashed #e2e8f0;
+          border-radius: 8px;
+          padding: 6px;
+          margin-top: 6px;
+          font-size: 12px
+        }
+
+        .profile-panel .muted {
+          color: #64748b;
+          font-size: 12px
+        }
+
+        .help {
+          font-size: .85rem;
+          color: #666;
+          margin-top: 4px
+        }
+      </style>
+
+      <div id="profilePanel" class="profile-panel" style="display:none">
+        <h4>Client Profiles</h4>
+        <div class="row">
+          <input id="prof_id" type="text" placeholder="Client ID (e.g., HCA-FW-001)" / />
+          <button id="btnProfSave">Save</button>
+        </div>
+        <div class="row">
+          <button class="secondary" id="btnProfLoad">Load</button>
+          <button class="secondary" id="btnProfClone">Clone</button>
+          <button class="secondary" id="btnProfList">List</button>
+        </div>
+        <div class="muted">Tip: Press <b>Alt+P</b> to show/hide. Profiles are stored server-side.</div>
+        <div class="list" id="prof_list"></div>
+      </div>
+
+      <!-- Public Key Verification Section -->
+      <section class="card" id="verifyCard">
+        <h2>Verify Signature</h2>
+        <p class="muted">Use this tool to verify the report's signature with the public key. The PDF includes the
+          signature and key ID for offline audits.</p>
+        <div style="display:grid; gap:8px; grid-template-columns: 1fr;">
+          <label>Public Key (PEM)</label>
+          <div style="display:flex; gap:8px; align-items:start;"><textarea id="ver_pub" rows="5"
+              placeholder="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----" style="flex:1"></textarea><button
+              class="btn" type="button" id="btn_copy_pub">Copy Public Key</button></div>
+          <label>Signature (Base64)</label>
+          <div style="display:flex; gap:8px;"><input id="ver_sig" type="text" placeholder="Base64 signature"
+              style="flex:1" / /><button class="btn" type="button" id="btn_copy_sig">Copy Signature</button></div>
+          <label>Results JSON</label>
+          <div style="display:flex; gap:8px; align-items:start;"><textarea id="ver_json" rows="8"
+              placeholder='{"...": "..."}' style="flex:1"></textarea><button class="btn" type="button"
+              id="btn_copy_json">Copy JSON</button></div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" type="button" id="btn_prefill">Prefill from this report</button>
+            <button class="btn" type="button" id="btn_verify">Verify</button>
+          </div>
+          <div id="ver_status" class="muted" style="margin-top:6px;"></div>
+        </div>
+      </section>
+
+      <!-- Audit Mode Section - Moved to Bottom -->
+      <div class="form-group">
+        <h3>Audit Mode (bundle + appendix)</h3>
+        <label><input type="checkbox" id="audit_mode" name="audit_mode" value="1" /> Include an evidence ZIP (inputs,
+          config snapshot, calc trace) and add an "Assumptions & Methods" appendix in the PDF</label>
+        <div class="help">Enable this for M&V compliance and audit trail documentation. Creates a downloadable ZIP file
+          with all inputs and calculation evidence.</div>
+      </div>
+
+  </form>
+
+</div>
+
+<!-- SynerexAI Chat Dropdown Widget -->
+<div id="synerex-ai-chat-widget" class="synerex-ai-chat-widget" style="display: none;">
+  <div class="chat-widget-header">
+    <div class="chat-widget-title">
+      <img src="{{ synerex_logo_url }}" alt="SYNEREX" class="chat-logo">
+      <span class="ai-suffix">AI</span>
+      <span class="chat-title">SynerexAI Assistant</span>
+    </div>
+    <button class="chat-close-btn" onclick="toggleSynerexAIChat()">×</button>
+  </div>
+
+  <div class="chat-widget-content">
+    <div class="chat-messages" id="chatMessages">
+      <div class="ai-message">
+        <strong>SynerexAI:</strong> Hello! I'm your specialized Energy AI assistant. I can help with energy analysis,
+        XECO equipment, utility information, electrical code guidance, and SYNEREX program usage. What can I help you
+        with while you fill out this form?
+      </div>
+    </div>
+
+    <div class="example-questions">
+      <h4>Quick Questions:</h4>
+      <div class="question-chips">
+        <span class="question-chip" onclick="askQuickQuestion('What are XECO-HF Series specifications?')">XECO-HF
+          Specs</span>
+        <span class="question-chip" onclick="askQuickQuestion('How to install XECO-PFC?')">XECO-PFC Install</span>
+        <span class="question-chip" onclick="askQuickQuestion('What are the utility rates here?')">Utility Rates</span>
+        <span class="question-chip" onclick="askQuickQuestion('Help with electrical code compliance')">Electrical
+          Code</span>
+        <span class="question-chip" onclick="askQuickQuestion('How do I fill out this form correctly?')">Form
+          Help</span>
+        <span class="question-chip" onclick="askQuickQuestion('What data do I need for this analysis?')">Data
+          Requirements</span>
+      </div>
+    </div>
+
+    <div class="chat-input-container">
+      <input type="text" id="chatInput"
+        placeholder="Ask SynerexAI about energy analysis, XECO equipment, utility rates, or form completion..."
+        onkeypress="handleChatKeyPress(event)">
+      <button class="chat-send-btn" onclick="sendChatMessage()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- SynerexAI Chat Widget CSS -->
+<style>
+  /* SynerexAI Chat Dropdown Widget */
+  .synerex-ai-chat-widget {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 400px;
+    height: 500px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    border: 2px solid #2c5aa0;
+  }
+
+  .chat-widget-header {
+    background: linear-gradient(135deg, #2c5aa0, #1e3a5f);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 13px 13px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .chat-widget-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .chat-logo {
+    height: 30px;
+    width: auto;
+  }
+
+  .ai-suffix {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .chat-title {
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  .chat-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+  }
+
+  .chat-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .chat-widget-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    max-height: 300px;
+  }
+
+  .ai-message,
+  .user-message {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 10px;
+    max-width: 85%;
+  }
+
+  .user-message {
+    background: #2c5aa0;
+    color: white;
+    margin-left: auto;
+    text-align: right;
+  }
+
+  .ai-message {
+    background: #e9ecef;
+    color: #333;
+  }
+
+  .example-questions {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .example-questions h4 {
+    margin: 0 0 10px 0;
+    color: #2c5aa0;
+    font-size: 14px;
+  }
+
+  .question-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .question-chip {
+    background: #2c5aa0;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+  }
+
+  .question-chip:hover {
+    background: #1e3a5f;
+    transform: translateY(-1px);
+  }
+
+  .chat-input-container {
+    padding: 15px 20px;
+    background: white;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    gap: 10px;
+    border-radius: 0 0 13px 13px;
+  }
+
+  #chatInput {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s ease;
+  }
+
+  #chatInput:focus {
+    border-color: #2c5aa0;
+  }
+
+  .chat-send-btn {
+    background: #2c5aa0;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .chat-send-btn:hover {
+    background: #1e3a5f;
+    transform: translateY(-1px);
+  }
+
+  /* Typing indicator styles */
+  .typing-indicator {
+    opacity: 0.7;
+    font-style: italic;
+  }
+
+  .typing-dots {
+    display: inline-block;
+    animation: typing 1.5s infinite;
+  }
+
+  @keyframes typing {
+
+    0%,
+    20% {
+      content: 'Thinking';
+    }
+
+    25%,
+    45% {
+      content: 'Thinking.';
+    }
+
+    50%,
+    70% {
+      content: 'Thinking..';
+    }
+
+    75%,
+    95% {
+      content: 'Thinking...';
+    }
+
+    100% {
+      content: 'Thinking';
+    }
+  }
+
+  .chat-send-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Mobile responsiveness for chat widget */
+  @media (max-width: 768px) {
+    .synerex-ai-chat-widget {
+      width: 350px;
+      height: 450px;
+      right: 10px;
+      top: 70px;
+    }
+
+    .question-chips {
+      flex-direction: column;
+    }
+
+    .question-chip {
+      text-align: center;
+    }
+  }
+</style>
+
+<footer class="legal-footer">Copyright © 2025-Present. Synerex Laboratories, LLC. All rights reserved. This software is
+  protected by U.S. and international copyright laws. Reproduction and distribution of this software without written
+  permission from Synerex Laboratories, LLC is prohibited.</footer>
+
+<script>
+  // Back to Dashboard button functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const backButton = document.getElementById('back-to-dashboard');
+    if (backButton) {
+      backButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('🔙 Back to Dashboard clicked - clearing all spinners and navigating...');
+        
+        // CRITICAL: Clear all spinners immediately and aggressively before navigation
+        const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"], [class*="Loading"]');
+        spinners.forEach(spinner => {
+          spinner.style.display = 'none';
+          spinner.style.visibility = 'hidden';
+          spinner.style.opacity = '0';
+          spinner.classList.remove('loading', 'active', 'spinning', 'spinner', 'Loading');
+        });
+        
+        // Clear loading classes from body and html
+        document.body.classList.remove('loading', 'modal-open', 'spinning');
+        document.body.style.opacity = '';
+        document.body.style.pointerEvents = '';
+        document.documentElement.classList.remove('loading', 'modal-open');
+        
+        // Clear any loading overlays
+        const overlays = document.querySelectorAll('.loading-overlay, .spinner-overlay, [class*="overlay"], [class*="Overlay"]');
+        overlays.forEach(overlay => {
+          overlay.style.display = 'none';
+          overlay.style.visibility = 'hidden';
+        });
+        
+        // Clear any CSS animations that might show spinners
+        const style = document.createElement('style');
+        style.textContent = `
+          .spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+          }
+          body.loading, body.spinning {
+            opacity: 1 !important;
+          }
+        `;
+        document.head.appendChild(style);
+        
+        // Use replace immediately - no delay needed, spinners already cleared above
+        window.location.replace('/main-dashboard');
+      });
+    }
+  });
+
+  // Clear spinners on page unload to prevent them from persisting
+  window.addEventListener('beforeunload', function() {
+    const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+    spinners.forEach(spinner => {
+      spinner.style.display = 'none';
+      spinner.style.visibility = 'hidden';
+      spinner.classList.remove('loading', 'active', 'spinning');
+    });
+    document.body.classList.remove('loading', 'modal-open');
+  });
+
+  window.addEventListener('pagehide', function() {
+    const spinners = document.querySelectorAll('.spinner, .loading-spinner, [class*="spinner"], .loading, [id*="spinner"], [id*="loading"], [class*="loading"]');
+    spinners.forEach(spinner => {
+      spinner.style.display = 'none';
+      spinner.style.visibility = 'hidden';
+      spinner.classList.remove('loading', 'active', 'spinning');
+    });
+    document.body.classList.remove('loading', 'modal-open');
+  });
+
+  // SynerexAI Chat Widget Functions
+  function toggleSynerexAIChat() {
+    const chatWidget = document.getElementById('synerex-ai-chat-widget');
+    if (chatWidget.style.display === 'none') {
+      chatWidget.style.display = 'flex';
+      // Focus on input when opened
+      setTimeout(() => {
+        document.getElementById('chatInput').focus();
+      }, 100);
+    } else {
+      chatWidget.style.display = 'none';
+    }
+  }
+
+  function askQuickQuestion(question) {
+    // Add user message to chat
+    addChatMessage(question, 'user');
+
+    // Simulate AI response
+    setTimeout(() => {
+      generateAIResponse(question).then(response => {
+        addChatMessage(response, 'ai');
+      }).catch(error => {
+        console.error('Error getting AI response:', error);
+        addChatMessage('Sorry, I encountered an error. Please try again.', 'ai');
+      });
+    }, 1000);
+  }
+
+  function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+
+    if (!message) {
+      return;
+    }
+
+    // Add user message
+    addChatMessage(message, 'user');
+
+    // Clear input
+    input.value = '';
+
+    // Disable send button and show loading
+    const sendBtn = document.querySelector('.chat-send-btn');
+    const originalText = sendBtn.textContent;
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Thinking...';
+
+    // Add typing indicator
+    addTypingIndicator();
+
+    // Simulate AI response with realistic timing
+    setTimeout(() => {
+      generateAIResponse(message).then(response => {
+        removeTypingIndicator();
+        addChatMessage(response, 'ai');
+        
+        // Re-enable send button
+        sendBtn.disabled = false;
+        sendBtn.textContent = originalText;
+      }).catch(error => {
+        console.error('Error getting AI response:', error);
+        removeTypingIndicator();
+        addChatMessage('Sorry, I encountered an error. Please try again.', 'ai');
+        
+        // Re-enable send button
+        sendBtn.disabled = false;
+        sendBtn.textContent = originalText;
+      });
+    }, 1500);
+  }
+
+  function addTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'ai-message typing-indicator';
+    typingDiv.id = 'typingIndicator';
+    typingDiv.innerHTML = '<strong>SynerexAI:</strong> <span class="typing-dots">Thinking</span>';
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function removeTypingIndicator() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+      typingIndicator.remove();
+    }
+  }
+
+  function addChatMessage(text, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${sender}-message`;
+
+    const prefix = sender === 'user' ? 'You:' : 'SynerexAI:';
+    messageDiv.innerHTML = `<strong>${prefix}</strong> ${text}`;
+
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Enhanced SynerexAI instance
+  let enhancedAI = null;
+
+  // Initialize enhanced AI when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+
+    if (typeof EnhancedSynerexAI !== 'undefined') {
+      try {
+        enhancedAI = new EnhancedSynerexAI();
+      } catch (error) {
+        console.error('[ERROR] Error initializing Enhanced SynerexAI:', error);
+        enhancedAI = null;
+      }
+    } else {
+      console.warn('[WARNING] EnhancedSynerexAI class not found - using fallback responses');
+      enhancedAI = null;
+    }
+  });
+
+  async function generateAIResponse(question) {
+    // Use enhanced AI if available
+    if (enhancedAI) {
+      try {
+        const response = await enhancedAI.generateEnhancedResponse(question);
+        console.log('SynerexAI Debug: Enhanced AI response generated');
+        return response;
+      } catch (error) {
+        console.error('[ERROR] Error in enhanced AI response:', error);
+        // Fall through to fallback
+      }
+    }
+
+    console.log('SynerexAI Debug: Using fallback responses');
+    // Fallback to improved basic responses
+    const lowerQuestion = question.toLowerCase();
+
+    // Form completion questions
+    if (lowerQuestion.includes('form') || lowerQuestion.includes('fill out') || lowerQuestion.includes(
+        'data requirements')) {
+      return `For completing this SYNEREX analysis form, I can help with:
+        • Required data fields and their purposes
+        • Data collection best practices
+        • Form validation and error checking
+        • Analysis parameter guidance
+        • Standards compliance requirements
+        
+        What specific form section or data requirement do you need help with?`;
+    }
+
+    // XECO Product Questions
+    if (lowerQuestion.includes('xeco-hf') || lowerQuestion.includes('harmonic filter')) {
+      return `The XECO-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
+        • Voltage Rating: 480V, 600V, 1000V
+        • Current Rating: 50A to 2000A
+        • Harmonic Filtering: 5th, 7th, 11th, 13th harmonics
+        • Efficiency: >98%
+        • Applications: VFDs, UPS systems, LED lighting
+        
+        For installation, ensure proper clearance (3 feet front, 1 foot sides) and adequate ventilation. Would you like specific installation guidance?`;
+    }
+
+    // Installation Questions
+    if (lowerQuestion.includes('install') || lowerQuestion.includes('installation')) {
+      return `For XECO equipment installation, follow these key requirements:
+        • All installations must comply with NEC and local codes
+        • Qualified electrician required for installation
+        • Proper grounding and bonding required
+        • Adequate ventilation and clearance maintained
+        • Electrical permits obtained before installation
+        
+        Specific installation requirements vary by product model. Which XECO product are you installing?`;
+    }
+
+    // Utility Information Questions
+    if (lowerQuestion.includes('utility') || lowerQuestion.includes('rate')) {
+      return `For utility rate information, I can help with:
+        • Local utility rate analysis and comparison
+        • Tariff structure optimization
+        • Time-of-use rate analysis
+        • Demand charge optimization
+        • Local incentive programs
+        
+        Please provide your location (city, state, zip code) for specific utility rate information.`;
+    }
+
+    // Electrical Code Questions
+    if (lowerQuestion.includes('electrical code') || lowerQuestion.includes('nec')) {
+      return `For electrical code compliance, I can assist with:
+        • NEC compliance requirements
+        • Electrical installation standards
+        • Wiring and grounding requirements
+        • Electrical permit requirements
+        • Safety and inspection guidance
+        
+        What specific electrical installation are you working on?`;
+    }
+
+    // Power Quality Questions
+    if (lowerQuestion.includes('power quality') || lowerQuestion.includes('harmonic')) {
+      return `For power quality analysis, I can help with:
+        • Harmonic distortion analysis
+        • Voltage unbalance assessment
+        • Power factor correction
+        • IEEE 519 compliance
+        • Power quality monitoring
+        
+        Please provide your power quality data or describe the specific power quality issues you're experiencing.`;
+    }
+
+    // Troubleshooting Questions
+    if (lowerQuestion.includes('troubleshoot') || lowerQuestion.includes('problem')) {
+      return `For troubleshooting assistance, I can help with:
+        • Common XECO equipment issues
+        • Diagnostic procedures
+        • Maintenance schedules
+        • Replacement parts identification
+        • Technical support guidance
+        
+        What specific equipment or issue are you troubleshooting?`;
+    }
+
+    // SYNEREX Program Usage Questions
+    if (lowerQuestion.includes('synerex') || lowerQuestion.includes('program') || lowerQuestion.includes('dashboard') ||
+      lowerQuestion.includes('how to use')) {
+      return `For SYNEREX program usage, I can help with:
+        • Dashboard navigation and features
+        • CSV file upload and processing
+        • Project creation and management
+        • Report generation and analysis
+        • Admin panel access and configuration
+        • System troubleshooting and optimization
+        • User authentication and roles
+        • Data analysis and calculations
+        
+        What specific SYNEREX feature or function would you like help with?`;
+    }
+
+    // General Energy Questions - Improved responses
+    if (lowerQuestion.includes('hello') || lowerQuestion.includes('hi') || lowerQuestion.includes('hey')) {
+      return `Hello! I'm SynerexAI, your specialized energy analysis assistant. I can help you with:
+        
+**Energy Analysis**: Power quality, efficiency optimization, and savings calculations
+**XECO Equipment**: Product recommendations, installation guidance, and technical support  
+**Utility Information**: Rate analysis, peak hours, and cost optimization
+**SYNEREX Program**: Form completion, data requirements, and system navigation
+**Electrical Codes**: NEC compliance, safety requirements, and installation standards
+
+What would you like help with today?`;
+    }
+
+    if (lowerQuestion.includes('help') || lowerQuestion.includes('what can you do')) {
+      return `I'm here to help with your energy analysis needs! Here's what I can assist with:
+
+**Energy Analysis & Optimization**
+• Power quality analysis and harmonic filtering
+• Energy efficiency recommendations
+• Cost savings calculations and ROI analysis
+• Weather normalization and baseline adjustments
+
+**XECO Equipment Support**
+• Product selection and sizing recommendations
+• Installation requirements and electrical codes
+• Technical specifications and performance data
+• Troubleshooting and maintenance guidance
+
+**Utility & Rate Optimization**
+• Local utility rate analysis and comparison
+• Time-of-use rate optimization strategies
+• Demand response program participation
+• Peak demand reduction techniques
+
+**SYNEREX Program Assistance**
+• Form completion and data requirements
+• CSV file upload and processing guidance
+• Report generation and analysis interpretation
+• System navigation and feature usage
+
+What specific area would you like to explore?`;
+    }
+
+    // Default intelligent response - analyze the question more intelligently
+    let response = `Thank you for your energy-related question! As SynerexAI, I specialize in:
+• Energy analysis and efficiency optimization
+• XECO equipment support and installation
+• Utility information and rate optimization
+• Electrical code compliance and safety
+• Power quality analysis and improvement
+
+Could you provide more specific details about your energy question so I can give you the most accurate assistance?`;
+
+    // Try to provide more specific guidance based on keywords
+    if (lowerQuestion.includes('energy') || lowerQuestion.includes('power') || lowerQuestion.includes('electricity')) {
+      response = `I can help with your energy question! Based on your inquiry, here are some specific areas I can assist with:
+
+**🔋 Energy Analysis & Optimization:**
+• Power quality assessment and harmonic analysis
+• Energy efficiency recommendations and savings calculations
+• Baseline energy consumption analysis
+• Weather normalization and seasonal adjustments
+• ROI calculations for energy improvements
+
+**Power Quality Solutions:**
+• Harmonic distortion analysis and filtering
+• Power factor correction recommendations
+• Voltage unbalance assessment
+• IEEE 519 compliance verification
+• Power quality monitoring setup
+
+What specific energy challenge or analysis are you working on?`;
+    } else if (lowerQuestion.includes('equipment') || lowerQuestion.includes('install') || lowerQuestion.includes(
+        'xeco')) {
+      response = `I can help with equipment and installation questions! Here's what I can assist with:
+
+**XECO Equipment Support:**
+• Product selection and sizing recommendations
+• Technical specifications and performance data
+• Installation requirements and electrical codes
+• Maintenance schedules and troubleshooting
+• Warranty and support information
+
+**Installation Guidance:**
+• NEC compliance requirements
+• Electrical permit and inspection processes
+• Safety procedures and best practices
+• Clearance and ventilation requirements
+• Grounding and bonding specifications
+
+What specific equipment or installation question do you have?`;
+    } else if (lowerQuestion.includes('utility') || lowerQuestion.includes('rate') || lowerQuestion.includes('cost')) {
+      response = `I can help with utility and cost optimization! Here's what I can assist with:
+
+**Utility Rate Analysis:**
+• Local utility rate structure analysis
+• Time-of-use rate optimization strategies
+• Demand charge reduction techniques
+• Peak demand management
+• Rate comparison and switching opportunities
+
+**Cost Optimization:**
+• Energy cost savings calculations
+• ROI analysis for energy improvements
+• Incentive program identification
+• Demand response participation
+• Energy procurement strategies
+
+What specific utility or cost question do you have?`;
+    }
+
+    return response;
+  }
+
+  function handleChatKeyPress(event) {
+    if (event.key === 'Enter') {
+      sendChatMessage();
+    }
+  }
+
+  // Load enhanced SynerexAI if available
+  if (typeof EnhancedSynerexAI !== 'undefined') {
+    enhancedAI = new EnhancedSynerexAI();
+  }
+</script>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Chart System Test -->
+<script>
+  // Force show chart section on page load for debugging
+  setTimeout(function() {
+    const chartSection = document.querySelector('.chart-analysis-section');
+    if (chartSection) {
+      chartSection.style.display = 'block';
+      chartSection.style.border = '3px solid red';
+      chartSection.style.background = 'lightblue';
+    } else {
+      console.error('[ERROR] Chart section not found in DOM');
+    }
+  }, 2000);
+
+  // Make sure the manual function is available globally
+  window.showChartControlsManually = function() {
+    const chartSection = document.querySelector('.chart-analysis-section');
+    if (chartSection) {
+      chartSection.style.display = 'block';
+      alert('Chart controls should now be visible!');
+    } else {
+      alert('Chart section not found in page');
+    }
+  };
+</script>
+
+<!-- Ollama AI Service Script (must load before enhanced_synerex_ai.js) -->
+<script src="/static/ollama_ai_service.js"></script>
+
+<!-- SynerexAI Knowledge Base Script -->
+<script src="/static/synerex_ai_knowledge_base.js"></script>
+
+<!-- Enhanced SynerexAI Script -->
+<script src="/static/enhanced_synerex_ai.js"></script>
+
+</div> <!-- End container -->
