@@ -701,36 +701,33 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         kw_before = safe_get(power_quality, "kw_before", default=0)
         kw_after = safe_get(power_quality, "kw_after", default=0)
         print(f"*** BREAKDOWN FUNCTION: kw_before={kw_before}, kw_after={kw_after} ***")
+        print(f"*** BREAKDOWN FUNCTION: weather_normalized_kw_before={safe_get(power_quality, 'weather_normalized_kw_before')}, weather_normalized_kw_after={safe_get(power_quality, 'weather_normalized_kw_after')} ***")
+        print(f"*** BREAKDOWN FUNCTION: normalized_kw_before={safe_get(power_quality, 'normalized_kw_before')}, normalized_kw_after={safe_get(power_quality, 'normalized_kw_after')} ***")
+        print(f"*** BREAKDOWN FUNCTION: calculated_pf_normalized_kw_before={safe_get(power_quality, 'calculated_pf_normalized_kw_before')}, calculated_pf_normalized_kw_after={safe_get(power_quality, 'calculated_pf_normalized_kw_after')} ***")
         
-        # Get weather normalized values
-        # CRITICAL: Use the exact same values that UI Analysis displays
-        # Prioritize values from power_quality (same source as UI Analysis)
+        # Get values directly from power_quality where Analysis stores them
         weather_normalized_kw_before = safe_get(power_quality, "weather_normalized_kw_before", default=0)
         weather_normalized_kw_after = safe_get(power_quality, "weather_normalized_kw_after", default=0)
+        normalized_kw_before = safe_get(power_quality, "normalized_kw_before", default=0)
+        normalized_kw_after = safe_get(power_quality, "normalized_kw_after", default=0)
         
-        # If weather normalized values are missing, try to get from weather_normalization as fallback
-        if weather_normalized_kw_before == 0 or weather_normalized_kw_after == 0:
-            weather_norm_fallback = safe_get(r, "weather_normalization", default={})
-            if weather_normalized_kw_before == 0:
-                weather_normalized_kw_before = safe_get(weather_norm_fallback, "weather_normalized_kw_before", default=0)
-            if weather_normalized_kw_after == 0:
-                weather_normalized_kw_after = safe_get(weather_norm_fallback, "weather_normalized_kw_after", default=0)
+        # CRITICAL: Convert all numeric values to float to prevent type errors in calculations
+        # safe_get() may return strings, so we need to ensure all values are numeric
+        def to_float(value, default=0.0):
+            """Safely convert value to float"""
+            if value is None:
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
         
-        # Get fully normalized values
-        # PRIORITIZE: Use stored calculated values from UI if available, otherwise use backend values
-        # The UI calculates these values and stores them in power_quality for consistency
-        # CRITICAL FIX: Always prioritize PF-normalized values (calculated_pf_normalized_kw_before) over 
-        # weather-normalized values (normalized_kw_before) to ensure correct percentage calculation
-        normalized_kw_before = (
-            safe_get(power_quality, "calculated_pf_normalized_kw_before") or  # Step 4 PF-normalized (most accurate)
-            safe_get(power_quality, "pf_normalized_kw_before") or  # Step 3 PF-normalized
-            safe_get(power_quality, "normalized_kw_before", default=0)  # Fallback (may be weather-normalized)
-        )
-        normalized_kw_after = (
-            safe_get(power_quality, "calculated_pf_normalized_kw_after") or  # Step 4 PF-normalized (most accurate)
-            safe_get(power_quality, "pf_normalized_kw_after") or  # Step 3 PF-normalized
-            safe_get(power_quality, "normalized_kw_after", default=0)  # Fallback (may be weather-normalized)
-        )
+        kw_before = to_float(kw_before, 0.0)
+        kw_after = to_float(kw_after, 0.0)
+        weather_normalized_kw_before = to_float(weather_normalized_kw_before, 0.0)
+        weather_normalized_kw_after = to_float(weather_normalized_kw_after, 0.0)
+        normalized_kw_before = to_float(normalized_kw_before, 0.0)
+        normalized_kw_after = to_float(normalized_kw_after, 0.0)
         
         # Check if we have data to show (use None checks and >= 0 to allow zero values)
         has_raw = (kw_before is not None and kw_after is not None and 
@@ -770,7 +767,14 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # Get power factor data
         pf_before = safe_get(power_quality, "pf_before") or safe_get(power_quality, "power_factor_before", default=0.95)
         pf_after = safe_get(power_quality, "pf_after") or safe_get(power_quality, "power_factor_after", default=0.95)
-        target_pf = 0.95
+        # Get target_pf from config (matching Analysis view)
+        config = safe_get(r, "config", default={})
+        target_pf = safe_get(config, "target_pf") or safe_get(config, "target_power_factor") or safe_get(power_quality, "target_pf") or 0.95
+        
+        # Convert power factor values to float to prevent type errors
+        pf_before = to_float(pf_before, 0.95)
+        pf_after = to_float(pf_after, 0.95)
+        target_pf = to_float(target_pf, 0.95)
         
         # Calculate values
         raw_savings_kw = kw_before - kw_after if has_raw else 0
@@ -779,22 +783,11 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
         weather_savings_percent = (weather_savings_kw / weather_normalized_kw_before * 100) if has_weather and weather_normalized_kw_before > 0 else 0
         
-        # Calculate total normalized savings FIRST (so we can use it for PF contribution)
-        # PRIORITIZE: Use stored calculated values from UI if available
-        if safe_get(power_quality, "total_normalized_savings_kw") is not None:
-            total_savings_kw = safe_get(power_quality, "total_normalized_savings_kw", default=0)
-            total_normalized_percent = safe_get(power_quality, "total_normalized_savings_percent", default=0)
-        else:
-            # CRITICAL FIX: Ensure we use PF-normalized values for calculation, not weather-normalized
-            # Get the correct PF-normalized "before" value for the denominator
-            pf_normalized_kw_before_for_calc = (
-                safe_get(power_quality, "calculated_pf_normalized_kw_before") or
-                safe_get(power_quality, "pf_normalized_kw_before") or
-                normalized_kw_before  # Fallback (should be PF-normalized after fix above)
-            )
-            total_savings_kw = normalized_kw_before - normalized_kw_after if has_fully else 0
-            # Use PF-normalized "before" value for percentage calculation to avoid double-counting
-            total_normalized_percent = (total_savings_kw / pf_normalized_kw_before_for_calc * 100) if has_fully and pf_normalized_kw_before_for_calc > 0 else 0
+        # Calculate total normalized savings - EXACTLY as Analysis does
+        # Analysis: totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4
+        total_savings_kw = weather_normalized_kw_before - normalized_kw_after
+        # Analysis: totalNormalizedPercentStep4 = (totalSavingsKwStep4 / weatherBeforeForStep4) * 100
+        total_normalized_percent = (total_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
         
         # Calculate weather savings
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
@@ -1078,7 +1071,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         if has_fully and pf_before and pf_after:
             # Use the better PF (higher value) as normalization target to show true savings benefit
             # This ensures savings percentage increases when PF improves
-            normalization_pf = max(pf_before, pf_after, target_pf)
+            # Match Analysis: use target_pf directly (not max)
+            normalization_pf = target_pf
             pf_adjustment_before = normalization_pf / pf_before if pf_before > 0 else 1.0
             pf_adjustment_after = normalization_pf / pf_after if pf_after > 0 else 1.0
             
@@ -1125,19 +1119,16 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 6px; border-left: 4px solid #4caf50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
         html.append('<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Step 4: Final Normalized Savings Result</h4>')
         
-        if has_fully:
+        # Always show Step 4 if we have power_quality data
+        if has_power_quality:
+            pf_normalized_kw_before_display = normalized_kw_before
+            
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            # CRITICAL FIX: Use PF-normalized "before" value for display to ensure correct percentage calculation
-            pf_normalized_kw_before_display = (
-                safe_get(power_quality, "calculated_pf_normalized_kw_before") or
-                safe_get(power_quality, "pf_normalized_kw_before") or
-                normalized_kw_before  # Fallback (should be PF-normalized after fix above)
-            )
             html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
             html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
-            html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
+            html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
             
             # Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
@@ -1147,7 +1138,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_energy_savings_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_energy_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>')
             
             # Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
-            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(pf_normalized_kw_before_display, 2)}) × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>')
+            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>')
             html.append('</table>')
             
             # Verification summary - Enhanced with detailed breakdown
@@ -3994,38 +3985,72 @@ def generate_exact_template_html(r):
     peak_kw_before = 0
     peak_kw_after = 0
     
-    # Primary: Use totalKw column from CSV data (as user specified)
-    total_kw_before = safe_get(before_data, "totalKw", default={})
-    if total_kw_before:
-        print(f"DEBUG: LOAD FACTOR: totalKw_before found: {type(total_kw_before)}")
-        # If totalKw has a values array, get the maximum
-        if isinstance(total_kw_before, dict):
-            total_kw_values = total_kw_before.get("values", [])
-            if total_kw_values and len(total_kw_values) > 0:
+    # Primary: Use avgKw (which contains data from totalKw column) - check maximum field first (raw CSV peak)
+    avg_kw_before_dict = safe_get(before_data, "avgKw", default={})
+    if avg_kw_before_dict and isinstance(avg_kw_before_dict, dict):
+        print(f"DEBUG: LOAD FACTOR: avgKw_before_dict found: {type(avg_kw_before_dict)}")
+        # First check maximum field (raw CSV peak, before filtering)
+        if avg_kw_before_dict.get("maximum"):
+            peak_kw_before = float(avg_kw_before_dict.get("maximum"))
+            print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from avgKw.maximum (raw CSV): {peak_kw_before}")
+        elif avg_kw_before_dict.get("max"):
+            peak_kw_before = float(avg_kw_before_dict.get("max"))
+            print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from avgKw.max: {peak_kw_before}")
+        # Fallback: calculate from values array
+        elif avg_kw_before_dict.get("values") and len(avg_kw_before_dict.get("values", [])) > 0:
+            total_kw_values = [float(v) for v in avg_kw_before_dict.get("values", []) if v is not None]
+            if total_kw_values:
                 peak_kw_before = max(total_kw_values)
-                print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from totalKw.values: {peak_kw_before}")
-            elif total_kw_before.get("maximum"):
-                peak_kw_before = total_kw_before.get("maximum")
+                print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from avgKw.values: {peak_kw_before}")
+    
+    # Fallback: Try totalKw (legacy support)
+    if peak_kw_before == 0:
+        total_kw_before = safe_get(before_data, "totalKw", default={})
+        if total_kw_before and isinstance(total_kw_before, dict):
+            if total_kw_before.get("maximum"):
+                peak_kw_before = float(total_kw_before.get("maximum"))
                 print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from totalKw.maximum: {peak_kw_before}")
             elif total_kw_before.get("max"):
-                peak_kw_before = total_kw_before.get("max")
+                peak_kw_before = float(total_kw_before.get("max"))
                 print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from totalKw.max: {peak_kw_before}")
+            elif total_kw_before.get("values") and len(total_kw_before.get("values", [])) > 0:
+                total_kw_values = [float(v) for v in total_kw_before.get("values", []) if v is not None]
+                if total_kw_values:
+                    peak_kw_before = max(total_kw_values)
+                    print(f"DEBUG: LOAD FACTOR: Found peak_kw_before from totalKw.values: {peak_kw_before}")
     
-    total_kw_after = safe_get(after_data, "totalKw", default={})
-    if total_kw_after:
-        print(f"DEBUG: LOAD FACTOR: totalKw_after found: {type(total_kw_after)}")
-        # If totalKw has a values array, get the maximum
-        if isinstance(total_kw_after, dict):
-            total_kw_values = total_kw_after.get("values", [])
-            if total_kw_values and len(total_kw_values) > 0:
+    avg_kw_after_dict = safe_get(after_data, "avgKw", default={})
+    if avg_kw_after_dict and isinstance(avg_kw_after_dict, dict):
+        print(f"DEBUG: LOAD FACTOR: avgKw_after_dict found: {type(avg_kw_after_dict)}")
+        # First check maximum field (raw CSV peak, before filtering)
+        if avg_kw_after_dict.get("maximum"):
+            peak_kw_after = float(avg_kw_after_dict.get("maximum"))
+            print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from avgKw.maximum (raw CSV): {peak_kw_after}")
+        elif avg_kw_after_dict.get("max"):
+            peak_kw_after = float(avg_kw_after_dict.get("max"))
+            print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from avgKw.max: {peak_kw_after}")
+        # Fallback: calculate from values array
+        elif avg_kw_after_dict.get("values") and len(avg_kw_after_dict.get("values", [])) > 0:
+            total_kw_values = [float(v) for v in avg_kw_after_dict.get("values", []) if v is not None]
+            if total_kw_values:
                 peak_kw_after = max(total_kw_values)
-                print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from totalKw.values: {peak_kw_after}")
-            elif total_kw_after.get("maximum"):
-                peak_kw_after = total_kw_after.get("maximum")
+                print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from avgKw.values: {peak_kw_after}")
+    
+    # Fallback: Try totalKw (legacy support)
+    if peak_kw_after == 0:
+        total_kw_after = safe_get(after_data, "totalKw", default={})
+        if total_kw_after and isinstance(total_kw_after, dict):
+            if total_kw_after.get("maximum"):
+                peak_kw_after = float(total_kw_after.get("maximum"))
                 print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from totalKw.maximum: {peak_kw_after}")
             elif total_kw_after.get("max"):
-                peak_kw_after = total_kw_after.get("max")
+                peak_kw_after = float(total_kw_after.get("max"))
                 print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from totalKw.max: {peak_kw_after}")
+            elif total_kw_after.get("values") and len(total_kw_after.get("values", [])) > 0:
+                total_kw_values = [float(v) for v in total_kw_after.get("values", []) if v is not None]
+                if total_kw_values:
+                    peak_kw_after = max(total_kw_values)
+                    print(f"DEBUG: LOAD FACTOR: Found peak_kw_after from totalKw.values: {peak_kw_after}")
     
     # Fallback: Try to get peak from demand structure
     if peak_kw_before == 0:
@@ -4123,9 +4148,23 @@ def generate_exact_template_html(r):
     kw_before = safe_get(power_quality, "kw_before", default=0)
     kw_after = safe_get(power_quality, "kw_after", default=0)
     
+    # kW Peak - Critical for utility demand billing
+    peak_kw_before_raw = safe_get(power_quality, "peak_kw_before", default=0) or peak_kw_before
+    peak_kw_after_raw = safe_get(power_quality, "peak_kw_after", default=0) or peak_kw_after
+    
+    # Calculate peak kW improvement (reverseLogic=true, lower is better)
+    if peak_kw_before_raw > 0 and peak_kw_after_raw > 0:
+        peak_kw_improvement_pct = ((peak_kw_before_raw - peak_kw_after_raw) / peak_kw_before_raw) * 100
+        is_reduction = peak_kw_after_raw < peak_kw_before_raw
+        change_text = "reduction" if is_reduction else "increase"
+        peak_kw_improvement = f"{abs(peak_kw_improvement_pct):.2f}% {change_text}"
+    else:
+        peak_kw_improvement = "N/A"
+    
     # DEBUG: Log kW values in HTML service
     print(f"*** DEBUG STEP 5 - HTML SERVICE: kw_before = {kw_before}, kw_after = {kw_after} ***")
     print(f"*** DEBUG STEP 5 - HTML SERVICE: kw_before = {kw_before}, kw_after = {kw_after} ***")
+    print(f"*** DEBUG STEP 5 - HTML SERVICE: peak_kw_before = {peak_kw_before_raw}, peak_kw_after = {peak_kw_after_raw} ***")
     kw_improvement = safe_get(power_quality, "kw_improvement_pct", default="0.0%")
     
     # Raw kVA values to match UI HTML Report Raw Meter Test Data section
@@ -4222,9 +4261,15 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{KW_AFTER}}', f"{format_number(kw_after, 2)} kW")
     template_content = template_content.replace('{{KW_IMPROVEMENT}}', kw_improvement)
     
+    # kW Peak - Critical for utility demand billing
+    template_content = template_content.replace('{{PEAK_KW_BEFORE}}', f"{format_number(peak_kw_before_raw, 2)} kW")
+    template_content = template_content.replace('{{PEAK_KW_AFTER}}', f"{format_number(peak_kw_after_raw, 2)} kW")
+    template_content = template_content.replace('{{PEAK_KW_IMPROVEMENT}}', peak_kw_improvement)
+    
     # DEBUG: Log final template replacement values
     print(f"*** DEBUG STEP 6 - FINAL TEMPLATE REPLACEMENT: KW_BEFORE = {format_number(kw_before, 2)} kW, KW_AFTER = {format_number(kw_after, 2)} kW ***")
     print(f"*** DEBUG STEP 6 - FINAL TEMPLATE REPLACEMENT: KW_BEFORE = {format_number(kw_before, 2)} kW, KW_AFTER = {format_number(kw_after, 2)} kW ***")
+    print(f"*** DEBUG STEP 6 - FINAL TEMPLATE REPLACEMENT: PEAK_KW_BEFORE = {format_number(peak_kw_before_raw, 2)} kW, PEAK_KW_AFTER = {format_number(peak_kw_after_raw, 2)} kW ***")
     
     template_content = template_content.replace('{{KVA_BEFORE}}', f"{format_number(kva_before, 2)} kVA")
     template_content = template_content.replace('{{KVA_AFTER}}', f"{format_number(kva_after, 2)} kVA")
@@ -4385,6 +4430,11 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_BEFORE}}', f"{format_number(ieee_kw_normalized_before, 2)} kW")
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_AFTER}}', f"{format_number(ieee_kw_normalized_after, 2)} kW")
     template_content = template_content.replace('{{IEEE_KW_NORMALIZED_IMPROVEMENT}}', ieee_kw_normalized_improvement)
+    
+    # kW Peak - Critical for utility demand billing (IEEE 519 section)
+    template_content = template_content.replace('{{IEEE_PEAK_KW_BEFORE}}', f"{format_number(peak_kw_before_raw, 2)} kW")
+    template_content = template_content.replace('{{IEEE_PEAK_KW_AFTER}}', f"{format_number(peak_kw_after_raw, 2)} kW")
+    template_content = template_content.replace('{{IEEE_PEAK_KW_IMPROVEMENT}}', peak_kw_improvement)
     
     # Extract percentage value for T-Statistic annotation (use fully normalized)
     kw_normalized_percent_match = re.search(r'(\d+\.?\d*)%', ieee_kw_normalized_improvement)
