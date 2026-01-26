@@ -1432,7 +1432,13 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     if (btnDelete) {
       console.log('✅ Delete button found, attaching event listener');
-      btnDelete.addEventListener('click', deleteProject);
+      btnDelete.addEventListener('click', function(event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        deleteProject(event);
+      });
       // Also make it globally accessible as fallback
       window.deleteProject = deleteProject;
     } else if (isProjectPage) {
@@ -1680,7 +1686,8 @@ function saveProject() {
     'facility_zip': document.getElementById('facility_zip'),
     'contact': document.getElementById('project_contact'), // Contact field has id="project_contact" but name="contact"
     'phone': document.getElementById('project_phone'), // Phone field has id="project_phone" but name="phone"
-    'email': document.getElementById('project_email') // Email field has id="project_email" but name="email"
+    'email': document.getElementById('project_email'), // Email field has id="project_email" but name="email"
+    'project_type': document.getElementById('project-type') // Project Type field has id="project-type" but name="project_type"
   };
   
   let explicitFieldsAdded = 0;
@@ -2496,7 +2503,8 @@ function loadProject() {
           'phone': projectData.phone,
           'project_phone': projectData.project_phone,
           'email': projectData.email,
-          'project_email': projectData.project_email
+          'project_email': projectData.project_email,
+          'project_type': projectData.project_type
         };
         console.log('📥 Project Information field values in saved data:', projectFieldChecks);
 
@@ -2608,7 +2616,12 @@ function loadProject() {
     });
 }
 
-function deleteProject() {
+function deleteProject(event) {
+  // Handle event propagation if event is provided
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   console.log('🗑️ deleteProject() called');
   const select = document.getElementById('projectList');
   
@@ -3852,9 +3865,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const startTime = Date.now();
         console.log('🔬 Sending analysis request to /api/analyze at', new Date().toISOString());
 
-        const response = await fetch("/api/analyze", {
+        // Add cache-busting query parameter and cache control headers to prevent caching
+        const cacheBust = Date.now();
+        const response = await fetch(`/api/analyze?_cb=${cacheBust}`, {
           method: "POST",
-          body: formData
+          body: formData,
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
         });
         
         const endTime = Date.now();
@@ -4453,12 +4473,19 @@ async function generateUtilitySubmissionPackage(r) {
       }
     }
 
+    // Get session token for authentication
+    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+    }
+
     // Send results to utility submission package generation endpoint
     const response = await fetch('/api/generate-utility-submission-package', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
       body: JSON.stringify(packageData)
     });
 
@@ -5770,6 +5797,36 @@ async function generateAuditPackage(r) {
         }
       };
     }
+
+    // Ensure file IDs are included in the request
+    // They might be in the results object, config, or in the DOM
+    if (!r.before_file_id) {
+      const beforeFileIdEl = document.getElementById('before_file_id');
+      if (beforeFileIdEl && beforeFileIdEl.value) {
+        r.before_file_id = parseInt(beforeFileIdEl.value);
+        console.log('Added before_file_id from DOM:', r.before_file_id);
+      } else if (r.config && r.config.before_file_id) {
+        r.before_file_id = r.config.before_file_id;
+        console.log('Added before_file_id from config:', r.before_file_id);
+      }
+    }
+    
+    if (!r.after_file_id) {
+      const afterFileIdEl = document.getElementById('after_file_id');
+      if (afterFileIdEl && afterFileIdEl.value) {
+        r.after_file_id = parseInt(afterFileIdEl.value);
+        console.log('Added after_file_id from DOM:', r.after_file_id);
+      } else if (r.config && r.config.after_file_id) {
+        r.after_file_id = r.config.after_file_id;
+        console.log('Added after_file_id from config:', r.after_file_id);
+      }
+    }
+    
+    console.log('Sending audit package request with file IDs:', {
+      before_file_id: r.before_file_id,
+      after_file_id: r.after_file_id,
+      analysis_session_id: r.analysis_session_id
+    });
 
     // Send results to audit package generation endpoint
     const response = await fetch('/api/generate-audit-package', {
@@ -7513,55 +7570,160 @@ function displayResults(r) {
     const avg_kw_before = powerQuality.kw_before || 0;
     const avg_kw_after = powerQuality.kw_after || 0;
     
-    // Get peak kW from CSV column "totalKw" (primary method)
+    // Get peak kW - simply the highest value from the 'totalKw' column for each test period
+    // kW Peak = maximum value in the totalKw column for that period (no calculations, just the max)
     let peak_kw_before = 0;
     let peak_kw_after = 0;
+    let peak_source_before = 'unknown';
+    let peak_source_after = 'unknown';
     
-    // Primary: Use totalKw column from CSV data
-    if (beforeData.totalKw) {
-      // If totalKw has a values array, get the maximum
-      if (beforeData.totalKw.values && beforeData.totalKw.values.length > 0) {
-        peak_kw_before = Math.max(...beforeData.totalKw.values);
-      } else if (beforeData.totalKw.maximum) {
-        peak_kw_before = beforeData.totalKw.maximum;
-      } else if (beforeData.totalKw.max) {
-        peak_kw_before = beforeData.totalKw.max;
+    // Get peak from totalKw column (primary source)
+    if (beforeData.avgKw) {
+      if (beforeData.avgKw.values && Array.isArray(beforeData.avgKw.values) && beforeData.avgKw.values.length > 0) {
+        // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
+        const validBeforeValues = beforeData.avgKw.values.map(v => Number(v)).filter(v => 
+          v !== null && v !== undefined && !isNaN(v) && isFinite(v)
+        );
+        peak_kw_before = validBeforeValues.length > 0 ? Math.max(...validBeforeValues) : 0;
+        peak_source_before = `totalKw.values (max of ${validBeforeValues.length} valid values from ${beforeData.avgKw.values.length} total)`;
+        
+        // Check if backend provides maximum or max fields (may contain correct peak from unfiltered CSV)
+        const backend_maximum = beforeData.avgKw.maximum !== undefined && beforeData.avgKw.maximum !== null ? Number(beforeData.avgKw.maximum) : null;
+        const backend_max = beforeData.avgKw.max !== undefined && beforeData.avgKw.max !== null ? Number(beforeData.avgKw.max) : null;
+        const backend_peak = backend_maximum !== null ? backend_maximum : (backend_max !== null ? backend_max : null);
+        
+        if (backend_peak !== null && backend_peak > peak_kw_before) {
+          peak_kw_before = backend_peak;
+          peak_source_before = backend_maximum !== null ? 'totalKw.maximum (from backend)' : 'totalKw.max (from backend)';
+          console.log('🔍 kW Peak - Before Period: Using backend maximum/max field', {
+            backend_maximum: backend_maximum,
+            backend_max: backend_max,
+            calculated_max: peak_kw_before,
+            final_peak: peak_kw_before
+          });
+        }
+        
+        console.log('🔍 kW Peak - Before Period:', {
+          source: 'totalKw.values array',
+          total_values: beforeData.avgKw.values.length,
+          max_value: peak_kw_before,
+          calculation: `Math.max(...totalKw.values) = ${peak_kw_before}`,
+          sample_values: beforeData.avgKw.values.slice(0, 5),
+          backend_maximum: backend_maximum,
+          backend_max: backend_max
+        });
+      } else if (beforeData.avgKw.maximum !== undefined && beforeData.avgKw.maximum !== null) {
+        peak_kw_before = beforeData.avgKw.maximum;
+        peak_source_before = 'totalKw.maximum';
+        console.log('🔍 kW Peak - Before Period:', {
+          source: 'totalKw.maximum',
+          value: peak_kw_before
+        });
+      } else if (beforeData.avgKw.max !== undefined && beforeData.avgKw.max !== null) {
+        peak_kw_before = beforeData.avgKw.max;
+        peak_source_before = 'totalKw.max';
+        console.log('🔍 kW Peak - Before Period:', {
+          source: 'totalKw.max',
+          value: peak_kw_before
+        });
       }
+    } else {
+      console.log('⚠️ kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
     }
-    if (afterData.totalKw) {
-      // If totalKw has a values array, get the maximum
-      if (afterData.totalKw.values && afterData.totalKw.values.length > 0) {
-        peak_kw_after = Math.max(...afterData.totalKw.values);
-      } else if (afterData.totalKw.maximum) {
-        peak_kw_after = afterData.totalKw.maximum;
-      } else if (afterData.totalKw.max) {
-        peak_kw_after = afterData.totalKw.max;
+    
+    if (afterData.avgKw) {
+      if (afterData.avgKw.values && Array.isArray(afterData.avgKw.values) && afterData.avgKw.values.length > 0) {
+        // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
+        const validAfterValues = afterData.avgKw.values.map(v => Number(v)).filter(v => 
+          v !== null && v !== undefined && !isNaN(v) && isFinite(v)
+        );
+        peak_kw_after = validAfterValues.length > 0 ? Math.max(...validAfterValues) : 0;
+        peak_source_after = `totalKw.values (max of ${validAfterValues.length} valid values from ${afterData.avgKw.values.length} total)`;
+        
+        // Check if backend provides maximum or max fields (may contain correct peak from unfiltered CSV)
+        const backend_maximum_after = afterData.avgKw.maximum !== undefined && afterData.avgKw.maximum !== null ? Number(afterData.avgKw.maximum) : null;
+        const backend_max_after = afterData.avgKw.max !== undefined && afterData.avgKw.max !== null ? Number(afterData.avgKw.max) : null;
+        const backend_peak_after = backend_maximum_after !== null ? backend_maximum_after : (backend_max_after !== null ? backend_max_after : null);
+        
+        if (backend_peak_after !== null && backend_peak_after > peak_kw_after) {
+          peak_kw_after = backend_peak_after;
+          peak_source_after = backend_maximum_after !== null ? 'totalKw.maximum (from backend)' : 'totalKw.max (from backend)';
+          console.log('🔍 kW Peak - After Period: Using backend maximum/max field', {
+            backend_maximum: backend_maximum_after,
+            backend_max: backend_max_after,
+            calculated_max: peak_kw_after,
+            final_peak: peak_kw_after
+          });
+        }
+        
+        console.log('🔍 kW Peak - After Period:', {
+          source: 'totalKw.values array',
+          total_values: afterData.avgKw.values.length,
+          max_value: peak_kw_after,
+          calculation: `Math.max(...totalKw.values) = ${peak_kw_after}`,
+          sample_values: afterData.avgKw.values.slice(0, 5),
+          backend_maximum: backend_maximum_after,
+          backend_max: backend_max_after
+        });
+      } else if (afterData.avgKw.maximum !== undefined && afterData.avgKw.maximum !== null) {
+        peak_kw_after = afterData.avgKw.maximum;
+        peak_source_after = 'totalKw.maximum';
+        console.log('🔍 kW Peak - After Period:', {
+          source: 'totalKw.maximum',
+          value: peak_kw_after
+        });
+      } else if (afterData.avgKw.max !== undefined && afterData.avgKw.max !== null) {
+        peak_kw_after = afterData.avgKw.max;
+        peak_source_after = 'totalKw.max';
+        console.log('🔍 kW Peak - After Period:', {
+          source: 'totalKw.max',
+          value: peak_kw_after
+        });
       }
+    } else {
+      console.log('⚠️ kW Peak - After: totalKw column not found in afterData. Available keys:', Object.keys(afterData));
     }
     
     // Fallback: Try to get peak from demand structure
     if (peak_kw_before === 0 && r.demand && r.demand.ncp) {
       peak_kw_before = r.demand.ncp.before_peak_kw || r.demand.ncp.before_max_kw || 0;
+      if (peak_kw_before > 0) {
+        peak_source_before = 'demand.ncp.before_peak_kw';
+        console.log('🔍 PEAK kW DEBUG - Before: Using fallback demand.ncp.before_peak_kw', peak_kw_before);
+      }
     }
     if (peak_kw_after === 0 && r.demand && r.demand.ncp) {
       peak_kw_after = r.demand.ncp.after_peak_kw || r.demand.ncp.after_max_kw || 0;
+      if (peak_kw_after > 0) {
+        peak_source_after = 'demand.ncp.after_peak_kw';
+        console.log('🔍 PEAK kW DEBUG - After: Using fallback demand.ncp.after_peak_kw', peak_kw_after);
+      }
     }
     
     // Fallback: before_data/after_data peak_demand
     if (peak_kw_before === 0 && beforeData.peak_demand) {
       peak_kw_before = beforeData.peak_demand.maximum || beforeData.peak_demand.max || 0;
+      if (peak_kw_before > 0) {
+        peak_source_before = 'beforeData.peak_demand';
+        console.log('🔍 PEAK kW DEBUG - Before: Using fallback peak_demand', peak_kw_before);
+      }
     }
     if (peak_kw_after === 0 && afterData.peak_demand) {
       peak_kw_after = afterData.peak_demand.maximum || afterData.peak_demand.max || 0;
+      if (peak_kw_after > 0) {
+        peak_source_after = 'afterData.peak_demand';
+        console.log('🔍 PEAK kW DEBUG - After: Using fallback peak_demand', peak_kw_after);
+      }
     }
     
-    // Final fallback: calculate peak from avgKw values array if available
-    if (peak_kw_before === 0 && beforeData.avgKw && beforeData.avgKw.values && beforeData.avgKw.values.length > 0) {
-      peak_kw_before = Math.max(...beforeData.avgKw.values);
-    }
-    if (peak_kw_after === 0 && afterData.avgKw && afterData.avgKw.values && afterData.avgKw.values.length > 0) {
-      peak_kw_after = Math.max(...afterData.avgKw.values);
-    }
+    // Log final peak values and their sources
+    console.log('🔍 kW Peak - FINAL VALUES (Highest value from totalKw column for each period):', {
+      before_period_peak: peak_kw_before,
+      after_period_peak: peak_kw_after,
+      source_before: peak_source_before,
+      source_after: peak_source_after,
+      note: 'These are the maximum values from the totalKw column - no calculations, just the highest value in each period'
+    });
     
     // Calculate load factors
     const load_factor_before = (peak_kw_before > 0) ? (avg_kw_before / peak_kw_before) * 100 : null;
@@ -7818,6 +7980,43 @@ function displayResults(r) {
                     </tr>`;
     }
 
+    // kW Peak (Raw Data) - Critical for utility demand billing
+    const peak_kw_before = powerQuality.peak_kw_before;
+    const peak_kw_after = powerQuality.peak_kw_after;
+    if (peak_kw_before && peak_kw_after) {
+      const peak_savings = peak_kw_before - peak_kw_after;
+      const peak_percent = calcPercentImprovement(peak_kw_before, peak_kw_after, true);
+      const is_reduction = peak_kw_after < peak_kw_before;
+      const change_text = is_reduction ? 'reduction' : 'increase';
+      const color = is_reduction ? 'green' : 'red';
+      const before_note = 'Raw Meter Data';
+      const after_note = 'Raw Meter Data';
+      
+      // Debug logging for kW Peak values
+      console.log('🔍 kW Peak - DISPLAY VALUES:', {
+        before_peak_kw: peak_kw_before,
+        after_peak_kw: peak_kw_after,
+        peak_savings_kw: peak_savings,
+        peak_percent_reduction: peak_percent,
+        display_note: 'Displaying the maximum values from totalKw column for each period',
+        savings_calculation: `Savings = ${peak_kw_before} - ${peak_kw_after} = ${peak_savings} kW`,
+        percent_calculation: `Percent = (${peak_kw_before} - ${peak_kw_after}) / ${peak_kw_before} * 100 = ${peak_percent}%`
+      });
+      
+      html += `<tr>
+                        <td><strong>kW Peak</strong></td>
+                        <td class="value-cell" style="text-align: center;">${fmt(peak_kw_before, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${before_note}</small></td>
+                        <td class="value-cell" style="text-align: center;">${fmt(peak_kw_after, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${after_note}</small></td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${peak_percent ? fmt(Math.abs(peak_percent), 2) + '% ' + change_text : 'N/A'}</td>
+                    </tr>`;
+    } else {
+      console.log('🔍 kW Peak: Missing values', {
+        peak_kw_before: peak_kw_before,
+        peak_kw_after: peak_kw_after,
+        powerQuality: powerQuality
+      });
+    }
+
     // kVA (Raw Data) - BEFORE normalization per ASHRAE Guideline 14-2014
     // Match the format from Detailed Breakdown section (2 decimal places)
     const kva_before_raw = powerQuality.kva_before;
@@ -8067,6 +8266,22 @@ function displayResults(r) {
                     </tr>`;
     }
 
+    // kW Peak - Critical for utility demand billing
+    if (powerQualityNormalized.peak_kw_before != null && powerQualityNormalized.peak_kw_after != null && 
+        !isNaN(powerQualityNormalized.peak_kw_before) && !isNaN(powerQualityNormalized.peak_kw_after)) {
+      const peak_savings = powerQualityNormalized.peak_kw_before - powerQualityNormalized.peak_kw_after;
+      const peak_percent = calcPercentImprovement(powerQualityNormalized.peak_kw_before, powerQualityNormalized.peak_kw_after, true);
+      const is_reduction = powerQualityNormalized.peak_kw_after < powerQualityNormalized.peak_kw_before;
+      const change_text = is_reduction ? 'reduction' : 'increase';
+      const color = is_reduction ? 'green' : 'red';
+      html += `<tr>
+                        <td><strong>kW Peak</strong></td>
+                        <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.peak_kw_before).toFixed(2)} kW</td>
+                        <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.peak_kw_after).toFixed(2)} kW</td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${peak_percent ? peak_percent.toFixed(2) + '% ' + change_text : 'N/A'}</td>
+                    </tr>`;
+    }
+
     // kVA (Weather Normalized) - Use weather-normalized values to match ASHRAE section
     if (powerQualityNormalized.weather_normalized_kva_before != null && powerQualityNormalized.weather_normalized_kva_after != null && 
         !isNaN(powerQualityNormalized.weather_normalized_kva_before) && !isNaN(powerQualityNormalized.weather_normalized_kva_after)) {
@@ -8225,7 +8440,10 @@ function displayResults(r) {
             powerQualityNormalized.calculated_pf_normalized_kw_after) {
           totalSavingsKw = powerQualityNormalized.calculated_pf_normalized_kw_before - 
                            powerQualityNormalized.calculated_pf_normalized_kw_after;
-          totalNormalizedPercent = (totalSavingsKw / powerQualityNormalized.calculated_pf_normalized_kw_before) * 100;
+          // CRITICAL: Use weather_normalized_before as denominator so percentages are additive
+          // Weather Savings % + PF Contribution % = Total Utility Billing Impact %
+          const weatherBeforeForTotal = powerQualityNormalized.weather_normalized_kw_before || powerQualityNormalized.calculated_pf_normalized_kw_before;
+          totalNormalizedPercent = weatherBeforeForTotal > 0 ? (totalSavingsKw / weatherBeforeForTotal) * 100 : 0;
         } else {
           // Fallback to weather-normalized only if PF not available
           totalSavingsKw = powerQualityNormalized.normalized_kw_before - powerQualityNormalized.normalized_kw_after;
@@ -8827,8 +9045,13 @@ function displayResults(r) {
         console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
         
         // Get weather normalized values for display in verification summary table
-        const weatherBeforeForStep4 = powerQualityNormalized.weather_normalized_kw_before;
-        const weatherAfterForStep4 = powerQualityNormalized.weather_normalized_kw_after;
+        // CRITICAL: Add fallback to weather_normalization if not in power_quality
+        // The backend may not always copy weather-normalized values to power_quality
+        const weatherNorm = r.weather_normalization || {};
+        const weatherBeforeForStep4 = powerQualityNormalized.weather_normalized_kw_before || 
+                                      weatherNorm.normalized_kw_before;
+        const weatherAfterForStep4 = powerQualityNormalized.weather_normalized_kw_after || 
+                                     weatherNorm.normalized_kw_after;
         
         // If IEEE 519 section hasn't calculated them yet, use fallback
         if (!pfNormalizedKwBeforeStep4 || !pfNormalizedKwAfterStep4) {
@@ -8838,10 +9061,27 @@ function displayResults(r) {
         }
         
         // Calculate total normalized savings using the values from IEEE 519 section
-        const totalSavingsKwStep4 = pfNormalizedKwBeforeStep4 - pfNormalizedKwAfterStep4;
-        const totalNormalizedPercentStep4 = (pfNormalizedKwBeforeStep4 > 0) ? (totalSavingsKwStep4 / pfNormalizedKwBeforeStep4) * 100 : 0;
+        // CRITICAL FIX: Total Utility Billing Impact = weather_normalized_before - pf_normalized_after
+        // This represents the total impact from both weather normalization AND power factor normalization
+        // NOT: pf_normalized_before - pf_normalized_after (which only shows PF impact)
+        const totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4;
+        // CRITICAL: Use weather_normalized_kw_before as denominator (same as Weather Savings % and PF Contribution %)
+        // This ensures: Weather Savings % + PF Contribution % = Total Utility Billing Impact %
+        // DEBUG: Log values to verify calculation
+        console.log('🔍 [STEP 4 DEBUG] weatherBeforeForStep4 =', weatherBeforeForStep4);
+        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
+        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
         console.log('🔍 [STEP 4 DEBUG] totalSavingsKwStep4 =', totalSavingsKwStep4);
+        
+        // Ensure weatherBeforeForStep4 is available, if not log warning
+        if (!weatherBeforeForStep4 || weatherBeforeForStep4 <= 0) {
+          console.warn('⚠️ [STEP 4 WARNING] weatherBeforeForStep4 is null/undefined/zero:', weatherBeforeForStep4);
+          console.warn('⚠️ [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
+        }
+        
+        const totalNormalizedPercentStep4 = (weatherBeforeForStep4 > 0) ? (totalSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
         console.log('🔍 [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
+        console.log('🔍 [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
         
         // REMOVED: Don't store these values - this section is informational only to prevent double-counting
         // The actual normalized savings used in other sections are calculated independently in the IEEE 519 section
@@ -8875,9 +9115,10 @@ function displayResults(r) {
         // Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
         const totKw = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
         const totPct = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
-        const pfBef = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
+        // Use weather-normalized before as denominator (same as Weather Savings % and PF Contribution %)
+        const wBeforeForTotal = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
         const totColor = (totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
-        html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + pfBef + ') × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>';
+        html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (Weather Savings % + PF Contribution % = Total %)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + wBeforeForTotal + ') × 100<br/><small style="color: #666;">Weather Savings % + PF Contribution % = Total % (all use weather-normalized before)</small></td></tr>';
         html += `</table>`;
         
         // Verification summary - Enhanced with detailed breakdown
@@ -9019,7 +9260,8 @@ function displayResults(r) {
         value: calculatedNormalizedKwSavings !== null ? calculatedNormalizedKwSavings : bw.delta_kw_avg,
         unit: "kW",
         decimals: 2,
-        description: "Weather and power factor normalized power reduction (PF-normalized savings from Step 4)"
+        description: "Weather and power factor normalized power reduction (PF-normalized savings from Step 4)",
+        showPercent: true
       }
     ];
 
@@ -9029,6 +9271,7 @@ function displayResults(r) {
     filteredRows.forEach(m => {
       let v = m.value;
       if (v === undefined || v === null) v = "-";
+      let displayValue = "";
       if (typeof v === "number") {
         v = (m.unit === "$") ?
           ("$" + v.toLocaleString(undefined, {
@@ -9039,11 +9282,41 @@ function displayResults(r) {
             minimumFractionDigits: m.decimals,
             maximumFractionDigits: m.decimals
           });
+        displayValue = `${v}${m.unit && m.unit !== '$' ? ` ${m.unit}` : ''}`;
+        
+        // Add percentage for normalized kW savings
+        // CRITICAL: Use weather-normalized values to show actual equipment savings (7.5%) not PF-normalized (4.57%)
+        // Weather normalization is applied first, then PF normalization is applied to weather-normalized values
+        if (m.showPercent && m.unit === "kW" && typeof m.value === "number") {
+          // PRIORITIZE: Use weather-normalized values for percentage (this shows actual equipment savings)
+          const weatherNormalizedKwBefore = r.power_quality?.weather_normalized_kw_before || 
+                                            powerQualityNormalized?.weather_normalized_kw_before;
+          const weatherNormalizedKwAfter = r.power_quality?.weather_normalized_kw_after || 
+                                           powerQualityNormalized?.weather_normalized_kw_after;
+          
+          if (weatherNormalizedKwBefore && weatherNormalizedKwAfter && weatherNormalizedKwBefore > 0) {
+            // Calculate weather-normalized savings percentage (this gives 7.5%)
+            const weatherSavings = weatherNormalizedKwBefore - weatherNormalizedKwAfter;
+            const percent = (weatherSavings / weatherNormalizedKwBefore) * 100;
+            displayValue += ` (${percent.toFixed(2)}%)`;
+          } else {
+            // Fallback to PF-normalized if weather-normalized not available
+            const normalizedKwBefore = r.power_quality?.calculated_pf_normalized_kw_before || 
+                                       r.power_quality?.normalized_kw_before ||
+                                       r.power_quality?.pf_normalized_kw_before;
+            if (normalizedKwBefore && normalizedKwBefore > 0) {
+              const percent = (m.value / normalizedKwBefore) * 100;
+              displayValue += ` (${percent.toFixed(2)}%)`;
+            }
+          }
+        }
+      } else {
+        displayValue = v;
       }
 
       html += `<tr>
                     <td><strong>${m.label}</strong></td>
-                    <td class="value-cell">${v}${m.unit && m.unit !== '$' ? ` ${m.unit}` : ''}</td>
+                    <td class="value-cell">${displayValue}</td>
                     <td>${m.description}</td>
                 </tr>`;
     });
@@ -9069,7 +9342,8 @@ function displayResults(r) {
       value: calculatedNormalizedKwSavings !== null ? calculatedNormalizedKwSavings : r.executive_summary?.adjusted_kw_savings,
       unit: "kW",
       decimals: 2,
-      description: "Weather and power factor normalized power reduction per ASHRAE Guideline 14-2014 and IEEE 519 standards (PF-normalized savings from Step 4)"
+      description: "Weather and power factor normalized power reduction per ASHRAE Guideline 14-2014 and IEEE 519 standards (PF-normalized savings from Step 4)",
+      showPercent: true
     },
     {
       label: "Annual kWh Savings",
@@ -9110,6 +9384,33 @@ function displayResults(r) {
         displayValue = "$" + parseFloat(displayValue).toLocaleString();
       } else if (m.unit && m.unit !== "$") {
         displayValue = parseFloat(displayValue).toLocaleString() + ` ${m.unit}`;
+      }
+      
+      // Add percentage for normalized kW savings
+      // CRITICAL: Use weather-normalized values to show actual equipment savings (7.5%) not PF-normalized (4.57%)
+      // Weather normalization is applied first, then PF normalization is applied to weather-normalized values
+      if (m.showPercent && m.unit === "kW" && typeof m.value === "number") {
+        // PRIORITIZE: Use weather-normalized values for percentage (this shows actual equipment savings)
+        const weatherNormalizedKwBefore = r.power_quality?.weather_normalized_kw_before || 
+                                          powerQualityNormalized?.weather_normalized_kw_before;
+        const weatherNormalizedKwAfter = r.power_quality?.weather_normalized_kw_after || 
+                                         powerQualityNormalized?.weather_normalized_kw_after;
+        
+        if (weatherNormalizedKwBefore && weatherNormalizedKwAfter && weatherNormalizedKwBefore > 0) {
+          // Calculate weather-normalized savings percentage (this gives 7.5%)
+          const weatherSavings = weatherNormalizedKwBefore - weatherNormalizedKwAfter;
+          const percent = (weatherSavings / weatherNormalizedKwBefore) * 100;
+          displayValue += ` (${percent.toFixed(2)}%)`;
+        } else {
+          // Fallback to PF-normalized if weather-normalized not available
+          const normalizedKwBefore = r.power_quality?.calculated_pf_normalized_kw_before || 
+                                     r.power_quality?.normalized_kw_before ||
+                                     r.power_quality?.pf_normalized_kw_before;
+          if (normalizedKwBefore && normalizedKwBefore > 0) {
+            const percent = (m.value / normalizedKwBefore) * 100;
+            displayValue += ` (${percent.toFixed(2)}%)`;
+          }
+        }
       }
 
       html += `<tr>

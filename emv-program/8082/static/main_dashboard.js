@@ -191,22 +191,22 @@ class MainDashboard {
         // CRITICAL: Clear spinners immediately before starting auth check
         this.clearAllSpinners();
         
-        // Add a fallback timeout to ensure spinners are always cleared (reduced to 3 seconds)
+        // Add a fallback timeout to ensure spinners are always cleared (increased to 15 seconds for VPN latency)
         const fallbackTimeout = setTimeout(() => {
             console.warn('⚠️ Authentication check taking too long, clearing spinners and showing login');
             this.clearAllSpinners();
             this.showLoginSection(); // Show login if auth check hangs
-        }, 3000); // 3 second fallback (reduced from 5)
+        }, 15000); // 15 second fallback (increased for VPN latency)
         
         try {
             if (this.sessionToken) {
                 try {
-                    // Shorter timeout - 2 seconds max
+                    // Timeout increased to 10 seconds for VPN latency support
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => {
-                        console.error('⏱️ Session validation timed out after 2 seconds');
+                        console.error('⏱️ Session validation timed out after 10 seconds');
                         controller.abort();
-                    }, 2000); // Reduced to 2 seconds
+                    }, 10000); // 10 seconds (increased for VPN latency)
                     
                     const response = await fetch('/api/auth/validate-session', {
                         method: 'POST',
@@ -3093,7 +3093,7 @@ class MainDashboard {
                                                 <button type="button" 
                                                         class="btn-danger" 
                                                         style="padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;"
-                                                        onclick="(function(btn) { 
+                                                        onclick="(function(btn, event) { if (event) event.stopPropagation(); 
                                                             const projectName = '${escapedName}';
                                                             const projectItem = btn.closest('.project-item');
                                                             (window.archiveProjectByName || function(name) { console.error('archiveProjectByName not available'); })(projectName, function(archivedName) { 
@@ -3131,7 +3131,7 @@ class MainDashboard {
                                                                     }, 500);
                                                                 }
                                                             });
-                                                        })(this); event.stopPropagation();"
+                                                        })(this, event);"
                                                         title="Archive this project">
                                                     🗑️ Delete
                                                 </button>
