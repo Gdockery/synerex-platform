@@ -1,0 +1,53 @@
+REPLACEMENT FOR LINES 30026-30053 in main_hardened_ready_fixed.py
+
+Replace this nested loop:
+                # Use consistent org_id_for_db for all file operations (like utility package)
+                # First try the org_id that found the analysis session, then fallback if needed
+                org_ids_to_try = [org_id_for_db, org_id, 'ADMIN', 'admin', None]
+                
+                for file_id, prefix in [(before_file_id, 'before'), (after_file_id, 'after')]:
+                    if file_id:
+                        row = None
+                        found_org_id = None
+                        # Try each database location until we find the file
+                        # Start with org_id_for_db (the one that found the analysis session) for consistency
+                        for try_org_id in org_ids_to_try:
+                            try:
+                                logger.info(f"AUDIT PACKAGE - Trying database with org_id: {try_org_id} for {prefix} file ID: {file_id}")
+                                with get_db_connection(org_id=try_org_id) as conn:
+                                    if conn:
+                                        cursor = conn.cursor()
+                                        cursor.execute(
+                                            "SELECT file_name, file_path, file_size, fingerprint, created_at FROM raw_meter_data WHERE id = ?",
+                                            (int(file_id),)
+                                        )
+                                        row = cursor.fetchone()
+                                        if row:
+                                            found_org_id = try_org_id
+                                            logger.info(f"AUDIT PACKAGE - Found {prefix} file in database (org_id={try_org_id})")
+                                            break
+                            except Exception as e:
+                                logger.debug(f"AUDIT PACKAGE - Error querying database org_id={try_org_id}: {e}")
+                                continue
+                        
+
+With this single-connection approach (matching utility package):
+                # Use single database connection like utility package (simpler and more reliable)
+                logger.info(f"AUDIT PACKAGE - Base directory: {base_dir}")
+                with get_db_connection(org_id=org_id_for_db) as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        for file_id, prefix in [(before_file_id, 'before'), (after_file_id, 'after')]:
+                            if file_id:
+                                try:
+                                    logger.info(f"AUDIT PACKAGE - Processing {prefix} file with ID: {file_id}")
+                                    cursor.execute(
+                                        "SELECT file_name, file_path, file_size, fingerprint, created_at FROM raw_meter_data WHERE id = ?",
+                                        (int(file_id),)
+                                    )
+                                    row = cursor.fetchone()
+                                    if row:
+                                        found_org_id = org_id_for_db  # Use the org_id that found the analysis session
+                        
+
+This matches the utility package structure and should fix the missing files issue.
