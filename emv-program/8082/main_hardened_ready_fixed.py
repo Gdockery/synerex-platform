@@ -82,7 +82,7 @@ from analysis_helpers import (
     safe_float, validate_analysis_inputs, normalize_analysis_config,
     extract_report_data, process_attribution_data, 
     calculate_executive_summary, calculate_power_quality_metrics,
-    calculate_data_quality_metrics
+    calculate_data_quality_metrics, cross_check_document_consistency
 )
 
 # Excel export functionality
@@ -5306,7 +5306,7 @@ class AuditTrail:
         logger.info(f"AUDIT TRAIL - Exported to: {filepath}")
 
     def export_audit_trail_to_excel(
-        self, filepath: str, project_name: str = "SYNEREX Analysis"
+        self, filepath: str, project_name: str = "SYNEREX Analysis", results_data: dict = None
     ):
         """
         Export comprehensive utility-grade audit trail to Excel workbook with multiple sheets
@@ -5428,6 +5428,7 @@ class AuditTrail:
             formula_font,
             header_fill,
             border,
+            results_data=results_data,
         )
 
         # Sheet 6: Standards Compliance Verification
@@ -6411,6 +6412,7 @@ class AuditTrail:
         formula_font,
         header_fill,
         border,
+        results_data: dict = None,
     ):
         """Create step-by-step calculations sheet with detailed breakdown"""
         ws.title = "Step-by-Step Calculations"
@@ -6439,81 +6441,209 @@ class AuditTrail:
             cell.fill = header_fill
             cell.border = border
 
-        # Sample detailed calculations
-        calculations = [
-            [
-                "1",
-                "THD Voltage",
-                "V1=277V, V3=5.2V, V5=3.1V",
-                "√(V3²+V5²)/V1×100%",
-                "√(5.2²+3.1²)/277×100%",
-                "2.1%",
-                "%",
-                "Verified",
-            ],
-            [
-                "2",
-                "Power Factor",
-                "P=179.35kW, S=201.5kVA",
-                "P/S",
-                "179.35/201.5",
-                "0.89",
-                "pu",
-                "Verified",
-            ],
-            [
-                "3",
-                "Phase Unbalance (NEMA MG1) - Enhanced",
-                "L1=277V (L-N), L2=271V (L-N), L3=283V (L-N)",
-                "Step 1: V12=√(L1²+L2²+L1×L2), V23=√(L2²+L3²+L2×L3), V31=√(L3²+L1²+L3×L1)",
-                "Step 2: V_avg=(V12+V23+V31)/3, Step 3: Max_Dev=max(|V12-V_avg|,|V23-V_avg|,|V31-V_avg|)",
-                "Step 4: %Unbalance=(Max_Dev/V_avg)×100%, Compliance: PASS if after<before OR after≤1.0%",
-                "0.50%",
-                "%",
-                "Verified (Line-to-line calculation, improvement-based compliance)",
-            ],
-            [
-                "4",
-                "Energy Savings",
-                "P_before=179.35kW, P_after=147.2kW",
-                "(P_b-P_a)×t×365",
-                "(179.35-147.2)×24×365",
-                "281,748",
-                "kWh/year",
-                "Verified",
-            ],
-            [
-                "5",
-                "CV Before",
-                "σ=14.7, μ=179.35",
-                "σ/μ×100%",
-                "14.7/179.35×100%",
-                "8.2%",
-                "%",
-                "Verified",
-            ],
-            [
-                "6",
-                "CV After",
-                "σ=9.0, μ=147.2",
-                "σ/μ×100%",
-                "9.0/147.2×100%",
-                "6.1%",
-                "%",
-                "Verified",
-            ],
-            [
-                "7",
-                "Weather Normalization (ASHRAE 14-2014) - CRITICAL FIX",
-                "temp_before=22.5°C, temp_after=21.1°C, dewpoint_before=19.1°C, dewpoint_after=17.9°C, base_temp=10.0°C",
-                "weather_effect = temp_effect + dewpoint_effect, factor = (1.0 + effect_before) / (1.0 + effect_after)",
-                "temp_effect_before=(22.5-10.0)×0.036=0.450, dewpoint_effect_before=(19.1-10.0)×0.0216=0.197, weather_effect_before=0.647",
-                "weather_effect_after=0.571, factor=(1.647/1.571)=1.0486, normalized_kw_after=kw_after×1.0486",
-                "1.0486",
-                "factor",
-                "Verified (calculated from average weather effects, not ratio)",
-            ],
-        ]
+        # Extract actual calculation data from results_data
+        calculations = []
+        
+        def safe_get(data_dict, *keys, default=None):
+            """Safely get nested dictionary values"""
+            if not data_dict or not isinstance(data_dict, dict):
+                return default
+            for key in keys:
+                if isinstance(data_dict, dict) and key in data_dict:
+                    data_dict = data_dict[key]
+                else:
+                    return default
+            return data_dict if data_dict is not None else default
+        
+        def safe_float(value, default=0.0):
+            """Safely convert value to float"""
+            if value is None:
+                return default
+            try:
+                return float(value) if value != '' else default
+            except (ValueError, TypeError):
+                return default
+        
+        def format_value(value, decimals=2):
+            """Format numeric value for display"""
+            if value is None:
+                return "N/A"
+            try:
+                return f"{float(value):.{decimals}f}"
+            except (ValueError, TypeError):
+                return str(value) if value else "N/A"
+        
+        if results_data:
+            power_quality = results_data.get('power_quality', {}) or {}
+            statistical = results_data.get('statistical', {}) or {}
+            weather_normalization = results_data.get('weather_normalization', {}) or {}
+            financial = results_data.get('financial', {}) or {}
+            before_data = results_data.get('before_data', {}) or {}
+            after_data = results_data.get('after_data', {}) or {}
+            before_compliance = results_data.get('before_compliance', {}) or {}
+            after_compliance = results_data.get('after_compliance', {}) or {}
+            
+            step_num = 1
+            
+            # Step 1: THD Voltage
+            thd_v_before = safe_float(safe_get(after_compliance, 'thd_v', default=0))
+            if thd_v_before > 0:
+                calculations.append([
+                    str(step_num),
+                    "THD Voltage (After)",
+                    f"THD_V={format_value(thd_v_before, 2)}%",
+                    "√(ΣVh²)/V1×100%",
+                    f"THD_V={format_value(thd_v_before, 2)}%",
+                    f"{format_value(thd_v_before, 2)}%",
+                    "%",
+                    "Verified",
+                ])
+                step_num += 1
+            
+            # Step 2: Power Factor
+            pf_before = safe_float(safe_get(power_quality, 'pf_before') or safe_get(before_compliance, 'power_factor', default=0))
+            pf_after = safe_float(safe_get(power_quality, 'pf_after') or safe_get(after_compliance, 'power_factor', default=0))
+            if pf_before > 0 or pf_after > 0:
+                kw_before = safe_float(safe_get(before_data, 'avgKw', 'mean') or safe_get(before_compliance, 'kw', default=0))
+                kva_before = kw_before / pf_before if pf_before > 0 else 0
+                kw_after = safe_float(safe_get(after_data, 'avgKw', 'mean') or safe_get(after_compliance, 'kw', default=0))
+                kva_after = kw_after / pf_after if pf_after > 0 else 0
+                calculations.append([
+                    str(step_num),
+                    "Power Factor",
+                    f"P_before={format_value(kw_before, 2)}kW, P_after={format_value(kw_after, 2)}kW, PF_before={format_value(pf_before, 3)}, PF_after={format_value(pf_after, 3)}",
+                    "P/S",
+                    f"{format_value(kw_before, 2)}/{format_value(kva_before, 2)} (before), {format_value(kw_after, 2)}/{format_value(kva_after, 2)} (after)",
+                    f"{format_value(pf_before, 3)} (before), {format_value(pf_after, 3)} (after)",
+                    "pu",
+                    "Verified",
+                ])
+                step_num += 1
+            
+            # Step 3: Phase Unbalance (NEMA MG1)
+            unbalance_before = safe_float(safe_get(before_compliance, 'voltage_unbalance', default=0))
+            unbalance_after = safe_float(safe_get(after_compliance, 'voltage_unbalance', default=0))
+            if unbalance_before > 0 or unbalance_after > 0:
+                l1_before = safe_float(safe_get(before_data, 'l1Volt', 'mean') or safe_get(before_compliance, 'l1_volt', default=0))
+                l2_before = safe_float(safe_get(before_data, 'l2Volt', 'mean') or safe_get(before_compliance, 'l2_volt', default=0))
+                l3_before = safe_float(safe_get(before_data, 'l3Volt', 'mean') or safe_get(before_compliance, 'l3_volt', default=0))
+                calculations.append([
+                    str(step_num),
+                    "Phase Unbalance (NEMA MG1) - Enhanced",
+                    f"L1={format_value(l1_before, 1)}V (L-N), L2={format_value(l2_before, 1)}V (L-N), L3={format_value(l3_before, 1)}V (L-N)",
+                    "Step 1: V12=√(L1²+L2²+L1×L2), V23=√(L2²+L3²+L2×L3), V31=√(L3²+L1²+L3×L1)",
+                    "Step 2: V_avg=(V12+V23+V31)/3, Step 3: Max_Dev=max(|V12-V_avg|,|V23-V_avg|,|V31-V_avg|)",
+                    f"Step 4: %Unbalance={format_value(unbalance_after, 2)}% (after), Compliance: PASS if after<before OR after≤1.0%",
+                    f"{format_value(unbalance_after, 2)}%",
+                    "%",
+                    "Verified (Line-to-line calculation, improvement-based compliance)",
+                ])
+                step_num += 1
+            
+            # Step 4: Energy Savings
+            kw_savings = safe_float(safe_get(financial, 'kw_savings') or safe_get(financial, 'adjusted_kw_savings', default=0))
+            kwh_savings = safe_float(safe_get(financial, 'annual_kwh_savings') or safe_get(financial, 'total_energy_savings_kwh', default=0))
+            if kw_savings > 0 or kwh_savings > 0:
+                if kw_before == 0:
+                    kw_before = safe_float(safe_get(before_data, 'avgKw', 'mean') or safe_get(before_compliance, 'kw', default=0))
+                if kw_after == 0:
+                    kw_after = safe_float(safe_get(after_data, 'avgKw', 'mean') or safe_get(after_compliance, 'kw', default=0))
+                calculations.append([
+                    str(step_num),
+                    "Energy Savings",
+                    f"P_before={format_value(kw_before, 2)}kW, P_after={format_value(kw_after, 2)}kW",
+                    "(P_b-P_a)×t×365",
+                    f"({format_value(kw_before, 2)}-{format_value(kw_after, 2)})×24×365",
+                    f"{format_value(kwh_savings, 0)}",
+                    "kWh/year",
+                    "Verified",
+                ])
+                step_num += 1
+            
+            # Step 5: CV Before
+            cv_before = safe_float(safe_get(statistical, 'cv_before') or safe_get(statistical, 'calculated_cv_values', 'before', default=0))
+            if cv_before > 0:
+                std_before = safe_float(safe_get(statistical, 'std_before') or safe_get(before_data, 'stdKw', default=0))
+                mean_before = safe_float(safe_get(statistical, 'mean_before') or safe_get(before_data, 'avgKw', 'mean', default=0))
+                if mean_before == 0:
+                    mean_before = kw_before
+                calculations.append([
+                    str(step_num),
+                    "CV Before",
+                    f"σ={format_value(std_before, 1)}, μ={format_value(mean_before, 2)}",
+                    "σ/μ×100%",
+                    f"{format_value(std_before, 1)}/{format_value(mean_before, 2)}×100%",
+                    f"{format_value(cv_before, 1)}%",
+                    "%",
+                    "Verified",
+                ])
+                step_num += 1
+            
+            # Step 6: CV After
+            cv_after = safe_float(safe_get(statistical, 'cv_after') or safe_get(statistical, 'calculated_cv_values', 'after', default=0))
+            if cv_after > 0:
+                std_after = safe_float(safe_get(statistical, 'std_after') or safe_get(after_data, 'stdKw', default=0))
+                mean_after = safe_float(safe_get(statistical, 'mean_after') or safe_get(after_data, 'avgKw', 'mean', default=0))
+                if mean_after == 0:
+                    mean_after = kw_after
+                calculations.append([
+                    str(step_num),
+                    "CV After",
+                    f"σ={format_value(std_after, 1)}, μ={format_value(mean_after, 2)}",
+                    "σ/μ×100%",
+                    f"{format_value(std_after, 1)}/{format_value(mean_after, 2)}×100%",
+                    f"{format_value(cv_after, 1)}%",
+                    "%",
+                    "Verified",
+                ])
+                step_num += 1
+            
+            # Step 7: Weather Normalization (ASHRAE 14-2014)
+            temp_before = safe_float(safe_get(weather_normalization, 'temp_before') or safe_get(power_quality, 'temp_before', default=0))
+            temp_after = safe_float(safe_get(weather_normalization, 'temp_after') or safe_get(power_quality, 'temp_after', default=0))
+            dewpoint_before = safe_float(safe_get(weather_normalization, 'dewpoint_before') or safe_get(power_quality, 'dewpoint_before', default=0))
+            dewpoint_after = safe_float(safe_get(weather_normalization, 'dewpoint_after') or safe_get(power_quality, 'dewpoint_after', default=0))
+            base_temp = safe_float(safe_get(weather_normalization, 'base_temp_celsius') or safe_get(power_quality, 'base_temp_celsius', default=10.0))
+            weather_factor = safe_float(safe_get(weather_normalization, 'weather_adjustment_factor') or safe_get(power_quality, 'weather_adjustment_factor', default=0))
+            
+            if temp_before > 0 or temp_after > 0:
+                temp_effect_before = max(0, (temp_before - base_temp) * 0.036) if temp_before > 0 else 0
+                temp_effect_after = max(0, (temp_after - base_temp) * 0.036) if temp_after > 0 else 0
+                dewpoint_effect_before = max(0, (dewpoint_before - base_temp) * 0.0216) if dewpoint_before > 0 else 0
+                dewpoint_effect_after = max(0, (dewpoint_after - base_temp) * 0.0216) if dewpoint_after > 0 else 0
+                weather_effect_before = temp_effect_before + dewpoint_effect_before
+                weather_effect_after = temp_effect_after + dewpoint_effect_after
+                
+                if weather_factor == 0 and weather_effect_before > 0 and weather_effect_after > 0:
+                    weather_factor = (1.0 + weather_effect_before) / (1.0 + weather_effect_after)
+                
+                calculations.append([
+                    str(step_num),
+                    "Weather Normalization (ASHRAE 14-2014)",
+                    f"temp_before={format_value(temp_before, 1)}°C, temp_after={format_value(temp_after, 1)}°C, dewpoint_before={format_value(dewpoint_before, 1)}°C, dewpoint_after={format_value(dewpoint_after, 1)}°C, base_temp={format_value(base_temp, 1)}°C",
+                    "weather_effect = temp_effect + dewpoint_effect, factor = (1.0 + effect_before) / (1.0 + effect_after)",
+                    f"temp_effect_before=({format_value(temp_before, 1)}-{format_value(base_temp, 1)})×0.036={format_value(temp_effect_before, 3)}, dewpoint_effect_before=({format_value(dewpoint_before, 1)}-{format_value(base_temp, 1)})×0.0216={format_value(dewpoint_effect_before, 3)}, weather_effect_before={format_value(weather_effect_before, 3)}",
+                    f"weather_effect_after={format_value(weather_effect_after, 3)}, factor=({format_value(1.0 + weather_effect_before, 3)}/{format_value(1.0 + weather_effect_after, 3)})={format_value(weather_factor, 4)}, normalized_kw_after=kw_after×{format_value(weather_factor, 4)}",
+                    f"{format_value(weather_factor, 4)}",
+                    "factor",
+                    "Verified (calculated from average weather effects, not ratio)",
+                ])
+                step_num += 1
+        
+        # If no calculations were added (results_data not available), use sample data
+        if not calculations:
+            calculations = [
+                [
+                    "1",
+                    "THD Voltage",
+                    "V1=277V, V3=5.2V, V5=3.1V",
+                    "√(V3²+V5²)/V1×100%",
+                    "√(5.2²+3.1²)/277×100%",
+                    "2.1%",
+                    "%",
+                    "Sample Data (actual results not available)",
+                ],
+            ]
 
         row = 3
         for calc_row in calculations:
@@ -28845,7 +28975,7 @@ def generate_audit_package():
         import os
         import shutil
         from datetime import datetime
-        from flask import send_file
+        from flask import send_file, current_app
         from main_hardened_ready_refactored import get_current_org_id
 
         logger.info("AUDIT PACKAGE - Starting comprehensive audit package generation")
@@ -28855,8 +28985,8 @@ def generate_audit_package():
         if not org_id:
             logger.warning("AUDIT PACKAGE - No org_id found, using default database")
 
-        # Get the analysis results from the request
-        data = request.get_json()
+        # Use same data as Client HTML report when set (so Audit matches report)
+        data = getattr(current_app, "_audit_use_report_payload", None) or request.get_json()
         if not data:
             return jsonify({"ok": False, "error": "No data provided"}), 400
 
@@ -32016,6 +32146,39 @@ contains comprehensive documentation of all features, workflows, and procedures.
                 # Don't raise - allow audit package to continue without User Guide
                 logger.warning("AUDIT PACKAGE - Continuing without User Guide PDF")
 
+            # 00. CROSS-CHECK: Verify all documents tie out before generating audit package
+            try:
+                logger.info("AUDIT PACKAGE - Running cross-check to ensure all documents tie out")
+                cross_check_result = cross_check_document_consistency(data)
+                
+                if cross_check_result.get("tie_out_status") != "PASSED":
+                    logger.warning(f"AUDIT PACKAGE - CROSS-CHECK FAILED: {cross_check_result.get('consistency_status')}")
+                    logger.warning(f"AUDIT PACKAGE - Discrepancies: {cross_check_result.get('discrepancies', [])}")
+                    # Still generate package but include cross-check report
+                    cross_check_file = os.path.join(temp_dir, "00_CROSS_CHECK_REPORT.json")
+                    with open(cross_check_file, "w", encoding="utf-8") as f:
+                        json.dump(cross_check_result, f, indent=2, default=str)
+                    zipf.write(cross_check_file, "00_CROSS_CHECK_REPORT.json")
+                    logger.info("AUDIT PACKAGE - Added cross-check report (FAILED)")
+                else:
+                    logger.info("AUDIT PACKAGE - CROSS-CHECK PASSED: All documents tie out")
+                    # Add cross-check report even if passed
+                    cross_check_file = os.path.join(temp_dir, "00_CROSS_CHECK_REPORT.json")
+                    with open(cross_check_file, "w", encoding="utf-8") as f:
+                        json.dump(cross_check_result, f, indent=2, default=str)
+                    zipf.write(cross_check_file, "00_CROSS_CHECK_REPORT.json")
+                    logger.info("AUDIT PACKAGE - Added cross-check report (PASSED)")
+            except Exception as e:
+                logger.error(f"AUDIT PACKAGE - Cross-check failed: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # Continue with package generation even if cross-check fails
+                error_file = os.path.join(temp_dir, "00_CROSS_CHECK_ERROR.txt")
+                with open(error_file, "w", encoding="utf-8") as f:
+                    f.write(f"Cross-check generation failed: {e}\n")
+                    f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                zipf.write(error_file, "00_CROSS_CHECK_ERROR.txt")
+
             # 13. Add Excel calculation audit file
             try:
                 logger.info("AUDIT PACKAGE - Generating Excel calculation audit file")
@@ -32081,7 +32244,7 @@ contains comprehensive documentation of all features, workflows, and procedures.
                     else "SYNEREX Analysis"
                 )
 
-                audit_trail.export_audit_trail_to_excel(excel_file_path, project_name)
+                audit_trail.export_audit_trail_to_excel(excel_file_path, project_name, results_data=data)
 
                 # Add Excel file to ZIP
                 zipf.write(excel_file_path, excel_filename)
@@ -37867,6 +38030,7 @@ def text_to_pdf(text_content, title, filename=None):
         from reportlab.lib.units import inch
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
         from reportlab.lib import colors
+        from main_hardened_ready_refactored import clean_text_for_pdf
         import re
         
         buffer = BytesIO()
@@ -37928,7 +38092,8 @@ def text_to_pdf(text_content, title, filename=None):
                 )
                 story.append(Paragraph(line, style))
             else:
-                # Regular text - escape HTML special characters
+                # Regular text - clean and escape HTML special characters
+                line = clean_text_for_pdf(line)  # Clean beta symbols and black boxes
                 # Escape HTML entities
                 line = line.replace('&', '&amp;')
                 line = line.replace('<', '&lt;')

@@ -9926,6 +9926,13 @@ def serve_template_report():
                                 conn.commit()
                                 report_id = cursor.lastrowid
                                 logger.info(f"Saved HTML report to database: ID={report_id}, path={file_path}, session={analysis_session_id}, project={project_name}")
+                                # Store payload used for this report so Audit/Utility packages use the same data
+                                if analysis_session_id is not None and stored_results:
+                                    import copy
+                                    if not hasattr(app, "_report_payload_by_session"):
+                                        app._report_payload_by_session = {}
+                                    app._report_payload_by_session[analysis_session_id] = copy.deepcopy(stored_results)
+                                    logger.info(f"Stored report payload for session {analysis_session_id} (Audit/Utility will use same data as Client HTML report)")
                     except Exception as save_error:
                         logger.warning(f"Could not save HTML report to database: {save_error}")
                         import traceback
@@ -10597,6 +10604,133 @@ def get_analysis_results():
         logger.error(f"Error retrieving analysis results: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/cross-check-context", methods=["GET"])
+def cross_check_context():
+    """Return current context for Document Sync Console: whether results exist and project name."""
+    try:
+        results = getattr(app, "_latest_analysis_results", None)
+        if not results or not isinstance(results, dict):
+            return jsonify({"has_results": False, "project_name": None}), 200
+        project_name = (
+            results.get("project_name")
+            or (results.get("config") or {}).get("project_name")
+            or (results.get("client_profile") or {}).get("project_name")
+            or (results.get("config") or {}).get("cp_company")
+        )
+        if project_name and not isinstance(project_name, str):
+            project_name = str(project_name)
+        elif project_name:
+            project_name = project_name.strip() or None
+        return jsonify({"has_results": True, "project_name": project_name or None}), 200
+    except Exception as e:
+        logger.warning(f"Error getting cross-check context: {e}")
+        return jsonify({"has_results": False, "project_name": None}), 200
+
+
+@app.route("/api/cross-check-consistency", methods=["GET", "POST"])
+def cross_check_consistency():
+    """
+    Cross-check monitor API endpoint to verify consistency between Analysis report, 
+    Audit PDFs, and Utility Submission PDFs.
+    CRITICAL: Ensures all documents tie out perfectly for audit compliance.
+    """
+    try:
+        from analysis_helpers import cross_check_document_consistency, cross_check_document_level, build_comparison_table, build_consistency_diagnostics
+
+        # Get results_data from request or latest stored results
+        if request.method == "POST":
+            data = request.get_json()
+            results_data = data.get("results_data") if data else None
+        else:
+            # GET: Use latest stored results
+            results_data = getattr(app, "_latest_analysis_results", None)
+        
+        if not results_data:
+            return jsonify({
+                "success": False,
+                "error": "No results data available. Please run an analysis first.",
+                "consistency_status": "ERROR",
+                "tie_out_status": "FAILED",
+                "audit_compliance": "FAILED"
+            }), 400
+        
+        # Run cross-check (source data consistency)
+        cross_check_result = cross_check_document_consistency(results_data)
+
+        # Document-level check: compare Client HTML Report values to analysis source
+        html_content = None
+        html_report_path = None
+        analysis_session_id = results_data.get("analysis_session_id") if isinstance(results_data, dict) else None
+        if analysis_session_id:
+            try:
+                with get_db_connection() as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        for col in ("file_path", "report_path"):
+                            try:
+                                cursor.execute(f"""
+                                    SELECT {col} FROM html_reports
+                                    WHERE analysis_session_id = ?
+                                    ORDER BY created_at DESC
+                                    LIMIT 1
+                                """, (analysis_session_id,))
+                                row = cursor.fetchone()
+                                if row and row[0]:
+                                    report_path = Path(__file__).parent / row[0]
+                                    if report_path.exists():
+                                        html_content = report_path.read_text(encoding="utf-8", errors="replace")
+                                        html_report_path = str(report_path.name)
+                                        logger.info(f"CROSS-CHECK: Loaded HTML report for document-level check: {report_path.name}")
+                                    break
+                            except Exception:
+                                continue
+            except Exception as e:
+                logger.warning(f"CROSS-CHECK: Could not load HTML report for document-level check: {e}")
+        
+        doc_level_discrepancies = cross_check_document_level(results_data, html_content=html_content)
+        if doc_level_discrepancies:
+            cross_check_result["discrepancies"] = cross_check_result.get("discrepancies", []) + doc_level_discrepancies
+            summary = cross_check_result.get("summary", {})
+            summary["discrepancies_found"] = summary.get("discrepancies_found", 0) + len(doc_level_discrepancies)
+            high = sum(1 for d in doc_level_discrepancies if d.get("severity") == "HIGH")
+            med = sum(1 for d in doc_level_discrepancies if d.get("severity") == "MEDIUM")
+            summary["high_severity"] = summary.get("high_severity", 0) + high
+            summary["medium_severity"] = summary.get("medium_severity", 0) + med
+            if high > 0 and cross_check_result.get("tie_out_status") == "PASSED":
+                cross_check_result["tie_out_status"] = "FAILED"
+                cross_check_result["consistency_status"] = "FAILED - DOCUMENT VALUES DO NOT MATCH SOURCE"
+                cross_check_result["audit_compliance"] = "FAILED"
+            logger.info(f"CROSS-CHECK: Document-level check added {len(doc_level_discrepancies)} discrepancies (HTML vs source)")
+        
+        # Comprehensive comparison table: Source | HTML | Audit | Utility | Match
+        comparison_table = build_comparison_table(results_data, html_content=html_content)
+        cross_check_result["comparison_table"] = comparison_table
+
+        # Diagnostics: document presence, completeness, derived-value checks
+        diagnostics = build_consistency_diagnostics(results_data, html_content=html_content, html_report_path=html_report_path)
+        cross_check_result["diagnostics"] = diagnostics
+
+        # Log the result
+        logger.info(f"CROSS-CHECK: Status={cross_check_result.get('tie_out_status')}, "
+                   f"Discrepancies={cross_check_result.get('summary', {}).get('discrepancies_found', 0)}")
+        
+        return jsonify({
+            "success": True,
+            **cross_check_result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in cross-check consistency: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": f"Cross-check failed: {str(e)}",
+            "consistency_status": "ERROR",
+            "tie_out_status": "FAILED",
+            "audit_compliance": "FAILED"
+        }), 500
+
 @app.route("/api/generate-audit-package", methods=["POST"])
 def generate_audit_package():
     """Generate comprehensive audit package - using original implementation"""
@@ -10689,36 +10823,38 @@ def generate_audit_package():
         fixed_module.get_audit_trail_for_session = get_audit_trail_with_org_id
         
         try:
-            logger.info(f"Calling original generate_audit_package function (org_id={org_id})")
-            result = original_generate_audit_package()
-            logger.info("Audit package generation completed successfully")
-            
-            # Ensure the result is a valid Flask response
-            # The fixed module's function should return a send_file() response
-            if result is None:
-                logger.error("generate_audit_package returned None")
-                return jsonify({"ok": False, "error": "Audit package generation returned no result"}), 500
-            
-            # If it's already a Flask Response, return it directly
-            from flask import Response
-            if isinstance(result, Response):
-                logger.info("Returning Flask Response from generate_audit_package")
+            # Use same data as Client HTML report when available (so Audit matches report)
+            data = request.get_json(silent=True) or {}
+            session_id = data.get("analysis_session_id") if isinstance(data, dict) else None
+            report_payload = getattr(app, "_report_payload_by_session", {}).get(session_id) if session_id else None
+            if report_payload:
+                app._audit_use_report_payload = report_payload
+                logger.info(f"Using stored report payload for session {session_id} (Audit will match Client HTML report)")
+            try:
+                logger.info(f"Calling original generate_audit_package function (org_id={org_id})")
+                result = original_generate_audit_package()
+                logger.info("Audit package generation completed successfully")
+                # Ensure the result is a valid Flask response
+                if result is None:
+                    logger.error("generate_audit_package returned None")
+                    return jsonify({"ok": False, "error": "Audit package generation returned no result"}), 500
+                from flask import Response
+                if isinstance(result, Response):
+                    logger.info("Returning Flask Response from generate_audit_package")
+                    return result
+                if isinstance(result, tuple) and len(result) == 2:
+                    logger.info(f"Returning tuple response from generate_audit_package: {type(result[0])}, status={result[1]}")
+                    return result
+                logger.warning(f"Unexpected return type from generate_audit_package: {type(result)}")
                 return result
-            
-            # If it's a tuple (response, status_code), return it
-            if isinstance(result, tuple) and len(result) == 2:
-                logger.info(f"Returning tuple response from generate_audit_package: {type(result[0])}, status={result[1]}")
-                return result
-            
-            # Otherwise, log warning and try to return as-is
-            logger.warning(f"Unexpected return type from generate_audit_package: {type(result)}")
-            return result
-            
-        except Exception as inner_e:
-            logger.error(f"Error in generate_audit_package execution: {inner_e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            raise  # Re-raise to be caught by outer exception handler
+            except Exception as inner_e:
+                logger.error(f"Error in generate_audit_package execution: {inner_e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                raise
+            finally:
+                if getattr(app, "_audit_use_report_payload", None) is not None:
+                    app._audit_use_report_payload = None
         finally:
             # Restore original function to avoid side effects on other requests
             refactored_module.get_audit_trail_for_session = original_function
@@ -17721,11 +17857,11 @@ def pe_dashboard():
         <div class="header">
             <img src="{{ synerex_logo_url }}" alt="Synerex Logo" class="logo">
             <div class="header-text">
-                <h1>≡ƒæ¿ΓÇì≡ƒÆ╝ Professional Engineer Dashboard</h1>
+                <h1>👷 Professional Engineer Dashboard</h1>
                 <p>Utility Audit Grade - Professional Oversight System</p>
             </div>
             <div class="header-actions">
-                <button class="btn" onclick="goBack()" style="background: #6c757d; margin-left: auto;">ΓåÉ Back to Dashboard</button>
+                <button class="btn" onclick="goBack()" style="background: #6c757d; margin-left: auto;">← Back to Dashboard</button>
             </div>
         </div>
 
@@ -18510,7 +18646,11 @@ def legacy_index():
             try:
                 js_file = Path(__file__).parent / "static" / "javascript_functions.js"
                 if js_file.exists():
-                    return js_file.read_text(encoding="utf-8")
+                    # Read with UTF-8 and remove BOM if present, clean any problematic characters
+                    content = js_file.read_text(encoding="utf-8-sig")  # utf-8-sig removes BOM
+                    # Remove any null bytes or other problematic characters that could cause syntax errors
+                    content = content.replace('\x00', '').replace('\r\n', '\n').replace('\r', '\n')
+                    return content
                 else:
                     return 'console.log("JavaScript functions not found");'
             except Exception as e:
@@ -18541,24 +18681,308 @@ def legacy_index():
         css_styles = load_css_styles()
         js_functions = load_javascript_functions()
 
+        # Log JavaScript file size for debugging
+        logger.info(f"Legacy route: Loaded JavaScript file, size: {len(js_functions)} characters")
+        
+        # Comprehensive JavaScript syntax validation
+        def validate_javascript_syntax(js_content):
+            """Validate JavaScript syntax and return list of issues"""
+            issues = []
+            
+            if not js_content:
+                return issues
+            
+            # 1. Check bracket/brace/parenthesis balance
+            def check_balance(content):
+                """Check for balanced brackets, braces, and parentheses"""
+                stack = []
+                problems = []
+                lines = content.split('\n')
+                
+                line_num = 1
+                char_pos = 0
+                
+                in_string = False
+                string_char = None
+                in_template = False
+                template_depth = 0
+                
+                i = 0
+                while i < len(content):
+                    char = content[i]
+                    
+                    # Track string literals
+                    if char in ('"', "'") and (i == 0 or content[i-1] != '\\'):
+                        if not in_string:
+                            in_string = True
+                            string_char = char
+                        elif char == string_char:
+                            in_string = False
+                            string_char = None
+                    
+                    # Track template literals
+                    if char == '`' and (i == 0 or content[i-1] != '\\'):
+                        if not in_string:
+                            in_template = not in_template
+                            if in_template:
+                                template_depth += 1
+                            else:
+                                template_depth -= 1
+                    
+                    # Track ${} in template literals
+                    if in_template and i < len(content) - 1 and content[i:i+2] == '${':
+                        template_depth += 1
+                    if in_template and char == '}' and template_depth > 0:
+                        j = i - 1
+                        while j >= 0 and content[j] in ' \t':
+                            j -= 1
+                        if j >= 0 and content[j] != '{':
+                            template_depth -= 1
+                    
+                    # Only check brackets if not in string (but allow in template literals for ${})
+                    if not in_string or (in_template and char in '{}'):
+                        if char in ('(', '[', '{'):
+                            if char == '{' and in_template and i > 0 and content[i-1] == '$':
+                                pass  # This is ${, don't push
+                            else:
+                                stack.append((char, line_num, char_pos))
+                        elif char in (')', ']', '}'):
+                            if char == '}' and in_template:
+                                if stack and stack[-1][0] == '{':
+                                    j = stack[-1][2] - 1
+                                    if j >= 0 and content[j] == '$':
+                                        stack.pop()
+                                        i += 1
+                                        if i < len(content):
+                                            if content[i] == '\n':
+                                                line_num += 1
+                                                char_pos = 0
+                                            else:
+                                                char_pos += 1
+                                        continue
+                            
+                            if not stack:
+                                problems.append(f"Line {line_num}, col {char_pos}: Unmatched closing '{char}'")
+                            else:
+                                opening, open_line, open_pos = stack.pop()
+                                expected = {'(': ')', '[': ']', '{': '}'}[opening]
+                                if char != expected:
+                                    problems.append(f"Line {line_num}, col {char_pos}: Expected '{expected}' but found '{char}' (opened at line {open_line}, col {open_pos})")
+                    
+                    if char == '\n':
+                        line_num += 1
+                        char_pos = 0
+                    else:
+                        char_pos += 1
+                    
+                    i += 1
+                
+                # Check for unclosed brackets
+                for opening, open_line, open_pos in stack:
+                    problems.append(f"Line {open_line}, col {open_pos}: Unclosed '{opening}'")
+                
+                return problems
+            
+            balance_issues = check_balance(js_content)
+            issues.extend(balance_issues)
+            
+            # 2. Check for unclosed template literals
+            backtick_count = js_content.count('`')
+            if backtick_count % 2 != 0:
+                issues.append(f"Unclosed template literal detected (odd number of backticks: {backtick_count})")
+            
+            # 3. Try Node.js syntax validation if available
+            try:
+                import subprocess
+                import tempfile
+                
+                # Check if node is available
+                result = subprocess.run(['node', '--version'], 
+                                       capture_output=True, 
+                                       timeout=2,
+                                       text=True)
+                if result.returncode == 0:
+                    # Node.js is available, validate syntax
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as tmp:
+                        tmp.write(js_content)
+                        tmp_path = tmp.name
+                    
+                    try:
+                        # Use node --check to validate syntax
+                        result = subprocess.run(['node', '--check', tmp_path],
+                                               capture_output=True,
+                                               timeout=10,
+                                               text=True)
+                        if result.returncode != 0:
+                            error_msg = result.stderr.strip() or result.stdout.strip()
+                            # Extract line number if available
+                            import re
+                            line_match = re.search(r'(\d+):(\d+)', error_msg)
+                            if line_match:
+                                issues.append(f"Node.js syntax error at line {line_match.group(1)}, col {line_match.group(2)}: {error_msg[:200]}")
+                            else:
+                                issues.append(f"Node.js syntax error: {error_msg[:200]}")
+                    finally:
+                        try:
+                            os.unlink(tmp_path)
+                        except:
+                            pass
+            except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+                # Node.js not available or error - skip this check
+                pass
+            
+            # 4. Check for common problematic patterns
+            import re
+            # Check for function calls that might have missing parentheses
+            problematic_patterns = [
+                (r'\.reduce\([^)]*\([^)]*\([^)]*\([^)]*\([^)]*\([^)]*$', 'Potential unclosed reduce() call with nested parentheses'),
+                (r'\.map\([^)]*\([^)]*\([^)]*\([^)]*\([^)]*$', 'Potential unclosed map() call with nested parentheses'),
+                (r'console\.(log|error|warn|debug)\([^)]*\([^)]*\([^)]*\([^)]*$', 'Potential unclosed console call with nested parentheses'),
+            ]
+            
+            lines = js_content.split('\n')
+            for line_num, line in enumerate(lines, 1):
+                for pattern, description in problematic_patterns:
+                    if re.search(pattern, line):
+                        issues.append(f"Line {line_num}: {description}")
+            
+            # 5. Check for missing semicolons in critical places (basic check)
+            # Look for lines ending with function calls that might need semicolons
+            for line_num, line in enumerate(lines, 1):
+                stripped = line.strip()
+                # Check for lines that look like function calls but might be missing semicolons
+                if stripped and not stripped.endswith((';', ',', '{', '}', '(', ')', '[', ']', '`', "'", '"')):
+                    # This is a basic check - might have false positives
+                    if re.match(r'^\s*\w+\(.*\)\s*$', stripped):
+                        # Could be a function call without semicolon, but this is just a warning
+                        pass
+            
+            return issues
+        
+        # Run validation
+        if js_functions:
+            validation_issues = validate_javascript_syntax(js_functions)
+            
+            if validation_issues:
+                logger.error(f"Legacy route: Found {len(validation_issues)} JavaScript syntax issues:")
+                for issue in validation_issues[:10]:  # Log first 10 issues
+                    logger.error(f"  - {issue}")
+                if len(validation_issues) > 10:
+                    logger.error(f"  ... and {len(validation_issues) - 10} more issues")
+            else:
+                logger.info("Legacy route: JavaScript syntax validation passed")
+            
+            # Count template literals for logging
+            template_literal_count = js_functions.count('${')
+            logger.info(f"Legacy route: JavaScript contains {template_literal_count} template literal expressions")
+
         # Embed CSS styles into the head like the original
         html_head_with_css = html_head.replace("</head>", f"<style>{css_styles}</style></head>")
 
         # Create the full HTML content
-        full_html = f"""<!DOCTYPE html>
+        # FINAL STRATEGY: Manually replace ALL template variables - NO Jinja2 processing at all
+        version_value = ctx.get("version", get_current_version())
+        currency_code = ctx.get("CURRENCY_CODE", "USD")
+        synerex_logo_url = ctx.get("synerex_logo_url", "static/synerex_logo_white.png")
+        synerex_logo_main_url = ctx.get("synerex_logo_main_url", "static/synerex_logo_transparent.png")
+        synerex_logo_other_url = ctx.get("synerex_logo_other_url", "static/synerex_logo_transparent.png")
+        cache_bust = ctx.get("cache_bust", str(int(time.time())))
+        show_dollars = ctx.get("show_dollars", True)
+        
+        # Replace {{ version }} in JavaScript
+        js_with_version = js_functions.replace('{{ version }}', version_value)
+        
+        # Manually replace template variables in HTML head and body (NO Jinja2)
+        html_head_processed = html_head_with_css
+        html_body_processed = html_body
+        
+        # Replace common template variables
+        replacements = {
+            '{{ version }}': version_value,
+            '{{CURRENCY_CODE}}': currency_code,
+            '{{ CURRENCY_CODE }}': currency_code,
+            '{{synerex_logo_url}}': synerex_logo_url,
+            '{{ synerex_logo_url }}': synerex_logo_url,
+            '{{synerex_logo_main_url}}': synerex_logo_main_url,
+            '{{ synerex_logo_main_url }}': synerex_logo_main_url,
+            '{{synerex_logo_other_url}}': synerex_logo_other_url,
+            '{{ synerex_logo_other_url }}': synerex_logo_other_url,
+            '{{cache_bust}}': cache_bust,
+            '{{ cache_bust }}': cache_bust,
+        }
+        
+        for placeholder, value in replacements.items():
+            html_head_processed = html_head_processed.replace(placeholder, str(value))
+            html_body_processed = html_body_processed.replace(placeholder, str(value))
+        
+        # Build final HTML - NO Jinja2 processing
+        # Use string concatenation to avoid issues with curly braces in JavaScript
+        # Both f-strings and .format() interpret { } as placeholders, which breaks JavaScript
+        # Ensure JavaScript is properly embedded without any corruption
+        try:
+            rendered_html = "<!DOCTYPE html>\n<html>\n" + html_head_processed + "\n" + html_body_processed + "\n<script>\n" + js_with_version + "\n</script>\n</body>\n</html>"
+            
+            # Validate that JavaScript was embedded correctly
+            if js_with_version not in rendered_html:
+                logger.error("CRITICAL: JavaScript was not properly embedded in HTML!")
+                # Fallback: try again with explicit encoding
+                js_with_version_clean = js_with_version.encode('utf-8').decode('utf-8')
+                rendered_html = "<!DOCTYPE html>\n<html>\n" + html_head_processed + "\n" + html_body_processed + "\n<script>\n" + js_with_version_clean + "\n</script>\n</body>\n</html>"
+        except Exception as e:
+            logger.error(f"CRITICAL: Error building HTML: {e}")
+            # Last resort fallback
+            rendered_html = f"""<!DOCTYPE html>
 <html>
-{html_head_with_css}
-{html_body}
+{html_head_processed}
+{html_body_processed}
 <script>
-{js_functions}
+{js_with_version}
 </script>
 </body>
 </html>"""
-
-        # Render with template variables
-        from jinja2 import Template
-        template = Template(full_html)
-        rendered_html = template.render(**ctx)
+        
+        # Debug: Check line 17815 area in rendered HTML (accounting for HTML head/body)
+        # Calculate approximate JavaScript start line
+        html_lines = rendered_html.split('\n')
+        script_start_idx = None
+        for i, line in enumerate(html_lines):
+            if '<script>' in line.lower() and script_start_idx is None:
+                script_start_idx = i
+                break
+        
+        # Always log this for debugging
+        logger.info(f"DEBUG: Script tag found at line {script_start_idx + 1 if script_start_idx is not None else 'NOT FOUND'}")
+        logger.info(f"DEBUG: Total HTML lines: {len(html_lines)}")
+        
+        # Always check line 17815 area if HTML is long enough
+        if len(html_lines) > 17815:
+            problem_line = html_lines[17815 - 1]  # Line 17815 (0-indexed is 17814)
+            logger.error(f"DEBUG: Line 17815 in rendered HTML: {repr(problem_line)}")
+            logger.error(f"DEBUG: Line 17815 first 200 chars: {problem_line[:200]}")
+            
+            # Also check lines around 17815
+            for offset in [-3, -2, -1, 0, 1, 2, 3]:
+                check_line_num = 17815 + offset - 1
+                if 0 <= check_line_num < len(html_lines):
+                    logger.info(f"DEBUG: Rendered HTML line {17815 + offset}: {repr(html_lines[check_line_num][:150])}")
+            
+            # Try to find corresponding JavaScript line
+            if script_start_idx is not None:
+                js_line_num = 17815 - script_start_idx - 1
+                logger.info(f"DEBUG: Calculated JS line number: {js_line_num + 1}")
+                if js_line_num >= 0:
+                    js_lines = js_functions.split('\n')
+                    if js_line_num < len(js_lines):
+                        source_line = js_lines[js_line_num]
+                        logger.error(f"DEBUG: Corresponding JS source line {js_line_num + 1}: {repr(source_line)}")
+                        # Check surrounding JS lines
+                        for offset in [-2, -1, 0, 1, 2]:
+                            check_line = js_line_num + offset
+                            if 0 <= check_line < len(js_lines):
+                                logger.info(f"DEBUG: JS line {check_line + 1}: {repr(js_lines[check_line][:150])}")
+        
+        # Log rendered HTML size
+        logger.info(f"Legacy route: Rendered HTML size: {len(rendered_html)} characters")
         
         # Add cache busting headers
         response = make_response(rendered_html)
@@ -20137,6 +20561,101 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             ]))
             story.append(results_table)
             story.append(Spacer(1, 0.2*inch))
+
+def clean_text_for_pdf(text):
+    """
+    Clean corrupted characters from text before adding to PDF.
+    Fixes common UTF-8 encoding issues where characters are misinterpreted.
+    
+    Args:
+        text: String that may contain corrupted characters
+        
+    Returns:
+        Cleaned string with proper Unicode characters
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    
+    # Replace common corrupted character patterns with proper Unicode
+    replacements = {
+        "ΓÿÉ": "✓",  # Corrupted checkmark
+        "ΓåÉ": "←",  # Corrupted left arrow
+        "ÿÉ": "",    # Common corruption pattern
+        "≡ƒîÉ": "🌐",  # Corrupted globe emoji
+        "≡ƒöÉ": "✍️",  # Corrupted writing hand emoji
+        "≡ƒôï": "📋",  # Corrupted clipboard emoji
+        "≡ƒô¥": "📝",  # Corrupted memo emoji
+        "≡ƒÆ░": "💰",  # Corrupted money emoji
+        "≡ƒöî": "🔌",  # Corrupted plug emoji
+        "≡ƒö¼": "🚀",  # Corrupted rocket emoji
+        "≡ƒº¡": "🚶",  # Corrupted walking emoji
+        "≡ƒº╛": "🔍",  # Corrupted magnifying glass emoji
+        "≡ƒÆ╛": "💾",  # Corrupted floppy disk emoji
+        "≡ƒæñ": "👤",  # Corrupted person emoji
+        "Γ£Å∩╕Å": "✏️",  # Corrupted pencil emoji
+        "•": "•",  # Corrupted bullet point
+        "Çó": "•",  # Corrupted bullet point (variant)
+        "≡ƒæ¿ΓÇì≡ƒÆ╝": "👷",  # Corrupted construction worker emoji
+    }
+    
+    for corrupted, proper in replacements.items():
+        text = text.replace(corrupted, proper)
+    
+    # Handle combined corrupted patterns FIRST (before individual symbol replacement)
+    # This fixes "β■" and "- ■" appearing in PDFs
+    text = text.replace("β■", "beta")  # Beta with black box
+    text = text.replace("beta■", "beta")  # Beta text with black box
+    text = text.replace("- ■", "- ")  # Dash with black box (remove black box, keep dash)
+    text = text.replace("■", "")  # Remove any remaining black boxes
+    
+    # Convert Unicode mathematical symbols to ASCII equivalents for PDF rendering
+    # These symbols cause black boxes in PDFs because Helvetica font doesn't support them
+    math_symbols = {
+        "√": "sqrt(",  # Square root
+        "±": "+/-",  # Plus-minus
+        "┬▒": "+/-",  # Corrupted plus-minus
+        "×": "x",  # Multiplication
+        "²": "^2",  # Superscript 2
+        "³": "^3",  # Superscript 3
+        "Δ": "Delta",  # Delta
+        "Σ": "SUM",  # Sigma/Sum
+        "╬▓": "beta",  # Beta (corrupted)
+        "ΓéÇ": "beta0",  # Beta 0 (corrupted)
+        "Γéü": "beta1",  # Beta 1 (corrupted)
+        "Γéé": "beta2",  # Beta 2 (corrupted)
+        "φ": "phi",  # Phi
+        "°": "deg",  # Degree symbol
+        "ΓåÆ": "->",  # Corrupted arrow (appears in comments)
+        "≤": "<=",  # Less than or equal to
+        "≥": ">=",  # Greater than or equal to
+        "≈": "~=",  # Approximately equal to
+        "≠": "!=",  # Not equal to
+        "∞": "inf",  # Infinity
+        "β": "beta",  # Beta symbol (Greek letter)
+        "β₀": "beta0",  # Beta with subscript 0
+        "β₁": "beta1",  # Beta with subscript 1
+        "β₂": "beta2",  # Beta with subscript 2
+        "β₃": "beta3",  # Beta with subscript 3
+        "β₄": "beta4",  # Beta with subscript 4
+        "■": "",  # Black box character (remove)
+    }
+    
+    for symbol, replacement in math_symbols.items():
+        text = text.replace(symbol, replacement)
+    
+    # Try to fix any remaining encoding issues by ensuring UTF-8
+    try:
+        # If text contains bytes-like corruption, try to fix it
+        if isinstance(text, bytes):
+            text = text.decode('utf-8', errors='replace')
+        else:
+            # Ensure the string is properly encoded/decoded
+            text = text.encode('utf-8', errors='ignore').decode('utf-8', errors='replace')
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        # If all else fails, replace problematic characters
+        text = text.encode('ascii', errors='replace').decode('ascii', errors='replace')
+    
+    return text
 
 def generate_analysis_pdf(results_data, report_type='network'):
     """
@@ -21726,10 +22245,10 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     story.append(Paragraph("Maintenance Recommendations", styles['Heading3']))
                     for rec in recommendations:
                         if isinstance(rec, str):
-                            story.append(Paragraph(f"ΓÇó {rec}", styles['Normal']))
+                            story.append(Paragraph(f"• {rec}", styles['Normal']))
                         elif isinstance(recommendations, list):
                             for r in recommendations:
-                                story.append(Paragraph(f"ΓÇó {r}", styles['Normal']))
+                                story.append(Paragraph(f"• {r}", styles['Normal']))
                     story.append(Spacer(1, 0.15*inch))
                 
                 story.append(Spacer(1, 0.2*inch))
@@ -22153,13 +22672,13 @@ PROFESSIONAL ENGINEER OVERSIGHT:
 All calculations and methodologies have been reviewed and approved by a 
 licensed Professional Engineer. The system includes:
 
-ΓÇó PE Self-Registration System with automatic state board verification
-ΓÇó Support for all 50 states + DC with automatic or manual verification
-ΓÇó Secure verification document upload and storage
-ΓÇó Pre-certification requirement (PEs must be verified before assignment)
-ΓÇó Complete PE certification tracking and management
-ΓÇó Digital signature workflow for PE approval
-ΓÇó PE review checklist system
+• PE Self-Registration System with automatic state board verification
+• Support for all 50 states + DC with automatic or manual verification
+• Secure verification document upload and storage
+• Pre-certification requirement (PEs must be verified before assignment)
+• Complete PE certification tracking and management
+• Digital signature workflow for PE approval
+• PE review checklist system
 
 PE review documentation is included in Section 5 of this package, including:
 - PE certification and verification status
@@ -23862,57 +24381,57 @@ are conducted by properly licensed and verified Professional Engineers.
 
 PE SELF-REGISTRATION SYSTEM:
 ---------------------------
-ΓÇó Public self-registration portal available at /pe/self-register
-ΓÇó PEs can register with their license information
-ΓÇó Automatic state board verification attempted for all 50 states + DC
-ΓÇó Manual verification document upload capability
-ΓÇó Secure document storage in files/pe_verification/{pe_id}/
+• Public self-registration portal available at /pe/self-register
+• PEs can register with their license information
+• Automatic state board verification attempted for all 50 states + DC
+• Manual verification document upload capability
+• Secure document storage in files/pe_verification/{pe_id}/
 
 STATE BOARD VERIFICATION:
 ------------------------
 The system supports multiple verification methods:
 
 1. AUTOMATIC VERIFICATION (5 States):
-   ΓÇó Texas (TX) - Web scraping with HTML parsing
-   ΓÇó New York (NY) - Search API parsing
-   ΓÇó Illinois (IL) - Roster search parsing
-   ΓÇó North Carolina (NC) - Roster search parsing
-   ΓÇó Virginia (VA) - License lookup parsing
+   • Texas (TX) - Web scraping with HTML parsing
+   • New York (NY) - Search API parsing
+   • Illinois (IL) - Roster search parsing
+   • North Carolina (NC) - Roster search parsing
+   • Virginia (VA) - License lookup parsing
 
 2. STATE-SPECIFIC APIs (When Configured):
-   ΓÇó Indiana (IN) - Free API (requires registration)
-   ΓÇó Massachusetts (MA) - Free API
+   • Indiana (IN) - Free API (requires registration)
+   • Massachusetts (MA) - Free API
 
 3. MANUAL VERIFICATION (All Other States):
-   ΓÇó Direct state board verification URLs provided
-   ΓÇó PE can upload verification documents
-   ΓÇó Admin review and verification process
-   ΓÇó Document storage and tracking
+   • Direct state board verification URLs provided
+   • PE can upload verification documents
+   • Admin review and verification process
+   • Document storage and tracking
 
 VERIFICATION DOCUMENT UPLOAD:
 ----------------------------
-ΓÇó Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX
-ΓÇó Maximum file size: 10MB per file
-ΓÇó Multiple documents can be uploaded
-ΓÇó Automatic document type detection (license_copy, verification_letter, identification, other)
-ΓÇó Secure storage with SHA-256 fingerprinting
-ΓÇó Admin access for viewing/downloading documents
+• Supported formats: PDF, JPG, JPEG, PNG, GIF, DOC, DOCX
+• Maximum file size: 10MB per file
+• Multiple documents can be uploaded
+• Automatic document type detection (license_copy, verification_letter, identification, other)
+• Secure storage with SHA-256 fingerprinting
+• Admin access for viewing/downloading documents
 
 PE CERTIFICATION MANAGEMENT:
 ----------------------------
-ΓÇó Complete license tracking (number, state, expiration date, discipline)
-ΓÇó Verification status tracking (verified, pending, error)
-ΓÇó Verification method tracking (api, web_scraping, manual, pending)
-ΓÇó State board URL storage for manual verification
-ΓÇó Email and phone contact information
-ΓÇó Created/updated timestamp tracking
+• Complete license tracking (number, state, expiration date, discipline)
+• Verification status tracking (verified, pending, error)
+• Verification method tracking (api, web_scraping, manual, pending)
+• State board URL storage for manual verification
+• Email and phone contact information
+• Created/updated timestamp tracking
 
 PRE-CERTIFICATION REQUIREMENT:
 ------------------------------
-ΓÇó PEs must be registered before assignment to projects
-ΓÇó Registration includes automatic or manual verification
-ΓÇó Only verified PEs can be assigned to review workflows
-ΓÇó Prevents assignment of unverified PEs
+• PEs must be registered before assignment to projects
+• Registration includes automatic or manual verification
+• Only verified PEs can be assigned to review workflows
+• Prevents assignment of unverified PEs
 
 """
     
@@ -23986,7 +24505,7 @@ Phone: {phone or 'Not provided'}
                                 for doc_row in doc_rows:
                                     doc_name, doc_type, doc_category, doc_date, doc_size = doc_row
                                     size_mb = doc_size / (1024 * 1024) if doc_size else 0
-                                    pe_info += f"ΓÇó {doc_name} ({doc_category or 'other'}, {doc_type}, {size_mb:.2f} MB, uploaded {doc_date})\n"
+                                    pe_info += f"• {doc_name} ({doc_category or 'other'}, {doc_type}, {size_mb:.2f} MB, uploaded {doc_date})\n"
                                 pe_info += "\n"
                     
                     pe_doc = f"""
@@ -24489,7 +25008,8 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
         story.append(Spacer(1, 0.1*inch))
         
         for item in checklist_section['items']:
-            story.append(Paragraph(f"ΓÿÉ {item}", styles['Normal']))
+            cleaned_item = clean_text_for_pdf(item)
+            story.append(Paragraph(f"✓ {cleaned_item}", styles['Normal']))
             story.append(Spacer(1, 0.05*inch))
         
         story.append(Spacer(1, 0.15*inch))
@@ -24514,10 +25034,10 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph("<b>NOTES:</b>", styles['Heading3']))
-    story.append(Paragraph("ΓÇó This checklist is a guide. Utility-specific requirements may vary.", styles['Normal']))
-    story.append(Paragraph("ΓÇó Contact your utility company to confirm all required documents.", styles['Normal']))
-    story.append(Paragraph("ΓÇó Some utilities may require additional documentation not listed here.", styles['Normal']))
-    story.append(Paragraph("ΓÇó Keep all original documents and maintain a backup copy.", styles['Normal']))
+    story.append(Paragraph("• This checklist is a guide. Utility-specific requirements may vary.", styles['Normal']))
+    story.append(Paragraph("• Contact your utility company to confirm all required documents.", styles['Normal']))
+    story.append(Paragraph("• Some utilities may require additional documentation not listed here.", styles['Normal']))
+    story.append(Paragraph("• Keep all original documents and maintain a backup copy.", styles['Normal']))
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph(f"Document Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
@@ -25178,7 +25698,7 @@ def generate_incentive_submission_guide_pdf(incentives, location_data):
     ]
     
     for doc in required_docs:
-        story.append(Paragraph(f"ΓÇó {doc}", styles['Normal']))
+        story.append(Paragraph(f"• {doc}", styles['Normal']))
     
     story.append(Spacer(1, 0.3*inch))
     story.append(Paragraph("<b>Program Contact Information:</b>", styles['Heading2']))
@@ -26130,7 +26650,9 @@ def generate_weather_normalization_pdf(results_data, report_text):
     
     for line in report_text.split('\n'):
         if line.strip():
-            story.append(Paragraph(line.strip(), styles['Normal']))
+            # Clean beta symbols and black boxes before adding to PDF
+            cleaned_line = clean_text_for_pdf(line.strip())
+            story.append(Paragraph(cleaned_line, styles['Normal']))
             story.append(Spacer(1, 0.05*inch))
     
     # Extract analysis_session_id from results_data
@@ -27667,9 +28189,9 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
         ws_signoff.append([])
         
         ws_signoff.append(["Review Status:"])
-        ws_signoff.append(["ΓÿÉ Approved"])
-        ws_signoff.append(["ΓÿÉ Approved with Conditions"])
-        ws_signoff.append(["ΓÿÉ Rejected - Requires Revision"])
+        ws_signoff.append(["✓ Approved"])
+        ws_signoff.append(["✓ Approved with Conditions"])
+        ws_signoff.append(["✗ Rejected - Requires Revision"])
         ws_signoff.append([])
         
         ws_signoff.append(["PE Reviewer Information:"])
@@ -32362,15 +32884,20 @@ def generate_utility_submission_package_endpoint():
         if not org_id:
             return jsonify({"error": "Organization ID required. Please log in again."}), 401
         
-        # Get results data from request
+        # Get results data from request; use same data as Client HTML report when available
         results_data = request.get_json()
         if not results_data:
             return jsonify({"error": "No results data provided"}), 400
+        session_id = results_data.get("analysis_session_id") if isinstance(results_data, dict) else None
+        report_payload = getattr(app, "_report_payload_by_session", {}).get(session_id) if session_id else None
+        if report_payload:
+            results_data = dict(report_payload)
+            logger.info(f"UTILITY SUBMISSION PACKAGE - Using stored report payload for session {session_id} (same as Client HTML report)")
         
         logger.info(f"UTILITY SUBMISSION PACKAGE - API endpoint called (org_id={org_id})")
         
         # Generate the package (pass org_id in results_data for use in the function)
-        results_data['_org_id'] = org_id
+        results_data["_org_id"] = org_id
         zip_buffer = generate_utility_submission_package(results_data)
         
         # Generate filename
@@ -32400,6 +32927,71 @@ def generate_utility_submission_package_endpoint():
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({"error": f"Failed to generate utility submission package: {str(e)}"}), 500
+
+
+def _ensure_staging_storage():
+    """Ensure per-org staging path dicts exist for audit/utility packages."""
+    if not hasattr(app, "_staged_utility_paths"):
+        app._staged_utility_paths = {}
+    if not hasattr(app, "_staged_audit_paths"):
+        app._staged_audit_paths = {}
+
+
+@app.route("/api/stage-utility-package", methods=["POST"])
+@api_guard
+def stage_utility_package():
+    """Generate Utility Submission Package to staging for cross-check review; download later via /api/download-staged-utility."""
+    try:
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+        data = request.get_json(silent=True) or {}
+        results_data = data.get("results_data") or getattr(app, "_latest_analysis_results", None)
+        if not results_data:
+            return jsonify({"error": "No results data available. Run an analysis first."}), 400
+        # Use same data as Client HTML report when available
+        session_id = results_data.get("analysis_session_id") if isinstance(results_data, dict) else None
+        report_payload = getattr(app, "_report_payload_by_session", {}).get(session_id) if session_id else None
+        if report_payload:
+            results_data = dict(report_payload)
+            logger.info(f"Stage utility - Using stored report payload for session {session_id} (same as Client HTML report)")
+        _ensure_staging_storage()
+        results_data = dict(results_data)
+        results_data["_org_id"] = org_id
+        zip_buffer = generate_utility_submission_package(results_data)
+        staging_dir = Path(__file__).parent / "results" / "staging"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        staging_path = staging_dir / f"org_{org_id}_utility_{timestamp}.zip"
+        with open(staging_path, "wb") as f:
+            f.write(zip_buffer.getvalue())
+        app._staged_utility_paths[org_id] = str(staging_path)
+        logger.info(f"Staged utility package for org {org_id}: {staging_path.name}")
+        return jsonify({"ok": True, "message": "Utility package staged for review.", "filename": staging_path.name}), 200
+    except Exception as e:
+        logger.error(f"Stage utility package failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/download-staged-utility", methods=["GET"])
+def download_staged_utility():
+    """Download the staged Utility Submission Package zip if one was staged for this org."""
+    try:
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required."}), 401
+        _ensure_staging_storage()
+        path = app._staged_utility_paths.get(org_id)
+        if not path or not os.path.exists(path):
+            return jsonify({"error": "No staged utility package. Stage first from Document Sync Console."}), 404
+        from flask import send_file
+        return send_file(path, as_attachment=True, download_name=os.path.basename(path), mimetype="application/zip")
+    except Exception as e:
+        logger.error(f"Download staged utility failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # Profiles Routes
 @app.route("/api/profiles", methods=["GET", "POST"])
@@ -33145,7 +33737,128 @@ def admin_panel():
             logger.error(f"Admin panel file not found at: {admin_panel_path}")
             return f"Admin panel file not found at: {admin_panel_path}", 404
         logger.info(f"Serving admin panel from: {admin_panel_path}")
-        return send_from_directory("static", "admin_panel.html")
+        
+        # Read the admin panel HTML and inject Document Sync Console button
+        try:
+            with open(admin_panel_path, 'r', encoding='utf-8') as f:
+                admin_html = f.read()
+            
+            # Check if button already exists to avoid duplicates
+            if 'Document Sync Console' in admin_html:
+                logger.info("Document Sync Console button already exists in admin panel")
+                return admin_html
+            
+            # Add Document Sync Console button - place it right after Force Data Sync button
+            document_sync_button = '<a href="/document-sync-console" class="admin-button" style="text-decoration: none; display: inline-block; background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 10px 20px; border-radius: 5px; margin: 5px; font-weight: bold;">📊 Document Sync Console</a>'
+            
+            # Try to find and insert right after Force Data Sync button
+            # Look for the exact button pattern
+            force_sync_marker = 'onclick="forceDataSync()">Force Data Sync</button>'
+            if force_sync_marker in admin_html:
+                # Find the position and insert right after
+                pos = admin_html.find(force_sync_marker)
+                if pos > 0:
+                    insert_pos = pos + len(force_sync_marker)
+                    admin_html = admin_html[:insert_pos] + '\n                    ' + document_sync_button + admin_html[insert_pos:]
+                    button_inserted = True
+                    logger.info("Successfully inserted Document Sync Console button after Force Data Sync")
+            
+            # Alternative: try simpler pattern matching
+            if not button_inserted:
+                patterns_to_try = [
+                    ('<button class="admin-button danger" onclick="forceDataSync()">Force Data Sync</button>', 
+                     '<button class="admin-button danger" onclick="forceDataSync()">Force Data Sync</button>\n                    ' + document_sync_button),
+                    ('Force Data Sync</button>', 
+                     'Force Data Sync</button>\n                    ' + document_sync_button),
+                ]
+                
+                for pattern, replacement in patterns_to_try:
+                    if pattern in admin_html:
+                        admin_html = admin_html.replace(pattern, replacement, 1)
+                        button_inserted = True
+                        logger.info(f"Successfully inserted Document Sync Console button using pattern replacement")
+                        break
+            
+            # If still not inserted, try inserting in the Data Recovery section
+            if not button_inserted:
+                if '<h3>Data Recovery</h3>' in admin_html:
+                    admin_html = admin_html.replace(
+                        '<h3>Data Recovery</h3>',
+                        '<h3>Data Recovery</h3>\n                    ' + document_sync_button,
+                        1
+                    )
+                    button_inserted = True
+                    logger.info("Inserted Document Sync Console button in Data Recovery section")
+            
+            # Last resort: add it in Emergency Actions section or create a new section
+            if not button_inserted:
+                # Try to add it right after the Force Data Sync button in the Data Recovery card
+                if '<h3>Data Recovery</h3>' in admin_html:
+                    # Find the Data Recovery card and add button before closing div
+                    data_recovery_section = admin_html.find('<h3>Data Recovery</h3>')
+                    if data_recovery_section > 0:
+                        # Find the next closing div after Force Data Sync button
+                        force_sync_pos = admin_html.find('forceDataSync()', data_recovery_section)
+                        if force_sync_pos > 0:
+                            # Find the closing button tag
+                            button_close = admin_html.find('</button>', force_sync_pos)
+                            if button_close > 0:
+                                # Insert after the button with proper spacing
+                                admin_html = admin_html[:button_close + 9] + '\n                    ' + document_sync_button + admin_html[button_close + 9:]
+                                button_inserted = True
+                                logger.info("Inserted Document Sync Console button after Force Data Sync button")
+                
+                # If still not inserted, add as a new card in Emergency Actions section
+                if not button_inserted:
+                    # Add as a new admin-card in the admin-grid
+                    new_card_html = f'''                <div class="admin-card">
+                    <h3>Document Sync</h3>
+                    {document_sync_button}
+                </div>'''
+                    
+                    # Try to insert before the closing admin-grid div in Emergency Actions
+                    if '<div class="admin-grid">' in admin_html and '<!-- Emergency Actions -->' in admin_html:
+                        emergency_pos = admin_html.find('<!-- Emergency Actions -->')
+                        admin_grid_pos = admin_html.find('<div class="admin-grid">', emergency_pos)
+                        if admin_grid_pos > 0:
+                            # Find the closing div for admin-grid
+                            closing_grid = admin_html.find('</div>', admin_grid_pos + 100)
+                            if closing_grid > 0:
+                                admin_html = admin_html[:closing_grid] + '\n' + new_card_html + '\n            ' + admin_html[closing_grid:]
+                                button_inserted = True
+                                logger.info("Inserted Document Sync Console as new card in Emergency Actions section")
+                    
+                    # Alternative: add after Emergency Actions heading
+                    if not button_inserted and '<h2>🚨 Emergency Actions</h2>' in admin_html:
+                        admin_html = admin_html.replace(
+                            '<h2>🚨 Emergency Actions</h2>',
+                            '<h2>🚨 Emergency Actions</h2>\n            <div class="admin-grid">\n' + new_card_html + '\n            </div>',
+                            1
+                        )
+                        button_inserted = True
+                        logger.info("Inserted Document Sync Console as new card after Emergency Actions heading")
+            
+            if not button_inserted:
+                logger.warning("Could not find insertion point for Document Sync Console button in admin panel - using fallback")
+                # Ultimate fallback: add before closing body tag
+                if '</body>' in admin_html:
+                    admin_html = admin_html.replace('</body>', document_sync_button + '\n</body>', 1)
+                    button_inserted = True
+                    logger.info("Inserted Document Sync Console button before closing body tag (fallback)")
+            
+            # Return the modified HTML as a proper response
+            from flask import Response
+            response = Response(admin_html, mimetype='text/html')
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
+        except Exception as e:
+            logger.error(f"Error injecting Document Sync Console button: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Fallback to original behavior
+            return send_from_directory("static", "admin_panel.html")
     except Exception as e:
         logger.error(f"Error serving admin panel: {e}")
         import traceback
@@ -33268,6 +33981,12 @@ def system_status_page():
         </div>
 
         <div class="status-section">
+            <h2>📊 Document Sync Console</h2>
+            <p>Verify and sync HTML Reports, Audit documents, and Utility Submission documents to ensure consistency across all documents.</p>
+            <button class="btn-status" onclick="window.location.href='/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
+        </div>
+
+        <div class="status-section">
             <h2>≡ƒô₧ Support Information</h2>
             <p>For technical support or system issues:</p>
             <ul>
@@ -33345,9 +34064,10 @@ def documentation_page():
         <div class="doc-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
                 <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 40px; width: auto;">
-                <h1 style="margin: 0;">≡ƒôÜ Documentation</h1>
+                <h1 style="margin: 0;">Documentation</h1>
             </div>
             <p>Complete system documentation and user guides</p>
+            <button class="btn-doc" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/main-dashboard'; }" style="background: #6c757d; margin-top: 15px;">← Back</button>
         </div>
 
         <div class="doc-section">
@@ -33360,6 +34080,17 @@ def documentation_page():
                 <li><strong>Audit Package:</strong> Generate complete audit documentation</li>
             </ol>
             <button class="btn-doc" onclick="window.location.href='/main-dashboard'">Go to Dashboard</button>
+        </div>
+
+        <div class="doc-section">
+            <h2>📊 Document Sync Console</h2>
+            <p>Verify and sync HTML Reports, Audit documents, and Utility Submission documents to ensure all documents are consistent and tie out perfectly for audit compliance.</p>
+            <ul>
+                <li><strong>Check Document Consistency:</strong> Verify that all documents have matching values</li>
+                <li><strong>View Sync Status:</strong> See which documents are in sync or out of sync</li>
+                <li><strong>Identify Discrepancies:</strong> Find and resolve any inconsistencies between documents</li>
+            </ul>
+            <button class="btn-doc" onclick="window.location.href='/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
         </div>
 
         <div class="doc-section">
@@ -33382,7 +34113,1113 @@ def documentation_page():
         logger.error(f"Error rendering documentation page: {e}")
         return f"Error loading documentation page: {str(e)}", 500
 
-# User Guide Routes
+# Document Sync Console Route
+@app.route("/document-sync-console")
+def document_sync_console():
+    """Document Sync Console - Verify and sync HTML Reports, Audit documents, and Utility Submission documents"""
+    try:
+        cache_bust = int(time.time())
+        return render_template_string(
+            """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Sync Console - SYNEREX</title>
+    <link rel="stylesheet" href="/static/main_dashboard.css?v={{ cache_bust }}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .console-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .console-header {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .console-header h1 {
+            margin: 0;
+            font-size: 2em;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .console-header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        .console-section {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            color: #1a237e;
+            margin-top: 0;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #283593, #3949ab);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 35, 126, 0.3);
+        }
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .status-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+        }
+        .status-card.passed {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .status-card.failed {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .status-card.warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .status-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .badge-passed {
+            background: #28a745;
+            color: white;
+        }
+        .badge-failed {
+            background: #dc3545;
+            color: white;
+        }
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .badge-error {
+            background: #6c757d;
+            color: white;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .metrics-table th {
+            background: #1a237e;
+            color: white;
+            font-weight: bold;
+        }
+        .metrics-table tr:hover {
+            background: #f5f5f5;
+        }
+        .discrepancy-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .discrepancy-item.high {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .discrepancy-item.medium {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a237e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #2196f3;
+        }
+        .error-box {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #f44336;
+        }
+        .success-box {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .document-list {
+            list-style: none;
+            padding: 0;
+        }
+        .document-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .document-list li .status-icon {
+            font-size: 20px;
+        }
+        .document-status-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .document-status-table th {
+            background: #1a237e;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .document-status-table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .document-status-table tr:last-child td {
+            border-bottom: none;
+        }
+        .doc-status-check {
+            color: #28a745;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .doc-status-x {
+            color: #dc3545;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .fix-guidance-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .fix-guidance-box h5 {
+            margin: 0 0 10px 0;
+            color: #2e7d32;
+            font-size: 16px;
+        }
+        .fix-guidance-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .fix-guidance-box li {
+            margin: 8px 0;
+        }
+        .fix-action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .btn-fix {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-fix:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+        }
+        .btn-fix-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .btn-fix-secondary:hover {
+            background: linear-gradient(135deg, #5a6268, #495057);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="console-container">
+        <div class="console-header">
+            <h1>
+                <span>📊</span>
+                Document Sync Console
+            </h1>
+            <p>Verify and sync HTML Reports, Audit documents, and Utility Submission documents</p>
+        </div>
+
+        <div class="console-section" id="contextSection">
+            <h2 class="section-title">Current Context</h2>
+            <div id="contextContent" class="info-box">
+                <p id="contextMessage">Loading...</p>
+            </div>
+        </div>
+
+        <div class="console-section">
+            <h2 class="section-title">Document Status Overview</h2>
+            <div class="status-grid" id="documentStatusGrid">
+                <div class="status-card">
+                    <h4>HTML Report</h4>
+                    <p id="htmlReportStatus">Status: <span class="status-badge badge-error">Not Checked</span></p>
+                </div>
+                <div class="status-card">
+                    <h4>Audit Package</h4>
+                    <p id="auditPackageStatus">Status: <span class="status-badge badge-error">Not Checked</span></p>
+                </div>
+                <div class="status-card">
+                    <h4>Utility Submission Package</h4>
+                    <p id="utilityPackageStatus">Status: <span class="status-badge badge-error">Not Checked</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="console-section">
+            <h2 class="section-title">Actions</h2>
+            <button class="btn-primary" id="btnCheckConsistency" onclick="checkConsistency()">
+                🔍 Check Document Consistency
+            </button>
+            <button class="btn-secondary" id="btnStageUtility" onclick="stageUtilityPackage()" title="Generate Utility package to staging for review, then download via button below">
+                📦 Stage Utility for Review
+            </button>
+            <a class="btn-secondary" id="btnDownloadStagedUtility" href="/api/download-staged-utility" style="display: none;" download>⬇ Download Staged Utility Zip</a>
+            <button class="btn-secondary" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/main-dashboard'; }">
+                ← Back
+            </button>
+            <button class="btn-secondary" onclick="window.location.href='/documentation'" style="background: #007bff;">
+                📖 Documentation
+            </button>
+            <button class="btn-secondary" onclick="window.location.href='/system-status'" style="background: #17a2b8;">
+                📊 System Status
+            </button>
+            <div id="loadingIndicator" class="hidden" style="margin-top: 15px;">
+                <div class="loading"></div>
+                <span>Checking document consistency...</span>
+            </div>
+            <div id="stageUtilityMessage" class="hidden" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="console-section hidden" id="resultsSection">
+            <h2 class="section-title">Consistency Check Results</h2>
+            <div id="resultsContent"></div>
+        </div>
+
+        <div class="console-section hidden" id="metricsSection">
+            <h2 class="section-title">Key Metrics Comparison</h2>
+            <table class="metrics-table" id="metricsTable">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="metricsTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="console-section hidden" id="comparisonTableSection">
+            <h2 class="section-title">Comprehensive Cross-Check (Source | HTML | Audit | Utility | Match)</h2>
+            <p class="info-box" style="margin-bottom: 15px;">Source and Audit/Utility values are from analysis data; HTML is from the saved Client Report. Match indicates HTML agrees with source.</p>
+            <div class="table-responsive" style="overflow-x: auto;">
+                <table class="metrics-table" id="comparisonTable">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Source</th>
+                            <th>HTML Report</th>
+                            <th>Audit</th>
+                            <th>Utility</th>
+                            <th>Match</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="console-section hidden" id="diagnosticsSection">
+            <h2 class="section-title">Consistency Diagnostics</h2>
+            <p class="info-box" style="margin-bottom: 15px;">Document presence, completeness, and derived-value checks to confirm consistency.</p>
+            <div id="diagnosticsContent"></div>
+        </div>
+
+        <div class="console-section hidden" id="discrepanciesSection">
+            <h2 class="section-title">Discrepancies Found</h2>
+            <div id="discrepanciesList"></div>
+        </div>
+    </div>
+
+    <script>
+        // Function to determine which documents are affected by a discrepancy
+        function getDocumentStatus(documentImpact) {
+            const impact = (documentImpact || 'All documents').toLowerCase();
+            const allDocs = impact.includes('all') || impact.includes('analysis, audit, utility');
+            
+            // If "all documents" is mentioned, all are affected
+            if (allDocs) {
+                return {
+                    clientReport: true,  // affected
+                    audit: true,        // affected
+                    utility: true       // affected
+                };
+            }
+            
+            // Otherwise, check which specific documents are mentioned
+            return {
+                clientReport: impact.includes('html') || impact.includes('report') || impact.includes('analysis') || impact.includes('client'),
+                audit: impact.includes('audit'),
+                utility: impact.includes('utility') || impact.includes('submission')
+            };
+        }
+
+        // Function to map discrepancy metrics to specific UI field targets
+        function getFieldTarget(metric, issue) {
+            const metricLower = (metric || '').toLowerCase();
+            const issueLower = (issue || '').toLowerCase();
+            
+            // Map metrics to UI field IDs or section selectors
+            const fieldMap = {
+                // Financial/Input fields
+                'annual_dollar_savings': { fieldId: 'energy_rate', fieldName: 'energy_rate', section: 'input', label: 'Energy Rate ($/kWh)' },
+                'annual_kwh_savings': { fieldId: 'energy_rate', fieldName: 'energy_rate', section: 'input', label: 'Energy Rate ($/kWh)' },
+                'npv': { fieldId: 'project_cost', fieldName: 'project_cost', section: 'input', label: 'Project Cost ($)' },
+                'sir': { fieldId: 'project_cost', fieldName: 'project_cost', section: 'input', label: 'Project Cost ($)' },
+                'payback_years': { fieldId: 'project_cost', fieldName: 'project_cost', section: 'input', label: 'Project Cost ($)' },
+                
+                // Power Quality fields
+                'pf_before': { fieldId: 'target_pf', fieldName: 'target_pf', section: 'input', label: 'Target Power Factor' },
+                'pf_after': { fieldId: 'target_pf', fieldName: 'target_pf', section: 'input', label: 'Target Power Factor' },
+                'thd_before': { fieldId: 'harmonic_analysis_level', fieldName: 'harmonic_analysis_level', section: 'input', label: 'Harmonic Analysis Level' },
+                'thd_after': { fieldId: 'harmonic_analysis_level', fieldName: 'harmonic_analysis_level', section: 'input', label: 'Harmonic Analysis Level' },
+                
+                // Weather/Data fields - try multiple possible field names
+                'weather_adjustment_factor': { fieldId: 'weather_provider', fieldName: 'weather_provider', section: 'input', label: 'Weather Normalization Settings', altNames: ['weather_normalization', 'weather_provider', 'weather_adjustment'] },
+                'normalized_kw_after': { fieldId: 'weather_provider', fieldName: 'weather_provider', section: 'input', label: 'Weather Normalization Settings', altNames: ['weather_normalization', 'weather_provider'] },
+                'normalized_kw_savings': { fieldId: 'weather_provider', fieldName: 'weather_provider', section: 'input', label: 'Weather Normalization Settings', altNames: ['weather_normalization', 'weather_provider'] },
+                'total_normalized_savings_kw': { fieldId: 'weather_provider', fieldName: 'weather_provider', section: 'input', label: 'Weather Normalization Settings', altNames: ['weather_normalization', 'weather_provider'] },
+                
+                // File upload fields
+                'kw_before_avg': { fieldId: 'before_file_id', fieldName: 'before_file_id', section: 'file', label: 'Before Period File' },
+                'kw_after_avg': { fieldId: 'after_file_id', fieldName: 'after_file_id', section: 'file', label: 'After Period File' },
+            };
+            
+            // Check for direct metric match
+            if (fieldMap[metricLower]) {
+                return fieldMap[metricLower];
+            }
+            
+            // Check for partial matches
+            for (const [key, value] of Object.entries(fieldMap)) {
+                if (metricLower.includes(key) || key.includes(metricLower)) {
+                    return value;
+                }
+            }
+            
+            // Default: point to results section for calculated metrics
+            if (issueLower.includes('missing') || issueLower.includes('zero')) {
+                if (metricLower.includes('weather') || metricLower.includes('normalized')) {
+                    return { fieldId: 'weather_provider', fieldName: 'weather_provider', section: 'input', label: 'Weather Normalization Settings' };
+                }
+                if (metricLower.includes('savings') || metricLower.includes('kw')) {
+                    return { fieldId: null, fieldName: null, section: 'results', label: 'Analysis Results' };
+                }
+            }
+            
+            // Default to results section
+            return { fieldId: null, fieldName: null, section: 'results', label: 'Analysis Results' };
+        }
+
+        // Function to get fix guidance based on metric type and affected documents
+        function getFixGuidance(metric, issue, docStatus) {
+            const metricLower = (metric || '').toLowerCase();
+            const issueLower = (issue || '').toLowerCase();
+            
+            // Get the target field for this metric
+            const fieldTarget = getFieldTarget(metric, issue);
+            
+            // Build action buttons based on affected documents
+            const buildActions = (needsAnalysis, needsRegenerate, fieldTarget) => {
+                const actions = [];
+                
+                // Add "Go to Input Field" button if field is identified (use /legacy so analysis form is visible)
+                if (fieldTarget && fieldTarget.fieldId && fieldTarget.section === 'input') {
+                    actions.push({
+                        text: `✏️ Go to ${fieldTarget.label}`,
+                        url: "/legacy",
+                        action: "goToField",
+                        fieldId: fieldTarget.fieldId,
+                        fieldName: fieldTarget.fieldName,
+                        primary: true
+                    });
+                } else if (fieldTarget && fieldTarget.fieldId && fieldTarget.section === 'file') {
+                    actions.push({
+                        text: `📁 Go to ${fieldTarget.label}`,
+                        url: "/legacy",
+                        action: "goToField",
+                        fieldId: fieldTarget.fieldId,
+                        fieldName: fieldTarget.fieldName,
+                        primary: true
+                    });
+                }
+                
+                // Always add "Go to Analysis Results" button (use /legacy so analysis is visible)
+                actions.push({
+                    text: "📊 Go to Analysis Results",
+                    url: "/legacy",
+                    action: "scrollToResults",
+                    primary: fieldTarget && !fieldTarget.fieldId ? true : false
+                });
+                
+                // Add regenerate buttons for affected documents (use /legacy so analysis is visible)
+                if (needsRegenerate) {
+                    if (docStatus.clientReport) {
+                        actions.push({
+                            text: "📄 Regenerate HTML Report",
+                            url: "/legacy",
+                            action: "regenerateHTML",
+                            primary: false
+                        });
+                    }
+                    if (docStatus.audit) {
+                        actions.push({
+                            text: "📋 Regenerate Audit Package",
+                            url: "/legacy",
+                            action: "regenerateAudit",
+                            primary: false
+                        });
+                    }
+                    if (docStatus.utility) {
+                        actions.push({
+                            text: "📦 Regenerate Utility Package",
+                            url: "/legacy",
+                            action: "regenerateUtility",
+                            primary: false
+                        });
+                    }
+                }
+                
+                // Add re-run analysis button if needed (use /legacy so analysis form is visible)
+                if (needsAnalysis) {
+                    actions.push({
+                        text: "🔄 Re-run Analysis",
+                        url: "/legacy",
+                        action: "rerunAnalysis",
+                        primary: false
+                    });
+                }
+                
+                return actions;
+            };
+            
+            // Missing or zero value issues
+            if (issueLower.includes('missing') || issueLower.includes('zero')) {
+                if (metricLower.includes('weather') || metricLower.includes('normalized')) {
+                    return {
+                        title: "🔧 How to Fix: Missing Weather Normalization Data",
+                        steps: [
+                            "Go to the Weather Normalization section to configure weather data",
+                            "Ensure both 'before' and 'after' period CSV files are uploaded",
+                            "Check that weather data is available for your analysis period",
+                            "Re-run the analysis to regenerate all calculations",
+                            "After re-running, regenerate the affected documents using the buttons below"
+                        ],
+                        actions: buildActions(true, true, fieldTarget)
+                    };
+                } else if (metricLower.includes('savings') || metricLower.includes('kw')) {
+                    return {
+                        title: "🔧 How to Fix: Missing Savings Calculations",
+                        steps: [
+                            "Go to the Analysis Results section to verify your analysis",
+                            "Check that both 'before' and 'after' period data are properly loaded",
+                            "Ensure the analysis period ranges are correctly set",
+                            "Re-run the analysis if data appears incomplete",
+                            "Regenerate the affected documents after fixing the analysis"
+                        ],
+                        actions: buildActions(true, true, fieldTarget)
+                    };
+                } else {
+                    return {
+                        title: "🔧 How to Fix: Missing Critical Metrics",
+                        steps: [
+                            "Go to the Analysis Results section",
+                            "Re-run the analysis to ensure all calculations are complete",
+                            "Verify that all required input data is present and valid",
+                            "Check the analysis results section for any error messages",
+                            "Regenerate the affected documents after re-running the analysis"
+                        ],
+                        actions: buildActions(true, true, fieldTarget)
+                    };
+                }
+            }
+            
+            // Weather adjustment factor mismatch
+            if (metricLower.includes('weather') && issueLower.includes('mismatch')) {
+                return {
+                    title: "🔧 How to Fix: Weather Adjustment Factor Mismatch",
+                    steps: [
+                        "This indicates a calculation inconsistency in weather normalization",
+                        "Go to the Weather Normalization section and verify settings",
+                        "Re-run the analysis to recalculate all weather normalization factors",
+                        "After re-running, regenerate the affected documents",
+                        "All documents will then have consistent weather adjustment calculations"
+                    ],
+                    actions: buildActions(true, true, fieldTarget)
+                };
+            }
+            
+            // General discrepancy - only regenerate, no need to re-run analysis
+            return {
+                title: "🔧 How to Fix: Document Inconsistency",
+                steps: [
+                    "Go to the Analysis Results section where you ran the analysis",
+                    "Regenerate the affected documents using the buttons below",
+                    "Click the respective 'Generate' buttons in the analysis results section",
+                    "After regenerating, return here and check consistency again",
+                    "All documents should now be in sync"
+                ],
+                actions: buildActions(false, true, fieldTarget)
+            };
+        }
+
+        async function checkConsistency() {
+            const btn = document.getElementById('btnCheckConsistency');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContent = document.getElementById('resultsContent');
+            const metricsSection = document.getElementById('metricsSection');
+            const discrepanciesSection = document.getElementById('discrepanciesSection');
+
+            // Disable button and show loading
+            btn.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            metricsSection.classList.add('hidden');
+            const comparisonTableSectionEl = document.getElementById('comparisonTableSection');
+            if (comparisonTableSectionEl) comparisonTableSectionEl.classList.add('hidden');
+            const diagnosticsSectionEl = document.getElementById('diagnosticsSection');
+            if (diagnosticsSectionEl) diagnosticsSectionEl.classList.add('hidden');
+            discrepanciesSection.classList.add('hidden');
+
+            try {
+                // Call the cross-check consistency API
+                const response = await fetch('/api/cross-check-consistency', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                // Hide loading
+                loadingIndicator.classList.add('hidden');
+                btn.disabled = false;
+
+                // Show results
+                resultsSection.classList.remove('hidden');
+
+                if (!data.success) {
+                    const errorMsg = data.error || 'Failed to check consistency';
+                    const statusMsg = data.consistency_status || 'ERROR';
+                    resultsContent.innerHTML = '<div class="error-box">' +
+                        '<h3>❌ Error</h3>' +
+                        '<p>' + errorMsg + '</p>' +
+                        '<p><strong>Status:</strong> ' + statusMsg + '</p>' +
+                        '</div>';
+                    updateDocumentStatus('error', 'error', 'error');
+                    return;
+                }
+
+                // Update document status cards
+                const tieOutStatus = data.tie_out_status || 'UNKNOWN';
+                const consistencyStatus = data.consistency_status || 'UNKNOWN';
+                
+                if (tieOutStatus === 'PASSED') {
+                    updateDocumentStatus('passed', 'passed', 'passed');
+                } else if (tieOutStatus === 'FAILED') {
+                    updateDocumentStatus('failed', 'failed', 'failed');
+                } else if (tieOutStatus === 'WARNING' || tieOutStatus === 'PASSED_WITH_WARNINGS') {
+                    updateDocumentStatus('warning', 'warning', 'warning');
+                } else {
+                    updateDocumentStatus('error', 'error', 'error');
+                }
+
+                // Display main results
+                let statusClass = 'error-box';
+                let statusIcon = '❌';
+                if (tieOutStatus === 'PASSED') {
+                    statusClass = 'success-box';
+                    statusIcon = '✅';
+                } else if (tieOutStatus === 'WARNING' || tieOutStatus === 'PASSED_WITH_WARNINGS') {
+                    statusClass = 'info-box';
+                    statusIcon = '⚠️';
+                }
+
+                const projectLabel = (data.project_name && String(data.project_name).trim()) ? (' (Project: ' + String(data.project_name).replace(/</g, '&lt;').replace(/>/g, '&gt;') + ')') : '';
+                resultsContent.innerHTML = '<div class="' + statusClass + '">' +
+                    '<h3>' + statusIcon + ' ' + (consistencyStatus || '') + projectLabel + '</h3>' +
+                    '<p><strong>Tie-Out Status:</strong> ' + (tieOutStatus || '') + '</p>' +
+                    '<p><strong>Audit Compliance:</strong> ' + (data.audit_compliance || 'UNKNOWN') + '</p>' +
+                    '<p><strong>Timestamp:</strong> ' + (data.timestamp || 'N/A') + '</p>' +
+                    '</div>';
+
+                // Display summary (null-safe)
+                const summary = data.summary || {};
+                resultsContent.innerHTML += '<div class="info-box" style="margin-top: 15px;">' +
+                    '<h4>Summary</h4>' +
+                    '<ul>' +
+                    '<li><strong>Total Metrics Checked:</strong> ' + (summary.total_metrics_checked != null ? summary.total_metrics_checked : 0) + '</li>' +
+                    '<li><strong>Discrepancies Found:</strong> ' + (summary.discrepancies_found != null ? summary.discrepancies_found : 0) + '</li>' +
+                    '<li><strong>High Severity Issues:</strong> ' + (summary.high_severity != null ? summary.high_severity : 0) + '</li>' +
+                    '<li><strong>Medium Severity Issues:</strong> ' + (summary.medium_severity != null ? summary.medium_severity : 0) + '</li>' +
+                    '</ul>' +
+                    '</div>';
+
+                // Display metrics if available (null-safe: show N/A for missing values)
+                if (data.metrics && Object.keys(data.metrics).length > 0) {
+                    metricsSection.classList.remove('hidden');
+                    const metricsTableBody = document.getElementById('metricsTableBody');
+                    metricsTableBody.innerHTML = '';
+                    
+                    for (const [metric, value] of Object.entries(data.metrics)) {
+                        const row = document.createElement('tr');
+                        const formattedMetric = (metric || '').replace(/_/g, ' ').replace(/\\b\\w/g, function(l) { return l.toUpperCase(); });
+                        let formattedValue = 'N/A';
+                        if (value != null && value !== '') {
+                            if (typeof value === 'number' && !Number.isNaN(value)) {
+                                formattedValue = value.toFixed(4);
+                            } else {
+                                formattedValue = String(value);
+                            }
+                        }
+                        row.innerHTML = '<td>' + formattedMetric + '</td>' +
+                            '<td>' + formattedValue + '</td>' +
+                            '<td><span class="status-badge badge-passed">✓</span></td>';
+                        metricsTableBody.appendChild(row);
+                    }
+                }
+
+                // Display comprehensive comparison table (Source | HTML | Audit | Utility | Match)
+                const comparisonTableSection = document.getElementById('comparisonTableSection');
+                const comparisonTableBody = document.getElementById('comparisonTableBody');
+                if (data.comparison_table && Array.isArray(data.comparison_table) && data.comparison_table.length > 0) {
+                    comparisonTableSection.classList.remove('hidden');
+                    comparisonTableBody.innerHTML = '';
+                    data.comparison_table.forEach(function(row) {
+                        const tr = document.createElement('tr');
+                        const fmt = function(v) {
+                            if (v == null || v === '') return 'N/A';
+                            if (typeof v === 'number' && !Number.isNaN(v)) return v.toFixed(4);
+                            return String(v);
+                        };
+                        const matchBadge = row.match ? '<span class="status-badge badge-passed">✓</span>' : '<span class="status-badge badge-failed">✗</span>';
+                        tr.innerHTML = '<td>' + (row.metric_name || row.metric_id || '') + '</td>' +
+                            '<td>' + fmt(row.source) + '</td>' +
+                            '<td>' + fmt(row.html) + '</td>' +
+                            '<td>' + fmt(row.audit) + '</td>' +
+                            '<td>' + fmt(row.utility) + '</td>' +
+                            '<td>' + matchBadge + '</td>';
+                        comparisonTableBody.appendChild(tr);
+                    });
+                } else {
+                    comparisonTableSection.classList.add('hidden');
+                }
+
+                // Display diagnostics (document presence, completeness, derived checks)
+                const diagnosticsSection = document.getElementById('diagnosticsSection');
+                const diagnosticsContent = document.getElementById('diagnosticsContent');
+                if (data.diagnostics && diagnosticsSection && diagnosticsContent) {
+                    diagnosticsSection.classList.remove('hidden');
+                    const d = data.diagnostics;
+                    let html = '';
+                    if (d.document_presence) {
+                        const dp = d.document_presence;
+                        html += '<div class="info-box" style="margin-bottom: 15px;"><h4>Document Presence</h4><ul>';
+                        html += '<li><strong>HTML Report loaded:</strong> ' + (dp.html_report_loaded ? 'Yes' : 'No') + '</li>';
+                        if (dp.html_report_path) html += '<li><strong>Report file:</strong> ' + String(dp.html_report_path).replace(/</g, '&lt;') + '</li>';
+                        html += '</ul></div>';
+                    }
+                    if (d.completeness) {
+                        const c = d.completeness;
+                        html += '<div class="info-box" style="margin-bottom: 15px;"><h4>Completeness</h4><p><strong>' + (c.metrics_with_values != null ? c.metrics_with_values : 0) + '</strong> of <strong>' + (c.total_key_metrics != null ? c.total_key_metrics : 0) + '</strong> key metrics have values (' + (c.percent_filled != null ? c.percent_filled : 0) + '%)</p></div>';
+                    }
+                    if (d.derived_checks && d.derived_checks.length > 0) {
+                        html += '<div class="info-box" style="margin-bottom: 15px;"><h4>Derived-Value Checks</h4><table class="metrics-table"><thead><tr><th>Check</th><th>Description</th><th>Result</th><th>Expected</th><th>Actual</th></tr></thead><tbody>';
+                        d.derived_checks.forEach(function(ch) {
+                            const passBadge = ch.passed ? '<span class="status-badge badge-passed">Pass</span>' : '<span class="status-badge badge-failed">Fail</span>';
+                            html += '<tr><td>' + String(ch.name || '').replace(/</g, '&lt;') + '</td><td>' + String(ch.description || '').replace(/</g, '&lt;') + '</td><td>' + passBadge + '</td><td>' + String(ch.expected != null ? ch.expected : '').replace(/</g, '&lt;') + '</td><td>' + String(ch.actual != null ? ch.actual : '').replace(/</g, '&lt;') + '</td></tr>';
+                        });
+                        html += '</tbody></table></div>';
+                    }
+                    if (d.tolerance) {
+                        html += '<div class="info-box"><h4>Match Tolerance</h4><p>Relative: ' + (d.tolerance.relative_percent != null ? d.tolerance.relative_percent : 0.5) + '%, Absolute: ' + (d.tolerance.absolute != null ? d.tolerance.absolute : 0.01) + '</p></div>';
+                    }
+                    diagnosticsContent.innerHTML = html || '<p>No diagnostics available.</p>';
+                } else if (diagnosticsSection) {
+                    diagnosticsSection.classList.add('hidden');
+                }
+
+                // Display discrepancies if any
+                if (data.discrepancies && data.discrepancies.length > 0) {
+                    discrepanciesSection.classList.remove('hidden');
+                    const discrepanciesList = document.getElementById('discrepanciesList');
+                    discrepanciesList.innerHTML = '';
+                    
+                    // Define escapeHtmlAttr function once outside the loop
+                    function escapeHtmlAttr(str) {
+                        return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    
+                    const checkMark = String.fromCharCode(10003);
+                    const xMark = String.fromCharCode(10007);
+                    data.discrepancies.forEach(discrepancy => {
+                        const severity = discrepancy.severity || 'MEDIUM';
+                        const item = document.createElement('div');
+                        item.className = 'discrepancy-item ' + severity.toLowerCase();
+                        
+                        // Determine which documents are affected
+                        const docStatus = getDocumentStatus(discrepancy.document_impact);
+                        
+                        // Show X if affected, ✓ if not affected
+                        const clientReportStatus = docStatus.clientReport ? xMark : checkMark;
+                        const auditStatus = docStatus.audit ? xMark : checkMark;
+                        const utilityStatus = docStatus.utility ? xMark : checkMark;
+                        
+                        // Get fix guidance
+                        const fixGuidance = getFixGuidance(discrepancy.metric, discrepancy.issue, docStatus);
+                        
+                        const safeMetric = String(discrepancy.metric || 'Unknown Metric');
+                        const safeIssue = String(discrepancy.issue || 'N/A');
+                        const safeTitle = String(fixGuidance.title || '');
+                        const safeSteps = (fixGuidance.steps || []).map(function(step) {
+                            const safeStep = String(step || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            return '<li>' + safeStep + '</li>';
+                        }).join('');
+                        const actionsHtml = (fixGuidance.actions || []).map(function(action) {
+                            const actionType = escapeHtmlAttr(action.action || '');
+                            const fieldId = escapeHtmlAttr(action.fieldId || action.fieldName || '');
+                            const fieldName = escapeHtmlAttr(action.fieldName || action.fieldId || '');
+                            const metric = escapeHtmlAttr(discrepancy.metric || '');
+                            const rawUrl = action.url || '';
+                            const urlPath = escapeHtmlAttr(rawUrl.split('?')[0].split('#')[0]);
+                            const url = escapeHtmlAttr(rawUrl);
+                            const escapedText = escapeHtmlAttr(action.text || '');
+                            const btnClass = action.primary ? 'btn-fix' : 'btn-fix-secondary';
+                            return '<button class="' + btnClass + '" data-sync-action="' + actionType + '" data-field-id="' + fieldId + '" data-field-name="' + fieldName + '" data-metric="' + metric + '" data-url="' + url + '" data-url-path="' + urlPath + '">' + escapedText + '</button>';
+                        }).join('');
+                        const checkClass = function(status) { return status === checkMark ? 'doc-status-check' : 'doc-status-x'; };
+                        
+                        // Show Location (where to fix) when provided by API or from getFieldTarget
+                        const locationFromApi = discrepancy.location;
+                        const fieldTargetForLocation = getFieldTarget(discrepancy.metric, discrepancy.issue);
+                        const locationLabel = (fieldTargetForLocation && fieldTargetForLocation.label) ? fieldTargetForLocation.label : null;
+                        const locationText = locationFromApi || locationLabel || '';
+                        const locationBlock = locationText ? ('<p><strong>Where to fix:</strong> <span style="color:#1565c0;">' + String(locationText).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></p>') : '';
+                        
+                        // Show value to correct and correct value when provided by API
+                        let valueBlock = '';
+                        const curVal = discrepancy.current_value;
+                        const corVal = discrepancy.correct_value;
+                        if (curVal !== undefined && curVal !== null && corVal !== undefined && corVal !== null) {
+                            const dispCur = typeof curVal === 'number' ? curVal.toFixed(4) : String(curVal);
+                            const dispCor = typeof corVal === 'number' ? corVal.toFixed(4) : String(corVal);
+                            valueBlock = '<p><strong>Value to correct:</strong> <span style="color:#c62828;">' + dispCur.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></p><p><strong>Correct value:</strong> <span style="color:#2e7d32;">' + dispCor.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></p>';
+                        } else if (curVal !== undefined && curVal !== null) {
+                            const dispCur = typeof curVal === 'number' ? curVal.toFixed(4) : String(curVal);
+                            valueBlock = '<p><strong>Value to correct:</strong> <span style="color:#c62828;">' + dispCur.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></p>';
+                        } else if (corVal !== undefined && corVal !== null) {
+                            const dispCor = typeof corVal === 'number' ? corVal.toFixed(4) : String(corVal);
+                            valueBlock = '<p><strong>Correct value:</strong> <span style="color:#2e7d32;">' + dispCor.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span></p>';
+                        }
+                        
+                        item.innerHTML = '<h4>' + safeMetric + '</h4>' +
+                            (locationBlock ? locationBlock : '') +
+                            '<p><strong>Issue:</strong> ' + safeIssue + '</p>' +
+                            (valueBlock ? valueBlock : '') +
+                            '<p><strong>Severity:</strong> <span class="status-badge badge-' + severity.toLowerCase() + '">' + severity + '</span></p>' +
+                            '<table class="document-status-table">' +
+                            '<thead><tr><th>Client Report</th><th>Audit</th><th>Utility</th></tr></thead>' +
+                            '<tbody><tr>' +
+                            '<td class="' + checkClass(clientReportStatus) + '">' + clientReportStatus + '</td>' +
+                            '<td class="' + checkClass(auditStatus) + '">' + auditStatus + '</td>' +
+                            '<td class="' + checkClass(utilityStatus) + '">' + utilityStatus + '</td>' +
+                            '</tr></tbody></table>' +
+                            '<div class="fix-guidance-box">' +
+                            '<h5>' + safeTitle + '</h5>' +
+                            '<ul>' + safeSteps + '</ul>' +
+                            '<div class="fix-action-buttons">' + actionsHtml + '</div></div>';
+                        discrepanciesList.appendChild(item);
+                    });
+                } else {
+                    discrepanciesSection.classList.add('hidden');
+                }
+
+                // Update context section with project name after successful check
+                const contextMessage = document.getElementById('contextMessage');
+                const contextContent = document.getElementById('contextContent');
+                if (contextMessage && contextContent && data.project_name && String(data.project_name).trim()) {
+                    contextContent.className = 'info-box success-box';
+                    contextMessage.textContent = 'Current project: ' + String(data.project_name).trim() + '.';
+                }
+
+            } catch (error) {
+                console.error('Error checking consistency:', error);
+                loadingIndicator.classList.add('hidden');
+                btn.disabled = false;
+                resultsSection.classList.remove('hidden');
+                const errorMsg = error && error.message ? error.message : String(error);
+                resultsContent.innerHTML = '<div class="error-box">' +
+                    '<h3>❌ Error</h3>' +
+                    '<p>Failed to check document consistency: ' + errorMsg + '</p>' +
+                    '<p>Please ensure you have run an analysis first.</p>' +
+                    '</div>';
+                updateDocumentStatus('error', 'error', 'error');
+            }
+        }
+
+        function updateDocumentStatus(htmlStatus, auditStatus, utilityStatus) {
+            const statusMap = {
+                'passed': { class: 'passed', badge: 'badge-passed', text: '✓ Synced' },
+                'failed': { class: 'failed', badge: 'badge-failed', text: '✗ Out of Sync' },
+                'warning': { class: 'warning', badge: 'badge-warning', text: '⚠ Warning' },
+                'error': { class: '', badge: 'badge-error', text: '? Not Checked' }
+            };
+
+            const html = statusMap[htmlStatus] || statusMap['error'];
+            const audit = statusMap[auditStatus] || statusMap['error'];
+            const utility = statusMap[utilityStatus] || statusMap['error'];
+
+            document.getElementById('htmlReportStatus').innerHTML = 
+                'Status: <span class="status-badge ' + html.badge + '">' + html.text + '</span>';
+            document.getElementById('auditPackageStatus').innerHTML = 
+                'Status: <span class="status-badge ' + audit.badge + '">' + audit.text + '</span>';
+            document.getElementById('utilityPackageStatus').innerHTML = 
+                'Status: <span class="status-badge ' + utility.badge + '">' + utility.text + '</span>';
+
+            // Update card classes
+            const cards = document.querySelectorAll('.status-card');
+            if (cards.length >= 3) {
+                cards[0].className = 'status-card ' + html.class;
+                cards[1].className = 'status-card ' + audit.class;
+                cards[2].className = 'status-card ' + utility.class;
+            }
+        }
+
+        // Load current context on page load (project name / no analysis)
+        async function loadContext() {
+            const contextMessage = document.getElementById('contextMessage');
+            const contextContent = document.getElementById('contextContent');
+            if (!contextMessage || !contextContent) return;
+            try {
+                const response = await fetch('/api/cross-check-context', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                const ctx = await response.json();
+                if (ctx.has_results && ctx.project_name) {
+                    contextContent.className = 'info-box success-box';
+                    contextMessage.textContent = 'Current project: ' + ctx.project_name + '. Click "Check Document Consistency" to verify.';
+                } else {
+                    contextContent.className = 'info-box';
+                    contextMessage.textContent = 'No analysis loaded. Run an analysis from the Main Dashboard or Legacy interface first, then return here to check document consistency.';
+                }
+            } catch (e) {
+                contextContent.className = 'error-box';
+                contextMessage.textContent = 'Could not load context. You can still run a consistency check if you have run an analysis in this session.';
+            }
+        }
+
+        async function stageUtilityPackage() {
+            const btn = document.getElementById('btnStageUtility');
+            const msgEl = document.getElementById('stageUtilityMessage');
+            const downloadBtn = document.getElementById('btnDownloadStagedUtility');
+            if (!btn || !msgEl) return;
+            btn.disabled = true;
+            msgEl.classList.remove('hidden');
+            msgEl.className = 'info-box';
+            msgEl.textContent = 'Staging utility package...';
+            try {
+                const response = await fetch('/api/stage-utility-package', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (data.ok) {
+                    msgEl.className = 'success-box';
+                    msgEl.textContent = data.message || 'Utility package staged. Use "Download Staged Utility Zip" below.';
+                    if (downloadBtn) { downloadBtn.style.display = 'inline-block'; downloadBtn.href = '/api/download-staged-utility'; }
+                } else {
+                    msgEl.className = 'error-box';
+                    msgEl.textContent = data.error || 'Staging failed.';
+                }
+            } catch (e) {
+                msgEl.className = 'error-box';
+                msgEl.textContent = 'Staging failed: ' + (e && e.message ? e.message : String(e));
+            }
+            btn.disabled = false;
+        }
+
+        // Auto-check on page load if there's analysis data
+        window.addEventListener('DOMContentLoaded', function() {
+            loadContext();
+        });
+
+        // Event delegation for sync action buttons (avoids onclick handler escaping issues)
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-sync-action]');
+            if (!btn) return;
+            
+            const action = btn.getAttribute('data-sync-action');
+            const fieldId = btn.getAttribute('data-field-id') || '';
+            const fieldName = btn.getAttribute('data-field-name') || '';
+            const metric = btn.getAttribute('data-metric') || '';
+            const url = btn.getAttribute('data-url') || '';
+            const urlPath = btn.getAttribute('data-url-path') || '';
+            
+            if (action === 'goToField') {
+                localStorage.setItem('syncConsoleAction', 'goToField');
+                localStorage.setItem('syncConsoleFieldId', fieldId);
+                localStorage.setItem('syncConsoleFieldName', fieldName);
+                if (metric) localStorage.setItem('syncConsoleMetric', metric);
+                if (window.location.pathname === urlPath) {
+                    window.dispatchEvent(new CustomEvent('syncConsoleNavigate'));
+                } else {
+                    window.location.href = url;
+                }
+            } else if (action === 'scrollToResults') {
+                localStorage.setItem('syncConsoleAction', 'scrollToResults');
+                localStorage.setItem('syncConsoleMetric', metric);
+                if (window.location.pathname === urlPath) {
+                    window.dispatchEvent(new CustomEvent('syncConsoleNavigate'));
+                } else {
+                    window.location.href = url;
+                }
+            } else if (action === 'regenerateHTML' || action === 'regenerateAudit' || action === 'regenerateUtility' || action === 'rerunAnalysis') {
+                localStorage.setItem('syncConsoleAction', action);
+                if (window.location.pathname === urlPath) {
+                    window.dispatchEvent(new CustomEvent('syncConsoleNavigate'));
+                } else {
+                    window.location.href = url;
+                }
+            } else if (url) {
+                if (window.location.pathname === urlPath) {
+                    window.dispatchEvent(new CustomEvent('syncConsoleNavigate'));
+                } else {
+                    window.location.href = url;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+        """,
+            cache_bust=cache_bust,
+        )
+    except Exception as e:
+        logger.error(f"Error rendering document sync console: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return f"Error loading document sync console: {str(e)}", 500
 @app.route("/users-guide")
 def users_guide():
     """Comprehensive User's Guide page"""
@@ -37569,9 +39406,9 @@ def pe_self_register_page():
                 <input type="file" id="verification_documents" name="verification_documents" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx">
                 <div class="help-text">
                     Upload supporting documents if automatic verification is not available:<br>
-                    ΓÇó License certificate copy<br>
-                    ΓÇó Verification letter from state board<br>
-                    ΓÇó Other supporting documents<br>
+                    • License certificate copy<br>
+                    • Verification letter from state board<br>
+                    • Other supporting documents<br>
                     <strong>Accepted formats:</strong> PDF, JPG, PNG, DOC, DOCX (max 10MB per file)
                 </div>
             </div>

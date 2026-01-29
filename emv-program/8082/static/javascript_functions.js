@@ -471,7 +471,7 @@ function fetchWeatherData() {
 
   // Show loading state with progress updates
   fetchBtn.disabled = true;
-  statusSpan.innerHTML = '⏳ Starting...';
+  statusSpan.innerHTML = '[WAITING] Starting...';
   
   // Show notification with progress
   showNotification('Fetching weather data... This may take 30-60 seconds for large date ranges.', 'info');
@@ -495,7 +495,7 @@ function fetchWeatherData() {
   }
 
   if (!addressField || !addressField.value.trim()) {
-    statusSpan.innerHTML = '❌';
+    statusSpan.innerHTML = '[ERROR]';
     fetchBtn.disabled = false;
     showNotification('Please enter a facility address first');
     return;
@@ -521,7 +521,7 @@ function fetchWeatherData() {
 
 
   if (!beforeFileId || !afterFileId || !beforeFileId.value || !afterFileId.value) {
-    statusSpan.innerHTML = '❌';
+    statusSpan.innerHTML = '[ERROR]';
     fetchBtn.disabled = false;
     showNotification('Please select both before and after CSV files first');
     return;
@@ -535,15 +535,15 @@ function fetchWeatherData() {
   // Add timeout controller to prevent hanging requests
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
-    console.warn('⏱️ Weather fetch timeout - request taking longer than expected');
-    statusSpan.innerHTML = '⏳ Still fetching...';
+    console.warn('[TIMEOUT] Weather fetch timeout - request taking longer than expected');
+    statusSpan.innerHTML = '[WAITING] Still fetching...';
     showNotification('Weather fetch is taking longer than expected. Please wait...', 'info');
   }, 30000); // Show progress update after 30 seconds
   
   // Final timeout after 150 seconds (2.5 minutes)
   const finalTimeoutId = setTimeout(() => {
     controller.abort();
-    statusSpan.innerHTML = '❌';
+    statusSpan.innerHTML = '[ERROR]';
     fetchBtn.disabled = false;
     showNotification('Weather fetch timed out after 2.5 minutes. The date range may be too large. Please try with smaller date ranges.', 'error');
   }, 150000); // 150 second final timeout
@@ -553,9 +553,9 @@ function fetchWeatherData() {
   const progressInterval = setInterval(() => {
     progressCounter++;
     if (progressCounter <= 5) {
-      statusSpan.innerHTML = `⏳ Fetching... (${progressCounter * 10}s)`;
+      statusSpan.innerHTML = `[WAITING] Fetching... (${progressCounter * 10}s)`;
     } else {
-      statusSpan.innerHTML = `⏳ Still fetching... (${progressCounter * 10}s)`;
+      statusSpan.innerHTML = `[WAITING] Still fetching... (${progressCounter * 10}s)`;
     }
   }, 10000); // Update every 10 seconds
 
@@ -571,7 +571,7 @@ function fetchWeatherData() {
       clearInterval(progressInterval);
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
       }
       
       return response.json();
@@ -582,12 +582,12 @@ function fetchWeatherData() {
       clearInterval(progressInterval);
       
       if (data.success) {
-        statusSpan.innerHTML = '✅';
+        statusSpan.innerHTML = '[OK]';
         showNotification('Weather data fetched successfully!', 'success');
         // Populate weather fields if returned
         if (data.weather_data) {
           // Debug: Log the received weather data to verify values
-          console.log('🌤️ Weather data received:', {
+          console.log('[WEATHER] Weather data received:', {
             temp_before: data.weather_data.temp_before,
             temp_after: data.weather_data.temp_after,
             humidity_before: data.weather_data.humidity_before,
@@ -598,7 +598,7 @@ function fetchWeatherData() {
           populateWeatherFields(data.weather_data);
         }
       } else {
-        statusSpan.innerHTML = '❌';
+        statusSpan.innerHTML = '[ERROR]';
         console.error('Weather fetch failed:', data.error);
         showNotification(`Weather fetch failed: ${data.error}`, 'error');
       }
@@ -608,7 +608,7 @@ function fetchWeatherData() {
       clearTimeout(finalTimeoutId);
       clearInterval(progressInterval);
       
-      statusSpan.innerHTML = '❌';
+      statusSpan.innerHTML = '[ERROR]';
       console.error('Weather fetch error:', error);
       
       if (error.name === 'AbortError') {
@@ -656,24 +656,24 @@ function populateWeatherFields(weatherData) {
     const tempBeforeField = document.querySelector('input[name="temp_before"]');
     if (tempBeforeField) {
       const value = Number(weatherData.temp_before).toFixed(1);
-      console.log(`🌡️ Setting temp_before field to: ${value}`);
+      console.log(`[TEMP] Setting temp_before field to: ${value}`);
       tempBeforeField.value = value;
       tempBeforeField.readOnly = true;
       tempBeforeField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ temp_before field not found in DOM');
+      console.warn('[WARNING] temp_before field not found in DOM');
     }
   }
   if (weatherData.temp_after !== undefined && weatherData.temp_after !== null) {
     const tempAfterField = document.querySelector('input[name="temp_after"]');
     if (tempAfterField) {
       const value = Number(weatherData.temp_after).toFixed(1);
-      console.log(`🌡️ Setting temp_after field to: ${value}`);
+      console.log(`[TEMP] Setting temp_after field to: ${value}`);
       tempAfterField.value = value;
       tempAfterField.readOnly = true;
       tempAfterField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ temp_after field not found in DOM');
+      console.warn('[WARNING] temp_after field not found in DOM');
     }
   }
 
@@ -682,24 +682,24 @@ function populateWeatherFields(weatherData) {
     const humidityBeforeField = document.querySelector('input[name="humidity_before"]');
     if (humidityBeforeField) {
       const value = Number(weatherData.humidity_before).toFixed(1);
-      console.log(`💧 Setting humidity_before field to: ${value}`);
+      console.log(`[HUMIDITY] Setting humidity_before field to: ${value}`);
       humidityBeforeField.value = value;
       humidityBeforeField.readOnly = true;
       humidityBeforeField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ humidity_before field not found in DOM');
+      console.warn('[WARNING] humidity_before field not found in DOM');
     }
   }
   if (weatherData.humidity_after !== undefined && weatherData.humidity_after !== null) {
     const humidityAfterField = document.querySelector('input[name="humidity_after"]');
     if (humidityAfterField) {
       const value = Number(weatherData.humidity_after).toFixed(1);
-      console.log(`💧 Setting humidity_after field to: ${value}`);
+      console.log(`[HUMIDITY] Setting humidity_after field to: ${value}`);
       humidityAfterField.value = value;
       humidityAfterField.readOnly = true;
       humidityAfterField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ humidity_after field not found in DOM');
+      console.warn('[WARNING] humidity_after field not found in DOM');
     }
   }
 
@@ -708,24 +708,24 @@ function populateWeatherFields(weatherData) {
     const dewpointBeforeField = document.querySelector('input[name="dewpoint_before"]');
     if (dewpointBeforeField) {
       const value = Number(weatherData.dewpoint_before).toFixed(1);
-      console.log(`🌫️ Setting dewpoint_before field to: ${value}`);
+      console.log(`[DEWPOINT] Setting dewpoint_before field to: ${value}`);
       dewpointBeforeField.value = value;
       dewpointBeforeField.readOnly = true;
       dewpointBeforeField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ dewpoint_before field not found in DOM - ML normalization may not work');
+      console.warn('[WARNING] dewpoint_before field not found in DOM - ML normalization may not work');
     }
   }
   if (weatherData.dewpoint_after !== undefined && weatherData.dewpoint_after !== null) {
     const dewpointAfterField = document.querySelector('input[name="dewpoint_after"]');
     if (dewpointAfterField) {
       const value = Number(weatherData.dewpoint_after).toFixed(1);
-      console.log(`🌫️ Setting dewpoint_after field to: ${value}`);
+      console.log(`[DEWPOINT] Setting dewpoint_after field to: ${value}`);
       dewpointAfterField.value = value;
       dewpointAfterField.readOnly = true;
       dewpointAfterField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ dewpoint_after field not found in DOM - ML normalization may not work');
+      console.warn('[WARNING] dewpoint_after field not found in DOM - ML normalization may not work');
     }
   }
 
@@ -738,7 +738,7 @@ function populateWeatherFields(weatherData) {
       windBeforeField.readOnly = true;
       windBeforeField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ wind_speed_before field not found in DOM');
+      console.warn('[WARNING] wind_speed_before field not found in DOM');
     }
   }
   if (weatherData.wind_speed_after !== undefined && weatherData.wind_speed_after !== null) {
@@ -749,7 +749,7 @@ function populateWeatherFields(weatherData) {
       windAfterField.readOnly = true;
       windAfterField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ wind_speed_after field not found in DOM');
+      console.warn('[WARNING] wind_speed_after field not found in DOM');
     }
   }
 
@@ -762,7 +762,7 @@ function populateWeatherFields(weatherData) {
       solarBeforeField.readOnly = true;
       solarBeforeField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ solar_radiation_before field not found in DOM');
+      console.warn('[WARNING] solar_radiation_before field not found in DOM');
     }
   }
   if (weatherData.solar_radiation_after !== undefined && weatherData.solar_radiation_after !== null) {
@@ -773,7 +773,7 @@ function populateWeatherFields(weatherData) {
       solarAfterField.readOnly = true;
       solarAfterField.classList.add('auto-populated');
     } else {
-      console.warn('⚠️ solar_radiation_after field not found in DOM');
+      console.warn('[WARNING] solar_radiation_after field not found in DOM');
     }
   }
 
@@ -1154,7 +1154,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // Project management functions - Define BEFORE use
   function loadProjectList() {
-    console.log('🔍 loadProjectList() called');
+    console.log('[SEARCH] loadProjectList() called');
     
     // Check if the select element exists
     const select = document.getElementById('projectList');
@@ -1165,15 +1165,15 @@ document.addEventListener("DOMContentLoaded", function() {
                                window.location.pathname === '/' ||
                                document.getElementById('main-dashboard');
       if (!isMainDashboard) {
-        console.warn('⚠️ Project list select element not found');
+        console.warn('[WARNING] Project list select element not found');
         // Retry after a short delay in case DOM isn't ready yet
         setTimeout(() => {
           const retrySelect = document.getElementById('projectList');
           if (retrySelect) {
-            console.log('✅ Found projectList on retry, loading projects...');
+            console.log('[OK] Found projectList on retry, loading projects...');
             loadProjectList();
           } else {
-            console.debug('❌ Project list select element still not found after retry (may not exist on this page)');
+            console.debug('[ERROR] Project list select element still not found after retry (may not exist on this page)');
           }
         }, 500);
       }
@@ -1194,13 +1194,13 @@ document.addEventListener("DOMContentLoaded", function() {
       authHeaders['X-Session-Token'] = sessionToken;
       console.log('🔑 Session token found, adding to request');
     } else {
-      console.warn('⚠️ No session token found - request may fail if authentication is required');
+      console.warn('[WARNING] No session token found - request may fail if authentication is required');
     }
     
     // Add timeout controller to prevent infinite spinner
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.error('⏱️ Projects request timed out after 30 seconds');
+      console.error('[TIMEOUT] Projects request timed out after 30 seconds');
       controller.abort();
     }, 30000); // Increased to 30 seconds to match main dashboard
     
@@ -1218,14 +1218,14 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!response.ok) {
           // Try to get error message from response
           return response.text().then(text => {
-            console.error('❌ API returned error:', text);
+            console.error('[ERROR] API returned error:', text);
             let errorData;
             try {
               errorData = JSON.parse(text);
             } catch (e) {
-              errorData = { error: text || `HTTP ${response.status}` };
+              errorData = { error: text || 'HTTP ' + response.status };
             }
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            throw new Error((function() { return errorData.error || 'HTTP error! status: ' + response.status; })());
           });
         }
         
@@ -1242,8 +1242,8 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             return jsonData;
           } catch (e) {
-            console.error('❌ Failed to parse JSON:', e);
-            console.error('❌ Response text:', text);
+            console.error('[ERROR] Failed to parse JSON:', e);
+            console.error('[ERROR] Response text:', text);
             throw new Error('Invalid JSON response from server');
           }
         });
@@ -1254,20 +1254,21 @@ document.addEventListener("DOMContentLoaded", function() {
         
         const select = document.getElementById('projectList');
         if (!select) {
-          console.error('❌ Project list select element not found after fetch');
-          console.error('❌ Available elements with "project" in id:', 
-            Array.from(document.querySelectorAll('[id*="project" i]')).map(el => el.id));
+          console.error('[ERROR] Project list select element not found after fetch');
+          const allElements = document.querySelectorAll('[id*="project"], [id*="Project"], [id*="PROJECT"]');
+          const projectElements = Array.from(allElements).map(function(el) { return el.id; });
+          console.error('[ERROR] Available elements with "project" in id:', projectElements);
           return;
         }
         
-        console.log('✅ Select element found:', select);
-        console.log('✅ Current options count:', select.options.length);
+        console.log('[OK] Select element found:', select);
+        console.log('[OK] Current options count:', select.options.length);
         
         // Check if data is an array
         if (!Array.isArray(data)) {
-          console.error('❌ Expected array but got:', typeof data, data);
+          console.error('[ERROR] Expected array but got:', typeof data, data);
           if (data && data.error) {
-            console.error('❌ API error:', data.error);
+            console.error('[ERROR] API error:', data.error);
             showNotification('Error loading projects: ' + data.error);
           } else {
             showNotification('Error: Invalid response format from server');
@@ -1275,7 +1276,7 @@ document.addEventListener("DOMContentLoaded", function() {
           return;
         }
         
-        console.log(`✅ Found ${data.length} projects`);
+        console.log(`[OK] Found ${data.length} projects`);
         
         // Clear and populate the select
         select.innerHTML = '<option value="">Select a project...</option>';
@@ -1286,7 +1287,7 @@ document.addEventListener("DOMContentLoaded", function() {
           option.textContent = 'No projects found';
           option.disabled = true;
           select.appendChild(option);
-          console.log('ℹ️ No projects to display');
+          console.log('[INFO] No projects to display');
           return;
         }
         
@@ -1300,7 +1301,7 @@ document.addEventListener("DOMContentLoaded", function() {
           
           // Skip if this project was just archived
           if (window._lastArchivedProject && projectName === window._lastArchivedProject) {
-            console.log(`⏭️ Skipping recently archived project: ${projectName}`);
+            console.log(`[SKIP] Skipping recently archived project: ${projectName}`);
             return;
           }
           
@@ -1311,27 +1312,27 @@ document.addEventListener("DOMContentLoaded", function() {
             option.setAttribute('data-project-id', projectId);
             select.appendChild(option);
             addedCount++;
-            console.log(`✅ Added project: ${projectName} (ID: ${projectId})`);
+            console.log(`[OK] Added project: ${projectName} (ID: ${projectId})`);
           } else {
-            console.warn('⚠️ Skipping invalid project:', project);
+            console.warn('[WARNING] Skipping invalid project:', project);
             console.warn('  - Has id?', !!projectId, 'Value:', projectId);
             console.warn('  - Has name?', !!projectName, 'Value:', projectName);
             console.warn('  - Project keys:', project ? Object.keys(project) : 'null');
           }
         });
         
-        console.log(`✅ Successfully added ${addedCount} projects to dropdown`);
-        console.log('✅ Final options count:', select.options.length);
+        console.log(`[OK] Successfully added ${addedCount} projects to dropdown`);
+        console.log('[OK] Final options count:', select.options.length);
         
         // Verify the options are actually in the DOM
         const options = select.querySelectorAll('option');
-        console.log('✅ Verified options in DOM:', options.length);
+        console.log('[OK] Verified options in DOM:', options.length);
       })
       .catch(error => {
         clearTimeout(timeoutId);
-        console.error('❌ Error loading project list:', error);
+        console.error('[ERROR] Error loading project list:', error);
         if (error.name !== 'AbortError') {
-          console.error('❌ Error stack:', error.stack);
+          console.error('[ERROR] Error stack:', error.stack);
           showNotification('Failed to load projects: ' + error.message);
         }
         
@@ -1342,11 +1343,11 @@ document.addEventListener("DOMContentLoaded", function() {
         // Show the select element to verify it exists
         const select = document.getElementById('projectList');
         if (select) {
-          console.log('✅ Select element exists but failed to populate');
-          console.log('✅ Select element:', select);
-          console.log('✅ Select parent:', select.parentElement);
+          console.log('[OK] Select element exists but failed to populate');
+          console.log('[OK] Select element:', select);
+          console.log('[OK] Select parent:', select.parentElement);
         } else {
-          console.error('❌ Select element does not exist in DOM');
+          console.error('[ERROR] Select element does not exist in DOM');
         }
       });
   }
@@ -1368,70 +1369,74 @@ document.addEventListener("DOMContentLoaded", function() {
     const btnReanalyze = document.getElementById('btnReanalyzeProject');
 
     if (btnSave) {
-      console.log('✅ Save button found, attaching event listener');
+      console.log('[OK] Save button found, attaching event listener');
       btnSave.addEventListener('click', function() {
-        console.log('💾 Save button clicked');
+        console.log('[SAVE] Save button clicked');
         if (typeof saveProject === 'function') {
           saveProject();
         } else {
-          console.error('❌ saveProject function not found');
+          console.error('[ERROR] saveProject function not found');
           showNotification('Error: Save function not available. Please refresh the page.');
         }
       });
       // Make globally accessible
       window.saveProject = saveProject;
-    } else {
-      console.warn('⚠️ Save button not found');
+    } else if (isProjectPage) {
+      // Only warn if we're on a project page where the button should exist
+      console.warn('[WARNING] Save button not found on project page');
     }
     if (btnLoad) {
-      console.log('✅ Load button found, attaching event listener');
+      console.log('[OK] Load button found, attaching event listener');
       btnLoad.addEventListener('click', function() {
         console.log('📂 Load button clicked');
         if (typeof loadProject === 'function') {
           loadProject();
         } else {
-          console.error('❌ loadProject function not found');
+          console.error('[ERROR] loadProject function not found');
           showNotification('Error: Load function not available. Please refresh the page.');
         }
       });
       window.loadProject = loadProject;
-    } else {
-      console.warn('⚠️ Load button not found');
+    } else if (isProjectPage) {
+      // Only warn if we're on a project page where the button should exist
+      console.warn('[WARNING] Load button not found on project page');
     }
     if (btnNew) {
-      console.log('✅ New button found, attaching event listener');
+      console.log('[OK] New button found, attaching event listener');
       btnNew.addEventListener('click', function() {
         console.log('🆕 New button clicked');
         if (typeof newProject === 'function') {
           newProject();
         } else {
-          console.error('❌ newProject function not found');
+          console.error('[ERROR] newProject function not found');
           showNotification('Error: New function not available. Please refresh the page.');
         }
       });
       // Make globally accessible
       window.newProject = newProject;
-    } else {
-      console.warn('⚠️ New button not found');
+    } else if (isProjectPage) {
+      // Only warn if we're on a project page where the button should exist
+      console.warn('[WARNING] New button not found on project page');
     }
     if (btnSaveAs) {
-      console.log('✅ Save As button found, attaching event listener');
+      console.log('[OK] Save As button found, attaching event listener');
       btnSaveAs.addEventListener('click', function() {
-        console.log('💾💾 Save As button clicked');
+        console.log('[SAVE][SAVE] Save As button clicked');
         if (typeof saveAsProject === 'function') {
           saveAsProject();
         } else {
-          console.error('❌ saveAsProject function not found');
+          console.error('[ERROR] saveAsProject function not found');
           showNotification('Error: Save As function not available. Please refresh the page.');
         }
       });
       // Make globally accessible
       window.saveAsProject = saveAsProject;
-    } else {
-      console.warn('⚠️ Save As button not found');
+    } else if (isProjectPage) {
+      // Only warn if we're on a project page where the button should exist
+      console.warn('[WARNING] Save As button not found on project page');
     }
     if (btnDelete) {
-      console.log('✅ Delete button found, attaching event listener');
+      console.log('[OK] Delete button found, attaching event listener');
       btnDelete.addEventListener('click', function(event) {
         if (event) {
           event.preventDefault();
@@ -1443,7 +1448,7 @@ document.addEventListener("DOMContentLoaded", function() {
       window.deleteProject = deleteProject;
     } else if (isProjectPage) {
       // Only log error if we're on a page where the button should exist
-      console.warn('⚠️ Delete button not found (expected on project pages)');
+      console.warn('[WARNING] Delete button not found (expected on project pages)');
     }
     if (btnReanalyze) btnReanalyze.addEventListener('click', reanalyzeProject);
     
@@ -1451,7 +1456,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const projectSelect = document.getElementById('projectList');
     if (projectSelect) {
       projectSelect.addEventListener('click', function() {
-        console.log('🖱️ Project dropdown clicked');
+        console.log('[CLICK] Project dropdown clicked');
         // If dropdown is empty or only has placeholder, reload
         if (projectSelect.options.length <= 1) {
           console.log('🔄 Dropdown appears empty, reloading projects...');
@@ -1459,7 +1464,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       });
       projectSelect.addEventListener('focus', function() {
-        console.log('👁️ Project dropdown focused');
+        console.log('[VIEW] Project dropdown focused');
         // If dropdown is empty or only has placeholder, reload
         if (projectSelect.options.length <= 1) {
           console.log('🔄 Dropdown appears empty, reloading projects...');
@@ -1477,7 +1482,7 @@ document.addEventListener("DOMContentLoaded", function() {
       if (typeof loadProjectList === 'function') {
         loadProjectList();
       } else {
-        console.error('❌ loadProjectList is not a function!', typeof loadProjectList);
+        console.error('[ERROR] loadProjectList is not a function!', typeof loadProjectList);
       }
     }, 200);
     
@@ -1487,11 +1492,11 @@ document.addEventListener("DOMContentLoaded", function() {
       if (typeof loadProjectList === 'function') {
         loadProjectList();
       } else {
-        console.error('❌ loadProjectList is not a function!', typeof loadProjectList);
+        console.error('[ERROR] loadProjectList is not a function!', typeof loadProjectList);
       }
     }
   } catch (e) {
-    console.error('❌ Project functionality error:', e);
+    console.error('[ERROR] Project functionality error:', e);
     console.error('Stack trace:', e.stack);
   }
 });
@@ -1511,7 +1516,7 @@ function saveProject() {
   const projectIdField = document.getElementById('current_project_id');
   if (projectIdField && projectIdField.value) {
     projectId = projectIdField.value;
-    console.log(`💾 Using project_id ${projectId} from hidden field to update existing project '${projectName}'`);
+    console.log(`[SAVE] Using project_id ${projectId} from hidden field to update existing project '${projectName}'`);
   } else {
     // Fallback: Try to get from dropdown if hidden field is empty
     const projectSelect = document.getElementById('projectList');
@@ -1520,7 +1525,7 @@ function saveProject() {
       if (selectedOption) {
         projectId = selectedOption.getAttribute('data-project-id');
         if (projectId) {
-          console.log(`💾 Using project_id ${projectId} from dropdown to update existing project '${projectName}'`);
+          console.log(`[SAVE] Using project_id ${projectId} from dropdown to update existing project '${projectName}'`);
           // Also store it in hidden field for next save
           if (projectIdField) {
             projectIdField.value = projectId;
@@ -1529,7 +1534,7 @@ function saveProject() {
       }
     }
     if (!projectId) {
-      console.log(`💾 No project_id found - will create new project or find by name '${projectName}'`);
+      console.log(`[SAVE] No project_id found - will create new project or find by name '${projectName}'`);
     }
   }
 
@@ -1573,7 +1578,7 @@ function saveProject() {
   
   // If still very few inputs, log a warning
   if (inputs.length < 10) {
-    console.warn(`⚠️ Only found ${inputs.length} form inputs - this seems low`);
+    console.warn(`[WARNING] Only found ${inputs.length} form inputs - this seems low`);
   }
   
   const payload = {};
@@ -1582,9 +1587,9 @@ function saveProject() {
   const skippedFields = [];
   const duplicateFields = [];
 
-  console.log('🔍 Searching for form fields...');
-  console.log('🔍 Form element:', form ? 'Found' : 'Not found, using document');
-  console.log('🔍 Total inputs found:', inputs.length);
+  console.log('[SEARCH] Searching for form fields...');
+  console.log('[SEARCH] Form element:', form ? 'Found' : 'Not found, using document');
+  console.log('[SEARCH] Total inputs found:', inputs.length);
 
   inputs.forEach(input => {
     // Skip file inputs (but NOT hidden file_id inputs)
@@ -1636,7 +1641,7 @@ function saveProject() {
       // Log Project Information fields as they're collected
       if (['company', 'facility_address', 'location', 'facility_city', 'facility_state', 'facility_zip', 'contact', 'project_contact', 'phone', 'project_phone', 'email', 'project_email'].includes(fieldKey)) {
         const safeValue = fieldValue === null || fieldValue === undefined ? '' : String(fieldValue);
-        console.log(`💾 Collecting Project Info field: ${fieldKey} = "${safeValue}" (type: ${typeof fieldValue}, length: ${safeValue.length})`);
+        console.log(`[SAVE] Collecting Project Info field: ${fieldKey} = "${safeValue}" (type: ${typeof fieldValue}, length: ${safeValue.length})`);
       }
     } else {
       skippedFields.push({
@@ -1704,35 +1709,35 @@ function saveProject() {
         foundFields.push(fieldKey);
         explicitFieldsAdded++;
         fieldCount++;
-        console.log(`💾 Explicitly added Project Info field: ${fieldKey} = "${fieldValue}"`);
+        console.log(`[SAVE] Explicitly added Project Info field: ${fieldKey} = "${fieldValue}"`);
       } else if (wasAlreadyInPayload) {
         // Field was already collected, but we're explicitly overriding with current value
-        console.log(`💾 Explicitly updated Project Info field: ${fieldKey} = "${fieldValue}" (was: "${oldValue}")`);
+        console.log(`[SAVE] Explicitly updated Project Info field: ${fieldKey} = "${fieldValue}" (was: "${oldValue}")`);
       }
     } else {
-      console.warn(`⚠️ Project Info field not found in DOM: ${fieldKey}`);
+      console.warn(`[WARNING] Project Info field not found in DOM: ${fieldKey}`);
     }
   });
   
   if (explicitFieldsAdded > 0) {
-    console.log(`💾 Explicitly ensured ${explicitFieldsAdded} Project Information fields are in payload`);
+    console.log(`[SAVE] Explicitly ensured ${explicitFieldsAdded} Project Information fields are in payload`);
   }
 
-  console.log('💾 Saving project:', projectName);
-  console.log('💾 Field count:', fieldCount);
-  console.log('💾 Payload keys:', Object.keys(payload).length);
-  console.log('💾 Found fields (first 30):', foundFields.slice(0, 30));
-  console.log('💾 All found fields:', foundFields);
-  console.log('💾 Skipped fields:', skippedFields.length);
+  console.log('[SAVE] Saving project:', projectName);
+  console.log('[SAVE] Field count:', fieldCount);
+  console.log('[SAVE] Payload keys:', Object.keys(payload).length);
+  console.log('[SAVE] Found fields (first 30):', foundFields.slice(0, 30));
+  console.log('[SAVE] All found fields:', foundFields);
+  console.log('[SAVE] Skipped fields:', skippedFields.length);
   if (skippedFields.length > 0) {
-    console.log('💾 Skipped (first 20):', skippedFields.slice(0, 20));
+    console.log('[SAVE] Skipped (first 20):', skippedFields.slice(0, 20));
   }
   if (duplicateFields.length > 0) {
-    console.warn('⚠️ Duplicate fields found:', duplicateFields);
+    console.warn('[WARNING] Duplicate fields found:', duplicateFields);
   }
   
   // Log sample of payload to verify data
-  console.log('💾 Sample payload (first 20 keys):', Object.keys(payload).slice(0, 20).reduce((obj, key) => {
+  console.log('[SAVE] Sample payload (first 20 keys):', Object.keys(payload).slice(0, 20).reduce((obj, key) => {
     obj[key] = payload[key];
     return obj;
   }, {}));
@@ -1752,7 +1757,7 @@ function saveProject() {
     'email': payload.email,
     'project_email': payload.project_email
   };
-  console.log('💾 Project Information field values being saved:', projectInfoValues);
+  console.log('[SAVE] Project Information field values being saved:', projectInfoValues);
   
   // Check if Project Information fields have actual values
   const projectInfoWithValues = {};
@@ -1762,16 +1767,16 @@ function saveProject() {
       projectInfoWithValues[key] = value;
     }
   });
-  console.log('💾 Project Information fields with non-empty values:', projectInfoWithValues);
+  console.log('[SAVE] Project Information fields with non-empty values:', projectInfoWithValues);
 
   // CRITICAL: Check if payload is empty before saving
   const payloadKeys = Object.keys(payload);
   if (payloadKeys.length === 0) {
-    console.error('❌ ERROR: Cannot save project with empty payload!');
-    console.error('❌ This usually means form fields were not found or form is not ready.');
-    console.error('❌ Total inputs found:', inputs.length);
-    console.error('❌ Skipped fields:', skippedFields.length);
-    console.error('❌ Form element:', form ? 'Found' : 'Not found');
+    console.error('[ERROR] ERROR: Cannot save project with empty payload!');
+    console.error('[ERROR] This usually means form fields were not found or form is not ready.');
+    console.error('[ERROR] Total inputs found:', inputs.length);
+    console.error('[ERROR] Skipped fields:', skippedFields.length);
+    console.error('[ERROR] Form element:', form ? 'Found' : 'Not found');
     showNotification('Cannot save: No form fields found. Please ensure the form is loaded and try again.', 'error');
     return;
   }
@@ -1787,17 +1792,17 @@ function saveProject() {
   });
   
   if (nonEmptyFields.length === 0) {
-    console.warn('⚠️ WARNING: Payload has fields but all values are empty. Saving anyway...');
-    console.warn('⚠️ This might indicate the form was saved before any data was entered.');
+    console.warn('[WARNING] WARNING: Payload has fields but all values are empty. Saving anyway...');
+    console.warn('[WARNING] This might indicate the form was saved before any data was entered.');
   }
 
   formData.append('project_name', projectName);
   if (projectId) {
     formData.append('project_id', projectId);
-    console.log(`💾 Including project_id ${projectId} in save request to ensure update instead of create`);
-    console.log(`💾 This will update project ID ${projectId} regardless of name match (prevents duplicates with similar names)`);
+    console.log(`[SAVE] Including project_id ${projectId} in save request to ensure update instead of create`);
+    console.log(`[SAVE] This will update project ID ${projectId} regardless of name match (prevents duplicates with similar names)`);
   } else {
-    console.log(`💾 No project_id found - will create new project or find by name`);
+    console.log(`[SAVE] No project_id found - will create new project or find by name`);
   }
   formData.append('payload', JSON.stringify(payload));
   
@@ -1807,16 +1812,16 @@ function saveProject() {
   
   if (beforeFileInput && beforeFileInput.files && beforeFileInput.files[0]) {
     formData.append('before_file', beforeFileInput.files[0]);
-    console.log('💾 Appending before_file to formData:', beforeFileInput.files[0].name, 'Size:', beforeFileInput.files[0].size, 'bytes');
+    console.log('[SAVE] Appending before_file to formData:', beforeFileInput.files[0].name, 'Size:', beforeFileInput.files[0].size, 'bytes');
   } else {
-    console.log('💾 No before_file found or file not selected');
+    console.log('[SAVE] No before_file found or file not selected');
   }
   
   if (afterFileInput && afterFileInput.files && afterFileInput.files[0]) {
     formData.append('after_file', afterFileInput.files[0]);
-    console.log('💾 Appending after_file to formData:', afterFileInput.files[0].name, 'Size:', afterFileInput.files[0].size, 'bytes');
+    console.log('[SAVE] Appending after_file to formData:', afterFileInput.files[0].name, 'Size:', afterFileInput.files[0].size, 'bytes');
   } else {
-    console.log('💾 No after_file found or file not selected');
+    console.log('[SAVE] No after_file found or file not selected');
   }
   
   // Get session token for authentication (don't set Content-Type for FormData - browser does it)
@@ -1826,10 +1831,10 @@ function saveProject() {
     headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
     console.log('🔑 Session token found, adding to save request');
   } else {
-    console.error('❌ No session token found - save will likely fail!');
+    console.error('[ERROR] No session token found - save will likely fail!');
   }
   
-  console.log('💾 Sending save request with:', {
+  console.log('[SAVE] Sending save request with:', {
     project_name: projectName,
     project_id: projectId || 'none',
     field_count: fieldCount,
@@ -1847,9 +1852,9 @@ function saveProject() {
       if (!response.ok) {
         // Try to get error message from response
         return response.json().then(err => {
-          throw new Error(err.error || `HTTP ${response.status}: ${response.statusText}`);
+          throw new Error((function() { return err.error || 'HTTP ' + response.status + ': ' + response.statusText; })());
         }).catch(() => {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         });
       }
       return response.json();
@@ -1860,7 +1865,7 @@ function saveProject() {
         // CRITICAL: If backend returns a project_id (for new projects), store it in hidden field
         if (data.project_id && projectIdField) {
           projectIdField.value = data.project_id;
-          console.log(`💾 Stored new project_id ${data.project_id} from save response`);
+          console.log(`[SAVE] Stored new project_id ${data.project_id} from save response`);
         }
         
         showNotification(`Project "${projectName}" saved successfully! (${fieldCount} fields saved)`);
@@ -1870,8 +1875,8 @@ function saveProject() {
       }
     })
     .catch(error => {
-      console.error('❌ Error saving project:', error);
-      console.error('❌ Error stack:', error.stack);
+      console.error('[ERROR] Error saving project:', error);
+      console.error('[ERROR] Error stack:', error.stack);
       showNotification('Error saving project: ' + error.message);
     });
 }
@@ -1939,13 +1944,13 @@ function reanalyzeProject() {
     
     console.log('🧹 Cleared frontend cache before re-analysis');
   } catch (e) {
-    console.warn('⚠️ Could not clear frontend cache:', e);
+    console.warn('[WARNING] Could not clear frontend cache:', e);
   }
   
   // Show loading state
   const btn = document.getElementById('btnReanalyzeProject');
   const originalText = btn.innerHTML;
-  btn.innerHTML = '⏳ Re-analyzing...';
+  btn.innerHTML = '[WAITING] Re-analyzing...';
   btn.disabled = true;
   
   // Get session token for authentication
@@ -2039,7 +2044,7 @@ function reanalyzeProject() {
     // Display results
     if (typeof displayResults === 'function') {
       displayResults(results);
-      showNotification(`✅ "${projectName}" re-analyzed successfully with latest code!`, 'success');
+      showNotification(`[OK] "${projectName}" re-analyzed successfully with latest code!`, 'success');
       
       // Scroll to results
       const resultsSection = document.getElementById('results');
@@ -2047,14 +2052,14 @@ function reanalyzeProject() {
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } else {
-      showNotification(`✅ Re-analysis complete! Check results below.`, 'success');
+      showNotification(`[OK] Re-analysis complete! Check results below.`, 'success');
     }
   })
   .catch(error => {
     btn.innerHTML = originalText;
     btn.disabled = false;
     console.error('Re-analysis error:', error);
-    showNotification(`❌ Re-analysis failed: ${error.message}`, 'error');
+    showNotification(`[ERROR] Re-analysis failed: ${error.message}`, 'error');
   });
 }
 
@@ -2119,18 +2124,18 @@ function validateAndRestoreFile(fileId, fileType) {
           } else {
             clearFileSelection(fileType);
             showNotification(
-              `ℹ️ The ${fileType} file from this project is no longer available (likely re-uploaded). Please select a new file.`,
+              `[INFO] The ${fileType} file from this project is no longer available (likely re-uploaded). Please select a new file.`,
               'info');
             reject(new Error(`File ${fileId} not found`));
           }
         } else {
-          console.error('❌ Failed to fetch verified files for validation');
+          console.error('[ERROR] Failed to fetch verified files for validation');
           clearFileSelection(fileType);
           reject(new Error('Failed to fetch verified files'));
         }
       })
       .catch(error => {
-        console.error(`❌ Error validating ${fileType} file ID ${fileId}:`, error);
+        console.error(`[ERROR] Error validating ${fileType} file ID ${fileId}:`, error);
         clearFileSelection(fileType);
         reject(error);
       });
@@ -2276,13 +2281,13 @@ function fetchFileInfoAndRestore(fileId, fileType) {
           // Show a user-friendly notification (only once per session to avoid spam)
           if (!window.missingFileNotificationShown) {
             showNotification(
-              `ℹ️ Some files from this project are no longer available (likely re-uploaded). Please select new files as needed.`,
+              `[INFO] Some files from this project are no longer available (likely re-uploaded). Please select new files as needed.`,
               'info');
             window.missingFileNotificationShown = true;
           }
         }
       } else {
-        console.error('❌ Failed to fetch verified files:', data);
+        console.error('[ERROR] Failed to fetch verified files:', data);
         showNotification('Error loading file information. Please try again.', 'error');
       }
     })
@@ -2296,7 +2301,7 @@ function loadProject() {
   const select = document.getElementById('projectList');
   
   if (!select) {
-    console.error('❌ Project list select element not found');
+    console.error('[ERROR] Project list select element not found');
     showNotification('Error: Project dropdown not found');
     return;
   }
@@ -2305,7 +2310,7 @@ function loadProject() {
   console.log('📋 Selected project name:', projectName);
 
   if (!projectName) {
-    console.warn('⚠️ No project selected');
+    console.warn('[WARNING] No project selected');
     showNotification('Please select a project to load');
     return;
   }
@@ -2329,7 +2334,7 @@ function loadProject() {
     
     console.log('🧹 Cleared cached data for new project load');
   } catch (e) {
-    console.warn('⚠️ Could not clear cache:', e);
+    console.warn('[WARNING] Could not clear cache:', e);
   }
 
   // Reset the missing file notification flag for new project loads
@@ -2340,7 +2345,7 @@ function loadProject() {
   
   // If not in dropdown, try to get from the request (will be set from response)
   if (!projectId) {
-    console.warn('⚠️ Project ID not found in dropdown, will try to get from response');
+    console.warn('[WARNING] Project ID not found in dropdown, will try to get from response');
   }
 
   // Get session token for authentication
@@ -2365,14 +2370,14 @@ function loadProject() {
       console.log('📥 Load project response status:', response.status, response.statusText);
       if (!response.ok) {
         return response.text().then(text => {
-          console.error('❌ API error:', response.status, text);
+          console.error('[ERROR] API error:', response.status, text);
           let errorData;
           try {
             errorData = JSON.parse(text);
           } catch (e) {
-            errorData = { error: text || `HTTP ${response.status}` };
+            errorData = { error: text || 'HTTP ' + response.status };
           }
-          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          throw new Error((function() { return errorData.error || 'HTTP error! status: ' + response.status; })());
         });
       }
       return response.json();
@@ -2383,7 +2388,7 @@ function loadProject() {
         const responseProjectId = data.project.id;
         if (responseProjectId) {
           projectId = responseProjectId;
-          console.log(`💾 Got project_id ${projectId} from response`);
+          console.log(`[SAVE] Got project_id ${projectId} from response`);
         }
         
         // Store project_id immediately (CRITICAL for saving, even if data is empty)
@@ -2391,7 +2396,7 @@ function loadProject() {
           const projectIdField = document.getElementById('current_project_id');
           if (projectIdField) {
             projectIdField.value = projectId;
-            console.log(`💾 Stored project_id ${projectId} in hidden field for future saves`);
+            console.log(`[SAVE] Stored project_id ${projectId} in hidden field for future saves`);
           }
         }
         
@@ -2400,9 +2405,9 @@ function loadProject() {
         
         // Check if data exists
         if (!data.project.data) {
-          console.warn('⚠️ Project data is empty or missing');
-          console.warn('⚠️ This project may have been created but never saved with field data');
-          console.warn('⚠️ You can fill in the form fields and save to add data to this project');
+          console.warn('[WARNING] Project data is empty or missing');
+          console.warn('[WARNING] This project may have been created but never saved with field data');
+          console.warn('[WARNING] You can fill in the form fields and save to add data to this project');
           showNotification('Project loaded. This project has no saved data yet - fill in the form and save to add data.', 'info');
           // Don't return - allow user to continue working on the project
           projectData = {};
@@ -2418,14 +2423,14 @@ function loadProject() {
               projectData = typeof parsedData.payload === 'string' ? JSON.parse(parsedData.payload) : parsedData.payload;
               console.log('📥 Extracted payload, keys:', Object.keys(projectData).length);
             } else {
-              console.warn('⚠️ No payload in parsed data, using parsed data directly');
+              console.warn('[WARNING] No payload in parsed data, using parsed data directly');
               projectData = parsedData;
             }
             
             if (!projectData || Object.keys(projectData).length === 0) {
-              console.warn('⚠️ This project has no saved form data yet.');
-              console.warn('⚠️ You can fill in the form fields and save to add data to this project.');
-              console.warn('⚠️ If you expected data to be here, check:');
+              console.warn('[WARNING] This project has no saved form data yet.');
+              console.warn('[WARNING] You can fill in the form fields and save to add data to this project.');
+              console.warn('[WARNING] If you expected data to be here, check:');
               console.warn('   1. Server logs for what was actually loaded from database');
               console.warn('   2. That you selected the correct project');
               console.warn('   3. That the project was saved with data (check save logs)');
@@ -2434,10 +2439,10 @@ function loadProject() {
               projectData = {};
             }
           } catch (e) {
-            console.error('❌ Error parsing project data:', e);
-            console.error('❌ Raw data:', data.project.data);
-            console.error('❌ Error stack:', e.stack);
-            console.warn('⚠️ Will continue with empty project data - you can fill in the form and save');
+            console.error('[ERROR] Error parsing project data:', e);
+            console.error('[ERROR] Raw data:', data.project.data);
+            console.error('[ERROR] Error stack:', e.stack);
+            console.warn('[WARNING] Will continue with empty project data - you can fill in the form and save');
             showNotification('Error parsing project data. You can still fill in the form and save.', 'warning');
             // Don't return - allow user to continue working
             projectData = {};
@@ -2446,7 +2451,7 @@ function loadProject() {
         
         // Ensure projectData is defined (should always be set by now, but double-check)
         if (typeof projectData === 'undefined') {
-          console.error('❌ CRITICAL: projectData is still undefined after all checks!');
+          console.error('[ERROR] CRITICAL: projectData is still undefined after all checks!');
           projectData = {};
         }
         
@@ -2515,7 +2520,7 @@ function loadProject() {
         const projectIdField = document.getElementById('current_project_id');
         if (projectIdField) {
           projectIdField.value = projectId || '';
-          console.log(`💾 Stored project_id ${projectId} in hidden field for persistence`);
+          console.log(`[SAVE] Stored project_id ${projectId} in hidden field for persistence`);
         }
 
         // Debug: Check if facility_address was loaded
@@ -2570,7 +2575,7 @@ function loadProject() {
                   systemMsg.className = 'message ai-message chat-message';
                   systemMsg.innerHTML = `
                     <div class="message-content">
-                      <p><strong>📍 Project Location Detected:</strong> ${locationStr}</p>
+                      <p><strong>[LOCATION] Project Location Detected:</strong> ${locationStr}</p>
                       <p>Fetching utility rate information...</p>
                     </div>
                   `;
@@ -2578,7 +2583,7 @@ function loadProject() {
                   chatMessages.scrollTop = chatMessages.scrollHeight;
                 } else if (typeof addChatMessage === 'function') {
                   // Fallback to addChatMessage if chatMessages element not found
-                  addChatMessage(`📍 Project Location Detected: ${locationStr}\nFetching utility rate information...`, 'ai');
+                  addChatMessage(`[LOCATION] Project Location Detected: ${locationStr}\nFetching utility rate information...`, 'ai');
                 }
                 
                 // Ask the AI about utility rates
@@ -2622,11 +2627,11 @@ function deleteProject(event) {
     event.preventDefault();
     event.stopPropagation();
   }
-  console.log('🗑️ deleteProject() called');
+  console.log('[DELETE] deleteProject() called');
   const select = document.getElementById('projectList');
   
   if (!select) {
-    console.error('❌ Project list select element not found');
+    console.error('[ERROR] Project list select element not found');
     showNotification('Error: Project list not found');
     return;
   }
@@ -2660,7 +2665,7 @@ window.deleteProject = deleteProject;
 
 // Reusable function to archive a project by name (can be called from anywhere)
 function archiveProjectByName(projectName, onSuccess) {
-  console.log('🗑️ archiveProjectByName() called for:', projectName);
+  console.log('[DELETE] archiveProjectByName() called for:', projectName);
   
   if (!projectName) {
     showNotification('Please provide a project name to archive');
@@ -2672,7 +2677,7 @@ function archiveProjectByName(projectName, onSuccess) {
     `Are you sure you want to archive the project "${projectName}"?\n\nThis will remove it from the active project list but preserve the data.`
     );
   if (!firstConfirm) {
-    console.log('❌ User cancelled first confirmation');
+    console.log('[ERROR] User cancelled first confirmation');
     return;
   }
 
@@ -2681,11 +2686,11 @@ function archiveProjectByName(projectName, onSuccess) {
     `CONFIRM ARCHIVE: You are about to archive the project "${projectName}".\n\nThis will:\n• Remove it from the active project list\n• Preserve all data for potential future recovery\n• Clear the current form if this project is loaded\n\nClick OK to confirm archiving, or Cancel to abort.`
     );
   if (!secondConfirm) {
-    console.log('❌ User cancelled second confirmation');
+    console.log('[ERROR] User cancelled second confirmation');
     return;
   }
 
-  console.log('✅ Both confirmations passed, proceeding with archive...');
+  console.log('[OK] Both confirmations passed, proceeding with archive...');
   const formData = new FormData();
   formData.append('project_name', projectName);
   console.log('📤 Sending archive request for:', projectName);
@@ -2702,12 +2707,12 @@ function archiveProjectByName(projectName, onSuccess) {
       console.log('📥 Archive response headers:', Object.fromEntries(response.headers.entries()));
       if (!response.ok) {
         return response.text().then(text => {
-          console.error('❌ Archive error response body:', text);
+          console.error('[ERROR] Archive error response body:', text);
           try {
             const err = JSON.parse(text);
-            throw new Error(err.error || `HTTP ${response.status}`);
+            throw new Error((function() { return err.error || 'HTTP ' + response.status; })());
           } catch (e) {
-            throw new Error(`HTTP ${response.status}: ${text}`);
+            throw new Error('HTTP ' + response.status + ': ' + text);
           }
         });
       }
@@ -2764,13 +2769,13 @@ function archiveProjectByName(projectName, onSuccess) {
           }
         }
       } else {
-        console.error('❌ Archive failed:', data.error);
+        console.error('[ERROR] Archive failed:', data.error);
         showNotification('Error archiving project: ' + (data.error || 'Unknown error'));
       }
     })
     .catch(error => {
-      console.error('❌ Error archiving project:', error);
-      console.error('❌ Error stack:', error.stack);
+      console.error('[ERROR] Error archiving project:', error);
+      console.error('[ERROR] Error stack:', error.stack);
       showNotification('Error archiving project: ' + error.message);
     });
 }
@@ -3453,8 +3458,8 @@ function populateTransformersTable(transformers) {
         sub.style.gap = "6px";
         sub.style.marginTop = "6px";
         sub.innerHTML = `
-          <input type="number" step="0.1" value="${(f.length_m??'')}" placeholder="Length (${(document.getElementById("length_units")?.value||"m")})" data-field="length_m" data-idx="${idx}"/>
-          <input type="text" value="${(f.awg??'')}" placeholder="AWG (e.g., 1/1, 500kcmil)" data-field="awg" data-idx="${idx}"/>
+          <input type="number" step="0.1" value="${(function() { return f.length_m ?? ''; })()}" placeholder="${(function() { try { var unitsEl = document.getElementById("length_units"); var units = "m"; if (unitsEl && unitsEl.value) { units = unitsEl.value; } return "Length (" + units + ")"; } catch(e) { return "Length (m)"; } })()}" data-field="length_m" data-idx="${idx}"/>
+          <input type="text" value="${(function() { return f.awg ?? ''; })()}" placeholder="AWG (e.g., 1/1, 500kcmil)" data-field="awg" data-idx="${idx}"/>
           <select data-field="material" data-idx="${idx}">
             <option value="Cu" ${f.material==="Al"?"":"selected"}>Cu</option>
             <option value="Al" ${f.material==="Al"?"selected":""}>Al</option>
@@ -3465,7 +3470,7 @@ function populateTransformersTable(transformers) {
           </label>
           <div class="muted" style="font-size:12px">1 &times; length &times; R/m (unit-aware)</div>
             <div class="form-group" id="event_energy_adder" style="margin-top:16px">
-                <h3>🏷️ DR/CPP Event Energy Adder (optional)</h3>
+                <h3>[LABEL] DR/CPP Event Energy Adder (optional)</h3>
                 <div class="help">Applies an energy $/kWh adder during pasted Utility/ISO event windows. Use this for DR/CPP event-hour energy charges or incentives.</div>
     
                 <div class="card" style="padding:10px">
@@ -3521,7 +3526,7 @@ function populateTransformersTable(transformers) {
         if (need.Ib0 || need.Ib1 || need.Ib2) issues.push("Missing Before currents");
         if (need.Ia0 || need.Ia1 || need.Ia2) issues.push("Missing After currents");
         if (need.R) issues.push("R_phase missing/zero");
-        val.textContent = issues.length ? ("⚠ " + issues.join("; ")) : "✓ Ready";
+        val.textContent = issues.length ? ("[WARNING] " + issues.join("; ")) : "[PASS] Ready";
       }
     });
   }
@@ -3767,7 +3772,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('🧹 Cleared frontend cache before new analysis');
       } catch (e) {
-        console.warn('⚠️ Could not clear frontend cache:', e);
+        console.warn('[WARNING] Could not clear frontend cache:', e);
       }
 
       if (!preflightCheck()) {
@@ -3828,38 +3833,38 @@ document.addEventListener('DOMContentLoaded', function() {
           k.toLowerCase().includes('power') || 
           k.toLowerCase().includes('target')
         );
-        console.log('🔍 [FORM DEBUG] All PF/Power/Target related fields:', pfRelatedFields);
-        console.log('🔍 [FORM DEBUG] target_pf value:', formData.get('target_pf'));
-        console.log('🔍 [FORM DEBUG] target_power_factor value:', formData.get('target_power_factor'));
-        console.log('🔍 [FORM DEBUG] power_factor_after value:', formData.get('power_factor_after'));
-        console.log('🔍 [FORM DEBUG] power_factor_before value:', formData.get('power_factor_before'));
+        console.log('[SEARCH] [FORM DEBUG] All PF/Power/Target related fields:', pfRelatedFields);
+        console.log('[SEARCH] [FORM DEBUG] target_pf value:', formData.get('target_pf'));
+        console.log('[SEARCH] [FORM DEBUG] target_power_factor value:', formData.get('target_power_factor'));
+        console.log('[SEARCH] [FORM DEBUG] power_factor_after value:', formData.get('power_factor_after'));
+        console.log('[SEARCH] [FORM DEBUG] power_factor_before value:', formData.get('power_factor_before'));
         
         // CRITICAL: Check the actual DOM value of target_pf field before submission
         const targetPfField = document.querySelector('input[name="target_pf"]');
         if (targetPfField) {
-          console.log('🔍 [FORM DEBUG] target_pf DOM field value:', targetPfField.value);
-          console.log('🔍 [FORM DEBUG] target_pf DOM field type:', targetPfField.type);
-          console.log('🔍 [FORM DEBUG] target_pf DOM field name:', targetPfField.name);
-          console.log('🔍 [FORM DEBUG] target_pf DOM field id:', targetPfField.id);
+          console.log('[SEARCH] [FORM DEBUG] target_pf DOM field value:', targetPfField.value);
+          console.log('[SEARCH] [FORM DEBUG] target_pf DOM field type:', targetPfField.type);
+          console.log('[SEARCH] [FORM DEBUG] target_pf DOM field name:', targetPfField.name);
+          console.log('[SEARCH] [FORM DEBUG] target_pf DOM field id:', targetPfField.id);
           
           // If DOM value doesn't match FormData value, there's a problem
           const domValue = targetPfField.value;
           const formDataValue = formData.get('target_pf');
           if (domValue !== formDataValue) {
-            console.error(`❌ ERROR: target_pf DOM value (${domValue}) doesn't match FormData value (${formDataValue})!`);
+            console.error(`[ERROR] ERROR: target_pf DOM value (${domValue}) doesn't match FormData value (${formDataValue})!`);
           }
         } else {
-          console.warn('⚠️ [FORM DEBUG] target_pf field not found in DOM!');
+          console.warn('[WARNING] [FORM DEBUG] target_pf field not found in DOM!');
         }
         
         // CRITICAL: Verify target_pf is in form data
         const targetPfValue = formData.get('target_pf') || formData.get('target_power_factor');
         console.log('🔬 Target Power Factor in form data:', targetPfValue);
         if (!targetPfValue) {
-          console.warn('⚠️ WARNING: target_pf not found in form data! Power factor normalization will use default 0.95');
+          console.warn('[WARNING] WARNING: target_pf not found in form data! Power factor normalization will use default 0.95');
         } else if (targetPfValue == formData.get('power_factor_after')) {
-          console.error('❌ ERROR: target_pf is the same as power_factor_after! This is a field name conflict. The form field for "Target Power Factor" may have the wrong name attribute.');
-          console.error('❌ ERROR: This will cause incorrect power factor normalization calculations!');
+          console.error('[ERROR] ERROR: target_pf is the same as power_factor_after! This is a field name conflict. The form field for "Target Power Factor" may have the wrong name attribute.');
+          console.error('[ERROR] ERROR: This will cause incorrect power factor normalization calculations!');
         }
         
         const startTime = Date.now();
@@ -3889,11 +3894,11 @@ document.addEventListener('DOMContentLoaded', function() {
           data = await response.json();
         } catch (e) {
           // If JSON parsing fails, create error object
-          data = { error: `Server returned an error: ${response.status} ${response.statusText}` };
+          data = { error: 'Server returned an error: ' + response.status + ' ' + response.statusText };
         }
 
         if (!response.ok) {
-          console.error("🔧 DEBUG: Step 4 - API call failed with status:", response.status);
+          console.error("[DEBUG] DEBUG: Step 4 - API call failed with status:", response.status);
           // Display error message from JSON response
           if (data.error) {
             resultsDiv.innerHTML = `<div class="error"><strong>Analysis Error:</strong> ${data.error}</div>`;
@@ -3909,7 +3914,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             return;
           }
-          throw new Error(`Server returned an error: ${response.status} ${response.statusText}`);
+          throw new Error('Server returned an error: ' + response.status + ' ' + response.statusText);
         }
 
         if (data.error) {
@@ -3977,12 +3982,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Mark as auto-populated (optional - for visual indication)
                 pfAfterField.classList.add('auto-populated');
                 
-                console.log(`✅ Auto-populated After Power Factor: ${(cappedPfAfter * 100).toFixed(1)}% (from CSV: ${(pfAfter * 100).toFixed(1)}%, capped at 95% for utility billing)`);
+                console.log((function() { var capped = (cappedPfAfter * 100).toFixed(1); var csv = (pfAfter * 100).toFixed(1); return '[OK] Auto-populated After Power Factor: ' + capped + '% (from CSV: ' + csv + '%, capped at 95% for utility billing)'; })());
               } else {
-                console.warn('⚠️ After Power Factor field (name="power_factor_after") not found in form');
+                console.warn('[WARNING] After Power Factor field (name="power_factor_after") not found in form');
               }
             } else {
-              console.log('ℹ️ After Power Factor not available in analysis results to auto-populate');
+              console.log('[INFO] After Power Factor not available in analysis results to auto-populate');
             }
           }
 
@@ -3993,12 +3998,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         resultsDiv.style.display = "block";
       } catch (error) {
-        console.error("🔧 DEBUG: ===== ANALYSIS ERROR =====");
-        console.error("🔧 DEBUG: Error occurred during analysis:", error);
-        console.error("🔧 DEBUG: Error message:", error.message);
-        console.error("🔧 DEBUG: Error stack:", error.stack);
-        console.error("🔧 DEBUG: Error name:", error.name);
-        console.error("🔧 DEBUG: Full error object:", error);
+        console.error("[DEBUG] DEBUG: ===== ANALYSIS ERROR =====");
+        console.error("[DEBUG] DEBUG: Error occurred during analysis:", error);
+        console.error("[DEBUG] DEBUG: Error message:", error.message);
+        console.error("[DEBUG] DEBUG: Error stack:", error.stack);
+        console.error("[DEBUG] DEBUG: Error name:", error.name);
+        console.error("[DEBUG] DEBUG: Full error object:", error);
 
         resultsDiv.innerHTML = `<div class="error"><strong>Request Failed:</strong> ${error.message}</div>`;
         resultsDiv.style.display = "block";
@@ -4129,7 +4134,7 @@ async function exportReport(r) {
       newWindow.document.open();
       newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading report</h2><p>HTTP error! status: ' + response.status + '</p></body></html>');
       newWindow.document.close();
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error('HTTP error! status: ' + response.status);
     }
 
     const htmlContent = await response.text();
@@ -4148,12 +4153,12 @@ async function exportReport(r) {
 
     showNotification("HTML report opened in new window!");
   } catch (e) {
-    console.error("🔧 DEBUG: ===== HTML REPORT GENERATOR ERROR =====");
-    console.error("🔧 DEBUG: Error occurred in exportReport function:", e);
-    console.error("🔧 DEBUG: Error message:", e.message);
-    console.error("🔧 DEBUG: Error stack:", e.stack);
-    console.error("🔧 DEBUG: Error name:", e.name);
-    console.error("🔧 DEBUG: Full error object:", e);
+    console.error("[DEBUG] DEBUG: ===== HTML REPORT GENERATOR ERROR =====");
+    console.error("[DEBUG] DEBUG: Error occurred in exportReport function:", e);
+    console.error("[DEBUG] DEBUG: Error message:", e.message);
+    console.error("[DEBUG] DEBUG: Error stack:", e.stack);
+    console.error("[DEBUG] DEBUG: Error name:", e.name);
+    console.error("[DEBUG] DEBUG: Full error object:", e);
 
     showNotification("Could not generate HTML report: " + e.message);
 
@@ -4163,7 +4168,7 @@ async function exportReport(r) {
       btn.disabled = false;
       btn.textContent = "Export HTML Report";
     } else {
-      console.error("🔧 DEBUG: Button not found for reset");
+      console.error("[DEBUG] DEBUG: Button not found for reset");
     }
   }
 }
@@ -4198,11 +4203,11 @@ async function exportESGCaseStudyReport(r) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
+      const errorData = await response.json().catch(function() { return { error: 'HTTP error! status: ' + response.status }; });
       newWindow.document.open();
-      newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading ESG report</h2><p>' + (errorData.error || `HTTP error! status: ${response.status}`) + '</p></body></html>');
+      newWindow.document.write((function() { var errorMsg = errorData.error || 'HTTP error! status: ' + response.status; return '<html><head><title>Error</title></head><body><h2>Error loading ESG report</h2><p>' + errorMsg + '</p></body></html>'; })());
       newWindow.document.close();
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      throw new Error((function() { return errorData.error || 'HTTP error! status: ' + response.status; })());
     }
 
     const htmlContent = await response.text();
@@ -4264,7 +4269,7 @@ async function exportLaymanReport(r) {
       newWindow.document.open();
       newWindow.document.write('<html><head><title>Error</title></head><body><h2>Error loading Executive Summary report</h2><p>HTTP error! status: ' + response.status + '</p></body></html>');
       newWindow.document.close();
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error('HTTP error! status: ' + response.status);
     }
 
     const htmlContent = await response.text();
@@ -4359,7 +4364,7 @@ async function exportSelectedPDF(r) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    showNotification(`✅ ${reportName} PDF generated successfully!`);
+    showNotification(`[OK] ${reportName} PDF generated successfully!`);
 
     // Reset button
     if (btn) {
@@ -4529,9 +4534,9 @@ async function generateUtilitySubmissionPackage(r) {
       btn.textContent = "Generate Utility Submission Package";
     }
 
-    showNotification("✅ Utility Submission Package generated successfully! Download started.");
+    showNotification("[OK] Utility Submission Package generated successfully! Download started.");
   } catch (e) {
-    showNotification("❌ Could not generate utility submission package: " + e.message);
+    showNotification("[ERROR] Could not generate utility submission package: " + e.message);
 
     // Reset button on error
     const btn = document.getElementById("btnGenerateUtilityPackage");
@@ -4615,14 +4620,14 @@ async function viewEquipmentHealthReport(r) {
     }
 
     if (!equipmentHealth || equipmentHealth.length === 0) {
-      const errorMsg = "⚠️ No equipment health data available. ";
+      const errorMsg = "[WARNING] No equipment health data available. ";
       const suggestion = r ? 
         "Equipment health analysis may not have been generated during the analysis. Please try running the analysis again or contact support." :
         "Please run an analysis first to generate equipment health data.";
       showNotification(errorMsg + suggestion);
       if (btn) {
         btn.disabled = false;
-        btn.textContent = "🔧 View Equipment Health Report";
+        btn.textContent = "[DEBUG] View Equipment Health Report";
       }
       return;
     }
@@ -4666,7 +4671,7 @@ async function viewEquipmentHealthReport(r) {
     const header = document.createElement('div');
     header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #1a237e; padding-bottom: 10px;';
     header.innerHTML = `
-      <h2 style="margin: 0; color: #1a237e;">🔧 Comprehensive Equipment Health & Predictive Failure Analysis</h2>
+      <h2 style="margin: 0; color: #1a237e;">[DEBUG] Comprehensive Equipment Health & Predictive Failure Analysis</h2>
       <button id="closeEquipmentHealthModal" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 16px;">✕ Close</button>
     `;
 
@@ -4773,15 +4778,15 @@ async function viewEquipmentHealthReport(r) {
           <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px;">Executive Summary</h3>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
             <div style="padding: 15px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">✅ ${healthyCount}</div>
+              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">[OK] ${healthyCount}</div>
               <div style="font-size: 14px; opacity: 0.9;">Healthy Equipment</div>
             </div>
             <div style="padding: 15px; background: linear-gradient(135deg, #ffc107, #ff9800); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">⚠️ ${warningCount}</div>
+              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">[WARNING] ${warningCount}</div>
               <div style="font-size: 14px; opacity: 0.9;">Warning Status</div>
             </div>
             <div style="padding: 15px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">🔴 ${criticalCount}</div>
+              <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">[CRITICAL] ${criticalCount}</div>
               <div style="font-size: 14px; opacity: 0.9;">Critical Status</div>
             </div>
             <div style="padding: 15px; background: linear-gradient(135deg, #1a237e, #283593); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -4799,13 +4804,13 @@ async function viewEquipmentHealthReport(r) {
                 <strong>Total Equipment Monitored:</strong> ${equipmentHealth.length}
               </div>
               <div>
-                <strong>Average Failure Risk:</strong> <span style="color: ${avgRiskScore > 75 ? '#dc3545' : avgRiskScore > 50 ? '#ffc107' : '#28a745'}; font-weight: bold;">${(avgRiskScore != null && !isNaN(avgRiskScore) ? avgRiskScore.toFixed(1) : '0.0')}/100</span>
+                <strong>Average Failure Risk:</strong> <span style="color: ${(function() { if (avgRiskScore > 75) return '#dc3545'; if (avgRiskScore > 50) return '#ffc107'; return '#28a745'; })()}; font-weight: bold;">${(function() { if (avgRiskScore != null && !isNaN(avgRiskScore)) { return avgRiskScore.toFixed(1); } return '0.0'; })()}/100</span>
               </div>
               <div>
-                <strong>Average Failure Probability:</strong> <span style="color: ${totalFailureProbability > 0.75 ? '#dc3545' : totalFailureProbability > 0.5 ? '#ffc107' : '#28a745'}; font-weight: bold;">${(totalFailureProbability != null && !isNaN(totalFailureProbability) ? (totalFailureProbability * 100).toFixed(1) : '0.0')}%</span>
+                <strong>Average Failure Probability:</strong> <span style="color: ${(function() { if (totalFailureProbability > 0.75) return '#dc3545'; if (totalFailureProbability > 0.5) return '#ffc107'; return '#28a745'; })()}; font-weight: bold;">${(function() { if (totalFailureProbability != null && !isNaN(totalFailureProbability)) { var pct = totalFailureProbability * 100; return pct.toFixed(1); } return '0.0'; })()}%</span>
               </div>
               <div>
-                <strong>Health Status:</strong> <span style="color: ${criticalCount > 0 ? '#dc3545' : warningCount > 0 ? '#ffc107' : '#28a745'}; font-weight: bold;">${criticalCount > 0 ? 'CRITICAL' : warningCount > 0 ? 'WARNING' : 'HEALTHY'}</span>
+                <strong>Health Status:</strong> <span style="color: ${(function() { if (criticalCount > 0) return '#dc3545'; if (warningCount > 0) return '#ffc107'; return '#28a745'; })()}; font-weight: bold;">${(function() { if (criticalCount > 0) return 'CRITICAL'; if (warningCount > 0) return 'WARNING'; return 'HEALTHY'; })()}</span>
               </div>
             </div>
           </div>
@@ -4813,15 +4818,15 @@ async function viewEquipmentHealthReport(r) {
 
         <div style="margin-bottom: 30px;">
           <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px;">Priority Actions Required</h3>
-          <div style="padding: 15px; background: ${criticalCount > 0 ? '#f8d7da' : warningCount > 0 ? '#fff3cd' : '#d4edda'}; border-left: 4px solid ${criticalCount > 0 ? '#dc3545' : warningCount > 0 ? '#ffc107' : '#28a745'}; border-radius: 4px;">
+          <div style="padding: 15px; background: ${(function() { if (criticalCount > 0) return '#f8d7da'; if (warningCount > 0) return '#fff3cd'; return '#d4edda'; })()}; border-left: 4px solid ${(function() { if (criticalCount > 0) return '#dc3545'; if (warningCount > 0) return '#ffc107'; return '#28a745'; })()}; border-radius: 4px;">
             ${criticalCount > 0 ? `
-              <div style="font-weight: bold; color: #dc3545; margin-bottom: 10px;">🔴 IMMEDIATE ACTION REQUIRED</div>
+              <div style="font-weight: bold; color: #dc3545; margin-bottom: 10px;">[CRITICAL] IMMEDIATE ACTION REQUIRED</div>
               <p>${criticalCount} equipment item(s) are in critical condition and require immediate inspection and maintenance to prevent failure.</p>
             ` : warningCount > 0 ? `
-              <div style="font-weight: bold; color: #ffc107; margin-bottom: 10px;">⚠️ MAINTENANCE RECOMMENDED</div>
+              <div style="font-weight: bold; color: #ffc107; margin-bottom: 10px;">[WARNING] MAINTENANCE RECOMMENDED</div>
               <p>${warningCount} equipment item(s) are showing warning signs. Schedule maintenance within 30 days to prevent degradation.</p>
             ` : `
-              <div style="font-weight: bold; color: #28a745; margin-bottom: 10px;">✅ ALL SYSTEMS HEALTHY</div>
+              <div style="font-weight: bold; color: #28a745; margin-bottom: 10px;">[OK] ALL SYSTEMS HEALTHY</div>
               <p>All monitored equipment is operating within normal parameters. Continue routine maintenance schedule.</p>
             `}
           </div>
@@ -4840,7 +4845,7 @@ async function viewEquipmentHealthReport(r) {
       
       equipmentHealth.forEach((eq, index) => {
         const statusColor = eq.health_status === 'critical' ? '#dc3545' : eq.health_status === 'warning' ? '#ffc107' : '#28a745';
-        const statusIcon = eq.health_status === 'critical' ? '🔴' : eq.health_status === 'warning' ? '⚠️' : '✅';
+        const statusIcon = eq.health_status === 'critical' ? '[CRITICAL]' : eq.health_status === 'warning' ? '[WARNING]' : '[OK]';
         const factors = eq.factors || {};
         
         html += `
@@ -4851,15 +4856,15 @@ async function viewEquipmentHealthReport(r) {
                 <p style="margin: 0; color: #666; font-size: 14px;">Type: ${(eq.equipment_type || 'Unknown').toUpperCase()} | ID: ${eq.equipment_id || 'N/A'}</p>
               </div>
               <div style="text-align: right;">
-                <div style="font-size: 28px; font-weight: bold; color: ${statusColor}; margin-bottom: 5px;">${statusIcon} ${eq.health_status?.toUpperCase() || 'UNKNOWN'}</div>
-                <div style="font-size: 18px; color: ${statusColor}; font-weight: bold;">Risk: ${(eq.failure_risk_score != null && !isNaN(eq.failure_risk_score) ? Number(eq.failure_risk_score).toFixed(1) : 'N/A')}/100</div>
+                <div style="font-size: 28px; font-weight: bold; color: ${statusColor}; margin-bottom: 5px;">${statusIcon} ${(function() { return (eq.health_status && eq.health_status.toUpperCase) ? eq.health_status.toUpperCase() : 'UNKNOWN'; })()}</div>
+                <div style="font-size: 18px; color: ${statusColor}; font-weight: bold;">Risk: ${(function() { if (eq.failure_risk_score != null && !isNaN(eq.failure_risk_score)) { return Number(eq.failure_risk_score).toFixed(1); } return 'N/A'; })()}/100</div>
               </div>
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Failure Probability:</strong><br/>
-                <span style="color: ${statusColor}; font-weight: bold; font-size: 18px;">${(eq.failure_probability != null && !isNaN(eq.failure_probability) ? (eq.failure_probability * 100).toFixed(1) : 'N/A')}%</span>
+                <span style="color: ${statusColor}; font-weight: bold; font-size: 18px;">${(function() { if (eq.failure_probability != null && !isNaN(eq.failure_probability)) { var pct = eq.failure_probability * 100; return pct.toFixed(1); } return 'N/A'; })()}%</span>
               </div>
               ${eq.estimated_time_to_failure_days ? `
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
@@ -4871,28 +4876,28 @@ async function viewEquipmentHealthReport(r) {
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Voltage Unbalance:</strong><br/>
                 <span style="font-size: 18px;">${Number(eq.voltage_unbalance).toFixed(2)}%</span>
-                ${eq.voltage_unbalance > 1.0 ? '<span style="color: #dc3545; margin-left: 5px;">⚠️ Exceeds NEMA MG1</span>' : ''}
+                ${eq.voltage_unbalance > 1.0 ? '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Exceeds NEMA MG1</span>' : ''}
               </div>
               ` : ''}
               ${eq.harmonic_thd !== null && eq.harmonic_thd !== undefined && !isNaN(eq.harmonic_thd) ? `
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Harmonic THD:</strong><br/>
                 <span style="font-size: 18px;">${Number(eq.harmonic_thd).toFixed(2)}%</span>
-                ${eq.harmonic_thd > 5.0 ? '<span style="color: #dc3545; margin-left: 5px;">⚠️ Elevated</span>' : ''}
+                ${eq.harmonic_thd > 5.0 ? '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Elevated</span>' : ''}
               </div>
               ` : ''}
               ${eq.power_factor !== null && eq.power_factor !== undefined && !isNaN(eq.power_factor) ? `
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Power Factor:</strong><br/>
                 <span style="font-size: 18px;">${Number(eq.power_factor).toFixed(3)}</span>
-                ${eq.power_factor < 0.90 ? '<span style="color: #dc3545; margin-left: 5px;">⚠️ Low</span>' : ''}
+                ${eq.power_factor < 0.90 ? '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Low</span>' : ''}
               </div>
               ` : ''}
               ${eq.loading_percentage !== null && eq.loading_percentage !== undefined && eq.loading_percentage > 0 && !isNaN(eq.loading_percentage) ? `
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Loading:</strong><br/>
                 <span style="font-size: 18px;">${Number(eq.loading_percentage).toFixed(1)}%</span>
-                ${eq.loading_percentage > 100 ? '<span style="color: #dc3545; margin-left: 5px;">⚠️ Overloaded</span>' : eq.loading_percentage > 80 ? '<span style="color: #ffc107; margin-left: 5px;">⚠️ High</span>' : ''}
+                ${(function() { if (eq.loading_percentage > 100) return '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Overloaded</span>'; if (eq.loading_percentage > 80) return '<span style="color: #ffc107; margin-left: 5px;">[WARNING] High</span>'; return ''; })()}
               </div>
               ` : ''}
             </div>
@@ -4901,12 +4906,27 @@ async function viewEquipmentHealthReport(r) {
             <div style="margin-top: 20px; padding: 15px; background: #e9ecef; border-radius: 4px;">
               <strong style="color: #1a237e;">Risk Factor Breakdown:</strong>
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
-                ${Object.entries(factors).map(([key, value]) => `
-                  <div style="padding: 8px; background: white; border-radius: 4px;">
-                    <div style="font-size: 12px; color: #666; margin-bottom: 3px;">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                    <div style="font-weight: bold; color: ${value > 50 ? '#dc3545' : value > 25 ? '#ffc107' : '#28a745'};">${(value != null && !isNaN(value) ? Number(value).toFixed(1) : '0.0')}/100</div>
-                  </div>
-                `).join('')}
+                ${(function() { 
+                  var result = [];
+                  var entries = Object.entries(factors);
+                  for (var i = 0; i < entries.length; i++) {
+                    var entry = entries[i];
+                    var key = entry[0];
+                    var value = entry[1];
+                    var formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+                    var color = '#28a745';
+                    if (value > 50) color = '#dc3545';
+                    else if (value > 25) color = '#ffc107';
+                    var valueStr = '0.0';
+                    if (value != null && !isNaN(value)) {
+                      valueStr = Number(value).toFixed(1);
+                    }
+                    var htmlPart1 = '<div style="padding: 8px; background: white; border-radius: 4px;"><div style="font-size: 12px; color: #666; margin-bottom: 3px;">' + formattedKey + '</div>';
+                    var htmlPart2 = '<div style="font-weight: bold; color: ' + color + ';">' + valueStr + '/100</div></div>';
+                    result.push(htmlPart1 + htmlPart2);
+                  }
+                  return result.join('');
+                })()}
               </div>
             </div>
             ` : ''}
@@ -4915,7 +4935,7 @@ async function viewEquipmentHealthReport(r) {
             <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
               <strong style="color: #856404;">Maintenance Recommendations:</strong>
               <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #856404;">
-                ${Array.isArray(eq.recommendations) ? eq.recommendations.map(rec => `<li style="margin-bottom: 5px;">${rec}</li>`).join('') : `<li>${eq.recommendations}</li>`}
+                ${(function() { if (Array.isArray(eq.recommendations)) { return eq.recommendations.map(function(rec) { return '<li style="margin-bottom: 5px;">' + rec + '</li>'; }).join(''); } return '<li>' + eq.recommendations + '</li>'; })()}
               </ul>
             </div>
             ` : ''}
@@ -4957,11 +4977,11 @@ async function viewEquipmentHealthReport(r) {
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(thdImprovement) > 0 ? '#28a745' : '#dc3545'};">${parseFloat(thdImprovement) > 0 ? '+' : ''}${thdImprovement}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(thdImprovement) > 0 ? '#28a745' : '#dc3545'};">${(function() { var thd = parseFloat(thdImprovement); return thd > 0 ? '+' : ''; })()}${thdImprovement}%</div>
               </div>
             </div>
             <div style="margin-top: 10px; padding: 10px; background: ${thdAfter <= 5 ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
-              <strong>IEEE 519 Compliance:</strong> ${thdAfter <= 5 ? '✅ PASS' : '❌ FAIL'} (Limit: 5.0% for general systems)
+              <strong>IEEE 519 Compliance:</strong> ${thdAfter <= 5 ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: 5.0% for general systems)
             </div>
           </div>
         `;
@@ -4984,11 +5004,11 @@ async function viewEquipmentHealthReport(r) {
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(pfImprovement) > 0 ? '#28a745' : '#dc3545'};">${parseFloat(pfImprovement) > 0 ? '+' : ''}${pfImprovement}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(pfImprovement) > 0 ? '#28a745' : '#dc3545'};">${(function() { var pf = parseFloat(pfImprovement); return pf > 0 ? '+' : ''; })()}${pfImprovement}%</div>
               </div>
             </div>
             <div style="margin-top: 10px; padding: 10px; background: ${pfAfter >= 0.95 ? '#d4edda' : '#fff3cd'}; border-radius: 4px;">
-              <strong>Target:</strong> ${pfAfter >= 0.95 ? '✅ Optimal (≥0.95)' : '⚠️ Acceptable but could be improved (Target: ≥0.95)'}
+              <strong>Target:</strong> ${pfAfter >= 0.95 ? '[OK] Optimal (≥0.95)' : '[WARNING] Acceptable but could be improved (Target: ≥0.95)'}
             </div>
           </div>
         `;
@@ -5011,12 +5031,12 @@ async function viewEquipmentHealthReport(r) {
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(unbalanceImprovement) > 0 ? '#28a745' : '#dc3545'};">${parseFloat(unbalanceImprovement) > 0 ? '+' : ''}${unbalanceImprovement}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(unbalanceImprovement) > 0 ? '#28a745' : '#dc3545'};">${(function() { var unbal = parseFloat(unbalanceImprovement); return unbal > 0 ? '+' : ''; })()}${unbalanceImprovement}%</div>
               </div>
             </div>
             <div style="margin-top: 10px; padding: 10px; background: ${voltageUnbalanceAfter <= 1.0 ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
-              <strong>NEMA MG1 Compliance:</strong> ${voltageUnbalanceAfter <= 1.0 ? '✅ PASS' : '❌ FAIL'} (Limit: 1.0% max)
-              ${voltageUnbalanceAfter > 1.0 ? '<br/><span style="color: #721c24;">⚠️ Each 1% unbalance causes 6-10% temperature rise in motors</span>' : ''}
+              <strong>NEMA MG1 Compliance:</strong> ${voltageUnbalanceAfter <= 1.0 ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: 1.0% max)
+              ${voltageUnbalanceAfter > 1.0 ? '<br/><span style="color: #721c24;">[WARNING] Each 1% unbalance causes 6-10% temperature rise in motors</span>' : ''}
             </div>
           </div>
         `;
@@ -5026,7 +5046,7 @@ async function viewEquipmentHealthReport(r) {
       if (!hasData) {
         html += `
           <div style="padding: 20px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; margin-top: 20px;">
-            <strong style="color: #856404;">⚠️ No Power Quality Data Available</strong>
+            <strong style="color: #856404;">[WARNING] No Power Quality Data Available</strong>
             <p style="color: #856404; margin: 10px 0 0 0;">Power quality comparison data is not available. Please ensure that before and after power quality metrics are included in the analysis results.</p>
           </div>
         `;
@@ -5038,15 +5058,15 @@ async function viewEquipmentHealthReport(r) {
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
               <div>
                 <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">Harmonic Stress Reduction</div>
-                <div style="font-size: 24px; font-weight: bold;">${thdBefore !== null && thdAfter !== null && thdBefore > 0 ? ((thdBefore - thdAfter) / thdBefore * 100).toFixed(1) : 'N/A'}%</div>
+                <div style="font-size: 24px; font-weight: bold;">${(function() { if (thdBefore !== null && thdAfter !== null && thdBefore > 0) { return ((thdBefore - thdAfter) / thdBefore * 100).toFixed(1); } return 'N/A'; })()}%</div>
               </div>
               <div>
                 <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">Motor Stress Reduction</div>
-                <div style="font-size: 24px; font-weight: bold;">${voltageUnbalanceBefore !== null && voltageUnbalanceAfter !== null && voltageUnbalanceBefore > 0 ? ((voltageUnbalanceBefore - voltageUnbalanceAfter) / voltageUnbalanceBefore * 100).toFixed(1) : 'N/A'}%</div>
+                <div style="font-size: 24px; font-weight: bold;">${(function() { if (voltageUnbalanceBefore !== null && voltageUnbalanceAfter !== null && voltageUnbalanceBefore > 0) { return ((voltageUnbalanceBefore - voltageUnbalanceAfter) / voltageUnbalanceBefore * 100).toFixed(1); } return 'N/A'; })()}%</div>
               </div>
               <div>
                 <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">Efficiency Improvement</div>
-                <div style="font-size: 24px; font-weight: bold;">${pfBefore !== null && pfAfter !== null && pfBefore > 0 ? ((pfAfter - pfBefore) / pfBefore * 100).toFixed(1) : 'N/A'}%</div>
+                <div style="font-size: 24px; font-weight: bold;">${(function() { if (pfBefore !== null && pfAfter !== null && pfBefore > 0) { return ((pfAfter - pfBefore) / pfBefore * 100).toFixed(1); } return 'N/A'; })()}%</div>
               </div>
             </div>
           </div>
@@ -5087,7 +5107,7 @@ async function viewEquipmentHealthReport(r) {
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
             <div style="padding: 20px; background: linear-gradient(135deg, #dc3545, #c82333); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Estimated Failure Cost</div>
-              <div style="font-size: 32px; font-weight: bold;">$${estimatedFailureCost.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+              <div style="font-size: 32px; font-weight: bold;">$${(function() { var opts = {minimumFractionDigits: 0, maximumFractionDigits: 0}; return estimatedFailureCost.toLocaleString(undefined, opts); })()}</div>
               <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Based on ${criticalEquipment.length} critical equipment</div>
             </div>
             <div style="padding: 20px; background: linear-gradient(135deg, #ffc107, #ff9800); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -5097,7 +5117,7 @@ async function viewEquipmentHealthReport(r) {
             </div>
             <div style="padding: 20px; background: linear-gradient(135deg, #28a745, #20c997); color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
               <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">ROI of Preventive Action</div>
-              <div style="font-size: 32px; font-weight: bold;">${preventiveMaintenanceCost > 0 ? ((estimatedFailureCost / preventiveMaintenanceCost).toFixed(1)) : 'N/A'}x</div>
+              <div style="font-size: 32px; font-weight: bold;">${(function() { if (preventiveMaintenanceCost > 0) { return (estimatedFailureCost / preventiveMaintenanceCost).toFixed(1); } return 'N/A'; })()}x</div>
               <div style="font-size: 12px; opacity: 0.8; margin-top: 5px;">Cost avoidance ratio</div>
             </div>
           </div>
@@ -5108,7 +5128,7 @@ async function viewEquipmentHealthReport(r) {
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
             <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
               <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Annual Energy Savings</div>
-              <div style="font-size: 24px; font-weight: bold; color: #28a745;">$${annualSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div style="font-size: 24px; font-weight: bold; color: #28a745;">$${(function() { var opts = {minimumFractionDigits: 2, maximumFractionDigits: 2}; return annualSavings.toLocaleString(undefined, opts); })()}</div>
             </div>
             <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
               <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Energy Savings (kWh)</div>
@@ -5116,12 +5136,12 @@ async function viewEquipmentHealthReport(r) {
             </div>
             <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
               <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Demand Savings</div>
-              <div style="font-size: 24px; font-weight: bold; color: #28a745;">$${demandSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div style="font-size: 24px; font-weight: bold; color: #28a745;">$${(function() { var opts = {minimumFractionDigits: 2, maximumFractionDigits: 2}; return demandSavings.toLocaleString(undefined, opts); })()}</div>
             </div>
             ${energyWasteCost > 0 ? `
             <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
               <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Energy Waste from Losses</div>
-              <div style="font-size: 24px; font-weight: bold; color: #dc3545;">$${energyWasteCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <div style="font-size: 24px; font-weight: bold; color: #dc3545;">$${(function() { var opts = {minimumFractionDigits: 2, maximumFractionDigits: 2}; return energyWasteCost.toLocaleString(undefined, opts); })()}</div>
             </div>
             ` : ''}
           </div>
@@ -5131,10 +5151,10 @@ async function viewEquipmentHealthReport(r) {
           <h4 style="color: #1a237e; margin-top: 0;">Cost-Benefit Summary</h4>
           <div style="margin-top: 15px;">
             <p><strong>Preventive Maintenance Investment:</strong> $${preventiveMaintenanceCost.toLocaleString()}</p>
-            <p><strong>Potential Failure Cost Avoidance:</strong> $${estimatedFailureCost.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
-            <p><strong>Annual Energy Savings:</strong> $${annualSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+            <p><strong>Potential Failure Cost Avoidance:</strong> $${(function() { var opts = {minimumFractionDigits: 0, maximumFractionDigits: 0}; return estimatedFailureCost.toLocaleString(undefined, opts); })()}</p>
+            <p><strong>Annual Energy Savings:</strong> $${(function() { var opts = {minimumFractionDigits: 2, maximumFractionDigits: 2}; return annualSavings.toLocaleString(undefined, opts); })()}</p>
             <p style="margin-top: 15px; font-weight: bold; color: #28a745;">
-              <strong>Net Benefit (Year 1):</strong> $${(estimatedFailureCost + annualSavings - preventiveMaintenanceCost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+              <strong>Net Benefit (Year 1):</strong> $${(function() { var net = estimatedFailureCost + annualSavings - preventiveMaintenanceCost; var opts = {minimumFractionDigits: 2, maximumFractionDigits: 2}; return net.toLocaleString(undefined, opts); })()}
             </p>
           </div>
         </div>
@@ -5281,7 +5301,7 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdBefore !== null ? thdBefore.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdAfter !== null ? thdAfter.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤5.0%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieee519Compliant ? '#28a745' : '#dc3545'};">${ieee519Compliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieee519Compliant ? '#28a745' : '#dc3545'};">${ieee519Compliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 <tr style="background: ${nemaCompliant ? '#d4edda' : '#f8d7da'};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>NEMA MG1-2016</strong><br/><span style="font-size: 12px; color: #666;">Voltage Unbalance</span></td>
@@ -5289,16 +5309,16 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageUnbalanceBefore !== null ? voltageUnbalanceBefore.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageUnbalanceAfter !== null ? voltageUnbalanceAfter.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤1.0%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${nemaCompliant ? '#28a745' : '#dc3545'};">${nemaCompliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${nemaCompliant ? '#28a745' : '#dc3545'};">${nemaCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
-                <tr style="background: ${pfCompliant ? '#d4edda' : (pfAfter !== null ? '#fff3cd' : '#f8d7da')};">
+                <tr style="background: ${(function() { if (pfCompliant) return '#d4edda'; if (pfAfter !== null) return '#fff3cd'; return '#f8d7da'; })()};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>Utility Standard</strong><br/><span style="font-size: 12px; color: #666;">Power Factor</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">PF</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${pfBefore !== null ? pfBefore.toFixed(3) : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${pfAfter !== null ? pfAfter.toFixed(3) : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≥0.95</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${pfCompliant ? '#28a745' : (pfAfter !== null ? '#ffc107' : '#dc3545')};">
-                    ${pfCompliant ? '✅ PASS' : (pfAfter !== null ? '⚠️ ACCEPTABLE' : '❌ FAIL')}
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(function() { if (pfCompliant) return '#28a745'; if (pfAfter !== null) return '#ffc107'; return '#dc3545'; })()};">
+                    ${(function() { if (pfCompliant) return '[OK] PASS'; if (pfAfter !== null) return '[WARNING] ACCEPTABLE'; return '[ERROR] FAIL'; })()}
                   </td>
                 </tr>
                 ${(voltageVariation !== null || voltageVariationBefore !== null) ? `
@@ -5308,8 +5328,8 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageVariationBefore !== null ? voltageVariationBefore.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageVariation !== null ? voltageVariation.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">±10%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${voltageVariation !== null ? (iec61000_2_2Compliant ? '#28a745' : '#dc3545') : '#666'};">
-                    ${voltageVariation !== null ? (iec61000_2_2Compliant ? '✅ PASS' : '❌ FAIL') : 'N/A'}
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(function() { if (voltageVariation === null) return '#666'; return iec61000_2_2Compliant ? '#28a745' : '#dc3545'; })()};">
+                    ${(function() { if (voltageVariation === null) return 'N/A'; return iec61000_2_2Compliant ? '[OK] PASS' : '[ERROR] FAIL'; })()}
                   </td>
                 </tr>
                 ` : ''}
@@ -5338,16 +5358,16 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Precision @ 95% CL</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(ashraePrecision != null && !isNaN(ashraePrecision) ? ashraePrecision.toFixed(1) : 'N/A')}%</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">< 50%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ashraeCompliant ? '#28a745' : '#dc3545'};">${ashraeCompliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ashraeCompliant ? '#28a745' : '#dc3545'};">${ashraeCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 ` : ''}
                 ${completeness !== null && outliers !== null ? `
                 <tr style="background: ${dataQualityCompliant ? '#d4edda' : '#f8d7da'};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>ASHRAE Data Quality</strong><br/><span style="font-size: 12px; color: #666;">Data Completeness</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Completeness & Outliers</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(completeness != null && !isNaN(completeness) ? completeness.toFixed(1) : 'N/A')}% / ${(outliers != null && !isNaN(outliers) ? outliers.toFixed(1) : 'N/A')}%</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(function() { var comp = (completeness != null && !isNaN(completeness)) ? completeness.toFixed(1) : 'N/A'; var out = (outliers != null && !isNaN(outliers)) ? outliers.toFixed(1) : 'N/A'; return comp + '% / ' + out + '%'; })()}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≥95% / ≤5%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${dataQualityCompliant ? '#28a745' : '#dc3545'};">${dataQualityCompliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${dataQualityCompliant ? '#28a745' : '#dc3545'};">${dataQualityCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 ` : ''}
                 ${pValue !== null ? `
@@ -5356,7 +5376,7 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">p-value</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${fmt(pValue, 4)}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">< 0.05</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ipmvpCompliant ? '#28a745' : '#dc3545'};">${ipmvpCompliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ipmvpCompliant ? '#28a745' : '#dc3545'};">${ipmvpCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 ` : ''}
                 ${(() => {
@@ -5405,20 +5425,20 @@ async function viewEquipmentHealthReport(r) {
                   return `
                     <tr style="background: #d4edda;">
                       <td style="padding: 10px; border: 1px solid #ddd;"><strong>ISO 50001:2018</strong><br/><span style="font-size: 12px; color: #666;">Energy Management Systems</span></td>
-                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${kwBefore > 0 && kwAfter > 0 ? 'Energy Performance Improvement' : 'EnMS Methodology'}</td>
-                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${kwBefore > 0 && kwAfter > 0 ? fmt(kwSavingsPct, 2) + '%' : 'Implemented'}</td>
-                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${kwBefore > 0 && kwAfter > 0 ? 'Baseline Established' : 'EnMS Principles'}</td>
-                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #28a745;">✅ PASS</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(function() { return (kwBefore > 0 && kwAfter > 0) ? 'Energy Performance Improvement' : 'EnMS Methodology'; })()}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(function() { if (kwBefore > 0 && kwAfter > 0) { var savings = fmt(kwSavingsPct, 2); return savings + '%'; } return 'Implemented'; })()}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(function() { return (kwBefore > 0 && kwAfter > 0) ? 'Baseline Established' : 'EnMS Principles'; })()}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #28a745;">[OK] PASS</td>
                     </tr>
                   `;
                 })()}
                 ${pValue !== null ? `
-                <tr style="background: ${pValue > 0 && pValue < 0.05 ? '#d4edda' : '#f8d7da'};">
+                <tr style="background: ${(function() { return (pValue > 0 && pValue < 0.05) ? '#d4edda' : '#f8d7da'; })()};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>ISO 50015:2014</strong><br/><span style="font-size: 12px; color: #666;">M&V of Energy Performance</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Statistical Validation</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">p = ${fmt(pValue, 4)}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">< 0.05</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${pValue > 0 && pValue < 0.05 ? '#28a745' : '#dc3545'};">${pValue > 0 && pValue < 0.05 ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(function() { return (pValue > 0 && pValue < 0.05) ? '#28a745' : '#dc3545'; })()};">${(function() { return (pValue > 0 && pValue < 0.05) ? '[OK] PASS' : '[ERROR] FAIL'; })()}</td>
                 </tr>
                 ` : ''}
               </tbody>
@@ -5446,7 +5466,7 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${meterClassDescription.replace('Meter Accuracy ', '')}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${meterAccuracy.toFixed(2)}%</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤ 0.5%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${meterCompliant ? '#28a745' : '#dc3545'};">${meterCompliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${meterCompliant ? '#28a745' : '#dc3545'};">${meterCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 ` : ''}
                 ${instrumentAccuracy !== null ? `
@@ -5455,7 +5475,7 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Class A</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${instrumentAccuracy.toFixed(2)}%</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤ ±0.5%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${iec61000_4_30Compliant ? '#28a745' : '#dc3545'};">${iec61000_4_30Compliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${iec61000_4_30Compliant ? '#28a745' : '#dc3545'};">${iec61000_4_30Compliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                 </tr>
                 ` : ''}
               </tbody>
@@ -5480,14 +5500,14 @@ async function viewEquipmentHealthReport(r) {
                 <tr style="background: ${iec61000_4_7Compliant ? '#d4edda' : '#f8d7da'};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEC 61000-4-7</strong><br/><span style="font-size: 12px; color: #666;">Harmonic Measurement</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Methodology Compliant</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${iec61000_4_7Compliant ? '#28a745' : '#dc3545'};">${iec61000_4_7Compliant ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${iec61000_4_7Compliant ? '#28a745' : '#dc3545'};">${iec61000_4_7Compliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">FFT-based analysis</td>
                 </tr>
                 ` : ''}
                 <tr style="background: ${ieeeC57Applied ? '#d4edda' : '#f8d7da'};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE C57.110-2018</strong><br/><span style="font-size: 12px; color: #666;">Transformer Loss Calculation</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Methodology Applied</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieeeC57Applied ? '#28a745' : '#dc3545'};">${ieeeC57Applied ? '✅ PASS' : '❌ FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieeeC57Applied ? '#28a745' : '#dc3545'};">${ieeeC57Applied ? '[OK] PASS' : '[ERROR] FAIL'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${ieeeC57Method}</td>
                 </tr>
               </tbody>
@@ -5549,12 +5569,12 @@ async function viewEquipmentHealthReport(r) {
               <div style="padding: 15px; background: white; border-radius: 4px;">
                 <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Before Period</div>
                 <div style="font-size: 36px; font-weight: bold; color: ${thdBefore > 5 ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdBefore > 5 ? '⚠️ Exceeds IEEE 519 limit' : '✅ Within limits'}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdBefore > 5 ? '[WARNING] Exceeds IEEE 519 limit' : '[OK] Within limits'}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px;">
                 <div style="font-size: 14px; color: #666; margin-bottom: 10px;">After Period</div>
                 <div style="font-size: 36px; font-weight: bold; color: ${thdAfter > 5 ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdAfter > 5 ? '⚠️ Exceeds IEEE 519 limit' : '✅ Within limits'}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdAfter > 5 ? '[WARNING] Exceeds IEEE 519 limit' : '[OK] Within limits'}</div>
               </div>
             </div>
           </div>
@@ -5719,9 +5739,9 @@ async function viewEquipmentHealthReport(r) {
 
         btn.disabled = false;
         btn.textContent = '📄 Download Comprehensive PDF';
-        showNotification('✅ Comprehensive Equipment Health PDF downloaded successfully!');
+        showNotification('[OK] Comprehensive Equipment Health PDF downloaded successfully!');
       } catch (e) {
-        showNotification('❌ Could not generate PDF: ' + e.message);
+        showNotification('[ERROR] Could not generate PDF: ' + e.message);
         const btn = document.getElementById('downloadEquipmentHealthPDF');
         if (btn) {
           btn.disabled = false;
@@ -5739,15 +5759,15 @@ async function viewEquipmentHealthReport(r) {
     // Reset button
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '🔧 View Equipment Health Report';
+      btn.textContent = '[DEBUG] View Equipment Health Report';
     }
 
   } catch (e) {
-    showNotification('❌ Could not load equipment health report: ' + e.message);
+    showNotification('[ERROR] Could not load equipment health report: ' + e.message);
     const btn = document.getElementById('btnViewEquipmentHealth');
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '🔧 View Equipment Health Report';
+      btn.textContent = '[DEBUG] View Equipment Health Report';
     }
   }
 }
@@ -6027,9 +6047,9 @@ function applyRref() {
 
     // Step 3: Check if elements exist
     if (!btnApply || !inputR) {
-      console.error("🔧 DEBUG: Step 3 - ERROR - Missing elements");
-      console.error("🔧 DEBUG: Step 3 - btnApply exists:", !!btnApply);
-      console.error("🔧 DEBUG: Step 3 - inputR exists:", !!inputR);
+      console.error("[DEBUG] DEBUG: Step 3 - ERROR - Missing elements");
+      console.error("[DEBUG] DEBUG: Step 3 - btnApply exists:", !!btnApply);
+      console.error("[DEBUG] DEBUG: Step 3 - inputR exists:", !!inputR);
       showNotification("Error: Could not find the target field. Please refresh the page.");
       return;
     }
@@ -6300,11 +6320,11 @@ function displayResults(r) {
 
   const resultsDiv = document.getElementById("results");
   if (!resultsDiv) {
-    console.error("🔧 DEBUG: ERROR - Results div not found!");
+    console.error("[DEBUG] DEBUG: ERROR - Results div not found!");
     return;
   }
   if (!r) {
-    console.error("🔧 DEBUG: ERROR - No results data provided");
+    console.error("[DEBUG] DEBUG: ERROR - No results data provided");
     resultsDiv.innerHTML = `<div class="error">Error: Received invalid results data.</div>`;
     return;
   }
@@ -6342,7 +6362,7 @@ function displayResults(r) {
     html += `<div class="statistical-note" style="font-size: 14px; color: #1; margin-top: 8px;">`;
     html += `Statistical significance of power quality improvements. `;
     html +=
-      `p < 0.05 indicates statistically significant results (${r.statistical.p_value < 0.05 ? '✓ Significant' : '✗ Not Significant'}).`;
+      `p < 0.05 indicates statistically significant results (${r.statistical.p_value < 0.05 ? '[PASS] Significant' : '[FAIL] Not Significant'}).`;
     html += `</div>`;
 
     // Add detailed statistical analysis if calculated values are available
@@ -6360,13 +6380,13 @@ function displayResults(r) {
         `<div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 8px 1;">`;
       html += `<span style="font-weight: 1; color: #1;">Before Period:</span>`;
       html +=
-        `<span style="font-weight: bold; color: #333;">${fmt(ci.before?.lower, 2)} kW - ${fmt(ci.before?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${sampleSizes.before || 0})</span></span>`;
+        `<span style="font-weight: bold; color: #333;">${fmt(ci.before?.lower, 2)} kW - ${fmt(ci.before?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${(function() { return sampleSizes.before || 0; })()})</span></span>`;
       html += `</div>`;
       html +=
         `<div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 8px 1;">`;
       html += `<span style="font-weight: 1; color: #1;">After Period:</span>`;
       html +=
-        `<span style="font-weight: bold; color: #333;">${fmt(ci.after?.lower, 2)} kW - ${fmt(ci.after?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${sampleSizes.after || 0})</span></span>`;
+        `<span style="font-weight: bold; color: #333;">${fmt(ci.after?.lower, 2)} kW - ${fmt(ci.after?.upper, 2)} kW <span style="font-size: 0.9em; color: #666; font-weight: normal;">(n=${(function() { return sampleSizes.after || 0; })()})</span></span>`;
       html += `</div>`;
 
       html += `<h3>Data Quality Assessment</h3>`;
@@ -6426,7 +6446,7 @@ function displayResults(r) {
       html +=
         `<div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 8px 1;">`;
       html += `<span style="font-weight: 1; color: #1;">Overall Compliant:</span>`;
-      html += `<span style="font-weight: bold; color: #28a745;">✓ YES</span>`;
+      html += `<span style="font-weight: bold; color: #28a745;">[PASS] YES</span>`;
       html += `</div>`;
       html += `<div style="font-size: 12px; color: #666; margin-top: 8px; font-style: italic;">`;
       html += `Data quality meets professional engineering standards for reliable analysis`;
@@ -6467,8 +6487,8 @@ function displayResults(r) {
     const ev = Array.isArray(c.events) ? c.events : [];
     if (ev.length) {
       html +=
-        `<div class="muted" style="margin-top:6px">Events used (${c.count_used||1}/${c.count_total||ev.length}), window ${c.window_min||1} min:</div>`;
-      html += `<ul style="margin:4px 1 1 18px">` + ev.map(x => `<li>${x}</li>`).join('') + `</ul>`;
+        `<div class="muted" style="margin-top:6px">Events used (${(function() { var used = c.count_used || 1; var total = c.count_total || ev.length; return used + '/' + total; })()}), window ${(function() { return c.window_min || 1; })()} min:</div>`;
+      html += `<ul style="margin:4px 1 1 18px">` + ev.map(function(x) { return '<li>' + x + '</li>'; }).join('') + `</ul>`;
     }
     if (c.source === 'heuristic') {
       html +=
@@ -6481,12 +6501,12 @@ function displayResults(r) {
   const complianceStatus = r.compliance_status || [];
   
   // Debug: Log compliance_status array to see what backend is returning
-  console.log('🔍 compliance_status array length:', complianceStatus.length);
+  console.log('[SEARCH] compliance_status array length:', complianceStatus.length);
   const nemaItems = complianceStatus.filter(item => item.standard && item.standard.includes("NEMA MG1"));
   if (nemaItems.length > 0) {
-    console.log('🔍 Found NEMA MG1 items in compliance_status:', nemaItems);
+    console.log('[SEARCH] Found NEMA MG1 items in compliance_status:', nemaItems);
     nemaItems.forEach((item, idx) => {
-      console.log(`🔍   NEMA MG1 item ${idx}:`, {
+      console.log(`[SEARCH]   NEMA MG1 item ${idx}:`, {
         standard: item.standard,
         requirement: item.requirement,
         before_value: item.before_value,
@@ -6536,9 +6556,9 @@ function displayResults(r) {
     
     if (isNemaMg1) {
       // Log raw values for debugging
-      console.log(`🔍 NEMA MG1 Raw Values - Standard: ${c.standard}, Requirement: ${c.requirement}`);
-      console.log(`🔍   Raw beforeValue:`, c.beforeValue, `(type: ${typeof c.beforeValue})`);
-      console.log(`🔍   Raw afterValue:`, c.afterValue, `(type: ${typeof c.afterValue})`);
+      console.log(`[SEARCH] NEMA MG1 Raw Values - Standard: ${c.standard}, Requirement: ${c.requirement}`);
+      console.log(`[SEARCH]   Raw beforeValue:`, c.beforeValue, `(type: ${typeof c.beforeValue})`);
+      console.log(`[SEARCH]   Raw afterValue:`, c.afterValue, `(type: ${typeof c.afterValue})`);
       
       // More robust parsing - handle strings with %, numbers, and edge cases
       let beforeValueNum = null;
@@ -6564,8 +6584,8 @@ function displayResults(r) {
         }
       }
       
-      console.log(`🔍   Parsed beforeValueNum:`, beforeValueNum);
-      console.log(`🔍   Parsed afterValueNum:`, afterValueNum);
+      console.log(`[SEARCH]   Parsed beforeValueNum:`, beforeValueNum);
+      console.log(`[SEARCH]   Parsed afterValueNum:`, afterValueNum);
       
       // Check if recalculation is needed - only if values are missing/N/A, not because they're > 1.0%
       // Values > 1.0% are valid and may show improvement (e.g., 3.17% -> 3.16% = PASS for after)
@@ -6575,7 +6595,7 @@ function displayResults(r) {
       
       if (needsRecalc) {
         // Debug: NEMA MG1 recalculation (values found via fallback, no action needed)
-        console.debug('ℹ️ NEMA MG1 recalculation:', c.standard, c.requirement);
+        console.debug('[INFO] NEMA MG1 recalculation:', c.standard, c.requirement);
         
         // Use the same calculation function that works in Performance section
         const beforeData = r?.before_data || {};
@@ -6605,7 +6625,7 @@ function displayResults(r) {
                   const v31 = Math.sqrt(v3 * v3 + v1 * v1 + v3 * v1);
                   
                   // Debug: Calculated line-to-line voltages (commented out to reduce console noise)
-                  // console.debug(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
+                  // console.debug(`[DEBUG] [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
                   
                   // NEMA MG1 formula using line-to-line voltages
                   // Formula: Unbalance % = (Max Deviation from Average / Average) × 100
@@ -6615,7 +6635,7 @@ function displayResults(r) {
                   if (avgVoltage > 0) {
                     const maxDeviation = Math.max(Math.abs(v12 - avgVoltage), Math.abs(v23 - avgVoltage), Math.abs(v31 - avgVoltage));
                     const unbalance = (maxDeviation / avgVoltage) * 100;
-                    console.debug(`✅ [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
+                    console.debug(`[OK] [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
                     return unbalance;
                   }
                 }
@@ -6650,7 +6670,7 @@ function displayResults(r) {
                   const v31 = Math.sqrt(v3 * v3 + v1 * v1 + v3 * v1);
                   
                   // Debug: Calculated line-to-line voltages (commented out to reduce console noise)
-                  // console.debug(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
+                  // console.debug(`[DEBUG] [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
                   
                   // NEMA MG1 formula using line-to-line voltages
                   // Formula: Unbalance % = (Max Deviation from Average / Average) × 100
@@ -6660,7 +6680,7 @@ function displayResults(r) {
                   if (avgVoltage > 0) {
                     const maxDeviation = Math.max(Math.abs(v12 - avgVoltage), Math.abs(v23 - avgVoltage), Math.abs(v31 - avgVoltage));
                     const unbalance = (maxDeviation / avgVoltage) * 100;
-                    console.debug(`✅ [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
+                    console.debug(`[OK] [${period}] Calculated NEMA MG1 voltage unbalance: ${unbalance.toFixed(2)}%`);
                     return unbalance;
                   }
                 }
@@ -6670,7 +6690,7 @@ function displayResults(r) {
             // If we have file_path but no phase data, log what we found for debugging
             if (data.file_path) {
               // Debug: Phase voltage data not in expected location, using fallback (power_quality)
-              console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
+              console.debug(`[INFO] [${period}] Using power_quality fallback for voltage unbalance`);
             }
             
             // Also try power_quality data as fallback (only if reasonable)
@@ -6679,12 +6699,12 @@ function displayResults(r) {
             if (powerQuality[unbalanceKey] !== undefined && powerQuality[unbalanceKey] !== null && powerQuality[unbalanceKey] !== "N/A") {
               const val = powerQuality[unbalanceKey];
               if (typeof val === 'number' && val >= 0 && val <= 1.0) {  // Only use if reasonable
-                console.debug(`✅ [${period}] Found voltage unbalance in power_quality: ${val.toFixed(2)}%`);
+                console.debug(`[OK] [${period}] Found voltage unbalance in power_quality: ${val.toFixed(2)}%`);
                 return val;
               }
             }
           } catch (e) {
-            console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
+            console.debug(`[INFO] [${period}] Using power_quality fallback for voltage unbalance`);
           }
           return null;
         }
@@ -6696,13 +6716,13 @@ function displayResults(r) {
           if (calculated !== null && calculated !== undefined && !isNaN(calculated)) {
             c.beforeValue = calculated.toFixed(2) + '%';
             c.before = calculated <= 1.0;
-            console.debug('✅ NEMA MG1 before:', c.beforeValue, 'Compliant:', c.before);
+            console.debug('[OK] NEMA MG1 before:', c.beforeValue, 'Compliant:', c.before);
           } else {
-            console.debug('ℹ️ NEMA MG1 before: Using fallback value from power_quality');
+            console.debug('[INFO] NEMA MG1 before: Using fallback value from power_quality');
           }
         } else {
           // Value is acceptable, no recalculation needed
-          console.debug(`ℹ️ [before] NEMA MG1 value acceptable: ${c.beforeValue}`);
+          console.debug(`[INFO] [before] NEMA MG1 value acceptable: ${c.beforeValue}`);
         }
         
         // Calculate after value if missing OR suspiciously high
@@ -6712,17 +6732,17 @@ function displayResults(r) {
           if (calculated !== null && calculated !== undefined && !isNaN(calculated)) {
             c.afterValue = calculated.toFixed(2) + '%';
             c.after = calculated <= 1.0;
-            console.debug('✅ NEMA MG1 after:', c.afterValue, 'Compliant:', c.after);
+            console.debug('[OK] NEMA MG1 after:', c.afterValue, 'Compliant:', c.after);
           } else {
-            console.warn('⚠️ Could not calculate NEMA MG1 after value. afterData keys:', Object.keys(afterData));
+            console.warn('[WARNING] Could not calculate NEMA MG1 after value. afterData keys:', Object.keys(afterData));
             // Log voltage_quality structure if it exists
             if (afterData.voltage_quality) {
-              console.log('⚠️ afterData.voltage_quality structure:', afterData.voltage_quality);
-              console.log('⚠️ voltage_quality keys:', Object.keys(afterData.voltage_quality));
+              console.log('[WARNING] afterData.voltage_quality structure:', afterData.voltage_quality);
+              console.log('[WARNING] voltage_quality keys:', Object.keys(afterData.voltage_quality));
             }
           }
         } else {
-          console.debug(`ℹ️ [after] NEMA MG1 value acceptable: ${c.afterValue}`);
+          console.debug(`[INFO] [after] NEMA MG1 value acceptable: ${c.afterValue}`);
         }
       }
     }
@@ -6754,7 +6774,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>ASHRAE Guideline 14</td>
                 <td>Relative Precision < 50% @ 95% CL</td>
-                <td class="${ashraeCompliant ? 'compliant' : 'non-compliant'}">${ashraeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                <td class="${ashraeCompliant ? 'compliant' : 'non-compliant'}">${ashraeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                 <td class="value-cell">${fmt(ashraePrecision, 1)}%</td>
                     </tr>`;
 
@@ -6771,7 +6791,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>ASHRAE Data Quality</td>
                 <td>Data Completeness ≥ 95% & Outliers ≤ 5%</td>
-                <td class="${dataQualityCompliant ? 'compliant' : 'non-compliant'}">${dataQualityCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                <td class="${dataQualityCompliant ? 'compliant' : 'non-compliant'}">${dataQualityCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                 <td class="value-cell">Completeness: ${fmt(completeness, 1)}%, Outliers: ${fmt(outliers, 1)}%</td>
             </tr>`;
 
@@ -6781,7 +6801,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>IPMVP</td>
                 <td>Statistical Significance (p < 0.05)</td>
-                <td class="${ipmvpCompliant ? 'compliant' : 'non-compliant'}">${ipmvpCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                <td class="${ipmvpCompliant ? 'compliant' : 'non-compliant'}">${ipmvpCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                 <td class="value-cell">${fmt(pValue, 3)}</td>
             </tr>`;
 
@@ -6791,7 +6811,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>IEEE C57.110</td>
                 <td>Transformer Loss Calculation</td>
-                <td class="${ieeeC57Applied ? 'compliant' : 'non-compliant'}">${ieeeC57Applied ? '✓ PASS' : '✗ FAIL'}</td>
+                <td class="${ieeeC57Applied ? 'compliant' : 'non-compliant'}">${ieeeC57Applied ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                 <td class="value-cell">${ieeeC57Method}</td>
             </tr>`;
 
@@ -6845,7 +6865,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>ISO 50001:2018</td>
                 <td>Energy Management Systems</td>
-                <td class="compliant">✓ PASS</td>
+                <td class="compliant">[PASS] PASS</td>
                 <td class="value-cell">${iso50001Value}</td>
             </tr>`;
 
@@ -6854,7 +6874,7 @@ function displayResults(r) {
   html += `<tr>
                 <td>ISO 50015:2014</td>
                 <td>M&V of Energy Performance</td>
-                <td class="${iso50015Compliant ? 'compliant' : 'non-compliant'}">${iso50015Compliant ? '✓ PASS' : '✗ FAIL'}</td>
+                <td class="${iso50015Compliant ? 'compliant' : 'non-compliant'}">${iso50015Compliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                 <td class="value-cell">${pValue > 0 ? 'p = ' + fmt(pValue, 3) : 'N/A'}</td>
             </tr>`;
 
@@ -6936,8 +6956,8 @@ function displayResults(r) {
 
   if (performanceCompliance.length > 0) {
     performanceCompliance.forEach(c => {
-      const beforeStatus = c.before === "N/A" ? "N/A" : (c.before ? '✓ PASS' : '✗ FAIL');
-      const afterStatus = c.after === "N/A" ? "N/A" : (c.after ? '✓ PASS' : '✗ FAIL');
+      const beforeStatus = c.before === "N/A" ? "N/A" : (c.before ? '[PASS] PASS' : '[FAIL] FAIL');
+      const afterStatus = c.after === "N/A" ? "N/A" : (c.after ? '[PASS] PASS' : '[FAIL] FAIL');
 
       const beforeClass = c.before === "N/A" ? "" : (c.before ? 'compliant' : 'non-compliant');
       const afterClass = c.after === "N/A" ? "" : (c.after ? 'compliant' : 'non-compliant');
@@ -6967,8 +6987,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>IEEE 519-2014/2022</td>
                     <td>TDD < IEEE 519 Limit (ISC/IL)</td>
-                    <td class="${ieeeBeforeCompliant ? 'compliant' : 'non-compliant'}">${ieeeBeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${ieeeAfterCompliant ? 'compliant' : 'non-compliant'}">${ieeeAfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${ieeeBeforeCompliant ? 'compliant' : 'non-compliant'}">${ieeeBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${ieeeAfterCompliant ? 'compliant' : 'non-compliant'}">${ieeeAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${ieeeBeforeTdd.toFixed(1)}%</td>
                     <td class="value-cell">${ieeeAfterTdd.toFixed(1)}%</td>
                 </tr>`;
@@ -6986,8 +7006,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>ASHRAE Guideline 14</td>
                     <td>Relative Precision < 50% @ 95% CL</td>
-                    <td class="${ashraeBeforeCompliant ? 'compliant' : 'non-compliant'}">${ashraeBeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${ashraeAfterCompliant ? 'compliant' : 'non-compliant'}">${ashraeAfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${ashraeBeforeCompliant ? 'compliant' : 'non-compliant'}">${ashraeBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${ashraeAfterCompliant ? 'compliant' : 'non-compliant'}">${ashraeAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${typeof ashraeBeforePrecision === 'number' ? ashraeBeforePrecision.toFixed(1) + '%' : ashraeBeforePrecision}</td>
                     <td class="value-cell">${typeof ashraeAfterPrecision === 'number' ? ashraeAfterPrecision.toFixed(1) + '%' : ashraeAfterPrecision}</td>
                 </tr>`;
@@ -6995,14 +7015,14 @@ function displayResults(r) {
     // NEMA MG1 - Voltage Unbalance
     // UTILITY-GRADE AUDIT FIX: Handle 'N/A' values safely, check multiple data locations
     // Check nested structure first, then top-level, then power quality data, then raw results
-    console.log('🔧 NEMA MG1: Starting voltage unbalance extraction...');
-    console.log('🔧 NEMA MG1: beforeComp keys:', beforeComp ? Object.keys(beforeComp) : 'beforeComp is null/undefined');
-    console.log('🔧 NEMA MG1: afterCompData keys:', afterCompData ? Object.keys(afterCompData) : 'afterCompData is null/undefined');
+    console.log('[DEBUG] NEMA MG1: Starting voltage unbalance extraction...');
+    console.log('[DEBUG] NEMA MG1: beforeComp keys:', beforeComp ? Object.keys(beforeComp) : 'beforeComp is null/undefined');
+    console.log('[DEBUG] NEMA MG1: afterCompData keys:', afterCompData ? Object.keys(afterCompData) : 'afterCompData is null/undefined');
     
     const nemaBefore = beforeComp?.nema_mg1 || {};
     const nemaAfter = afterCompData?.nema_mg1 || {};
-    console.log('🔧 NEMA MG1: nemaBefore:', nemaBefore);
-    console.log('🔧 NEMA MG1: nemaAfter:', nemaAfter);
+    console.log('[DEBUG] NEMA MG1: nemaBefore:', nemaBefore);
+    console.log('[DEBUG] NEMA MG1: nemaAfter:', nemaAfter);
     
     // Helper function to safely extract and convert voltage unbalance value
     function extractVoltageUnbalance(data, period = 'unknown') {
@@ -7123,7 +7143,7 @@ function displayResults(r) {
               const v23 = Math.sqrt(v2 * v2 + v3 * v3 + v2 * v3);
               const v31 = Math.sqrt(v3 * v3 + v1 * v1 + v3 * v1);
               
-              console.log(`🔧 [${period}] Calculated line-to-line voltages from L-N: V12=${v12.toFixed(2)}V, V23=${v23.toFixed(2)}V, V31=${v31.toFixed(2)}V`);
+              console.log((function() { var v12str = v12.toFixed(2); var v23str = v23.toFixed(2); var v31str = v31.toFixed(2); return '[DEBUG] [' + period + '] Calculated line-to-line voltages from L-N: V12=' + v12str + 'V, V23=' + v23str + 'V, V31=' + v31str + 'V'; })());
               
               // NEMA MG1 formula using line-to-line voltages
               // Formula: Unbalance % = (Max Deviation from Average / Average) × 100
@@ -7133,14 +7153,14 @@ function displayResults(r) {
               if (avgVoltage > 0) {
                 const maxDeviation = Math.max(Math.abs(v12 - avgVoltage), Math.abs(v23 - avgVoltage), Math.abs(v31 - avgVoltage));
                 const unbalance = (maxDeviation / avgVoltage) * 100;
-                console.log(`✅ [${period}] Calculated NEMA MG1 voltage unbalance from line-to-line voltages: ${unbalance.toFixed(2)}%`);
+                console.log((function() { var unbal = unbalance.toFixed(2); return '[OK] [' + period + '] Calculated NEMA MG1 voltage unbalance from line-to-line voltages: ' + unbal + '%'; })());
                 return unbalance;
               }
             }
           }
         }
       } catch (e) {
-            console.debug(`ℹ️ [${period}] Using power_quality fallback for voltage unbalance`);
+            console.debug(`[INFO] [${period}] Using power_quality fallback for voltage unbalance`);
       }
       return null;
     }
@@ -7152,14 +7172,14 @@ function displayResults(r) {
     // Values > 1.0% are valid and may show improvement (e.g., 3.17% -> 3.16% = PASS for after)
     // Trust the backend-calculated values when they exist
     if (nemaBeforeImbalance === null || nemaBeforeImbalance === undefined) {
-      console.log(`⚠️ NEMA Before: Value is missing, attempting recalculation from phase data`);
+      console.log(`[WARNING] NEMA Before: Value is missing, attempting recalculation from phase data`);
       const recalculated = calculateVoltageUnbalanceFromPhaseData('before');
       if (recalculated !== null && recalculated !== undefined) {
         nemaBeforeImbalance = recalculated;
       }
     }
     if (nemaAfterImbalance === null || nemaAfterImbalance === undefined) {
-      console.log(`⚠️ NEMA After: Value is missing, attempting recalculation from phase data`);
+      console.log(`[WARNING] NEMA After: Value is missing, attempting recalculation from phase data`);
       const recalculated = calculateVoltageUnbalanceFromPhaseData('after');
       if (recalculated !== null && recalculated !== undefined) {
         nemaAfterImbalance = recalculated;
@@ -7168,17 +7188,17 @@ function displayResults(r) {
     
     // If still null, there should always be data, so log a warning but use 0.0 as fallback
     if (nemaBeforeImbalance === null || nemaBeforeImbalance === undefined) {
-      console.warn('⚠️ NEMA Before: Could not find or calculate voltage unbalance value');
+      console.warn('[WARNING] NEMA Before: Could not find or calculate voltage unbalance value');
       nemaBeforeImbalance = 0.0;
     } else {
-      console.log('✅ NEMA Before: Voltage unbalance:', nemaBeforeImbalance);
+      console.log('[OK] NEMA Before: Voltage unbalance:', nemaBeforeImbalance);
     }
     
     if (nemaAfterImbalance === null || nemaAfterImbalance === undefined) {
-      console.warn('⚠️ NEMA After: Could not find or calculate voltage unbalance value');
+      console.warn('[WARNING] NEMA After: Could not find or calculate voltage unbalance value');
       nemaAfterImbalance = 0.0;
     } else {
-      console.log('✅ NEMA After: Voltage unbalance:', nemaAfterImbalance);
+      console.log('[OK] NEMA After: Voltage unbalance:', nemaAfterImbalance);
     }
     
     // Calculate compliance from actual values (always numeric at this point)
@@ -7195,8 +7215,8 @@ function displayResults(r) {
     const nemaAfterDisplay = nemaAfterImbalance.toFixed(2) + '%';
     
     // Status: PASS if ≤ 1.0%, FAIL otherwise
-    const nemaBeforeStatus = nemaBeforeCompliant ? '✓ PASS' : '✗ FAIL';
-    const nemaAfterStatus = nemaAfterCompliant ? '✓ PASS' : '✗ FAIL';
+    const nemaBeforeStatus = nemaBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL';
+    const nemaAfterStatus = nemaAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL';
     const nemaBeforeClass = (nemaBeforeImbalance === "N/A" || nemaBeforeCompliant === null) ? "na-status" : (nemaBeforeCompliant ? 'compliant' : 'non-compliant');
     const nemaAfterClass = (nemaAfterImbalance === "N/A" || nemaAfterCompliant === null) ? "na-status" : (nemaAfterCompliant ? 'compliant' : 'non-compliant');
     
@@ -7222,8 +7242,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>IEC 61000-4-30</td>
                     <td>Class A Instrument Accuracy ±0.5%</td>
-                    <td class="${iec61000BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000BeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${iec61000AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000AfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${iec61000BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${iec61000AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${typeof iec61000BeforeAccuracy === 'number' ? iec61000BeforeAccuracy.toFixed(2) + '%' : iec61000BeforeAccuracy}</td>
                     <td class="value-cell">${typeof iec61000AfterAccuracy === 'number' ? iec61000AfterAccuracy.toFixed(2) + '%' : iec61000AfterAccuracy}</td>
                 </tr>`;
@@ -7252,8 +7272,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>IEC 61000-4-7</td>
                     <td>Measurement Methods Compliant</td>
-                    <td class="${iec61000_4_7BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000_4_7BeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${iec61000_4_7AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000_4_7AfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${iec61000_4_7BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000_4_7BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${iec61000_4_7AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000_4_7AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${formatIEC61000_4_7Value(iec61000_4_7BeforeThd)}</td>
                     <td class="value-cell">${formatIEC61000_4_7Value(iec61000_4_7AfterThd)}</td>
                 </tr>`;
@@ -7277,7 +7297,7 @@ function displayResults(r) {
     
     // If variation is > 20%, it's likely a unit mismatch - try to recalculate
     if (typeof iec61000_2_2BeforeVariation === 'number' && Math.abs(iec61000_2_2BeforeVariation) > 20) {
-      console.warn('⚠️ Voltage variation seems too high, recalculating from power quality data');
+      console.warn('[WARNING] Voltage variation seems too high, recalculating from power quality data');
       if (r?.power_quality) {
         const pq = r.power_quality;
         // Try to get voltage from power quality data
@@ -7292,7 +7312,7 @@ function displayResults(r) {
           if (voltageType === "LL" && voltageBefore < nominalVoltage * 0.7 && voltageBefore > nominalVoltage * 0.5) {
             // Likely line-to-neutral, convert to line-to-line
             voltageToCompare = voltageBefore * Math.sqrt(3);
-            console.log(`⚠️ Converting line-to-neutral voltage ${voltageBefore.toFixed(1)}V to line-to-line ${voltageToCompare.toFixed(1)}V`);
+            console.log((function() { var before = voltageBefore.toFixed(1); var compare = voltageToCompare.toFixed(1); return '[WARNING] Converting line-to-neutral voltage ' + before + 'V to line-to-line ' + compare + 'V'; })());
           }
           iec61000_2_2BeforeVariation = ((voltageToCompare - nominalVoltage) / nominalVoltage) * 100;
         }
@@ -7300,7 +7320,7 @@ function displayResults(r) {
     }
     
     if (typeof iec61000_2_2AfterVariation === 'number' && Math.abs(iec61000_2_2AfterVariation) > 20) {
-      console.warn('⚠️ Voltage variation seems too high, recalculating from power quality data');
+      console.warn('[WARNING] Voltage variation seems too high, recalculating from power quality data');
       if (r?.power_quality) {
         const pq = r.power_quality;
         // Try to get voltage from power quality data
@@ -7315,7 +7335,7 @@ function displayResults(r) {
           if (voltageType === "LL" && voltageAfter < nominalVoltage * 0.7 && voltageAfter > nominalVoltage * 0.5) {
             // Likely line-to-neutral, convert to line-to-line
             voltageToCompare = voltageAfter * Math.sqrt(3);
-            console.log(`⚠️ Converting line-to-neutral voltage ${voltageAfter.toFixed(1)}V to line-to-line ${voltageToCompare.toFixed(1)}V`);
+            console.log((function() { var after = voltageAfter.toFixed(1); var compare = voltageToCompare.toFixed(1); return '[WARNING] Converting line-to-neutral voltage ' + after + 'V to line-to-line ' + compare + 'V'; })());
           }
           iec61000_2_2AfterVariation = ((voltageToCompare - nominalVoltage) / nominalVoltage) * 100;
         }
@@ -7327,8 +7347,8 @@ function displayResults(r) {
     const iec61000_2_2AfterDisplay = (typeof iec61000_2_2AfterVariation === 'number') ? iec61000_2_2AfterVariation.toFixed(1) + '%' : iec61000_2_2AfterVariation;
     
     // Handle 'N/A' compliance status
-    const iec61000_2_2BeforeStatus = (iec61000_2_2BeforeCompliant === "N/A") ? "N/A" : (iec61000_2_2BeforeCompliant ? '✓ PASS' : '✗ FAIL');
-    const iec61000_2_2AfterStatus = (iec61000_2_2AfterCompliant === "N/A") ? "N/A" : (iec61000_2_2AfterCompliant ? '✓ PASS' : '✗ FAIL');
+    const iec61000_2_2BeforeStatus = (iec61000_2_2BeforeCompliant === "N/A") ? "N/A" : (iec61000_2_2BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL');
+    const iec61000_2_2AfterStatus = (iec61000_2_2AfterCompliant === "N/A") ? "N/A" : (iec61000_2_2AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL');
     const iec61000_2_2BeforeClass = (iec61000_2_2BeforeCompliant === "N/A") ? "na-status" : (iec61000_2_2BeforeCompliant ? 'compliant' : 'non-compliant');
     const iec61000_2_2AfterClass = (iec61000_2_2AfterCompliant === "N/A") ? "na-status" : (iec61000_2_2AfterCompliant ? 'compliant' : 'non-compliant');
 
@@ -7336,8 +7356,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>IEC 61000-2-2</td>
                     <td>Voltage Variation ±10%</td>
-                    <td class="${iec61000_2_2BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000_2_2BeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${iec61000_2_2AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000_2_2AfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${iec61000_2_2BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec61000_2_2BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${iec61000_2_2AfterCompliant ? 'compliant' : 'non-compliant'}">${iec61000_2_2AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${typeof iec61000_2_2BeforeVariation === 'number' ? iec61000_2_2BeforeVariation.toFixed(1) + '%' : iec61000_2_2BeforeVariation}</td>
                     <td class="value-cell">${typeof iec61000_2_2AfterVariation === 'number' ? iec61000_2_2AfterVariation.toFixed(1) + '%' : iec61000_2_2AfterVariation}</td>
                 </tr>`;
@@ -7359,8 +7379,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>AHRI 550/590</td>
                     <td>Chiller Efficiency COP ≥ 4.0</td>
-                    <td class="${ari550BeforeCompliant ? 'compliant' : 'non-compliant'}">${ari550BeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${ari550AfterCompliant ? 'compliant' : 'non-compliant'}">${ari550AfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${ari550BeforeCompliant ? 'compliant' : 'non-compliant'}">${ari550BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${ari550AfterCompliant ? 'compliant' : 'non-compliant'}">${ari550AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${ari550BeforeClass} (${typeof ari550BeforeCop === 'number' ? ari550BeforeCop.toFixed(1) : ari550BeforeCop})</td>
                     <td class="value-cell">${ari550AfterClass} (${typeof ari550AfterCop === 'number' ? ari550AfterCop.toFixed(1) : ari550AfterCop})</td>
                 </tr>`;
@@ -7399,8 +7419,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>ANSI C12.1 & C12.20</td>
                     <td>${meterClassDescriptionPerf}</td>
-                    <td class="${meterBeforeCompliant ? 'compliant' : 'non-compliant'}">${meterBeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${meterAfterCompliant ? 'compliant' : 'non-compliant'}">${meterAfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${meterBeforeCompliant ? 'compliant' : 'non-compliant'}">${meterBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${meterAfterCompliant ? 'compliant' : 'non-compliant'}">${meterAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${typeof meterBeforeAccuracy === 'number' ? meterBeforeAccuracy.toFixed(1) : meterBeforeAccuracy}</td>
                     <td class="value-cell">${typeof meterAfterAccuracy === 'number' ? meterAfterAccuracy.toFixed(1) : meterAfterAccuracy}</td>
                 </tr>`;
@@ -7418,8 +7438,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>ANSI C57.12.00</td>
                     <td>General Requirements Compliance</td>
-                    <td class="${transformerBeforeCompliant ? 'compliant' : 'non-compliant'}">${transformerBeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${transformerAfterCompliant ? 'compliant' : 'non-compliant'}">${transformerAfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${transformerBeforeCompliant ? 'compliant' : 'non-compliant'}">${transformerBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${transformerAfterCompliant ? 'compliant' : 'non-compliant'}">${transformerAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${typeof transformerBeforeEfficiency === 'number' ? transformerBeforeEfficiency.toFixed(1) + '%' : transformerBeforeEfficiency}</td>
                     <td class="value-cell">${typeof transformerAfterEfficiency === 'number' ? transformerAfterEfficiency.toFixed(1) + '%' : transformerAfterEfficiency}</td>
                 </tr>`;
@@ -7434,8 +7454,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>IEC 62053</td>
                     <td>Meter Accuracy Standards (Class 0.1S-2)</td>
-                    <td class="${iec62053BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec62053BeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${iec62053AfterCompliant ? 'compliant' : 'non-compliant'}">${iec62053AfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${iec62053BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec62053BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${iec62053AfterCompliant ? 'compliant' : 'non-compliant'}">${iec62053AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${iec62053BeforeClass} (${fmt(iec62053BeforeValue, 1)}%)</td>
                     <td class="value-cell">${iec62053AfterClass} (${fmt(iec62053AfterValue, 1)}%)</td>
                 </tr>`;
@@ -7466,8 +7486,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>ITIC/CBEMA</td>
                     <td>Power Quality Tolerance (ITIC Curve) - Voltage sag/swell protection for IT equipment</td>
-                    <td class="${iticBeforeCompliant ? 'compliant' : 'non-compliant'}">${iticBeforeCompliant ? '✓ PASS' : '✗ FAIL'}</td>
-                    <td class="${iticAfterCompliant ? 'compliant' : 'non-compliant'}">${iticAfterCompliant ? '✓ PASS' : '✗ FAIL'}</td>
+                    <td class="${iticBeforeCompliant ? 'compliant' : 'non-compliant'}">${iticBeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
+                    <td class="${iticAfterCompliant ? 'compliant' : 'non-compliant'}">${iticAfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${iticBeforeAnnotation}</td>
                     <td class="value-cell">${iticAfterAnnotation}</td>
                 </tr>`;
@@ -7476,8 +7496,8 @@ function displayResults(r) {
     html += `<tr>
                     <td>ASHRAE Guideline 14-2014 Weather Normalization</td>
                     <td>Weather Normalization per Section 14.3 (Base: 18.3°C)</td>
-                    <td class="compliant">✓ PASS</td>
-                    <td class="compliant">✓ PASS</td>
+                    <td class="compliant">[PASS] PASS</td>
+                    <td class="compliant">[PASS] PASS</td>
                     <td class="value-cell">N/A</td>
                     <td class="value-cell">N/A</td>
                 </tr>`;
@@ -7552,7 +7572,7 @@ function displayResults(r) {
     rows.forEach(row => {
       html += `<tr>
                     <td><strong>${row.label}</strong></td>
-                    <td class="value-cell">${row.value}${row.unit && row.value !== '—' ? ` ${row.unit}` : ''}</td>
+                    <td class="value-cell">${row.value}${row.unit && row.value !== '—' ? ' ' + row.unit : ''}</td>
                     <td>${row.description}</td>
                 </tr>`;
     });
@@ -7595,7 +7615,7 @@ function displayResults(r) {
         if (backend_peak !== null && backend_peak > peak_kw_before) {
           peak_kw_before = backend_peak;
           peak_source_before = backend_maximum !== null ? 'totalKw.maximum (from backend)' : 'totalKw.max (from backend)';
-          console.log('🔍 kW Peak - Before Period: Using backend maximum/max field', {
+          console.log('[SEARCH] kW Peak - Before Period: Using backend maximum/max field', {
             backend_maximum: backend_maximum,
             backend_max: backend_max,
             calculated_max: peak_kw_before,
@@ -7603,7 +7623,7 @@ function displayResults(r) {
           });
         }
         
-        console.log('🔍 kW Peak - Before Period:', {
+        console.log('[SEARCH] kW Peak - Before Period:', {
           source: 'totalKw.values array',
           total_values: beforeData.avgKw.values.length,
           max_value: peak_kw_before,
@@ -7615,20 +7635,20 @@ function displayResults(r) {
       } else if (beforeData.avgKw.maximum !== undefined && beforeData.avgKw.maximum !== null) {
         peak_kw_before = beforeData.avgKw.maximum;
         peak_source_before = 'totalKw.maximum';
-        console.log('🔍 kW Peak - Before Period:', {
+        console.log('[SEARCH] kW Peak - Before Period:', {
           source: 'totalKw.maximum',
           value: peak_kw_before
         });
       } else if (beforeData.avgKw.max !== undefined && beforeData.avgKw.max !== null) {
         peak_kw_before = beforeData.avgKw.max;
         peak_source_before = 'totalKw.max';
-        console.log('🔍 kW Peak - Before Period:', {
+        console.log('[SEARCH] kW Peak - Before Period:', {
           source: 'totalKw.max',
           value: peak_kw_before
         });
       }
     } else {
-      console.log('⚠️ kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
+      console.log('[WARNING] kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
     }
     
     if (afterData.avgKw) {
@@ -7648,7 +7668,7 @@ function displayResults(r) {
         if (backend_peak_after !== null && backend_peak_after > peak_kw_after) {
           peak_kw_after = backend_peak_after;
           peak_source_after = backend_maximum_after !== null ? 'totalKw.maximum (from backend)' : 'totalKw.max (from backend)';
-          console.log('🔍 kW Peak - After Period: Using backend maximum/max field', {
+          console.log('[SEARCH] kW Peak - After Period: Using backend maximum/max field', {
             backend_maximum: backend_maximum_after,
             backend_max: backend_max_after,
             calculated_max: peak_kw_after,
@@ -7656,7 +7676,7 @@ function displayResults(r) {
           });
         }
         
-        console.log('🔍 kW Peak - After Period:', {
+        console.log('[SEARCH] kW Peak - After Period:', {
           source: 'totalKw.values array',
           total_values: afterData.avgKw.values.length,
           max_value: peak_kw_after,
@@ -7668,20 +7688,20 @@ function displayResults(r) {
       } else if (afterData.avgKw.maximum !== undefined && afterData.avgKw.maximum !== null) {
         peak_kw_after = afterData.avgKw.maximum;
         peak_source_after = 'totalKw.maximum';
-        console.log('🔍 kW Peak - After Period:', {
+        console.log('[SEARCH] kW Peak - After Period:', {
           source: 'totalKw.maximum',
           value: peak_kw_after
         });
       } else if (afterData.avgKw.max !== undefined && afterData.avgKw.max !== null) {
         peak_kw_after = afterData.avgKw.max;
         peak_source_after = 'totalKw.max';
-        console.log('🔍 kW Peak - After Period:', {
+        console.log('[SEARCH] kW Peak - After Period:', {
           source: 'totalKw.max',
           value: peak_kw_after
         });
       }
     } else {
-      console.log('⚠️ kW Peak - After: totalKw column not found in afterData. Available keys:', Object.keys(afterData));
+      console.log('[WARNING] kW Peak - After: totalKw column not found in afterData. Available keys:', Object.keys(afterData));
     }
     
     // Fallback: Try to get peak from demand structure
@@ -7689,14 +7709,14 @@ function displayResults(r) {
       peak_kw_before = r.demand.ncp.before_peak_kw || r.demand.ncp.before_max_kw || 0;
       if (peak_kw_before > 0) {
         peak_source_before = 'demand.ncp.before_peak_kw';
-        console.log('🔍 PEAK kW DEBUG - Before: Using fallback demand.ncp.before_peak_kw', peak_kw_before);
+        console.log('[SEARCH] PEAK kW DEBUG - Before: Using fallback demand.ncp.before_peak_kw', peak_kw_before);
       }
     }
     if (peak_kw_after === 0 && r.demand && r.demand.ncp) {
       peak_kw_after = r.demand.ncp.after_peak_kw || r.demand.ncp.after_max_kw || 0;
       if (peak_kw_after > 0) {
         peak_source_after = 'demand.ncp.after_peak_kw';
-        console.log('🔍 PEAK kW DEBUG - After: Using fallback demand.ncp.after_peak_kw', peak_kw_after);
+        console.log('[SEARCH] PEAK kW DEBUG - After: Using fallback demand.ncp.after_peak_kw', peak_kw_after);
       }
     }
     
@@ -7705,19 +7725,19 @@ function displayResults(r) {
       peak_kw_before = beforeData.peak_demand.maximum || beforeData.peak_demand.max || 0;
       if (peak_kw_before > 0) {
         peak_source_before = 'beforeData.peak_demand';
-        console.log('🔍 PEAK kW DEBUG - Before: Using fallback peak_demand', peak_kw_before);
+        console.log('[SEARCH] PEAK kW DEBUG - Before: Using fallback peak_demand', peak_kw_before);
       }
     }
     if (peak_kw_after === 0 && afterData.peak_demand) {
       peak_kw_after = afterData.peak_demand.maximum || afterData.peak_demand.max || 0;
       if (peak_kw_after > 0) {
         peak_source_after = 'afterData.peak_demand';
-        console.log('🔍 PEAK kW DEBUG - After: Using fallback peak_demand', peak_kw_after);
+        console.log('[SEARCH] PEAK kW DEBUG - After: Using fallback peak_demand', peak_kw_after);
       }
     }
     
     // Log final peak values and their sources
-    console.log('🔍 kW Peak - FINAL VALUES (Highest value from totalKw column for each period):', {
+    console.log('[SEARCH] kW Peak - FINAL VALUES (Highest value from totalKw column for each period):', {
       before_period_peak: peak_kw_before,
       after_period_peak: peak_kw_after,
       source_before: peak_source_before,
@@ -7795,7 +7815,7 @@ function displayResults(r) {
     rows.forEach(row => {
       html += `<tr>
                     <td><strong>${row.label}</strong></td>
-                    <td class="value-cell">${row.value}${row.unit && row.value !== '—' ? ` ${row.unit}` : ''}</td>
+                    <td class="value-cell">${row.value}${row.unit && row.value !== '—' ? ' ' + row.unit : ''}</td>
                     <td>${row.description}</td>
                 </tr>`;
     });
@@ -7884,13 +7904,13 @@ function displayResults(r) {
 
     if (powerQuality.current_before && powerQuality.current_after) {
       const current_improvement = calcPercentImprovement(powerQuality.current_before, powerQuality.current_after, true);
-      console.log(`🔧 CURRENT DEBUG: Line 4117 - current_improvement = ${current_improvement} (from current_before=${powerQuality.current_before}, current_after=${powerQuality.current_after})`);
+      console.log(`[DEBUG] CURRENT DEBUG: Line 4117 - current_improvement = ${current_improvement} (from current_before=${powerQuality.current_before}, current_after=${powerQuality.current_after})`);
       if (current_improvement !== null) {
-        console.log(`🔧 CURRENT DEBUG: Line 4118 - current_improvement is not null: ${current_improvement}`);
+        console.log(`[DEBUG] CURRENT DEBUG: Line 4118 - current_improvement is not null: ${current_improvement}`);
         powerQuality.current_improvement_pct = `${fmt(Math.abs(current_improvement), 1)}% reduction`;
-        console.log(`🔧 CURRENT DEBUG: Line 4119 - powerQuality.current_improvement_pct = ${powerQuality.current_improvement_pct}`);
+        console.log(`[DEBUG] CURRENT DEBUG: Line 4119 - powerQuality.current_improvement_pct = ${powerQuality.current_improvement_pct}`);
       } else {
-        console.log(`🔧 CURRENT DEBUG: Line 4118 - current_improvement is null`);
+        console.log(`[DEBUG] CURRENT DEBUG: Line 4118 - current_improvement is null`);
       }
     }
 
@@ -7976,7 +7996,7 @@ function displayResults(r) {
                         <td><strong>kW (Raw Data)</strong></td>
                         <td class="value-cell" style="text-align: center;">${fmt(kw_before_raw, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${before_note}</small></td>
                         <td class="value-cell" style="text-align: center;">${fmt(kw_after_raw, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${after_note}</small></td>
-                        <td class="value-cell" style="text-align: center; color: ${color}">${kw_percent ? fmt(Math.abs(kw_percent), 2) + '% ' + change_text : 'N/A'}</td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${(function() { if (kw_percent) { var val = fmt(Math.abs(kw_percent), 2); return val + '% ' + change_text; } return 'N/A'; })()}</td>
                     </tr>`;
     }
 
@@ -7993,7 +8013,7 @@ function displayResults(r) {
       const after_note = 'Raw Meter Data';
       
       // Debug logging for kW Peak values
-      console.log('🔍 kW Peak - DISPLAY VALUES:', {
+      console.log('[SEARCH] kW Peak - DISPLAY VALUES:', {
         before_peak_kw: peak_kw_before,
         after_peak_kw: peak_kw_after,
         peak_savings_kw: peak_savings,
@@ -8007,10 +8027,10 @@ function displayResults(r) {
                         <td><strong>kW Peak</strong></td>
                         <td class="value-cell" style="text-align: center;">${fmt(peak_kw_before, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${before_note}</small></td>
                         <td class="value-cell" style="text-align: center;">${fmt(peak_kw_after, 2)} kW<br/><small style="color: #666; font-size: 0.8em;">${after_note}</small></td>
-                        <td class="value-cell" style="text-align: center; color: ${color}">${peak_percent ? fmt(Math.abs(peak_percent), 2) + '% ' + change_text : 'N/A'}</td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${(function() { if (peak_percent) { var val = fmt(Math.abs(peak_percent), 2); return val + '% ' + change_text; } return 'N/A'; })()}</td>
                     </tr>`;
     } else {
-      console.log('🔍 kW Peak: Missing values', {
+      console.log('[SEARCH] kW Peak: Missing values', {
         peak_kw_before: peak_kw_before,
         peak_kw_after: peak_kw_after,
         powerQuality: powerQuality
@@ -8057,7 +8077,7 @@ function displayResults(r) {
       const pf_after_actual = Math.max(0.0, Math.min(1.0, powerQuality.pf_after));
 
       // Debug logging to verify the value
-      console.log('🔍 Power Factor Debug - Raw Meter Test Data:', {
+      console.log('[SEARCH] Power Factor Debug - Raw Meter Test Data:', {
         pf_before_raw: powerQuality.pf_before,
         pf_after_raw: powerQuality.pf_after,
         pf_before_actual: pf_before_actual,
@@ -8076,7 +8096,7 @@ function displayResults(r) {
                     </tr>`;
     } else {
       // Log warning if PF data is missing
-      console.warn('⚠️ Power Factor data missing or invalid in Raw Meter Test Data section:', {
+      console.warn('[WARNING] Power Factor data missing or invalid in Raw Meter Test Data section:', {
         pf_before: powerQuality.pf_before,
         pf_after: powerQuality.pf_after,
         powerQuality_keys: Object.keys(powerQuality)
@@ -8105,7 +8125,7 @@ function displayResults(r) {
                         <td><strong>Amps (RMS)</strong></td>
                         <td class="value-cell" style="text-align: center;">${fmt(powerQuality.current_before, 1)} A</td>
                         <td class="value-cell" style="text-align: center;">${fmt(powerQuality.current_after, 1)} A</td>
-                        <td class="value-cell" style="text-align: center; color: ${color}">${current_percent ? fmt(Math.abs(current_percent), 1) + '% ' + change_text : 'N/A'}</td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${(function() { if (current_percent) { var val = fmt(Math.abs(current_percent), 1); return val + '% ' + change_text; } return 'N/A'; })()}</td>
                     </tr>`;
     }
 
@@ -8128,7 +8148,7 @@ function displayResults(r) {
   // First, try to use backend-calculated values (these are authoritative)
   if (r.power_quality?.calculated_pf_normalized_kw_before && r.power_quality?.calculated_pf_normalized_kw_after) {
     calculatedNormalizedKwSavings = r.power_quality.calculated_pf_normalized_kw_before - r.power_quality.calculated_pf_normalized_kw_after;
-    console.log('✅ Using backend-calculated normalized kW values (authoritative)');
+    console.log('[OK] Using backend-calculated normalized kW values (authoritative)');
     console.log(`   calculated_pf_normalized_kw_before = ${r.power_quality.calculated_pf_normalized_kw_before}`);
     console.log(`   calculated_pf_normalized_kw_after = ${r.power_quality.calculated_pf_normalized_kw_after}`);
     console.log(`   calculatedNormalizedKwSavings = ${calculatedNormalizedKwSavings}`);
@@ -8147,7 +8167,7 @@ function displayResults(r) {
                        powerQualityNormalized?.target_pf || 
                        0.95; // Default to 0.95 if not specified (IEEE 519 standard)
       
-      console.log('⚠️ Backend values not available, recalculating with target_pf =', targetPF);
+      console.log('[WARNING] Backend values not available, recalculating with target_pf =', targetPF);
       
       if (pfBefore && pfAfter && weatherBefore && weatherAfter) {
         // Calculate PF normalization for savings: normalize both to the SAME PF
@@ -8278,7 +8298,7 @@ function displayResults(r) {
                         <td><strong>kW Peak</strong></td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.peak_kw_before).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.peak_kw_after).toFixed(2)} kW</td>
-                        <td class="value-cell" style="text-align: center; color: ${color}">${peak_percent ? peak_percent.toFixed(2) + '% ' + change_text : 'N/A'}</td>
+                        <td class="value-cell" style="text-align: center; color: ${color}">${(function() { if (peak_percent) { var val = peak_percent.toFixed(2); return val + '% ' + change_text; } return 'N/A'; })()}</td>
                     </tr>`;
     }
 
@@ -8380,7 +8400,7 @@ function displayResults(r) {
       
       // Debug logging to help diagnose missing values
       if ((dewpointBefore === undefined || dewpointAfter === undefined) && weatherNorm.dewpoint_before !== undefined) {
-        console.warn('⚠️ Dewpoint values found in weather_normalization but not in power_quality:', {
+        console.warn('[WARNING] Dewpoint values found in weather_normalization but not in power_quality:', {
           powerQuality: {
             before: powerQualityNormalized.dewpoint_before,
             after: powerQualityNormalized.dewpoint_after
@@ -8488,8 +8508,8 @@ function displayResults(r) {
       
       // Create enhanced breakdown section
       html += `<div style="margin-top: 1.5rem; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #1976d2; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
-      html += `<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">📊 Detailed kW Normalization Savings Breakdown</h3>`;
-      html += `<p style="margin-bottom: 10px; color: #dc3545; font-size: 0.95em; line-height: 1.6; font-weight: bold; background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;"><strong>⚠️ Note:</strong> This section is for informational purposes only and shows how weather and power factor normalization percentages are calculated. These values are NOT added to the savings totals in other sections (Raw Meter Test Data, IEEE 519 Power Quality Analysis, Bill-Weighted Savings) to prevent double-counting.</p>`;
+      html += `<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">[DATA] Detailed kW Normalization Savings Breakdown</h3>`;
+      html += `<p style="margin-bottom: 10px; color: #dc3545; font-size: 0.95em; line-height: 1.6; font-weight: bold; background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;"><strong>[WARNING] Note:</strong> This section is for informational purposes only and shows how weather and power factor normalization percentages are calculated. These values are NOT added to the savings totals in other sections (Raw Meter Test Data, IEEE 519 Power Quality Analysis, Bill-Weighted Savings) to prevent double-counting.</p>`;
       html += `<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">This detailed breakdown shows step-by-step how raw meter data is transformed through weather normalization (ASHRAE Guideline 14) and power factor normalization (utility billing standard) to arrive at the final normalized savings percentage.</p>`;
       
       // STEP 1: Raw Data
@@ -8502,8 +8522,14 @@ function displayResults(r) {
         html += `<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${Number(powerQualityNormalized.kw_before).toFixed(2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${Number(powerQualityNormalized.kw_after).toFixed(2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>`;
-        html += `<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rawSavingsKw > 0 ? 'green' : 'red'};">${Number(rawSavingsKw).toFixed(2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">${Number(powerQualityNormalized.kw_before).toFixed(2)} - ${Number(powerQualityNormalized.kw_after).toFixed(2)}</td></tr>`;
-        html += `<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rawSavingsPercent > 0 ? 'green' : 'red'};">${Number(rawSavingsPercent).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">(${Number(rawSavingsKw).toFixed(2)} / ${Number(powerQualityNormalized.kw_before).toFixed(2)}) × 100</td></tr>`;
+        const rawSavingsKwColor = rawSavingsKw > 0 ? 'green' : 'red';
+        const rawSavingsKwVal = Number(rawSavingsKw).toFixed(2);
+        const rawKwBeforeFormatted = Number(powerQualityNormalized.kw_before).toFixed(2);
+        const rawKwAfterFormatted = Number(powerQualityNormalized.kw_after).toFixed(2);
+        html += '<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + rawSavingsKwColor + ';">' + rawSavingsKwVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">' + rawKwBeforeFormatted + ' - ' + rawKwAfterFormatted + '</td></tr>';
+        const rawSavingsPctColor = rawSavingsPercent > 0 ? 'green' : 'red';
+        const rawSavingsPctVal = Number(rawSavingsPercent).toFixed(2);
+        html += '<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + rawSavingsPctColor + ';">' + rawSavingsPctVal + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">(' + rawSavingsKwVal + ' / ' + rawKwBeforeFormatted + ') × 100</td></tr>';
         html += `</table>`;
       } else {
         html += `<p style="color: #999; font-style: italic;">Raw kW data not available</p>`;
@@ -8527,7 +8553,7 @@ function displayResults(r) {
         
         // Also get sensitivity factors from results if available (regression-calculated)
         // Debug: Log what values are available
-        console.log('🔍 Weather Normalization Sensitivity Debug:', {
+        console.log('[SEARCH] Weather Normalization Sensitivity Debug:', {
           regression_temp_sensitivity: weatherNorm.regression_temp_sensitivity,
           temp_sensitivity_used: weatherNorm.temp_sensitivity_used,
           regression_dewpoint_sensitivity: weatherNorm.regression_dewpoint_sensitivity,
@@ -8546,18 +8572,19 @@ function displayResults(r) {
         
         // Log which sensitivity is being used
         if (weatherNorm.regression_temp_sensitivity !== undefined && weatherNorm.regression_temp_sensitivity !== null) {
-          console.log(`✅ Using regression-calculated temp sensitivity: ${(weatherNorm.regression_temp_sensitivity * 100).toFixed(2)}% per °C`);
+          console.log((function() { var val = (weatherNorm.regression_temp_sensitivity * 100).toFixed(2); return '[OK] Using regression-calculated temp sensitivity: ' + val + '% per °C'; })());
         } else if (weatherNorm.temp_sensitivity_used !== undefined && weatherNorm.temp_sensitivity_used !== null) {
-          console.log(`ℹ️ Using temp sensitivity from results: ${(weatherNorm.temp_sensitivity_used * 100).toFixed(2)}% per °C`);
+          console.log((function() { var val = (weatherNorm.temp_sensitivity_used * 100).toFixed(2); return '[INFO] Using temp sensitivity from results: ' + val + '% per °C'; })());
         } else {
-          console.log(`⚠️ WARNING: Using hardcoded fallback temp sensitivity: ${(tempSensitivity * 100).toFixed(2)}% per °C (temp_sensitivity_used not found in results)`);
+          console.log((function() { var val = (tempSensitivity * 100).toFixed(2); return '[WARNING] WARNING: Using hardcoded fallback temp sensitivity: ' + val + '% per °C (temp_sensitivity_used not found in results)'; })());
         }
         
         // Log which base temperature is being used
         if (weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null && !isNaN(weatherNorm.optimized_base_temp)) {
-          console.log(`✅ Using optimized base temperature: ${Number(weatherNorm.optimized_base_temp).toFixed(1)}°C (from baseline data)`);
+          console.log((function() { var val = Number(weatherNorm.optimized_base_temp).toFixed(1); return '[OK] Using optimized base temperature: ' + val + '°C (from baseline data)'; })());
         } else {
-          console.log(`ℹ️ Using default base temperature: ${(baseTemp != null && !isNaN(baseTemp) ? Number(baseTemp).toFixed(1) : 'N/A')}°C (optimization not performed or unavailable)`);
+          const baseTempStr = baseTemp != null && !isNaN(baseTemp) ? Number(baseTemp).toFixed(1) : 'N/A';
+          console.log(`[INFO] Using default base temperature: ${baseTempStr}°C (optimization not performed or unavailable)`);
         }
         
         // Calculate weather effects if we have temperature/dewpoint data
@@ -8633,7 +8660,10 @@ function displayResults(r) {
               ? `(${tempDiffAfter.toFixed(1)} × ${tempSensitivity.toFixed(3)}) = ${(rawTempEffectAfter * 100).toFixed(2)}%`
               : `max(0, ${tempDiffAfter.toFixed(1)} × ${tempSensitivity.toFixed(3)}) = ${(tempEffectAfter * 100).toFixed(2)}%`;
             
-            html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">${(tempSensitivity * 100).toFixed(1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(tempEffectBefore * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(tempEffectAfter * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: ${beforeFormula}<br/>After: ${afterFormula}</td></tr>`;
+            const tempSensStr = (tempSensitivity * 100).toFixed(1);
+            const tempEffectBeforeStr = (tempEffectBefore * 100).toFixed(2);
+            const tempEffectAfterStr = (tempEffectAfter * 100).toFixed(2);
+            html += '<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">' + tempSensStr + '% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + tempEffectBeforeStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + tempEffectAfterStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: ' + beforeFormula + '<br/>After: ' + afterFormula + '</td></tr>';
           }
         }
         
@@ -8659,13 +8689,23 @@ function displayResults(r) {
               afterFormula += ` → clamped to 0.00% (dewpoint below base temp, no cooling load)`;
             }
             
-            html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">${(dewpointSensitivity * 100).toFixed(2)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(dewpointEffectBefore * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(dewpointEffectAfter * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: ${beforeFormula}<br/>After: ${afterFormula}</td></tr>`;
+            const dewpointSensStr = (dewpointSensitivity * 100).toFixed(2);
+            const dewpointEffectBeforeStr = (dewpointEffectBefore * 100).toFixed(2);
+            const dewpointEffectAfterStr = (dewpointEffectAfter * 100).toFixed(2);
+            html += '<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">' + dewpointSensStr + '% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + dewpointEffectBeforeStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + dewpointEffectAfterStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: ' + beforeFormula + '<br/>After: ' + afterFormula + '</td></tr>';
           }
         }
         
         // Combined weather effects
         if (weatherEffectBefore !== null && weatherEffectAfter !== null) {
-          html += `<tr style="background: #e1f5fe;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Combined Weather Effect</strong><br/><small style="color: #666;">Temp + Dewpoint</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(weatherEffectBefore * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(weatherEffectAfter * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${(tempEffectBefore * 100).toFixed(2)}% + ${(dewpointEffectBefore * 100).toFixed(2)}% = ${(weatherEffectBefore * 100).toFixed(2)}%<br/>${(tempEffectAfter * 100).toFixed(2)}% + ${(dewpointEffectAfter * 100).toFixed(2)}% = ${(weatherEffectAfter * 100).toFixed(2)}%</td></tr>`;
+          const weatherEffectBeforeStr = (weatherEffectBefore * 100).toFixed(2);
+          const weatherEffectAfterStr = (weatherEffectAfter * 100).toFixed(2);
+          const tempEffectBeforeStr2 = (tempEffectBefore * 100).toFixed(2);
+          const tempEffectAfterStr2 = (tempEffectAfter * 100).toFixed(2);
+          const dewpointEffectBeforeStr2 = (dewpointEffectBefore * 100).toFixed(2);
+          const dewpointEffectAfterStr2 = (dewpointEffectAfter * 100).toFixed(2);
+          const combinedDetail = tempEffectBeforeStr2 + '% + ' + dewpointEffectBeforeStr2 + '% = ' + weatherEffectBeforeStr + '%<br/>' + tempEffectAfterStr2 + '% + ' + dewpointEffectAfterStr2 + '% = ' + weatherEffectAfterStr + '%';
+          html += '<tr style="background: #e1f5fe;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Combined Weather Effect</strong><br/><small style="color: #666;">Temp + Dewpoint</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weatherEffectBeforeStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weatherEffectAfterStr + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">' + combinedDetail + '</td></tr>';
         }
         
         // Efficiency Factor (shows reduction in weather effects when efficiency improvements exist)
@@ -8697,7 +8737,14 @@ function displayResults(r) {
           const weatherEffectBeforeReduced = weatherEffectBefore * efficiencyFactor;
           const weatherEffectAfterReduced = weatherEffectAfter * efficiencyFactor;
           
-          html += `<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Efficiency Factor</strong><br/><small style="color: #666;">Weather effect reduction (informational)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(weatherEffectBefore * 100).toFixed(2)}% → ${(weatherEffectBeforeReduced * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(weatherEffectAfter * 100).toFixed(2)}% → ${(weatherEffectAfterReduced * 100).toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Factor: ${efficiencyFactorDisplay}<br/>Before: ${(weatherEffectBefore * 100).toFixed(2)}% × ${efficiencyFactor.toFixed(2)} = ${(weatherEffectBeforeReduced * 100).toFixed(2)}%<br/>After: ${(weatherEffectAfter * 100).toFixed(2)}% × ${efficiencyFactor.toFixed(2)} = ${(weatherEffectAfterReduced * 100).toFixed(2)}%<br/><small style="color: #4caf50;">Improving kW efficiency outweighs small weather differences (${tempRange.toFixed(1)}°C)</small><br/><small style="color: #ff9800; font-style: italic;">⚠️ Note: This is informational and not applied to the calculation</small></td></tr>`;
+          const weBefore = (weatherEffectBefore * 100).toFixed(2);
+          const weBeforeRed = (weatherEffectBeforeReduced * 100).toFixed(2);
+          const weAfter = (weatherEffectAfter * 100).toFixed(2);
+          const weAfterRed = (weatherEffectAfterReduced * 100).toFixed(2);
+          const effFactor = efficiencyFactor.toFixed(2);
+          const tempRangeStr = tempRange.toFixed(1);
+          const efficiencyDetail = 'Factor: ' + efficiencyFactorDisplay + '<br/>Before: ' + weBefore + '% × ' + effFactor + ' = ' + weBeforeRed + '%<br/>After: ' + weAfter + '% × ' + effFactor + ' = ' + weAfterRed + '%<br/><small style="color: #4caf50;">Improving kW efficiency outweighs small weather differences (' + tempRangeStr + '°C)</small><br/><small style="color: #ff9800; font-style: italic;">[WARNING] Note: This is informational and not applied to the calculation</small>';
+          html += '<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Efficiency Factor</strong><br/><small style="color: #666;">Weather effect reduction (informational)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weBefore + '% → ' + weBeforeRed + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weAfter + '% → ' + weAfterRed + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">' + efficiencyDetail + '</td></tr>';
         }
         
         // Weather adjustment factor calculation
@@ -8708,11 +8755,16 @@ function displayResults(r) {
           (weatherAdjustmentFactor || 1.0);
         
         // Weather Adjustment Factor calculation formula
-        const weatherFactorCalcText = `<strong>Factor Calculation:</strong> ${(actualFactor != null && !isNaN(actualFactor) ? Number(actualFactor).toFixed(4) : 'N/A')} = ${(powerQualityNormalized.weather_normalized_kw_after != null && !isNaN(powerQualityNormalized.weather_normalized_kw_after) ? Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2) : 'N/A')} ÷ ${(powerQualityNormalized.kw_after != null && !isNaN(powerQualityNormalized.kw_after) ? Number(powerQualityNormalized.kw_after).toFixed(2) : 'N/A')} = Weather Normalized kW (After) ÷ Raw kW (After)`;
-        html += `<tr style="background: #fff9c4;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Adjustment Factor</strong><br/><small style="color: #666;">Calculated from actual 'before' and 'after' data</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">No Adjustment</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em;">${(actualFactor != null && !isNaN(actualFactor) ? Number(actualFactor).toFixed(4) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${weatherFactorCalcText}</td></tr>`;
+        const factorStr = actualFactor != null && !isNaN(actualFactor) ? Number(actualFactor).toFixed(4) : 'N/A';
+        const normKwAfter = powerQualityNormalized.weather_normalized_kw_after != null && !isNaN(powerQualityNormalized.weather_normalized_kw_after) ? Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2) : 'N/A';
+        const rawKwAfter = powerQualityNormalized.kw_after != null && !isNaN(powerQualityNormalized.kw_after) ? Number(powerQualityNormalized.kw_after).toFixed(2) : 'N/A';
+        const weatherFactorCalcText = `<strong>Factor Calculation:</strong> ${factorStr} = ${normKwAfter} ÷ ${rawKwAfter} = Weather Normalized kW (After) ÷ Raw kW (After)`;
+        html += `<tr style="background: #fff9c4;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Adjustment Factor</strong><br/><small style="color: #666;">Calculated from actual 'before' and 'after' data</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">No Adjustment</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em;">${factorStr}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${weatherFactorCalcText}</td></tr>`;
         
         // Raw kW values
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw kW (from Step 1)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(powerQualityNormalized.kw_before != null && !isNaN(powerQualityNormalized.kw_before) ? Number(powerQualityNormalized.kw_before).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(powerQualityNormalized.kw_after != null && !isNaN(powerQualityNormalized.kw_after) ? Number(powerQualityNormalized.kw_after).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Unadjusted meter readings</td></tr>`;
+        const rawKwBefore = powerQualityNormalized.kw_before != null && !isNaN(powerQualityNormalized.kw_before) ? Number(powerQualityNormalized.kw_before).toFixed(2) : 'N/A';
+        const rawKwAfter2 = powerQualityNormalized.kw_after != null && !isNaN(powerQualityNormalized.kw_after) ? Number(powerQualityNormalized.kw_after).toFixed(2) : 'N/A';
+        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw kW (from Step 1)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${rawKwBefore}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${rawKwAfter2}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Unadjusted meter readings</td></tr>`;
         
         // Weather normalized kW
         // Use the actual adjustment factor from results if available (most accurate)
@@ -8721,7 +8773,7 @@ function displayResults(r) {
         let factorSource = '';
         
         // CRITICAL DEBUG: Log ALL raw values BEFORE calculation to diagnose why factor is same for different projects
-        console.log(`🔍🔍🔍 WEATHER NORMALIZATION DEBUG - Project: ${r.project_name || 'Unknown'}`, {
+        console.log(`[SEARCH][SEARCH][SEARCH] WEATHER NORMALIZATION DEBUG - Project: ${r.project_name || 'Unknown'}`, {
             'power_quality object': JSON.parse(JSON.stringify(powerQualityNormalized)), // Deep copy to see actual values
             'weather_normalization object': JSON.parse(JSON.stringify(weatherNorm)), // Deep copy
             'raw values check': {
@@ -8758,56 +8810,56 @@ function displayResults(r) {
                 if (isNormalized) {
                     // Values are different - normalization was applied, use this
                     actualNormalizedKwAfter = weatherNorm.normalized_kw_after;
-                    console.log(`✅ Using weather_normalization.normalized_kw_after (${actualNormalizedKwAfter}) - source of truth`);
+                    console.log(`[OK] Using weather_normalization.normalized_kw_after (${actualNormalizedKwAfter}) - source of truth`);
                 } else {
                     // Values are the same - normalization wasn't applied correctly in backend
                     // Fall back to power_quality which has the correct normalized value
-                    console.warn(`⚠️ WARNING: weatherNorm.normalized_kw_after (${weatherNorm.normalized_kw_after}) equals raw_kw_after (${weatherNorm.raw_kw_after})`);
+                    console.warn(`[WARNING] WARNING: weatherNorm.normalized_kw_after (${weatherNorm.normalized_kw_after}) equals raw_kw_after (${weatherNorm.raw_kw_after})`);
                     console.warn(`   This indicates normalization wasn't applied in backend. Using power_quality.weather_normalized_kw_after instead.`);
                     
                     if (powerQualityNormalized.weather_normalized_kw_after && 
                         Math.abs(powerQualityNormalized.weather_normalized_kw_after - powerQualityNormalized.kw_after) > 0.01) {
                         actualNormalizedKwAfter = powerQualityNormalized.weather_normalized_kw_after;
-                        console.log(`✅ Using power_quality.weather_normalized_kw_after (${actualNormalizedKwAfter}) - correct normalized value`);
+                        console.log(`[OK] Using power_quality.weather_normalized_kw_after (${actualNormalizedKwAfter}) - correct normalized value`);
                     } else {
                         // Even power_quality doesn't have it, use weatherNorm but log the issue
                         actualNormalizedKwAfter = weatherNorm.normalized_kw_after;
-                        console.error(`❌ ERROR: Both sources have unnormalized values. Using weatherNorm but this is incorrect.`);
+                        console.error(`[ERROR] ERROR: Both sources have unnormalized values. Using weatherNorm but this is incorrect.`);
                     }
                 }
             } else {
                 // No raw_kw_after to compare, use normalized_kw_after
                 actualNormalizedKwAfter = weatherNorm.normalized_kw_after;
-                console.log(`✅ Using weather_normalization.normalized_kw_after (${actualNormalizedKwAfter}) - source of truth`);
+                console.log(`[OK] Using weather_normalization.normalized_kw_after (${actualNormalizedKwAfter}) - source of truth`);
             }
         }
         
         if (weatherNorm.raw_kw_after !== undefined && weatherNorm.raw_kw_after !== null) {
             actualKwAfter = weatherNorm.raw_kw_after;
-            console.log(`✅ Using weather_normalization.raw_kw_after (${actualKwAfter}) - source of truth`);
+            console.log(`[OK] Using weather_normalization.raw_kw_after (${actualKwAfter}) - source of truth`);
         }
         
         // Fallback 1: Try power_quality if weather_normalization doesn't have it
         if (!actualNormalizedKwAfter && powerQualityNormalized.weather_normalized_kw_after) {
             actualNormalizedKwAfter = powerQualityNormalized.weather_normalized_kw_after;
-            console.log(`⚠️ Using power_quality.weather_normalized_kw_after (${actualNormalizedKwAfter}) as fallback`);
+            console.log(`[WARNING] Using power_quality.weather_normalized_kw_after (${actualNormalizedKwAfter}) as fallback`);
         }
         
         // Fallback 2: Try power_quality.kw_after if weather_normalization doesn't have raw_kw_after
         if (!actualKwAfter && powerQualityNormalized.kw_after) {
             actualKwAfter = powerQualityNormalized.kw_after;
-            console.log(`⚠️ Using power_quality.kw_after (${actualKwAfter}) as fallback`);
+            console.log(`[WARNING] Using power_quality.kw_after (${actualKwAfter}) as fallback`);
         }
         
         // CRITICAL VALIDATION: Ensure we have valid values
         if (!actualKwAfter || actualKwAfter <= 0) {
-            console.error(`❌ ERROR: Invalid kw_after value: ${actualKwAfter}. Cannot calculate factor.`);
+            console.error(`[ERROR] ERROR: Invalid kw_after value: ${actualKwAfter}. Cannot calculate factor.`);
             console.error(`   powerQualityNormalized.kw_after: ${powerQualityNormalized.kw_after}`);
             console.error(`   weatherNorm.raw_kw_after: ${weatherNorm.raw_kw_after}`);
         }
         
         if (actualNormalizedKwAfter === undefined || actualNormalizedKwAfter === null) {
-            console.error(`❌ ERROR: Missing normalized_kw_after value. Cannot calculate factor.`);
+            console.error(`[ERROR] ERROR: Missing normalized_kw_after value. Cannot calculate factor.`);
             console.error(`   powerQualityNormalized.weather_normalized_kw_after: ${powerQualityNormalized.weather_normalized_kw_after}`);
             console.error(`   weatherNorm.normalized_kw_after: ${weatherNorm.normalized_kw_after}`);
         }
@@ -8818,46 +8870,52 @@ function displayResults(r) {
             displayFactor = actualNormalizedKwAfter / actualKwAfter;
             factorSource = 'calculated from actual project data (normalized/raw ratio)';
             
-            console.log(`✅ Calculated factor from project-specific data: ${Number(actualKwAfter).toFixed(2)} × ${Number(displayFactor).toFixed(4)} = ${Number(actualNormalizedKwAfter).toFixed(2)}`);
+            console.log((function() { var kw = Number(actualKwAfter).toFixed(2); var factor = Number(displayFactor).toFixed(4); var result = Number(actualNormalizedKwAfter).toFixed(2); return '[OK] Calculated factor from project-specific data: ' + kw + ' × ' + factor + ' = ' + result; })());
             
             // Verify against backend factor if available (for debugging)
             if (weatherNorm.weather_adjustment_factor !== undefined && weatherNorm.weather_adjustment_factor !== null) {
                 const factorDiff = Math.abs(weatherNorm.weather_adjustment_factor - displayFactor);
                 if (factorDiff > 0.0001) {
-                    console.warn(`⚠️ Factor verification: Backend factor=${(weatherNorm.weather_adjustment_factor != null && !isNaN(weatherNorm.weather_adjustment_factor) ? Number(weatherNorm.weather_adjustment_factor).toFixed(4) : 'N/A')}, Calculated factor=${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')}, Difference=${(factorDiff != null && !isNaN(factorDiff) ? Number(factorDiff).toFixed(4) : 'N/A')}`);
+                    const backendFactor = weatherNorm.weather_adjustment_factor != null && !isNaN(weatherNorm.weather_adjustment_factor) ? Number(weatherNorm.weather_adjustment_factor).toFixed(4) : 'N/A';
+                    const calcFactor = displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A';
+                    const diff = factorDiff != null && !isNaN(factorDiff) ? Number(factorDiff).toFixed(4) : 'N/A';
+                    console.warn(`[WARNING] Factor verification: Backend factor=${backendFactor}, Calculated factor=${calcFactor}, Difference=${diff}`);
                     console.warn(`   Using calculated factor (from actual data) to ensure project-specific accuracy.`);
                 } else {
-                    console.log(`✅ Factor verified: Calculated factor (${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')}) matches backend factor (${(weatherNorm.weather_adjustment_factor != null && !isNaN(weatherNorm.weather_adjustment_factor) ? Number(weatherNorm.weather_adjustment_factor).toFixed(4) : 'N/A')})`);
+                    const verifiedCalcFactor = displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A';
+                    const verifiedBackendFactor = weatherNorm.weather_adjustment_factor != null && !isNaN(weatherNorm.weather_adjustment_factor) ? Number(weatherNorm.weather_adjustment_factor).toFixed(4) : 'N/A';
+                    console.log(`[OK] Factor verified: Calculated factor (${verifiedCalcFactor}) matches backend factor (${verifiedBackendFactor})`);
                 }
             }
             
             // CRITICAL VALIDATION: Ensure we're using project-specific values, not cached/defaults
             if (actualKwAfter === actualNormalizedKwAfter) {
-                console.error(`❌ ERROR: kw_after (${actualKwAfter}) equals weather_normalized_kw_after (${actualNormalizedKwAfter}) - this should never happen!`);
+                console.error(`[ERROR] ERROR: kw_after (${actualKwAfter}) equals weather_normalized_kw_after (${actualNormalizedKwAfter}) - this should never happen!`);
                 console.error(`   This suggests weather normalization was not applied or values are incorrect.`);
             }
             
             // Validate that the factor makes sense (should be between 0.5 and 1.5 for realistic weather adjustments)
             if (displayFactor < 0.5 || displayFactor > 1.5) {
-                console.warn(`⚠️ WARNING: Calculated factor (${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')}) is outside normal range (0.5-1.5). This may indicate a calculation error.`);
+                const warnFactor = displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A';
+                console.warn(`[WARNING] WARNING: Calculated factor (${warnFactor}) is outside normal range (0.5-1.5). This may indicate a calculation error.`);
             }
         }
         // Priority 2: Use theoretical calculated factor if actual values not available
         else if (calculatedAdjustmentFactor !== null) {
             displayFactor = calculatedAdjustmentFactor;
             factorSource = 'theoretical formula (actual values unavailable)';
-            console.warn('⚠️ Using theoretical factor - actual normalized values not available');
+            console.warn('[WARNING] Using theoretical factor - actual normalized values not available');
         }
         // Priority 3: Use backend factor as fallback (should rarely be needed)
         else if (weatherNorm.weather_adjustment_factor !== undefined && weatherNorm.weather_adjustment_factor !== null) {
             displayFactor = weatherNorm.weather_adjustment_factor;
             factorSource = 'from normalization results (fallback - actual values unavailable)';
-            console.warn('⚠️ Using backend factor as fallback - actual normalized values not available');
+            console.warn('[WARNING] Using backend factor as fallback - actual normalized values not available');
         }
         else {
             displayFactor = 1.0;
             factorSource = 'default (no adjustment - data unavailable)';
-            console.warn('⚠️ Using default factor (1.0) - no weather normalization data available');
+            console.warn('[WARNING] Using default factor (1.0) - no weather normalization data available');
         }
         
         // Calculate the normalized value using the factor (should match the actual normalized value)
@@ -8870,52 +8928,81 @@ function displayResults(r) {
         // Always show the actual normalized value in the calculation (not the calculated one)
         // This ensures the displayed value matches the calculation
         // CRITICAL: Log the calculation for debugging to ensure each project gets unique values
-        console.log(`🔍 Weather Normalization Factor Calculation for Project:`, {
+        console.log(`[SEARCH] Weather Normalization Factor Calculation for Project:`, {
             project: r.project_name || 'Unknown',
             raw_kw_after: actualKwAfter,
             normalized_kw_after: actualNormalizedKwAfter,
             calculated_factor: displayFactor,
             backend_factor: weatherNorm.weather_adjustment_factor,
             factor_source: factorSource,
-            verification: `${(actualKwAfter != null && !isNaN(actualKwAfter) ? Number(actualKwAfter).toFixed(2) : 'N/A')} × ${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')} = ${(actualKwAfter != null && displayFactor != null && !isNaN(actualKwAfter) && !isNaN(displayFactor) ? Number(actualKwAfter * displayFactor).toFixed(2) : 'N/A')} (should match ${(actualNormalizedKwAfter != null && !isNaN(actualNormalizedKwAfter) ? Number(actualNormalizedKwAfter).toFixed(2) : 'N/A')})`
+            verification: (function() {
+                const kw = actualKwAfter != null && !isNaN(actualKwAfter) ? Number(actualKwAfter).toFixed(2) : 'N/A';
+                const factor = displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A';
+                const product = actualKwAfter != null && displayFactor != null && !isNaN(actualKwAfter) && !isNaN(displayFactor) ? Number(actualKwAfter * displayFactor).toFixed(2) : 'N/A';
+                const normalized = actualNormalizedKwAfter != null && !isNaN(actualNormalizedKwAfter) ? Number(actualNormalizedKwAfter).toFixed(2) : 'N/A';
+                return `${kw} × ${factor} = ${product} (should match ${normalized})`;
+            })()
         });
         
-        let calculationText = `Before: ${(powerQualityNormalized.kw_before != null && !isNaN(powerQualityNormalized.kw_before) ? Number(powerQualityNormalized.kw_before).toFixed(2) : 'N/A')} (unchanged)<br/>After: ${(actualKwAfter != null && !isNaN(actualKwAfter) ? Number(actualKwAfter).toFixed(2) : 'N/A')} × ${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')} = ${(actualNormalizedKwAfter != null && !isNaN(actualNormalizedKwAfter) ? Number(actualNormalizedKwAfter).toFixed(2) : 'N/A')}<br/><strong>Factor Calculation:</strong> ${(displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A')} = ${(actualNormalizedKwAfter != null && !isNaN(actualNormalizedKwAfter) ? Number(actualNormalizedKwAfter).toFixed(2) : 'N/A')} ÷ ${(actualKwAfter != null && !isNaN(actualKwAfter) ? Number(actualKwAfter).toFixed(2) : 'N/A')} = Weather Normalized kW (After) ÷ Raw kW (After)`;
+        let calculationText = (function() {
+            const before = powerQualityNormalized.kw_before != null && !isNaN(powerQualityNormalized.kw_before) ? Number(powerQualityNormalized.kw_before).toFixed(2) : 'N/A';
+            const afterRaw = actualKwAfter != null && !isNaN(actualKwAfter) ? Number(actualKwAfter).toFixed(2) : 'N/A';
+            const factor = displayFactor != null && !isNaN(displayFactor) ? Number(displayFactor).toFixed(4) : 'N/A';
+            const afterNorm = actualNormalizedKwAfter != null && !isNaN(actualNormalizedKwAfter) ? Number(actualNormalizedKwAfter).toFixed(2) : 'N/A';
+            return `Before: ${before} (unchanged)<br/>After: ${afterRaw} × ${factor} = ${afterNorm}<br/><strong>Factor Calculation:</strong> ${factor} = ${afterNorm} ÷ ${afterRaw} = Weather Normalized kW (After) ÷ Raw kW (After)`;
+        })();
         
         // Check if timestamp-by-timestamp normalization was used
         const timestampNormalizationUsed = weatherNorm.timestamp_normalization_used || false;
         
         // If timestamp normalization is used, show the detailed explanation instead of generic factor source
         if (timestampNormalizationUsed) {
-            const baseTempSource = weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null && !isNaN(weatherNorm.optimized_base_temp)
-              ? `optimized from baseline ('before') data to ${Number(weatherNorm.optimized_base_temp).toFixed(1)}°C`
-              : (baseTemp != null && !isNaN(baseTemp) ? `calculated from baseline ('before') data as ${Number(baseTemp).toFixed(1)}°C` : 'N/A');
+            const baseTempSource = (function() {
+              if (weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null && !isNaN(weatherNorm.optimized_base_temp)) {
+                var temp = Number(weatherNorm.optimized_base_temp).toFixed(1);
+                return 'optimized from baseline (\'before\') data to ' + temp + '°C';
+              }
+              if (baseTemp != null && !isNaN(baseTemp)) {
+                var temp = Number(baseTemp).toFixed(1);
+                return 'calculated from baseline (\'before\') data as ' + temp + '°C';
+              }
+              return 'N/A';
+            })();
             
             let explanation = `The factor is calculated using timestamp-by-timestamp normalization, which is the more accurate method. `;
             explanation += `This method uses the baseline ('before') data to normalize each 15-minute timestamp. `;
             explanation += `The base temperature was ${baseTempSource}. `;
             explanation += `Each timestamp's weather conditions are compared to the baseline ('before') weather effects.`;
             
-            calculationText += `<br/><small style="color: #1976d2; font-style: italic;">ℹ️ ${explanation}</small>`;
+            calculationText += `<br/><small style="color: #1976d2; font-style: italic;">[INFO] ${explanation}</small>`;
         } else {
             // For average-based normalization, show the factor source
             calculationText += `<br/><small style="color: #666; font-style: italic;">Factor ${factorSource}</small>`;
         }
 
-        html += `<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW</strong><br/><small style="color: #666;">After adjusted to before weather</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(powerQualityNormalized.weather_normalized_kw_before != null && !isNaN(powerQualityNormalized.weather_normalized_kw_before) ? Number(powerQualityNormalized.weather_normalized_kw_before).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(powerQualityNormalized.weather_normalized_kw_after != null && !isNaN(powerQualityNormalized.weather_normalized_kw_after) ? Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>`;
+        const weatherNormKwBefore = powerQualityNormalized.weather_normalized_kw_before != null && !isNaN(powerQualityNormalized.weather_normalized_kw_before) ? Number(powerQualityNormalized.weather_normalized_kw_before).toFixed(2) : 'N/A';
+        const weatherNormKwAfter = powerQualityNormalized.weather_normalized_kw_after != null && !isNaN(powerQualityNormalized.weather_normalized_kw_after) ? Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2) : 'N/A';
+        html += '<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW</strong><br/><small style="color: #666;">After adjusted to before weather</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weatherNormKwBefore + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + weatherNormKwAfter + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>';
         
         // Calculation formula row
         html += `<tr style="background: #f1f8e9;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${calculationText}</td></tr>`;
         
         // Weather savings
-        html += `<tr style="background: #c8e6c9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: ${(weatherSavingsKw != null && !isNaN(weatherSavingsKw) && weatherSavingsKw > 0) ? 'green' : 'red'};">${(weatherSavingsKw != null && !isNaN(weatherSavingsKw) ? Number(weatherSavingsKw).toFixed(2) : 'N/A')} kW</td></tr>`;
-        html += `<tr style="background: #a5d6a7;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: ${(weatherSavingsPercent != null && !isNaN(weatherSavingsPercent) && weatherSavingsPercent > 0) ? 'green' : 'red'};">${(weatherSavingsPercent != null && !isNaN(weatherSavingsPercent) ? Number(weatherSavingsPercent).toFixed(2) : 'N/A')}%</td></tr>`;
+        const weatherSavingsKwColor = (weatherSavingsKw != null && !isNaN(weatherSavingsKw) && weatherSavingsKw > 0) ? 'green' : 'red';
+        const weatherSavingsKwVal = weatherSavingsKw != null && !isNaN(weatherSavingsKw) ? Number(weatherSavingsKw).toFixed(2) : 'N/A';
+        html += '<tr style="background: #c8e6c9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: ' + weatherSavingsKwColor + ';">' + weatherSavingsKwVal + ' kW</td></tr>';
+        const weatherSavingsPctColor = (weatherSavingsPercent != null && !isNaN(weatherSavingsPercent) && weatherSavingsPercent > 0) ? 'green' : 'red';
+        const weatherSavingsPctVal = weatherSavingsPercent != null && !isNaN(weatherSavingsPercent) ? Number(weatherSavingsPercent).toFixed(2) : 'N/A';
+        html += '<tr style="background: #a5d6a7;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: ' + weatherSavingsPctColor + ';">' + weatherSavingsPctVal + '%</td></tr>';
         
         // Formula explanation
         html += `<tr><td colspan="4" style="padding: 10px; border: 1px solid #ddd; background: #f5f5f5; color: #666; font-size: 0.9em;">`;
-        html += `<strong>📐 Calculation Formula:</strong><br/>`;
-        html += `1. <strong>Temperature Effect</strong> = max(0, Temperature - ${(baseTemp != null && !isNaN(baseTemp) ? Number(baseTemp).toFixed(1) : 'N/A')}°C) × ${(tempSensitivity != null && !isNaN(tempSensitivity) ? Number(tempSensitivity * 100).toFixed(1) : 'N/A')}%<br/>`;
-        html += `2. <strong>Dewpoint Effect</strong> = max(0, Dewpoint - ${(baseTemp != null && !isNaN(baseTemp) ? Number(baseTemp).toFixed(1) : 'N/A')}°C) × ${(dewpointSensitivity != null && !isNaN(dewpointSensitivity) ? Number(dewpointSensitivity * 100).toFixed(1) : 'N/A')}%<br/>`;
+        html += `<strong>[FORMULA] Calculation Formula:</strong><br/>`;
+        const baseTempStr = baseTemp != null && !isNaN(baseTemp) ? Number(baseTemp).toFixed(1) : 'N/A';
+        const tempSensStr = tempSensitivity != null && !isNaN(tempSensitivity) ? Number(tempSensitivity * 100).toFixed(1) : 'N/A';
+        html += '1. <strong>Temperature Effect</strong> = max(0, Temperature - ' + baseTempStr + '°C) × ' + tempSensStr + '%<br/>';
+        const dewpointSensStr = dewpointSensitivity != null && !isNaN(dewpointSensitivity) ? Number(dewpointSensitivity * 100).toFixed(1) : 'N/A';
+        html += '2. <strong>Dewpoint Effect</strong> = max(0, Dewpoint - ' + baseTempStr + '°C) × ' + dewpointSensStr + '%<br/>';
         html += `3. <strong>Weather Effect</strong> = Temperature Effect + Dewpoint Effect<br/>`;
         html += `4. <strong>Adjustment Factor</strong> = (1 + Weather Effect Before) / (1 + Weather Effect After)<br/>`;
         html += `5. <strong>Normalized After kW</strong> = Raw After kW × Adjustment Factor<br/>`;
@@ -8936,7 +9023,8 @@ function displayResults(r) {
                                        r.config?.target_power_factor || 
                                        powerQualityNormalized?.target_pf || 
                                        0.95; // Default to 0.95 if not specified
-      html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to target power factor (${(targetPFForDescription * 100).toFixed(0)}%) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = ${(targetPFForDescription * 100).toFixed(0)}% (user-specified from UI form, defaults to 95% per IEEE 519 and utility billing practices)</p>`;
+      const targetPFDescStr = (targetPFForDescription * 100).toFixed(0);
+      html += '<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to target power factor (' + targetPFDescStr + '%) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = ' + targetPFDescStr + '% (user-specified from UI form, defaults to 95% per IEEE 519 and utility billing practices)</p>';
       
       if (hasFullyNormalized && pfBefore && pfAfter) {
         // CRITICAL: Use the normalized values calculated by the IEEE 519 section to ensure consistency
@@ -8971,17 +9059,35 @@ function displayResults(r) {
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF = ${(normalizationPF != null && !isNaN(normalizationPF) ? (Number(normalizationPF) * 100).toFixed(0) : '95')}% (user-specified from UI form${normalizationPF === 0.95 ? ', defaults to 95% per IEEE 519 standard' : ''})</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')}</td></tr>`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherBeforeForDisplay != null && !isNaN(weatherBeforeForDisplay) ? Number(weatherBeforeForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">${(weatherAfterForDisplay != null && !isNaN(weatherAfterForDisplay) ? Number(weatherAfterForDisplay).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>`;
+        const pfBeforeVal = pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A';
+        const pfAfterVal = pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A';
+        html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + pfBeforeVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + pfAfterVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>';
+        const targetPFStr = normalizationPF != null && !isNaN(normalizationPF) ? (Number(normalizationPF) * 100).toFixed(0) : '95';
+        const defaultNote = normalizationPF === 0.95 ? ', defaults to 95% per IEEE 519 standard' : '';
+        const normPFValue = normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A';
+        html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF = ' + targetPFStr + '% (user-specified from UI form' + defaultNote + ')</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + normPFValue + '</td></tr>';
+        const weatherBeforeDisplay = weatherBeforeForDisplay != null && !isNaN(weatherBeforeForDisplay) ? Number(weatherBeforeForDisplay).toFixed(2) : 'N/A';
+        const weatherAfterDisplay = weatherAfterForDisplay != null && !isNaN(weatherAfterForDisplay) ? Number(weatherAfterForDisplay).toFixed(2) : 'N/A';
+        html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + weatherBeforeDisplay + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + weatherAfterDisplay + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>';
         // PF Adjustment Factor calculation formula
-        const pfFactorCalcText = `<strong>Factor Calculation:</strong> Before: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A')} = ${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')}<br/>After: ${(normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A')} ÷ ${(pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A')} = ${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')}<br/>= Normalization PF ÷ Actual PF`;
-        html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${pfFactorCalcText}</td></tr>`;
+        const normPFStr = normalizationPF != null && !isNaN(normalizationPF) ? Number(normalizationPF).toFixed(3) : 'N/A';
+        const pfBeforeStr2 = pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A';
+        const pfAfterStr2 = pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A';
+        const pfAdjBeforeStr = pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A';
+        const pfAdjAfterStr = pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A';
+        const pfFactorCalcText = '<strong>Factor Calculation:</strong> Before: ' + normPFStr + ' ÷ ' + pfBeforeStr2 + ' = ' + pfAdjBeforeStr + '<br/>After: ' + normPFStr + ' ÷ ' + pfAfterStr2 + ' = ' + pfAdjAfterStr + '<br/>= Normalization PF ÷ Actual PF';
+        const pfAdjBeforeVal = pfAdjustmentBefore != null && !isNaN(pfAdjustmentBefore) ? Number(pfAdjustmentBefore).toFixed(4) : 'N/A';
+        const pfAdjAfterVal = pfAdjustmentAfter != null && !isNaN(pfAdjustmentAfter) ? Number(pfAdjustmentAfter).toFixed(4) : 'N/A';
+        html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + pfAdjBeforeVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + pfAdjAfterVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">' + pfFactorCalcText + '</td></tr>';
         
         // Use the normalized values from IEEE 519 section (already calculated and stored)
         // REMOVED: Don't store these values - this section is informational only to prevent double-counting
         // The actual normalized values used in other sections are calculated independently in the IEEE 519 section
-        html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section for consistency)</em></small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A')}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${weatherBeforeForDisplay && pfAdjustmentBefore ? `Before: ${Number(weatherBeforeForDisplay).toFixed(2)} × ${Number(pfAdjustmentBefore).toFixed(4)} = ${Number(pfNormalizedKwBefore).toFixed(2)}<br/>` : ''}${weatherAfterForDisplay && pfAdjustmentAfter ? `After: ${Number(weatherAfterForDisplay).toFixed(2)} × ${Number(pfAdjustmentAfter).toFixed(4)} = ${Number(pfNormalizedKwAfter).toFixed(2)}` : ''}</td></tr>`;
+        const pfBeforeCalc = weatherBeforeForDisplay && pfAdjustmentBefore ? 'Before: ' + Number(weatherBeforeForDisplay).toFixed(2) + ' × ' + Number(pfAdjustmentBefore).toFixed(4) + ' = ' + Number(pfNormalizedKwBefore).toFixed(2) + '<br/>' : '';
+        const pfAfterCalc = weatherAfterForDisplay && pfAdjustmentAfter ? 'After: ' + Number(weatherAfterForDisplay).toFixed(2) + ' × ' + Number(pfAdjustmentAfter).toFixed(4) + ' = ' + Number(pfNormalizedKwAfter).toFixed(2) : '';
+        const pfBeforeStr = pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A';
+        const pfAfterStr = pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A';
+        html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section for consistency)</em></small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${pfBeforeStr}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${pfAfterStr}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${pfBeforeCalc}${pfAfterCalc}</td></tr>`;
         
         // Calculate PF Normalized Savings using the calculated PF Normalized values
         const pfNormalizedSavingsKw = pfNormalizedKwBefore - pfNormalizedKwAfter;
@@ -8993,11 +9099,18 @@ function displayResults(r) {
         // r.power_quality.pf_normalized_savings_percent = pfNormalizedSavingsPercent;
         
         // Always display PF Normalized Savings rows
-        html += `<tr style="background: #ffe0b2;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: ${(pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) && pfNormalizedSavingsKw > 0) ? 'green' : 'red'};">${(pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A')} kW</td></tr>`;
-        html += `<tr style="background: #ffcc80;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: ${(pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) && pfNormalizedSavingsPercent > 0) ? 'green' : 'red'};">${(pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) ? Number(pfNormalizedSavingsPercent).toFixed(2) : 'N/A')}%</td></tr>`;
+        const pfSavingsKwColor = (pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) && pfNormalizedSavingsKw > 0) ? 'green' : 'red';
+        const pfSavingsKwVal = pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A';
+        html += '<tr style="background: #ffe0b2;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: ' + pfSavingsKwColor + ';">' + pfSavingsKwVal + ' kW</td></tr>';
+        const pfSavingsPctColor = (pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) && pfNormalizedSavingsPercent > 0) ? 'green' : 'red';
+        const pfSavingsPctVal = pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) ? Number(pfNormalizedSavingsPercent).toFixed(2) : 'N/A';
+        html += '<tr style="background: #ffcc80;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: ' + pfSavingsPctColor + ';">' + pfSavingsPctVal + '%</td></tr>';
         
         // PF Normalized Savings (%) calculation formula
-        const pfSavingsPercentFormula = `<strong>Percentage Calculation:</strong> ${(pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) ? Number(pfNormalizedSavingsPercent).toFixed(2) : 'N/A')}% = (${(pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A')} ÷ ${(pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A')}) × 100 = (PF Normalized Savings (kW) ÷ PF Normalized kW (Before)) × 100`;
+        const pfSavingsPct = pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) ? Number(pfNormalizedSavingsPercent).toFixed(2) : 'N/A';
+        const pfSavingsKw = pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A';
+        const pfKwBefore = pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A';
+        const pfSavingsPercentFormula = '<strong>Percentage Calculation:</strong> ' + pfSavingsPct + '% = (' + pfSavingsKw + ' ÷ ' + pfKwBefore + ') × 100 = (PF Normalized Savings (kW) ÷ PF Normalized kW (Before)) × 100';
         html += `<tr style="background: #fff3cd;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${pfSavingsPercentFormula}</td></tr>`;
         
         // Check if PF is included in billing
@@ -9006,8 +9119,12 @@ function displayResults(r) {
         
         // Only show PF Improvement Benefit if there's an actual benefit OR if PF is included in billing
         if (pfSavingsKw !== null && pfSavingsKw !== 0) {
-          html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Improvement Benefit (kW)</strong><br/><small style="color: #666;">Utility billing benefit from PF improvement</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(pfSavingsKw != null && !isNaN(pfSavingsKw) && pfSavingsKw > 0) ? 'green' : 'red'};">${(pfSavingsKw != null && !isNaN(pfSavingsKw) ? (pfSavingsKw >= 0 ? '+' : '') + Number(pfSavingsKw).toFixed(2) : 'N/A')} kW</td></tr>`;
-          html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Improvement Benefit (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(pfContributionPercent != null && !isNaN(pfContributionPercent) && pfContributionPercent > 0) ? 'green' : 'red'};">${(pfContributionPercent != null && !isNaN(pfContributionPercent) ? (pfContributionPercent >= 0 ? '+' : '') + Number(pfContributionPercent).toFixed(2) : 'N/A')}%</td></tr>`;
+          const pfBenefitKwColor = (pfSavingsKw != null && !isNaN(pfSavingsKw) && pfSavingsKw > 0) ? 'green' : 'red';
+          const pfBenefitKwVal = pfSavingsKw != null && !isNaN(pfSavingsKw) ? (pfSavingsKw >= 0 ? '+' : '') + Number(pfSavingsKw).toFixed(2) : 'N/A';
+          html += '<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Improvement Benefit (kW)</strong><br/><small style="color: #666;">Utility billing benefit from PF improvement</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + pfBenefitKwColor + ';">' + pfBenefitKwVal + ' kW</td></tr>';
+          const pfBenefitPctColor = (pfContributionPercent != null && !isNaN(pfContributionPercent) && pfContributionPercent > 0) ? 'green' : 'red';
+          const pfBenefitPctVal = pfContributionPercent != null && !isNaN(pfContributionPercent) ? (pfContributionPercent >= 0 ? '+' : '') + Number(pfContributionPercent).toFixed(2) : 'N/A';
+          html += '<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Improvement Benefit (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + pfBenefitPctColor + ';">' + pfBenefitPctVal + '%</td></tr>';
         } else if (pfBefore && pfAfter && !powerFactorNotIncluded) {
           // Only show "No PF penalty change" if PF is included in billing (checkbox not checked)
           html += `<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Improvement Benefit (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: #666;">0.00 kW (No PF penalty change)</td></tr>`;
@@ -9035,14 +9152,14 @@ function displayResults(r) {
                                  r.config?.target_power_factor || 
                                  powerQualityNormalized?.target_pf || 
                                  0.95;
-        console.log('🔍 [STEP 4 DEBUG] target_pf from config:', r.config?.target_pf, 'target_power_factor:', r.config?.target_power_factor);
-        console.log('🔍 [STEP 4 DEBUG] targetPFForStep4 =', targetPFForStep4);
-        console.log('🔍 [STEP 4 DEBUG] calculated_pf_normalized_kw_before =', r.power_quality?.calculated_pf_normalized_kw_before);
-        console.log('🔍 [STEP 4 DEBUG] calculated_pf_normalized_kw_after =', r.power_quality?.calculated_pf_normalized_kw_after);
-        console.log('🔍 [STEP 4 DEBUG] normalized_kw_before =', r.power_quality?.normalized_kw_before);
-        console.log('🔍 [STEP 4 DEBUG] normalized_kw_after =', r.power_quality?.normalized_kw_after);
-        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
-        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] target_pf from config:', r.config?.target_pf, 'target_power_factor:', r.config?.target_power_factor);
+        console.log('[SEARCH] [STEP 4 DEBUG] targetPFForStep4 =', targetPFForStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] calculated_pf_normalized_kw_before =', r.power_quality?.calculated_pf_normalized_kw_before);
+        console.log('[SEARCH] [STEP 4 DEBUG] calculated_pf_normalized_kw_after =', r.power_quality?.calculated_pf_normalized_kw_after);
+        console.log('[SEARCH] [STEP 4 DEBUG] normalized_kw_before =', r.power_quality?.normalized_kw_before);
+        console.log('[SEARCH] [STEP 4 DEBUG] normalized_kw_after =', r.power_quality?.normalized_kw_after);
+        console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
         
         // Get weather normalized values for display in verification summary table
         // CRITICAL: Add fallback to weather_normalization if not in power_quality
@@ -9057,7 +9174,7 @@ function displayResults(r) {
         if (!pfNormalizedKwBeforeStep4 || !pfNormalizedKwAfterStep4) {
           pfNormalizedKwBeforeStep4 = powerQualityNormalized.normalized_kw_before;
           pfNormalizedKwAfterStep4 = powerQualityNormalized.normalized_kw_after;
-          console.log('🔍 [STEP 4 DEBUG] Using fallback values:', pfNormalizedKwBeforeStep4, pfNormalizedKwAfterStep4);
+          console.log('[SEARCH] [STEP 4 DEBUG] Using fallback values:', pfNormalizedKwBeforeStep4, pfNormalizedKwAfterStep4);
         }
         
         // Calculate total normalized savings using the values from IEEE 519 section
@@ -9068,20 +9185,20 @@ function displayResults(r) {
         // CRITICAL: Use weather_normalized_kw_before as denominator (same as Weather Savings % and PF Contribution %)
         // This ensures: Weather Savings % + PF Contribution % = Total Utility Billing Impact %
         // DEBUG: Log values to verify calculation
-        console.log('🔍 [STEP 4 DEBUG] weatherBeforeForStep4 =', weatherBeforeForStep4);
-        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
-        console.log('🔍 [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
-        console.log('🔍 [STEP 4 DEBUG] totalSavingsKwStep4 =', totalSavingsKwStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] weatherBeforeForStep4 =', weatherBeforeForStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwAfterStep4 =', pfNormalizedKwAfterStep4);
+        console.log('[SEARCH] [STEP 4 DEBUG] totalSavingsKwStep4 =', totalSavingsKwStep4);
         
         // Ensure weatherBeforeForStep4 is available, if not log warning
         if (!weatherBeforeForStep4 || weatherBeforeForStep4 <= 0) {
-          console.warn('⚠️ [STEP 4 WARNING] weatherBeforeForStep4 is null/undefined/zero:', weatherBeforeForStep4);
-          console.warn('⚠️ [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
+          console.warn('[WARNING] [STEP 4 WARNING] weatherBeforeForStep4 is null/undefined/zero:', weatherBeforeForStep4);
+          console.warn('[WARNING] [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
         }
         
         const totalNormalizedPercentStep4 = (weatherBeforeForStep4 > 0) ? (totalSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
-        console.log('🔍 [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
-        console.log('🔍 [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
+        console.log('[SEARCH] [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
+        console.log('[SEARCH] [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
         
         // REMOVED: Don't store these values - this section is informational only to prevent double-counting
         // The actual normalized savings used in other sections are calculated independently in the IEEE 519 section
@@ -9099,9 +9216,13 @@ function displayResults(r) {
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>`;
-        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
-        html += `<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>`;
-        html += `<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red'};">${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')} - ${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td></tr>`;
+        const totalNormKwBefore = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
+        const totalNormKwAfter = pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A';
+        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwBefore + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>';
+        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwAfter + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>';
+        const totalSavingsKwColor = (totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red';
+        const totalSavingsKwVal = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
+        html += '<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ' + totalSavingsKwColor + ';">' + totalSavingsKwVal + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">' + totalNormKwBefore + ' - ' + totalNormKwAfter + '</td></tr>';
         
         // Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
         if (equipmentEnergySavingsKw != null && equipmentEnergySavingsPercent != null) {
@@ -9123,14 +9244,18 @@ function displayResults(r) {
         
         // Verification summary - Enhanced with detailed breakdown
         html += `<div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">`;
-        html += `<strong>✅ Verification Summary:</strong><br/>`;
+        html += `<strong>[OK] Verification Summary:</strong><br/>`;
         html += `<div style="margin-top: 8px; padding: 10px; background: white; border-radius: 4px; border: 1px solid #ffc107;">`;
         // Show both metrics clearly
         if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
-          html += `<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: ${(equipmentEnergySavingsPercent > 0) ? 'green' : 'red'}; font-size: 1.2em;">${Number(equipmentEnergySavingsPercent).toFixed(2)}%</span></strong><br/>`;
-          html += `<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>`;
+          const equipEnergyColor = equipmentEnergySavingsPercent > 0 ? 'green' : 'red';
+          const equipEnergyVal = Number(equipmentEnergySavingsPercent).toFixed(2);
+          html += '<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: ' + equipEnergyColor + '; font-size: 1.2em;">' + equipEnergyVal + '%</span></strong><br/>';
+          html += '<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>';
         }
-        html += `<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: ${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red'}; font-size: 1.2em;">${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A')}%</span></strong><br/>`;
+        const totalNormPctColor = (totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
+        const totalNormPctVal = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
+        html += '<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: ' + totalNormPctColor + '; font-size: 1.2em;">' + totalNormPctVal + '%</span></strong><br/>';
         html += `<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>`;
         html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">`;
         html += `<strong>Detailed Calculation Breakdown:</strong><br/>`;
@@ -9145,8 +9270,12 @@ function displayResults(r) {
         html += `<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Raw Meter Data</strong><br/><small style="color: #666;">No normalization</small></td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwBefore.toFixed(2)}</td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwAfter.toFixed(2)}</td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ${rawSavingsKw > 0 ? 'green' : 'red'};">${rawSavingsKw.toFixed(2)}</td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ${rawSavingsPercent > 0 ? 'green' : 'red'};">${rawSavingsPercent.toFixed(2)}%</td></tr>`;
+        const rawSavingsKwColor2 = rawSavingsKw > 0 ? 'green' : 'red';
+        const rawSavingsKwVal2 = rawSavingsKw.toFixed(2);
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ' + rawSavingsKwColor2 + ';">' + rawSavingsKwVal2 + '</td>';
+        const rawSavingsPctColor2 = rawSavingsPercent > 0 ? 'green' : 'red';
+        const rawSavingsPctVal2 = rawSavingsPercent.toFixed(2);
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ' + rawSavingsPctColor2 + ';">' + rawSavingsPctVal2 + '%</td></tr>';
         
         // Step 2: Weather Normalized
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
@@ -9155,21 +9284,31 @@ function displayResults(r) {
           html += `<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 2: Weather Normalized</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>`;
           html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${weatherBeforeForStep4.toFixed(2)}</td>`;
           html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${weatherAfterForStep4.toFixed(2)}</td>`;
-          html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ${weatherSavingsKwStep4 > 0 ? 'green' : 'red'};">${weatherSavingsKwStep4.toFixed(2)}</td>`;
-          html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ${weatherSavingsPercentStep4 > 0 ? 'green' : 'red'};">${weatherSavingsPercentStep4.toFixed(2)}%</td></tr>`;
+          const weatherSavingsKwStep4Color = weatherSavingsKwStep4 > 0 ? 'green' : 'red';
+          const weatherSavingsKwStep4Val = weatherSavingsKwStep4.toFixed(2);
+          html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ' + weatherSavingsKwStep4Color + ';">' + weatherSavingsKwStep4Val + '</td>';
+          const weatherSavingsPctStep4Color = weatherSavingsPercentStep4 > 0 ? 'green' : 'red';
+          const weatherSavingsPctStep4Val = weatherSavingsPercentStep4.toFixed(2);
+          html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: ' + weatherSavingsPctStep4Color + ';">' + weatherSavingsPctStep4Val + '%</td></tr>';
         }
         
         // Step 3: PF Normalized (Final)
         html += `<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section)</em></small></td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A')}</td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${(pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A')}</td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red'};">${(totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A')}</td>`;
-        html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red'};">${(totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A')}%</td></tr>`;
+        const pfNormKwBeforeStep4 = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
+        const pfNormKwAfterStep4 = pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A';
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + pfNormKwBeforeStep4 + '</td>';
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + pfNormKwAfterStep4 + '</td>';
+        const totalSavingsKwStep4Color = (totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red';
+        const totalSavingsKwStep4Val = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + totalSavingsKwStep4Color + ';">' + totalSavingsKwStep4Val + '</td>';
+        const totalNormPctStep4Color = (totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
+        const totalNormPctStep4Val = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
+        html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + totalNormPctStep4Color + ';">' + totalNormPctStep4Val + '%</td></tr>';
         html += `</table>`;
         
         // Explanation
         html += `<div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 3px; border-left: 3px solid #4caf50;">`;
-        html += `<strong style="color: #2e7d32;">📊 How the Final Result is Calculated:</strong><br/>`;
+        html += `<strong style="color: #2e7d32;">[DATA] How the Final Result is Calculated:</strong><br/>`;
         html += `<ul style="margin: 5px 0; padding-left: 20px; color: #666; font-size: 0.9em;">`;
         html += `<li><strong>Step 1:</strong> Raw meter data shows <strong>${rawSavingsPercent.toFixed(2)}%</strong> savings (${rawSavingsKw.toFixed(2)} kW)</li>`;
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
@@ -9177,7 +9316,10 @@ function displayResults(r) {
           const weatherSavingsPercentStep4 = weatherBeforeForStep4 > 0 ? (weatherSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
           html += `<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>${weatherSavingsPercentStep4.toFixed(2)}%</strong> weather-normalized savings (${weatherSavingsKwStep4.toFixed(2)} kW)</li>`;
         }
-        html += `<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (${(targetPFForStep4 != null && !isNaN(targetPFForStep4) ? (Number(targetPFForStep4) * 100).toFixed(0) : '95')}%) for utility billing → <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> total utility billing impact (${totalSavingsKwStep4.toFixed(2)} kW)</li>`;
+        const targetPFStep4Str = targetPFForStep4 != null && !isNaN(targetPFForStep4) ? (Number(targetPFForStep4) * 100).toFixed(0) : '95';
+        const totalNormPctStep4Str = totalNormalizedPercentStep4.toFixed(2);
+        const totalSavingsKwStep4Str = totalSavingsKwStep4.toFixed(2);
+        html += '<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (' + targetPFStep4Str + '%) for utility billing → <strong>' + totalNormPctStep4Str + '%</strong> total utility billing impact (' + totalSavingsKwStep4Str + ' kW)</li>';
         if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
           html += `<li><strong>Equipment Energy Savings:</strong> <strong>${equipmentEnergySavingsPercent.toFixed(2)}%</strong> (${equipmentEnergySavingsKw.toFixed(2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>`;
         }
@@ -9216,9 +9358,9 @@ function displayResults(r) {
     let nwLabel = nwLabelBase + (nwIncluded ? " - Included" : " - Diagnostic only");
     if (nl && (!nl.R_ref_ohm || nl.R_ref_ohm === 1)) {
       nwLabel +=
-        ' <span title="Conductor R_ref is zero; network $ will be 1 until set." style="margin-left:6px">⚠</span>';
+        ' <span title="Conductor R_ref is zero; network $ will be 1 until set." style="margin-left:6px">[WARNING]</span>';
     }
-    nwLabel += ' <span title="' + nwTooltip + '">ℹ️</span>';
+    nwLabel += ' <span title="' + nwTooltip + '">[INFO]</span>';
 
     const rows = [{
         label: "Energy $ (annual)",
@@ -9273,16 +9415,12 @@ function displayResults(r) {
       if (v === undefined || v === null) v = "-";
       let displayValue = "";
       if (typeof v === "number") {
+        var opts = {minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals};
         v = (m.unit === "$") ?
-          ("$" + v.toLocaleString(undefined, {
-            minimumFractionDigits: m.decimals,
-            maximumFractionDigits: m.decimals
-          })) :
-          v.toLocaleString(undefined, {
-            minimumFractionDigits: m.decimals,
-            maximumFractionDigits: m.decimals
-          });
-        displayValue = `${v}${m.unit && m.unit !== '$' ? ` ${m.unit}` : ''}`;
+          ("$" + v.toLocaleString(undefined, opts)) :
+          v.toLocaleString(undefined, opts);
+        const unitStr = m.unit && m.unit !== '$' ? ' ' + m.unit : '';
+        displayValue = v + unitStr;
         
         // Add percentage for normalized kW savings
         // CRITICAL: Use weather-normalized values to show actual equipment savings (7.5%) not PF-normalized (4.57%)
@@ -9551,7 +9689,7 @@ function displayResults(r) {
                 • After Data Completeness: ${afterCompleteness}%<br/>
                 • Before Outliers: ${beforeOutliers}%<br/>
                 • After Outliers: ${afterOutliers}%<br/>
-                • ASHRAE Compliant: ${ashraeCompliant ? '✓ PASS' : '✗ FAIL'}
+                • ASHRAE Compliant: ${ashraeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}
               </div>`;
 
     html += `<pre style="white-space:pre-wrap">
@@ -9601,7 +9739,7 @@ ASHRAE Compliance Thresholds:
                 • ISC/IL Ratio: ${isc_il_ratio}<br/>
                 • TDD Limit: ${tdd_limit}%<br/>
                 • Actual TDD: ${actual_tdd}%<br/>
-                • Compliance: ${r.power_quality?.ieee_compliant_after ? '✓ PASS' : '✗ FAIL'}
+                • Compliance: ${r.power_quality?.ieee_compliant_after ? '[PASS] PASS' : '[FAIL] FAIL'}
               </div>`;
 
     html += `<pre style="white-space:pre-wrap">
@@ -9650,8 +9788,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     const coords = (w.station && (w.station.lat != null) && (w.station.lon != null)) ?
       `${w.station.lat}, ${w.station.lon}` : '—';
     const ieeeEditions = Object.keys(q.percentiles || {});
-    const cpEvents = Array.isArray(cp.events) ? cp.events.length : (Array.isArray(cpm) ? cpm.reduce((s, x) => s + ((x
-      .events || []).length), 1) : 1);
+    const cpEvents = Array.isArray(cp.events) ? cp.events.length : (Array.isArray(cpm) ? cpm.reduce((s, x) => s + (x.events || []).length, 0) : 0);
     const repro = {
       weather_provider: provider,
       weather_unit: (w.quality && w.quality.unit) || '—',
@@ -9837,8 +9974,8 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       const totalDollars = typeof attr.total_attributed_dollars === 'number' ? attr.total_attributed_dollars : 1;
       const totalDollarsFormatted = totalDollars.toFixed(2);
       const reconcileStatus = attr.reconciles_to_annual_total ?
-        '✓ Reconciles to basic financial total' :
-        '⚠ Check reconciliation (includes additional categories)';
+        '[PASS] Reconciles to basic financial total' :
+        '[WARNING] Check reconciliation (includes additional categories)';
       html += `<tr style="background-color: #f0f8ff; font-weight: bold;">
                     <td><b>Total Attributed</b></td>
                     <td style="min-width: 150px; width: 20%;">$${totalDollarsFormatted}</td>
@@ -9870,7 +10007,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
                     <div><div class="muted">Overall Smoothing Index</div><div><b>${smoothing.overall_smoothing?.toFixed(1) || '—'}%</b></div></div>
                     <div><div class="muted">Metrics Analyzed</div><div><b>${Object.keys(smoothing.metric_details || {}).length}</b></div></div>
-                    <div><div class="muted">Status</div><div><b>${smoothing.overall_smoothing > 1 ? 'Excellent' : smoothing.overall_smoothing > 1 ? 'Good' : 'Moderate'}</b></div></div>
+                    <div><div class="muted">Status</div><div><b>${(function() { var os = smoothing.overall_smoothing; if (os > 1) return 'Excellent'; if (os > 0.5) return 'Good'; return 'Moderate'; })()}</b></div></div>
                 </div>`;
 
     // Individual metric improvements
@@ -10064,7 +10201,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
   if (r.cold_storage && Object.keys(r.cold_storage).length > 0) {
     const cs = r.cold_storage;
     html += `<div class="card" style="background: #e3f2fd; border-left: 4px solid #2196f3;">
-      <h3>❄️ Cold Storage Facility Analysis</h3>
+      <h3>[COLD] Cold Storage Facility Analysis</h3>
       <div style="font-size: 14px; color: #1976d2; margin-bottom: 16px;">
         Energy intensity metrics for product-based energy savings reporting
       </div>`;
@@ -10094,7 +10231,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol" style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
       <div><div class="muted">Before Period</div><div><b style="font-size: 1.2em; color: #333;">${intensityBefore > 0 ? fmt(intensityBefore, 4) : 'N/A'}</b> kWh/${cs.product_weight_unit || 'lb'}</div></div>
       <div><div class="muted">After Period</div><div><b style="font-size: 1.2em; color: #28a745;">${intensityAfter > 0 ? fmt(intensityAfter, 4) : 'N/A'}</b> kWh/${cs.product_weight_unit || 'lb'}</div></div>
-      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${intensityImprovementPct > 0 ? '#28a745' : '#dc3545'};">${intensityImprovementPct > 0 ? fmt(intensityImprovementPct, 2) + '%' : (intensityImprovementPct < 0 ? fmt(Math.abs(intensityImprovementPct), 2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${intensityImprovementPct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = intensityImprovementPct; if (pct > 0) { var val = fmt(pct, 2); return val + '%'; } if (pct < 0) { var val = fmt(Math.abs(pct), 2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Energy Consumption
@@ -10102,7 +10239,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${cs.energy_consumption_before_kwh ? cs.energy_consumption_before_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
       <div><div class="muted">After Period</div><div><b>${cs.energy_consumption_after_kwh ? cs.energy_consumption_after_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
-      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(cs.energy_consumption_before_kwh && cs.energy_consumption_after_kwh) ? (cs.energy_consumption_before_kwh - cs.energy_consumption_after_kwh).toFixed(2) : 'N/A'}</b> kWh</div></div>
+      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(function() { if (cs.energy_consumption_before_kwh && cs.energy_consumption_after_kwh) { return (cs.energy_consumption_before_kwh - cs.energy_consumption_after_kwh).toFixed(2); } return 'N/A'; })()}</b> kWh</div></div>
     </div>`;
     
     // Financial Impact (if dollar values should be shown)
@@ -10124,7 +10261,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     </div>`;
     
     html += `<div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-      <strong>📊 Key Insight:</strong> Energy intensity (kWh per unit of product) is the primary metric for cold storage facilities. 
+      <strong>[DATA] Key Insight:</strong> Energy intensity (kWh per unit of product) is the primary metric for cold storage facilities. 
       A reduction in energy intensity means the facility is using less energy per unit of product stored, indicating improved efficiency 
       regardless of changes in inventory levels.
     </div>`;
@@ -10136,7 +10273,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
   if (r.data_center && Object.keys(r.data_center).length > 0) {
     const dc = r.data_center;
     html += `<div class="card" style="background: #e3f2fd; border-left: 4px solid #2196f3;">
-      <h3>🖥️ Data Center / GPU Facility Analysis</h3>
+      <h3>[DATACENTER] Data Center / GPU Facility Analysis</h3>
       <div style="font-size: 14px; color: #1976d2; margin-bottom: 16px;">
         PUE, ITE, CLF, and compute efficiency metrics for data center optimization
       </div>`;
@@ -10166,7 +10303,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol" style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
       <div><div class="muted">Before Period</div><div><b style="font-size: 1.2em; color: #333;">${pueBefore > 0 ? fmt(pueBefore, 3) : 'N/A'}</b></div></div>
       <div><div class="muted">After Period</div><div><b style="font-size: 1.2em; color: ${pueAfter < pueBefore ? '#28a745' : '#dc3545'};">${pueAfter > 0 ? fmt(pueAfter, 3) : 'N/A'}</b></div></div>
-      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${pueImprovementPct > 0 ? '#28a745' : '#dc3545'};">${pueImprovementPct > 0 ? fmt(pueImprovementPct, 2) + '% reduction' : (pueImprovementPct < 0 ? fmt(Math.abs(pueImprovementPct), 2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${pueImprovementPct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = pueImprovementPct; if (pct > 0) { var val = fmt(pct, 2); return val + '% reduction'; } if (pct < 0) { var val = fmt(Math.abs(pct), 2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // ITE (IT Equipment Efficiency)
@@ -10181,7 +10318,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${dc.clf_before > 0 ? fmt(dc.clf_before, 3) : 'N/A'}</b></div></div>
       <div><div class="muted">After Period</div><div><b>${dc.clf_after > 0 ? fmt(dc.clf_after, 3) : 'N/A'}</b></div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${dc.clf_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${dc.clf_improvement_pct > 0 ? fmt(dc.clf_improvement_pct, 2) + '% reduction' : (dc.clf_improvement_pct < 0 ? fmt(Math.abs(dc.clf_improvement_pct), 2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${dc.clf_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = dc.clf_improvement_pct; if (pct > 0) { var val = fmt(pct, 2); return val + '% reduction'; } if (pct < 0) { var val = fmt(Math.abs(pct), 2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Power Density Metrics
@@ -10193,8 +10330,8 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     </div>`;
     html += `<div class="grid threecol" style="margin-top: 8px;">
       <div><div class="muted">Power per sqft - After</div><div><b>${dc.power_density_per_sqft_after_kw > 0 ? dc.power_density_per_sqft_after_kw.toFixed(2) : 'N/A'}</b> kW/sqft</div></div>
-      ${dc.num_gpus > 0 ? `<div><div class="muted">Power per GPU - Before</div><div><b>${dc.power_density_per_gpu_before_kw > 0 ? dc.power_density_per_gpu_before_kw.toFixed(2) : 'N/A'}</b> kW/GPU</div></div>` : ''}
-      ${dc.num_gpus > 0 ? `<div><div class="muted">Power per GPU - After</div><div><b>${dc.power_density_per_gpu_after_kw > 0 ? dc.power_density_per_gpu_after_kw.toFixed(2) : 'N/A'}</b> kW/GPU</div></div>` : ''}
+      ${(function() { if (dc.num_gpus > 0) { var val = 'N/A'; if (dc.power_density_per_gpu_before_kw > 0) { val = dc.power_density_per_gpu_before_kw.toFixed(2); } var part1 = '<div><div class="muted">Power per GPU - Before</div><div><b>'; var part2 = '</b> kW/GPU</div></div>'; return part1 + val + part2; } return ''; })()}
+      ${(function() { if (dc.num_gpus > 0) { var val = 'N/A'; if (dc.power_density_per_gpu_after_kw > 0) { val = dc.power_density_per_gpu_after_kw.toFixed(2); } var part1 = '<div><div class="muted">Power per GPU - After</div><div><b>'; var part2 = '</b> kW/GPU</div></div>'; return part1 + val + part2; } return ''; })()}
     </div>`;
     
     // Compute Efficiency Metrics (if applicable)
@@ -10248,7 +10385,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     </div>`;
     
     html += `<div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-      <strong>📊 Key Insight:</strong> PUE (Power Usage Effectiveness) is the primary metric for data center efficiency. 
+      <strong>[DATA] Key Insight:</strong> PUE (Power Usage Effectiveness) is the primary metric for data center efficiency. 
       A lower PUE indicates better efficiency, with industry-leading facilities achieving PUE < 1.5. 
       ITE (IT Equipment Efficiency) is the inverse of PUE, and CLF (Cooling Load Factor) measures cooling efficiency relative to IT load.
     </div>`;
@@ -10291,11 +10428,17 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     const eppdBefore = hc.energy_per_patient_day_before || 0;
     const eppdAfter = hc.energy_per_patient_day_after || 0;
     const eppdImprovementPct = hc.energy_per_patient_day_improvement_pct || 0;
+    let eppdImprovementText = 'N/A';
+    if (eppdImprovementPct > 0) {
+      eppdImprovementText = eppdImprovementPct.toFixed(2) + '% reduction';
+    } else if (eppdImprovementPct < 0) {
+      eppdImprovementText = Math.abs(eppdImprovementPct).toFixed(2) + '% increase';
+    }
     
     html += `<div class="grid threecol" style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
       <div><div class="muted">Before Period</div><div><b style="font-size: 1.2em; color: #333;">${eppdBefore > 0 ? eppdBefore.toFixed(2) : 'N/A'}</b> kWh/patient-day</div></div>
       <div><div class="muted">After Period</div><div><b style="font-size: 1.2em; color: ${eppdAfter < eppdBefore ? '#28a745' : '#dc3545'};">${eppdAfter > 0 ? eppdAfter.toFixed(2) : 'N/A'}</b> kWh/patient-day</div></div>
-      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${eppdImprovementPct > 0 ? '#28a745' : '#dc3545'};">${eppdImprovementPct > 0 ? eppdImprovementPct.toFixed(2) + '% reduction' : (eppdImprovementPct < 0 ? Math.abs(eppdImprovementPct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${eppdImprovementPct > 0 ? '#28a745' : '#dc3545'};">${eppdImprovementText}</b></div></div>
     </div>`;
     
     // Energy per Bed (if applicable)
@@ -10304,7 +10447,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${hc.energy_per_bed_before > 0 ? hc.energy_per_bed_before.toFixed(0) : 'N/A'}</b> kWh/bed/year</div></div>
         <div><div class="muted">After Period</div><div><b>${hc.energy_per_bed_after > 0 ? hc.energy_per_bed_after.toFixed(0) : 'N/A'}</b> kWh/bed/year</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${hc.energy_per_bed_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hc.energy_per_bed_improvement_pct > 0 ? hc.energy_per_bed_improvement_pct.toFixed(2) + '% reduction' : (hc.energy_per_bed_improvement_pct < 0 ? Math.abs(hc.energy_per_bed_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${hc.energy_per_bed_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hc.energy_per_bed_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10313,7 +10456,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${hc.eui_before > 0 ? hc.eui_before.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
       <div><div class="muted">After Period</div><div><b>${hc.eui_after > 0 ? hc.eui_after.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${hc.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hc.eui_improvement_pct > 0 ? hc.eui_improvement_pct.toFixed(2) + '% reduction' : (hc.eui_improvement_pct < 0 ? Math.abs(hc.eui_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${hc.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hc.eui_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Medical Equipment
@@ -10333,7 +10476,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">HVAC Power - Before</div><div><b>${hc.hvac_power_before > 0 ? hc.hvac_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
       <div><div class="muted">HVAC Power - After</div><div><b>${hc.hvac_power_after > 0 ? hc.hvac_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${hc.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hc.hvac_improvement_pct > 0 ? hc.hvac_improvement_pct.toFixed(2) + '% reduction' : (hc.hvac_improvement_pct < 0 ? Math.abs(hc.hvac_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${hc.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hc.hvac_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     if (hc.ventilation_air_changes_per_hour > 0) {
       html += `<div style="margin-top: 8px;"><div class="muted">Ventilation Air Changes per Hour</div><div><b>${hc.ventilation_air_changes_per_hour.toFixed(1)}</b> ACH (ASHRAE 170)</div></div>`;
@@ -10349,7 +10492,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       </div>`;
       html += `<div class="grid twocol" style="margin-top: 8px;">
         <div><div class="muted">Critical Load Power</div><div><b>${hc.critical_load_power > 0 ? hc.critical_load_power.toFixed(0) : 'N/A'}</b> kW</div></div>
-        <div><div class="muted">Redundancy Factor</div><div><b style="color: ${hc.redundancy_factor > 0 && hc.redundancy_factor < 0.8 ? '#28a745' : '#dc3545'};">${hc.redundancy_factor > 0 ? hc.redundancy_factor.toFixed(3) : 'N/A'}</b> ${hc.redundancy_factor > 0 && hc.redundancy_factor < 0.8 ? '(Good: <0.8)' : '(Warning: ≥0.8)'}</div></div>
+        <div><div class="muted">Redundancy Factor</div><div><b style="color: ${(function() { var rf = hc.redundancy_factor; return (rf > 0 && rf < 0.8) ? '#28a745' : '#dc3545'; })()};">${hc.redundancy_factor > 0 ? hc.redundancy_factor.toFixed(3) : 'N/A'}</b> ${(function() { var rf = hc.redundancy_factor; return (rf > 0 && rf < 0.8) ? '(Good: <0.8)' : '(Warning: ≥0.8)'; })()}</div></div>
       </div>`;
     }
     
@@ -10359,7 +10502,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${hc.or_energy_intensity_before > 0 ? hc.or_energy_intensity_before.toFixed(0) : 'N/A'}</b> kWh/OR/year</div></div>
         <div><div class="muted">After Period</div><div><b>${hc.or_energy_intensity_after > 0 ? hc.or_energy_intensity_after.toFixed(0) : 'N/A'}</b> kWh/OR/year</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${(hc.or_energy_intensity_before > 0 && hc.or_energy_intensity_after > 0 && hc.or_energy_intensity_after < hc.or_energy_intensity_before) ? '#28a745' : '#dc3545'};">${(hc.or_energy_intensity_before > 0 && hc.or_energy_intensity_after > 0) ? (((hc.or_energy_intensity_before - hc.or_energy_intensity_after) / hc.or_energy_intensity_before * 100).toFixed(2) + '%') : 'N/A'}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${(function() { var before = hc.or_energy_intensity_before; var after = hc.or_energy_intensity_after; if (before > 0 && after > 0 && after < before) return '#28a745'; return '#dc3545'; })()};">${(function() { var before = hc.or_energy_intensity_before; var after = hc.or_energy_intensity_after; if (before > 0 && after > 0) { var calc = (before - after) / before * 100; return calc.toFixed(2) + '%'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10376,11 +10519,11 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${hc.energy_consumption_before_kwh ? hc.energy_consumption_before_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
       <div><div class="muted">After Period</div><div><b>${hc.energy_consumption_after_kwh ? hc.energy_consumption_after_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
-      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(hc.energy_consumption_before_kwh && hc.energy_consumption_after_kwh) ? (hc.energy_consumption_before_kwh - hc.energy_consumption_after_kwh).toFixed(2) : 'N/A'}</b> kWh</div></div>
+      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(function() { if (hc.energy_consumption_before_kwh && hc.energy_consumption_after_kwh) { return (hc.energy_consumption_before_kwh - hc.energy_consumption_after_kwh).toFixed(2); } return 'N/A'; })()}</b> kWh</div></div>
     </div>`;
     
     html += `<div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-      <strong>📊 Key Insight:</strong> Energy per patient day (kWh/patient-day) is the primary metric for healthcare facilities. 
+      <strong>[DATA] Key Insight:</strong> Energy per patient day (kWh/patient-day) is the primary metric for healthcare facilities. 
       A lower value indicates better efficiency. EUI (Energy Use Intensity) benchmarks: Hospitals typically 200-300 kWh/sqft/year. 
       Critical power redundancy factor should be less than 0.8 (80% loading) to ensure adequate backup capacity per NFPA 99 requirements.
     </div>`;
@@ -10421,7 +10564,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol" style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
         <div><div class="muted">Before Period</div><div><b style="font-size: 1.2em; color: #333;">${eprnBefore > 0 ? eprnBefore.toFixed(2) : 'N/A'}</b> kWh/room-night</div></div>
         <div><div class="muted">After Period</div><div><b style="font-size: 1.2em; color: ${eprnAfter < eprnBefore ? '#28a745' : '#dc3545'};">${eprnAfter > 0 ? eprnAfter.toFixed(2) : 'N/A'}</b> kWh/room-night</div></div>
-        <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${eprnImprovementPct > 0 ? '#28a745' : '#dc3545'};">${eprnImprovementPct > 0 ? eprnImprovementPct.toFixed(2) + '% reduction' : (eprnImprovementPct < 0 ? Math.abs(eprnImprovementPct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${eprnImprovementPct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = eprnImprovementPct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10431,7 +10574,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${hosp.energy_per_guest_before > 0 ? hosp.energy_per_guest_before.toFixed(2) : 'N/A'}</b> kWh/guest</div></div>
         <div><div class="muted">After Period</div><div><b>${hosp.energy_per_guest_after > 0 ? hosp.energy_per_guest_after.toFixed(2) : 'N/A'}</b> kWh/guest</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.energy_per_guest_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.energy_per_guest_improvement_pct > 0 ? hosp.energy_per_guest_improvement_pct.toFixed(2) + '% reduction' : (hosp.energy_per_guest_improvement_pct < 0 ? Math.abs(hosp.energy_per_guest_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.energy_per_guest_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.energy_per_guest_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10441,7 +10584,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${hosp.energy_per_meal_before > 0 ? hosp.energy_per_meal_before.toFixed(3) : 'N/A'}</b> kWh/meal</div></div>
         <div><div class="muted">After Period</div><div><b>${hosp.energy_per_meal_after > 0 ? hosp.energy_per_meal_after.toFixed(3) : 'N/A'}</b> kWh/meal</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.energy_per_meal_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.energy_per_meal_improvement_pct > 0 ? hosp.energy_per_meal_improvement_pct.toFixed(2) + '% reduction' : (hosp.energy_per_meal_improvement_pct < 0 ? Math.abs(hosp.energy_per_meal_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.energy_per_meal_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.energy_per_meal_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10450,7 +10593,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${hosp.eui_before > 0 ? hosp.eui_before.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
       <div><div class="muted">After Period</div><div><b>${hosp.eui_after > 0 ? hosp.eui_after.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${hosp.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.eui_improvement_pct > 0 ? hosp.eui_improvement_pct.toFixed(2) + '% reduction' : (hosp.eui_improvement_pct < 0 ? Math.abs(hosp.eui_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${hosp.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.eui_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Kitchen Metrics
@@ -10459,7 +10602,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Kitchen Power - Before</div><div><b>${hosp.kitchen_equipment_power_before > 0 ? hosp.kitchen_equipment_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
         <div><div class="muted">Kitchen Power - After</div><div><b>${hosp.kitchen_equipment_power_after > 0 ? hosp.kitchen_equipment_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.kitchen_equipment_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.kitchen_equipment_improvement_pct > 0 ? hosp.kitchen_equipment_improvement_pct.toFixed(2) + '% reduction' : (hosp.kitchen_equipment_improvement_pct < 0 ? Math.abs(hosp.kitchen_equipment_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.kitchen_equipment_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.kitchen_equipment_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
       if (hosp.meals_served_before > 0 || hosp.meals_served_after > 0) {
         html += `<div class="grid twocol" style="margin-top: 8px;">
@@ -10479,13 +10622,13 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Laundry Power - Before</div><div><b>${hosp.laundry_power_before > 0 ? hosp.laundry_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
         <div><div class="muted">Laundry Power - After</div><div><b>${hosp.laundry_power_after > 0 ? hosp.laundry_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.laundry_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.laundry_improvement_pct > 0 ? hosp.laundry_improvement_pct.toFixed(2) + '% reduction' : (hosp.laundry_improvement_pct < 0 ? Math.abs(hosp.laundry_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${hosp.laundry_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.laundry_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
       if (hosp.laundry_loads_before > 0 || hosp.laundry_loads_after > 0) {
         html += `<div class="grid threecol" style="margin-top: 8px;">
           <div><div class="muted">Energy per Load - Before</div><div><b>${hosp.laundry_energy_per_load_before > 0 ? hosp.laundry_energy_per_load_before.toFixed(2) : 'N/A'}</b> kWh/load</div></div>
           <div><div class="muted">Energy per Load - After</div><div><b>${hosp.laundry_energy_per_load_after > 0 ? hosp.laundry_energy_per_load_after.toFixed(2) : 'N/A'}</b> kWh/load</div></div>
-          <div><div class="muted">Improvement</div><div><b style="color: ${(hosp.laundry_energy_per_load_before > 0 && hosp.laundry_energy_per_load_after > 0 && hosp.laundry_energy_per_load_after < hosp.laundry_energy_per_load_before) ? '#28a745' : '#dc3545'};">${(hosp.laundry_energy_per_load_before > 0 && hosp.laundry_energy_per_load_after > 0) ? (((hosp.laundry_energy_per_load_before - hosp.laundry_energy_per_load_after) / hosp.laundry_energy_per_load_before * 100).toFixed(2) + '%') : 'N/A'}</b></div></div>
+          <div><div class="muted">Improvement</div><div><b style="color: ${(function() { var before = hosp.laundry_energy_per_load_before; var after = hosp.laundry_energy_per_load_after; if (before > 0 && after > 0 && after < before) return '#28a745'; return '#dc3545'; })()};">${(function() { var before = hosp.laundry_energy_per_load_before; var after = hosp.laundry_energy_per_load_after; if (before > 0 && after > 0) { var calc = (before - after) / before * 100; return calc.toFixed(2) + '%'; } return 'N/A'; })()}</b></div></div>
         </div>`;
       }
     }
@@ -10514,7 +10657,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">HVAC Power - Before</div><div><b>${hosp.hvac_power_before > 0 ? hosp.hvac_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
       <div><div class="muted">HVAC Power - After</div><div><b>${hosp.hvac_power_after > 0 ? hosp.hvac_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${hosp.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${hosp.hvac_improvement_pct > 0 ? hosp.hvac_improvement_pct.toFixed(2) + '% reduction' : (hosp.hvac_improvement_pct < 0 ? Math.abs(hosp.hvac_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${hosp.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = hosp.hvac_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Other Systems
@@ -10546,11 +10689,11 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${hosp.energy_consumption_before_kwh ? hosp.energy_consumption_before_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
       <div><div class="muted">After Period</div><div><b>${hosp.energy_consumption_after_kwh ? hosp.energy_consumption_after_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
-      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(hosp.energy_consumption_before_kwh && hosp.energy_consumption_after_kwh) ? (hosp.energy_consumption_before_kwh - hosp.energy_consumption_after_kwh).toFixed(2) : 'N/A'}</b> kWh</div></div>
+      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(function() { if (hosp.energy_consumption_before_kwh && hosp.energy_consumption_after_kwh) { return (hosp.energy_consumption_before_kwh - hosp.energy_consumption_after_kwh).toFixed(2); } return 'N/A'; })()}</b> kWh</div></div>
     </div>`;
     
     html += `<div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-      <strong>📊 Key Insight:</strong> Energy per occupied room-night (kWh/room-night) is the primary metric for hotels. 
+      <strong>[DATA] Key Insight:</strong> Energy per occupied room-night (kWh/room-night) is the primary metric for hotels. 
       Energy per meal (kWh/meal) is the primary metric for restaurants. EUI (Energy Use Intensity) benchmarks: Hotels typically 80-150 kWh/sqft/year, 
       Restaurants typically 150-300 kWh/sqft/year. Occupancy normalization is critical for accurate energy savings analysis in hospitality facilities.
     </div>`;
@@ -10594,7 +10737,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol" style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
         <div><div class="muted">Before Period</div><div><b style="font-size: 1.2em; color: #333;">${epuBefore > 0 ? epuBefore.toFixed(4) : 'N/A'}</b> kWh/unit</div></div>
         <div><div class="muted">After Period</div><div><b style="font-size: 1.2em; color: ${epuAfter < epuBefore ? '#28a745' : '#dc3545'};">${epuAfter > 0 ? epuAfter.toFixed(4) : 'N/A'}</b> kWh/unit</div></div>
-        <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${epuImprovementPct > 0 ? '#28a745' : '#dc3545'};">${epuImprovementPct > 0 ? epuImprovementPct.toFixed(2) + '% reduction' : (epuImprovementPct < 0 ? Math.abs(epuImprovementPct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="font-size: 1.2em; color: ${epuImprovementPct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = epuImprovementPct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10604,7 +10747,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${mfg.energy_per_machine_hour_before > 0 ? mfg.energy_per_machine_hour_before.toFixed(2) : 'N/A'}</b> kWh/machine-hour</div></div>
         <div><div class="muted">After Period</div><div><b>${mfg.energy_per_machine_hour_after > 0 ? mfg.energy_per_machine_hour_after.toFixed(2) : 'N/A'}</b> kWh/machine-hour</div></div>
-        <div><div class="muted">Improvement</div><div><b style="color: ${mfg.energy_per_machine_hour_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${mfg.energy_per_machine_hour_improvement_pct > 0 ? mfg.energy_per_machine_hour_improvement_pct.toFixed(2) + '% reduction' : (mfg.energy_per_machine_hour_improvement_pct < 0 ? Math.abs(mfg.energy_per_machine_hour_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+        <div><div class="muted">Improvement</div><div><b style="color: ${mfg.energy_per_machine_hour_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = mfg.energy_per_machine_hour_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
       </div>`;
     }
     
@@ -10613,7 +10756,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<h4 style="margin-top: 16px; color: #1976d2;">Production Efficiency Index</h4>`;
       html += `<div style="background: white; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
         <div style="font-size: 1.5em; color: ${mfg.production_efficiency_index > 0 ? '#28a745' : '#dc3545'}; font-weight: bold;">
-          ${mfg.production_efficiency_index > 0 ? '+' : ''}${mfg.production_efficiency_index.toFixed(2)}%
+          ${(function() { var sign = mfg.production_efficiency_index > 0 ? '+' : ''; var val = mfg.production_efficiency_index.toFixed(2); return sign + val + '%'; })()}
         </div>
         <div class="muted">Improvement in energy efficiency per unit produced</div>
       </div>`;
@@ -10625,7 +10768,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
       html += `<div class="grid threecol">
         <div><div class="muted">Before Period</div><div><b>${mfg.equipment_utilization_before > 0 ? mfg.equipment_utilization_before.toFixed(1) : 'N/A'}</b>%</div></div>
         <div><div class="muted">After Period</div><div><b>${mfg.equipment_utilization_after > 0 ? mfg.equipment_utilization_after.toFixed(1) : 'N/A'}</b>%</div></div>
-        <div><div class="muted">Change</div><div><b style="color: ${mfg.equipment_utilization_after > mfg.equipment_utilization_before ? '#28a745' : '#dc3545'};">${(mfg.equipment_utilization_after - mfg.equipment_utilization_before).toFixed(1)}%</b></div></div>
+        <div><div class="muted">Change</div><div><b style="color: ${(function() { return mfg.equipment_utilization_after > mfg.equipment_utilization_before ? '#28a745' : '#dc3545'; })()};">${(function() { if (mfg.equipment_utilization_after != null && mfg.equipment_utilization_before != null) { var diff = mfg.equipment_utilization_after - mfg.equipment_utilization_before; return diff.toFixed(1); } return 'N/A'; })()}%</b></div></div>
       </div>`;
     }
     
@@ -10656,7 +10799,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Process Heating - Before</div><div><b>${mfg.process_heating_power_before > 0 ? mfg.process_heating_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
       <div><div class="muted">Process Heating - After</div><div><b>${mfg.process_heating_power_after > 0 ? mfg.process_heating_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.process_heating_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${mfg.process_heating_improvement_pct > 0 ? mfg.process_heating_improvement_pct.toFixed(2) + '% reduction' : (mfg.process_heating_improvement_pct < 0 ? Math.abs(mfg.process_heating_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.process_heating_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = mfg.process_heating_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     html += `<div class="grid threecol" style="margin-top: 8px;">
@@ -10676,7 +10819,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">HVAC Power - Before</div><div><b>${mfg.hvac_power_before > 0 ? mfg.hvac_power_before.toFixed(2) : 'N/A'}</b> kW</div></div>
       <div><div class="muted">HVAC Power - After</div><div><b>${mfg.hvac_power_after > 0 ? mfg.hvac_power_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${mfg.hvac_improvement_pct > 0 ? mfg.hvac_improvement_pct.toFixed(2) + '% reduction' : (mfg.hvac_improvement_pct < 0 ? Math.abs(mfg.hvac_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.hvac_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = mfg.hvac_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     html += `<div class="grid threecol" style="margin-top: 8px;">
@@ -10690,13 +10833,13 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Power Factor - Before</div><div><b>${mfg.power_factor_before > 0 ? mfg.power_factor_before.toFixed(3) : 'N/A'}</b></div></div>
       <div><div class="muted">Power Factor - After</div><div><b>${mfg.power_factor_after > 0 ? mfg.power_factor_after.toFixed(3) : 'N/A'}</b></div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.power_factor_improvement > 0 ? '#28a745' : '#dc3545'};">${mfg.power_factor_improvement > 0 ? '+' : ''}${mfg.power_factor_improvement.toFixed(3)}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.power_factor_improvement > 0 ? '#28a745' : '#dc3545'};">${(function() { var sign = mfg.power_factor_improvement > 0 ? '+' : ''; var val = mfg.power_factor_improvement.toFixed(3); return sign + val; })()}</b></div></div>
     </div>`;
     
     html += `<div class="grid threecol" style="margin-top: 8px;">
       <div><div class="muted">Peak Demand - Before</div><div><b>${mfg.peak_demand_before > 0 ? mfg.peak_demand_before.toFixed(2) : 'N/A'}</b> kW</div></div>
       <div><div class="muted">Peak Demand - After</div><div><b>${mfg.peak_demand_after > 0 ? mfg.peak_demand_after.toFixed(2) : 'N/A'}</b> kW</div></div>
-      <div><div class="muted">Demand Reduction</div><div><b style="color: #28a745;">${mfg.demand_reduction > 0 ? mfg.demand_reduction.toFixed(2) + ' kW (' + mfg.demand_reduction_pct.toFixed(2) + '%)' : 'N/A'}</b></div></div>
+      <div><div class="muted">Demand Reduction</div><div><b style="color: #28a745;">${(function() { if (mfg.demand_reduction > 0) { var reduction = mfg.demand_reduction.toFixed(2); var pct = mfg.demand_reduction_pct.toFixed(2); return reduction + ' kW (' + pct + '%)'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     if (mfg.demand_cost_savings > 0) {
@@ -10719,7 +10862,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${mfg.eui_before > 0 ? mfg.eui_before.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
       <div><div class="muted">After Period</div><div><b>${mfg.eui_after > 0 ? mfg.eui_after.toFixed(2) : 'N/A'}</b> kWh/sqft/year</div></div>
-      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${mfg.eui_improvement_pct > 0 ? mfg.eui_improvement_pct.toFixed(2) + '% reduction' : (mfg.eui_improvement_pct < 0 ? Math.abs(mfg.eui_improvement_pct).toFixed(2) + '% increase' : 'N/A')}</b></div></div>
+      <div><div class="muted">Improvement</div><div><b style="color: ${mfg.eui_improvement_pct > 0 ? '#28a745' : '#dc3545'};">${(function() { var pct = mfg.eui_improvement_pct; if (pct > 0) { var val = pct.toFixed(2); return val + '% reduction'; } if (pct < 0) { var val = Math.abs(pct).toFixed(2); return val + '% increase'; } return 'N/A'; })()}</b></div></div>
     </div>`;
     
     // Energy Consumption
@@ -10727,11 +10870,11 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     html += `<div class="grid threecol">
       <div><div class="muted">Before Period</div><div><b>${mfg.energy_consumption_before_kwh ? mfg.energy_consumption_before_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
       <div><div class="muted">After Period</div><div><b>${mfg.energy_consumption_after_kwh ? mfg.energy_consumption_after_kwh.toFixed(2) : 'N/A'}</b> kWh</div></div>
-      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(mfg.energy_consumption_before_kwh && mfg.energy_consumption_after_kwh) ? (mfg.energy_consumption_before_kwh - mfg.energy_consumption_after_kwh).toFixed(2) : 'N/A'}</b> kWh</div></div>
+      <div><div class="muted">Energy Savings</div><div><b style="color: #28a745;">${(function() { if (mfg.energy_consumption_before_kwh && mfg.energy_consumption_after_kwh) { return (mfg.energy_consumption_before_kwh - mfg.energy_consumption_after_kwh).toFixed(2); } return 'N/A'; })()}</b> kWh</div></div>
     </div>`;
     
     html += `<div style="margin-top: 16px; padding: 12px; background: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
-      <strong>📊 Key Insight:</strong> Energy per unit produced (kWh/unit) is the primary metric for manufacturing facilities. 
+      <strong>[DATA] Key Insight:</strong> Energy per unit produced (kWh/unit) is the primary metric for manufacturing facilities. 
       Production efficiency index measures overall improvement in energy efficiency. Compressed air systems are often the largest energy waste in manufacturing. 
       Power factor improvement and demand reduction can result in significant cost savings. EUI benchmarks: Light Manufacturing 50-150 kWh/sqft/year, 
       Heavy Manufacturing 150-300 kWh/sqft/year, Process Industries 200-500+ kWh/sqft/year.
@@ -10742,9 +10885,9 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
 
   // Overall Status
   if (r.executive_summary?.meets_mv_requirements) {
-    html += `<div class="success">✓ Analysis meets all M&V requirements for utility rebate submission</div>`;
+    html += `<div class="success">[PASS] Analysis meets all M&V requirements for utility rebate submission</div>`;
   } else {
-    html += `<div class="error">⚠ Analysis does not meet all M&V requirements. See status table for details.</div>`;
+    html += `<div class="error">[WARNING] Analysis does not meet all M&V requirements. See status table for details.</div>`;
   }
 
   html += `</div>`; // End of .results div
@@ -10824,7 +10967,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     const allElements = document.querySelectorAll('*');
     for (let el of allElements) {
       if (el.className && el.className.includes('chart')) {
-        console.error("❌ Found element with chart in class:", el.className, el);
+        console.error("[ERROR] Found element with chart in class:", el.className, el);
       }
     }
   }
@@ -10834,10 +10977,10 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     try {
       showChartControls(r);
     } catch (error) {
-      console.error("❌ Error calling showChartControls:", error);
+      console.error("[ERROR] Error calling showChartControls:", error);
     }
   } else {
-    console.warn("⚠️ showChartControls function not available");
+    console.warn("[WARNING] showChartControls function not available");
   }
 
 
@@ -10904,6 +11047,40 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     btnUtilityPackage.replaceWith(btnUtilityPackage.cloneNode(true));
     const _el_btnGenerateUtilityPackage = document.getElementById("btnGenerateUtilityPackage");
     if (_el_btnGenerateUtilityPackage) _el_btnGenerateUtilityPackage.addEventListener("click", () => generateUtilitySubmissionPackage(r));
+  }
+
+  // Add Document Sync Console button after Utility Package button
+  // Check if button already exists to avoid duplicates
+  let btnDocumentSync = document.getElementById("btnCheckDocumentConsistency");
+  if (!btnDocumentSync) {
+    // Create the button dynamically
+    btnDocumentSync = document.createElement("button");
+    btnDocumentSync.type = "button";
+    btnDocumentSync.id = "btnCheckDocumentConsistency";
+    btnDocumentSync.className = "btn";
+    btnDocumentSync.style.cssText = "background: linear-gradient(135deg, #1a237e, #283593); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; font-weight: bold;";
+    btnDocumentSync.textContent = "[SEARCH] Check Document Consistency";
+    btnDocumentSync.title = "Verify that HTML Report, Audit Package, and Utility Submission Package are all in sync";
+    
+    // Insert it right after the Utility Package button
+    if (btnUtilityPackage && btnUtilityPackage.parentNode) {
+      btnUtilityPackage.parentNode.insertBefore(btnDocumentSync, btnUtilityPackage.nextSibling);
+    } else {
+      // Fallback: try to find the container and append
+      const utilityBtn = document.getElementById("btnGenerateUtilityPackage");
+      if (utilityBtn && utilityBtn.parentNode) {
+        utilityBtn.parentNode.appendChild(btnDocumentSync);
+      }
+    }
+  }
+  
+  // Enable the button and wire up the click handler
+  if (btnDocumentSync) {
+    btnDocumentSync.disabled = false;
+    btnDocumentSync.onclick = function() {
+      // Navigate to Document Sync Console in the same window
+      window.location.href = '/document-sync-console';
+    };
   }
 
   // Enable equipment health report button
@@ -11018,7 +11195,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function openKit() {
       const sel = document.getElementById("regionSelect");
       const region = (sel && sel.value) || "us";
-      const url = kitFor(region, !!dark);
+      const url = kitFor(region);
       window.open(url, "_blank");
       try {
         localStorage.setItem("synerex_region", region);
@@ -11028,7 +11205,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btn2 = document.getElementById("btnDownloadFieldKitDark");
     const sel = document.getElementById("regionSelect");
     if (btn1) btn1.addEventListener("click", () => openKit());
-    if (btn2) btn2.addEventListener("click", () => openKit(true));
+    if (btn2) btn2.addEventListener("click", () => openKit());
     // restore region preference
     try {
       const saved = localStorage.getItem("synerex_region");
@@ -11047,7 +11224,7 @@ document.addEventListener("DOMContentLoaded", () => {
                            window.location.pathname.includes('/data-center') ||
                            window.location.pathname.includes('/cold-storage');
     if (isFacilityPage) {
-      console.debug("🔧 DEBUG: Could not find btnCalcR element (may not exist on this page)");
+      console.debug("[DEBUG] DEBUG: Could not find btnCalcR element (may not exist on this page)");
     }
   }
 
@@ -11064,7 +11241,7 @@ document.addEventListener("DOMContentLoaded", () => {
                            window.location.pathname.includes('/data-center') ||
                            window.location.pathname.includes('/cold-storage');
     if (isFacilityPage) {
-      console.debug("🔧 DEBUG: Could not find btnApplyToAnalysis element (may not exist on this page)");
+      console.debug("[DEBUG] DEBUG: Could not find btnApplyToAnalysis element (may not exist on this page)");
     }
   }
   const _el_btnCalculateTesting = document.getElementById("btnCalculateTesting");
@@ -12215,7 +12392,7 @@ document.addEventListener('DOMContentLoaded', function() {
         errorSummary.innerHTML = `
           <strong>Please fix the following errors:</strong>
           <ul style="margin: 8px 1 1 20px;">
-            ${validation.errors.map(error => `<li>${error}</li>`).join('')}
+            ${(function() { return validation.errors.map(function(error) { return '<li>' + error + '</li>'; }).join(''); })()}
           </ul>
         `;
         
@@ -12251,7 +12428,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const submitBtn = document.getElementById('submitBtn');
       if (submitBtn) {
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '⏳ Analyzing...';
+        submitBtn.innerHTML = '[WAITING] Analyzing...';
         submitBtn.disabled = true;
         
         // Re-enable button after 1 seconds as fallback
@@ -12547,27 +12724,27 @@ function setupDataManagementListeners() {
 
   // Before/After file selection buttons
   const chooseBeforeBtn = document.getElementById('choose-before-file');
-  console.log('🔍 Setting up file selection buttons...');
-  console.log('🔍 Before button found:', chooseBeforeBtn ? 'YES' : 'NO');
+  console.log('[SEARCH] Setting up file selection buttons...');
+  console.log('[SEARCH] Before button found:', chooseBeforeBtn ? 'YES' : 'NO');
 
   if (chooseBeforeBtn) {
     // Remove existing listeners by cloning and replacing
     const newBeforeBtn = chooseBeforeBtn.cloneNode(true);
     chooseBeforeBtn.parentNode.replaceChild(newBeforeBtn, chooseBeforeBtn);
-    console.log('✅ Before button cloned and replaced');
+    console.log('[OK] Before button cloned and replaced');
     
     newBeforeBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('🖱️ Before file button CLICKED!');
+      console.log('[CLICK] Before file button CLICKED!');
       if (typeof showFileSelectionModal === 'function') {
-        console.log('✅ Calling showFileSelectionModal("before")');
+        console.log('[OK] Calling showFileSelectionModal("before")');
         showFileSelectionModal('before');
       } else {
-        console.error('❌ showFileSelectionModal is not a function!', typeof showFileSelectionModal);
+        console.error('[ERROR] showFileSelectionModal is not a function!', typeof showFileSelectionModal);
       }
     });
-    console.log('✅ Before button event listener attached');
+    console.log('[OK] Before button event listener attached');
   } else {
     // Only log if we're on a page where this element is expected (facility analysis pages)
     const isFacilityPage = window.location.pathname.includes('/manufacturing') ||
@@ -12577,31 +12754,31 @@ function setupDataManagementListeners() {
                            window.location.pathname.includes('/cold-storage') ||
                            window.location.pathname.includes('/legacy');
     if (isFacilityPage) {
-      console.debug('❌ Choose before file button NOT FOUND! (may not exist on this page)');
+      console.debug('[ERROR] Choose before file button NOT FOUND! (may not exist on this page)');
     }
   }
 
   const chooseAfterBtn = document.getElementById('choose-after-file');
-  console.log('🔍 After button found:', chooseAfterBtn ? 'YES' : 'NO');
+  console.log('[SEARCH] After button found:', chooseAfterBtn ? 'YES' : 'NO');
 
   if (chooseAfterBtn) {
     // Remove existing listeners by cloning and replacing
     const newAfterBtn = chooseAfterBtn.cloneNode(true);
     chooseAfterBtn.parentNode.replaceChild(newAfterBtn, chooseAfterBtn);
-    console.log('✅ After button cloned and replaced');
+    console.log('[OK] After button cloned and replaced');
     
     newAfterBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('🖱️ After file button CLICKED!');
+      console.log('[CLICK] After file button CLICKED!');
       if (typeof showFileSelectionModal === 'function') {
-        console.log('✅ Calling showFileSelectionModal("after")');
+        console.log('[OK] Calling showFileSelectionModal("after")');
         showFileSelectionModal('after');
       } else {
-        console.error('❌ showFileSelectionModal is not a function!', typeof showFileSelectionModal);
+        console.error('[ERROR] showFileSelectionModal is not a function!', typeof showFileSelectionModal);
       }
     });
-    console.log('✅ After button event listener attached');
+    console.log('[OK] After button event listener attached');
   } else {
     // Only log if we're on a page where this element is expected (facility analysis pages)
     const isFacilityPage = window.location.pathname.includes('/manufacturing') ||
@@ -12611,7 +12788,7 @@ function setupDataManagementListeners() {
                            window.location.pathname.includes('/cold-storage') ||
                            window.location.pathname.includes('/legacy');
     if (isFacilityPage) {
-      console.debug('❌ Choose after file button NOT FOUND! (may not exist on this page)');
+      console.debug('[ERROR] Choose after file button NOT FOUND! (may not exist on this page)');
     }
   }
 
@@ -12671,7 +12848,7 @@ function closeAllModals() {
     document.body.style.overflow = '';
     
     if (removedCount > 0) {
-      console.log(`✅ Removed ${removedCount} modal(s)`);
+      console.log(`[OK] Removed ${removedCount} modal(s)`);
     }
     
     return true;
@@ -12703,13 +12880,13 @@ if (typeof window !== 'undefined') {
 
 // Function to find Cloud Kitchen projects with 160+ fields (callable from console)
 function findCloudKitchenWithData() {
-  console.log('🔍 Searching for Cloud Kitchen projects with 160+ fields...');
+  console.log('[SEARCH] Searching for Cloud Kitchen projects with 160+ fields...');
   
   // Get session token
   const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
   
   if (!sessionToken) {
-    console.error('❌ No session token found. Please log in first.');
+    console.error('[ERROR] No session token found. Please log in first.');
     return;
   }
   
@@ -12726,13 +12903,13 @@ function findCloudKitchenWithData() {
     console.log('📥 Response status:', response.status, response.statusText);
     if (!response.ok) {
       return response.json().then(err => {
-        throw new Error(err.error || `HTTP ${response.status}`);
+        throw new Error((function() { return err.error || 'HTTP ' + response.status; })());
       });
     }
     return response.json();
   })
   .then(data => {
-    console.log('✅ Cloud Kitchen projects found:', data);
+    console.log('[OK] Cloud Kitchen projects found:', data);
     
     if (data.project_with_160_plus_fields) {
       console.log('');
@@ -12748,7 +12925,7 @@ function findCloudKitchenWithData() {
       console.log('   2. Or use project ID:', data.project_with_160_plus_fields.id);
       console.log('   3. Or run: loadProjectById(' + data.project_with_160_plus_fields.id + ')');
     } else {
-      console.log('⚠️ No Cloud Kitchen project found with 160+ fields');
+      console.log('[WARNING] No Cloud Kitchen project found with 160+ fields');
       console.log('📋 All Cloud Kitchen projects found:');
       data.all_cloud_kitchen_projects.forEach((proj, idx) => {
         console.log(`   ${idx + 1}. ID: ${proj.id}, Name: "${proj.name}", Fields: ${proj.field_count}, Has Data: ${proj.has_data}`);
@@ -12758,8 +12935,8 @@ function findCloudKitchenWithData() {
     return data;
   })
   .catch(error => {
-    console.error('❌ Error finding Cloud Kitchen projects:', error);
-    console.error('❌ Error details:', error.message);
+    console.error('[ERROR] Error finding Cloud Kitchen projects:', error);
+    console.error('[ERROR] Error details:', error.message);
   });
 }
 
@@ -12786,7 +12963,7 @@ function showFileSelectionModal(fileType) {
     headers['Authorization'] = `Bearer ${sessionToken}`;
     console.log('🔑 Using session token for file request');
   } else {
-    console.warn('⚠️ No session token found - file request may fail');
+    console.warn('[WARNING] No session token found - file request may fail');
   }
 
   // Fetch ALL files (both verified and unverified) from the API
@@ -12798,12 +12975,12 @@ function showFileSelectionModal(fileType) {
     .then(response => {
       console.log('📥 Files response status:', response.status);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
       }
       return response.json();
     })
     .then(data => {
-      console.log('📊 Files response:', data);
+      console.log('[DATA] Files response:', data);
       if (data.status === 'success' && data.files && data.files.length > 0) {
         showFileSelectionModalWithFiles(data.files, fileType);
       } else {
@@ -13051,7 +13228,7 @@ function selectFile(fileId, fileName, fileType) {
 
 // Extract test period from CSV file using file ID
 function extractPeriodFromFileId(fileId, fileType) {
-  console.log(`📊 Extracting period from ${fileType} file ID: ${fileId}`);
+  console.log(`[DATA] Extracting period from ${fileType} file ID: ${fileId}`);
   
   // Fetch file content from the server
   fetch(`/api/original-files/${fileId}/clipping`)
@@ -13112,7 +13289,7 @@ function extractPeriodFromFileId(fileId, fileType) {
           const firstTimestamp = firstLine[timestampColIndex].trim();
           const lastTimestamp = lastLine[timestampColIndex].trim();
 
-          console.log(`📅 ${fileType} file: First timestamp = ${firstTimestamp}, Last timestamp = ${lastTimestamp}`);
+          console.log(`[DATE] ${fileType} file: First timestamp = ${firstTimestamp}, Last timestamp = ${lastTimestamp}`);
 
           // Calculate duration in days
           const days = calculateDurationInDays(firstTimestamp, lastTimestamp, lines.length);
@@ -13122,7 +13299,7 @@ function extractPeriodFromFileId(fileId, fileType) {
           const periodField = document.getElementById(fileType === 'before' ? 'test_period_before' : 'test_period_after');
           if (periodField) {
             periodField.value = period;
-            console.log(`✅ Updated ${fileType} period: ${period}`);
+            console.log(`[OK] Updated ${fileType} period: ${period}`);
           }
 
           // Update duration
@@ -13168,7 +13345,7 @@ function updateTestDurationFromFileIds() {
   }
 
   durationField.value = duration;
-  console.log(`✅ Updated test duration: ${duration}`);
+  console.log(`[OK] Updated test duration: ${duration}`);
 }
 
 // ============================================================================
@@ -13192,7 +13369,7 @@ function initializeChartSystem() {
                            window.location.pathname.includes('/cold-storage') ||
                            window.location.pathname.includes('/legacy');
     if (isFacilityPage) {
-      console.debug('❌ Chart.js library not loaded (may not be needed on this page)');
+      console.debug('[ERROR] Chart.js library not loaded (may not be needed on this page)');
     }
     return false;
   }
@@ -13219,7 +13396,7 @@ function showChartControls(analysisData) {
 // Create default chart (Before vs After comparison)
 function createDefaultChart() {
   if (!currentAnalysisData) {
-    console.warn('⚠️ No analysis data available for chart');
+    console.warn('[WARNING] No analysis data available for chart');
     return;
   }
 
@@ -13244,13 +13421,13 @@ function updateChart() {
 // Create interactive chart
 function createInteractiveChart(chartType, dataMetric, timePeriod) {
   if (!currentAnalysisData) {
-    console.warn('⚠️ No analysis data available');
+    console.warn('[WARNING] No analysis data available');
     return;
   }
 
   const ctx = document.getElementById('chartjsAnalysisChart');
   if (!ctx) {
-    console.error('❌ Chart canvas not found');
+    console.error('[ERROR] Chart canvas not found');
     return;
   }
 
@@ -13268,10 +13445,10 @@ function createInteractiveChart(chartType, dataMetric, timePeriod) {
 
     // Check if chart data is empty
     if (!chartData.labels || chartData.labels.length === 0) {
-      console.error('❌ Chart data has no labels!');
+      console.error('[ERROR] Chart data has no labels!');
     }
     if (!chartData.datasets || chartData.datasets.length === 0) {
-      console.error('❌ Chart data has no datasets!');
+      console.error('[ERROR] Chart data has no datasets!');
     }
 
 
@@ -13333,7 +13510,7 @@ function createInteractiveChart(chartType, dataMetric, timePeriod) {
 
 
   } catch (error) {
-    console.error('❌ Error creating chart:', error);
+    console.error('[ERROR] Error creating chart:', error);
     showNotification('Error creating chart: ' + error.message);
   }
 }
@@ -13420,7 +13597,7 @@ function prepareChartData(dataMetric, timePeriod, analysisData) {
     }
 
   } catch (error) {
-    console.error('❌ Error preparing chart data:', error);
+    console.error('[ERROR] Error preparing chart data:', error);
     return getErrorChartData('Error preparing data');
   }
 }
@@ -13603,7 +13780,7 @@ function exportChart() {
 
     showNotification('Chart exported successfully!');
   } catch (error) {
-    console.error('❌ Error exporting chart:', error);
+    console.error('[ERROR] Error exporting chart:', error);
     showNotification('Error exporting chart');
   }
 }
@@ -13633,10 +13810,10 @@ function showChartControlsManually() {
   const chartSection = document.querySelector('.chart-analysis-section');
   if (chartSection) {
     chartSection.style.display = 'block';
-    showNotification('📊 Interactive charts enabled!');
+    showNotification('[DATA] Interactive charts enabled!');
   } else {
-    console.error('❌ Chart section not found');
-    showNotification('❌ Chart section not found in page');
+    console.error('[ERROR] Chart section not found');
+    showNotification('[ERROR] Chart section not found in page');
   }
 
   // Try to create a test chart if we have analysis data
@@ -13644,7 +13821,7 @@ function showChartControlsManually() {
     if (typeof showChartControls === 'function') {
       showChartControls(window.__LATEST_RESULTS__);
     } else {
-      console.warn('⚠️ showChartControls function not available');
+      console.warn('[WARNING] showChartControls function not available');
     }
   } else {}
 }
@@ -13654,7 +13831,7 @@ function testChart() {
 
   // Check if Chart.js is loaded
   if (typeof Chart === 'undefined') {
-    console.error('❌ Chart.js not loaded');
+    console.error('[ERROR] Chart.js not loaded');
     showNotification('Chart.js library not loaded. Please refresh the page.');
     return;
   }
@@ -13662,7 +13839,7 @@ function testChart() {
   // Check if chart canvas exists
   const canvas = document.getElementById('chartjsAnalysisChart');
   if (!canvas) {
-    console.error('❌ Chart canvas not found');
+    console.error('[ERROR] Chart canvas not found');
     showNotification('Chart canvas not found.');
     return;
   }
@@ -13700,10 +13877,10 @@ function testChart() {
       }
     });
 
-    showNotification('✅ Chart test successful! Chart.js is working.');
+    showNotification('[OK] Chart test successful! Chart.js is working.');
 
   } catch (error) {
-    console.error('❌ Error creating test chart:', error);
+    console.error('[ERROR] Error creating test chart:', error);
     showNotification('Error creating test chart: ' + error.message);
   }
 }
@@ -13723,7 +13900,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Wait a bit for the page to fully load
         setTimeout(() => {
           displayResults(results);
-          showNotification(`✅ "${reanalyzedProjectName}" re-analyzed with latest code!`, 'success');
+          showNotification(`[OK] "${reanalyzedProjectName}" re-analyzed with latest code!`, 'success');
         }, 500);
       }
       // Clear session storage
@@ -13735,6 +13912,932 @@ document.addEventListener('DOMContentLoaded', function() {
       sessionStorage.removeItem('reanalyzedProjectName');
     }
   }
+});
+
+// Global variable to store element with red box highlight
+let highlightedElementWithRedBox = null;
+let highlightedElementOriginalStyle = null;
+
+// Function to add red box around element (for incorrect values)
+function addRedBox(element) {
+  // Remove any existing red box first
+  if (highlightedElementWithRedBox) {
+    removeRedBox();
+  }
+  
+  if (!element) return;
+  
+  // Store reference to element
+  highlightedElementWithRedBox = element;
+  
+  // Store original styles
+  highlightedElementOriginalStyle = {
+    backgroundColor: element.style.backgroundColor || '',
+    border: element.style.border || '',
+    borderRadius: element.style.borderRadius || '',
+    padding: element.style.padding || '',
+    boxShadow: element.style.boxShadow || '',
+    outline: element.style.outline || '',
+    transition: element.style.transition || ''
+  };
+  
+  // Apply red box styling
+  element.style.transition = 'all 0.3s ease';
+  element.style.backgroundColor = '#ffebee';
+  element.style.border = '3px solid #dc3545';
+  element.style.borderRadius = '4px';
+  element.style.padding = element.style.padding || '8px';
+  element.style.boxShadow = '0 0 15px rgba(220, 53, 69, 0.6)';
+  element.style.outline = 'none';
+  
+  // Add a data attribute to mark it as highlighted
+  element.setAttribute('data-red-box-highlight', 'true');
+}
+
+// Function to remove red box
+function removeRedBox() {
+  if (highlightedElementWithRedBox && highlightedElementOriginalStyle) {
+    // Restore original styles
+    highlightedElementWithRedBox.style.backgroundColor = highlightedElementOriginalStyle.backgroundColor;
+    highlightedElementWithRedBox.style.border = highlightedElementOriginalStyle.border;
+    highlightedElementWithRedBox.style.borderRadius = highlightedElementOriginalStyle.borderRadius;
+    highlightedElementWithRedBox.style.padding = highlightedElementOriginalStyle.padding;
+    highlightedElementWithRedBox.style.boxShadow = highlightedElementOriginalStyle.boxShadow;
+    highlightedElementWithRedBox.style.outline = highlightedElementOriginalStyle.outline;
+    highlightedElementWithRedBox.style.transition = highlightedElementOriginalStyle.transition;
+    
+    // Remove data attribute
+    highlightedElementWithRedBox.removeAttribute('data-red-box-highlight');
+    
+    // Clear references
+    highlightedElementWithRedBox = null;
+    highlightedElementOriginalStyle = null;
+  }
+}
+
+// Add Esc key listener to remove red box (only if no modal is open)
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' || event.keyCode === 27) {
+    // Check if any modal is currently open
+    const openModal = document.querySelector('.modal-overlay:not([style*="display: none"])') ||
+                     document.querySelector('.modal:not([style*="display: none"])') ||
+                     document.querySelector('[class*="modal"][style*="display: block"]');
+    
+    // Only remove red box if no modal is open (to avoid conflicts)
+    if (!openModal && highlightedElementWithRedBox) {
+      removeRedBox();
+      if (typeof showNotification === 'function') {
+        showNotification('Red box removed. Press Esc again if needed.', 'info');
+      }
+    }
+  }
+});
+
+// Handle Document Sync Console actions - Navigate to editable fields and read-only analysis results
+document.addEventListener('DOMContentLoaded', function() {
+  // Wait for page to fully load before handling actions
+  setTimeout(function() {
+    try {
+    const action = localStorage.getItem('syncConsoleAction');
+    const fieldId = localStorage.getItem('syncConsoleFieldId');
+    const fieldName = localStorage.getItem('syncConsoleFieldName');
+    const metricName = localStorage.getItem('syncConsoleMetric');
+    
+    if (!action) return;
+    
+    console.log('Processing sync console action:', action, 'fieldId:', fieldId, 'fieldName:', fieldName, 'metric:', metricName);
+    
+    // Helper function to scroll to element with highlight
+    function scrollToElement(selector, highlight = true, focus = false) {
+      const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        if (highlight) {
+          // Add highlight effect
+          const originalStyle = {
+            backgroundColor: element.style.backgroundColor,
+            border: element.style.border,
+            borderRadius: element.style.borderRadius,
+            padding: element.style.padding,
+            boxShadow: element.style.boxShadow,
+            transition: element.style.transition,
+            outline: element.style.outline
+          };
+          
+          element.style.transition = 'all 0.3s ease';
+          element.style.backgroundColor = '#fff3cd';
+          element.style.border = '2px solid #ffc107';
+          element.style.borderRadius = '4px';
+          element.style.padding = '10px';
+          element.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.5)';
+          element.style.outline = 'none';
+          
+          // Remove highlight after 5 seconds
+          setTimeout(function() {
+            element.style.backgroundColor = originalStyle.backgroundColor || '';
+            element.style.border = originalStyle.border || '';
+            element.style.borderRadius = originalStyle.borderRadius || '';
+            element.style.padding = originalStyle.padding || '';
+            element.style.boxShadow = originalStyle.boxShadow || '';
+            element.style.outline = originalStyle.outline || '';
+          }, 5000);
+        }
+        
+        // Focus the element if it's an input field (editable)
+        if (focus && (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA')) {
+          setTimeout(function() {
+            element.focus();
+            if (element.select) element.select(); // Select text if it's a text input
+          }, 300);
+        }
+        
+        return true;
+      }
+      return false;
+    }
+    
+    // Helper function to find input field by ID or name - comprehensive search (same as event listener)
+    function findInputField(fieldId, fieldName) {
+      console.log('[SEARCH] Finding field (DOMContentLoaded):', fieldId, fieldName);
+      
+      if (!fieldId && !fieldName) {
+        console.log('[ERROR] No fieldId or fieldName provided');
+        return null;
+      }
+      
+      // Try by ID first
+      if (fieldId) {
+        let field = document.getElementById(fieldId);
+        if (field) {
+          console.log('[OK] Found by ID:', fieldId);
+          return field;
+        }
+      }
+      
+      // Try by name attribute
+      if (fieldName) {
+        let field = document.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+          console.log('[OK] Found by name:', fieldName);
+          return field;
+        }
+      }
+      
+      // Try by name attribute with fieldId
+      if (fieldId) {
+        let field = document.querySelector(`[name="${fieldId}"]`);
+        if (field) {
+          console.log('[OK] Found by name (fieldId):', fieldId);
+          return field;
+        }
+      }
+      
+      // Try by data attribute
+      if (fieldId) {
+        let field = document.querySelector(`[data-field="${fieldId}"]`);
+        if (field) {
+          console.log('[OK] Found by data-field:', fieldId);
+          return field;
+        }
+      }
+      
+      // Try alternative names for weather fields
+      if (fieldId && (fieldId.includes('weather') || fieldName && fieldName.includes('weather'))) {
+        const weatherVariations = ['weather_provider', 'weather_normalization', 'weather_adjustment', 'weather_normalization_enabled'];
+        for (let i = 0; i < weatherVariations.length; i++) {
+          let field = document.querySelector(`[name="${weatherVariations[i]}"]`) || 
+                     document.getElementById(weatherVariations[i]) ||
+                     document.querySelector(`[id*="${weatherVariations[i]}"]`);
+          if (field) {
+            console.log('[OK] Found weather field by variation:', weatherVariations[i]);
+            return field;
+          }
+        }
+      }
+      
+      // Try to find by label text (case-insensitive partial match)
+      const labels = document.querySelectorAll('label');
+      for (let i = 0; i < labels.length; i++) {
+        const labelText = (labels[i].textContent || labels[i].innerText || '').toLowerCase();
+        const labelFor = labels[i].getAttribute('for');
+        const fieldIdLower = fieldId ? fieldId.toLowerCase().replace(/_/g, ' ') : '';
+        const fieldNameLower = fieldName ? fieldName.toLowerCase().replace(/_/g, ' ') : '';
+        
+        if ((fieldId && labelFor === fieldId) || 
+            (labelText && ((fieldIdLower && labelText.includes(fieldIdLower)) || (fieldNameLower && labelText.includes(fieldNameLower))))) {
+          // Try to find associated input
+          const associatedField = document.getElementById(labelFor) ||
+                                 labels[i].nextElementSibling ||
+                                 labels[i].parentElement.querySelector('input, select, textarea, [role="textbox"]');
+          if (associatedField) {
+            console.log('[OK] Found by label:', labelText);
+            return associatedField;
+          }
+        }
+      }
+      
+      // For file fields, try to find the associated button or container
+      if (fieldId === 'before_file_id' || fieldId === 'after_file_id') {
+        const fileType = fieldId === 'before_file_id' ? 'before' : 'after';
+        let field = document.getElementById(`choose-${fileType}-file`) || 
+                document.querySelector(`[data-file-type="${fileType}"]`) ||
+                document.querySelector(`#${fileType}-file-selected`) ||
+                document.querySelector(`[name="${fileType}_file_id"]`) ||
+                document.querySelector(`[id*="${fileType}"][id*="file"]`);
+        if (field) {
+          console.log('[OK] Found file field:', fileType);
+          return field;
+        }
+      }
+      
+      // Try to find in form groups or input groups
+      if (fieldId) {
+        const formGroups = document.querySelectorAll('.form-group, .input-group, .form-control-group');
+        const fieldIdLower = fieldId.toLowerCase().replace(/_/g, ' ');
+        for (let i = 0; i < formGroups.length; i++) {
+          const group = formGroups[i];
+          const groupText = (group.textContent || '').toLowerCase();
+          if (groupText.includes(fieldIdLower)) {
+            const input = group.querySelector('input, select, textarea');
+            if (input) {
+              console.log('[OK] Found in form group:', fieldId);
+              return input;
+            }
+          }
+        }
+      }
+      
+      console.log('[ERROR] Field not found:', fieldId, fieldName);
+      return null;
+    }
+    
+    // Handle different actions
+    switch(action) {
+      case 'goToField':
+        // Navigate to specific editable input field
+        if (fieldId || fieldName) {
+          const field = findInputField(fieldId || fieldName, fieldName || fieldId);
+          
+          if (field) {
+            // Scroll to the field
+            field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Add red box around incorrect value
+            addRedBox(field);
+            
+            // Focus the element if it's an input field (editable)
+            setTimeout(function() {
+              if (field.tagName === 'INPUT' || field.tagName === 'SELECT' || field.tagName === 'TEXTAREA') {
+                field.focus();
+                if (field.select) field.select(); // Select text if it's a text input
+              }
+            }, 300);
+            
+            // Show notification
+            const fieldLabel = field.getAttribute('placeholder') || 
+                              field.getAttribute('aria-label') ||
+                              (field.previousElementSibling && field.previousElementSibling.textContent) ||
+                              fieldId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            
+            showNotification(`[NAV] Navigated to ${fieldLabel}. Incorrect value highlighted in red. Press Esc to remove highlight.`, 'info');
+            if (metricName) {
+              setTimeout(function() {
+                showNotification('Document Sync Console: This field (' + metricName.replace(/_/g, ' ') + ') was reported as 0 or missing. Enter a value and re-run analysis.', 'info');
+              }, 800);
+            }
+            
+            // For file fields, show additional help
+            if (fieldId === 'before_file_id' || fieldId === 'after_file_id') {
+              setTimeout(function() {
+                showNotification('💡 Click the file selection button to choose a different file.', 'info');
+              }, 2000);
+            }
+          } else {
+            // Try to find by label text
+            const labels = document.querySelectorAll('label');
+            for (let i = 0; i < labels.length; i++) {
+              const labelText = labels[i].textContent || labels[i].innerText;
+              const labelFor = labels[i].getAttribute('for');
+              
+              if (labelFor === fieldId || 
+                  (labelText && labelText.toLowerCase().includes(fieldId.toLowerCase().replace(/_/g, ' ')))) {
+                const associatedField = document.getElementById(labelFor) ||
+                                       labels[i].nextElementSibling ||
+                                       labels[i].parentElement.querySelector('input, select, textarea');
+                if (associatedField) {
+                  // Scroll to the field
+                  associatedField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  
+                  // Add red box around incorrect value
+                  addRedBox(associatedField);
+                  
+                  // Focus the element if it's an input field (editable)
+                  setTimeout(function() {
+                    if (associatedField.tagName === 'INPUT' || associatedField.tagName === 'SELECT' || associatedField.tagName === 'TEXTAREA') {
+                      associatedField.focus();
+                      if (associatedField.select) associatedField.select();
+                    }
+                  }, 300);
+                  
+                  showNotification(`[NAV] Navigated to ${labelText.trim()}. Incorrect value highlighted in red. Press Esc to remove highlight.`, 'info');
+                  if (metricName) {
+                    setTimeout(function() {
+                      showNotification('Document Sync Console: This field (' + metricName.replace(/_/g, ' ') + ') was reported as 0 or missing. Enter a value and re-run analysis.', 'info');
+                    }, 800);
+                  }
+                  break;
+                }
+              }
+            }
+            
+            if (!field) {
+              showNotification(`[WARNING] Field "${fieldId}" not found. Please scroll to the input form section manually.`, 'warning');
+            }
+          }
+        } else {
+          scrollToElement('#results', true);
+          showNotification('[NAV] Scrolled to Results section (read-only). Fix input fields and re-run analysis to update results.', 'info');
+        }
+        break;
+        
+      case 'scrollToResults':
+        // Navigate to read-only analysis results section
+        if (scrollToElement('#results', true)) {
+          showNotification('[NAV] Navigated to Analysis Results (read-only). To update results, fix input fields above and click "Analyze" to re-run the analysis.', 'info');
+        } else if (scrollToElement('.results-section', true)) {
+          showNotification('[NAV] Navigated to Results section (read-only). Fix inputs and re-run analysis to update.', 'info');
+        } else {
+          showNotification('[WARNING] Results section not found. Please scroll manually to view results.', 'warning');
+        }
+        break;
+        
+      case 'regenerateHTML':
+        // Scroll to results and highlight HTML report button
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateHTMLReport') || 
+                     document.querySelector('button[onclick*="HTML"]') ||
+                     document.querySelector('button:contains("HTML Report")');
+          if (btn) {
+            scrollToElement(btn, true);
+            showNotification('[NAV] Navigated to HTML Report section. Click the highlighted button to regenerate.', 'info');
+          } else {
+            scrollToElement('#results', true);
+            showNotification('[WARNING] HTML Report button not found. Please scroll to Results section.', 'warning');
+          }
+        }, 500);
+        break;
+        
+      case 'regenerateAudit':
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateAuditPackage') || 
+                     document.querySelector('button[onclick*="Audit"]');
+          if (btn) {
+            scrollToElement(btn, true);
+            showNotification('[NAV] Navigated to Audit Package section. Click the highlighted button to regenerate.', 'info');
+          } else {
+            scrollToElement('#results', true);
+            showNotification('[WARNING] Audit Package button not found. Please scroll to Results section.', 'warning');
+          }
+        }, 500);
+        break;
+        
+      case 'regenerateUtility':
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateUtilityPackage') || 
+                     document.querySelector('button[onclick*="Utility"]');
+          if (btn) {
+            scrollToElement(btn, true);
+            showNotification('[NAV] Navigated to Utility Package section. Click the highlighted button to regenerate.', 'info');
+          } else {
+            scrollToElement('#results', true);
+            showNotification('[WARNING] Utility Package button not found. Please scroll to Results section.', 'warning');
+          }
+        }, 500);
+        break;
+        
+      case 'rerunAnalysis':
+        // Scroll to analyze button (user needs to fix inputs first, then click analyze)
+        const analyzeBtn = document.getElementById('btnAnalyze') || 
+                          document.querySelector('button[onclick*="analyze"]') ||
+                          document.querySelector('button[type="submit"]');
+        if (analyzeBtn) {
+          scrollToElement(analyzeBtn, true);
+          showNotification('[NAV] Navigated to Analyze button. Fix input fields above if needed, then click "Analyze" to re-run the analysis.', 'info');
+        } else {
+          showNotification('[WARNING] Analyze button not found. Please scroll to the top and click "Analyze".', 'warning');
+        }
+        break;
+        
+      default:
+        console.warn('Unknown sync console action:', action);
+    }
+    
+    // Clear localStorage after handling
+      localStorage.removeItem('syncConsoleAction');
+      localStorage.removeItem('syncConsoleFieldId');
+      localStorage.removeItem('syncConsoleFieldName');
+      localStorage.removeItem('syncConsoleMetric');
+    } catch (error) {
+      console.error('[ERROR] Error in DOMContentLoaded sync console handler:', error);
+      if (typeof showNotification === 'function') {
+        showNotification('[WARNING] Error processing navigation. Please try again or navigate manually.', 'error');
+      }
+    }
+  }, 800); // Wait 800ms for page to fully load
+});
+
+// Listen for direct navigation events (when already on target page)
+window.addEventListener('syncConsoleNavigate', function() {
+  setTimeout(function() {
+    try {
+    const action = localStorage.getItem('syncConsoleAction');
+    const fieldId = localStorage.getItem('syncConsoleFieldId');
+    const fieldName = localStorage.getItem('syncConsoleFieldName');
+    const metricName = localStorage.getItem('syncConsoleMetric');
+    
+    if (!action) return;
+    
+    console.log('Processing direct sync console navigation:', action, 'fieldId:', fieldId, 'fieldName:', fieldName, 'metric:', metricName);
+    
+    // Helper function to scroll to element with highlight
+    function scrollToElement(selector, highlight = true, focus = false) {
+      const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        if (highlight) {
+          const originalStyle = {
+            backgroundColor: element.style.backgroundColor,
+            border: element.style.border,
+            borderRadius: element.style.borderRadius,
+            padding: element.style.padding,
+            boxShadow: element.style.boxShadow,
+            transition: element.style.transition,
+            outline: element.style.outline
+          };
+          
+          element.style.transition = 'all 0.3s ease';
+          element.style.backgroundColor = '#fff3cd';
+          element.style.border = '2px solid #ffc107';
+          element.style.borderRadius = '4px';
+          element.style.padding = '10px';
+          element.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.5)';
+          element.style.outline = 'none';
+          
+          setTimeout(function() {
+            element.style.backgroundColor = originalStyle.backgroundColor || '';
+            element.style.border = originalStyle.border || '';
+            element.style.borderRadius = originalStyle.borderRadius || '';
+            element.style.padding = originalStyle.padding || '';
+            element.style.boxShadow = originalStyle.boxShadow || '';
+            element.style.outline = originalStyle.outline || '';
+          }, 5000);
+        }
+        
+        if (focus && (element.tagName === 'INPUT' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA')) {
+          setTimeout(function() {
+            element.focus();
+            if (element.select) element.select();
+          }, 300);
+        }
+        
+        return true;
+      }
+      return false;
+    }
+    
+    // Helper function to find input field by ID or name - more comprehensive search
+    function findInputField(fieldId, fieldName) {
+      console.log('[SEARCH] Finding field:', fieldId, fieldName);
+      
+      if (!fieldId && !fieldName) {
+        console.log('[ERROR] No fieldId or fieldName provided');
+        return null;
+      }
+      
+      // Try by ID first
+      if (fieldId) {
+        let field = document.getElementById(fieldId);
+        if (field) {
+          console.log('[OK] Found by ID:', fieldId);
+          return field;
+        }
+      }
+      
+      // Try by name attribute
+      if (fieldName) {
+        let field = document.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+          console.log('[OK] Found by name:', fieldName);
+          return field;
+        }
+      }
+      
+      // Try by name attribute with fieldId
+      if (fieldId) {
+        let field = document.querySelector(`[name="${fieldId}"]`);
+        if (field) {
+          console.log('[OK] Found by name (fieldId):', fieldId);
+          return field;
+        }
+      }
+      
+      // Try by data attribute
+      if (fieldId) {
+        let field = document.querySelector(`[data-field="${fieldId}"]`);
+        if (field) {
+          console.log('[OK] Found by data-field:', fieldId);
+          return field;
+        }
+      }
+      
+      // Try to find by label text (case-insensitive partial match)
+      const labels = document.querySelectorAll('label');
+      for (let i = 0; i < labels.length; i++) {
+        const labelText = (labels[i].textContent || labels[i].innerText || '').toLowerCase();
+        const labelFor = labels[i].getAttribute('for');
+        const fieldIdLower = fieldId ? fieldId.toLowerCase().replace(/_/g, ' ') : '';
+        const fieldNameLower = fieldName ? fieldName.toLowerCase().replace(/_/g, ' ') : '';
+        
+        if ((fieldId && labelFor === fieldId) || 
+            (labelText && ((fieldIdLower && labelText.includes(fieldIdLower)) || (fieldNameLower && labelText.includes(fieldNameLower))))) {
+          // Try to find associated input
+          const associatedField = document.getElementById(labelFor) ||
+                                 labels[i].nextElementSibling ||
+                                 labels[i].parentElement.querySelector('input, select, textarea, [role="textbox"]');
+          if (associatedField) {
+            console.log('[OK] Found by label:', labelText);
+            return associatedField;
+          }
+        }
+      }
+      
+      // For file fields, try to find the associated button or container
+      if (fieldId === 'before_file_id' || fieldId === 'after_file_id') {
+        const fileType = fieldId === 'before_file_id' ? 'before' : 'after';
+        let field = document.getElementById(`choose-${fileType}-file`) || 
+                document.querySelector(`[data-file-type="${fileType}"]`) ||
+                document.querySelector(`#${fileType}-file-selected`) ||
+                document.querySelector(`[name="${fileType}_file_id"]`) ||
+                document.querySelector(`[id*="${fileType}"][id*="file"]`);
+        if (field) {
+          console.log('[OK] Found file field:', fileType);
+          return field;
+        }
+      }
+      
+      // Try to find in form groups or input groups
+      if (fieldId) {
+        const formGroups = document.querySelectorAll('.form-group, .input-group, .form-control-group');
+        const fieldIdLower = fieldId.toLowerCase().replace(/_/g, ' ');
+        for (let i = 0; i < formGroups.length; i++) {
+          const group = formGroups[i];
+          const groupText = (group.textContent || '').toLowerCase();
+          if (groupText.includes(fieldIdLower)) {
+            const input = group.querySelector('input, select, textarea');
+            if (input) {
+              console.log('[OK] Found in form group:', fieldId);
+              return input;
+            }
+          }
+        }
+      }
+      
+      console.log('[ERROR] Field not found:', fieldId, fieldName);
+      return null;
+    }
+    
+    // Helper function to find metric value in results section - comprehensive search
+    function findMetricInResults(metricName) {
+      if (!metricName) {
+        console.log('[ERROR] findMetricInResults: No metric name provided');
+        return null;
+      }
+      
+      console.log('[SEARCH] Searching for metric in results:', metricName);
+      
+      const resultsDiv = document.getElementById('results');
+      if (!resultsDiv) {
+        console.log('[ERROR] Results div not found');
+        return null;
+      }
+      
+      const metricLower = metricName.toLowerCase().replace(/_/g, ' ').trim();
+      const metricUnderscore = metricName.toLowerCase().trim();
+      
+      // Strategy 1: Try to find by data attribute
+      let element = resultsDiv.querySelector(`[data-metric="${metricName}"]`) ||
+                   resultsDiv.querySelector(`[data-metric="${metricUnderscore}"]`) ||
+                   resultsDiv.querySelector(`[data-metric="${metricLower}"]`);
+      if (element) {
+        console.log('[OK] Found metric by data attribute:', metricName);
+        return element;
+      }
+      
+      // Strategy 2: Search in tables (most common structure for results)
+      const tables = resultsDiv.querySelectorAll('table');
+      for (let t = 0; t < tables.length; t++) {
+        const rows = tables[t].querySelectorAll('tr');
+        for (let r = 0; r < rows.length; r++) {
+          const cells = rows[r].querySelectorAll('td, th');
+          for (let c = 0; c < cells.length; c++) {
+            const cellText = (cells[c].textContent || '').toLowerCase().trim();
+            // Check if this cell contains the metric name
+            if (cellText.includes(metricLower) || cellText.includes(metricUnderscore.replace(/_/g, ' '))) {
+              // Found the label cell - return the value cell (next cell or parent row)
+              if (c + 1 < cells.length) {
+                console.log('[OK] Found metric in table row:', metricName);
+                return cells[c + 1]; // Return the value cell
+              } else if (rows[r].nextElementSibling) {
+                const nextRowCells = rows[r].nextElementSibling.querySelectorAll('td, th');
+                if (nextRowCells.length > 0) {
+                  console.log('[OK] Found metric in table (next row):', metricName);
+                  return nextRowCells[0];
+                }
+              }
+              // Return the row itself if no value cell found
+              console.log('[OK] Found metric in table row (returning row):', metricName);
+              return rows[r];
+            }
+          }
+        }
+      }
+      
+      // Strategy 3: Search in divs and spans (for non-table results)
+      const divsAndSpans = resultsDiv.querySelectorAll('div, span, p, h1, h2, h3, h4, h5, h6');
+      for (let i = 0; i < divsAndSpans.length; i++) {
+        const text = (divsAndSpans[i].textContent || '').toLowerCase().trim();
+        // More precise matching - metric name should be a significant part of the text
+        if ((text === metricLower || text === metricUnderscore.replace(/_/g, ' ')) ||
+            (text.startsWith(metricLower) && text.length < metricLower.length + 20) ||
+            (text.includes(metricLower) && text.split(metricLower).length === 2)) {
+          console.log('[OK] Found metric in div/span:', metricName);
+          // Try to find the value element (next sibling or parent)
+          const valueElement = divsAndSpans[i].nextElementSibling ||
+                              (divsAndSpans[i].parentElement && divsAndSpans[i].parentElement.nextElementSibling) ||
+                              divsAndSpans[i].parentElement ||
+                              divsAndSpans[i];
+          return valueElement;
+        }
+      }
+      
+      // Strategy 4: Search for partial matches in any element
+      const allElements = resultsDiv.querySelectorAll('*');
+      for (let i = 0; i < allElements.length; i++) {
+        const text = (allElements[i].textContent || '').toLowerCase();
+        // Look for metric name as a word boundary match
+        const regex = new RegExp('\\b' + metricLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+        if (regex.test(text) && (allElements[i].tagName === 'TD' || allElements[i].tagName === 'TH' || 
+            allElements[i].tagName === 'DIV' || allElements[i].tagName === 'SPAN' || 
+            allElements[i].tagName === 'P')) {
+          console.log('[OK] Found metric by partial match:', metricName);
+          return allElements[i];
+        }
+      }
+      
+      console.log('[ERROR] Metric not found in results:', metricName);
+      return null;
+    }
+    
+    // Handle different actions
+    switch(action) {
+      case 'goToField':
+        if (fieldId || fieldName) {
+          // Wait a bit to ensure DOM is fully loaded
+          setTimeout(function() {
+            const field = findInputField(fieldId || fieldName, fieldName || fieldId);
+            if (field) {
+              // Scroll to the field
+              field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              // Add red box around incorrect value
+              addRedBox(field);
+              
+              // Focus the element if it's an input field (editable)
+              setTimeout(function() {
+                if (field.tagName === 'INPUT' || field.tagName === 'SELECT' || field.tagName === 'TEXTAREA') {
+                  field.focus();
+                  if (field.select) field.select();
+                }
+              }, 300);
+              
+              // Show notification with better field label detection
+              let fieldLabel = field.getAttribute('placeholder') || 
+                              field.getAttribute('aria-label') ||
+                              field.getAttribute('title');
+              
+              // Try to find associated label
+              if (!fieldLabel) {
+                const labelFor = field.getAttribute('id') || field.getAttribute('name');
+                if (labelFor) {
+                  const label = document.querySelector(`label[for="${labelFor}"]`);
+                  if (label) {
+                    fieldLabel = label.textContent.trim();
+                  }
+                }
+              }
+              
+              // Try to find label as previous sibling or parent
+              if (!fieldLabel) {
+                const labelElement = field.previousElementSibling ||
+                                   (field.parentElement && field.parentElement.querySelector('label'));
+                if (labelElement && labelElement.tagName === 'LABEL') {
+                  fieldLabel = labelElement.textContent.trim();
+                }
+              }
+              
+              // Try closest label
+              if (!fieldLabel) {
+                const closestLabel = field.closest('label');
+                if (closestLabel) {
+                  fieldLabel = closestLabel.textContent.trim();
+                }
+              }
+              
+              // Fallback to formatted field ID/name
+              if (!fieldLabel) {
+                fieldLabel = (fieldId || fieldName || 'field').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              }
+              
+              if (typeof showNotification === 'function') {
+                showNotification(`[NAV] Navigated to "${fieldLabel}". Incorrect value highlighted in red. Press Esc to remove highlight.`, 'info');
+                if (metricName) {
+                  setTimeout(function() {
+                    showNotification('Document Sync Console: This field (' + metricName.replace(/_/g, ' ') + ') was reported as 0 or missing. Enter a value and re-run analysis.', 'info');
+                  }, 800);
+                }
+              }
+              
+              if (fieldId === 'before_file_id' || fieldId === 'after_file_id' || fieldName === 'before_file_id' || fieldName === 'after_file_id') {
+                setTimeout(function() {
+                  if (typeof showNotification === 'function') {
+                    showNotification('💡 Click the file selection button to choose a different file.', 'info');
+                  }
+                }, 2000);
+              }
+            } else {
+              // Field not found - show detailed warning
+              const searchTerms = [fieldId, fieldName].filter(Boolean).join('" or "');
+              if (typeof showNotification === 'function') {
+                showNotification(`[WARNING] Field "${searchTerms}" not found. Please scroll to the input form section manually and locate the field.`, 'warning');
+              }
+              console.warn('[ERROR] Field not found after comprehensive search:', fieldId, fieldName);
+              
+              // Try to scroll to form area as fallback
+              const form = document.getElementById('analysisForm') || document.querySelector('form');
+              if (form) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (typeof showNotification === 'function') {
+                  setTimeout(function() {
+                    showNotification('[NAV] Scrolled to form area. Please locate the field manually.', 'info');
+                  }, 1000);
+                }
+              }
+            }
+          }, 100); // Small delay to ensure DOM is ready
+        } else {
+          // No field ID - scroll to results
+          scrollToElement('#results', true);
+          if (typeof showNotification === 'function') {
+            showNotification('[NAV] Scrolled to Results section (read-only). Fix input fields and re-run analysis to update results.', 'info');
+          }
+        }
+        break;
+        
+      case 'scrollToResults':
+        // Get the metric name from localStorage if available (set by the button)
+        const metricName = localStorage.getItem('syncConsoleMetric');
+        if (metricName) {
+          console.log('[SEARCH] Searching for specific metric in results:', metricName);
+          // Wait a bit for dynamic content to load
+          setTimeout(function() {
+            const metricElement = findMetricInResults(metricName);
+            if (metricElement) {
+              metricElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              addRedBox(metricElement);
+              const metricLabel = metricName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              if (typeof showNotification === 'function') {
+                showNotification(`[NAV] Navigated to "${metricLabel}" in Analysis Results. Incorrect value highlighted in red. Press Esc to remove highlight.`, 'info');
+              }
+            } else {
+              // Metric not found - scroll to results section and show helpful message
+              console.warn('[WARNING] Metric not found in results, scrolling to results section:', metricName);
+              if (scrollToElement('#results', true)) {
+                if (typeof showNotification === 'function') {
+                  const metricLabel = metricName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                  showNotification(`[NAV] Navigated to Analysis Results. Could not find "${metricLabel}" - please locate it manually. To update results, fix input fields above and click "Analyze" to re-run the analysis.`, 'warning');
+                }
+              }
+            }
+          }, 500); // Wait 500ms for dynamic content
+        } else {
+          // No specific metric - just scroll to results
+          if (scrollToElement('#results', true)) {
+            if (typeof showNotification === 'function') {
+              showNotification('[NAV] Navigated to Analysis Results (read-only). To update results, fix input fields above and click "Analyze" to re-run the analysis.', 'info');
+            }
+          } else if (scrollToElement('.results-section', true)) {
+            if (typeof showNotification === 'function') {
+              showNotification('[NAV] Navigated to Results section (read-only). Fix inputs and re-run analysis to update.', 'info');
+            }
+          } else {
+            if (typeof showNotification === 'function') {
+              showNotification('[WARNING] Results section not found. Please scroll manually to view results.', 'warning');
+            }
+          }
+        }
+        break;
+        
+      case 'regenerateHTML':
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateHTMLReport') || 
+                     document.querySelector('button[onclick*="HTML"]') ||
+                     document.querySelector('button:contains("HTML Report")');
+          if (btn) {
+            scrollToElement(btn, true);
+            if (typeof showNotification === 'function') {
+              showNotification('[NAV] Navigated to HTML Report section. Click the highlighted button to regenerate.', 'info');
+            }
+          } else {
+            scrollToElement('#results', true);
+            if (typeof showNotification === 'function') {
+              showNotification('[WARNING] HTML Report button not found. Please scroll to Results section.', 'warning');
+            }
+          }
+        }, 500);
+        break;
+        
+      case 'regenerateAudit':
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateAuditPackage') || 
+                     document.querySelector('button[onclick*="Audit"]');
+          if (btn) {
+            scrollToElement(btn, true);
+            if (typeof showNotification === 'function') {
+              showNotification('[NAV] Navigated to Audit Package section. Click the highlighted button to regenerate.', 'info');
+            }
+          } else {
+            scrollToElement('#results', true);
+            if (typeof showNotification === 'function') {
+              showNotification('[WARNING] Audit Package button not found. Please scroll to Results section.', 'warning');
+            }
+          }
+        }, 500);
+        break;
+        
+      case 'regenerateUtility':
+        scrollToElement('#results', false);
+        setTimeout(function() {
+          const btn = document.getElementById('btnGenerateUtilityPackage') || 
+                     document.querySelector('button[onclick*="Utility"]');
+          if (btn) {
+            scrollToElement(btn, true);
+            if (typeof showNotification === 'function') {
+              showNotification('[NAV] Navigated to Utility Package section. Click the highlighted button to regenerate.', 'info');
+            }
+          } else {
+            scrollToElement('#results', true);
+            if (typeof showNotification === 'function') {
+              showNotification('[WARNING] Utility Package button not found. Please scroll to Results section.', 'warning');
+            }
+          }
+        }, 500);
+        break;
+        
+      case 'rerunAnalysis':
+        const analyzeBtn = document.getElementById('btnAnalyze') || 
+                          document.querySelector('button[onclick*="analyze"]') ||
+                          document.querySelector('button[type="submit"]');
+        if (analyzeBtn) {
+          scrollToElement(analyzeBtn, true);
+          if (typeof showNotification === 'function') {
+            showNotification('[NAV] Navigated to Analyze button. Fix input fields above if needed, then click "Analyze" to re-run the analysis.', 'info');
+          }
+        } else {
+          if (typeof showNotification === 'function') {
+            showNotification('[WARNING] Analyze button not found. Please scroll to the top and click "Analyze".', 'warning');
+          }
+        }
+        break;
+    }
+    
+      localStorage.removeItem('syncConsoleAction');
+      localStorage.removeItem('syncConsoleFieldId');
+      localStorage.removeItem('syncConsoleFieldName');
+      localStorage.removeItem('syncConsoleMetric');
+    } catch (error) {
+      console.error('[ERROR] Error in syncConsoleNavigate handler:', error);
+      if (typeof showNotification === 'function') {
+        showNotification('[WARNING] Error navigating to field. Please try again or navigate manually.', 'error');
+      }
+    }
+  }, 100);
 });
 
 // Render Sankey diagram for energy flow visualization
