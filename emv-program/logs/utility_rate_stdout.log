@@ -1,0 +1,70 @@
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on
+Starting Utility Rate Service on port 8202
+Endpoints:
+  GET  /health
+  POST /rates
+  GET  /rates/state/<state>
+ * Serving Flask app 'utility_rate_service'
+ * Debug mode: on

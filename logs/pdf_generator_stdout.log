@@ -1,0 +1,40 @@
+SVGLib available - SVG chart support enabled
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Enabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib available - SVG chart support enabled
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Enabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib available - SVG chart support enabled
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Enabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib available - SVG chart support enabled
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Enabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off

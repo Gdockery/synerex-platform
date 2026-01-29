@@ -1,0 +1,25 @@
+import{j as a,a as e}from"./index-5a66b705.js";import{H as t}from"./Hero-9fbceb9f.js";import{L as r}from"./LicenseSeal-e7de1aa3.js";function o(){return a("div",{className:"min-h-screen bg-gray-950 text-gray-100 font-sans pt-16",children:[e("style",{children:`
+        @keyframes gradientMove {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animated-gradient {
+          background-size: 400% 400%;
+          animation: gradientMove 15s ease infinite;
+        }
+        .fade-in {
+          opacity: 0;
+          transform: translateY(15px);
+          animation: fadeIn 1.5s ease forwards;
+        }
+        @keyframes fadeIn {
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .logo-glow {
+          filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(126,34,206,0.6)) drop-shadow(0 0 16px rgba(59,130,246,0.4));
+        }
+      `}),a("section",{className:"relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white",children:[e("div",{className:"absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60",style:{zIndex:.5}}),e("div",{className:"fade-in",style:{zIndex:1},children:e("img",{src:"/images/SynerexLogo.png",alt:"Synerex Logo",className:"mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow"})})]}),e(r,{}),e(t,{title:"Equipment Protection",subtitle:"Protects electrical equipment from damage caused by current imbalances, voltage spikes, and power quality issues, extending equipment lifespan and reducing maintenance costs."}),e("section",{className:"max-w-7xl mx-auto px-4 py-12 fade-in",children:a("div",{className:"grid md:grid-cols-2 gap-6",children:[a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Current Imbalance Protection"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Network-wide current balancing prevents equipment damage caused by phase imbalances, ensuring all electrical devices receive stable, balanced power that extends their operational life."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Voltage Spike Prevention"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Advanced filtering and balancing technology protects sensitive equipment from voltage spikes and transients that can cause immediate damage or gradual degradation over time."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Harmonic Filtering"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Eliminates harmonic distortion that can cause overheating, vibration, and premature failure in motors, transformers, and other electrical equipment throughout the facility."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Power Quality Stabilization"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Maintains consistent power quality parameters that protect equipment from the cumulative effects of poor power quality, including voltage fluctuations and frequency variations."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Thermal Protection"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Prevents equipment overheating by eliminating current imbalances that cause excessive heating in electrical components, reducing thermal stress and extending equipment life."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Mechanical Stress Reduction"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Reduces mechanical stress on rotating equipment by providing balanced electrical loads, preventing vibration and mechanical wear that can lead to equipment failure."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Predictive Maintenance"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Continuous monitoring of power quality parameters enables predictive maintenance scheduling, identifying potential equipment issues before they cause failures or damage."})]}),a("div",{className:"p-6 border border-gray-700 bg-gray-800 rounded-xl",children:[e("h3",{className:"font-bold text-purple-400",children:"Cost Reduction"}),e("p",{className:"text-sm mt-2 text-gray-300",children:"Significantly reduces maintenance costs and equipment replacement expenses by preventing damage and extending equipment lifespan through improved power quality conditions."})]})]})})]})}export{o as default};

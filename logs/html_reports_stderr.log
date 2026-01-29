@@ -1,0 +1,1347 @@
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8084
+ * Running on http://192.168.1.190:8084
+Press CTRL+C to quit
+127.0.0.1 - - [17/Jan/2026 11:59:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:00:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:01:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:02:21,018 - main_hardened_ready_fixed - INFO - WeatherServiceClient initialized with URL: http://127.0.0.1:8200
+2026-01-17 12:02:22,281 - main_hardened_ready_fixed - INFO - File protection system enabled
+2026-01-17 12:02:22,282 - main_hardened_ready_fixed - INFO - Confirmation system enabled
+2026-01-17 12:02:22,282 - file_protection_system - INFO - File protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 12:02:22,282 - file_protection_system - INFO - Database file protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 12:02:22,282 - main_hardened_ready_fixed - INFO - Database file protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 12:02:22,284 - main_hardened_ready_fixed - INFO - verification_code column already exists
+2026-01-17 12:02:22,285 - main_hardened_ready_fixed - INFO - Database initialized successfully
+2026-01-17 12:02:22,288 - main_hardened_ready_fixed - INFO - Report template will be loaded on-demand for better performance
+2026-01-17 12:02:22,295 - main_hardened_ready_fixed - INFO - JavaScript content length after replacements: 630280
+2026-01-17 12:02:22,295 - main_hardened_ready_fixed - INFO - JavaScript content preview: /* FORCE CACHE CLEAR - IEEE 519 CHARTS - TIMESTAMP: 1768672942 - POWER FACTOR FIX */
+/* Cache bust: 1768672942 - IEEE 519 CHARTS V4.0 - 7309262 - FORCE RELOAD - CLEAR CACHE NOW! */
+// SYNEREX Power An...
+127.0.0.1 - - [17/Jan/2026 12:02:23] "GET /generate HTTP/1.1" 200 -
+2026-01-17 12:02:23,085 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:02:23] "GET /generate HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:02:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:02:27,925 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:02:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:02:36] "GET /generate HTTP/1.1" 200 -
+2026-01-17 12:02:36,635 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:02:36] "GET /generate HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:03:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:03:00,158 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:03:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:03:01] "GET /generate HTTP/1.1" 200 -
+2026-01-17 12:03:01,901 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:03:01] "GET /generate HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:03:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:03:32,522 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:03:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:04:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:04:04,596 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:04:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:04:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:04:36,692 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:04:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:05:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:05:08,819 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:05:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:05:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:05:40,973 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:05:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:06:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:06:13,088 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:06:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:06:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:06:45,197 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:06:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:07:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:07:17,357 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:07:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:07:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:07:49,490 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:07:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:08:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:08:21,641 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:08:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:08:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:08:53,731 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:08:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:09:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:09:25,848 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:09:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:09:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:09:57,991 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:09:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:10:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:10:30,122 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:10:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:11:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:11:02,278 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:11:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:11:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:11:34,408 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:11:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:12:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:12:06,582 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:12:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:12:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:12:38,676 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:12:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:13:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:13:10,778 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:13:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:13:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:13:42,886 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:13:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:14:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:14:15,034 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:14:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:14:47] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:14:47,165 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:14:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:15:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:15:19,312 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:15:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:15:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:15:51,389 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:15:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:16:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:16:23,456 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:16:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:16:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:16:55,547 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:16:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:17:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:17:27,654 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:17:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:17:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:17:59,768 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:17:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:18:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:18:31,858 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:18:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:19:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:19:03,948 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:19:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:19:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:19:36,061 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:19:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:20:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:20:08,145 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:20:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:20:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:20:40,230 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:20:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:21:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:21:12,327 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:21:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:21:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:21:44,426 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:21:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:22:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:22:16,500 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:22:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:22:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:22:48,602 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:22:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:23:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:23:20,744 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:23:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:23:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:23:52,873 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:23:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:24:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:24:25,058 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:24:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:24:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:24:57,171 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:24:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:25:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:25:29,238 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:25:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:26:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:26:01,316 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:26:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:26:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:26:33,439 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:26:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:27:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:27:05,528 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:27:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:27:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:27:37,632 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:27:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:28:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:28:09,739 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:28:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:28:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:28:41,799 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:28:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:29:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:29:13,861 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:29:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:29:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:29:45,947 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:29:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:30:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:30:18,034 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:30:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:30:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:30:50,095 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:30:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:31:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:31:22,170 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:31:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:31:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:31:54,270 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:31:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:32:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:32:26,362 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:32:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:32:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:32:58,453 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:32:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:33:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:33:30,545 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:33:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:34:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:34:02,600 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:34:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:34:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:34:34,671 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:34:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:35:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:35:06,761 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:35:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:35:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:35:38,862 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:35:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:36:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:36:10,976 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:36:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:36:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:36:43,028 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:36:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:37:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:37:15,134 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:37:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:37:47] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:37:47,230 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:37:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:38:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:38:19,371 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:38:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:38:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:38:51,448 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:38:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:39:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:39:23,527 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:39:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:39:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:39:55,637 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:39:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:40:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:40:27,699 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:40:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:40:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:40:59,771 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:40:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:41:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:41:31,871 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:41:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:42:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:42:03,970 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:42:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:42:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:42:36,111 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:42:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:43:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:43:08,177 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:43:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:43:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:43:40,282 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:43:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:44:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:44:12,407 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:44:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:44:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:44:44,482 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:44:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:45:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:45:16,542 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:45:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:45:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:45:48,612 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:45:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:46:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:46:20,701 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:46:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:46:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:46:52,828 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:46:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:47:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:47:24,977 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:47:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:47:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:47:57,103 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:47:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:48:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:48:29,235 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:48:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:49:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:49:01,323 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:49:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:49:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:49:33,442 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:49:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:50:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:50:05,602 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:50:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:50:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:50:37,707 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:50:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:51:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:51:09,788 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:51:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:51:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:51:41,875 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:51:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:52:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:52:14,081 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:52:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:52:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:52:46,249 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:52:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:53:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:53:18,344 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:53:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:53:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:53:50,416 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:53:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:54:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:54:22,528 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:54:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:54:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:54:54,609 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:54:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:55:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:55:26,784 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:55:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:55:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:55:58,980 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:55:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:56:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:56:31,069 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:56:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:57:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:57:03,158 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:57:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:57:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:57:35,243 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:57:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:58:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:58:07,338 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:58:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:58:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:58:39,417 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:58:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:59:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:59:11,564 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:59:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 12:59:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 12:59:43,754 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 12:59:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:00:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:00:15,947 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:00:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:00:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:00:48,040 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:00:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:01:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:01:20,143 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:01:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:01:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:01:52,234 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:01:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:02:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:02:24,333 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:02:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:02:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:02:56,429 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:02:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:03:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:03:28,559 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:03:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:04:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:04:00,642 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:04:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:04:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:04:32,722 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:04:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:05:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:05:04,840 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:05:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:05:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:05:36,916 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:05:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:06:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:06:08,994 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:06:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:06:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:06:41,056 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:06:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:07:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:07:13,162 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:07:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:07:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:07:45,272 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:07:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:08:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:08:17,424 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:08:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:08:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:08:49,556 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:08:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:09:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:09:21,645 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:09:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:09:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:09:53,719 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:09:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:10:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:10:25,847 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:10:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:10:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:10:57,935 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:10:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:11:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:11:30,060 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:11:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:12:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:12:02,133 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:12:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:12:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:12:34,234 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:12:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:13:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:13:06,348 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:13:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:13:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:13:38,412 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:13:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:14:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:14:10,494 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:14:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:14:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:14:42,599 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:14:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:15:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:15:14,707 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:15:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:15:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:15:46,864 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:15:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:16:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:16:19,055 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:16:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:16:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:16:51,171 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:16:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:17:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:17:23,299 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:17:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:17:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:17:55,453 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:17:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:18:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:18:27,591 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:18:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:18:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:18:59,676 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:18:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:19:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:19:31,785 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:19:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:20:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:20:03,926 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:20:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:20:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:20:36,017 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:20:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:21:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:21:08,142 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:21:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:21:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:21:40,341 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:21:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:22:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:22:12,438 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:22:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:22:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:22:44,518 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:22:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:23:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:23:16,592 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:23:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:23:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:23:48,682 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:23:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:24:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:24:20,798 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:24:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:24:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:24:34,073 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:24:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:24:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:24:34,084 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:24:34] "GET /health HTTP/1.1" 200 -
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8084
+ * Running on http://192.168.1.190:8084
+Press CTRL+C to quit
+127.0.0.1 - - [17/Jan/2026 13:25:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:25:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:26:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:27:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:27:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:28:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:28:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:29:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:29:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:30:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:30:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:31:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:31:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:32:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:32:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:33:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:33:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:34:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:35:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:35:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:36:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:36:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:37:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:37:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:37:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:37:54] "GET /health HTTP/1.1" 200 -
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8084
+ * Running on http://192.168.1.190:8084
+Press CTRL+C to quit
+127.0.0.1 - - [17/Jan/2026 13:38:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:38:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:39:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:40:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:41:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:41:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:42:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:42:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:43:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:43:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:44:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:44:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:45:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:45:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:46:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:46:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:47:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:47:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:48:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:49:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:49:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:50:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:50:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:51:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:51:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:52:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:52:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:53:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:53:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:54:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:54:02] "GET /health HTTP/1.1" 200 -
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8084
+ * Running on http://192.168.1.190:8084
+Press CTRL+C to quit
+127.0.0.1 - - [17/Jan/2026 13:54:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:54:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:54:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:54:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:55:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:56:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:57:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:57:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:58:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:58:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:59:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:59:27,064 - main_hardened_ready_fixed - INFO - WeatherServiceClient initialized with URL: http://127.0.0.1:8200
+2026-01-17 13:59:30,713 - main_hardened_ready_fixed - INFO - File protection system enabled
+2026-01-17 13:59:30,717 - main_hardened_ready_fixed - INFO - Confirmation system enabled
+2026-01-17 13:59:30,721 - file_protection_system - INFO - File protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 13:59:30,721 - file_protection_system - INFO - Database file protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 13:59:30,721 - main_hardened_ready_fixed - INFO - Database file protected: C:\Users\Admin\OneDrive\Documents\synerex-platform\emv-program\8082\results\app.db
+2026-01-17 13:59:30,858 - main_hardened_ready_fixed - INFO - verification_code column already exists
+2026-01-17 13:59:30,886 - main_hardened_ready_fixed - INFO - Database initialized successfully
+2026-01-17 13:59:30,889 - main_hardened_ready_fixed - INFO - Report template will be loaded on-demand for better performance
+2026-01-17 13:59:30,938 - main_hardened_ready_fixed - INFO - JavaScript content length after replacements: 630280
+2026-01-17 13:59:30,938 - main_hardened_ready_fixed - INFO - JavaScript content preview: /* FORCE CACHE CLEAR - IEEE 519 CHARTS - TIMESTAMP: 1768679970 - POWER FACTOR FIX */
+/* Cache bust: 1768679970 - IEEE 519 CHARTS V4.0 - 7704464 - FORCE RELOAD - CLEAR CACHE NOW! */
+// SYNEREX Power An...
+127.0.0.1 - - [17/Jan/2026 13:59:32] "GET /generate HTTP/1.1" 200 -
+2026-01-17 13:59:32,105 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:59:32] "GET /generate HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 13:59:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 13:59:44,157 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 13:59:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:00:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:00:16,554 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:00:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:00:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:00:48,855 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:00:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:01:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:01:20,998 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:01:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:01:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:01:53,191 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:01:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:02:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:02:25,286 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:02:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:02:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:02:57,413 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:02:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:03:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:03:29,536 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:03:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:04:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:04:01,651 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:04:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:04:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:04:33,743 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:04:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:05:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:05:05,864 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:05:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:05:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:05:37,933 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:05:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:06:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:06:10,020 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:06:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:06:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:06:42,116 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:06:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:07:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:07:14,226 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:07:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:07:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:07:46,342 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:07:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:08:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:08:18,420 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:08:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:08:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:08:50,500 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:08:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:09:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:09:22,633 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:09:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:09:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:09:54,999 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:09:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:10:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:10:27,219 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:10:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:10:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:10:59,328 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:10:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:11:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:11:31,444 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:11:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:12:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:12:03,531 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:12:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:12:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:12:35,634 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:12:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:13:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:13:07,745 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:13:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:13:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:13:39,963 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:13:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:14:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:14:12,090 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:14:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:14:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:14:44,162 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:14:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:15:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:15:16,245 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:15:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:15:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:15:48,392 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:15:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:16:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:16:20,530 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:16:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:16:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:16:52,608 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:16:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:17:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:17:24,694 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:17:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:17:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:17:56,791 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:17:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:18:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:18:28,911 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:18:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:19:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:19:01,021 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:19:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:19:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:19:33,129 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:19:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:20:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:20:05,226 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:20:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:20:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:20:37,342 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:20:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:21:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:21:09,415 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:21:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:21:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:21:41,493 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:21:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:22:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:22:13,601 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:22:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:22:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:22:45,694 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:22:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:23:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:23:17,759 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:23:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:23:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:23:49,856 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:23:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:24:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:24:21,927 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:24:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:24:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:24:53,996 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:24:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:25:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:25:26,107 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:25:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:25:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:25:58,251 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:25:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:26:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:26:30,335 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:26:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:27:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:27:02,406 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:27:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:27:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:27:34,542 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:27:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:28:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:28:06,649 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:28:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:28:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:28:38,796 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:28:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:29:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:29:10,975 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:29:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:29:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:29:43,081 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:29:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:30:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:30:15,217 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:30:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:30:47] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:30:47,303 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:30:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:31:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:31:19,435 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:31:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:31:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:31:51,572 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:31:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:32:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:32:23,684 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:32:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:32:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:32:55,968 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:32:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:33:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:33:28,020 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:33:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:34:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:34:00,149 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:34:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:34:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:34:32,266 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:34:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:35:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:35:04,400 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:35:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:35:36] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:35:36,537 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:35:36] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:36:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:36:08,685 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:36:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:36:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:36:40,787 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:36:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:37:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:37:12,881 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:37:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:37:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:37:45,052 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:37:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:38:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:38:17,171 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:38:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:38:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:38:49,274 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:38:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:39:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:39:21,393 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:39:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:39:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:39:53,544 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:39:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:40:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:40:25,631 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:40:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:40:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:40:57,764 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:40:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:41:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:41:29,880 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:41:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:42:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:42:02,047 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:42:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:42:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:42:34,136 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:42:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:43:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:43:06,275 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:43:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:43:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:43:38,455 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:43:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:44:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:44:10,532 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:44:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:44:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:44:42,643 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:44:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:45:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:45:14,731 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:45:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:45:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:45:46,836 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:45:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:46:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:46:18,973 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:46:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:46:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:46:51,113 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:46:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:47:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:47:23,219 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:47:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:47:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:47:55,337 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:47:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:48:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:48:27,453 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:48:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:48:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:48:59,506 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:48:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:49:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:49:31,596 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:49:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:50:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:50:03,725 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:50:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:50:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:50:35,823 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:50:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:51:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:51:07,926 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:51:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:51:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:51:40,029 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:51:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:52:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:52:12,141 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:52:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:52:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:52:44,248 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:52:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:53:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:53:16,319 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:53:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:53:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:53:48,464 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:53:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:54:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:54:20,557 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:54:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:54:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:54:52,653 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:54:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:55:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:55:24,762 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:55:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:55:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:55:56,911 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:55:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:56:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:56:29,041 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:56:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:57:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:57:01,135 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:57:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:57:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:57:33,225 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:57:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:58:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:58:05,379 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:58:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:58:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:58:37,531 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:58:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:59:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:59:09,628 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:59:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 14:59:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 14:59:41,738 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 14:59:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:00:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:00:13,811 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:00:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:00:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:00:45,940 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:00:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:01:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:01:18,086 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:01:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:01:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:01:50,167 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:01:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:02:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:02:22,309 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:02:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:02:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:02:54,414 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:02:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:03:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:03:26,530 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:03:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:03:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:03:58,837 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:03:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:04:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:04:30,985 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:04:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:05:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:05:03,096 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:05:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:05:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:05:35,162 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:05:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:06:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:06:07,279 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:06:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:06:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:06:39,429 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:06:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:07:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:07:11,567 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:07:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:07:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:07:43,772 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:07:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:08:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:08:16,091 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:08:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:08:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:08:48,238 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:08:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:09:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:09:20,350 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:09:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:09:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:09:52,524 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:09:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:10:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:10:24,657 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:10:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:10:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:10:56,890 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:10:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:11:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:11:12,574 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:11:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:11:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:11:12,576 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:11:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:11:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:11:15,144 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:11:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:11:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:11:15,242 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:11:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:11:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:11:29,125 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:11:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:12:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:12:01,233 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:12:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:12:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:12:33,319 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:12:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:13:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:13:05,547 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:13:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:13:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:13:37,904 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:13:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:14:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:14:10,208 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:14:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:14:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:14:42,369 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:14:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:15:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:15:14,487 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:15:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:15:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:15:46,585 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:15:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:16:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:16:18,682 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:16:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:16:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:16:50,804 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:16:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:17:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:17:22,944 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:17:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:17:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:17:55,219 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:17:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:18:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:18:27,368 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:18:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:18:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:18:59,545 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:18:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:19:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:19:31,626 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:19:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:20:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:20:03,736 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:20:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:20:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:20:35,849 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:20:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:21:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:21:07,970 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:21:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:21:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:21:40,044 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:21:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:22:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:22:12,178 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:22:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:22:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:22:44,313 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:22:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:23:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:23:16,463 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:23:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:23:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:23:48,599 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:23:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:24:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:24:20,726 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:24:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:24:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:24:52,892 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:24:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:25:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:25:24,987 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:25:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:25:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:25:57,113 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:25:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:26:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:26:29,216 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:26:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:27:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:27:01,299 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:27:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:27:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:27:33,429 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:27:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:28:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:28:05,673 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:28:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:28:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:28:37,769 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:28:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:29:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:29:09,865 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:29:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:29:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:29:41,952 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:29:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:30:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:30:14,103 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:30:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:30:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:30:46,161 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:30:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:31:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:31:18,362 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:31:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:31:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:31:50,439 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:31:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:32:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:32:22,566 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:32:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:32:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:32:54,666 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:32:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:33:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:33:26,761 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:33:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:33:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:33:58,887 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:33:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:34:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:34:31,047 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:34:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:35:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:35:03,186 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:35:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:35:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:35:35,294 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:35:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:36:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:36:07,401 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:36:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:36:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:36:39,458 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:36:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:37:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:37:11,513 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:37:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:37:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:37:43,778 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:37:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:38:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:38:02,305 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:38:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:38:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:38:02,324 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:38:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:38:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:38:15,954 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:38:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:38:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:38:48,162 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:38:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:39:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:39:20,267 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:39:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:39:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:39:52,355 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:39:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:40:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:40:24,435 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:40:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:40:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:40:56,538 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:40:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:41:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:41:28,667 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:41:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:42:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:42:00,716 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:42:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:42:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:42:32,840 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:42:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:43:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:43:04,945 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:43:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:43:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:43:37,040 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:43:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:44:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:44:09,141 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:44:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:44:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:44:41,263 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:44:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:45:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:45:13,358 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:45:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:45:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:45:45,633 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:45:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:46:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:46:17,801 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:46:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:46:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:46:49,935 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:46:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:47:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:47:22,010 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:47:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:47:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:47:54,121 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:47:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:48:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:48:26,261 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:48:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:48:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:48:58,357 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:48:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:49:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:49:30,473 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:49:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:50:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:50:02,538 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:50:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:50:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:50:34,628 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:50:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:51:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:51:06,720 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:51:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:51:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:51:38,811 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:51:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:52:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:52:10,883 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:52:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:52:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:52:42,977 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:52:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:53:15] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:53:15,063 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:53:15] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:53:47] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:53:47,165 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:53:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:54:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:54:19,264 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:54:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:54:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:54:51,368 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:54:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:55:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:55:23,426 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:55:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:55:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:55:55,513 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:55:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:56:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:56:27,599 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:56:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:56:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:56:59,701 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:56:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:57:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:57:31,810 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:57:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:58:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:58:03,873 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:58:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:58:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:58:35,972 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:58:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:59:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:59:08,082 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:59:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 15:59:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 15:59:40,177 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 15:59:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:00:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:00:12,282 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:00:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:00:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:00:44,412 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:00:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:01:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:01:16,605 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:01:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:01:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:01:48,763 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:01:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:02:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:02:20,871 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:02:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:02:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:02:52,975 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:02:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:03:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:03:25,069 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:03:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:03:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:03:57,136 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:03:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:04:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:04:29,207 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:04:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:05:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:05:01,295 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:05:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:05:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:05:33,382 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:05:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:06:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:06:05,489 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:06:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:06:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:06:37,589 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:06:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:07:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:07:09,802 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:07:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:07:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:07:42,142 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:07:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:08:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:08:14,253 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:08:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:08:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:08:46,460 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:08:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:09:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:09:18,581 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:09:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:09:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:09:50,641 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:09:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:10:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:10:22,705 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:10:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:10:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:10:54,790 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:10:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:11:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:11:44,959 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:11:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:12:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:12:17,039 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:12:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:12:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:12:49,147 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:12:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:13:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:13:21,263 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:13:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:13:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:13:53,379 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:13:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:14:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:14:25,520 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:14:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:14:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:14:57,613 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:14:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:15:29] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:15:29,692 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:15:29] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:16:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:16:01,774 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:16:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:16:33] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:16:33,857 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:16:33] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:17:05] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:17:05,937 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:17:05] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:17:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:17:38,030 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:17:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:18:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:18:10,158 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:18:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:18:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:18:42,248 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:18:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:19:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:19:14,392 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:19:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:19:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:19:46,535 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:19:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:20:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:20:18,687 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:20:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:20:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:20:50,797 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:20:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:21:22] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:21:22,903 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:21:22] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:21:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:21:54,986 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:21:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:22:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:22:27,084 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:22:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:22:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:22:59,157 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:22:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:23:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:23:31,280 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:23:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:24:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:24:03,367 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:24:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:24:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:24:35,464 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:24:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:25:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:25:07,588 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:25:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:25:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:25:39,667 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:25:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:26:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:26:11,778 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:26:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:26:43] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:26:43,853 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:26:43] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:27:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:27:16,007 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:27:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:27:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:27:48,097 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:27:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:28:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:28:20,150 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:28:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:28:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:28:52,245 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:28:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:29:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:29:24,333 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:29:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:29:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:29:56,489 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:29:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:30:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:30:28,601 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:30:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:31:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:31:00,683 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:31:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:31:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:31:32,794 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:31:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:32:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:32:04,934 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:32:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:32:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:32:37,054 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:32:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:33:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:33:09,150 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:33:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:33:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:33:41,247 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:33:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:34:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:34:13,397 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:34:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:34:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:34:45,519 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:34:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:35:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:35:17,601 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:35:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:35:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:35:49,667 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:35:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:36:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:36:21,749 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:36:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:36:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:36:53,832 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:36:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:37:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:37:25,903 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:37:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:37:57] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:37:57,960 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:37:57] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:38:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:38:30,060 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:38:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:39:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:39:02,134 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:39:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:39:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:39:34,267 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:39:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:40:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:40:06,344 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:40:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:40:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:40:38,447 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:40:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:41:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:41:10,516 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:41:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:41:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:41:42,623 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:41:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:42:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:42:14,743 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:42:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:42:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:42:46,853 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:42:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:43:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:43:18,889 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:43:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:43:50] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:43:50,970 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:43:50] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:44:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:44:23,052 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:44:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:44:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:44:55,124 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:44:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:45:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:45:27,261 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:45:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:45:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:45:59,349 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:45:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:46:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:46:31,455 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:46:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:47:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:47:03,570 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:47:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:47:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:47:35,671 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:47:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:48:07] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:48:07,778 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:48:07] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:48:39] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:48:39,877 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:48:39] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:49:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:49:11,979 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:49:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:49:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:49:44,099 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:49:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:50:16] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:50:16,145 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:50:16] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:50:48] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:50:48,245 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:50:48] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:51:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:51:20,311 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:51:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:51:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:51:52,379 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:51:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:52:24] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:52:24,447 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:52:24] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:52:56] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:52:56,550 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:52:56] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:53:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:53:28,643 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:53:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:54:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:54:00,779 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:54:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:54:32] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:54:32,894 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:54:32] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:55:04] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:55:04,962 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:55:04] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:55:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:55:37,020 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:55:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:56:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:56:09,094 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:56:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:56:41] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:56:41,182 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:56:41] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:57:13] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:57:13,253 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:57:13] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:57:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:57:45,347 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:57:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:58:17] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:58:17,538 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:58:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:58:49] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:58:49,660 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:58:49] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:59:21] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:59:21,761 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:59:21] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 16:59:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 16:59:53,827 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 16:59:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:00:25] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:00:25,940 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:00:25] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:00:58] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:00:58,065 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:00:58] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:01:30] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:01:30,167 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:01:30] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:02:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:02:02,317 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:02:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:02:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:02:34,446 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:02:34] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:03:06] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:03:06,523 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:03:06] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:03:38] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:03:38,621 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:03:38] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:04:10] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:04:10,746 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:04:10] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:04:42] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:04:42,845 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:04:42] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:05:14] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:05:14,947 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:05:14] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:05:47] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:05:47,015 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:05:47] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:06:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:06:19,133 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:06:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:06:51] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:06:51,252 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:06:51] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:07:23] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:07:23,353 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:07:23] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:07:55] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:07:55,569 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:07:55] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:08:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:08:27,683 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:08:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:08:59] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:08:59,749 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:08:59] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:09:31] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:09:31,870 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:09:31] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:10:03] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:10:03,917 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:10:03] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:10:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:10:35,998 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:10:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:11:08] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:11:08,050 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:11:08] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:11:40] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:11:40,128 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:11:40] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:12:12] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:12:12,198 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:12:12] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:12:46] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:12:46,304 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:12:46] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:13:20] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:13:20,471 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:13:20] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:13:54] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:13:54,643 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:13:54] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:14:28] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:14:28,778 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:14:28] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:15:02] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:15:02,903 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:15:02] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:15:37] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:15:37,006 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:15:37] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:16:11] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:16:11,122 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:16:11] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:16:45] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:16:45,308 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:16:45] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:17:19] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:17:19,442 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:17:19] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:17:53] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:17:53,547 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:17:53] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:18:27] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:18:27,662 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:18:27] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:19:01] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:19:01,753 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:19:01] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:19:35] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:19:35,878 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:19:35] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:20:09] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:20:09,978 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:20:09] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:20:44] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:20:44,104 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:20:44] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:21:18] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:21:18,280 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:21:18] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:21:52] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:21:52,395 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:21:52] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:22:26] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:22:26,714 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:22:26] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:23:00] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:23:00,850 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:23:00] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jan/2026 17:23:34] "GET /health HTTP/1.1" 200 -
+2026-01-17 17:23:34,935 - werkzeug - INFO - 127.0.0.1 - - [17/Jan/2026 17:23:34] "GET /health HTTP/1.1" 200 -

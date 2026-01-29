@@ -1,0 +1,511 @@
+2026-01-17T20:17:33.599245 - 8084: Received code from main service: None
+2026-01-17T20:17:33.600252 - 8084: Attempting to store code DANLYR02B0KT at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'DANLYR02B0KT', 'analysis_session_id': 'ANALYSIS_20260117_201639_6bead485', 'project_name': 'Ochsner Ortho-Lafayette', 'before_file_id': 53, 'after_file_id': 52}
+2026-01-17T20:17:33.631044 - 8084: API Response - Status: 200
+2026-01-17T20:17:33.631044 - 8084: SUCCESS - Stored verification code DANLYR02B0KT in database
+2026-01-17T23:22:08.221734 - 8084: Received code from main service: GGYD5BRJNBWY
+2026-01-18T08:07:10.186620 - 8084: Received code from main service: GGKNYZ5XAPG9
+2026-01-19T07:24:46.060128 - 8084: Received code from main service: None
+2026-01-19T07:24:46.062065 - 8084: Attempting to store code JNDR7WIIWCGK at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'JNDR7WIIWCGK', 'analysis_session_id': 'ANALYSIS_20260119_072408_a92124cf', 'project_name': 'Ochsner Ortho-Lafayette', 'before_file_id': 53, 'after_file_id': 52}
+2026-01-19T07:24:46.085172 - 8084: API Response - Status: 200
+2026-01-19T07:24:46.086407 - 8084: SUCCESS - Stored verification code JNDR7WIIWCGK in database
+2026-01-20T16:05:24.415275 - 8084: Received code from main service: None
+2026-01-20T16:05:24.416802 - 8084: Attempting to store code DZWHC581FONO at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'DZWHC581FONO', 'analysis_session_id': 'ANALYSIS_20260120_155942_cc1f19cf', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:05:24.431075 - 8084: API Response - Status: 200
+2026-01-20T16:05:24.432073 - 8084: SUCCESS - Stored verification code DZWHC581FONO in database
+2026-01-20T16:15:58.684983 - 8084: Received code from main service: None
+2026-01-20T16:15:58.688523 - 8084: Attempting to store code NGE7R20WGKVX at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'NGE7R20WGKVX', 'analysis_session_id': 'ANALYSIS_20260120_161526_ed293e2b', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:15:58.717608 - 8084: API Response - Status: 200
+2026-01-20T16:15:58.718113 - 8084: SUCCESS - Stored verification code NGE7R20WGKVX in database
+2026-01-20T16:22:17.434360 - 8084: Received code from main service: None
+2026-01-20T16:22:17.436502 - 8084: Attempting to store code KNZSJ883UUCU at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'KNZSJ883UUCU', 'analysis_session_id': 'ANALYSIS_20260120_162150_7fe9576b', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:22:17.476985 - 8084: API Response - Status: 200
+2026-01-20T16:22:17.478397 - 8084: SUCCESS - Stored verification code KNZSJ883UUCU in database
+2026-01-20T16:26:04.874438 - 8084: Received code from main service: None
+2026-01-20T16:26:04.874438 - 8084: Attempting to store code BIEZCEW8GQ9E at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'BIEZCEW8GQ9E', 'analysis_session_id': 'ANALYSIS_20260120_162544_9e2c8cb2', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:26:04.884510 - 8084: API Response - Status: 200
+2026-01-20T16:26:04.884510 - 8084: SUCCESS - Stored verification code BIEZCEW8GQ9E in database
+2026-01-20T16:39:45.108472 - 8084: Received code from main service: None
+2026-01-20T16:39:45.108472 - 8084: Attempting to store code EIFXTOFZK6UI at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EIFXTOFZK6UI', 'analysis_session_id': 'ANALYSIS_20260120_163927_2ad03c73', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:39:45.130453 - 8084: API Response - Status: 200
+2026-01-20T16:39:45.131564 - 8084: SUCCESS - Stored verification code EIFXTOFZK6UI in database
+2026-01-20T16:55:35.581065 - 8084: Received code from main service: None
+2026-01-20T16:55:35.581065 - 8084: Attempting to store code RZJZ10IH7P88 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'RZJZ10IH7P88', 'analysis_session_id': 'ANALYSIS_20260120_165454_04ff845c', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T16:55:35.603560 - 8084: API Response - Status: 200
+2026-01-20T16:55:35.603560 - 8084: SUCCESS - Stored verification code RZJZ10IH7P88 in database
+2026-01-20T17:25:47.872248 - 8084: Received code from main service: None
+2026-01-20T17:25:47.872248 - 8084: Attempting to store code WFBD2DNW8T55 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'WFBD2DNW8T55', 'analysis_session_id': 'ANALYSIS_20260120_172459_d3c2fc1c', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T17:25:47.898979 - 8084: API Response - Status: 200
+2026-01-20T17:25:47.900983 - 8084: SUCCESS - Stored verification code WFBD2DNW8T55 in database
+2026-01-20T17:27:18.380799 - 8084: Received code from main service: None
+2026-01-20T17:27:18.380799 - 8084: Attempting to store code MTX9WCUMXSLY at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MTX9WCUMXSLY', 'analysis_session_id': 'ANALYSIS_20260120_172459_d3c2fc1c', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T17:27:18.391926 - 8084: API Response - Status: 200
+2026-01-20T17:27:18.392930 - 8084: SUCCESS - Stored verification code MTX9WCUMXSLY in database
+2026-01-20T17:36:53.733373 - 8084: Received code from main service: None
+2026-01-20T17:36:53.734373 - 8084: Attempting to store code IPF99O637KLR at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'IPF99O637KLR', 'analysis_session_id': 'ANALYSIS_20260120_173631_9b6ff725', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T17:36:53.742553 - 8084: API Response - Status: 200
+2026-01-20T17:36:53.744333 - 8084: SUCCESS - Stored verification code IPF99O637KLR in database
+2026-01-20T21:33:49.428453 - 8084: Received code from main service: None
+2026-01-20T21:33:49.428453 - 8084: Attempting to store code EKI2H3RH07XL at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EKI2H3RH07XL', 'analysis_session_id': 'ANALYSIS_20260120_213310_a7417bfb', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T21:33:49.460122 - 8084: API Response - Status: 200
+2026-01-20T21:33:49.460122 - 8084: SUCCESS - Stored verification code EKI2H3RH07XL in database
+2026-01-20T21:34:41.637503 - 8084: Received code from main service: None
+2026-01-20T21:34:41.637503 - 8084: Attempting to store code MGBNE6TVQP31 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MGBNE6TVQP31', 'analysis_session_id': 'ANALYSIS_20260120_213310_a7417bfb', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-20T21:34:41.678089 - 8084: API Response - Status: 200
+2026-01-20T21:34:41.678089 - 8084: SUCCESS - Stored verification code MGBNE6TVQP31 in database
+2026-01-21T06:08:27.165943 - 8084: Received code from main service: None
+2026-01-21T06:08:27.165943 - 8084: Attempting to store code MMZDYI7M665O at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MMZDYI7M665O', 'analysis_session_id': 'ANALYSIS_20260121_060623_0f30c034', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T06:08:27.242215 - 8084: API Response - Status: 200
+2026-01-21T06:08:27.245513 - 8084: SUCCESS - Stored verification code MMZDYI7M665O in database
+2026-01-21T09:47:29.402376 - 8084: Received code from main service: None
+2026-01-21T09:47:29.405598 - 8084: Attempting to store code KULCAU1GEROP at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'KULCAU1GEROP', 'analysis_session_id': 'ANALYSIS_20260121_060623_0f30c034', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T09:47:29.444793 - 8084: API Response - Status: 200
+2026-01-21T09:47:29.445395 - 8084: SUCCESS - Stored verification code KULCAU1GEROP in database
+2026-01-21T09:50:26.262297 - 8084: Received code from main service: None
+2026-01-21T09:50:26.262297 - 8084: Attempting to store code FAS87C8JF17O at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FAS87C8JF17O', 'analysis_session_id': 'ANALYSIS_20260121_060623_0f30c034', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T09:50:26.318277 - 8084: API Response - Status: 200
+2026-01-21T09:50:26.320376 - 8084: SUCCESS - Stored verification code FAS87C8JF17O in database
+2026-01-21T10:06:27.591784 - 8084: Received code from main service: None
+2026-01-21T10:06:27.704379 - 8084: Attempting to store code WJV9R4UYPTLN at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'WJV9R4UYPTLN', 'analysis_session_id': 'ANALYSIS_20260121_060623_0f30c034', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T10:06:27.744583 - 8084: API Response - Status: 200
+2026-01-21T10:06:27.744583 - 8084: SUCCESS - Stored verification code WJV9R4UYPTLN in database
+2026-01-21T11:30:29.849351 - 8084: Received code from main service: None
+2026-01-21T11:30:29.850586 - 8084: Attempting to store code NLMKRMQVJ2UK at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'NLMKRMQVJ2UK', 'analysis_session_id': 'ANALYSIS_20260121_112948_bbde8bb7', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T11:30:29.861461 - 8084: API Response - Status: 200
+2026-01-21T11:30:29.861461 - 8084: SUCCESS - Stored verification code NLMKRMQVJ2UK in database
+2026-01-21T11:44:20.895318 - 8084: Received code from main service: None
+2026-01-21T11:44:20.895318 - 8084: Attempting to store code ODSYTV2TXDF8 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ODSYTV2TXDF8', 'analysis_session_id': 'ANALYSIS_20260121_114352_12f97c2d', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-21T11:44:20.908572 - 8084: API Response - Status: 200
+2026-01-21T11:44:20.908572 - 8084: SUCCESS - Stored verification code ODSYTV2TXDF8 in database
+2026-01-21T16:31:42.129934 - 8084: Received code from main service: None
+2026-01-21T16:31:42.141970 - 8084: Attempting to store code RYCJ86M7Z79H at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'RYCJ86M7Z79H', 'analysis_session_id': 'ANALYSIS_20260121_163004_5a107324', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T16:31:42.169552 - 8084: API Response - Status: 200
+2026-01-21T16:31:42.169552 - 8084: SUCCESS - Stored verification code RYCJ86M7Z79H in database
+2026-01-21T16:38:16.878473 - 8084: Received code from main service: None
+2026-01-21T16:38:16.878473 - 8084: Attempting to store code VLCTMA7ELGTJ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'VLCTMA7ELGTJ', 'analysis_session_id': 'ANALYSIS_20260121_163802_ac0e8e67', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T16:38:16.901759 - 8084: API Response - Status: 200
+2026-01-21T16:38:16.901759 - 8084: SUCCESS - Stored verification code VLCTMA7ELGTJ in database
+2026-01-21T17:02:46.808101 - 8084: Received code from main service: None
+2026-01-21T17:02:46.818167 - 8084: Attempting to store code UQR4PY2I0DUR at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'UQR4PY2I0DUR', 'analysis_session_id': 'ANALYSIS_20260121_170133_7fbe88b5', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:02:46.818167 - 8084: API Response - Status: 200
+2026-01-21T17:02:46.818167 - 8084: SUCCESS - Stored verification code UQR4PY2I0DUR in database
+2026-01-21T17:07:05.759679 - 8084: Received code from main service: None
+2026-01-21T17:07:05.759679 - 8084: Attempting to store code ZDPK26W0E0E3 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ZDPK26W0E0E3', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:07:05.769743 - 8084: API Response - Status: 200
+2026-01-21T17:07:05.769743 - 8084: SUCCESS - Stored verification code ZDPK26W0E0E3 in database
+2026-01-21T17:10:55.594358 - 8084: Received code from main service: None
+2026-01-21T17:10:55.594998 - 8084: Attempting to store code ZEDTXQFJZGVS at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ZEDTXQFJZGVS', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:10:55.618627 - 8084: API Response - Status: 200
+2026-01-21T17:10:55.618627 - 8084: SUCCESS - Stored verification code ZEDTXQFJZGVS in database
+2026-01-21T17:17:31.300638 - 8084: Received code from main service: None
+2026-01-21T17:17:31.300638 - 8084: Attempting to store code OXEZ16SPVSPH at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'OXEZ16SPVSPH', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:17:31.341907 - 8084: API Response - Status: 200
+2026-01-21T17:17:31.343920 - 8084: SUCCESS - Stored verification code OXEZ16SPVSPH in database
+2026-01-21T17:18:03.889107 - 8084: Received code from main service: None
+2026-01-21T17:18:03.891112 - 8084: Attempting to store code YRAM1RV1BAYR at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'YRAM1RV1BAYR', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:18:03.913091 - 8084: API Response - Status: 200
+2026-01-21T17:18:03.913091 - 8084: SUCCESS - Stored verification code YRAM1RV1BAYR in database
+2026-01-21T17:21:36.380469 - 8084: Received code from main service: None
+2026-01-21T17:21:36.382474 - 8084: Attempting to store code MJEHA1L8Y9RI at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MJEHA1L8Y9RI', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:21:36.406752 - 8084: API Response - Status: 200
+2026-01-21T17:21:36.406752 - 8084: SUCCESS - Stored verification code MJEHA1L8Y9RI in database
+2026-01-21T17:22:51.714924 - 8084: Received code from main service: None
+2026-01-21T17:22:51.715662 - 8084: Attempting to store code AZWXEDOU2XRQ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'AZWXEDOU2XRQ', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:22:51.739674 - 8084: API Response - Status: 200
+2026-01-21T17:22:51.739674 - 8084: SUCCESS - Stored verification code AZWXEDOU2XRQ in database
+2026-01-21T17:23:35.384730 - 8084: Received code from main service: None
+2026-01-21T17:23:35.384730 - 8084: Attempting to store code FCUV5FX6M7YJ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FCUV5FX6M7YJ', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:23:35.402370 - 8084: API Response - Status: 200
+2026-01-21T17:23:35.402370 - 8084: SUCCESS - Stored verification code FCUV5FX6M7YJ in database
+2026-01-21T17:23:36.262610 - 8084: Received code from main service: None
+2026-01-21T17:23:36.262610 - 8084: Attempting to store code NJKU2KX95UYX at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'NJKU2KX95UYX', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:23:36.285952 - 8084: API Response - Status: 200
+2026-01-21T17:23:36.285952 - 8084: SUCCESS - Stored verification code NJKU2KX95UYX in database
+2026-01-21T17:24:00.223139 - 8084: Received code from main service: None
+2026-01-21T17:24:00.225145 - 8084: Attempting to store code FMV3EUFWSZT5 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FMV3EUFWSZT5', 'analysis_session_id': 'ANALYSIS_20260121_170647_0b806761', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-21T17:24:00.246610 - 8084: API Response - Status: 200
+2026-01-21T17:24:00.246610 - 8084: SUCCESS - Stored verification code FMV3EUFWSZT5 in database
+2026-01-21T20:46:36.539437 - 8084: Received code from main service: SSDYGHYQ3E6P
+2026-01-21T20:48:02.742571 - 8084: Received code from main service: SSDYGHYQ3E6P
+2026-01-21T21:10:01.846704 - 8084: Received code from main service: None
+2026-01-21T21:10:01.846704 - 8084: Attempting to store code JHUEX9P3DRMO at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'JHUEX9P3DRMO', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-21T21:10:01.869308 - 8084: API Response - Status: 200
+2026-01-21T21:10:01.870558 - 8084: SUCCESS - Stored verification code JHUEX9P3DRMO in database
+2026-01-22T09:47:44.522753 - 8084: Received code from main service: EPQK093Y8SPM
+2026-01-22T09:48:12.979198 - 8084: Received code from main service: EPQK093Y8SPM
+2026-01-22T10:51:42.999704 - 8084: Received code from main service: None
+2026-01-22T10:51:43.001911 - 8084: Attempting to store code LABMOGL5RDBY at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'LABMOGL5RDBY', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T10:51:43.057577 - 8084: API Response - Status: 200
+2026-01-22T10:51:43.058601 - 8084: SUCCESS - Stored verification code LABMOGL5RDBY in database
+2026-01-22T11:52:34.279925 - 8084: Received code from main service: None
+2026-01-22T11:52:34.290183 - 8084: Attempting to store code UFV01ICYEMCO at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'UFV01ICYEMCO', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T11:52:34.290183 - 8084: API Response - Status: 200
+2026-01-22T11:52:34.290183 - 8084: SUCCESS - Stored verification code UFV01ICYEMCO in database
+2026-01-22T12:20:39.182880 - 8084: Received code from main service: None
+2026-01-22T12:20:39.182880 - 8084: Attempting to store code QEOJVOZC4Y41 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'QEOJVOZC4Y41', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T12:20:39.210889 - 8084: API Response - Status: 200
+2026-01-22T12:20:39.210889 - 8084: SUCCESS - Stored verification code QEOJVOZC4Y41 in database
+2026-01-22T12:47:01.647962 - 8084: Received code from main service: None
+2026-01-22T12:47:01.647962 - 8084: Attempting to store code VFE4GW96LNEL at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'VFE4GW96LNEL', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T12:47:01.672050 - 8084: API Response - Status: 200
+2026-01-22T12:47:01.672050 - 8084: SUCCESS - Stored verification code VFE4GW96LNEL in database
+2026-01-22T15:28:32.322371 - 8084: Received code from main service: None
+2026-01-22T15:28:32.322371 - 8084: Attempting to store code ZNTOPA5755KO at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ZNTOPA5755KO', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T15:28:32.333697 - 8084: API Response - Status: 200
+2026-01-22T15:28:32.333697 - 8084: SUCCESS - Stored verification code ZNTOPA5755KO in database
+2026-01-22T16:12:58.858440 - 8084: Received code from main service: None
+2026-01-22T16:12:58.858440 - 8084: Attempting to store code MCXWKSQNYHMF at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MCXWKSQNYHMF', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-22T16:12:58.870564 - 8084: API Response - Status: 200
+2026-01-22T16:12:58.870564 - 8084: SUCCESS - Stored verification code MCXWKSQNYHMF in database
+2026-01-22T17:30:31.188681 - 8084: Received code from main service: None
+2026-01-22T17:30:31.190018 - 8084: Attempting to store code ECBG423ME7TY at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ECBG423ME7TY', 'analysis_session_id': 'ANALYSIS_20260122_172941_e755f4d7', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T17:30:31.199448 - 8084: API Response - Status: 200
+2026-01-22T17:30:31.200446 - 8084: SUCCESS - Stored verification code ECBG423ME7TY in database
+2026-01-22T18:07:43.669837 - 8084: Received code from main service: None
+2026-01-22T18:07:43.669837 - 8084: Attempting to store code MGG7FDJBHAV4 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MGG7FDJBHAV4', 'analysis_session_id': 'ANALYSIS_20260122_180715_51069816', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T18:07:43.698243 - 8084: API Response - Status: 200
+2026-01-22T18:07:43.698243 - 8084: SUCCESS - Stored verification code MGG7FDJBHAV4 in database
+2026-01-22T18:14:19.864490 - 8084: Received code from main service: None
+2026-01-22T18:14:19.864490 - 8084: Attempting to store code ODBTSG9BOI36 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ODBTSG9BOI36', 'analysis_session_id': 'ANALYSIS_20260122_181346_6bc64e61', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T18:14:19.883098 - 8084: API Response - Status: 200
+2026-01-22T18:14:19.884839 - 8084: SUCCESS - Stored verification code ODBTSG9BOI36 in database
+2026-01-22T18:20:41.914707 - 8084: Received code from main service: None
+2026-01-22T18:20:41.914707 - 8084: Attempting to store code BEYI1PDHGMIY at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'BEYI1PDHGMIY', 'analysis_session_id': 'ANALYSIS_20260122_182006_df8221ab', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T18:20:41.967723 - 8084: API Response - Status: 200
+2026-01-22T18:20:41.969739 - 8084: SUCCESS - Stored verification code BEYI1PDHGMIY in database
+2026-01-22T22:09:55.908211 - 8084: Received code from main service: None
+2026-01-22T22:09:55.910219 - 8084: Attempting to store code SIUMHJWNZNW1 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'SIUMHJWNZNW1', 'analysis_session_id': 'ANALYSIS_20260122_220930_8dc7f641', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T22:09:55.942708 - 8084: API Response - Status: 200
+2026-01-22T22:09:55.942708 - 8084: SUCCESS - Stored verification code SIUMHJWNZNW1 in database
+2026-01-22T22:32:42.113706 - 8084: Received code from main service: None
+2026-01-22T22:32:42.114718 - 8084: Attempting to store code QVYXFTKZA1YX at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'QVYXFTKZA1YX', 'analysis_session_id': 'ANALYSIS_20260122_223202_12f4180f', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T22:32:42.150387 - 8084: API Response - Status: 200
+2026-01-22T22:32:42.151386 - 8084: SUCCESS - Stored verification code QVYXFTKZA1YX in database
+2026-01-22T22:53:13.833830 - 8084: Received code from main service: None
+2026-01-22T22:53:13.835432 - 8084: Attempting to store code FOGVHST254NJ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FOGVHST254NJ', 'analysis_session_id': 'ANALYSIS_20260122_225208_b5ccbcd7', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-22T22:53:13.856052 - 8084: API Response - Status: 200
+2026-01-22T22:53:13.856052 - 8084: SUCCESS - Stored verification code FOGVHST254NJ in database
+2026-01-23T07:34:10.683840 - 8084: Received code from main service: None
+2026-01-23T07:34:10.683840 - 8084: Attempting to store code VLS9CTP1AENG at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'VLS9CTP1AENG', 'analysis_session_id': 'ANALYSIS_20260123_073345_aa11a3e7', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T07:34:10.715261 - 8084: API Response - Status: 200
+2026-01-23T07:34:10.715261 - 8084: SUCCESS - Stored verification code VLS9CTP1AENG in database
+2026-01-23T08:11:57.481833 - 8084: Received code from main service: None
+2026-01-23T08:11:57.489425 - 8084: Attempting to store code EDTZ743LYZ14 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EDTZ743LYZ14', 'analysis_session_id': 'ANALYSIS_20260123_081126_e413c699', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T08:11:57.499695 - 8084: API Response - Status: 200
+2026-01-23T08:11:57.500472 - 8084: SUCCESS - Stored verification code EDTZ743LYZ14 in database
+2026-01-23T09:34:41.244466 - 8084: Received code from main service: None
+2026-01-23T09:34:41.244466 - 8084: Attempting to store code OHVI6JFQ36DW at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'OHVI6JFQ36DW', 'analysis_session_id': 'ANALYSIS_20260123_093421_b2e77a41', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T09:34:41.277256 - 8084: API Response - Status: 200
+2026-01-23T09:34:41.277256 - 8084: SUCCESS - Stored verification code OHVI6JFQ36DW in database
+2026-01-23T09:36:54.389566 - 8084: Received code from main service: None
+2026-01-23T09:36:54.389566 - 8084: Attempting to store code GXCYJR8CZX8A at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'GXCYJR8CZX8A', 'analysis_session_id': 'ANALYSIS_20260123_093636_21c156fd', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T09:36:54.402923 - 8084: API Response - Status: 200
+2026-01-23T09:36:54.402923 - 8084: SUCCESS - Stored verification code GXCYJR8CZX8A in database
+2026-01-23T09:37:36.194864 - 8084: Received code from main service: None
+2026-01-23T09:37:36.194864 - 8084: Attempting to store code DSGEL8DELG8O at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'DSGEL8DELG8O', 'analysis_session_id': 'ANALYSIS_20260123_093636_21c156fd', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T09:37:36.216088 - 8084: API Response - Status: 200
+2026-01-23T09:37:36.224681 - 8084: SUCCESS - Stored verification code DSGEL8DELG8O in database
+2026-01-23T09:38:33.287454 - 8084: Received code from main service: None
+2026-01-23T09:38:33.288456 - 8084: Attempting to store code FMBKJBWZ0A0R at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FMBKJBWZ0A0R', 'analysis_session_id': 'ANALYSIS_20260123_093636_21c156fd', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 77, 'after_file_id': 78}
+2026-01-23T09:38:33.330759 - 8084: API Response - Status: 200
+2026-01-23T09:38:33.331763 - 8084: SUCCESS - Stored verification code FMBKJBWZ0A0R in database
+2026-01-23T09:43:36.070652 - 8084: Received code from main service: None
+2026-01-23T09:43:36.070652 - 8084: Attempting to store code NMUX5XCA1HXB at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'NMUX5XCA1HXB', 'analysis_session_id': 'ANALYSIS_20260123_094309_4b163c52', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T09:43:36.087169 - 8084: API Response - Status: 200
+2026-01-23T09:43:36.087169 - 8084: SUCCESS - Stored verification code NMUX5XCA1HXB in database
+2026-01-23T09:45:41.192340 - 8084: Received code from main service: None
+2026-01-23T09:45:41.192340 - 8084: Attempting to store code WWWZDF05OOYU at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'WWWZDF05OOYU', 'analysis_session_id': 'ANALYSIS_20260123_094309_4b163c52', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T09:45:41.220887 - 8084: API Response - Status: 200
+2026-01-23T09:45:41.220887 - 8084: SUCCESS - Stored verification code WWWZDF05OOYU in database
+2026-01-23T09:47:20.820826 - 8084: Received code from main service: None
+2026-01-23T09:47:20.820826 - 8084: Attempting to store code MVLSUSWM8UB3 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'MVLSUSWM8UB3', 'analysis_session_id': 'ANALYSIS_20260123_094309_4b163c52', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T09:47:20.850769 - 8084: API Response - Status: 200
+2026-01-23T09:47:20.850769 - 8084: SUCCESS - Stored verification code MVLSUSWM8UB3 in database
+2026-01-23T09:47:54.735472 - 8084: Received code from main service: None
+2026-01-23T09:47:54.735472 - 8084: Attempting to store code ERL4MUT9BGFB at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ERL4MUT9BGFB', 'analysis_session_id': 'ANALYSIS_20260123_094309_4b163c52', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T09:47:54.759419 - 8084: API Response - Status: 200
+2026-01-23T09:47:54.763372 - 8084: SUCCESS - Stored verification code ERL4MUT9BGFB in database
+2026-01-23T10:03:48.401052 - 8084: Received code from main service: None
+2026-01-23T10:03:48.401052 - 8084: Attempting to store code CYL6U20F9H44 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'CYL6U20F9H44', 'analysis_session_id': 'ANALYSIS_20260123_100301_4afe7117', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T10:03:48.423747 - 8084: API Response - Status: 200
+2026-01-23T10:03:48.424395 - 8084: SUCCESS - Stored verification code CYL6U20F9H44 in database
+2026-01-23T10:18:22.080052 - 8084: Received code from main service: None
+2026-01-23T10:18:22.081561 - 8084: Attempting to store code TVEONA83I3T4 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'TVEONA83I3T4', 'analysis_session_id': 'ANALYSIS_20260123_100301_4afe7117', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T10:18:22.108172 - 8084: API Response - Status: 200
+2026-01-23T10:18:22.108172 - 8084: SUCCESS - Stored verification code TVEONA83I3T4 in database
+2026-01-23T10:40:16.696416 - 8084: Received code from main service: None
+2026-01-23T10:40:16.697416 - 8084: Attempting to store code RQK20HOSJEKL at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'RQK20HOSJEKL', 'analysis_session_id': 'ANALYSIS_20260123_103935_b8c08258', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T10:40:16.719708 - 8084: API Response - Status: 200
+2026-01-23T10:40:16.720213 - 8084: SUCCESS - Stored verification code RQK20HOSJEKL in database
+2026-01-23T10:45:06.459372 - 8084: Received code from main service: None
+2026-01-23T10:45:06.460372 - 8084: Attempting to store code SKVLFF3IV92R at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'SKVLFF3IV92R', 'analysis_session_id': 'ANALYSIS_20260123_103935_b8c08258', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T10:45:06.537451 - 8084: API Response - Status: 200
+2026-01-23T10:45:06.538544 - 8084: SUCCESS - Stored verification code SKVLFF3IV92R in database
+2026-01-23T10:58:32.096425 - 8084: Received code from main service: None
+2026-01-23T10:58:32.097424 - 8084: Attempting to store code LBW8UEVE6RIU at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'LBW8UEVE6RIU', 'analysis_session_id': 'ANALYSIS_20260123_105758_debf5fdf', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T10:58:32.125057 - 8084: API Response - Status: 200
+2026-01-23T10:58:32.125057 - 8084: SUCCESS - Stored verification code LBW8UEVE6RIU in database
+2026-01-23T11:41:52.360402 - 8084: Received code from main service: None
+2026-01-23T11:41:52.361504 - 8084: Attempting to store code QHSJ9UKSODLU at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'QHSJ9UKSODLU', 'analysis_session_id': 'ANALYSIS_20260123_114131_f943f728', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 76, 'after_file_id': 75}
+2026-01-23T11:41:52.390386 - 8084: API Response - Status: 200
+2026-01-23T11:41:52.391394 - 8084: SUCCESS - Stored verification code QHSJ9UKSODLU in database
+2026-01-23T13:08:41.292567 - 8084: Received code from main service: None
+2026-01-23T13:08:41.293567 - 8084: Attempting to store code KRA5UYMOK3WI at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'KRA5UYMOK3WI', 'analysis_session_id': 'ANALYSIS_20260123_130827_22b4b770', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T13:08:41.323216 - 8084: API Response - Status: 200
+2026-01-23T13:08:41.323216 - 8084: SUCCESS - Stored verification code KRA5UYMOK3WI in database
+2026-01-23T13:10:25.911135 - 8084: Received code from main service: None
+2026-01-23T13:10:25.912137 - 8084: Attempting to store code DMZ3TW6SZ6AE at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'DMZ3TW6SZ6AE', 'analysis_session_id': 'ANALYSIS_20260123_130827_22b4b770', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T13:10:25.934189 - 8084: API Response - Status: 200
+2026-01-23T13:10:25.935189 - 8084: SUCCESS - Stored verification code DMZ3TW6SZ6AE in database
+2026-01-23T13:21:17.635175 - 8084: Received code from main service: None
+2026-01-23T13:21:17.635175 - 8084: Attempting to store code OFE9PTG4MM19 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'OFE9PTG4MM19', 'analysis_session_id': 'ANALYSIS_20260123_130827_22b4b770', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T13:21:17.649174 - 8084: API Response - Status: 200
+2026-01-23T13:21:17.649174 - 8084: SUCCESS - Stored verification code OFE9PTG4MM19 in database
+2026-01-23T13:25:36.210984 - 8084: Received code from main service: None
+2026-01-23T13:25:36.211990 - 8084: Attempting to store code PVWH4F2910QA at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'PVWH4F2910QA', 'analysis_session_id': 'ANALYSIS_20260123_132522_c6a0050d', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T13:25:36.241572 - 8084: API Response - Status: 200
+2026-01-23T13:25:36.242572 - 8084: SUCCESS - Stored verification code PVWH4F2910QA in database
+2026-01-23T14:10:13.081687 - 8084: Received code from main service: None
+2026-01-23T14:10:13.082803 - 8084: Attempting to store code WRZAVPT4HG4K at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'WRZAVPT4HG4K', 'analysis_session_id': 'ANALYSIS_20260123_132522_c6a0050d', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T14:10:13.093467 - 8084: API Response - Status: 200
+2026-01-23T14:10:13.094474 - 8084: SUCCESS - Stored verification code WRZAVPT4HG4K in database
+2026-01-23T16:16:58.525769 - 8084: Received code from main service: None
+2026-01-23T16:16:58.526780 - 8084: Attempting to store code HHZ3ZL04W99A at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'HHZ3ZL04W99A', 'analysis_session_id': 'ANALYSIS_20260123_161337_d49715a2', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-23T16:16:58.547552 - 8084: API Response - Status: 200
+2026-01-23T16:16:58.547552 - 8084: SUCCESS - Stored verification code HHZ3ZL04W99A in database
+2026-01-23T20:05:03.309197 - 8084: Received code from main service: None
+2026-01-23T20:05:03.312201 - 8084: Attempting to store code YGGGG0PDJOKL at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'YGGGG0PDJOKL', 'analysis_session_id': None, 'project_name': 'HTML Export', 'before_file_id': None, 'after_file_id': None}
+2026-01-23T20:05:03.362209 - 8084: API Response - Status: 200
+2026-01-23T20:05:03.364203 - 8084: SUCCESS - Stored verification code YGGGG0PDJOKL in database
+2026-01-25T10:38:24.257329 - 8084: Received code from main service: None
+2026-01-25T10:38:24.274638 - 8084: Attempting to store code EKSFHFSETGMV at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EKSFHFSETGMV', 'analysis_session_id': 'ANALYSIS_20260125_103745_0297b902', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T10:38:24.285561 - 8084: API Response - Status: 200
+2026-01-25T10:38:24.286652 - 8084: SUCCESS - Stored verification code EKSFHFSETGMV in database
+2026-01-25T10:40:30.066397 - 8084: Received code from main service: None
+2026-01-25T10:40:30.066397 - 8084: Attempting to store code API9CIP460I2 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'API9CIP460I2', 'analysis_session_id': 'ANALYSIS_20260125_103745_0297b902', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T10:40:30.076474 - 8084: API Response - Status: 200
+2026-01-25T10:40:30.078483 - 8084: SUCCESS - Stored verification code API9CIP460I2 in database
+2026-01-25T10:41:48.217684 - 8084: Received code from main service: None
+2026-01-25T10:41:48.218706 - 8084: Attempting to store code FXTZQSHDTU3I at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FXTZQSHDTU3I', 'analysis_session_id': 'ANALYSIS_20260125_103745_0297b902', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T10:41:48.248850 - 8084: API Response - Status: 200
+2026-01-25T10:41:48.248850 - 8084: SUCCESS - Stored verification code FXTZQSHDTU3I in database
+2026-01-25T10:42:55.884606 - 8084: Received code from main service: None
+2026-01-25T10:42:55.884606 - 8084: Attempting to store code VRKIXEWP2PXZ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'VRKIXEWP2PXZ', 'analysis_session_id': 'ANALYSIS_20260125_103745_0297b902', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T10:42:55.909700 - 8084: API Response - Status: 200
+2026-01-25T10:42:55.909700 - 8084: SUCCESS - Stored verification code VRKIXEWP2PXZ in database
+2026-01-25T10:43:26.115621 - 8084: Received code from main service: None
+2026-01-25T10:43:26.115621 - 8084: Attempting to store code EBPVEDHOF0FX at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EBPVEDHOF0FX', 'analysis_session_id': 'ANALYSIS_20260125_103745_0297b902', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T10:43:26.138270 - 8084: API Response - Status: 200
+2026-01-25T10:43:26.138270 - 8084: SUCCESS - Stored verification code EBPVEDHOF0FX in database
+2026-01-25T22:45:47.753450 - 8084: Received code from main service: None
+2026-01-25T22:45:47.753450 - 8084: Attempting to store code YHQ7BQM6TGZW at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'YHQ7BQM6TGZW', 'analysis_session_id': 'ANALYSIS_20260125_224446_6ca43edf', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T22:45:47.776670 - 8084: API Response - Status: 200
+2026-01-25T22:45:47.777670 - 8084: SUCCESS - Stored verification code YHQ7BQM6TGZW in database
+2026-01-25T23:03:05.777380 - 8084: Received code from main service: None
+2026-01-25T23:03:05.777380 - 8084: Attempting to store code UJDQLZVBW90Z at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'UJDQLZVBW90Z', 'analysis_session_id': 'ANALYSIS_20260125_224446_6ca43edf', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T23:03:05.799627 - 8084: API Response - Status: 200
+2026-01-25T23:03:05.799627 - 8084: SUCCESS - Stored verification code UJDQLZVBW90Z in database
+2026-01-25T23:07:08.712226 - 8084: Received code from main service: None
+2026-01-25T23:07:08.713227 - 8084: Attempting to store code IJG75MGFN9Z4 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'IJG75MGFN9Z4', 'analysis_session_id': 'ANALYSIS_20260125_230652_1788fd36', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T23:07:08.744704 - 8084: API Response - Status: 200
+2026-01-25T23:07:08.744704 - 8084: SUCCESS - Stored verification code IJG75MGFN9Z4 in database
+2026-01-25T23:39:50.766175 - 8084: Received code from main service: None
+2026-01-25T23:39:50.766175 - 8084: Attempting to store code FDCDTFX7GYTW at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FDCDTFX7GYTW', 'analysis_session_id': 'ANALYSIS_20260125_233935_8cefed26', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-25T23:39:50.781198 - 8084: API Response - Status: 200
+2026-01-25T23:39:50.781198 - 8084: SUCCESS - Stored verification code FDCDTFX7GYTW in database
+2026-01-26T00:14:45.959239 - 8084: Received code from main service: None
+2026-01-26T00:14:45.959239 - 8084: Attempting to store code SRO4QNYGM0PF at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'SRO4QNYGM0PF', 'analysis_session_id': 'ANALYSIS_20260126_001432_4547edb3', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T00:14:45.979519 - 8084: API Response - Status: 200
+2026-01-26T00:14:45.979519 - 8084: SUCCESS - Stored verification code SRO4QNYGM0PF in database
+2026-01-26T00:29:12.411281 - 8084: Received code from main service: None
+2026-01-26T00:29:12.412281 - 8084: Attempting to store code EITU6UPURKIE at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EITU6UPURKIE', 'analysis_session_id': 'ANALYSIS_20260126_002902_65433484', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T00:29:12.453472 - 8084: API Response - Status: 200
+2026-01-26T00:29:12.454465 - 8084: SUCCESS - Stored verification code EITU6UPURKIE in database
+2026-01-26T00:46:10.953982 - 8084: Received code from main service: None
+2026-01-26T00:46:10.954982 - 8084: Attempting to store code JYRCQOB8ZM04 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'JYRCQOB8ZM04', 'analysis_session_id': 'ANALYSIS_20260126_004558_13427f4c', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T00:46:10.979996 - 8084: API Response - Status: 200
+2026-01-26T00:46:10.980996 - 8084: SUCCESS - Stored verification code JYRCQOB8ZM04 in database
+2026-01-26T01:10:40.796354 - 8084: Received code from main service: None
+2026-01-26T01:10:40.796354 - 8084: Attempting to store code XFLHQM3K730I at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'XFLHQM3K730I', 'analysis_session_id': 'ANALYSIS_20260126_011024_c304f8f6', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T01:10:40.808322 - 8084: API Response - Status: 200
+2026-01-26T01:10:40.808322 - 8084: SUCCESS - Stored verification code XFLHQM3K730I in database
+2026-01-26T01:17:26.287352 - 8084: Received code from main service: None
+2026-01-26T01:17:26.288357 - 8084: Attempting to store code BGTGKYR7UGWX at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'BGTGKYR7UGWX', 'analysis_session_id': 'ANALYSIS_20260126_011709_8f2258f6', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T01:17:26.317780 - 8084: API Response - Status: 200
+2026-01-26T01:17:26.317780 - 8084: SUCCESS - Stored verification code BGTGKYR7UGWX in database
+2026-01-26T01:55:15.114573 - 8084: Received code from main service: None
+2026-01-26T01:55:15.115079 - 8084: Attempting to store code YPWKFGQL2SN3 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'YPWKFGQL2SN3', 'analysis_session_id': 'ANALYSIS_20260126_015506_536fa28d', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T01:55:15.124626 - 8084: API Response - Status: 200
+2026-01-26T01:55:15.125625 - 8084: SUCCESS - Stored verification code YPWKFGQL2SN3 in database
+2026-01-26T03:07:07.342214 - 8084: Received code from main service: None
+2026-01-26T03:07:07.342214 - 8084: Attempting to store code JHB4EC6HUPQH at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'JHB4EC6HUPQH', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T03:07:07.351289 - 8084: API Response - Status: 200
+2026-01-26T03:07:07.351289 - 8084: SUCCESS - Stored verification code JHB4EC6HUPQH in database
+2026-01-26T03:14:51.838683 - 8084: Received code from main service: None
+2026-01-26T03:14:51.839682 - 8084: Attempting to store code RJSWUUTHNHKZ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'RJSWUUTHNHKZ', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T03:14:51.875819 - 8084: API Response - Status: 200
+2026-01-26T03:14:51.875819 - 8084: SUCCESS - Stored verification code RJSWUUTHNHKZ in database
+2026-01-26T10:54:57.180308 - 8084: Received code from main service: None
+2026-01-26T10:54:57.181314 - 8084: Attempting to store code WQX81MGXR7S6 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'WQX81MGXR7S6', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T10:54:57.231407 - 8084: API Response - Status: 200
+2026-01-26T10:54:57.232406 - 8084: SUCCESS - Stored verification code WQX81MGXR7S6 in database
+2026-01-26T10:58:56.628787 - 8084: Received code from main service: None
+2026-01-26T10:58:56.629786 - 8084: Attempting to store code EBR3V6AF5LXQ at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EBR3V6AF5LXQ', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T10:58:56.669738 - 8084: API Response - Status: 200
+2026-01-26T10:58:56.671738 - 8084: SUCCESS - Stored verification code EBR3V6AF5LXQ in database
+2026-01-26T11:00:19.593961 - 8084: Received code from main service: None
+2026-01-26T11:00:19.594960 - 8084: Attempting to store code EMO360C6E51Y at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'EMO360C6E51Y', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T11:00:19.663516 - 8084: API Response - Status: 200
+2026-01-26T11:00:19.666498 - 8084: SUCCESS - Stored verification code EMO360C6E51Y in database
+2026-01-26T11:01:22.004617 - 8084: Received code from main service: None
+2026-01-26T11:01:22.006616 - 8084: Attempting to store code ARCT7ZBIL5L9 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'ARCT7ZBIL5L9', 'analysis_session_id': 'ANALYSIS_20260126_030657_ae3a8fcd', 'project_name': 'Cloud Kitchen - Dallas-001', 'before_file_id': 84, 'after_file_id': 83}
+2026-01-26T11:01:22.040986 - 8084: API Response - Status: 200
+2026-01-26T11:01:22.041984 - 8084: SUCCESS - Stored verification code ARCT7ZBIL5L9 in database
+2026-01-26T12:50:50.673986 - 8084: Received code from main service: None
+2026-01-26T12:50:50.675921 - 8084: Attempting to store code OHKWHRT5GLL0 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'OHKWHRT5GLL0', 'analysis_session_id': 'ANALYSIS_20260126_124408_644ac1f1', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 80}
+2026-01-26T12:50:50.712592 - 8084: API Response - Status: 200
+2026-01-26T12:50:50.713610 - 8084: SUCCESS - Stored verification code OHKWHRT5GLL0 in database
+2026-01-26T13:45:32.649610 - 8084: Received code from main service: None
+2026-01-26T13:45:32.650705 - 8084: Attempting to store code BZRMXKR5UF4Q at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'BZRMXKR5UF4Q', 'analysis_session_id': 'ANALYSIS_20260126_134502_6b763041', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-26T13:45:32.681177 - 8084: API Response - Status: 200
+2026-01-26T13:45:32.682179 - 8084: SUCCESS - Stored verification code BZRMXKR5UF4Q in database
+2026-01-26T17:47:14.476874 - 8084: Received code from main service: None
+2026-01-26T17:47:14.478877 - 8084: Attempting to store code AEX7RF6R9MKH at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'AEX7RF6R9MKH', 'analysis_session_id': 'ANALYSIS_20260126_174635_7367174a', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-26T17:47:14.502710 - 8084: API Response - Status: 200
+2026-01-26T17:47:14.504030 - 8084: SUCCESS - Stored verification code AEX7RF6R9MKH in database
+2026-01-26T17:58:07.835045 - 8084: Received code from main service: None
+2026-01-26T17:58:07.836045 - 8084: Attempting to store code CMJ9C9LY32LC at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'CMJ9C9LY32LC', 'analysis_session_id': 'ANALYSIS_20260126_175743_e9dd4c23', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-26T17:58:07.874004 - 8084: API Response - Status: 200
+2026-01-26T17:58:07.875004 - 8084: SUCCESS - Stored verification code CMJ9C9LY32LC in database
+2026-01-27T08:44:19.262027 - 8084: Received code from main service: None
+2026-01-27T08:44:19.263028 - 8084: Attempting to store code JBETPYXFX3LV at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'JBETPYXFX3LV', 'analysis_session_id': 'ANALYSIS_20260127_084349_96e7048f', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T08:44:19.274028 - 8084: API Response - Status: 200
+2026-01-27T08:44:19.274028 - 8084: SUCCESS - Stored verification code JBETPYXFX3LV in database
+2026-01-27T09:43:22.467155 - 8084: Received code from main service: None
+2026-01-27T09:43:22.468154 - 8084: Attempting to store code PFZK7S18UPI2 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'PFZK7S18UPI2', 'analysis_session_id': 'ANALYSIS_20260127_094309_4f294189', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T09:43:22.499674 - 8084: API Response - Status: 200
+2026-01-27T09:43:22.499674 - 8084: SUCCESS - Stored verification code PFZK7S18UPI2 in database
+2026-01-27T09:59:40.911035 - 8084: Received code from main service: None
+2026-01-27T09:59:40.911035 - 8084: Attempting to store code FCASFP0UXFPD at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'FCASFP0UXFPD', 'analysis_session_id': 'ANALYSIS_20260127_095928_d079dd83', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T09:59:40.924021 - 8084: API Response - Status: 200
+2026-01-27T09:59:40.924021 - 8084: SUCCESS - Stored verification code FCASFP0UXFPD in database
+2026-01-27T10:30:08.041938 - 8084: Received code from main service: None
+2026-01-27T10:30:08.042987 - 8084: Attempting to store code RVUGN0JTVYB4 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'RVUGN0JTVYB4', 'analysis_session_id': 'ANALYSIS_20260127_102944_10b3be96', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T10:30:08.076405 - 8084: API Response - Status: 200
+2026-01-27T10:30:08.077406 - 8084: SUCCESS - Stored verification code RVUGN0JTVYB4 in database
+2026-01-27T10:31:20.349893 - 8084: Received code from main service: None
+2026-01-27T10:31:20.350894 - 8084: Attempting to store code BERZEFO840E5 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'BERZEFO840E5', 'analysis_session_id': 'ANALYSIS_20260127_102944_10b3be96', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T10:31:20.373097 - 8084: API Response - Status: 200
+2026-01-27T10:31:20.373097 - 8084: SUCCESS - Stored verification code BERZEFO840E5 in database
+2026-01-27T10:59:47.246184 - 8084: Received code from main service: None
+2026-01-27T10:59:47.246184 - 8084: Attempting to store code QQI8O275QB6X at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'QQI8O275QB6X', 'analysis_session_id': 'ANALYSIS_20260127_105925_192dca4a', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T10:59:47.279400 - 8084: API Response - Status: 200
+2026-01-27T10:59:47.280251 - 8084: SUCCESS - Stored verification code QQI8O275QB6X in database
+2026-01-27T11:47:09.755431 - 8084: Received code from main service: None
+2026-01-27T11:47:09.757435 - 8084: Attempting to store code GQCZ9DD6WK10 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'GQCZ9DD6WK10', 'analysis_session_id': 'ANALYSIS_20260127_114612_b2bec700', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T11:47:09.800395 - 8084: API Response - Status: 200
+2026-01-27T11:47:09.801991 - 8084: SUCCESS - Stored verification code GQCZ9DD6WK10 in database
+2026-01-27T12:08:58.251565 - 8084: Received code from main service: None
+2026-01-27T12:08:58.252995 - 8084: Attempting to store code OFH7K4DP2IOS at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'OFH7K4DP2IOS', 'analysis_session_id': 'ANALYSIS_20260127_120840_7c48c308', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-27T12:08:58.284062 - 8084: API Response - Status: 200
+2026-01-27T12:08:58.285058 - 8084: SUCCESS - Stored verification code OFH7K4DP2IOS in database

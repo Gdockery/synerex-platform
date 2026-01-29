@@ -1,0 +1,56 @@
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
+Starting Utility Incentive Service on port 8203
+Endpoints:
+  GET  /health
+  POST /incentives
+  GET  /incentives/state/<state>
+ * Serving Flask app 'utility_incentive_service'
+ * Debug mode: on
