@@ -1,0 +1,51 @@
+{
+    "typescript.tsserver.maxTsServerMemory": 16384,
+    "typescript.tsserver.watchOptions": "vscode",
+    "files.watcherExclude": {
+        "**/reports/**": true,
+        "**/files/**": true,
+        "emv-program/8082/reports/**": true,
+        "emv-program/8082/files/**": true,
+        "**/*.csv": true,
+        "**/*.html": true,
+        "**/node_modules/**": true,
+        "**/__pycache__/**": true,
+        "**/venv/**": true,
+        "**/uploads/**": true,
+        "**/temp/**": true,
+        "**/dist/**": true,
+        "**/build/**": true
+    },
+    "search.exclude": {
+        "**/reports": true,
+        "**/reports/**": true,
+        "emv-program/8082/reports": true,
+        "emv-program/8082/reports/**": true,
+        "**/files": true,
+        "**/files/**": true,
+        "emv-program/8082/files": true,
+        "emv-program/8082/files/**": true,
+        "**/*.csv": true,
+        "**/*.html": true,
+        "**/node_modules": true,
+        "**/__pycache__": true,
+        "**/venv": true,
+        "**/uploads": true,
+        "**/temp": true
+    },
+    "files.exclude": {
+        "**/reports": true,
+        "**/reports/**": true,
+        "emv-program/8082/reports": true,
+        "emv-program/8082/reports/**": true,
+        "**/files": true,
+        "**/files/**": true,
+        "emv-program/8082/files": true,
+        "emv-program/8082/files/**": true,
+        "**/*.csv": true,
+        "**/*.html": true,
+        "**/venv": true
+    },
+    "search.useIgnoreFiles": true,
+    "search.useGlobalIgnoreFiles": true
+}

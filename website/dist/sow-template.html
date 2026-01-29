@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Synerex SOW Template for Licensees</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background-color: #f9f9fb;
+      color: #333;
+    }
+    header {
+      background-color: #222;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    header h1 { margin: 0; }
+    form {
+      max-width: 900px;
+      margin: 30px auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    h2 {
+      border-bottom: 2px solid #eee;
+      padding-bottom: 8px;
+      margin-top: 30px;
+      color: #444;
+    }
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-weight: bold;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    textarea { min-height: 80px; }
+    button {
+      background-color: #0066cc;
+      color: #fff;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    button:hover { background-color: #004999; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Synerex Statement of Work (SOW) for Licensees</h1>
+    <p>Complete this form to begin your licensing engagement with Synerex Laboratories, LLC.</p>
+  </header>
+
+  <form action="/submit-sow" method="POST">
+    <!-- Project Overview -->
+    <h2>1. Project Overview</h2>
+    <label for="projectName">Project Name</label>
+    <input type="text" id="projectName" name="projectName" required />
+
+    <label for="licensee">Prepared For (Licensee)</label>
+    <input type="text" id="licensee" name="licensee" required />
+
+    <label for="licenseeEmail">Licensee Email (for confirmation)</label>
+    <input type="email" id="licenseeEmail" name="licenseeEmail" />
+
+    <label for="date">Date</label>
+    <input type="date" id="date" name="date" required />
+
+    <!-- Scope of Work -->
+    <h2>2. Scope of Work</h2>
+    <label for="inScope">In-Scope</label>
+    <textarea id="inScope" name="inScope"></textarea>
+
+    <label for="outScope">Out-of-Scope</label>
+    <textarea id="outScope" name="outScope"></textarea>
+
+    <!-- Deliverables -->
+    <h2>3. Deliverables</h2>
+    <label for="techDeliverables">Technology Deliverables</label>
+    <textarea id="techDeliverables" name="techDeliverables"></textarea>
+
+    <label for="supportDeliverables">Support Deliverables</label>
+    <textarea id="supportDeliverables" name="supportDeliverables"></textarea>
+
+    <!-- License Framework -->
+    <h2>4. License Framework & Commercial Terms</h2>
+    <label for="licenseType">License Type</label>
+    <select id="licenseType" name="licenseType">
+      <option>Exclusive</option>
+      <option>Non-Exclusive</option>
+      <option>Regional</option>
+      <option>Product-Specific</option>
+    </select>
+
+    <label for="royaltyModel">Royalty Model</label>
+    <input type="text" id="royaltyModel" name="royaltyModel" />
+
+    <label for="upfrontFees">Upfront Fees / Minimum Guarantees</label>
+    <input type="text" id="upfrontFees" name="upfrontFees" />
+
+    <label for="term">License Term</label>
+    <input type="text" id="term" name="term" />
+
+    <!-- Roles & Responsibilities -->
+    <h2>5. Roles & Responsibilities</h2>
+    <label for="synerexResp">Synerex Responsibilities</label>
+    <textarea id="synerexResp" name="synerexResp"></textarea>
+
+    <label for="licenseeResp">Licensee Responsibilities</label>
+    <textarea id="licenseeResp" name="licenseeResp"></textarea>
+
+    <!-- Timeline -->
+    <h2>6. Timeline & Milestones</h2>
+    <label for="milestones">Milestones</label>
+    <textarea id="milestones" name="milestones" placeholder="E.g., Kickoff, Tech Transfer, Pilot, Certification, Launch"></textarea>
+
+    <!-- Acceptance Criteria -->
+    <h2>7. Acceptance Criteria</h2>
+    <textarea id="acceptanceCriteria" name="acceptanceCriteria"></textarea>
+
+    <!-- Change Management -->
+    <h2>8. Change Management</h2>
+    <textarea id="changeManagement" name="changeManagement"></textarea>
+
+    <!-- Signatures -->
+    <h2>9. Signatures</h2>
+    <label for="synerexRep">Synerex Representative</label>
+    <input type="text" id="synerexRep" name="synerexRep" />
+
+    <label for="licenseeRep">Licensee Representative</label>
+    <input type="text" id="licenseeRep" name="licenseeRep" />
+
+    <button type="submit">Submit SOW</button>
+  </form>
+
+  <script>
+    document.querySelector('form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const data = Object.fromEntries(formData.entries());
+      
+      try {
+        const response = await fetch('/submit-sow', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          alert(`SOW submitted successfully!\nReference ID: ${result.referenceId}\n\nThank you for your submission. We will contact you soon.`);
+          this.reset();
+        } else {
+          alert('Error submitting SOW: ' + result.message);
+        }
+      } catch (error) {
+        alert('Error submitting SOW. Please try again or contact us directly.');
+        console.error('SOW submission error:', error);
+      }
+    });
+  </script>
+</body>
+</html>
