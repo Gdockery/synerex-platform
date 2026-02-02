@@ -7,6 +7,7 @@ export default function Header(){
   
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
   const EMV_URL = "http://localhost:8082";
+  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || "http://localhost:8087";
   
   useEffect(() => {
     // Cleanup timeout on unmount
@@ -98,15 +99,17 @@ export default function Header(){
                   }, 200);
                 }}
               >
-                <Link
-                  to="/admin"
+                <a
+                  href={`${LICENSE_SERVICE_URL}/admin`}
+                  target="_self"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-b border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Admin Dashboard</div>
                   <div className="text-xs text-gray-500 mt-1">Platform management & service controls</div>
-                </Link>
+                </a>
                 <a
                   href={`${LICENSE_SERVICE_URL}/admin`}
+                  target="_self"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors cursor-pointer no-underline"
                 >
                   <div className="font-semibold">License Management</div>
@@ -118,6 +121,13 @@ export default function Header(){
                 >
                   <div className="font-semibold">EM&V Admin Panel</div>
                   <div className="text-xs text-gray-500 mt-1">Manage EM&V program settings</div>
+                </a>
+                <a
+                  href={`${TRACKING_URL}/login?role=admin`}
+                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
+                >
+                  <div className="font-semibold">Tracking Admin Portal</div>
+                  <div className="text-xs text-gray-500 mt-1">Admin access to Tracking program</div>
                 </a>
               </div>
             )}

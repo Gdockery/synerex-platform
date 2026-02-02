@@ -14,6 +14,7 @@ export default function MyAccount() {
   const navigate = useNavigate();
   
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
+  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || "http://localhost:8087";
   
   useEffect(() => {
     checkAuth();
@@ -121,6 +122,19 @@ export default function MyAccount() {
   const getAccessUrl = (program) => {
     if (!licenseSerial.trim()) return "#";
     return `${LICENSE_SERVICE_URL}/access/${program}?license_id=${licenseSerial.trim()}`;
+  };
+
+  const handleClientLogout = async () => {
+    try {
+      await fetch(`${LICENSE_SERVICE_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    } finally {
+      window.location.href = `${LICENSE_SERVICE_URL}/auth/login`;
+    }
   };
   
   const formatDate = (dateString) => {
@@ -243,6 +257,15 @@ export default function MyAccount() {
             Welcome, {userInfo.username || userInfo.email}!
           </p>
         )}
+        <div className="flex justify-center mb-6">
+          <button
+            type="button"
+            onClick={handleClientLogout}
+            className="px-4 py-2 text-sm font-semibold bg-gray-800/80 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-md transition-colors"
+          >
+            Logout
+          </button>
+        </div>
         <p className="text-xl text-gray-300 mb-8 text-center max-w-4xl mx-auto">
           Manage your Synerex licenses, access your programs, and view important account information.
         </p>
@@ -264,6 +287,7 @@ export default function MyAccount() {
               <h3 className="font-semibold text-purple-300 mb-2">Quick Links</h3>
               <ul className="space-y-2 text-sm">
                 <li>• <a href="/emv-program" className="text-purple-400 hover:text-purple-300">Learn about EM&V Program</a></li>
+                <li>• <a href={`${TRACKING_URL}/login?role=user`} className="text-purple-400 hover:text-purple-300">Tracking User Portal</a></li>
                 <li>• <a href="/downloads" className="text-purple-400 hover:text-purple-300">Download Resources</a></li>
                 <li>• <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact Support</a></li>
                 <li>• <a href="/licensing" className="text-purple-400 hover:text-purple-300">License Information</a></li>
