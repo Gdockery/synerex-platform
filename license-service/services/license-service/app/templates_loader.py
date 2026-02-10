@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Path: services/license-service/app/templates_loader.py
-# Need to go up 3 levels: app -> license-service -> services -> project root -> templates
-TEMPLATES_ROOT = Path(__file__).resolve().parents[3] / "templates"
+# Docker compose mounts templates at /app/templates
+TEMPLATES_ROOT = Path(__file__).resolve().parents[1] / "templates"
 
 def load_template(program_id: str, template_id: str) -> Dict[str, Any]:
     # map template_id to filename convention

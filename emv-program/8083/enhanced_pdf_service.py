@@ -38,7 +38,7 @@ except ImportError:
 app = Flask(__name__)
 
 # Enable CORS for all routes
-CORS(app, origins=["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8082", "http://127.0.0.1:8082"])
+CORS(app, origins=[os.getenv("LICENSE_SERVICE_URL"), os.getenv("EMV_BASE_URL")])
 
 # Configure upload size limit (256MB)
 app.config["MAX_CONTENT_LENGTH"] = 256 * 1024 * 1024
@@ -523,9 +523,10 @@ if __name__ == '__main__':
     print("Starting Enhanced PDF Generator Service on port 8083...")
     print(f"SVG Support: {'Enabled' if HAVE_SVGLIB else 'Disabled'}")
     print(f"Output directory: {OUTPUT_DIR}")
-    print("Health check: http://localhost:8083/health")
-    print("Generate PDF: POST http://localhost:8083/generate")
-    print("Status: http://localhost:8083/status")
+    base_url = os.getenv("PDF_SERVICE_URL")
+    print(f"Health check: {base_url}/health")
+    print(f"Generate PDF: POST {base_url}/generate")
+    print(f"Status: {base_url}/status")
     print("-" * 50)
     
     # Windows-compatible Flask configuration

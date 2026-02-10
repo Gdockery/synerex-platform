@@ -174,7 +174,7 @@ def generate_verification_certificate_html(r):
                 print(f"8084: Storing code {verification_code} - session={analysis_session_id}, project={project_name}, before={before_file_id}, after={after_file_id}")
                 
                 # Call main service to store the code
-                store_url = 'http://127.0.0.1:8082/api/store-verification-code'
+                store_url = f"{os.getenv('EMV_BASE_URL')}/api/store-verification-code"
                 store_data = {
                     'verification_code': verification_code,
                     'analysis_session_id': analysis_session_id,
@@ -498,7 +498,7 @@ def generate_verification_certificate_html(r):
         
         # Get base URL for verification link
         # Try to get from results data if available, otherwise use default
-        base_url = r.get('verification_base_url') or r.get('server_url') or 'http://localhost:8082'
+        base_url = r.get('verification_base_url') or r.get('server_url') or os.getenv('EMV_BASE_URL')
         # Ensure it doesn't end with a slash
         base_url = base_url.rstrip('/')
         verification_url = f"{base_url}/verify/{verification_code}"
@@ -7325,12 +7325,12 @@ def generate_layman_report_html(r):
         # This way we can check the actual value and handle the link appropriately
         if verification_code == "N/A" or not verification_code or str(verification_code).strip() == "":
             # Replace the verification link with a message (before replacing {{VERIFICATION_CODE}})
-            verification_link_pattern = r'<a href="http://localhost:8082/verify/\{\{VERIFICATION_CODE\}\}" class="verification-link" target="_blank">\s*Verify at: localhost:8082/verify/\{\{VERIFICATION_CODE\}\}\s*</a>'
+            verification_link_pattern = r'<a href="__EMV_BASE_URL__/verify/\{\{VERIFICATION_CODE\}\}" class="verification-link" target="_blank">\s*Verify at: __EMV_BASE_URL__/verify/\{\{VERIFICATION_CODE\}\}\s*</a>'
             replacement_message = '<div style="margin-top: 15px; font-size: 16px; color: #856404;">Verification code will be available after generating the full HTML report.</div>'
             template_content = re.sub(verification_link_pattern, replacement_message, template_content)
         else:
             # Replace the template variable in the URL with the actual code
-            template_content = template_content.replace('http://localhost:8082/verify/{{VERIFICATION_CODE}}', f'http://localhost:8082/verify/{verification_code}')
+            template_content = template_content.replace('__EMV_BASE_URL__/verify/{{VERIFICATION_CODE}}', f'{os.getenv("EMV_BASE_URL")}/verify/{verification_code}')
         
         # Now replace the verification code variable (after handling the link)
         template_content = template_content.replace('{{VERIFICATION_CODE}}', str(verification_code))

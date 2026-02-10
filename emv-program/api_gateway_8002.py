@@ -15,15 +15,15 @@ CORS(app)
 # Service endpoints
 SERVICES = {
     'main_app': {
-        'primary': 'http://localhost:8000',
-        'backup': 'http://localhost:8001'
+        'primary': os.getenv('LICENSE_SERVICE_URL'),
+        'backup': os.getenv('LICENSE_SERVICE_BACKUP_URL')
     },
     'pdf_service': {
-        'envelope': 'http://localhost:8101',
-        'standard': 'http://localhost:8102'
+        'envelope': os.getenv('PDF_ENVELOPE_URL'),
+        'standard': os.getenv('PDF_STANDARD_URL')
     },
-    'weather': 'http://localhost:8200',
-    'chart': 'http://localhost:8201'
+    'weather': os.getenv('WEATHER_SERVICE_URL'),
+    'chart': os.getenv('CHART_SERVICE_URL')
 }
 
 @app.route('/health')

@@ -21,7 +21,11 @@ router.get('/generate-emv-program-pdf', async (req, res) => {
       deviceScaleFactor: 2
     });
     
-    const url = req.query.url || 'http://localhost:5173/emv-program';
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL || '';
+    const url = req.query.url || (frontendBaseUrl ? `${frontendBaseUrl}/emv-program` : '');
+    if (!url) {
+      return res.status(400).json({ error: 'Missing url parameter and FRONTEND_BASE_URL not set' });
+    }
     await page.goto(url, { 
       waitUntil: 'networkidle0',
       timeout: 30000 

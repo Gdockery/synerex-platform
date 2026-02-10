@@ -3,9 +3,10 @@ export default function NDAModal({ open, onClose }){
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
   async function createNDA(payload){
     const targets = [
-      "http://localhost:3001/api/docusign/createNDA",
+      `${WEBSITE_BACKEND_URL}/api/docusign/createNDA`,
       "/api/docusign/createNDA"
     ];
     for (const url of targets){

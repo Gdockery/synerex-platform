@@ -17,18 +17,18 @@ uvicorn app.main:app --reload --port 8000
 ## Minimal demo (curl)
 1) Create org:
 ```bash
-curl -X POST "http://localhost:8000/api/orgs?org_id=OEM-ACME-001&org_name=ACME%20Power&org_type=oem"
+curl -X POST "${LICENSE_SERVICE_URL}/api/orgs?org_id=OEM-ACME-001&org_name=ACME%20Power&org_type=oem"
 ```
 
 2) Issue OEM API key (baseline sealing scope):
 ```bash
-curl -X POST "http://localhost:8000/api/api-keys/issue?org_id=OEM-ACME-001&scopes_csv=baseline:seal"
+curl -X POST "${LICENSE_SERVICE_URL}/api/api-keys/issue?org_id=OEM-ACME-001&scopes_csv=baseline:seal"
 ```
 Save the returned `api_key`.
 
 3) Create EM&V authorization:
 ```bash
-curl -X POST "http://localhost:8000/api/programs/emv/authorizations" \
+curl -X POST "${LICENSE_SERVICE_URL}/api/programs/emv/authorizations" \
   -H "Content-Type: application/json" \
   -d '{
     "authorization_id":"AUTH-EMV-0001",
@@ -45,13 +45,13 @@ curl -X POST "http://localhost:8000/api/programs/emv/authorizations" \
 
 4) Issue license from authorization:
 ```bash
-curl -X POST "http://localhost:8000/api/programs/emv/authorizations/AUTH-EMV-0001/issue-license"
+curl -X POST "${LICENSE_SERVICE_URL}/api/programs/emv/authorizations/AUTH-EMV-0001/issue-license"
 ```
 Save returned `license_id`.
 
 5) Seal a baseline (idempotent). Requires multipart upload and X-API-Key header:
 ```bash
-curl -X POST "http://localhost:8000/api/baselines/seal" \
+curl -X POST "${LICENSE_SERVICE_URL}/api/baselines/seal" \
   -H "X-API-Key: <YOUR_API_KEY>" \
   -F "org_id=OEM-ACME-001" \
   -F "project_id=PRJ-001" \
@@ -67,12 +67,12 @@ curl -X POST "http://localhost:8000/api/baselines/seal" \
 
 6) Tracking portal online verification:
 ```bash
-curl -X POST "http://localhost:8000/api/licenses/verify" -H "Content-Type: application/json" -d '<SIGNED_LICENSE_JSON>'
+curl -X POST "${LICENSE_SERVICE_URL}/api/licenses/verify" -H "Content-Type: application/json" -d '<SIGNED_LICENSE_JSON>'
 ```
 
 
 ## Admin UI
-- Visit http://localhost:8000/admin/login
+- Visit ${LICENSE_SERVICE_URL}/admin/login
 - Default credentials are in services/license-service/app/config.py (admin/admin_password). Change before production.
 
 
@@ -113,7 +113,7 @@ python cli.py create-draft \
 
 ### Sync drafts (when online)
 ```bash
-python cli.py sync --base-url http://localhost:8000 --api-key <X_API_KEY>
+python cli.py sync --base-url ${LICENSE_SERVICE_URL} --api-key <X_API_KEY>
 ```
 
 
@@ -124,7 +124,7 @@ Use the `LicenseChecker` to enforce Tracking licenses online.
 from clients.tracking-portal.middleware.license_check import LicenseChecker
 
 checker = LicenseChecker(
-    license_service_base_url="http://localhost:8000",
+    license_service_base_url="${LICENSE_SERVICE_URL}",
     service_api_key="<SERVICE_API_KEY>",
 )
 

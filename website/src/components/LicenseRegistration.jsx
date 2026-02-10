@@ -4,7 +4,7 @@ export default function LicenseRegistration({ program = "emv", plan = "annual" }
   const [redirecting, setRedirecting] = useState(false);
   
   // License Service URL - should be in environment variable
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
   
   const handleRegister = () => {
     setRedirecting(true);

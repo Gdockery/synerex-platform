@@ -65,8 +65,12 @@ import json
 import logging
 import math
 import os
+from pathlib import Path
+from urllib.parse import urlparse
 import shutil
 import sqlite3
+import re
+import pymysql
 import sys
 import tempfile
 import time
@@ -74,6 +78,13 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Dict, List
+
+try:
+    from dotenv import load_dotenv
+    _dotenv_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(dotenv_path=_dotenv_path, override=False)
+except Exception:
+    pass
 
 import numpy as np
 import requests
@@ -118,6 +129,18 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Environment-configured base URLs
+WEATHER_SERVICE_URL = os.getenv("WEATHER_SERVICE_URL")
+LICENSE_SERVICE_URL = os.getenv("LICENSE_SERVICE_URL")
+WEBSITE_URL = os.getenv("WEBSITE_URL")
+EMV_BASE_URL = os.getenv("EMV_BASE_URL")
+SERVICE_MANAGER_URL = os.getenv("SERVICE_MANAGER_URL")
+HTML_REPORT_URL = os.getenv("HTML_REPORT_URL")
+PDF_SERVICE_URL = os.getenv("PDF_SERVICE_URL")
+INCENTIVE_SERVICE_URL = os.getenv("INCENTIVE_SERVICE_URL")
+EMV_DB_URL = os.getenv("EMV_DB_URL")
+USE_MYSQL = bool(EMV_DB_URL)
 
 # Weather Service Client
 class WeatherServiceClient:
@@ -394,7 +417,7 @@ def _normalize_address_for_weather(address: str) -> str:
 
 
 # Initialize weather service client
-weather_client = WeatherServiceClient("http://127.0.0.1:8200")
+weather_client = WeatherServiceClient(WEATHER_SERVICE_URL)
 
 
 # -------- fcntl (POSIX) availability --------
@@ -1747,6 +1770,281 @@ def log_weather_data_audit(analysis_session_id: str, location_address: str,
     except Exception as e:
         logger.error(f"Failed to log weather data audit: {e}")
 
+def _parse_mysql_url(mysql_url: str) -> dict:
+    parsed = urlparse(mysql_url)
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 3306,
+        "user": parsed.username or "",
+        "password": parsed.password or "",
+        "database": (parsed.path or "").lstrip("/"),
+    }
+
+
+def _normalize_sql_for_mysql(sql: str) -> str:
+    sql = sql.strip()
+    if sql.upper().startswith("PRAGMA"):
+        return ""
+    if "sqlite_master" in sql:
+        return ""
+    sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "INT AUTO_INCREMENT PRIMARY KEY")
+    return sql
+
+
+ORG_TABLES = {
+    "projects",
+    "transformers_data",
+    "feeders_data",
+    "raw_meter_data",
+    "project_files",
+    "users",
+    "user_activity",
+    "data_modifications",
+    "analysis_sessions",
+    "calculation_audit",
+    "data_access_log",
+    "compliance_verification",
+    "weather_data_audit",
+    "pe_certifications",
+    "pe_verification_documents",
+    "pe_review_workflow",
+    "equipment_health_monitoring",
+    "html_reports",
+    "csv_fingerprints",
+    "csv_cell_annotations",
+}
+
+
+class MySQLCursor:
+    def __init__(self, cursor, org_id=None):
+        self._cursor = cursor
+        self._org_id = org_id
+
+    def _inject_org_id(self, sql: str, params):
+        if not self._org_id:
+            return sql, params
+        sql_lower = sql.lower()
+        if "org_id" in sql_lower:
+            return sql, params
+
+        # INSERT INTO table (cols...) VALUES (...)
+        insert_match = re.match(r"\s*insert\s+into\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)", sql_lower)
+        if insert_match:
+            table = insert_match.group(1)
+            if table in ORG_TABLES:
+                columns = [c.strip() for c in insert_match.group(2).split(",")]
+                if "org_id" not in columns:
+                    columns.append("org_id")
+                    placeholders = [p.strip() for p in insert_match.group(3).split(",")]
+                    placeholders.append("%s")
+                    sql = re.sub(
+                        r"\(([^)]+)\)\s*values\s*\(([^)]+)\)",
+                        f"({', '.join(columns)}) VALUES ({', '.join(placeholders)})",
+                        sql,
+                        flags=re.IGNORECASE,
+                    )
+                    params = list(params or [])
+                    params.append(self._org_id)
+                    return sql, params
+
+        # UPDATE table SET ... WHERE ...
+        update_match = re.match(r"\s*update\s+([a-zA-Z0-9_]+)\s+set\s+", sql_lower)
+        if update_match:
+            table = update_match.group(1)
+            if table in ORG_TABLES:
+                sql, params = self._append_where(sql, params)
+                return sql, params
+
+        # DELETE FROM table ...
+        delete_match = re.match(r"\s*delete\s+from\s+([a-zA-Z0-9_]+)\s+", sql_lower)
+        if delete_match:
+            table = delete_match.group(1)
+            if table in ORG_TABLES:
+                sql, params = self._append_where(sql, params)
+                return sql, params
+
+        # SELECT ... FROM table ...
+        select_match = re.search(r"\sfrom\s+([a-zA-Z0-9_]+)\s+", sql_lower)
+        if select_match:
+            table = select_match.group(1)
+            if table in ORG_TABLES:
+                sql, params = self._append_where(sql, params)
+                return sql, params
+
+        return sql, params
+
+    def _append_where(self, sql: str, params):
+        params = list(params or [])
+        insertion = "org_id = %s"
+        sql_lower = sql.lower()
+        if " where " in sql_lower:
+            sql = re.sub(r"\bwhere\b", "WHERE", sql, flags=re.IGNORECASE)
+            sql += f" AND {insertion}"
+        else:
+            # insert before ORDER BY / GROUP BY / LIMIT if present
+            for keyword in [" order by ", " group by ", " limit "]:
+                idx = sql_lower.find(keyword)
+                if idx != -1:
+                    sql = sql[:idx] + f" WHERE {insertion}" + sql[idx:]
+                    break
+            else:
+                sql += f" WHERE {insertion}"
+        params.append(self._org_id)
+        return sql, params
+
+    def execute(self, sql, params=None):
+        normalized = _normalize_sql_for_mysql(sql)
+        if not normalized:
+            return None
+        if params is not None:
+            normalized = normalized.replace("?", "%s")
+        normalized, params = self._inject_org_id(normalized, params)
+        return self._cursor.execute(normalized, params)
+
+    def executemany(self, sql, seq):
+        normalized = _normalize_sql_for_mysql(sql)
+        if not normalized:
+            return None
+        normalized = normalized.replace("?", "%s")
+        return self._cursor.executemany(normalized, seq)
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    def fetchmany(self, size=None):
+        return self._cursor.fetchmany(size)
+
+    @property
+    def lastrowid(self):
+        return self._cursor.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
+
+class MySQLConnection:
+    def __init__(self, mysql_url: str, org_id=None):
+        cfg = _parse_mysql_url(mysql_url)
+        self._database = cfg["database"]
+        self._org_id = org_id
+        self._conn = pymysql.connect(
+            host=cfg["host"],
+            port=cfg["port"],
+            user=cfg["user"],
+            password=cfg["password"],
+            database=cfg["database"],
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+        )
+
+    def cursor(self):
+        return MySQLCursor(self._conn.cursor(), org_id=self._org_id)
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def executemany(self, sql, seq):
+        cur = self.cursor()
+        cur.executemany(sql, seq)
+        return cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+    @property
+    def database(self):
+        return self._database
+
+
+def table_exists(conn, table_name: str) -> bool:
+    if USE_MYSQL:
+        cursor = conn.execute(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema=%s AND table_name=%s LIMIT 1",
+            (conn.database, table_name),
+        )
+        return bool(cursor.fetchone())
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+        (table_name,),
+    )
+    return bool(cursor.fetchone())
+
+
+def column_exists(conn, table_name: str, column_name: str) -> bool:
+    if USE_MYSQL:
+        cursor = conn.execute(
+            "SELECT 1 FROM information_schema.columns WHERE table_schema=%s AND table_name=%s AND column_name=%s LIMIT 1",
+            (conn.database, table_name, column_name),
+        )
+        return bool(cursor.fetchone())
+    cursor = conn.execute(f"PRAGMA table_info({table_name})")
+    return any(row["name"] == column_name for row in cursor.fetchall())
+
+
+def ensure_org_id_columns(conn):
+    if not USE_MYSQL:
+        return
+    for table_name in ORG_TABLES:
+        if not table_exists(conn, table_name):
+            continue
+        if not column_exists(conn, table_name, "org_id"):
+            conn.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN org_id VARCHAR(255) NOT NULL DEFAULT 'default'"
+            )
+        cursor = conn.execute(
+            "SELECT 1 FROM information_schema.statistics WHERE table_schema=%s AND table_name=%s AND index_name=%s LIMIT 1",
+            (conn.database, table_name, f"idx_{table_name}_org_id"),
+        )
+        if not cursor.fetchone():
+            conn.execute(
+                f"CREATE INDEX idx_{table_name}_org_id ON {table_name}(org_id)"
+            )
+
+
+def ensure_sessions_tables(conn):
+    if not USE_MYSQL:
+        return
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS organizations (
+            org_id VARCHAR(255) PRIMARY KEY,
+            company_name TEXT NOT NULL,
+            address TEXT,
+            city TEXT,
+            state TEXT,
+            zip TEXT,
+            contact_name TEXT,
+            contact_phone TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            org_id VARCHAR(255),
+            session_token VARCHAR(255) UNIQUE NOT NULL,
+            expires_at DATETIME NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
 @contextmanager
 def get_db_connection(org_id=None, use_sessions_db=False):
     """
@@ -1761,32 +2059,45 @@ def get_db_connection(org_id=None, use_sessions_db=False):
     Returns:
         Database connection to org-specific database or shared sessions database
     """
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         yield None
         return
 
     conn = None
     try:
-        # Compute results directory path (BASE_DIR is defined earlier)
-        results_dir = BASE_DIR / "results"
-        
+        if USE_MYSQL:
+            org_value = org_id if org_id else ("default" if not use_sessions_db else None)
+            conn = MySQLConnection(EMV_DB_URL, org_id=org_value)
+            if not use_sessions_db:
+                ensure_org_id_columns(conn)
+            if use_sessions_db:
+                conn = MySQLConnection(EMV_DB_URL, org_id=None)
+                ensure_sessions_tables(conn)
+        else:
+            # Compute results directory path (BASE_DIR is defined earlier)
+            results_dir = BASE_DIR / "results"
+
+        if use_sessions_db and USE_MYSQL:
+            logger.error("Sessions DB is still SQLite-only. Configure session storage for MySQL.")
+            yield None
+            return
         if use_sessions_db:
             # Use shared sessions database for session management
             db_path = os.path.join(str(results_dir), "sessions.db")
-        elif org_id:
-            # Use org-specific database
-            org_dir = os.path.join(str(results_dir), f"org_{org_id}")
-            os.makedirs(org_dir, exist_ok=True)
-            db_path = os.path.join(org_dir, "app.db")
-        else:
-            # Fallback: use default app.db (for backward compatibility during migration)
-            # WARNING: This should only be used temporarily
-            logger.warning("get_db_connection() called without org_id - using default app.db (backward compatibility)")
-            db_path = DATABASE_PATH
-        
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row  # Enable dict-like access
+            elif org_id:
+                # Use org-specific database
+                org_dir = os.path.join(str(results_dir), f"org_{org_id}")
+                os.makedirs(org_dir, exist_ok=True)
+                db_path = os.path.join(org_dir, "app.db")
+            else:
+                # Fallback: use default app.db (for backward compatibility during migration)
+                # WARNING: This should only be used temporarily
+                logger.warning("get_db_connection() called without org_id - using default app.db (backward compatibility)")
+                db_path = DATABASE_PATH
+
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row  # Enable dict-like access
         yield conn
     except Exception as e:
         logger.error(f"Database connection error (org_id={org_id}, use_sessions_db={use_sessions_db}): {e}")
@@ -1805,7 +2116,7 @@ def init_database():
         return
 
     # Protect the database file if protection system is available
-    if FILE_PROTECTION_ENABLED:
+    if FILE_PROTECTION_ENABLED and not USE_MYSQL:
         protect_database_file(DATABASE_PATH)
         logger.info(f"Database file protected: {DATABASE_PATH}")
 
@@ -2122,11 +2433,7 @@ def init_database():
             # then create a unique index separately
             try:
                 # Check if column exists
-                cursor = conn.cursor()
-                cursor.execute("PRAGMA table_info(analysis_sessions)")
-                columns = [row[1] for row in cursor.fetchall()]
-                
-                if 'verification_code' not in columns:
+                if not column_exists(conn, "analysis_sessions", "verification_code"):
                     # Add column without UNIQUE constraint
                     conn.execute("ALTER TABLE analysis_sessions ADD COLUMN verification_code TEXT")
                     logger.info("Added verification_code column to analysis_sessions table")
@@ -2383,6 +2690,8 @@ def init_database():
                     "Default users created: admin/admin123, pe_user/pe123, engineer/engineer123"
                 )
 
+            if USE_MYSQL:
+                ensure_org_id_columns(conn)
             conn.commit()
             logger.info("Database initialized successfully")
 
@@ -8479,15 +8788,19 @@ class CSVIntegrityProtection:
         self.secret_key = secret_key or os.environ.get(
             "SYNREX_CSV_SECRET_KEY", "default_secret_key_change_me"
         )
-        self.db_path = "results/app.db"
+        self.db_path = None
+        if not USE_MYSQL:
+            self.db_path = "results/app.db"
         self._ensure_database_setup()
 
     def _ensure_database_setup(self):
         """Ensure the csv_fingerprints table exists in the database"""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute(
+            with get_db_connection() as conn:
+                if conn is None:
+                    return
+                cursor = conn.cursor()
+                cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS csv_fingerprints (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8502,8 +8815,8 @@ class CSVIntegrityProtection:
                 )
             """
             )
-            # Create csv_cell_annotations table
-            cursor.execute(
+                # Create csv_cell_annotations table
+                cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS csv_cell_annotations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8529,8 +8842,7 @@ class CSVIntegrityProtection:
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_cell_annotations_cell ON csv_cell_annotations(file_id, row_index, column_name)"
             )
-            conn.commit()
-            conn.close()
+                conn.commit()
         except Exception as e:
             logger.error(f"Error setting up CSV fingerprints database: {e}")
 
@@ -8576,25 +8888,49 @@ class CSVIntegrityProtection:
 
         # Store integrity record in database
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO csv_fingerprints 
-                (file_name, file_path, content_hash, fingerprint, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    f"content_{content_hash[:8]}.csv",
-                    f"/fingerprints/{fingerprint['fingerprint_id']}",
-                    content_hash,
-                    fingerprint["fingerprint_id"],
-                    "created",
-                    datetime.now().isoformat(),
-                ),
-            )
-            conn.commit()
-            conn.close()
+            with get_db_connection() as conn:
+                if conn is None:
+                    return fingerprint
+                cursor = conn.cursor()
+                if USE_MYSQL:
+                    cursor.execute(
+                        """
+                        INSERT INTO csv_fingerprints
+                        (file_name, file_path, content_hash, fingerprint, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE
+                        file_name=VALUES(file_name),
+                        file_path=VALUES(file_path),
+                        fingerprint=VALUES(fingerprint),
+                        status=VALUES(status),
+                        created_at=VALUES(created_at)
+                        """,
+                        (
+                            f"content_{content_hash[:8]}.csv",
+                            f"/fingerprints/{fingerprint['fingerprint_id']}",
+                            content_hash,
+                            fingerprint["fingerprint_id"],
+                            "created",
+                            datetime.now().isoformat(),
+                        ),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT OR REPLACE INTO csv_fingerprints 
+                        (file_name, file_path, content_hash, fingerprint, status, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            f"content_{content_hash[:8]}.csv",
+                            f"/fingerprints/{fingerprint['fingerprint_id']}",
+                            content_hash,
+                            fingerprint["fingerprint_id"],
+                            "created",
+                            datetime.now().isoformat(),
+                        ),
+                    )
+                conn.commit()
         except Exception as e:
             logger.error(f"Error storing fingerprint in database: {e}")
 
@@ -9254,20 +9590,33 @@ class CSVIntegrityProtection:
             Dict with integrity summary
         """
         try:
-            conn = sqlite3.connect("results/app.db")
-            cursor = conn.cursor()
+            with get_db_connection() as conn:
+                if conn is None:
+                    return {
+                        "status": "error",
+                        "error": "Database unavailable",
+                    }
+                cursor = conn.cursor()
 
             # Get total fingerprint count
             cursor.execute("SELECT COUNT(*) FROM csv_fingerprints")
             total_fingerprints = cursor.fetchone()[0]
 
-            # Get recent fingerprints (last 7 days)
-            cursor.execute(
-                """
-                SELECT COUNT(*) FROM csv_fingerprints 
-                WHERE created_at > datetime('now', '-7 days')
-            """
-            )
+                # Get recent fingerprints (last 7 days)
+                if USE_MYSQL:
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*) FROM csv_fingerprints
+                        WHERE created_at > (NOW() - INTERVAL 7 DAY)
+                        """
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT COUNT(*) FROM csv_fingerprints 
+                        WHERE created_at > datetime('now', '-7 days')
+                        """
+                    )
             recent_fingerprints = cursor.fetchone()[0]
 
             # Get last activity
@@ -9286,8 +9635,6 @@ class CSVIntegrityProtection:
             """
             )
             verified_files = cursor.fetchone()[0]
-
-            conn.close()
 
             return {
                 "status": "success",
@@ -19224,8 +19571,11 @@ def _load_javascript_functions():
             # Add timestamp to force cache invalidation
             timestamp = int(time.time())
             content = f"/* FORCE CACHE CLEAR - IEEE 519 CHARTS - TIMESTAMP: {timestamp} - POWER FACTOR FIX */\n{cache_bust}{content}"
-            # Replace any remaining port 8000 references with 8082
-            content = content.replace("localhost:8000", "localhost:8082")
+            # Replace any remaining License Service references with EMV base URL
+            if LICENSE_SERVICE_URL and EMV_BASE_URL:
+                license_host = LICENSE_SERVICE_URL.replace("http://", "").replace("https://", "")
+                emv_host = EMV_BASE_URL.replace("http://", "").replace("https://", "")
+                content = content.replace(license_host, emv_host)
 
             # Replace dynamic placeholders with actual values to prevent Jinja2 template errors
             # Use safe values that won't break JavaScript syntax
@@ -19234,7 +19584,19 @@ def _load_javascript_functions():
             content = content.replace(
                 "{{DYNAMIC_DECIMAL}}", "0.1"
             )  # Safe decimal value
-            content = content.replace("127.0.0.1:8000", "127.0.0.1:8082")
+            if LICENSE_SERVICE_URL and EMV_BASE_URL:
+                license_host = LICENSE_SERVICE_URL.replace("http://", "").replace("https://", "")
+                emv_host = EMV_BASE_URL.replace("http://", "").replace("https://", "")
+                local_hostnames = [h.strip() for h in os.getenv("LOCAL_HOSTNAMES", "").split(",") if h.strip()]
+                try:
+                    license_name, license_port = license_host.rsplit(":", 1)
+                    emv_name, emv_port = emv_host.rsplit(":", 1)
+                except ValueError:
+                    license_name, license_port = license_host, ""
+                    emv_name, emv_port = emv_host, ""
+                if license_port and emv_port:
+                    for local_host in local_hostnames:
+                        content = content.replace(f"{local_host}:{license_port}", f"{local_host}:{emv_port}")
 
             # Additional replacements for any remaining placeholders
             content = content.replace(
@@ -20620,7 +20982,7 @@ def fetch_weather():
             import requests
 
             response = requests.get(
-                "http://127.0.0.1:8082/api/verified-files", timeout=10
+                f"{EMV_BASE_URL}/api/verified-files", timeout=10
             )
             if response.status_code == 200:
                 files_data = response.json()
@@ -26109,7 +26471,7 @@ def serve_template_report():
                 logger.info(f"🔧 CONFIG DEBUG: Line 21240 - combined_data.config keys: {list(combined_data.get('config', {}).keys())}")
                 logger.info(f"🔧 CONFIG DEBUG: Line 21241 - combined_data.client_profile keys: {list(combined_data.get('client_profile', {}).keys())}")
                 
-                response = requests.get("http://localhost:8084/generate", timeout=10)
+                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=10)
                 if response.status_code == 200:
                     return Response(
                         response.text,
@@ -26150,7 +26512,7 @@ def serve_layman_report():
     """Serve the layman-friendly executive summary report"""
     try:
         # Forward request to 8084 service for layman report generation
-        response = requests.get("http://localhost:8084/generate-layman", timeout=30)
+        response = requests.get(f"{HTML_REPORT_URL}/generate-layman", timeout=30)
         if response.status_code == 200:
             html_content = response.text
             return Response(
@@ -28506,8 +28868,8 @@ def pe_dashboard():
         }
 
         function goBack() {
-            const LICENSE_SERVICE_URL = 'http://localhost:8000';
-            const WEBSITE_URL = 'http://localhost:5173';
+            const LICENSE_SERVICE_URL = '__LICENSE_SERVICE_URL__';
+            const WEBSITE_URL = '__WEBSITE_URL__';
             
             // Helper to get cookie
             function getCookie(name) {
@@ -28778,6 +29140,9 @@ def pe_dashboard():
 </body>
 </html>
     """
+
+    pe_dashboard_html = pe_dashboard_html.replace("__LICENSE_SERVICE_URL__", LICENSE_SERVICE_URL or "")
+    pe_dashboard_html = pe_dashboard_html.replace("__WEBSITE_URL__", WEBSITE_URL or "")
 
     return safe_render_template_string(pe_dashboard_html, **ctx)
 
@@ -30105,7 +30470,7 @@ Values extracted from: financial, executive_summary, statistical, after_complian
             if analysis_session_id:
                 logger.info(f"AUDIT PACKAGE - Querying database for file IDs using analysis_session_id: {analysis_session_id}")
                 # Try multiple databases (multi-tenant support) - but store which one worked
-                for try_org_id in [org_id, 'admin', 'ADMIN', None]:
+                for try_org_id in [org_id, 'admin', None]:
                     try:
                         with get_db_connection(org_id=try_org_id) as conn:
                             if conn:
@@ -31454,16 +31819,17 @@ ISO 50015:2014 - Energy Savings Determination
                     results_data['verification_code'] = verification_code
                     results_data['verification_certificate_number'] = f"VER-{timestamp}-{verification_code[:8]}"
                     
-                    # Get base URL for verification link - try to get from request context, fallback to localhost
+                    # Get base URL for verification link - try to get from request context, fallback to EMV_BASE_URL
                     try:
                         from flask import request
                         base_url = request.url_root.rstrip('/')
-                        # If it's localhost with a different port, use port 8082
-                        if 'localhost' in base_url or '127.0.0.1' in base_url:
-                            base_url = 'http://localhost:8082'
+                        # If it's a local address, use EMV_BASE_URL
+                        local_hostnames = [h.strip() for h in os.getenv("LOCAL_HOSTNAMES", "").split(",") if h.strip()]
+                        if any(host in base_url for host in local_hostnames):
+                            base_url = EMV_BASE_URL
                     except (RuntimeError, ImportError):
                         # Not in request context or Flask not available, use default
-                        base_url = 'http://localhost:8082'
+                        base_url = EMV_BASE_URL
                     
                     verification_url = f"{base_url}/verify/{verification_code}"
                     
@@ -31905,7 +32271,7 @@ Values extracted from: config, client_profile, before_data, after_data, power_qu
                 
                 user_guide_pdf_path = os.path.join(support_dir, "SYNEREX_User_Guide.pdf")
                 pdf_created = False
-                user_guide_url = "http://127.0.0.1:8082/users-guide"
+                user_guide_url = f"{EMV_BASE_URL}/users-guide"
                 
                 # Method 1: Try using Playwright (best for JavaScript-rendered content)
                 try:
@@ -32023,7 +32389,7 @@ Generated: {datetime.now().isoformat()}
 
 This is the complete SYNEREX User Guide. For the full interactive version with 
 all features, examples, and detailed instructions, please visit:
-http://127.0.0.1:8082/users-guide
+{EMV_BASE_URL}/users-guide
 
 TABLE OF CONTENTS:
 -----------------
@@ -32116,7 +32482,7 @@ STANDARDS COMPLIANCE:
 
 For the complete 75-page interactive User Guide with detailed instructions, 
 examples, screenshots, workflows, and comprehensive documentation, please visit:
-http://127.0.0.1:8082/users-guide
+{EMV_BASE_URL}/users-guide
 
 This PDF provides a summary and reference guide. The full interactive guide 
 contains comprehensive documentation of all features, workflows, and procedures.
@@ -42537,6 +42903,12 @@ def projects_archive():
         import re
         from datetime import datetime
 
+        # Get org_id for multi-tenant isolation
+        from main_hardened_ready_refactored import get_current_org_id
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+
         name = (request.form.get("project_name", "") or "").strip()
         if not name:
             return jsonify({"error": "Missing project_name"}), 400
@@ -42544,43 +42916,39 @@ def projects_archive():
         # Try database first if available
         if ENABLE_SQLITE:
             try:
-                with get_db_connection() as conn:
+                with get_db_connection(org_id=org_id) as conn:
                     if conn is not None:
                         # Check if projects table exists
-                        cursor = conn.execute(
-                            "SELECT name FROM sqlite_master WHERE type='table' AND name='projects'"
-                        )
-                        table_exists = cursor.fetchone() is not None
+                        projects_table_exists = table_exists(conn, "projects")
 
-                        if table_exists:
-                            # Check if project exists
+                        if projects_table_exists:
+                            # Check if project exists (case-insensitive)
                             cursor = conn.execute(
-                                "SELECT id FROM projects WHERE name = ?", (name,)
+                                "SELECT id, name FROM projects WHERE name = ? COLLATE NOCASE",
+                                (name,),
                             )
-                            project_exists = cursor.fetchone() is not None
+                            project_row = cursor.fetchone()
 
-                            if not project_exists:
-                                return jsonify({"error": "Project not found"}), 404
+                            if not project_row:
+                                return jsonify({"error": f"Project not found: '{name}'"}), 404
 
                             # Check if archived column exists, add it if not
-                            cursor = conn.execute("PRAGMA table_info(projects)")
-                            columns = [column[1] for column in cursor.fetchall()]
-                            if "archived" not in columns:
+                            if not column_exists(conn, "projects", "archived"):
                                 cursor = conn.execute(
                                     "ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0"
                                 )
-                            if "archived_at" not in columns:
+                            if not column_exists(conn, "projects", "archived_at"):
                                 cursor = conn.execute(
                                     "ALTER TABLE projects ADD COLUMN archived_at TEXT"
                                 )
 
                             # Archive the project by updating its status
                             cursor = conn.execute(
-                                "UPDATE projects SET archived = 1, archived_at = datetime('now') WHERE name = ?",
+                                "UPDATE projects SET archived = 1, archived_at = datetime('now') WHERE name = ? COLLATE NOCASE",
                                 (name,),
                             )
                             conn.commit()
-                            logger.info(f"Project '{name}' archived in database")
+                            logger.info(f"Project '{project_row[1]}' archived in database")
                             return jsonify({"ok": True, "method": "database"})
             except Exception as db_error:
                 logger.warning(
@@ -43021,16 +43389,9 @@ def generate_envelope_pdf():
             f"PDF Generation - Forwarding to external service, data size: {len(str(results_data))} characters"
         )
 
-        # Determine PDF service URL(s): env override, then localhost, then external IPs
+        # Determine PDF service URL(s) from environment
         env_url = os.environ.get("PDF_SERVICE_URL", "").strip()
-        candidate_urls = [
-            env_url if env_url else None,
-            "http://localhost:8101/generate",
-            "http://localhost:8083/generate",
-            "http://134.209.14.71:8101/generate",
-            "http://134.209.14.71:8102/generate",
-        ]
-        candidate_urls = [u for u in candidate_urls if u]
+        candidate_urls = [f"{env_url}/generate"] if env_url else []
 
         last_error = None
         for pdf_service_url in candidate_urls:
@@ -43487,6 +43848,13 @@ def main_dashboard():
             f"Rendering main dashboard with cache_bust: {context['cache_bust']}"
         )
         result = render_template("main_dashboard.html", **context)
+        config_script = (
+            f"<script>window.SYNEREX_LICENSE_SERVICE_URL = '{LICENSE_SERVICE_URL}';"
+            f"window.SYNEREX_WEBSITE_URL = '{WEBSITE_URL}';"
+            f"window.OLLAMA_AI_URL = '{os.getenv('OLLAMA_AI_URL')}';</script>"
+        )
+        if "</head>" in result:
+            result = result.replace("</head>", config_script + "\n</head>", 1)
         logger.info(f"Template rendered successfully, length: {len(result)}")
 
         # Add aggressive cache-busting headers
@@ -44006,13 +44374,8 @@ def verify_code(verification_code):
                 </html>
                 """), 500
             
-            cursor = conn.cursor()
-            
             # Check if verification_code column exists
-            cursor.execute("PRAGMA table_info(analysis_sessions)")
-            columns = [row[1] for row in cursor.fetchall()]
-            
-            if 'verification_code' not in columns:
+            if not column_exists(conn, "analysis_sessions", "verification_code"):
                 # Column doesn't exist - try to add it
                 try:
                     conn.execute("ALTER TABLE analysis_sessions ADD COLUMN verification_code TEXT")
@@ -45351,10 +45714,8 @@ def get_file_for_clipping(file_id):
             # Note: We need the 8082/ prefix for the server to find files
             # if file_path.startswith('8082/'):
             #     file_path = file_path[5:]  # Remove '8082/' prefix
-            # elif file_path.startswith('8082\\'):
-            #     file_path = file_path[5:]  # Remove '8082\' prefix
 
-            # Normalize path separators for Windows
+            # Normalize path separators (Windows backslash to forward slash)
             file_path = file_path.replace("\\", "/")
 
             logger.info(f"Fixed file path: {file_path}")
@@ -45504,10 +45865,8 @@ def apply_clipping_to_original_file(file_id):
             # Note: We need the 8082/ prefix for the server to find files
             # if file_path.startswith('8082/'):
             #     file_path = file_path[5:]  # Remove '8082/' prefix
-            # elif file_path.startswith('8082\\'):
-            #     file_path = file_path[5:]  # Remove '8082\' prefix
 
-            # Normalize path separators for Windows
+            # Normalize path separators (Windows backslash to forward slash)
             file_path = file_path.replace("\\", "/")
             logger.info(f"Apply clipping - Fixed file path: {file_path}")
 
@@ -46860,13 +47219,13 @@ def admin_start_all_services():
         print("DEBUG: Using service manager daemon API to start services")
 
         # Call the service manager daemon API
-        service_manager_url = "http://localhost:9000/api/services/start-all"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/start-all"
 
         # First, check if the service manager daemon is running
         service_manager_running = False
         try:
             # Quick health check
-            health_response = requests.get("http://localhost:9000/health", timeout=2)
+            health_response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
             if health_response.status_code == 200:
                 service_manager_running = True
                 print("DEBUG: Service manager daemon is already running")
@@ -46897,7 +47256,7 @@ def admin_start_all_services():
                 for attempt in range(10):
                     try:
                         health_response = requests.get(
-                            "http://localhost:9000/health", timeout=2
+                            f"{SERVICE_MANAGER_URL}/health", timeout=2
                         )
                         if health_response.status_code == 200:
                             print(
@@ -47286,7 +47645,7 @@ def admin_restart_service():
             )
 
         # Call the service manager API to restart the service
-        service_manager_url = f"http://localhost:9000/api/services/restart/{service_id}"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/restart/{service_id}"
 
         print(
             f"DEBUG: Restarting service {service} (ID: {service_id}) via service manager"
@@ -47343,7 +47702,7 @@ def admin_stop_all_services():
 
         # Call the service manager API to stop all services except main app
         # (We can't stop the main app from within itself)
-        service_manager_url = "http://localhost:9000/api/services/stop-other-services"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/stop-other-services"
 
         print("DEBUG: Using clean service manager API to stop services")
 
@@ -47732,7 +48091,10 @@ def check_port_available(host, port):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
-        result = sock.connect_ex((host if host != '0.0.0.0' else '127.0.0.1', port))
+        local_hostnames = [h.strip() for h in os.getenv("LOCAL_HOSTNAMES", "").split(",") if h.strip()]
+        fallback_host = local_hostnames[0] if local_hostnames else host
+        target_host = host if host != '0.0.0.0' else fallback_host
+        result = sock.connect_ex((target_host, port))
         sock.close()
         return result != 0  # Port is available if connection fails
     except Exception as e:

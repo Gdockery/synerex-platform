@@ -1,16 +1,22 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 from pathlib import Path
 
 class Settings(BaseSettings):
-    db_url: str = "sqlite:///./licensing.db"
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[1] / ".env",
+        env_file_encoding="utf-8"
+    )
+
+    db_url: str = ""
     issuer_name: str = "Synerex Laboratories, LLC"
     key_id: str = "SYX-MASTER-KEY-01"
-    api_key_secret: str = "CHANGE_ME"
-    admin_username: str = "admin"
-    admin_password: str = "admin123"
-    session_secret: str = "CHANGE_ME_SESSION_SECRET"
-    jwt_secret: str = "CHANGE_ME_JWT_SECRET"  # Secret key for JWT session tokens
+    api_key_secret: str = ""
+    admin_username: str = ""
+    admin_password: str = ""
+    session_secret: str = ""
+    jwt_secret: str = ""  # Secret key for JWT session tokens
+    cors_origins: str = ""
     
     @property
     def private_key_pem(self) -> Path:
@@ -73,13 +79,13 @@ class Settings(BaseSettings):
     api_version_header: str = "X-API-Version"
     
     # Program URLs for access gateway
-    # For local development, use localhost URLs
-    # For production, update these to the actual production URLs
-    emv_program_url: str = "http://localhost:8082"
-    tracking_program_url: str = "http://localhost:8083"  # Note: Tracking program not implemented yet - this is for usage/analytics tracking, not a separate program
+    # For local development, set URLs in the .env file
+    # For production, update .env to the actual production URLs
+    emv_program_url: str = ""
+    tracking_program_url: str = ""
     
     # Website URL for navigation links
-    website_url: str = "http://localhost:5173"  # Main website URL
+    website_url: str = ""
     
     # Software License Agreement settings
     software_license_agreement_version: str = "2026.01"

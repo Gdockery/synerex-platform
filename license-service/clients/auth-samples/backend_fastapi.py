@@ -7,7 +7,7 @@ import jwt
 from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-LICENSE_SERVICE_URL = os.getenv("LICENSE_SERVICE_URL", "http://localhost:8000")
+LICENSE_SERVICE_URL = os.getenv("LICENSE_SERVICE_URL")
 SERVICE_API_KEY = os.getenv("SYNEREX_SERVICE_API_KEY", "")  # optional
 JWT_SECRET = os.getenv("APP_JWT_SECRET", "dev_secret_change_me")
 JWT_TTL_SECONDS = int(os.getenv("APP_JWT_TTL_SECONDS", "900"))  # 15 minutes

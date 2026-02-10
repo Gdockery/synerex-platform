@@ -8,6 +8,7 @@ Verifies:
 """
 
 import requests
+import os
 import json
 import sqlite3
 from pathlib import Path
@@ -68,7 +69,7 @@ def test_power_quality_and_weather():
     }
     
     try:
-        response = requests.post('http://127.0.0.1:8082/api/analyze', data=analyze_payload, timeout=30)
+        response = requests.post(f"{os.getenv('EMV_BASE_URL')}/api/analyze", data=analyze_payload, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
@@ -293,7 +294,7 @@ def test_csv_data_source():
                 "manual_mode": "false"
             }
             
-            response = requests.post('http://127.0.0.1:8082/api/analyze', data=analyze_payload, timeout=30)
+            response = requests.post(f"{os.getenv('EMV_BASE_URL')}/api/analyze", data=analyze_payload, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()

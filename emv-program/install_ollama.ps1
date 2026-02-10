@@ -15,7 +15,7 @@ try {
         Write-Host ""
         Write-Host "Checking if Ollama service is running..." -ForegroundColor Yellow
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
             Write-Host "[OK] Ollama service is running!" -ForegroundColor Green
             Write-Host ""
             Write-Host "Checking for required model 'llama3.2:1b'..." -ForegroundColor Yellow
@@ -137,7 +137,7 @@ Write-Host "Checking if Ollama service is running..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
     Write-Host "[OK] Ollama service is running!" -ForegroundColor Green
     
     # Check if model is already available

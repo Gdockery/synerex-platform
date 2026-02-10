@@ -45,11 +45,11 @@
 ## Service URLs
 
 Once running, access:
-- **Main App**: http://127.0.0.1:8082
-- **PDF Service**: http://127.0.0.1:8083
-- **HTML Reports**: http://127.0.0.1:8084
-- **Weather Service**: http://127.0.0.1:8200
-- **Chart Service**: http://127.0.0.1:8086
+- **Main App**: ${EMV_BASE_URL}
+- **PDF Service**: ${PDF_SERVICE_URL}
+- **HTML Reports**: ${HTML_REPORT_URL}
+- **Weather Service**: ${WEATHER_SERVICE_URL}
+- **Chart Service**: ${CHART_SERVICE_URL}
 
 ## Troubleshooting
 
@@ -100,11 +100,11 @@ cd 8086 && python3 chart_service.py
 
 ### Check Service Health
 ```bash
-curl http://127.0.0.1:8082/api/health
-curl http://127.0.0.1:8083/health
-curl http://127.0.0.1:8084/health
-curl http://127.0.0.1:8200/health
-curl http://127.0.0.1:8086/health
+curl ${EMV_BASE_URL}/api/health
+curl ${PDF_SERVICE_URL}/health
+curl ${HTML_REPORT_URL}/health
+curl ${WEATHER_SERVICE_URL}/health
+curl ${CHART_SERVICE_URL}/health
 ```
 
 ## Files Created

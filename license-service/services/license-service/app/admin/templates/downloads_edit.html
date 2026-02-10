@@ -34,7 +34,7 @@
   <input type="checkbox" name="watermark" value="1" {% if doc.watermark %}checked{% endif %}/><br/><br/>
 
   <button type="submit">Save</button>
-  <a href="/admin/downloads">Cancel</a>
+  <a href="{{ admin_url('downloads') }}">Cancel</a>
 </form>
 
 <p class="small">

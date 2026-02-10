@@ -5,7 +5,7 @@ set -e
 
 SERVER_HOST="134.209.14.71"
 SERVER_USER="root"
-SSH_KEY="C:\\Users\\Admin\\.ssh\\calc_rsa"
+SSH_KEY="${HOME}/.ssh/calc_rsa"
 SERVER_BASE_PATH="/root/oneform"
 
 echo "🚀 Starting minimal SYNEREX deployment..."

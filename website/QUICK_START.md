@@ -44,8 +44,8 @@ npm run dev
 
 ## Test the Setup
 
-1. **Frontend**: http://localhost:5180 (already running)
-2. **Backend**: http://localhost:3001 (start with `npm run dev`)
+1. **Frontend**: use `VITE_WEBSITE_FRONTEND_URL` from `website/.env`
+2. **Backend**: use `VITE_WEBSITE_BACKEND_URL` from `website/.env` (start with `npm run dev`)
 3. **Test NDA**: Click "Request NDA" button in your frontend
 
 ## What Works Without DocuSign

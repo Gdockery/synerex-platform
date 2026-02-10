@@ -58,7 +58,7 @@ except Exception as e:
     knowledge_retrieval = None
 
 # Ollama configuration
-OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_BASE_URL = os.getenv("OLLAMA_LOCAL_URL")
 OLLAMA_MODEL = "llama3.2:1b"
 
 class OllamaAI:
@@ -323,7 +323,7 @@ Please allow location access and ask your question again!"""
             if not location_data:
                 return None
             
-            rate_service_url = "http://localhost:8202/rates"
+            rate_service_url = f"{os.getenv('UTILITY_RATE_SERVICE_URL')}/rates"
             response = requests.post(
                 rate_service_url,
                 json={"location_data": location_data},
@@ -350,7 +350,7 @@ Please allow location access and ask your question again!"""
             address = location_data['cityState']
             
             # Call weather service
-            weather_url = "http://localhost:8200/weather/batch"
+            weather_url = f"{os.getenv('WEATHER_SERVICE_URL')}/weather/batch"
             weather_payload = {
                 "address": address,
                 "before_start": "2024-01-01",

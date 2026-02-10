@@ -12,7 +12,7 @@ api_key: {{ issued.api_key }}</pre>
   </div>
   {% endif %}
 
-  <form method="post" action="/admin/api-keys/issue" style="margin-bottom: 2rem;">
+  <form method="post" action="{{ admin_url('api-keys/issue') }}" style="margin-bottom: 2rem;">
     <div class="row">
       <div class="form-group">
         <label for="org_id">Organization ID</label>
@@ -56,7 +56,7 @@ api_key: {{ issued.api_key }}</pre>
         </td>
         <td>
           {% if k.is_active %}
-          <form method="post" action="/admin/api-keys/{{k.key_id}}/disable" style="display: inline;">
+          <form method="post" action="{{ admin_url('api-keys/' ~ k.key_id ~ '/disable') }}" style="display: inline;">
             <button class="btn btn-danger btn-small" type="submit" onclick="return confirm('Are you sure you want to disable this API key?')">Disable</button>
           </form>
           {% else %}

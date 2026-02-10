@@ -47,7 +47,7 @@ if before_file_id or after_file_id:
     
     # Try to query database (simulating the code)
     import sqlite3
-    org_ids_to_try = ['admin', 'ADMIN', None]
+    org_ids_to_try = ['admin', None]
     
     for file_id, prefix in [(before_file_id, 'before'), (after_file_id, 'after')]:
         if file_id:

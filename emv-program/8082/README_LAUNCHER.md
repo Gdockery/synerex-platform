@@ -14,7 +14,7 @@
 1. Open Command Prompt
 2. Navigate to the 8082 folder
 3. Run: `python main_hardened_ready_fixed.py`
-4. Open browser to: `http://127.0.0.1:8082`
+4. Open browser to: `${EMV_BASE_URL}`
 
 ## 📋 Prerequisites
 - **Python 3.8 or higher** must be installed
@@ -23,11 +23,11 @@
 
 ## 🌐 Access URLs
 Once running, the system is available at:
-- **Main App**: http://127.0.0.1:8082
-- **PDF Service (Envelope)**: http://127.0.0.1:8083
-- **PDF Service (Standard)**: http://127.0.0.1:8084
-- **Weather Service**: http://127.0.0.1:8085
-- **Chart Service**: http://127.0.0.1:8086
+- **Main App**: ${EMV_BASE_URL}
+- **PDF Service (Envelope)**: ${PDF_SERVICE_URL_ENVELOPE}
+- **PDF Service (Standard)**: ${PDF_SERVICE_URL_STANDARD}
+- **Weather Service**: ${WEATHER_SERVICE_URL}
+- **Chart Service**: ${CHART_SERVICE_URL}
 
 ## 🛑 Stopping the Service
 - Press **Ctrl+C** in the command window

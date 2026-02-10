@@ -1,4 +1,6 @@
 // Main Dashboard JavaScript
+const LICENSE_SERVICE_URL = window.SYNEREX_LICENSE_SERVICE_URL;
+const WEBSITE_URL = window.SYNEREX_WEBSITE_URL;
 class MainDashboard {
     constructor() {
 
@@ -62,6 +64,14 @@ class MainDashboard {
                 e.preventDefault();
                 this.login();
             });
+            // Fallback: ensure Login button click works even if submit doesn't fire
+            const loginBtn = loginForm.querySelector('button[type="submit"]');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.login();
+                });
+            }
             console.log('✅ Login form listener attached');
         } else {
             // Retry after DOM is ready
@@ -72,6 +82,10 @@ class MainDashboard {
                         e.preventDefault();
                         this.login();
                     });
+                    const retryLoginBtn = retryLoginForm.querySelector('button[type="submit"]');
+                    if (retryLoginBtn) {
+                        retryLoginBtn.addEventListener('click', (e) => { e.preventDefault(); this.login(); });
+                    }
                     console.log('✅ Login form listener attached on retry');
                 }
             }, 500);
@@ -82,6 +96,14 @@ class MainDashboard {
                 e.preventDefault();
                 this.register();
             });
+            // Fallback: ensure Register button click works even if submit doesn't fire
+            const registerBtn = registerForm.querySelector('button[type="submit"]');
+            if (registerBtn) {
+                registerBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.register();
+                });
+            }
             console.log('✅ Register form listener attached');
         } else {
             // Retry after DOM is ready
@@ -92,10 +114,38 @@ class MainDashboard {
                         e.preventDefault();
                         this.register();
                     });
+                    const retryRegisterBtn = retryRegisterForm.querySelector('button[type="submit"]');
+                    if (retryRegisterBtn) {
+                        retryRegisterBtn.addEventListener('click', (e) => { e.preventDefault(); this.register(); });
+                    }
                     console.log('✅ Register form listener attached on retry');
                 }
             }, 500);
         }
+
+        // Fallback: bind login/register buttons even if form IDs are missing
+        // This covers template mismatches where buttons exist but form IDs don't.
+        const bindAuthFallbackButtons = () => {
+            const candidates = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+            candidates.forEach((el) => {
+                const text = (el.textContent || el.value || '').trim().toLowerCase();
+                if (!text) return;
+                if (text === 'login' || text === 'log in') {
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.login();
+                    });
+                } else if (text === 'register new user' || text === 'register') {
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.register();
+                    });
+                }
+            });
+        };
+        bindAuthFallbackButtons();
+        // Retry once in case DOM is rendered dynamically
+        setTimeout(bindAuthFallbackButtons, 500);
         
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
@@ -284,13 +334,13 @@ class MainDashboard {
     }
     
     async login() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const role = document.getElementById('user-role').value;
+        const username = (document.getElementById('username').value || '').trim();
+        const password = (document.getElementById('password').value || '');
+        const role = (document.getElementById('user-role').value || '').trim();
         
-        // Get org_id from form field if it exists, otherwise default to "admin"
+        // Get org_id from form; default to "admin" for first-time / Synerex admin login
         const orgIdInput = document.getElementById('org-id');
-        const org_id = orgIdInput ? orgIdInput.value || 'admin' : 'admin';
+        const org_id = (orgIdInput && orgIdInput.value && orgIdInput.value.trim()) ? orgIdInput.value.trim() : 'admin';
         
         if (!username || !password || !role) {
             this.showNotification('Please fill in all fields', 'error');
@@ -362,11 +412,22 @@ class MainDashboard {
                     this.currentUser = result.user;
                     this.sessionToken = result.session_token;
                     localStorage.setItem('session_token', this.sessionToken);
+                    // Store org_id for license checks
+                    if (result.org_id) {
+                        localStorage.setItem('org_id', result.org_id);
+                    }
                     this.showAuthenticatedDashboard();
                     this.loadDashboardStats().catch(err => {
                         console.error('Stats load failed (non-critical):', err);
                     });
                     this.showNotification('Login successful!', 'success');
+                    
+                    // Check license status (non-blocking, for non-admin users)
+                    if (this.currentUser.role !== 'administrator') {
+                        this.checkLicenseStatus().catch(err => {
+                            console.warn('License check failed (non-critical):', err);
+                        });
+                    }
                 } else {
                     console.error('❌ Login failed:', result.error);
                     this.showNotification('Login failed: ' + (result.error || 'Unknown error'), 'error');
@@ -392,6 +453,13 @@ class MainDashboard {
     }
     
     async register() {
+        const companyName = (document.getElementById('reg-company-name') && document.getElementById('reg-company-name').value) ? document.getElementById('reg-company-name').value.trim() : '';
+        const address = (document.getElementById('reg-address') && document.getElementById('reg-address').value) ? document.getElementById('reg-address').value.trim() : '';
+        const city = (document.getElementById('reg-city') && document.getElementById('reg-city').value) ? document.getElementById('reg-city').value.trim() : '';
+        const stateOrg = (document.getElementById('reg-state-org') && document.getElementById('reg-state-org').value) ? document.getElementById('reg-state-org').value.trim() : '';
+        const zip = (document.getElementById('reg-zip') && document.getElementById('reg-zip').value) ? document.getElementById('reg-zip').value.trim() : '';
+        const contactName = (document.getElementById('reg-contact-name') && document.getElementById('reg-contact-name').value) ? document.getElementById('reg-contact-name').value.trim() : '';
+        const contactPhone = (document.getElementById('reg-contact-phone') && document.getElementById('reg-contact-phone').value) ? document.getElementById('reg-contact-phone').value.trim() : '';
         const fullName = document.getElementById('full-name').value;
         const email = document.getElementById('email').value;
         const username = document.getElementById('reg-username').value;
@@ -401,8 +469,8 @@ class MainDashboard {
         const peLicense = document.getElementById('pe-license').value;
         const state = document.getElementById('state').value;
         
-        if (!fullName || !email || !username || !password || !confirmPassword || !role) {
-            this.showNotification('Please fill in all required fields', 'error');
+        if (!companyName || !fullName || !email || !username || !password || !confirmPassword || !role) {
+            this.showNotification('Please fill in all required fields (including Company Name)', 'error');
             return;
         }
         
@@ -425,14 +493,19 @@ class MainDashboard {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    full_name: fullName, email, username, password, role, 
+                    full_name: fullName, email, username, password, role,
+                    company_name: companyName, address, city, state_org: stateOrg, zip,
+                    contact_name: contactName, contact_phone: contactPhone,
                     pe_license_number: peLicense, state 
                 })
             });
             
             const result = await response.json();
             if (result.status === 'success') {
-                this.showNotification('Registration successful! Please login.', 'success');
+                const msg = result.org_id
+                    ? `Registration successful! Your Organization ID is ${result.org_id} — use it when logging in.`
+                    : 'Registration successful! Please login.';
+                this.showNotification(msg, 'success');
                 this.clearRegistrationForm();
             } else {
                 this.showNotification('Registration failed: ' + result.error, 'error');
@@ -505,8 +578,39 @@ class MainDashboard {
                 adminBtn.style.display = 'none';
             }
         }
+        
+        // Add My Account button for all users (licensees)
+        let accountBtn = document.getElementById('my-account-btn');
+        if (!accountBtn) {
+            accountBtn = document.createElement('button');
+            accountBtn.id = 'my-account-btn';
+            accountBtn.textContent = '👤 My Account';
+            accountBtn.className = 'btn btn-secondary';
+            accountBtn.style.cssText = 'margin-left: 10px; padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;';
+            
+            // Add to user-info section
+            if (userInfo) {
+                userInfo.appendChild(accountBtn);
+            } else if (currentUserName && currentUserName.parentElement) {
+                currentUserName.parentElement.appendChild(accountBtn);
+            }
+        }
+        accountBtn.style.display = 'inline-block';
+        accountBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.href = '/my-account';
+        };
     }
     
+    loadOrganizationsDropdown() {
+        const select = document.getElementById('org-id');
+        if (!select) return;
+        // Only Synerex (admin) until new organizations sign up; no API call so dropdown is always correct
+        select.innerHTML = '<option value="">Select organization...</option><option value="admin">Synerex (admin)</option>';
+        select.value = 'admin';
+    }
+
     showLoginSection() {
         const loginSection = document.getElementById('login-section');
         const mainSections = document.getElementById('main-sections');
@@ -516,10 +620,29 @@ class MainDashboard {
         if (mainSections) mainSections.style.display = 'none';
         if (userInfo) userInfo.style.display = 'none';
         
+        // Populate organization dropdown for login
+        this.loadOrganizationsDropdown();
+        
         // Hide admin button when showing login section
         const adminBtn = document.getElementById('admin-btn');
         if (adminBtn) {
             adminBtn.style.display = 'none';
+        }
+        
+        // Hide My Account button when showing login section
+        const accountBtn = document.getElementById('my-account-btn');
+        if (accountBtn) {
+            accountBtn.style.display = 'none';
+        }
+
+        // Ensure "Back to previous page" button navigates to main website
+        const backBtn = document.getElementById('back-to-website-btn');
+        if (backBtn) {
+            backBtn.onclick = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.location.href = `${WEBSITE_URL}/`;
+            };
         }
     }
     
@@ -628,18 +751,30 @@ class MainDashboard {
             try {
                 const clippingResponse = await fetch('/api/dashboard/clipping-stats', {
                     headers: this.getAuthHeaders(),
+                    credentials: 'same-origin',
                     signal: clippingController.signal
                 });
                 clearTimeout(clippingTimeout);
                 const clippingStats = await clippingResponse.json();
-                
+
+                if (clippingStats.status !== 'success') {
+                    console.warn('clipping-stats response:', clippingStats.status, clippingStats.error || clippingStats);
+                }
+                // Update stats from response whenever we have values (even on error response that includes counts)
+                const clippedFilesCount = document.getElementById('clipped-files-count');
+                const modificationsCount = document.getElementById('modifications-count');
+                const integrityStatus = document.getElementById('integrity-status');
+                if (clippedFilesCount && clippingStats.clipped_files !== undefined) {
+                    clippedFilesCount.textContent = clippingStats.clipped_files;
+                }
+                if (modificationsCount && clippingStats.modifications !== undefined) {
+                    modificationsCount.textContent = clippingStats.modifications;
+                }
+                if (integrityStatus && clippingStats.integrity_status !== undefined) {
+                    integrityStatus.textContent = clippingStats.integrity_status;
+                }
                 if (clippingStats.status === 'success') {
-                    const clippedFilesCount = document.getElementById('clipped-files-count');
-                    const modificationsCount = document.getElementById('modifications-count');
-                    const integrityStatus = document.getElementById('integrity-status');
-                    
                     if (clippedFilesCount) {
-                        clippedFilesCount.textContent = clippingStats.clipped_files || 0;
                         // Make clickable
                         clippedFilesCount.style.cursor = 'pointer';
                         clippedFilesCount.title = 'Click to view clipped files list';
@@ -1236,10 +1371,12 @@ class MainDashboard {
             // Store the file selection based on type
             if (fileType === 'before') {
                 sessionStorage.setItem('selectedBeforeFileId', fileId);
+                sessionStorage.setItem('selected_before_file_id', fileId);
                 sessionStorage.setItem('selectedBeforeFileName', fileName);
                 this.showNotification(`Before file selected: ${fileName}`, 'success');
             } else {
                 sessionStorage.setItem('selectedAfterFileId', fileId);
+                sessionStorage.setItem('selected_after_file_id', fileId);
                 sessionStorage.setItem('selectedAfterFileName', fileName);
                 this.showNotification(`After file selected: ${fileName}`, 'success');
             }
@@ -1755,7 +1892,7 @@ class MainDashboard {
         this.showNotification('Loading fingerprints viewer...', 'info');
         
         try {
-            const response = await fetch('/api/csv/fingerprints');
+            const response = await fetch('/api/csv/fingerprints', { credentials: 'same-origin' });
             const data = await response.json();
             
             if (data.status === 'success') {
@@ -1801,6 +1938,10 @@ class MainDashboard {
                                 <div style="font-size: 1.5em; font-weight: bold; color: #f57c00;">${fingerprints.filter(f => f.type === 'project_file').length}</div>
                                 <div style="color: #666; font-size: 0.9em;">Project Files</div>
                             </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5em; font-weight: bold; color: #7b1fa2;">${fingerprints.filter(f => f.type === 'csv_fingerprint').length}</div>
+                                <div style="color: #666; font-size: 0.9em;">Verified / Fingerprint Records</div>
+                            </div>
                         </div>
                     </div>
                     
@@ -1827,9 +1968,9 @@ class MainDashboard {
                                                 </td>
                                                 <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
                                                     <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; 
-                                                        background: ${fp.type === 'raw_meter_data' ? '#e3f2fd' : '#fff3e0'}; 
-                                                        color: ${fp.type === 'raw_meter_data' ? '#1976d2' : '#f57c00'};">
-                                                        ${fp.type === 'raw_meter_data' ? 'Raw Data' : 'Project File'}
+                                                        background: ${fp.type === 'raw_meter_data' ? '#e3f2fd' : fp.type === 'project_file' ? '#fff3e0' : '#f3e5f5'}; 
+                                                        color: ${fp.type === 'raw_meter_data' ? '#1976d2' : fp.type === 'project_file' ? '#f57c00' : '#7b1fa2'};">
+                                                        ${fp.type === 'raw_meter_data' ? 'Raw Data' : fp.type === 'project_file' ? 'Project File' : 'Verified'}
                                                     </span>
                                                 </td>
                                                 <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
@@ -3898,6 +4039,376 @@ class MainDashboard {
             document.getElementById(reqId).classList.remove('valid');
         });
     }
+    
+    // ============================================================================
+    // LICENSE STATUS AND RENEWAL SYSTEM
+    // ============================================================================
+    
+    async checkLicenseStatus() {
+        const orgId = localStorage.getItem('org_id');
+        if (!orgId) {
+            console.log('No org_id found, skipping license check');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${LICENSE_SERVICE_URL}/api/licenses/status/${orgId}?program_id=emv`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                console.warn('License status check failed:', response.status);
+                return;
+            }
+            
+            const data = await response.json();
+            console.log('License status:', data);
+            
+            // Handle different license states
+            if (!data.has_license) {
+                this.showLicenseActivationPopup();
+            } else if (data.status === 'expired') {
+                this.showLicenseRenewalPopup(data, true);
+            } else if (data.warning_level === 'critical') {
+                this.showLicenseRenewalPopup(data, false);
+            } else if (data.warning_level === 'warning') {
+                this.showLicenseWarningBanner(data);
+            }
+            
+        } catch (error) {
+            console.warn('License service unavailable:', error.message);
+            // Fail silently - don't block user if license service is down
+        }
+    }
+    
+    showLicenseActivationPopup() {
+        this.removeLicenseModals();
+        
+        const modal = document.createElement('div');
+        modal.id = 'license-activation-modal';
+        modal.className = 'license-modal-overlay';
+        modal.innerHTML = `
+            <div class="license-modal">
+                <div class="license-modal-header">
+                    <h2>🔑 License Activation Required</h2>
+                </div>
+                <div class="license-modal-body">
+                    <p>Welcome! To use the EMV Analysis features, please enter your license key.</p>
+                    <p class="license-info">Your license key was sent to you via email after purchase.</p>
+                    <div class="license-input-group">
+                        <label for="license-key-input">License Key:</label>
+                        <input type="text" id="license-key-input" placeholder="Enter your license key (e.g., EMV-XXXX-XXXX-XXXX)" />
+                    </div>
+                    <p class="license-help">Don't have a license? <a href="${LICENSE_SERVICE_URL}/register/?program=emv" target="_blank">Purchase one here</a></p>
+                </div>
+                <div class="license-modal-footer">
+                    <button class="btn-secondary" onclick="mainDashboard.closeLicenseModal()">Cancel</button>
+                    <button class="btn-primary" onclick="mainDashboard.activateLicense()">Activate License</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.addLicenseModalStyles();
+    }
+    
+    showLicenseRenewalPopup(licenseData, isExpired) {
+        this.removeLicenseModals();
+        
+        const modal = document.createElement('div');
+        modal.id = 'license-renewal-modal';
+        modal.className = 'license-modal-overlay';
+        
+        const title = isExpired ? '⚠️ License Expired' : '⏰ License Expiring Soon';
+        const message = isExpired 
+            ? `Your license expired on ${new Date(licenseData.expires_at).toLocaleDateString()}. Please renew to continue using analysis features.`
+            : `${licenseData.message}. Please renew to ensure uninterrupted access.`;
+        
+        modal.innerHTML = `
+            <div class="license-modal ${isExpired ? 'expired' : 'warning'}">
+                <div class="license-modal-header ${isExpired ? 'expired' : 'warning'}">
+                    <h2>${title}</h2>
+                </div>
+                <div class="license-modal-body">
+                    <p>${message}</p>
+                    <div class="license-status-box">
+                        <p><strong>Current License:</strong> ${licenseData.license_id || 'N/A'}</p>
+                        <p><strong>Expires:</strong> ${licenseData.expires_at ? new Date(licenseData.expires_at).toLocaleDateString() : 'N/A'}</p>
+                        <p><strong>Days Remaining:</strong> ${licenseData.days_remaining !== null ? licenseData.days_remaining : 'N/A'}</p>
+                    </div>
+                    <div class="license-input-group">
+                        <label for="renewal-key-input">New License Key:</label>
+                        <input type="text" id="renewal-key-input" placeholder="Enter your renewal license key" />
+                    </div>
+                    <p class="license-help">Need to renew? <a href="${LICENSE_SERVICE_URL}/register/?program=emv&renew=1" target="_blank">Purchase renewal here</a></p>
+                    <p class="data-safe-notice">✅ <strong>Your data is safe!</strong> All projects, reports, and settings will remain intact after renewal.</p>
+                </div>
+                <div class="license-modal-footer">
+                    ${!isExpired ? '<button class="btn-secondary" onclick="mainDashboard.closeLicenseModal()">Remind Me Later</button>' : ''}
+                    <button class="btn-primary" onclick="mainDashboard.renewLicense('${licenseData.license_id || ''}')">Renew License</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.addLicenseModalStyles();
+    }
+    
+    showLicenseWarningBanner(licenseData) {
+        // Remove any existing warning banner
+        const existingBanner = document.getElementById('license-warning-banner');
+        if (existingBanner) existingBanner.remove();
+        
+        const banner = document.createElement('div');
+        banner.id = 'license-warning-banner';
+        banner.className = 'license-warning-banner';
+        banner.innerHTML = `
+            <span>⚠️ ${licenseData.message}</span>
+            <button onclick="mainDashboard.showLicenseRenewalPopup(${JSON.stringify(licenseData).replace(/"/g, '&quot;')}, false)">Renew Now</button>
+            <button class="close-btn" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        document.body.insertBefore(banner, document.body.firstChild);
+        this.addLicenseWarningStyles();
+    }
+    
+    async activateLicense() {
+        const licenseKey = document.getElementById('license-key-input')?.value?.trim();
+        const orgId = localStorage.getItem('org_id');
+        
+        if (!licenseKey) {
+            this.showNotification('Please enter a license key', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${LICENSE_SERVICE_URL}/api/licenses/activate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    license_key: licenseKey,
+                    org_id: orgId,
+                    program_id: 'emv'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.ok) {
+                this.showNotification(`License activated! Valid for ${result.days_remaining} days.`, 'success');
+                this.closeLicenseModal();
+            } else {
+                this.showNotification(result.detail || result.error || 'Invalid license key', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error activating license: ' + error.message, 'error');
+        }
+    }
+    
+    async renewLicense(oldLicenseId) {
+        const newKey = document.getElementById('renewal-key-input')?.value?.trim();
+        const orgId = localStorage.getItem('org_id');
+        
+        if (!newKey) {
+            this.showNotification('Please enter your new license key', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${LICENSE_SERVICE_URL}/api/licenses/renew`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    new_license_key: newKey,
+                    org_id: orgId,
+                    old_license_id: oldLicenseId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.ok) {
+                this.showNotification(`License renewed! Valid for ${result.days_remaining} days.`, 'success');
+                this.closeLicenseModal();
+                // Remove warning banner if present
+                const banner = document.getElementById('license-warning-banner');
+                if (banner) banner.remove();
+            } else {
+                this.showNotification(result.detail || result.error || 'Invalid renewal key', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error renewing license: ' + error.message, 'error');
+        }
+    }
+    
+    closeLicenseModal() {
+        this.removeLicenseModals();
+    }
+    
+    removeLicenseModals() {
+        const modals = document.querySelectorAll('#license-activation-modal, #license-renewal-modal');
+        modals.forEach(m => m.remove());
+    }
+    
+    addLicenseModalStyles() {
+        if (document.getElementById('license-modal-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'license-modal-styles';
+        style.textContent = `
+            .license-modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            }
+            .license-modal {
+                background: white;
+                border-radius: 12px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                overflow: hidden;
+            }
+            .license-modal.expired .license-modal-header {
+                background: linear-gradient(135deg, #dc3545, #c82333);
+            }
+            .license-modal.warning .license-modal-header {
+                background: linear-gradient(135deg, #ffc107, #e0a800);
+                color: #333;
+            }
+            .license-modal-header {
+                background: linear-gradient(135deg, #007bff, #0056b3);
+                color: white;
+                padding: 20px;
+            }
+            .license-modal-header h2 {
+                margin: 0;
+                font-size: 1.4rem;
+            }
+            .license-modal-body {
+                padding: 25px;
+            }
+            .license-modal-body p {
+                margin: 0 0 15px 0;
+                color: #333;
+                line-height: 1.6;
+            }
+            .license-info {
+                background: #e7f3ff;
+                padding: 12px;
+                border-radius: 6px;
+                border-left: 4px solid #007bff;
+            }
+            .license-status-box {
+                background: #f8f9fa;
+                padding: 15px;
+                border-radius: 8px;
+                margin: 15px 0;
+            }
+            .license-status-box p {
+                margin: 5px 0;
+                font-size: 0.95rem;
+            }
+            .license-input-group {
+                margin: 20px 0;
+            }
+            .license-input-group label {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #333;
+            }
+            .license-input-group input {
+                width: 100%;
+                padding: 12px 15px;
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                font-size: 1rem;
+                transition: border-color 0.3s;
+            }
+            .license-input-group input:focus {
+                outline: none;
+                border-color: #007bff;
+            }
+            .license-help {
+                font-size: 0.9rem;
+                color: #666;
+            }
+            .license-help a {
+                color: #007bff;
+                text-decoration: none;
+            }
+            .license-help a:hover {
+                text-decoration: underline;
+            }
+            .data-safe-notice {
+                background: #d1fae5;
+                color: #065f46;
+                padding: 12px;
+                border-radius: 8px;
+                border-left: 4px solid #10b981;
+                font-size: 0.9rem;
+                margin-top: 15px;
+            }
+            .license-modal-footer {
+                padding: 15px 25px;
+                background: #f8f9fa;
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    addLicenseWarningStyles() {
+        if (document.getElementById('license-warning-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'license-warning-styles';
+        style.textContent = `
+            .license-warning-banner {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(135deg, #ffc107, #e0a800);
+                color: #333;
+                padding: 12px 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 15px;
+                z-index: 9999;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            }
+            .license-warning-banner button {
+                padding: 6px 15px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 600;
+            }
+            .license-warning-banner button:first-of-type {
+                background: #333;
+                color: white;
+            }
+            .license-warning-banner .close-btn {
+                background: transparent;
+                font-size: 1.2rem;
+                padding: 5px 10px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 // Clear spinners on page unload to prevent them from persisting
@@ -3957,6 +4468,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
+// Back to main website (capture to avoid interference)
+document.addEventListener('click', function (e) {
+    const target = e.target && e.target.closest ? e.target.closest('#back-to-website-btn, #back-to-home-btn') : null;
+    if (!target) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = `${WEBSITE_URL}/`;
+}, true);
 
 // Global notification functions for compatibility
 // DISABLED: Using notification system from javascript_functions.js instead

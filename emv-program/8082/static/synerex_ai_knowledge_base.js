@@ -42,7 +42,7 @@ class SynerexAIKnowledgeBase {
                 gettingStarted: {
                     title: "Getting Started with SYNEREX",
                     steps: [
-                        "1. Access the main dashboard at http://localhost:8082",
+                        "1. Access the main dashboard at ${EMV_BASE_URL}",
                         "2. Create a new project or select existing project",
                         "3. Fill out the project form with facility details",
                         "4. Upload CSV meter data files",

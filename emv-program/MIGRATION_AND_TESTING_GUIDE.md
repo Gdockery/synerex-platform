@@ -58,8 +58,8 @@ cd 8082
 python main_hardened_ready_fixed.py &
 
 # Test basic functionality
-curl http://localhost:8082/api/health
-curl http://localhost:8082/
+curl ${EMV_BASE_URL}/api/health
+curl ${EMV_BASE_URL}/
 
 # Stop current system
 pkill -f main_hardened_ready_fixed.py
@@ -77,14 +77,14 @@ cd 8082
 python main_hardened_ready_refactored.py &
 
 # Test refactored version
-curl http://localhost:8082/api/health
-curl http://localhost:8082/
+curl ${EMV_BASE_URL}/api/health
+curl ${EMV_BASE_URL}/
 ```
 
 #### **Step 5: Test API Endpoints**
 ```bash
 # Test analyze endpoint
-curl -X POST http://localhost:8082/api/analyze \
+curl -X POST ${EMV_BASE_URL}/api/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "before_data": {"avgKw": {"mean": 100}, "avgKva": {"mean": 120}, "avgPf": {"mean": 0.83}},
@@ -93,7 +93,7 @@ curl -X POST http://localhost:8082/api/analyze \
   }'
 
 # Test weather endpoint
-curl -X POST http://localhost:8082/api/weather \
+curl -X POST ${EMV_BASE_URL}/api/weather \
   -H "Content-Type: application/json" \
   -d '{
     "address": "123 Main St, Austin, TX 78701",
@@ -102,7 +102,7 @@ curl -X POST http://localhost:8082/api/weather \
   }'
 
 # Test validation endpoint
-curl -X POST http://localhost:8082/api/validate \
+curl -X POST ${EMV_BASE_URL}/api/validate \
   -H "Content-Type: application/json" \
   -d '{
     "type": "power_data",
@@ -113,7 +113,7 @@ curl -X POST http://localhost:8082/api/validate \
 #### **Step 6: Test Report Generation**
 ```bash
 # Test report generation endpoint
-curl -X POST http://localhost:8082/api/generate-report \
+curl -X POST ${EMV_BASE_URL}/api/generate-report \
   -H "Content-Type: application/json" \
   -d '{
     "report_data": {
@@ -160,11 +160,11 @@ sed -i 's/main_hardened_ready_fixed.py/main_hardened_ready_fixed.py/g' check_ser
 ./check_services.sh
 
 # Test all endpoints
-curl http://localhost:8082/api/health
-curl http://localhost:8083/health
-curl http://localhost:8084/health
-curl http://localhost:8200/health
-curl http://localhost:8086/health
+curl ${EMV_BASE_URL}/api/health
+curl ${PDF_SERVICE_URL}/health
+curl ${HTML_REPORT_URL}/health
+curl ${WEATHER_SERVICE_URL}/health
+curl ${CHART_SERVICE_URL}/health
 ```
 
 ## Testing Procedures
@@ -304,7 +304,7 @@ import json
 
 class TestAPIEndpoints(unittest.TestCase):
     def setUp(self):
-        self.base_url = "http://localhost:8082"
+        self.base_url = "${EMV_BASE_URL}"
         self.headers = {"Content-Type": "application/json"}
     
     def test_health_endpoint(self):
@@ -354,7 +354,7 @@ import requests
 import json
 
 def test_performance():
-    base_url = "http://localhost:8082"
+    base_url = "${EMV_BASE_URL}"
     headers = {"Content-Type": "application/json"}
     
     # Test data
@@ -403,7 +403,7 @@ cd 8082
 python main_hardened_ready_fixed.py &
 
 # Verify system is running
-curl http://localhost:8082/api/health
+curl ${EMV_BASE_URL}/api/health
 ```
 
 ### **Partial Rollback**
@@ -426,13 +426,13 @@ cat > health_check.sh << 'EOF'
 #!/bin/bash
 
 # Check main application
-curl -f http://localhost:8082/api/health || echo "Main app down"
+curl -f ${EMV_BASE_URL}/api/health || echo "Main app down"
 
 # Check other services
-curl -f http://localhost:8083/health || echo "PDF service down"
-curl -f http://localhost:8084/health || echo "HTML service down"
-curl -f http://localhost:8200/health || echo "Weather service down"
-curl -f http://localhost:8086/health || echo "Chart service down"
+curl -f ${PDF_SERVICE_URL}/health || echo "PDF service down"
+curl -f ${HTML_REPORT_URL}/health || echo "HTML service down"
+curl -f ${WEATHER_SERVICE_URL}/health || echo "Weather service down"
+curl -f ${CHART_SERVICE_URL}/health || echo "Chart service down"
 
 # Check logs for errors
 tail -n 50 logs/main_app.log | grep -i error
@@ -449,7 +449,7 @@ cat > performance_monitor.sh << 'EOF'
 
 # Monitor response times
 echo "Testing API response times..."
-time curl -s http://localhost:8082/api/health > /dev/null
+time curl -s ${EMV_BASE_URL}/api/health > /dev/null
 
 # Monitor memory usage
 ps aux | grep main_hardened_ready_fixed.py | grep -v grep

@@ -6,7 +6,7 @@ from pathlib import Path
 
 project_root = Path(__file__).parent
 daemon_script = project_root / "service_manager_daemon.py"
-python_exe = r"C:\Users\Admin\AppData\Local\Programs\Python\Python312\python.exe"
+python_exe = r"/usr/local/bin/python"
 
 # Wait a moment for current Service Manager process to stop
 time.sleep(3)

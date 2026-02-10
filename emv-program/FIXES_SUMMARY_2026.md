@@ -210,19 +210,19 @@ Chart generation is fully functional via Chart Service (8086). The legacy functi
 ### **API Testing**
 ```bash
 # Test user list
-curl http://127.0.0.1:8082/admin/users/list
+curl ${EMV_BASE_URL}/admin/users/list
 
 # Test database integrity
-curl -X POST http://127.0.0.1:8082/admin/database/integrity -H "Content-Type: application/json"
+curl -X POST ${EMV_BASE_URL}/admin/database/integrity -H "Content-Type: application/json"
 
 # Test database backup
-curl -X POST http://127.0.0.1:8082/admin/database/backup -H "Content-Type: application/json"
+curl -X POST ${EMV_BASE_URL}/admin/database/backup -H "Content-Type: application/json"
 ```
 
 ### **PDF Generation Testing**
 ```bash
 # Test PDF generation (requires reportlab)
-curl -X POST http://127.0.0.1:8082/api/generate_envelope_pdf \
+curl -X POST ${EMV_BASE_URL}/api/generate_envelope_pdf \
   -H "Content-Type: application/json" \
   -d '{"reportType": "network", ...}'
 ```
@@ -307,10 +307,10 @@ python main_hardened_ready_refactored.py
 **After restart, test endpoints:**
 ```bash
 # Should return user list (may be empty initially)
-curl http://127.0.0.1:8082/admin/users/list
+curl ${EMV_BASE_URL}/admin/users/list
 
 # Should return integrity check results
-curl -X POST http://127.0.0.1:8082/admin/database/integrity -H "Content-Type: application/json"
+curl -X POST ${EMV_BASE_URL}/admin/database/integrity -H "Content-Type: application/json"
 ```
 
 ---

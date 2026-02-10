@@ -11,7 +11,7 @@
   {% endif %}
 
   <!-- Search and Filter -->
-  <form method="get" action="/admin/authorizations" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+  <form method="get" action="{{ admin_url('authorizations') }}" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
     <div class="form-group" style="flex: 1; min-width: 200px;">
       <label for="search">Search</label>
       <input type="text" id="search" name="search" value="{{ search }}" placeholder="Search by ID, org, or template...">
@@ -36,7 +36,7 @@
     <div class="form-group" style="display: flex; align-items: flex-end;">
       <button type="submit" class="btn">🔍 Search</button>
       {% if search or program_filter or status_filter %}
-      <a href="/admin/authorizations" class="btn btn-secondary" style="margin-left: 0.5rem;">Clear</a>
+      <a href="{{ admin_url('authorizations') }}" class="btn btn-secondary" style="margin-left: 0.5rem;">Clear</a>
       {% endif %}
     </div>
   </form>
@@ -44,7 +44,7 @@
   <!-- Create Form (Collapsible) -->
   <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
     <h4 style="margin-top: 0;">Create New Authorization</h4>
-    <form method="post" action="/admin/authorizations">
+    <form method="post" action="{{ admin_url('authorizations') }}">
       <div class="row">
         <div class="form-group">
           <label for="authorization_id">Authorization ID <span style="color: #718096; font-weight: normal;">(optional - auto-generated if blank)</span></label>
@@ -102,7 +102,7 @@
       </div>
       <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
         <button class="btn" type="submit">Create Authorization</button>
-        <a href="/admin/authorizations" class="btn btn-secondary">Cancel</a>
+        <a href="{{ admin_url('authorizations') }}" class="btn btn-secondary">Cancel</a>
       </div>
     </form>
   </div>
@@ -114,7 +114,7 @@
   <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 1.5rem;">
     {% for item in authzs_with_stats %}
     {% set a = item.auth %}
-    <a href="/admin/authorizations/{{ a.authorization_id }}" style="display: block; padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); border-radius: 8px; text-decoration: none; color: #2d3748; border: 2px solid #e2e8f0; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)'">
+    <a href="{{ admin_url('authorizations/' ~ a.authorization_id) }}" style="display: block; padding: 1.5rem; background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%); border-radius: 8px; text-decoration: none; color: #2d3748; border: 2px solid #e2e8f0; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.15)'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.05)'; this.style.transform='translateY(0)'">
       <div style="display: flex; align-items: start; justify-content: space-between; margin-bottom: 1rem;">
         <div style="flex: 1;">
           <h4 style="margin: 0 0 0.5rem 0; color: #2d3748; font-size: 1.1rem;">{{ a.authorization_id }}</h4>
@@ -167,7 +167,7 @@
     {% if search or program_filter or status_filter %}
     No authorizations found matching your search criteria.
     {% else %}
-    No authorizations found. <a href="/admin/authorizations/new" style="color: #667eea;">Create one</a> to get started.
+    No authorizations found. <a href="{{ admin_url('authorizations/new') }}" style="color: #667eea;">Create one</a> to get started.
     {% endif %}
   </p>
   {% endif %}

@@ -1028,11 +1028,11 @@ compliance_checks = cursor.fetchall()
 #### Export Audit Trail via API
 ```bash
 # Export audit trail as CSV
-curl "http://localhost:8082/admin/compliance/audit-trail?export=csv&start_date=2025-01-01" \
+curl "${EMV_BASE_URL}/admin/compliance/audit-trail?export=csv&start_date=2025-01-01" \
   -o audit_trail.csv
 
 # Get calculation audit entries only
-curl "http://localhost:8082/admin/compliance/audit-trail?type=calculation&limit=1000" \
+curl "${EMV_BASE_URL}/admin/compliance/audit-trail?type=calculation&limit=1000" \
   | jq '.audit_trail[] | select(.type == "calculation")'
 ```
 

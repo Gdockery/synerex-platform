@@ -30,18 +30,16 @@ from .routes.exports import router as exports_router
 from .routes.access import router as access_router
 from .admin.ui import router as admin_router
 
-Base.metadata.create_all(bind=engine)
+if settings.db_url.startswith("sqlite"):
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="License Service")
 
 # Add CORS middleware BEFORE other middleware
+cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Website dev server
-        "http://localhost:3000",  # Alternative dev port
-        # Add production origins when deployed
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,7 +69,7 @@ def unauthorized_handler(request: Request, exc: HTTPException):
     
     # For admin pages (except login), redirect to login
     if request.url.path.startswith("/admin") and request.url.path != "/admin/login":
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url=f"{settings.root_path}/admin/login", status_code=303)
     
     # For other HTML requests, return a simple HTML error
     return HTMLResponse(content=f"<h1>401 Unauthorized</h1><p>{exc.detail}</p>", status_code=401)
@@ -190,7 +188,7 @@ def check_session(request: Request):
 @app.get("/")
 def root():
     """Root endpoint - redirects to admin login."""
-    return RedirectResponse(url="/admin/login", status_code=302)
+    return RedirectResponse(url=f"{settings.root_path}/admin/login", status_code=302)
 
 @app.get("/health")
 def health():
@@ -237,7 +235,7 @@ def api_server_restart(request: Request):
     if not is_admin:
         return JSONResponse(
             status_code=401,
-            content={"success": False, "message": "Not authenticated. Please log in as admin at /admin/login first."}
+            content={"success": False, "message": f"Not authenticated. Please log in as admin at {settings.root_path or ''}/admin/login first."}
         )
     
     from .db import SessionLocal

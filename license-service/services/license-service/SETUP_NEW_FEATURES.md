@@ -90,36 +90,36 @@ uvicorn app.main:app --reload --port 8000
 
 ### Test Stats Endpoint (No auth required):
 ```bash
-curl http://localhost:8000/api/stats
+curl ${LICENSE_SERVICE_URL}/api/stats
 ```
 
 ### Test Lifecycle Endpoints (Admin auth required):
 ```bash
 # Login first
-curl -X POST http://localhost:8000/admin/login \
+curl -X POST ${LICENSE_SERVICE_URL}/admin/login \
   -d "username=admin&password=admin123" \
   -c cookies.txt
 
 # Run lifecycle tasks
-curl -X POST http://localhost:8000/api/lifecycle/run-tasks \
+curl -X POST ${LICENSE_SERVICE_URL}/api/lifecycle/run-tasks \
   -b cookies.txt
 
 # Check expiring licenses
-curl -X POST http://localhost:8000/api/lifecycle/check-expiring \
+curl -X POST ${LICENSE_SERVICE_URL}/api/lifecycle/check-expiring \
   -b cookies.txt
 
 # Handle expired licenses
-curl -X POST http://localhost:8000/api/lifecycle/handle-expired \
+curl -X POST ${LICENSE_SERVICE_URL}/api/lifecycle/handle-expired \
   -b cookies.txt
 ```
 
 ### Test Webhook Endpoints:
 ```bash
 # List webhooks
-curl http://localhost:8000/api/webhooks -b cookies.txt
+curl ${LICENSE_SERVICE_URL}/api/webhooks -b cookies.txt
 
 # Create webhook
-curl -X POST http://localhost:8000/api/webhooks \
+curl -X POST ${LICENSE_SERVICE_URL}/api/webhooks \
   -H "Content-Type: application/json" \
   -d '{"url":"https://example.com/webhook","events":["license.issued"],"secret":"test123"}' \
   -b cookies.txt
@@ -128,25 +128,25 @@ curl -X POST http://localhost:8000/api/webhooks \
 ### Test Analytics Endpoints:
 ```bash
 # Revenue report
-curl http://localhost:8000/api/analytics/revenue -b cookies.txt
+curl ${LICENSE_SERVICE_URL}/api/analytics/revenue -b cookies.txt
 
 # Usage report
-curl http://localhost:8000/api/analytics/usage -b cookies.txt
+curl ${LICENSE_SERVICE_URL}/api/analytics/usage -b cookies.txt
 
 # License utilization
-curl http://localhost:8000/api/analytics/license-utilization -b cookies.txt
+curl ${LICENSE_SERVICE_URL}/api/analytics/license-utilization -b cookies.txt
 ```
 
 ### Test Export Endpoints:
 ```bash
 # Export licenses
-curl http://localhost:8000/api/exports/licenses -b cookies.txt -o licenses.csv
+curl ${LICENSE_SERVICE_URL}/api/exports/licenses -b cookies.txt -o licenses.csv
 
 # Export organizations
-curl http://localhost:8000/api/exports/organizations -b cookies.txt -o orgs.csv
+curl ${LICENSE_SERVICE_URL}/api/exports/organizations -b cookies.txt -o orgs.csv
 
 # Export billing
-curl http://localhost:8000/api/exports/billing -b cookies.txt -o billing.csv
+curl ${LICENSE_SERVICE_URL}/api/exports/billing -b cookies.txt -o billing.csv
 ```
 
 ## 📊 New API Endpoints Summary

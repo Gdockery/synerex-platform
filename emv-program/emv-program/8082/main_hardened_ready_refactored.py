@@ -64,6 +64,15 @@ try:
 except ImportError:
     # python-dotenv not installed, continue without it
     pass
+LICENSE_SERVICE_URL = os.getenv("LICENSE_SERVICE_URL")
+WEATHER_SERVICE_URL = os.getenv("WEATHER_SERVICE_URL")
+WEBSITE_URL = os.getenv("WEBSITE_URL")
+EMV_BASE_URL = os.getenv("EMV_BASE_URL")
+TRACKING_URL = os.getenv("TRACKING_BASE_URL") or os.getenv("TRACKING_URL")
+SERVICE_MANAGER_URL = os.getenv("SERVICE_MANAGER_URL")
+HTML_REPORT_URL = os.getenv("HTML_REPORT_URL")
+PDF_SERVICE_URL = os.getenv("PDF_SERVICE_URL")
+INCENTIVE_SERVICE_URL = os.getenv("INCENTIVE_SERVICE_URL")
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 
@@ -1339,7 +1348,8 @@ def money(value, currency_code=None) -> str:
 class WeatherServiceClient:
     """Client for communicating with the weather service on port 8200"""
     
-    def __init__(self, weather_service_url="http://127.0.0.1:8200"):
+    def __init__(self, weather_service_url=None):
+        weather_service_url = weather_service_url or WEATHER_SERVICE_URL
         self.weather_service_url = weather_service_url
         logger.info(f"WeatherServiceClient initialized with URL: {self.weather_service_url}")
         # Create a new session for each client instance to avoid stale connections
@@ -7021,7 +7031,7 @@ def serve_layman_report():
     """Serve the layman-friendly executive summary report"""
     try:
         # Forward request to 8084 service for layman report generation
-        response = requests.get("http://localhost:8084/generate-layman", timeout=30)
+        response = requests.get(f"{HTML_REPORT_URL}/generate-layman", timeout=30)
         if response.status_code == 200:
             html_content = response.text
             return Response(
@@ -7114,7 +7124,7 @@ def serve_template_report():
                 adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1)
                 session.mount("http://", adapter)
                 session.mount("https://", adapter)
-                response = session.get("http://127.0.0.1:8084/generate", timeout=30)
+                response = session.get(f"{HTML_REPORT_URL}/generate", timeout=30)
                 if response.status_code == 200:
                     html_content = response.text
                     
@@ -7436,7 +7446,7 @@ def serve_template_report():
                 logger.info(f"[FIX] CONFIG DEBUG: combined_data.config keys: {list(combined_data.get('config', {}).keys())}")
                 logger.info(f"[FIX] CONFIG DEBUG: combined_data.client_profile keys: {list(combined_data.get('client_profile', {}).keys())}")
                 
-                response = requests.get("http://localhost:8084/generate", timeout=10)
+                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=10)
                 if response.status_code == 200:
                     return Response(
                         response.text,
@@ -8110,7 +8120,7 @@ def fetch_weather_legacy():
         a_end = _dt.strptime(after_dates["end"], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
 
         # Call weather service with hourly data for timestamp matching
-        weather_client = WeatherServiceClient("http://127.0.0.1:8200")
+        weather_client = WeatherServiceClient(WEATHER_SERVICE_URL)
         weather_data = weather_client.fetch_weather_data(address, b_start, b_end, a_start, a_end, include_hourly=True)
         if isinstance(weather_data, dict) and weather_data.get("error"):
             return jsonify({"success": False, "error": weather_data.get("error")}), 200
@@ -8235,7 +8245,7 @@ def handle_license_token_login(token: str):
         # Get License Service URL from environment
         license_service_url = os.getenv(
             "LICENSE_SERVICE_URL", 
-            "http://localhost:8000"
+            LICENSE_SERVICE_URL
         )
         
         # Validate token with License Service
@@ -18347,7 +18357,7 @@ def generate_html_report_for_package(results_data, output_dir):
         # PRIMARY METHOD: Call the HTML report service on port 8084 to generate a fresh report
         # This ensures we get all the corrected calculations and normalization methods from generate_exact_template_html.py
         try:
-            response = requests.get('http://127.0.0.1:8084/generate', timeout=30)
+            response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=30)
             if response.status_code == 200:
                 html_content = response.text
                 
@@ -26236,16 +26246,17 @@ def generate_verification_certificate(results_data, client_profile, timestamp):
     cert_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')
     cert_expiry = (datetime.now() + timedelta(days=365)).strftime('%B %d, %Y')
     
-    # Get base URL for verification link - try to get from request context, fallback to localhost
+    # Get base URL for verification link - try to get from request context, fallback to EMV_BASE_URL
     try:
         from flask import request
         base_url = request.url_root.rstrip('/')
-        # If it's localhost with a different port, use port 8082
-        if 'localhost' in base_url or '127.0.0.1' in base_url:
-            base_url = 'http://localhost:8082'
+        # If it's a local address, use EMV_BASE_URL
+        local_hostnames = [h.strip() for h in os.getenv("LOCAL_HOSTNAMES", "").split(",") if h.strip()]
+        if any(host in base_url for host in local_hostnames):
+            base_url = EMV_BASE_URL
     except (RuntimeError, ImportError):
         # Not in request context or Flask not available, use default
-        base_url = 'http://localhost:8082'
+        base_url = EMV_BASE_URL
     
     verification_url = f"{base_url}/verify/{verification_code}"
     
@@ -27805,7 +27816,7 @@ def generate_utility_submission_package(results_data):
             # Call incentive service
             try:
                 import requests
-                incentive_service_url = "http://localhost:8203/incentives"
+                incentive_service_url = f"{INCENTIVE_SERVICE_URL}/incentives"
                 response = requests.post(
                     incentive_service_url,
                     json={"location_data": location_data, "project_data": project_data},
@@ -29360,13 +29371,13 @@ def admin_start_all_services():
         logger.info("DEBUG: Using service manager daemon API to start services")
 
         # Call the service manager daemon API
-        service_manager_url = "http://localhost:9000/api/services/start-all"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/start-all"
 
         # First, check if the service manager daemon is running
         service_manager_running = False
         try:
             # Quick health check
-            health_response = requests.get("http://localhost:9000/health", timeout=2)
+            health_response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
             if health_response.status_code == 200:
                 service_manager_running = True
                 logger.info("DEBUG: Service manager daemon is already running")
@@ -29430,7 +29441,7 @@ def admin_start_all_services():
                 for attempt in range(10):
                     try:
                         health_response = requests.get(
-                            "http://localhost:9000/health", timeout=2
+                            f"{SERVICE_MANAGER_URL}/health", timeout=2
                         )
                         if health_response.status_code == 200:
                             logger.info(
@@ -29480,7 +29491,7 @@ def admin_start_all_services():
             for verification_attempt in range(5):
                 try:
                     # Try to get service status - this verifies the API is fully ready
-                    status_response = requests.get("http://localhost:9000/api/services/status", timeout=3)
+                    status_response = requests.get(f"{SERVICE_MANAGER_URL}/api/services/status", timeout=3)
                     if status_response.status_code == 200:
                         # Try parsing the response to ensure it's fully functional
                         status_data = status_response.json()
@@ -29501,7 +29512,7 @@ def admin_start_all_services():
             # Even if Service Manager was already running, verify it's responsive
             logger.info("DEBUG: Service Manager was already running, verifying it's responsive...")
             try:
-                verify_response = requests.get("http://localhost:9000/api/services/status", timeout=3)
+                verify_response = requests.get(f"{SERVICE_MANAGER_URL}/api/services/status", timeout=3)
                 if verify_response.status_code != 200:
                     logger.warning("DEBUG: Service Manager API returned non-200 status, waiting...")
                     time.sleep(3)  # Wait if API seems unresponsive
@@ -29758,7 +29769,7 @@ def admin_restart_all_services():
                     # Check if Service Manager is already running
                     sm_running = False
                     try:
-                        response = requests.get("http://127.0.0.1:9000/health", timeout=2)
+                        response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
                         if response.status_code == 200:
                             log_file.write("  [OK] Service Manager is already running\n")
                             log_file.flush()
@@ -29806,7 +29817,7 @@ def admin_restart_all_services():
                             for attempt in range(20):
                                 time.sleep(3)
                                 try:
-                                    response = requests.get("http://127.0.0.1:9000/health", timeout=2)
+                                    response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
                                     if response.status_code == 200:
                                         log_file.write(f"  [OK] Service Manager is healthy (attempt {attempt + 1})\n")
                                         log_file.flush()
@@ -29835,7 +29846,7 @@ def admin_restart_all_services():
                     # Verify Service Manager (9000) is still running before restarting 8082
                     sm_still_running = False
                     try:
-                        response = requests.get("http://127.0.0.1:9000/health", timeout=2)
+                        response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
                         if response.status_code == 200:
                             sm_still_running = True
                             log_file.write("  [OK] Service Manager (9000) is running - proceeding with 8082 restart\n")
@@ -29911,7 +29922,7 @@ def admin_restart_all_services():
                             for attempt in range(20):
                                 time.sleep(3)
                                 try:
-                                    response = requests.get("http://127.0.0.1:8082/api/health", timeout=2)
+                                    response = requests.get(f"{EMV_BASE_URL}/api/health", timeout=2)
                                     if response.status_code == 200:
                                         log_file.write(f"  [OK] Main App is healthy (attempt {attempt + 1})\n")
                                         log_file.flush()
@@ -30154,7 +30165,7 @@ def admin_restart_service():
             )
 
         # Call the service manager API to restart the service
-        service_manager_url = f"http://localhost:9000/api/services/restart/{service_id}"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/restart/{service_id}"
 
         logger.info(
             f"DEBUG: Restarting service {service} (ID: {service_id}) via service manager"
@@ -30215,7 +30226,7 @@ def admin_stop_all_services():
         # First, check if the service manager daemon is running
         service_manager_running = False
         try:
-            health_response = requests.get("http://localhost:9000/health", timeout=2)
+            health_response = requests.get(f"{SERVICE_MANAGER_URL}/health", timeout=2)
             if health_response.status_code == 200:
                 service_manager_running = True
                 logger.info("DEBUG: Service manager daemon is already running")
@@ -30271,7 +30282,7 @@ def admin_stop_all_services():
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(1)
-                    result = sock.connect_ex(('localhost', 9000))
+                    result = sock.connect_ex((SERVICE_MANAGER_URL.replace('http://', '').replace('https://', '').split(':')[0], int(SERVICE_MANAGER_URL.split(':')[-1])))
                     sock.close()
                     if result == 0:
                         port_in_use = True
@@ -30349,7 +30360,7 @@ def admin_stop_all_services():
                 for attempt in range(20):  # Increased from 10 to 20 attempts
                     try:
                         health_response = requests.get(
-                            "http://localhost:9000/health", timeout=2
+                            f"{SERVICE_MANAGER_URL}/health", timeout=2
                         )
                         if health_response.status_code == 200:
                             service_manager_running = True
@@ -30419,7 +30430,7 @@ def admin_stop_all_services():
 
         # Call the service manager API to stop all services except main app
         # Note: We stop "other services" to avoid stopping the main app (8082) which hosts this admin panel
-        service_manager_url = "http://localhost:9000/api/services/stop-other-services"
+        service_manager_url = f"{SERVICE_MANAGER_URL}/api/services/stop-other-services"
 
         logger.info("DEBUG: Using clean service manager API to stop services")
 
@@ -30668,7 +30679,7 @@ def admin_security_threat_scan():
         
         for port in service_ports:
             try:
-                response = requests.get(f'http://127.0.0.1:{port}/health', timeout=2)
+                response = requests.get(f"{SERVICE_MANAGER_URL.split(':')[0]}://{SERVICE_MANAGER_URL.replace('http://', '').replace('https://', '').split(':')[0]}:{port}/health", timeout=2)
                 if response.status_code == 200:
                     service_status[port] = "RUNNING"
                 else:
@@ -32095,7 +32106,7 @@ def admin_api_test_endpoints():
         for endpoint_info in endpoints_to_test:
             try:
                 start_time = time.time()
-                response = requests.get(f"http://127.0.0.1:8082{endpoint_info['endpoint']}", timeout=5)
+                response = requests.get(f"{EMV_BASE_URL}{endpoint_info['endpoint']}", timeout=5)
                 response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
                 
                 test_results.append({

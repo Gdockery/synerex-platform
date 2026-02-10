@@ -136,7 +136,7 @@ def test_weather_service_health():
     print("="*80)
     
     try:
-        response = requests.get("http://127.0.0.1:8200/health", timeout=5)
+        response = requests.get(f"{os.getenv('WEATHER_SERVICE_URL')}/health", timeout=5)
         if response.status_code == 200:
             print("[OK] Weather service is running on port 8200")
             return True
@@ -188,7 +188,7 @@ def test_full_weather_fetch_simulation():
         }
         
         response = requests.post(
-            "http://127.0.0.1:8200/weather/batch",
+            f"{os.getenv('WEATHER_SERVICE_URL')}/weather/batch",
             json=weather_payload,
             timeout=30
         )

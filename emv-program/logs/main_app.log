@@ -1,3 +1,7 @@
+2026-02-02 14:13:32,049 - __main__ - INFO - Logging initialized. Log file: /home/xcorp/synerex-platform/emv-program/8082/logs/app.log
+2026-02-02 14:13:32,154 - __main__ - INFO - WeatherServiceClient initialized with URL: http://127.0.0.1:8200
+2026-02-02 14:13:32,253 - __main__ - INFO - PE license re-verification scheduler started (runs daily)
+ * Tip: There are .env files present. Install python-dotenv to use them.
 Excel export functionality enabled - openpyxl imported successfully
 PDF export functionality enabled - reportlab imported successfully
 *** SYNEREX POWER ANALYSIS SYSTEM - REFACTORED VERSION 3.8 ***
@@ -9,3 +13,5 @@ PDF export functionality enabled - reportlab imported successfully
 *** - Improved code organization ***
  * Serving Flask app 'main_hardened_ready_refactored'
  * Debug mode: off
+Address already in use
+Port 8082 is in use by another program. Either identify and stop that program, or start the server with a different port.

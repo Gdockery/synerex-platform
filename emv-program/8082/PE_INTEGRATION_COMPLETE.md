@@ -138,21 +138,21 @@ To test the integration:
 
 1. **Test PE Verification:**
    ```bash
-   curl -X POST http://localhost:8082/api/pe/verify \
+   curl -X POST ${EMV_BASE_URL}/api/pe/verify \
      -H "Content-Type: application/json" \
      -d '{"license_number":"12345","state":"TX","first_name":"John","last_name":"Doe"}'
    ```
 
 2. **Test PE Registration:**
    ```bash
-   curl -X POST http://localhost:8082/api/pe/register \
+   curl -X POST ${EMV_BASE_URL}/api/pe/register \
      -H "Content-Type: application/json" \
      -d '{"user_id":"user_test123","username":"testpe","email":"test@example.com","first_name":"Test","last_name":"PE","license_number":"12345","state":"TX","company":"Test Co","org_id":"org_test","verified":true}'
    ```
 
 3. **Test Organization Linking:**
    ```bash
-   curl -X POST http://localhost:8082/api/pe/user_test123/link-org \
+   curl -X POST ${EMV_BASE_URL}/api/pe/user_test123/link-org \
      -H "Content-Type: application/json" \
      -d '{"org_id":"org_test"}'
    ```

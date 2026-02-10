@@ -35,18 +35,24 @@ check_service() {
 echo "Service Status:"
 echo "---------------"
 
-check_service 8082 "Main App" "http://127.0.0.1:8082/api/health"
-check_service 8083 "PDF Generator" "http://127.0.0.1:8083/health"
-check_service 8084 "HTML Reports" "http://127.0.0.1:8084/health"
-check_service 8200 "Weather Service" "http://127.0.0.1:8200/health"
-check_service 8086 "Chart Service" "http://127.0.0.1:8086/health"
+EMV_PORT=$(echo "$EMV_BASE_URL" | awk -F: '{print $3}')
+PDF_PORT=$(echo "$PDF_SERVICE_URL" | awk -F: '{print $3}')
+HTML_PORT=$(echo "$HTML_REPORT_URL" | awk -F: '{print $3}')
+WEATHER_PORT=$(echo "$WEATHER_SERVICE_URL" | awk -F: '{print $3}')
+CHART_PORT=$(echo "$CHART_SERVICE_URL" | awk -F: '{print $3}')
+
+check_service $EMV_PORT "Main App" "$EMV_BASE_URL/api/health"
+check_service $PDF_PORT "PDF Generator" "$PDF_SERVICE_URL/health"
+check_service $HTML_PORT "HTML Reports" "$HTML_REPORT_URL/health"
+check_service $WEATHER_PORT "Weather Service" "$WEATHER_SERVICE_URL/health"
+check_service $CHART_PORT "Chart Service" "$CHART_SERVICE_URL/health"
 
 echo ""
 echo "Port Usage Summary:"
 echo "-------------------"
 
 # Show what's using each port
-for port in 8082 8083 8084 8200 8086; do
+for port in $EMV_PORT $PDF_PORT $HTML_PORT $WEATHER_PORT $CHART_PORT; do
     local pid=$(lsof -ti:$port 2>/dev/null)
     if [ -n "$pid" ]; then
         local process=$(ps -p $pid -o comm= 2>/dev/null)
@@ -74,7 +80,7 @@ echo "Quick Commands:"
 echo "---------------"
 echo "🛑 Stop all services: ./stop_services.sh"
 echo "🚀 Start all services: ./start_services.sh"
-echo "🌐 Open main app: open http://127.0.0.1:8082"
+echo "🌐 Open main app: open $EMV_BASE_URL"
 
 
 

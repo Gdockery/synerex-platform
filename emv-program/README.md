@@ -165,8 +165,8 @@ stop_services.bat   # Windows
 #### Testing Examples
 ```bash
 # Single API calls - use curl
-curl -s http://127.0.0.1:8082/health
-curl -s -X POST -H "Content-Type: application/json" -d "{\"manual_mode\": true, \"before_file_id\": 1, \"after_file_id\": 2}" http://127.0.0.1:8082/api/analyze
+curl -s ${EMV_BASE_URL}/health
+curl -s -X POST -H "Content-Type: application/json" -d "{\"manual_mode\": true, \"before_file_id\": 1, \"after_file_id\": 2}" ${EMV_BASE_URL}/api/analyze
 
 # Check service status
 ./check_services.sh  # Linux/macOS

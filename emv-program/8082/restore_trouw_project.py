@@ -3,7 +3,10 @@
 Restore Trouw-Lethbridge project from HTML report
 """
 import sqlite3
+import pymysql
+from urllib.parse import urlparse
 import json
+import os
 import re
 import os
 from pathlib import Path
@@ -63,38 +66,71 @@ def extract_project_data_from_report():
 
 def restore_project_to_database(project_data, org_id=None):
     """Restore project to database"""
+    mysql_url = os.getenv("EMV_DB_URL")
+
     # Determine database path
-    if org_id:
-        org_dir = results_dir / f"org_{org_id}"
-        org_dir.mkdir(parents=True, exist_ok=True)
-        db_path = org_dir / "app.db"
+    if mysql_url:
+        parsed = urlparse(mysql_url)
+        conn = pymysql.connect(
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 3306,
+            user=parsed.username or "",
+            password=parsed.password or "",
+            database=(parsed.path or "").lstrip("/"),
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+        cursor = conn.cursor()
+        org_value = org_id or "default"
     else:
-        # Use default database
-        results_dir.mkdir(parents=True, exist_ok=True)
-        db_path = results_dir / "app.db"
-    
-    print(f"Using database: {db_path}")
-    
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.cursor()
+        if org_id:
+            org_dir = results_dir / f"org_{org_id}"
+            org_dir.mkdir(parents=True, exist_ok=True)
+            db_path = org_dir / "app.db"
+        else:
+            # Use default database
+            results_dir.mkdir(parents=True, exist_ok=True)
+            db_path = results_dir / "app.db"
+
+        print(f"Using database: {db_path}")
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        org_value = None
     
     # Ensure projects table exists
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            data TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            archived INTEGER DEFAULT 0
-        )
-    """)
+    if mysql_url:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                data TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                archived INTEGER DEFAULT 0,
+                org_id VARCHAR(255) NOT NULL
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                data TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                archived INTEGER DEFAULT 0
+            )
+        """)
     conn.commit()
     
     # Check if project already exists
     project_name = project_data.get('project_name', 'Trouw-Lethbridge')
-    cursor.execute("SELECT id, name FROM projects WHERE name = ?", (project_name,))
+    if mysql_url:
+        cursor.execute("SELECT id, name FROM projects WHERE name = %s AND org_id = %s", (project_name, org_value))
+    else:
+        cursor.execute("SELECT id, name FROM projects WHERE name = ?", (project_name,))
     existing = cursor.fetchone()
     
     if existing:
@@ -106,11 +142,18 @@ def restore_project_to_database(project_data, org_id=None):
         payload_str = json.dumps(project_data)
         data_to_save = json.dumps({"payload": payload_str})
         
-        cursor.execute("""
-            UPDATE projects 
-            SET data = ?, updated_at = datetime('now')
-            WHERE id = ?
-        """, (data_to_save, project_id))
+        if mysql_url:
+            cursor.execute("""
+                UPDATE projects 
+                SET data = %s, updated_at = NOW()
+                WHERE id = %s AND org_id = %s
+            """, (data_to_save, project_id, org_value))
+        else:
+            cursor.execute("""
+                UPDATE projects 
+                SET data = ?, updated_at = datetime('now')
+                WHERE id = ?
+            """, (data_to_save, project_id))
         conn.commit()
         print(f"Updated project ID {project_id}")
     else:
@@ -120,10 +163,16 @@ def restore_project_to_database(project_data, org_id=None):
         payload_str = json.dumps(project_data)
         data_to_save = json.dumps({"payload": payload_str})
         
-        cursor.execute("""
-            INSERT INTO projects (name, description, data, created_at, updated_at)
-            VALUES (?, ?, ?, datetime('now'), datetime('now'))
-        """, (project_name, "", data_to_save))
+        if mysql_url:
+            cursor.execute("""
+                INSERT INTO projects (name, description, data, created_at, updated_at, org_id)
+                VALUES (%s, %s, %s, NOW(), NOW(), %s)
+            """, (project_name, "", data_to_save, org_value))
+        else:
+            cursor.execute("""
+                INSERT INTO projects (name, description, data, created_at, updated_at)
+                VALUES (?, ?, ?, datetime('now'), datetime('now'))
+            """, (project_name, "", data_to_save))
         project_id = cursor.lastrowid
         conn.commit()
         print(f"Created project ID {project_id}")
@@ -157,4 +206,4 @@ if __name__ == '__main__':
     print(f"  Project ID: {project_id}")
     print(f"  Project Name: {project_data.get('project_name')}")
     print(f"\nYou can now access this project in the dashboard at:")
-    print(f"  http://localhost:8082/main-dashboard")
+    print(f"  {os.getenv('EMV_BASE_URL')}/main-dashboard")

@@ -63,6 +63,8 @@
             </div>
             <div class="header-right">
                 <div class="header-buttons-left">
+                    <a id="back-to-home-btn" class="btn-secondary" href="http://localhost:5173/" aria-label="Back to previous page">Back to previous page</a>
+
                     <button id="help-btn" class="btn-help">Help</button>
                     <button id="users-guide-btn" class="btn-users-guide" onclick="window.open('/users-guide', '_blank')">User's Guide</button>
                     <button id="csv-editor-guide-btn" class="btn-users-guide" onclick="window.open('/csv-editor-guide', '_blank')" title="CSV Editor Guide">📖 CSV Guide</button>
@@ -122,14 +124,20 @@
             <!-- Login Section (shown when not authenticated) -->
             <div id="login-section" class="dashboard-section">
                 <div class="section-header">
-                    <h2>User Authentication</h2>
-                    <p>Please login to access the CSV Tamper-Proofing Utility-Grade Audit System</p>
+                    <h2>Log in to EM&V Program</h2>
+                    <p>Energy Measurement &amp; Verification — sign in below to access the program.</p>
                 </div>
                 <div class="section-content">
                     <div class="login-forms">
                         <div class="login-form">
-                            <h3>Login</h3>
+                            <h3>Sign in</h3>
                             <form id="user-login">
+                                <div class="form-group">
+                                    <label>Organization:</label>
+                                    <select id="org-id" required>
+                                        <option value="">Select organization...</option>
+                                    </select>
+                                </div>
                                 <div class="form-group">
                                     <label>Username/Email:</label>
                                     <input type="text" id="username" required>
@@ -147,10 +155,11 @@
                                     <label>Role:</label>
                                     <select id="user-role" required>
                                         <option value="">Select Role</option>
+                                        <option value="administrator">Administrator</option>
                                         <option value="pe">Professional Engineer (PE)</option>
                                         <option value="engineer">Engineer</option>
                                         <option value="technician">Technician</option>
-                                        <option value="administrator">System Administrator</option>
+                                        
                                         <option value="auditor">Auditor</option>
                                     </select>
                                 </div>
@@ -161,6 +170,34 @@
                         <div class="register-form">
                             <h3>Register New User</h3>
                             <form id="user-registration">
+                                <div class="form-group">
+                                    <label>Company Name:</label>
+                                    <input type="text" id="reg-company-name" required placeholder="e.g. Acme Corp">
+                                </div>
+                                <div class="form-group">
+                                    <label>Address:</label>
+                                    <input type="text" id="reg-address" placeholder="Street address">
+                                </div>
+                                <div class="form-group">
+                                    <label>City:</label>
+                                    <input type="text" id="reg-city" placeholder="City">
+                                </div>
+                                <div class="form-group">
+                                    <label>State:</label>
+                                    <input type="text" id="reg-state-org" placeholder="State/Province">
+                                </div>
+                                <div class="form-group">
+                                    <label>Zip:</label>
+                                    <input type="text" id="reg-zip" placeholder="ZIP / Postal code">
+                                </div>
+                                <div class="form-group">
+                                    <label>Organization Contact Name:</label>
+                                    <input type="text" id="reg-contact-name" placeholder="Contact person">
+                                </div>
+                                <div class="form-group">
+                                    <label>Organization Contact Phone:</label>
+                                    <input type="tel" id="reg-contact-phone" placeholder="e.g. (555) 123-4567">
+                                </div>
                                 <div class="form-group">
                                     <label>Full Name:</label>
                                     <input type="text" id="full-name" required>
@@ -213,7 +250,7 @@
                                         <option value="pe">Professional Engineer (PE)</option>
                                         <option value="engineer">Engineer</option>
                                         <option value="technician">Technician</option>
-                                        <option value="administrator">System Administrator</option>
+                                        
                                         <option value="auditor">Auditor</option>
                                     </select>
                                 </div>
@@ -228,6 +265,9 @@
                                 <button type="submit" class="btn-primary">Register</button>
                             </form>
                         </div>
+                    </div>
+                    <div class="section-actions">
+                        <button id="back-to-website-btn" type="button" class="btn-secondary" aria-label="Back to previous page" onclick="window.location.href='http://localhost:5173/'">Back to previous page</button>
                     </div>
                 </div>
             </div>

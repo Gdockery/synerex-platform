@@ -1,7 +1,7 @@
 # PE Dashboard #register Issue - Diagnosis and Fix
 
 ## Problem
-The page `http://localhost:8082/pe-dashboard#register` is not accessible.
+The page `${EMV_BASE_URL}/pe-dashboard#register` is not accessible.
 
 ## Root Causes Identified
 
@@ -68,8 +68,8 @@ window.addEventListener('hashchange', function() {
 
 1. Start the EM&V server using `start_8082_service.bat`
 2. Verify server is running: `netstat -ano | findstr ":8082"`
-3. Access `http://localhost:8082/pe-dashboard` - should load
-4. Access `http://localhost:8082/pe-dashboard#register` - should show registration form (after fix)
+3. Access `${EMV_BASE_URL}/pe-dashboard` - should load
+4. Access `${EMV_BASE_URL}/pe-dashboard#register` - should show registration form (after fix)
 5. Click "Register New PE" button - should show registration form
 
 ## Files Involved

@@ -47,5 +47,6 @@
         "**/venv": true
     },
     "search.useIgnoreFiles": true,
-    "search.useGlobalIgnoreFiles": true
+    "search.useGlobalIgnoreFiles": true,
+    "git.ignoreLimitWarning": true
 }

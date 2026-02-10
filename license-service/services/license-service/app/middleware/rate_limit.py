@@ -35,8 +35,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return f"ip:{request.client.host if request.client else 'unknown'}"
     
     async def dispatch(self, request: Request, call_next):
-        # Skip rate limiting for certain paths
-        skip_paths = ["/health", "/static", "/admin/login"]
+        # Skip rate limiting for health, static assets, and entire admin UI (login and dashboard)
+        skip_paths = ["/health", "/static", "/admin"]
         if any(request.url.path.startswith(path) for path in skip_paths):
             return await call_next(request)
         

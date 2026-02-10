@@ -4,6 +4,7 @@ Copy UI's generated HTML report and add missing sections
 """
 
 import requests
+import os
 from pathlib import Path
 
 def copy_ui_report():
@@ -11,7 +12,7 @@ def copy_ui_report():
     
     # Get the UI's generated HTML report
     try:
-        response = requests.get('http://localhost:8082/legacy', timeout=10)
+        response = requests.get(f"{os.getenv('EMV_BASE_URL')}/legacy", timeout=10)
         if response.status_code == 200:
             ui_html = response.text
             

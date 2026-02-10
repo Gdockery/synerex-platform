@@ -1738,3 +1738,63 @@ Status: http://localhost:8083/status
 --------------------------------------------------
  * Serving Flask app 'enhanced_pdf_service'
  * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off
+SVGLib not available - SVG charts will be skipped
+Starting Enhanced PDF Generator Service on port 8083...
+SVG Support: Disabled
+Output directory: generated_pdfs
+Health check: http://localhost:8083/health
+Generate PDF: POST http://localhost:8083/generate
+Status: http://localhost:8083/status
+--------------------------------------------------
+ * Serving Flask app 'enhanced_pdf_service'
+ * Debug mode: off

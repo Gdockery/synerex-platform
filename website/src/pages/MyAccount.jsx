@@ -11,10 +11,12 @@ export default function MyAccount() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [userInfo, setUserInfo] = useState(null);
+  const [jwtToken, setJwtToken] = useState(null);
   const navigate = useNavigate();
   
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
-  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || "http://localhost:8087";
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL;
+  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL;
+  const EMV_URL = import.meta.env.VITE_EMV_URL;
   
   useEffect(() => {
     checkAuth();
@@ -29,6 +31,19 @@ export default function MyAccount() {
         const userData = await response.json();
         setIsAuthenticated(true);
         setUserInfo(userData);
+        try {
+          const jwtResp = await fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, {
+            credentials: "include",
+          });
+          if (jwtResp.ok) {
+            const jwtData = await jwtResp.json();
+            if (jwtData?.token) {
+              setJwtToken(jwtData.token);
+            }
+          }
+        } catch (jwtErr) {
+          console.warn("JWT fetch failed:", jwtErr);
+        }
         // If user has a license_id, auto-load it
         if (userData.license_id) {
           setLicenseSerial(userData.license_id);
@@ -120,6 +135,9 @@ export default function MyAccount() {
   };
   
   const getAccessUrl = (program) => {
+    if (jwtToken) {
+      return `${LICENSE_SERVICE_URL}/access/${program}?token=${encodeURIComponent(jwtToken)}`;
+    }
     if (!licenseSerial.trim()) return "#";
     return `${LICENSE_SERVICE_URL}/access/${program}?license_id=${licenseSerial.trim()}`;
   };
@@ -374,7 +392,7 @@ export default function MyAccount() {
                   Licensees in the EM&V program and submitted to you for review.
                 </p>
                 <a 
-                  href="http://localhost:8082/pe-dashboard" 
+                  href={`${EMV_URL}/pe-dashboard`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-semibold"

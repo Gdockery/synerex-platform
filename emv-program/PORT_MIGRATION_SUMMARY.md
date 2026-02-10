@@ -13,7 +13,7 @@
 
 ## How to Use:
 1. Use the new launcher: launch_synerex_8000.bat
-2. Access the application at: http://127.0.0.1:8000
+2. Access the application at: ${EMV_BASE_URL}
 3. All internal links have been updated to use the new ports
 
 ## Benefits:

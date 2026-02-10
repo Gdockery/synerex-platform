@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 
 results_dir = Path("emv-program/8082/results")
-src_db = results_dir / "org_ADMIN" / "app.db"
+src_db = results_dir / "org_admin" / "app.db"
 dst_db = results_dir / "app.db"
 
-print("Copying Trouw-Lethbridge from org_ADMIN...")
+print("Copying Trouw-Lethbridge from org_admin...")
 src_conn = sqlite3.connect(str(src_db))
 dst_conn = sqlite3.connect(str(dst_db))
 src_cursor = src_conn.cursor()

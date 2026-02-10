@@ -6,7 +6,7 @@ Write-Host "Restarting Main App (8082) via Service Manager" -ForegroundColor Cya
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$serviceManagerUrl = "http://localhost:9000"
+$serviceManagerUrl = $env:SERVICE_MANAGER_URL
 $serviceId = "main_app"
 
 # Step 1: Check if Service Manager is running
@@ -20,7 +20,7 @@ try {
         exit 1
     }
 } catch {
-    Write-Host "[ERROR] Cannot connect to Service Manager (port 9000)" -ForegroundColor Red
+    Write-Host "[ERROR] Cannot connect to Service Manager" -ForegroundColor Red
     Write-Host "  Please start the Service Manager first!" -ForegroundColor Yellow
     exit 1
 }

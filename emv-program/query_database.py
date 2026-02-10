@@ -3,13 +3,16 @@
 Simple script to query the SYNEREX database
 """
 import sqlite3
+from urllib.parse import urlparse
+import pymysql
 import sys
 import os
 
 # Database path
 db_path = os.path.join("8082", "results", "app.db")
+mysql_url = os.getenv("EMV_DB_URL")
 
-if not os.path.exists(db_path):
+if not mysql_url and not os.path.exists(db_path):
     print(f"❌ Database not found at: {db_path}")
     print("The database will be created when the service first uses it.")
     sys.exit(1)
@@ -18,8 +21,19 @@ print(f"✅ Database found at: {db_path}")
 print("=" * 60)
 
 try:
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Enable dict-like access
+    if mysql_url:
+        parsed = urlparse(mysql_url)
+        conn = pymysql.connect(
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 3306,
+            user=parsed.username or "",
+            password=parsed.password or "",
+            database=(parsed.path or "").lstrip("/"),
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+    else:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row  # Enable dict-like access
     cursor = conn.cursor()
     
     # Check if verification codes exist
@@ -55,9 +69,17 @@ try:
     # Check if verification_code column exists
     print("\n3. Database schema check:")
     print("-" * 60)
-    cursor.execute("PRAGMA table_info(analysis_sessions)")
-    columns = cursor.fetchall()
-    has_verification_code = any(col[1] == 'verification_code' for col in columns)
+    if mysql_url:
+        cursor.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema=%s AND table_name=%s",
+            ((parsed.path or "").lstrip("/"), "analysis_sessions"),
+        )
+        columns = cursor.fetchall()
+        has_verification_code = any(col["column_name"] == "verification_code" for col in columns)
+    else:
+        cursor.execute("PRAGMA table_info(analysis_sessions)")
+        columns = cursor.fetchall()
+        has_verification_code = any(col[1] == 'verification_code' for col in columns)
     if has_verification_code:
         print("  ✅ verification_code column exists")
     else:
@@ -67,10 +89,19 @@ try:
     # List all tables
     print("\n4. Available tables:")
     print("-" * 60)
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-    for table in tables:
-        print(f"  - {table[0]}")
+    if mysql_url:
+        cursor.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema=%s",
+            ((parsed.path or "").lstrip("/"),),
+        )
+        tables = cursor.fetchall()
+        for table in tables:
+            print(f"  - {table['table_name']}")
+    else:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        for table in tables:
+            print(f"  - {table[0]}")
     
     # Interactive query option
     if len(sys.argv) > 1:
@@ -99,7 +130,7 @@ try:
     
     conn.close()
     
-except sqlite3.Error as e:
+except Exception as e:
     print(f"❌ Database error: {e}")
     sys.exit(1)
 except Exception as e:

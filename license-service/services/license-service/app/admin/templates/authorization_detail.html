@@ -6,12 +6,12 @@
       <h3 style="margin: 0 0 0.5rem 0;">{{ auth.authorization_id }}</h3>
       <p style="color: #718096; margin: 0;">
         <span class="badge badge-info">{{ auth.program_id|upper }}</span>
-        <span style="margin-left: 1rem;">Organization: <a href="/admin/orgs/{{ auth.org_id }}" style="color: #667eea; text-decoration: none;">{{ auth.org_id }}</a></span>
+        <span style="margin-left: 1rem;">Organization: <a href="{{ admin_url('orgs/' ~ auth.org_id) }}" style="color: #667eea; text-decoration: none;">{{ auth.org_id }}</a></span>
       </p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
-      <a href="/admin/authorizations/{{ auth.authorization_id }}/edit" class="btn" style="background: #667eea;">✏️ Edit</a>
-      <a href="/admin/authorizations" class="btn btn-secondary">← Back to Authorizations</a>
+      <a href="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/edit') }}" class="btn" style="background: #667eea;">✏️ Edit</a>
+      <a href="{{ admin_url('authorizations') }}" class="btn btn-secondary">← Back to Authorizations</a>
     </div>
   </div>
 
@@ -51,19 +51,19 @@
     <strong style="color: #e65100;">Quick Actions:</strong>
     <div style="display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap;">
       {% if auth.status == 'active' %}
-      <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/suspend" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/suspend') }}" style="display: inline-block;">
         <button type="submit" class="btn" style="background: #ff9800;">⏸️ Suspend</button>
       </form>
-      <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/issue-license" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/issue-license') }}" style="display: inline-block;">
         <button type="submit" class="btn" style="background: #4facfe;">📜 Issue License</button>
       </form>
       {% elif auth.status == 'suspended' %}
-      <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/activate" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/activate') }}" style="display: inline-block;">
         <button type="submit" class="btn" style="background: #43e97b;">▶️ Activate</button>
       </form>
       {% endif %}
       {% if auth.status != 'terminated' %}
-      <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/terminate" style="display: inline-block;" onsubmit="return confirm('⚠️ Are you sure you want to terminate this authorization? This action cannot be undone.');">
+      <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/terminate') }}" style="display: inline-block;" onsubmit="return confirm('⚠️ Are you sure you want to terminate this authorization? This action cannot be undone.');">
         <button type="submit" class="btn btn-danger">🛑 Terminate</button>
       </form>
       {% endif %}
@@ -73,15 +73,15 @@
   <!-- Tabs -->
   <div style="border-bottom: 2px solid #e2e8f0; margin-bottom: 2rem;">
     <div style="display: flex; gap: 0.5rem;">
-      <a href="/admin/authorizations/{{ auth.authorization_id }}?tab=overview" 
+      <a href="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '?tab=overview') }}" 
          style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'overview' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'overview' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'overview' %}600{% else %}400{% endif %};">
         Overview
       </a>
-      <a href="/admin/authorizations/{{ auth.authorization_id }}?tab=licenses" 
+      <a href="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '?tab=licenses') }}" 
          style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'licenses' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'licenses' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'licenses' %}600{% else %}400{% endif %};">
         Licenses ({{ stats.licenses_total }})
       </a>
-      <a href="/admin/authorizations/{{ auth.authorization_id }}?tab=activity" 
+      <a href="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '?tab=activity') }}" 
          style="padding: 0.75rem 1.5rem; text-decoration: none; color: {% if tab == 'activity' %}#667eea{% else %}#718096{% endif %}; border-bottom: 2px solid {% if tab == 'activity' %}#667eea{% else %}transparent{% endif %}; margin-bottom: -2px; font-weight: {% if tab == 'activity' %}600{% else %}400{% endif %};">
         Activity
       </a>
@@ -108,7 +108,7 @@
           <div>
             <span style="color: #718096; font-size: 0.875rem;">Organization</span>
             <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
-              <a href="/admin/orgs/{{ auth.org_id }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else auth.org_id }}</a>
+              <a href="{{ admin_url('orgs/' ~ auth.org_id) }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else auth.org_id }}</a>
             </div>
           </div>
           <div>
@@ -196,7 +196,7 @@
       <tbody>
         {% for lic in licenses %}
         <tr>
-          <td><a href="/admin/licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ lic.license_id }}</a></td>
+          <td><a href="../licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ lic.license_id }}</a></td>
           <td><span class="badge badge-info">{{ lic.program_id|upper }}</span></td>
           <td style="color: #718096; font-size: 0.9rem;">{{ lic.issued_at.strftime('%Y-%m-%d') if lic.issued_at else 'N/A' }}</td>
           <td style="color: #718096; font-size: 0.9rem;">{{ lic.expires_at.strftime('%Y-%m-%d') if lic.expires_at else 'N/A' }}</td>
@@ -209,14 +209,14 @@
             <span class="badge badge-success">Active</span>
             {% endif %}
           </td>
-          <td><a href="/admin/licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none;">View →</a></td>
+          <td><a href="../licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none;">View →</a></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
     <p style="color: #718096; padding: 2rem; text-align: center;">No licenses have been issued from this authorization yet.</p>
-    <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/issue-license" style="text-align: center; margin-top: 1rem;">
+    <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/issue-license') }}" style="text-align: center; margin-top: 1rem;">
       <button type="submit" class="btn" style="background: #4facfe;">📜 Issue License Now</button>
     </form>
     {% endif %}

@@ -4,19 +4,43 @@ import { useState, useEffect, useRef } from "react";
 export default function Header(){
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const adminDropdownTimeoutRef = useRef(null);
+  const [jwtToken, setJwtToken] = useState(null);
   
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
-  const EMV_URL = "http://localhost:8082";
-  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || "http://localhost:8087";
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL;
+  const EMV_URL = import.meta.env.VITE_EMV_URL;
+  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL;
   
   useEffect(() => {
+    let isMounted = true;
+    const fetchJwt = async () => {
+      try {
+        const resp = await fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, {
+          credentials: "include",
+        });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (isMounted && data?.token) {
+          setJwtToken(data.token);
+        }
+      } catch (err) {
+        // Ignore errors for unauthenticated users
+      }
+    };
+    fetchJwt();
     // Cleanup timeout on unmount
     return () => {
+      isMounted = false;
       if (adminDropdownTimeoutRef.current) {
         clearTimeout(adminDropdownTimeoutRef.current);
       }
     };
   }, []);
+
+  const withJwt = (url) => {
+    if (!jwtToken) return url;
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}token=${encodeURIComponent(jwtToken)}`;
+  };
   
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-gray-800">
@@ -116,14 +140,14 @@ export default function Header(){
                   <div className="text-xs text-gray-500 mt-1">Manage licenses, organizations, billing</div>
                 </a>
                 <a
-                  href={`${EMV_URL}/admin-panel`}
+                  href={withJwt(`${EMV_URL}/sso`)}
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">EM&V Admin Panel</div>
                   <div className="text-xs text-gray-500 mt-1">Manage EM&V program settings</div>
                 </a>
                 <a
-                  href={`${TRACKING_URL}/login?role=admin`}
+                  href={withJwt(`${TRACKING_URL}/sso?role=admin`)}
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Tracking Admin Portal</div>

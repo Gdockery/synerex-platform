@@ -40,6 +40,6 @@ Start-Process python -ArgumentList "-m", "uvicorn", "app.main:app", "--reload", 
 Write-Host "Server restart initiated!" -ForegroundColor Green
 Write-Host "The server should be starting in a new window." -ForegroundColor Green
 Write-Host ""
-Write-Host "You can access the admin panel at: http://localhost:8000/admin/login" -ForegroundColor Cyan
+Write-Host "You can access the admin panel at: $env:LICENSE_SERVICE_URL/admin/login" -ForegroundColor Cyan
 Write-Host ""
 

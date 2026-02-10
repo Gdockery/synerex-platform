@@ -4,9 +4,10 @@ Test script to simulate and verify the ESG Case Study Report endpoint
 """
 
 import requests
+import os
 import sys
 
-BASE_URL = "http://127.0.0.1:8082"
+BASE_URL = os.getenv("EMV_BASE_URL")
 ESG_ENDPOINT = "/api/generate-esg-case-study-report"
 
 def print_section(title):
@@ -43,7 +44,7 @@ def test_esg_route():
             
     except requests.exceptions.ConnectionError:
         print("❌ ERROR: Cannot connect to server!")
-        print("Make sure the server is running on http://127.0.0.1:8082")
+        print(f"Make sure the server is running on {BASE_URL}")
         return False
     except Exception as e:
         print(f"❌ ERROR: {type(e).__name__}: {e}")

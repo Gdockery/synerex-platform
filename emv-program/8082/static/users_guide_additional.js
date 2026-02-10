@@ -569,7 +569,7 @@ import json
 # Upload file
 with open('meter_data.csv', 'rb') as f:
     files = {'file': f}
-    response = requests.post('http://localhost:8082/api/raw-meter-data/upload', files=files)
+    response = requests.post('${EMV_BASE_URL}/api/raw-meter-data/upload', files=files)
 
 # Run analysis
 analysis_data = {
@@ -578,7 +578,7 @@ analysis_data = {
     'test_type': 'Power Quality',
     'client_info': {...}
 }
-response = requests.post('http://localhost:8082/api/analyze', data=analysis_data)
+response = requests.post('${EMV_BASE_URL}/api/analyze', data=analysis_data)
 
 # Generate report
 report_data = {
@@ -586,7 +586,7 @@ report_data = {
     'client_info': {...},
     'analysis_results': response.json()
 }
-response = requests.post('http://localhost:8082/api/generate-report', json=report_data)
+response = requests.post('${EMV_BASE_URL}/api/generate-report', json=report_data)
             </div>
 
             <h4>9.4.2 JavaScript Integration</h4>

@@ -2273,3 +2273,81 @@ Port: 8200
 Starting Flask server on port 8200...
  * Serving Flask app 'weather_service'
  * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /tmp/sm9000_venv/bin/python
+Working Directory: /home/xcorp/synerex-platform/emv-program/8085
+Script Location: /home/xcorp/synerex-platform/emv-program/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /tmp/sm9000_venv/bin/python
+Working Directory: /home/xcorp/synerex-platform/emv-program/8085
+Script Location: /home/xcorp/synerex-platform/emv-program/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /tmp/sm9000_venv/bin/python
+Working Directory: /home/xcorp/synerex-platform/emv-program/8085
+Script Location: /home/xcorp/synerex-platform/emv-program/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /usr/local/bin/python
+Working Directory: /app/8085
+Script Location: /app/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /usr/local/bin/python
+Working Directory: /app/8085
+Script Location: /app/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off
+
+============================================================
+Weather Service Starting...
+Python: /usr/local/bin/python
+Working Directory: /app/8085
+Script Location: /app/8085/weather_service.py
+Flask App: weather_service
+Port: 8200
+============================================================
+
+Starting Flask server on port 8200...
+ * Serving Flask app 'weather_service'
+ * Debug mode: off

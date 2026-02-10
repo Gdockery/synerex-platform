@@ -509,3 +509,13 @@
   Data: {'verification_code': 'OFH7K4DP2IOS', 'analysis_session_id': 'ANALYSIS_20260127_120840_7c48c308', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
 2026-01-27T12:08:58.284062 - 8084: API Response - Status: 200
 2026-01-27T12:08:58.285058 - 8084: SUCCESS - Stored verification code OFH7K4DP2IOS in database
+2026-01-30T12:55:48.458438 - 8084: Received code from main service: None
+2026-01-30T12:55:48.458648 - 8084: Attempting to store code HTNHLLUSCX5F at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'HTNHLLUSCX5F', 'analysis_session_id': 'ANALYSIS_20260130_124213_dcfde492', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-30T12:55:48.467861 - 8084: API Response - Status: 200
+2026-01-30T12:55:48.467982 - 8084: SUCCESS - Stored verification code HTNHLLUSCX5F in database
+2026-01-30T12:57:41.404144 - 8084: Received code from main service: None
+2026-01-30T12:57:41.404340 - 8084: Attempting to store code GKG50QPO4TS1 at http://127.0.0.1:8082/api/store-verification-code
+  Data: {'verification_code': 'GKG50QPO4TS1', 'analysis_session_id': 'ANALYSIS_20260130_124213_dcfde492', 'project_name': 'Trouw-Lethbridge', 'before_file_id': 79, 'after_file_id': 85}
+2026-01-30T12:57:41.411958 - 8084: API Response - Status: 200
+2026-01-30T12:57:41.412063 - 8084: SUCCESS - Stored verification code GKG50QPO4TS1 in database

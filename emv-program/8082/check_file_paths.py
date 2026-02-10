@@ -11,7 +11,7 @@ from pathlib import Path
 base_dir = Path(__file__).parent
 
 # Try different database locations
-org_ids_to_try = ['admin', 'ADMIN', None]
+org_ids_to_try = ['admin', None]
 
 def get_db_path(org_id=None):
     """Get database path for org_id"""

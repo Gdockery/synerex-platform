@@ -955,3 +955,69 @@ Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equip
 Ollama connection successful
  * Serving Flask app 'ollama_ai_backend'
  * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError("HTTPConnection(host='localhost', port=11434): Failed to establish a new connection: [Errno 111] Connection refused"))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError("HTTPConnection(host='localhost', port=11434): Failed to establish a new connection: [Errno 111] Connection refused"))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError("HTTPConnection(host='localhost', port=11434): Failed to establish a new connection: [Errno 111] Connection refused"))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7add4125dbd0>: Failed to establish a new connection: [Errno 111] Connection refused'))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x7a57f2ab58d0>: Failed to establish a new connection: [Errno 111] Connection refused'))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off
+Loaded products: 6 items
+Loaded installation_guides: 5 items
+Loaded standards: 1 items
+Knowledge base fully loaded: 6 products, 5 guides, 1 standards
+Starting Ollama AI Backend Service
+Ollama URL: http://localhost:11434
+Model: llama3.2:1b
+Knowledge Base: {'products': 6, 'installation_guides': 5, 'standards': 1, 'equipment': 1, 'troubleshooting': 1, 'utility_rates': 1, 'regional_data': 1, 'location_data': 1}
+Ollama connection error: HTTPConnectionPool(host='localhost', port=11434): Max retries exceeded with url: /api/tags (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x76c8f9331b10>: Failed to establish a new connection: [Errno 111] Connection refused'))
+ * Serving Flask app 'ollama_ai_backend'
+ * Debug mode: off

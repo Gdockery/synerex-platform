@@ -31,7 +31,7 @@ This project is optimized for development with [Cursor](https://cursor.sh/), an 
    5. Check if Node.js is installed and install it if needed (download from nodejs.org if required)
    6. Install all project dependencies using npm install
    7. Start the development server with npm run dev
-   8. Verify the site is running on http://localhost:5180
+  8. Verify the site is running on the URL in `website/.env` (`VITE_WEBSITE_FRONTEND_URL`)
    9. Show me any errors or issues that need to be resolved
    
    IMPORTANT: When making any changes to this codebase, always perform a depth-first analysis:
@@ -91,7 +91,7 @@ Once your project is running, you can use these convenient commands:
    ```
 
 3. **Open your browser:**
-   Navigate to `http://localhost:5180`
+   Navigate to the URL in `website/.env` (`VITE_WEBSITE_FRONTEND_URL`)
 
 ### Build for Production
 ```bash

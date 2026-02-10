@@ -245,6 +245,9 @@ def verify_migration(org_id):
 
 def main():
     """Main migration function"""
+    if os.getenv("EMV_DB_URL"):
+        print("[INFO] EMV_DB_URL detected. Use migrate_sqlite_to_mysql.py instead.")
+        sys.exit(0)
     if len(sys.argv) < 2:
         print("Usage: python migrate_to_multi_tenant.py <org_id>")
         print("\nExample:")

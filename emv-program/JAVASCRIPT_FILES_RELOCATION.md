@@ -16,8 +16,8 @@ This document records the permanent relocation of JavaScript files from the main
 
 ### **Error Messages**
 ```
-GET http://127.0.0.1:8082/static/enhanced_synerex_ai.js?v=1760881887 net::ERR_ABORTED 404 (NOT FOUND)
-GET http://127.0.0.1:8082/static/javascript_functions.js?v=1760881887 net::ERR_ABORTED 404 (NOT FOUND)
+GET ${EMV_BASE_URL}/static/enhanced_synerex_ai.js?v=1760881887 net::ERR_ABORTED 404 (NOT FOUND)
+GET ${EMV_BASE_URL}/static/javascript_functions.js?v=1760881887 net::ERR_ABORTED 404 (NOT FOUND)
 ```
 
 ---
@@ -102,16 +102,16 @@ js_file = Path(__file__).parent / "static" / "javascript_functions.js"
 ## 🧪 **Testing Performed**
 
 ### **Static File Access:**
-- ✅ `http://localhost:8082/static/enhanced_synerex_ai.js` - **200 OK**
-- ✅ `http://localhost:8082/static/javascript_functions.js` - **200 OK**
+- ✅ `${EMV_BASE_URL}/static/enhanced_synerex_ai.js` - **200 OK**
+- ✅ `${EMV_BASE_URL}/static/javascript_functions.js` - **200 OK**
 
 ### **Dashboard Loading:**
-- ✅ `http://localhost:8082/main-dashboard` - **200 OK**
+- ✅ `${EMV_BASE_URL}/main-dashboard` - **200 OK**
 - ✅ No 404 errors in browser console
 - ✅ All JavaScript functionality working
 
 ### **Main Application:**
-- ✅ `http://localhost:8082/` - **200 OK**
+- ✅ `${EMV_BASE_URL}/` - **200 OK**
 - ✅ JavaScript functions loaded correctly
 - ✅ No import errors
 

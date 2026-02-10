@@ -133,7 +133,7 @@ export default function App(){
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/comprehensive-energy-savings-testing" element={<ComprehensiveEnergySavingsTesting />} />
           <Route path="/emv-program" element={<EMVProgram />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/*" element={<AdminDashboard />} />
         </Routes>
       </Suspense>
       <Footer />

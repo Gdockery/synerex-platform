@@ -2,8 +2,8 @@
 {% block content %}
 <h3>Downloads Registry</h3>
 <p>
-  <a href="/admin/downloads/new">Create New</a> |
-  <a href="/admin/downloads/bulk">Bulk Edit</a>
+  <a href="{{ admin_url('downloads/new') }}">Create New</a> |
+  <a href="{{ admin_url('downloads/bulk') }}">Bulk Edit</a>
 </p>
 <p class="small">Registry file: services/license-service/downloads/registry.json</p>
 
@@ -21,7 +21,7 @@
     <td>{{ d.allowed_roles | join(',') }}</td>
     <td>{{ d.required_entitlements | join(',') }}</td>
     <td>{{ d.watermark }}</td>
-    <td><a href="/admin/downloads/edit/{{ d.id }}">Edit</a></td>
+    <td><a href="{{ admin_url('downloads/edit/' ~ d.id) }}">Edit</a></td>
   </tr>
   {% endfor %}
 </table>

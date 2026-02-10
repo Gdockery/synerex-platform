@@ -1,25 +1,35 @@
-# Check status of all Synerex services
+# Check status of Synerex services (Phase 4 Docker stack).
+# Only services defined in docker-compose are listed; 8084 (HTML Reports) and 3001 (Website Backend) are not in the Docker stack.
 
-Write-Host "Checking service status..." -ForegroundColor Cyan
+Write-Host "Checking service status (Docker Phase 4 stack)..." -ForegroundColor Cyan
 Write-Host ""
 
 $services = @(
-    @{Name='License Service'; Port=8000; Path='/admin/login'},
-    @{Name='Website Backend'; Port=3001; Path='/health'},
-    @{Name='Website Frontend'; Port=5173; Path='/'},
-    @{Name='EMV Main App'; Port=8082; Path='/api/health'},
-    @{Name='PDF Generator'; Port=8083; Path='/'},
-    @{Name='HTML Reports'; Port=8084; Path='/'},
-    @{Name='Weather Service'; Port=8200; Path='/health'},
-    @{Name='Chart Service'; Port=8086; Path='/'},
-    @{Name='Service Manager'; Port=9000; Path='/health'}
+    @{Name='Proxy (nginx)'; BaseUrl='http://localhost:8080'; Path='/'},
+    @{Name='License Service'; BaseUrl=$env:LICENSE_SERVICE_URL; Path='/admin/login'},
+    @{Name='Website Frontend'; BaseUrl=$env:WEBSITE_FRONTEND_URL; Path='/'},
+    @{Name='EMV Main App'; BaseUrl=$env:EMV_BASE_URL; Path='/api/health'},
+    @{Name='Tracking Program'; BaseUrl=$env:TRACKING_PROGRAM_URL; Path='/login'},
+    @{Name='Service Manager'; BaseUrl=$env:SERVICE_MANAGER_URL; Path='/health'}
 )
+# Fallbacks when env vars not set (Docker defaults)
+if (-not $services[1].BaseUrl) { $services[1].BaseUrl = 'http://localhost:8000' }
+if (-not $services[2].BaseUrl) { $services[2].BaseUrl = 'http://localhost:8080' }
+if (-not $services[3].BaseUrl) { $services[3].BaseUrl = 'http://localhost:8082' }
+if (-not $services[4].BaseUrl) { $services[4].BaseUrl = 'http://localhost:8087' }
+if (-not $services[5].BaseUrl) { $services[5].BaseUrl = 'http://localhost:9000' }
 
 foreach ($svc in $services) {
-    $port = $svc.Port
     $name = $svc.Name
     $path = $svc.Path
-    $url = "http://localhost:$port$path"
+    $baseUrl = $svc.BaseUrl
+    if (-not $baseUrl) {
+        Write-Host "[SKIPPED] $name (BaseUrl not set)" -ForegroundColor Yellow
+        continue
+    }
+    $url = "$baseUrl$path"
+    $uri = [System.Uri]$url
+    $port = $uri.Port
     
     # Check if port is listening
     $conn = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue

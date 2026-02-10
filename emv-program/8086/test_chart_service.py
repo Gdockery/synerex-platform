@@ -4,6 +4,7 @@ Test script for Chart Generation Service
 """
 
 import requests
+import os
 import json
 
 def test_chart_service():
@@ -68,7 +69,7 @@ def test_chart_service():
     # Test health check
     print("Testing health check...")
     try:
-        response = requests.get("http://localhost:8201/health", timeout=10)
+        response = requests.get(f"{os.getenv('CHART_SERVICE_URL')}/health", timeout=10)
         print(f"Health check: {response.status_code} - {response.json()}")
     except Exception as e:
         print(f"Health check failed: {e}")
@@ -78,7 +79,7 @@ def test_chart_service():
     print("\nTesting chart generation...")
     try:
         response = requests.post(
-            "http://localhost:8201/generate_charts",
+            f"{os.getenv('CHART_SERVICE_URL')}/generate_charts",
             json=test_data,
             timeout=30
         )
