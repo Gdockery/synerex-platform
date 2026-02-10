@@ -1,0 +1,41 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "xeco-vm"
+
+  config.vm.network "forwarded_port", guest: 1337, host: 1337
+  config.vm.network "forwarded_port", guest: 1883, host: 8883
+
+  config.vm.synced_folder "../xeco-storage", "/mnt/storage"
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.customize [ "modifyvm", :id, "--uartmode1", "file", File.join(Dir.pwd, "xeco-vm-console.log") ]
+    vb.memory = "2048"
+  end
+
+  config.vm.provision "shell", inline: <<-SHELL
+    cp /vagrant/eb/apps/rollup/rollup.local.cron /etc/cron.d/rollup-local
+    cp /vagrant/eb/apps/rollup/rollup.local.service /etc/systemd/system/rollup.service
+    cp /vagrant/eb/apps/device-processor/device-processor.local.service /etc/systemd/system/device-processor.service
+    cp /vagrant/eb/apps/mqtt-to-http/mqtt-http.local.service /etc/systemd/system/mqtt-http.service
+    cp /vagrant/web.local.service /etc/systemd/system/web.service
+    cp /vagrant/update-helper.local.service /etc/systemd/system/update-helper.service
+    cp /vagrant/eb/apps/errands/errands.local.cron /etc/cron.d/errands-local
+    cp /vagrant/eb/apps/errands/errands.local.service /etc/systemd/system/errands.service
+
+    systemctl daemon-reload
+    systemctl enable rollup
+    systemctl start rollup
+    systemctl enable device-processor
+    systemctl start device-processor
+    systemctl enable mqtt-http
+    systemctl start mqtt-http
+    systemctl enable web
+    systemctl start web
+    systemctl enable update-helper
+    systemctl start update-helper
+    systemctl enable errands
+    systemctl start errands
+  SHELL
+end

@@ -1,0 +1,174 @@
+<div class="content-box">
+  <div class="container-fluid">
+    <div *ngIf="!testData">
+      Not Found
+    </div>
+    <div class="col-md-12" *ngIf="testData">
+      <div class="col-md-7 box" style="padding-bottom: 10px">
+        <h5>Select Meters To View Test Results</h5>
+        <div class="col-md-3">
+         <input name="checkAll" type="checkbox" (change)="select()" [checked]="allSelected" id="checkAll">
+         <label for="checkAll">Select All</label>
+        </div>
+        <div class="col-md-6">
+         <label *ngFor="let meter of meters; let i = index" [attr.data-index]="i"class="form-check-label" for="meter{{meter.id}}">
+         <input
+           class="form-check-input"
+           type="checkbox"
+           id="meter{{meter.id}}"
+           name="tagOptions"
+           (change)="changeCheckbox(i)"
+           [checked]="meter.checked">
+         {{meter.name}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+         </label>
+        </div>
+        <div class="col-md-3">
+           <font [hidden]="!selectMeterError" style="color: darkred">Please select 1 or more meters to view test results.</font><br>
+         <button type="button" class="default-button green-button pull-right" (click)="refreshTestResults()">Show Test Results</button>
+        </div>
+        <div class="col-md-12" style="margin-top: 10px;">
+          <div class="col-md-3">
+            <label for="minutesToAverage">Minutes to average:</label>
+          </div>
+          <div class="col-md-3">
+            <input type="number" id="minutesToAverage" class="form-control" [(ngModel)]="minutesToAverage" min="1" max="50" step="1">
+          </div>
+          <div class="col-md-6">
+            <small class="text-muted">Number of minutes before and after the change from off to on to average (1-50)</small>
+          </div>
+        </div>
+        <div class="col-md-12" style="margin-top: 10px;">
+          <div class="col-md-3">
+            <label for="minutesToIgnore">Minutes to ignore:</label>
+          </div>
+          <div class="col-md-3">
+            <input type="number" id="minutesToIgnore" class="form-control" [(ngModel)]="minutesToIgnore" min="0" max="10" step="1">
+          </div>
+          <div class="col-md-6">
+            <small class="text-muted">Minutes to ignore at the transition from off to on (default: 1 ignores last minute of off and first minute of on)</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-5"></div>
+      <div class="col-md-12">
+        <div class="pull-left">
+          <h3>Test Report</h3>
+        </div>
+        <div class="pull-right">
+          <a style="margin-right: 10px" class="btn btn-primary" href="{{links.testReport}}" target="_blank">View Test Report</a>
+          <button style="margin-right: 10px" class="default-button green-button" [routerLink]="['/tests/view/'+id+'/data']">View Data</button>
+          <button class="default-button green-button" [routerLink]="['/tests/list']">Back to Test List</button>
+        </div>
+
+        <div class="clearfix"></div>
+      </div>
+      <div *ngFor="let data of testData.cycles; let i = index" class="col-md-12">
+        <div class="sub-header">
+          # {{i+1}} From: {{(data.startedAt | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}} thru {{(data.endedAt | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}
+        </div>
+        <div class="box" style="margin-left:0;margin-right:0;">
+          <table class="table dataTable table-striped table-bordered" style="margin-bottom:0;">
+            <tr>
+              <th>Start Time</th>
+              <th>Test Time</th>
+              <th>KW Peak</th>
+              <th>Power Factor (%)</th>
+              <th>kvar</th>
+              <th>Average 15-min Interval</th>
+              <th>kwh</th>
+              <!--th>THD (%)</th-->
+              <th>Cycle</th>
+              <th>Xeco (On/Off)</th> 
+            </tr>
+            <tr *ngFor="let segment of data.segments; let i = index">
+              <td>{{((segment.startTime + 3600000) | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}</td>
+              <td>1 Hour</td>
+              <td>{{segment.kwPeak | round:2}}</td>
+              <td>{{segment.powerFactor | round:2}}</td>
+              <td>{{segment.kvar | round:2}}</td>
+              <td>{{segment.avgKw15MinInterval | round:2}}</td>
+              <td>{{segment.kwh | round:2}}</td>
+              <!--td>{{segment.THD | round:2}}</td-->
+              <td>60 minutes</td> 
+              <td>{{segment.segment == 1 ? 'Off' : 'On'}}</td>
+            </tr>
+            <tr>
+              <td colspan="2">Xeco savings %</td>
+              <td>{{data.percentSaved.kwPeak * 100 | round:2}}%</td>
+              <td>{{data.percentSaved.powerFactor * 100 | round:2}}%</td>
+              <td>{{data.percentSaved.kvar * 100 | round:2}}%</td>
+              <td>{{data.percentSaved.avgKw15MinInterval * 100 | round:2}}%</td>
+              <td>{{data.percentSaved.kwh * 100 | round:2}}%</td>
+              <!--td>{{data.percentSaved.THD * 100 | round:2}}%</td-->
+              <td colspan="2"></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="sub-header" class="col-md-12">
+        Total From: {{(testData.startedAt | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}} thru {{(testData.endAt | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}
+      </div>
+      <div class="col-md-12 box" style="margin-left:0;margin-right:0;background-color: #b1e3d8;">
+        <table class="table dataTable table-striped table-bordered" style="margin-bottom:0;">
+          <tr>
+            <th>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+            <th>KW Peak</th>
+            <th>Power Factor (%)</th>
+            <th>kvar</th>
+            <th>Average 15-min Interval</th>
+            <th>kWh</th>
+            <!--th>THD</th-->
+            <th>Cycle</th>
+            <th>Xeco (On/Off)</th>
+          </tr>
+          <tr>
+            <td></td>
+            <td>{{testData.totals.xecoOff.kwPeak | round:2}}</td>
+            <td>{{testData.totals.xecoOff.powerFactor | round:2}}</td>
+            <td>{{testData.totals.xecoOff.kvar | round:2}}</td>
+            <td>{{testData.totals.xecoOff.kva | round:2}}</td>
+            <td>{{testData.totals.xecoOff.kwh | round:2}}</td>
+            <!--td>{{testData.totals.xecoOff.THD | round:2}}</td-->
+            <td>60 Mins</td>
+            <td>Off</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>{{testData.totals.xecoOn.kwPeak | round:2}}</td>
+            <td>{{testData.totals.xecoOn.powerFactor | round:2}}</td>
+            <td>{{testData.totals.xecoOn.kvar | round:2}}</td>
+            <td>{{testData.totals.xecoOn.kva | round:2}}</td>
+            <td>{{testData.totals.xecoOn.kwh | round:2}}</td>
+            <!--td>{{testData.totals.xecoOn.THD | round:2}}</td-->
+            <td>60 Mins</td>
+            <td>On</td>
+          </tr>
+          <tr>
+            <td>1-day operation savings&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+            <td>{{testData.totals.savings.kwPeak | round:2}}</td>
+            <td>{{testData.totals.savings.powerFactor | round:2}}</td>
+            <td>{{testData.totals.savings.kvar | round:2}}</td>
+            <td>{{testData.totals.savings.kva | round:2}}</td>
+            <td>{{testData.totals.savings.kwh | round:2}}</td>
+            <!--td>{{testData.totals.savings.THD | round:2}}</td-->
+            <td colspan="2"></td>
+          </tr>
+          <tr>
+            <td>1-day operation savings(%)</td>
+            <td>{{testData.percentSaved.kwPeak * 100 | round:2}}%</td>
+            <td>{{testData.percentSaved.powerFactor * 100| round:2}}%</td>
+            <td>{{testData.percentSaved.kvar * 100 | round:2}}%</td>
+            <td>{{testData.percentSaved.kva * 100 | round:2}}%</td>
+            <td>{{testData.percentSaved.kwh * 100 | round:2}}%</td>
+            <!--td>{{testData.percentSaved.THD  | round:2}}%</td-->
+            <td colspan="2"></td>
+          </tr>
+        </table>
+      </div>
+      <!--div class="sub-header" class="col-md-12">
+        Negative cycle(s) disqualified due to increased load variance.
+      </div-->
+      <button class="default-button green-button pull-right" *ngIf="currentUserService.user.role === 8" (click)="updateSavings();updateReportingMeters()">Use Test for savings</button>
+    </div>
+  </div>
+</div>

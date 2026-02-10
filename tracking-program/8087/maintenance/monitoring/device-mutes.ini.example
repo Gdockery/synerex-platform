@@ -1,0 +1,15 @@
+# Device Mute Configuration File
+# Format: "deviceName", "projectName", "YYYY-MM-DD"
+# The device will be muted (no notifications sent) until the end of the specified date
+# After that date, notifications will resume automatically
+#
+# Example:
+# "APF-02 Meter", "Nestle Vital Proteins", "2026-01-18"
+#
+# This means "APF-02 Meter" in project "Nestle Vital Proteins" will be muted until 2026-01-18 23:59:59
+# Notifications will resume on 2026-01-19
+#
+# Lines starting with # or ; are comments and will be ignored
+# Empty lines are ignored
+
+"APF-02 Meter", "Nestle Vital Proteins", "2026-01-18"

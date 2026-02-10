@@ -1,0 +1,69 @@
+<div class="content-box">
+  <div class="container-fluid">
+    <div [hidden]="!device">
+      <div class="row">
+        <div class="col-xs-12">
+          <h3 [hidden]="!isNameFormHidden">
+            <a class="back-btn" [routerLink]="['/repeaters/devices']"><span class="ss-navigateleft"></span></a>
+            {{device.name}}
+            <button [hideIfUserLevel]="[1, 2, 3, 4, 7]" *ngIf="!device.isDeleted && userService.user.role === 8" class="btn btn-primary pull-right" (click)="enableChangeNameForm()">Rename</button>
+          </h3>
+          <form [hidden]="isNameFormHidden" [formGroup]="nameForm" (ngSubmit)="submitChangeNameForm()">
+            <div class="form-group rename-form">
+              <input type="text" class="form-control" id="name" name="name" formControlName="name">
+              <button class="btn btn-primary save-button">Save</button>
+              <span class="btn btn-default cancel-button" (click)="cancelChangeNameForm()">Cancel</span>
+            </div>
+          </form>
+        </div>
+      </div>
+      <hr/>
+
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Hardware:</strong></p>
+          <p><small>Serial number:</small></p>
+          <p><small>Mesh ID:</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>Repeater</p>
+          <div>
+            <form [formGroup]="networkForm" (ngSubmit)="submitChangeNameForm()">
+              <p>
+                <small><span *ngIf="!changingNetwork">{{device.deviceId}} &nbsp;</span></small> <a *ngIf="isNetworkFormHidden" [hideIfUserLevel]="[1, 2, 3, 4, 7]" class="green ss-write" (click)="enableChangeNetworkForm()"></a>
+                <input *ngIf="!isNetworkFormHidden" class="form-control" formControlName="deviceId">
+                <button *ngIf="!isNetworkFormHidden" class="default-button green-button" (click)="submitChangeNetworkForm()">Save</button>
+                <button *ngIf="!isNetworkFormHidden" class="default-button red-button" (click)="cancelChangeNetworkForm()">Cancel</button>
+              </p>
+            </form>
+          </div>
+          <p><small>{{device.meshId || 'Awaiting discovery'}}</small></p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Last Communicated:</strong></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastCommunicatedAt === 0 ? 'Never' : device.lastCommunicatedAt | amTimeAgo}}</p>
+        </div>
+      </div>
+
+      <hr/>
+
+      <div class="row">
+        <div class="col-md-4"><strong>Status:</strong></div>
+        <div class="col-md-6">
+          <span class="status-label status-active" *ngIf="!device.isDeleted">Active</span>
+          <span class="status-label status-inactive" *ngIf="device.isDeleted">Retired</span>
+        </div>
+        <div class="col-md-2">
+          <button [hideIfUserLevel]="[1, 2, 4]" *ngIf="!device.isDeleted && (userService.user.role === 2 || userService.user.role === 8)"  class="btn btn-sm btn-danger pull-right" (click)="clickDeleteDeviceButton()">
+            <span [hidden]="retiringDevice">Retire repeater</span>
+            <span [hidden]="!retiringDevice">Retiring...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

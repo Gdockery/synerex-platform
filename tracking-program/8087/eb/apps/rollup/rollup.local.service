@@ -1,0 +1,15 @@
+[Unit]
+Description=Rollup service
+After=network.target
+
+[Service]
+User=vagrant
+Environment=sails_environment="rollup_development"
+WorkingDirectory=/vagrant
+ExecStart=/usr/local/bin/node eb/apps/rollup/app.js
+Restart=always
+RestartSec=500ms
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target

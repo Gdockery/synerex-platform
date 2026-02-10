@@ -1,0 +1,57 @@
+<div *ngIf="!alertType">
+  <div class="content-box container-fluid">
+    <div class="row">
+      <div class="col-md-3" *ngFor="let alertType of alertTypeService.types;">
+        <div class="box" style="height: 300px;">
+          <div>
+            <h3>{{alertType.name}}</h3>
+            <p>{{alertType.description}}</p>
+            <div style="position:absolute;width:100%;bottom:0;padding: 20px;left:0">
+              <div><div [ngClass]="{'number-circle-red':alertType.count,'number-circle-gray':!alertType.count}">{{alertType.count}}</div> Instances Saved</div><br />
+              <div class="text-center"><button class="default-button green-button" style="width:75%;" type="button" (click)="selectAlertType(alertType)">View</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <alert-events></alert-events>
+</div>
+
+<div *ngIf="alertType">
+  <div class="col-md-6">
+    <sd-create-alert
+      [currentAlertType]="alertType"
+      (create)="createAlert($event)"
+      (cancel)="cancelCreate($event)"
+    ></sd-create-alert>
+  </div>
+  <div class="col-md-6">
+    <sd-list-alert
+      [currentAlertType]="alertType"
+      (cancel)="cancelCreate($event)"
+      (editAlertEvent)="editAlert($event)"
+    ></sd-list-alert>
+  </div>
+</div>
+
+
+<div class="modal fade" bsModal #editAlertModal="bs-modal" [config]="{backdrop: 'static'}"
+     tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title pull-left">Edit Alert</h4>
+      </div>
+      <div class="modal-body">
+        <sd-create-alert
+          *ngIf="currentAlert"
+          [currentAlert]="currentAlert"
+          [currentAlertType]="alertType"
+          (editEvent)="cancelEdit($event)"
+          (cancel)="cancelEdit($event)"
+        ></sd-create-alert>
+      </div>
+    </div>
+  </div>
+</div>

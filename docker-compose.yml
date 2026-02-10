@@ -1,0 +1,147 @@
+version: "3.9"
+
+services:
+  proxy:
+    image: nginx:1.27-alpine
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    ports:
+      - "8080:80"
+      - "8443:443"
+    depends_on:
+      website:
+        condition: service_healthy
+      license-service:
+        condition: service_healthy
+      emv-program:
+        condition: service_healthy
+      tracking-program:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  license-service:
+    build:
+      context: ./license-service/services/license-service
+    env_file:
+      - ./license-service/services/license-service/.env
+    volumes:
+      - ./license-service/templates:/app/templates:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  emv-program:
+    build:
+      context: ./emv-program/8082
+    env_file:
+      - ./emv-program/8082/.env
+    environment:
+      EMV_DB_HOST: mysql-emv
+      EMV_DB_PORT: "3306"
+    volumes:
+      - ./emv-program/8082:/app
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  service-manager:
+    image: python:3.11-slim
+    working_dir: /app
+    network_mode: "host"
+    env_file:
+      - ./emv-program/8082/.env
+    volumes:
+      - ./emv-program:/app
+    command: >
+      sh -c "pip install --no-cache-dir -r /app/8082/requirements.txt &&
+             python /app/service_manager_daemon.py"
+    restart: unless-stopped
+  tracking-program:
+    build:
+      context: ./tracking-program/8087
+    env_file:
+      - ./tracking-program/8087/.env
+    ports:
+      - "8087:8087"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8087',res=>process.exit(res.statusCode<500?0:1)).on('error',()=>process.exit(1));"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  website:
+    build:
+      context: ./website
+    env_file:
+      - ./website/.env
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: licensing
+      MYSQL_USER: license_user
+      MYSQL_PASSWORD: LicensePass123
+      MYSQL_ROOT_PASSWORD: rootpass123
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  mysql-emv:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: emv
+      MYSQL_USER: emv_user
+      MYSQL_PASSWORD: EmvPass123
+      MYSQL_ROOT_PASSWORD: rootpass123
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_emv_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+  mysql_emv_data:

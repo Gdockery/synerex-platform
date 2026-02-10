@@ -1,0 +1,66 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-6">
+      <p>To cancel an existing scheduled event, click on it below</p>
+    </div>
+    <div class="col-md-6 text-right">
+      <button  class="default-button green-button" [routerLink]="['/equipments/schedule/new']">Schedule new event</button>
+      <button  class="default-button red-button" (click)="confirmClear()" [disabled]="!recordCount">Clear schedule</button>
+    </div>
+  </div>
+  <a class="btn btn-text ss-refresh glyph" (click)="refreshTable()"></a>
+  <div class="row">
+    <div class="col-md-12">
+      <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered" [value]="switches" [lazy]="true" [paginator]="true" [rows]="perPage"
+                   [totalRecords]="recordCount" (onLazyLoad)="refresh($event)">
+        <p-column field="dateTime" header="When" [sortable]="true" >
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{(row.startAt | projectTzMoment) | amDateFormat:"MM/DD/YYYY h:mm:ss A z"}}
+          </ng-template>
+        </p-column>
+        <p-column field="switchCount" header="# Switches" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+        <p-column field="command" header="Command" [sortable]="true" [filter]="true" [filterMatchMode]="'equals'">
+          <ng-template pTemplate="filter" let-col>
+            <select (change)="eventTable.filter($event.target.value,'commandType',col.filterMatchMode)" class="ui-column-filter" style="display:block;width: 100%;">
+              <option value=""></option>
+              <option value="1">Turn Off</option>
+              <option value="2">Turn On</option>
+            </select>
+          </ng-template>
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <span [ngClass]="{green: row.commandType==2,red: row.commandType==1}">{{row.commandType == 2 ? 'Turn On' : 'Turn Off'}}</span>
+          </ng-template>
+        </p-column>
+        <p-column field="type" header="Event Type" [sortable]="true" [filter]="true" [filterMatchMode]="'equals'">
+          <ng-template pTemplate="filter" let-col>
+            <select (change)="eventTable.filter($event.target.value,'type',col.filterMatchMode)" class="ui-column-filter" style="display:block;width: 100%;">
+              <option value=""></option>
+              <option value="One-Time">One-Time</option>
+              <option value="Recurring">Recurring</option>
+            </select>
+          </ng-template>
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <span>One-time</span>
+          </ng-template>
+        </p-column>
+        <p-column field="isCancelled" header="Cancelled" [sortable]="true" [filter]="true" [filterMatchMode]="'equals'">
+          <ng-template pTemplate="filter" let-col>
+            <select (change)="table.filter($event.target.value,'isCancelled',col.filterMatchMode)" class="ui-column-filter" style="display:block;width: 100%;">
+              <option value=""></option>
+              <option value="0">Cancelled</option>
+              <option value="1">Active</option>
+            </select>
+          </ng-template>
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <span>{{row.isCancelled ? 'Cancelled' : 'Active'}}</span>
+          </ng-template>
+        </p-column>
+        <p-column field="" header="" [style]="{'text-align':'center', 'width':'5%'}">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <a class="default-button green-button" [routerLink]="['/equipments/command/detail/' + row.id]"><span class="ss-navigateright"></span></a>
+          </ng-template>
+        </p-column>
+      </p-dataTable>
+    </div>
+  </div>
+</div>

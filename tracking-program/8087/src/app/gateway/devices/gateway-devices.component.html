@@ -1,0 +1,33 @@
+<div class="container-fluid content-box">
+  <div class="col-md-6">
+    <h3>{{recordCount}} Results</h3>
+  </div>
+  <div class="col-md-12">
+    <hr />
+    <div class="clearfix">
+      <a class="ss-refresh glyph pull-left" (click)="refreshTable()"></a>
+      <a [hideIfUserLevel]="[1, 3, 4, 7]"  class="btn btn-text pull-right" [routerLink]="['/gateways/new']"><span class="button-icon ss-plus"></span> Add new gateway</a>
+    </div>
+
+    <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered" [value]="devices" [lazy]="true" [paginator]="true" [rows]="perPage" [first]="tableFirst.get()"
+                 [totalRecords]="recordCount" (onLazyLoad)="refresh($event)" (onPage)="tableFirst.set($event.first)">
+      <p-column field="name" header="Name" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+      <p-column field="deviceId" header="Serial Number" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+      <p-column field="softwareVersion" header="Software Version" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+          {{row.softwareVersion || 'Unknown'}}
+        </ng-template>
+      </p-column>
+      <p-column field="lastCommunicatedAt" header="Last Seen" [sortable]="true">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+          {{row.lastCommunicatedAt ? ((row.lastCommunicatedAt | cosmeticTime | momentFormat:'x') | amTimeAgo) : "Never"}}
+        </ng-template>
+      </p-column>
+      <p-column field="" header="" [style]="{'width':'40px'}" styleClass="text-center">
+        <ng-template let-row="rowData" pTemplate="body">
+          <a class="btn btn-xs btn-text" [routerLink]="['/gateways/detail', row.id]"><span class="ss-navigateright"></span></a>
+        </ng-template>
+      </p-column>
+    </p-dataTable>
+  </div>
+  </div>

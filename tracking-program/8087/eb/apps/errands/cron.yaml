@@ -1,0 +1,11 @@
+version: 1
+cron:
+ - name: "check-payment"
+   url: "/check-payment"
+   schedule: "* 3 * * *"
+ - name: "schedule-switches"
+   url: "/schedule-switches"
+   schedule: "1 0 * * */1"
+ - name: "sync-data"
+   url: "/sync-data"
+   schedule: "*/1 * * * *"

@@ -1,0 +1,417 @@
+ <sd-subnav style="font-size: 20px;" [links]="[]"></sd-subnav><router-outlet></router-outlet>
+  <div *ngIf="!selectedTest" style="font-size: 20px; ">
+  Please select a test to display energy savings page.
+  </div>
+
+  <div [hidden]="!selectedTest" class="container-fluid">
+    <div *ngIf="!loaded ">&nbsp;&nbsp;Loading... </div>
+    <div [hidden]="!loaded" class="row content-box"> 
+      <div class="col-md-8"> 
+
+        <div class="col-md-7">
+          <p style="font-size: 12px; font-weight: bold;">Energy Savings Chart Is For Current Day (15Min Intervals)</p> 
+        </div>
+        <div class="col-md-5">
+          <legend style="font-size: 10px" [values]="[{text:'After Xeco', color: '#26c49d'},{text:'Before Xeco', color: '#9ca5d7'}]"></legend>
+        </div>
+        <div class="col-md-12">
+            <line-chart #savingsChart style="height:250px;" [beginAtZero]="false"></line-chart>
+        </div>
+      </div>
+      <div *ngIf="breakdown" class="col-md-4">
+        <h5 style="text-align: center; background-color:black; font-size: 12px; color: white"><strong>Bill Savings Accumulator</strong></h5>
+        
+        <div class="col-md-9">
+        </div>
+        <div class="inline col-md-3" *ngIf="breakdown && equipmentSavings">
+          <div class="hours" style="font-size: 9px; width: 100%">Recorded Hours Today</div>
+          <div class="hours" style="text-align: center; border: 1px solid black; background-color:lightgray; color:black; width:100%"><strong style="font-size: 13px">{{breakdown.hours}}hrs {{breakdown.minutes}}min</strong></div>
+        </div>
+        <div class="inline col-md-12">
+          <table *ngIf="breakdown" style="width:100%">
+            <tr class="text-center">
+              <td style="text-align:left; font-size: 10px"><strong>KWH Usage</strong></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr class="text-center">
+              <td style="text-align:right; font-size:11px"><strong>(Before)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:left; font-size:11px"><strong>{{breakdown.beforeKwh + equipmentSavings.dailyBeforeKwh| number : '1.2-2'}}</strong></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr class="text-center">
+              <td style="text-align:right; font-size: 11px"><strong>(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:left; font-size: 11px"><strong>{{breakdown.todayKwh + equipmentSavings.dailyAfterKwh| number : '1.2-2'}}</strong></td>
+              <td></td>
+              <td style="font-size: 10px">Daily kWh Savings</td>
+            </tr>
+            <tr class="text-center" style="border:1px solid black; background-color:lightgray">
+              <td style="text-align:right;font-size: 11px"><strong>Diff.&nbsp;&nbsp;</strong></td>
+              <td style="text-align:left;font-size: 11px"><strong>{{breakdown.kwhDiff + equipmentSavings.dailyKwhSaving | number : '1.2-2'}}</strong></td>
+              <td style="text-align:center;font-size: 11px"><strong>Avg Rate {{breakdown.avgRate}}</strong></td>
+              <td style="font-size: 14px; background-color:black; color:white"><strong>{{breakdown.todayKwhSaving + equipmentSavings.dailySaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+            </tr>
+          </table>
+          <div style="text-align:center; font-size: 12px">
+            <strong>Real Time Bill Cost Savings</strong>
+          </div>
+          <table style="background-color: #b1e3d8; width:100%" *ngIf="breakdown && equipmentSavings">
+            <tr class="text-center">
+              <td style="width: 25%;text-align:center; font-size: 10px;">Current Week (kWh)</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;"><p *ngIf="!hasPfc">This Month</p><p *ngIf="hasPfc">This Month (kWP/kWh/PF)</p></td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">This Year</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">All Time</td>
+            </tr>
+            <tr class="text-center">
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalWeekSaving + equipmentSavings.weeklySaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalMonthSaving + equipmentSavings.monthlySaving|| 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalYearSaving + equipmentSavings.yearlySaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalAllTimeSaving + equipmentSavings.allTimeSaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+            </tr>
+          </table>
+          <table style="background-color: #b1e3d8; width:100%" *ngIf="breakdown">
+            <tr class="text-center">
+              <td style="width: 25%;text-align:center; font-size: 10px;"></td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">Last Month</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">Last Year</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;"></td>
+            </tr>
+            <tr class="text-center">
+              <td style="text-align:center; font-size: 12px;"></td>
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalLastMonthSaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 12px;"><strong>{{breakdown.totalLastYearSaving || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 12px;"></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="row content-box" *ngIf="breakdown" >
+      <div class="box col-md-4" style="background-color: #293f54; color: white">
+        <div class="row"><img class="logo" src="/images/ubill-tracker-logo.png" alt="" style="width:138px; height:34px;"/></div>
+        <div class="col-md-7">
+          <p style="font-size: 16px; text-align: left; color: white; font-weight: bold;">Current Bill Cost: </p>
+          <p style="font-size: 12px; text-align: left; color: #f7a90d; padding-left: 25px;">Estimated Without Xeco Utility Bill: </p>
+          <p style="font-size: 12px; text-align: left; color: white; padding-left: 25px;">Avg Daily kWh Cost This Month: </p>
+          <p style="font-size: 12px; text-align: left; color: white; padding-left: 25px;">Avg Daily kWh Cost Last Month:</p>
+          <p style="font-size: 16px; text-align: left; color: white; font-weight: bold;">Days Recorded: </p>
+        </div>
+        <div class ="col-md-5">
+          <p style="font-size: 16px; text-align: right; color: white"><strong>{{breakdown.currentBillCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+          <p style="font-size: 12px; text-align: right; color: #f7a90d"><strong>{{breakdown.estimatedBeforeUtilityBill || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+          <p style="font-size: 12px; text-align: right; color: white"><strong>{{breakdown.currentMonthAvgDailyKwhCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+          <p style="font-size: 12px; text-align: right; color: white"><strong>{{breakdown.lastMonthAvgDailyKwhCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+          <p style="font-size: 16px; text-align: right; color: white"><strong>{{breakdown.daysOfMonthRecorded}}</strong></p>
+        </div>
+        
+        <div class="row" ><img class="logo" src="/images/ubill-cast-logo.png" alt="" style="width:138px; height:34px;"/></div>
+        
+        <div class="col-md-6">
+          <p style="font-size: 14px; color: white; font-weight: bold;">Estimated Month-End Usage</p>
+          <p style="font-size: 12px; text-align: center; color: white">{{breakdown.estimatedMonthKwh | number : '1.0-0'}} kWh</p>
+          <p style="font-size: 12px; text-align: center; color: white">{{breakdown.estimatedMonthKwPeak | number : '1.0-0'}} kW Peak</p>
+        </div>
+        <div class="col-md-6">
+          <p style= "font-size: 14px; text-align: center; color: white; font-weight: bold;">Estimated Utility Bill</p>
+          <p style= "font-size: 14px; text-align: center; color: white"><strong>{{breakdown.estimatedUtilityBill || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+          <p style= "font-size: 14px; text-align: center; color: white">Last Month Budget</p>
+          <p style= "font-size: 14px; text-align: center; color: white"><strong>{{breakdown.lastMonthBudget || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></p>
+        </div>
+        
+      </div>
+      <div class="box col-md-6">
+        <h5>Facilities Serviced</h5>
+        <hr>
+        <div class="col-md-4">
+          <div class="ex1">
+            <ul>
+              <li *ngFor="let proj of projects" (click)="goToProject(proj.id)"><strong>
+                {{proj.name}}
+              </strong></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="col-md-8">
+          <img class="map" src="/images/worldmap.png" alt="" style="width:500px; height:220px"/>
+        </div>
+      </div>
+      <div class="box col-md-2">
+        <h5>Meters</h5>
+        <hr>
+        <input name="checkAll" type="checkbox" (change)="select()" [checked]="allSelected" id="checkAll">
+         <label for="checkAll" style="color: darkgreen">Select All</label>
+        <div class="meterlist">
+          <div *ngFor="let schedule of schedulers; let i = index" [attr.data-index]="i">
+            <label class="form-check-label" for="meter{{meter.id}}">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="meter{{meter.id}}"
+                name="tagOptions"
+                (change)="changeCheckbox(i)"
+                [checked]="meter.checked">
+              {{meter.name}}
+            </label>
+          </div>
+        </div>
+        <font [hidden]="!selectMeterError" style="color: darkred">Please select 1 or all meters to view saving.</font>
+	     <br>
+        <button type="button" class="default-button green-button" (click)="refreshData()">Show Savings</button>
+        <button type="button" class="default-button green-button" (click)="goToViewBudget()">Get Budget</button>
+    </div>
+  </div>
+</div>
+
+
+
+<style>
+
+  h3 {
+    padding: 2px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  h4 {
+    padding: 2px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+  h5 {
+    padding: 2px;
+    margin-top: 5px;
+    margin-bottom: 3px;
+  }
+  hr {
+    padding: 2px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+  
+  p {
+    padding: 1px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+
+  .hours {
+    padding: 1px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+  legend {
+    padding: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+  div .inline {
+    padding-top: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+
+  img.map{
+    margin-left: auto;
+    margin-right: auto ;
+  } 
+  
+  .row {
+    display: flex;
+    padding-left: 5px;
+    padding-top: 5px; /* equal height of the children */
+  }
+
+  .col {
+    flex: 1; /* additionally, equal width */
+    padding: 1em;
+  }
+
+  div .ex1 {
+    background-color: lightgray;
+    width: 100%;
+    height: 200px;
+    overflow: scroll;
+    margin-top: auto;
+    margin-bottom: auto ;
+  }
+
+  div .meterlist {
+    width: 100%;
+    overflow: scroll;
+    height: 170px;
+  }
+
+  div{
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+
+  div .box{
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  li:hover {
+    color: black;
+    background: #b1e3d8;
+    cursor: pointer;
+  }
+
+  img.logo {
+    display: block;
+    margin: 0 auto;
+  }
+
+  table {
+  padding-top: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  }
+  
+  .help-tip {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    text-align: center;
+    background-color: #BCDBEA;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 14px;
+    cursor: default;
+  }
+
+  .help-tip:before{
+      content:'?';
+      margin-left: -3px;
+      padding-top: -5px;
+      font-weight: bold;
+      color:#000;
+  }
+
+  .help-tip:hover p{
+      display:block;
+      transform-origin: 100% 0%;
+
+      -webkit-animation: fadeIn 0.3s ease-in-out;
+      animation: fadeIn 0.3s ease-in-out;
+
+  }
+
+  .help-tip p{    /* The tooltip */
+      display: none;
+      text-align: left;
+      background-color: #1E2021;
+      padding: 20px;
+      width: 300px;
+      position: absolute;
+      border-radius: 3px;
+      box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2);
+      right: -4px;
+      color: #FFF;
+      font-size: 13px;
+      line-height: 1.4;
+  }
+
+  .help-tip p:before{ /* The pointer of the tooltip */
+      position: absolute;
+      content: '';
+      width:0;
+      height: 0;
+      border:6px solid transparent;
+      border-bottom-color:#1E2021;
+      right:10px;
+      top:-12px;
+  }
+
+  .help-tip p:after{ /* Prevents the tooltip from being hidden */
+      width:100%;
+      height:40px;
+      content:'';
+      position: absolute;
+      top:-40px;
+      left:0;
+  }
+
+  .overlay {
+    height: 100%;
+    width: 100%;
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    left: 0;
+    background-color: #ffffff;
+    overflow-x: hidden;
+  }
+
+  .overlay-content {
+    position: relative;
+    top: 3%;
+    width: 100%;
+    text-align: center;
+    margin: 20px;
+  }
+
+  .overlay-footer {
+    position: relative;
+    padding-top: 20px;
+    width: 100%;
+    text-align: right;
+  }
+
+  .overlay-footer img{
+    width: 200px;
+  }
+
+  .overlay a {
+    padding: 8px;
+    text-decoration: none;
+    font-size: 36px;
+    color: #818181;
+    display: block;
+  }
+
+  .overlay a:hover, .overlay a:focus {
+    color: #f1f1f1;
+  }
+
+  .overlay .closebtn {
+    position: absolute;
+    top: 10px;
+    right: 25px;
+    font-size: 40px;
+  }
+
+  .overlay-content .pf {
+    background: url("/images/Energy_Efficiency_Pic.jpg");
+    background-repeat: no-repeat;
+  }
+
+
+  /* CSS animation */
+
+  @-webkit-keyframes fadeIn {
+      0% { 
+          opacity:0; 
+          transform: scale(0.6);
+      }
+
+      100% {
+          opacity:100%;
+          transform: scale(1);
+      }
+  }
+
+  @keyframes fadeIn {
+      0% { opacity:0; }
+      100% { opacity:100%; }
+  }
+</style>

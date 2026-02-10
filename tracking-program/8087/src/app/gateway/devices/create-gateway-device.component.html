@@ -1,0 +1,42 @@
+<div class="content-box">
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-12">
+        <h3>New Gateway</h3>
+      </div>
+    </div>
+
+    <hr/>
+
+    <form [formGroup]="form" (ngSubmit)="submitCreateGatewayForm()">
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label class="with-description" for="name">Nickname: <small class="text-muted pull-right">Custom label used to identify the gateway.</small></label>
+            <input type="text" class="form-control" id="name" name="name" formControlName="name" placeholder="e.g. Building 5 Gateway">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label class="with-description" for="deviceId">Load Controller Serial#: <small class="text-muted pull-right">Serial number (from outside of box) of the load controller being used as a gateway.</small></label>
+            <input type="text" class="form-control" id="deviceId" name="deviceId" formControlName="deviceId" placeholder="e.g. B8:27:EB:7B:06:67">
+            <div *ngIf="form.controls.deviceId.errors && (form.controls.deviceId.dirty || form.controls.deviceId.touched)" class="alert alert-danger">
+              Serial number must be correct format e.g. B8:27:EB:7B:06:67
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12 text-right">
+          <a class="btn btn-default cancel-btn" [routerLink]="['/gateways/devices']">Cancel</a>
+          <button type="submit" class="btn btn-primary">
+            <span [hidden]="syncing">Save</span>
+          </button>
+        </div>
+      </div>
+      <div class="row"></div>
+    </form>
+  </div>
+</div>

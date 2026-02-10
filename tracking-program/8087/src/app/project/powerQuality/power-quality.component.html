@@ -1,0 +1,94 @@
+<div class="row content-box">
+  <div class="col-md-5 pull-right">
+      <div class="form-group">
+        <label for="type">Select Meter</label>
+        <select type="text" class="form-control" id="selectedMeter" name="selectedMeter" [(ngModel)]="selectedMeter">
+          <option *ngFor="let meter of meters; let i = index" value="{{meter.id}}">{{meter.name}}</option>
+        </select>
+      </div>
+      <button type="button" class="default-button green-button pull-right" (click)="updateMeter()">View Meter</button>
+  </div>
+  <div class="col-md-12">
+    <div class="box">
+      <ng-template #loadingState>Loading...</ng-template>
+      <table *ngIf="realTimeData; else loadingState" class="table">
+        <tr>
+          <th style="width: 50%;text-align:left">Real Time Power Quality Measurement</th>
+          <th>Phase 1</th>
+          <th>Phase 2</th>
+          <th>Phase 3</th>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Amp Load <strong>Current</strong></td>
+          <td>{{realTimeData.ampLoad1 | round}}</td>
+          <td>{{realTimeData.ampLoad2 | round}}</td>
+          <td>{{realTimeData.ampLoad3 | round}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Power Factor <strong>Efficiency</strong></td>
+          <td>{{realTimeData.powerFactor1 | round:2}}%</td>
+          <td>{{realTimeData.powerFactor2 | round:2}}%</td>
+          <td>{{realTimeData.powerFactor3 | round:2}}%</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">kVAR Measure <strong>Reactive Energy</strong></td>
+          <td>{{realTimeData.kvar1 | round}}</td>
+          <td>{{realTimeData.kvar2 | round}}</td>
+          <td>{{realTimeData.kvar3 | round}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Voltage <strong>Supply</strong></td>
+          <td>{{realTimeData.voltage1 | round}}</td>
+          <td>{{realTimeData.voltage2 | round}}</td>
+          <td>{{realTimeData.voltage3 | round}}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="row content-box">
+  <div class="col-md-5">
+    <h3></h3>
+  </div>
+  <form [formGroup]="dateForm" novalidate>
+    <div class="col-md-2">
+      <div class="form-group">
+        <label for="dateTo">From</label>
+          <my-date-picker name="mydate" [options]="datePickerOptions" formControlName="dateFrom"></my-date-picker>
+            <div *ngIf="dateForm.controls.dateFrom.hasError('invalidBeforeDateField') && (dateForm.controls.dateFrom.dirty || dateForm.controls.dateFrom.touched)" class="alert alert-danger">
+              From date must be before to date.
+            </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="form-group">
+        <label for="dateTo">To</label>
+        <my-date-picker name="dateTo" [options]="datePickerOptions" formControlName="dateTo"></my-date-picker>
+          <div *ngIf="dateForm.controls.dateTo.hasError('invalidAfterDateField') && (dateForm.controls.dateTo.dirty || dateForm.controls.dateTo.touched)" class="alert alert-danger">A date must be provided.</div>
+      </div>
+    </div>
+  </form>
+  <div class="col-md-2">
+    <div class="form-group">
+      <label for="type">Type</label>
+      <select type="text" class="form-control" id="type" name="type" [(ngModel)]="type">
+        <option value='kw'>Kw</option>
+        <option value='kva'>Kva</option>
+        <option value='voltage'>Voltage</option>
+        <option value='amperage'>Amperage</option>
+        <option value='kvar'>Kvar</option>
+        <option value='pf'>Pf</option>
+      </select>
+    </div>
+  </div>
+  <div class="col-md-1">
+    <label>&nbsp;</label>
+    <button type="button" class="default-button green-button" (click)="updateChartData()">Submit</button>
+  </div>
+  <div class="col-md-12">
+    <snapshot-line-chart [beginAtZero]="false" style="height:400px;" #chart></snapshot-line-chart>
+  </div>
+
+</div>
+

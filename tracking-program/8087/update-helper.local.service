@@ -1,0 +1,14 @@
+[Unit]
+Description=Update helper service
+After=network.target
+
+[Service]
+User=vagrant
+WorkingDirectory=/vagrant
+ExecStart=/bin/bash /vagrant/update.sh service
+Restart=always
+RestartSec=500ms
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target

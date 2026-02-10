@@ -1,0 +1,7 @@
+sudo cp /vagrant/eb/apps/rollup/rollup.local.cron /etc/cron.d/rollup-local
+sudo cp /vagrant/eb/apps/rollup/rollup.local.service /etc/systemd/system/rollup.service
+sudo systemctl daemon-reload
+sudo systemctl restart web
+sudo systemctl restart rollup
+sudo systemctl restart device-processor
+sudo systemctl restart errands

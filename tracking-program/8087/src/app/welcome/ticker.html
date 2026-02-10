@@ -1,0 +1,67 @@
+<html>
+  
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>SegmentDisplay</title>
+    
+    <!--[if IE]>
+      <script type="text/javascript" src="excanvas.js"></script>
+    <![endif]-->
+
+    <script type="text/javascript" src="segment-display.js"></script>
+    <script type="text/javascript">
+
+      var counter = 0;
+      var secondcounter = 0;
+      var display = new SegmentDisplay("display");
+      display.pattern         = "#######.#";
+      display.displayAngle    = 6;
+      display.digitHeight     = 20;
+      display.digitWidth      = 14;
+      display.digitDistance   = 2.5;
+      display.segmentWidth    = 2;
+      display.segmentDistance = 0.3;
+      display.segmentCount    = 7;
+      display.cornerType      = 3;
+      display.colorOn         = "#000000";
+      display.colorOff        = "#ebebeb";
+      display.setValue("0000000.1")
+      display.draw();
+
+      animate();
+
+      function animate() {
+        var time    = new Date();
+        var hours   = time.getHours();
+        var minutes = time.getMinutes();
+        var seconds = time.getSeconds();
+        var millis  = time.getMilliseconds();
+        var value;
+        var count = counter;
+        secondcounter = secondcounter + 1;
+        if (secondcounter >= 10) {
+          secondcounter = 0;
+          counter = counter + 1;
+        }
+        value = count + '.' + Math.floor(millis / 100); 
+        value = '      '.substr(0, 9 - value.length) + value;
+        display.setValue(value);
+        window.setTimeout('animate()', 100);
+      }
+
+    </script>
+    
+  </head>
+  
+  <body>
+    <div style="padding: 50px 100px">
+      <!--div style="width: 216px; height: 126px; position: relative; background: transparent url(plexiglas.png) no-repeat top left"-->
+      <div style="width: 216px; height: 126px; position: relative">
+        <div style="position: absolute; left: 38px; top: 33px; width: 180px; height: 51px">
+          <canvas id="display" width="180" height="51"></canvas>
+        </div>
+      </div>
+    </div>
+  </body>
+  
+</html>

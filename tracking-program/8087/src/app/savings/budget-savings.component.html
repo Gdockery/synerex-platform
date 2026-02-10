@@ -1,0 +1,245 @@
+<div class="content-box">
+  <div class="container-fluid">
+  	<div class="pull-right">
+          <a [routerLink]="['/savings/energy-savings']">Back To Energy Dashboard</a>
+    </div>
+    <div class="col-md-12 box">
+	  <div [hidden]="!metersSelected" class="col-md-12" style="padding-bottom: 10px">
+	    <button class="default-button green-button" (click)="metersSelected=false">Edit Budget Parameter</button>
+	  </div>
+      <div [hidden]="metersSelected" class="col-md-7" style="padding-bottom: 10px">
+        <h5>Select Meters for Budget</h5>
+        <div class="col-md-3">
+         <input name="checkAll" type="checkbox" (change)="select()" [checked]="allSelected" id="checkAll">
+         <font for="checkAll">Select All</font>
+        </div>
+	      <div class="col-md-6 meterlist">
+	         <label *ngFor="let meter of meters; let i = index" [attr.data-index]="i" class="form-check-label" for="meter{{meter.id}}">
+	         <input
+	           class="form-check-input"
+	           type="checkbox"
+	           id="meter{{meter.id}}"
+	           name="tagOptions"
+	           (change)="changeCheckbox(i)"
+	           [checked]="meter.checked">
+	         {{meter.name}}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+	         </label>
+	      </div>
+	      <div class="col-md-12">
+	        <font [hidden]="!selectMeterError" style="color: darkred">Please select 1 or more meters to view budget.</font><br>
+	      </div>
+      </div>
+	  
+
+	  <div class="col-md-5" [hidden]="metersSelected">
+	   <!-- <form [formGroup]="form" (ngSubmit)="submit(form)">-->
+	      <!--<div class="row">
+	        <div class="col-md-12">
+	          <div class="form-group">
+	            <label>Rate: {{rate | number : '1.2-2'}}</label>
+		  	  </div>
+		    </div>
+	   	  </div>-->
+	      
+	      <div class="row">
+	        <div class="col-md-6">
+	          <div class="form-group">
+              <h4>Project Start Date</h4>
+              <my-date-picker
+                name="startDate"
+                id="startDate"
+                [options]="datePickerOptions"
+                [(ngModel)]="startDate">
+              </my-date-picker>
+              <!--<div *ngIf="form.controls.startDate.errors && (form.controls.startDate.dirty || form.controls.startDate.touched)" class="alert alert-danger">
+                A valid date must be provided.
+              </div>-->
+            </div>
+	        </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <h4>Project End Date</h4>
+              <my-date-picker
+                name="endDate"
+                id="endDate"
+                [options]="datePickerOptions"
+                [(ngModel)]="endDate">
+              </my-date-picker>
+              <!--<div *ngIf="form.controls.startDate.errors && (form.controls.startDate.dirty || form.controls.startDate.touched)" class="alert alert-danger">
+                A valid date must be provided.
+              </div>-->
+            </div>
+          </div>
+        </div>
+	       <div class="col-md-12">
+	          <div class="form-group">
+			      <h4>Budget Range</h4>
+			      <select type="text" id="bugetRange" name="budgetRange" [(ngModel)]="budgetRange">
+			        <option value=1>   30 Day Budget   </option>
+			        <option value=2>   60 Day Budget   </option>
+			        <option value=3>   90 Day Budget   </option>
+			      </select>
+			     </div>
+      	 </div>
+	   
+   		
+	    <div class="col-md-12 text-right">
+	      <button class="default-button green-button" type="button" (click)="metersSelected=true">Cancel</button>
+	      <button class="default-button green-button" type="submit" (click)="submit()">View Budget</button>
+	    </div>
+  	</div>
+  </div>
+  
+  <div class="col-md-12 box" *ngIf="metersSelected&&budgetDetail" style="margin: : 20px">
+    <div class="pull-left" style="margin-bottom: 50px">
+      <h2>Energy Budget Analysis</h2>
+    </div>
+ 
+    <div class="col-md-7 pull-right" style="background-color: black; color: white; width: 400px">
+    	<h4>BUDGET DATE: {{budgetDetail.startDate}} -- {{budgetDetail.toDate}}</h4>
+    	<h4>KW PEAK RATE: {{budgetDetail.kwPeakRate}} </h4>
+      <h4>KWH RATE: {{budgetDetail.kwhRate}}</h4>
+    </div>
+    <div class="col-md-12">
+     <hr>
+    </div>
+    <div style="margin-top-top: 50px; margin-bottom: 50px;">
+    	<table style="width:100%">
+            <tr style="border-bottom:1px solid gray">
+              <td style="width: 40%; text-align:left; font-size: 18px"><strong>Estimated Energy Usage</strong></td>
+              <td style="width: 20%; font-size: 18px"><strong>Actual Daily Avg.</strong></td>
+              <td style="width: 20%; font-size: 18px"><strong>Estimated Budget Results</strong></td>
+              <td style="width: 20%; font-size: 18px"><strong>Estimated Cost</strong></td>
+            </tr>
+            <br>
+            <tr style="border-bottom:1px solid gray">
+              <td style="text-align:center; font-size:18px"><strong>KW Peak</strong></td>
+              <td style="text-align:left; font-size:18px"><strong>--</strong></td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.kwPeak}}</td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.kwPeakCost}}</td>
+              <td></td>
+            </tr>
+            <br>
+            <tr style="border-bottom:1px solid gray">
+              <td style="text-align:center; font-size:18px"><strong>Kwh</strong></td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.avgKwh}}</td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.kwhUsage}}</td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.kwhCost}}</td>
+              <td></td>
+            </tr>
+            <br>
+            <tr class="text-center" style="border-bottom:1px solid gray">
+              <td style="text-align:left; font-size:16px"></td>
+              <td style="text-align:left; font-size:16px"></td>
+              <td style="text-align:left; font-size:18px">Tax</td>
+              <td style="text-align:left; font-size:18px">{{budgetDetail.tax}}</td>
+              <td></td>
+            </tr>
+            <tr class="text-center" style="margin-top: 80px; margin-bottom: 50px">
+              <td style="text-align:left; font-size:18px; border-top: 1px"></td>
+              <td style="text-align:left; font-size:18px; border-top: 1px"></td>
+              <td style="text-align:left; font-size:18px; border-top: 1px"><strong>Total Cost</strong></td>
+              <td style="text-align:left; font-size:18px; border-top: 1px"><strong>{{budgetDetail.totalCost}}</strong></td>
+              <td></td>
+            </tr>
+          </table>
+    </div>
+    <div class="text-center">
+    	<button class="default-button green-button" style="margin-right: 10px;" type="button" (click)="getBudgetReport()">Print Budget</button>
+    	<button type="button" class="default-button green-button" (click)="metersModal.show();">Print Invoice</button>
+    </div>
+    <!--<div *ngIf="!alertForm.controls.switches.valid" class="alert alert-danger">
+      At least one switch must be selected
+    </div>-->
+    <div class="modal fade" bsModal #metersModal="bs-modal" style="width: 500px">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title pull-left">Please confirm invoice information:</h4>
+          </div>
+          <div class="modal-body">
+            <div>
+              <h4>Current kw Peak Rate: {{budgetDetail.kwPeakRate}} </h4>
+              <h4>Current kwh Rate: {{budgetDetail.kwhRate}} </h4>
+              <button [hidden]="editRate" class="default-button green-button" type="button" (click)="editRate=true">Edit Rate</button>
+              <button [hidden]="!editRate" class="default-button red-button" type="button" (click)="editRate=false">Cancel Edit Rate</button>
+            </div>
+
+            <div [hidden]="!editRate">
+              <label>New kw Peak Rate: </label>
+              <input type="number" step="any"name="kwPeakRate" id="kwPeakRate" [(ngModel)]="kwPeakRate">
+            </div>
+            <div [hidden]="!editRate">
+              <label>New kwh Rate: </label>
+              <input type="number" step="any" name="kwhRate" id="kwhRate" [(ngModel)]="kwhRate">
+            </div> 
+            <div>
+              <label class="modalLabel">Shared Energy Usage %: </label><input type="text" name="sharedPercent" [(ngModel)]="sharedPercent">
+            </div>
+            <div style="margin-top: 10px">
+              <h4>Please Provide Client Info:</h4>
+              <div>
+                <label class="modalLabel">Client Name: </label><input type="text" name="clientName" [(ngModel)]="clientName">
+              </div>
+              
+              <div style="margin-top: 10px"><label class="modalLabel">Address: </label><input type="text" name="clientAddress" [(ngModel)]="clientAddress">
+              </div>
+              
+              <div style="margin-top: 10px">
+                <label class="modalLabel">City: </label><input type="text" name="clientCity" [(ngModel)]="clientCity">
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">State: </label><input type="text" name="clientState" [(ngModel)]="clientState">
+                </div>
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">Zip: </label><input type="text" name="clientZip" [(ngModel)]="clientZip">
+                </div>
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">Phone: </label><input type="text" name="clientPhone" [(ngModel)]="clientPhone">
+                </div>
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">Invoice Number: </label><input type="text" name="invoiceNumber" [(ngModel)]="invoiceNumber">
+                </div>
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">Contact Phone: </label><input type="text" name="contactPhone" [(ngModel)]="contactPhone">
+                </div>
+                <div style="margin-top: 10px">
+                  <label class="modalLabel">Contact Name: </label><input type="text" name="contactName" [(ngModel)]="contactName">
+                </div>
+                <div style="margin-top: 10px">
+                  <button type="button" class="default-button pull-left green-button" aria-label="Close" (click)="metersModal.hide();rate=null" style="margin-right: 20px">
+                  Cancel
+                  </button> 
+                  <button type="button" class="default-button pull-left green-button" aria-label="Close" (click)="getBudgetInvoice()">View Invoice</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+div .modal {
+    margin-top: auto;
+    margin-bottom: auto ;
+    margin-left: auto;
+    margin-right: auto ;
+    height: 850px;
+}
+
+label {
+  display: inline-block;
+  width: 200px;
+  text-align: right;
+}
+
+div .meterlist {
+    width: 100%;
+    overflow: scroll;
+    height: 200px;
+  }
+  
+</style>

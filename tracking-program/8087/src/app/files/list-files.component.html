@@ -1,0 +1,48 @@
+<div style="padding-left: 20px" class="row">
+  <div class="col-md-8">
+    <h5>Please enter a file name to upload a file: </h5>
+    <label style="padding-right: 20px">File Name: <input type="text" id="fileName" name="fileName" [(ngModel)]="fileName"></label>
+    <label style="padding-right: 20px">Description: <input type="text" size="50" id="fileDescription" name="fileDescription" [(ngModel)]="fileDescription"></label>
+  
+    <p-fileUpload #uploaders mode="basic" auto="true" skinSimple="true" [multiple]="false" url="{{getFileUrl()}}" (onBeforeUpload)="uploadStarted()" (onUpload)="uploadComplete()" (onError)="uploadFailed()" name="bill" accept="application/pdf" [style]="{'display':'none'}">
+    </p-fileUpload>
+    <button class="ss-plus btn btn-primary" (click)="addFile($event)">Upload File</button>
+  </div>
+  <!--<a class="ss-plus" (click)="addLogo($event)">Upload File</a>-->
+</div>
+
+<div class="row">
+  <div style="margin-left: 20px" class="col-md-8">
+    <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered"
+                            [value]="files" [lazy]="true" [rows]="20" [paginator]="true"
+                            [rowsPerPageOptions]="[5,10,20]" [totalRecords]="recordCount"
+                            scrollable="false"
+                            (onLazyLoad)="refreshData($event)">
+      <p-column field="" header="" [style]="{'width':'5%'}" styleClass="text-center">
+        <ng-template let-row="rowData" pTemplate="body">
+          <a class="ss-trash" *ngIf="userService.user.role === 8" (click)="confirmDelete(row.id, row.name)"></a>
+        </ng-template>
+      </p-column>
+      <!--<p-column field="Uploaded At" header="Uploaded At" [style]="{'width':'10%'}" [sortable]="true">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+          {{(row.createdAt | momentFormat:'MM-DD-YYYY')}}
+        </ng-template>
+      </p-column>-->
+      <p-column field="" header="File Name" [style]="{'width':'25%'}" styleClass="text-center">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+         {{row.name}}
+        </ng-template>
+      </p-column>
+      <p-column field="" header="File Description" styleClass="text-center">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+         {{row.description}}
+        </ng-template>
+      </p-column>
+      <p-column field="" header="View File" [style]="{'width':'10%'}" styleClass="text-center">
+        <ng-template let-col let-row="rowData" pTemplate="body">
+         <a *ngIf="row.url" class="ss-redirect" [href]="row.url" target="_blank">View File</a>
+        </ng-template>
+      </p-column>
+    </p-dataTable>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<% 
+/*
+ * Meter "offline alert" email 
+ * 
+ * This email is sent to each user selected in the "Distribute to:" dropdown when the alert is first created.
+ *
+ * Available data:
+ * + user (the user that the email is being sent to, see api/models/User.js for attributes)
+ * + project (the project containing the meter that triggered the alert, see api/models/Project.js for attributes)
+ * + alertGroup (the alert group that this alert is under, which contains the alert parameters.  See api/models/MeterAlertGroup.js for attributes)
+ * + meter (the meter that triggered the alert event, see api/models/Meter.js for attributes)
+ *
+ */
+%>
+
+
+<p>Hi <%= user.firstName %>,</p>
+
+<p>This message is to report that a meter in the <%=project.name%> facility has been offline for some time.</p>
+
+<p>The meter <strong><%=meter.name%></strong> has been out of contact for at least <%=alertGroup.threshold%> minutes.</p>
+
+<p>You will not receive another email about this alert for the next 24 hours.</p>
+
+<% var brandName = typeof brandName !== 'undefined' ? brandName : 'Xeco'; %>
+<p>
+  You&rsquo;re welcome,<br/>
+  The <%= brandName %> Team
+</p>

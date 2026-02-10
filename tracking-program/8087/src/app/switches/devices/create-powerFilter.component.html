@@ -1,0 +1,54 @@
+<form [formGroup]="form">
+  <div class="container-fluid">
+    <div class="row">
+      <hr/>
+      <div class="col-md-2">
+        <strong>Connnected To:</strong>
+      </div>
+      <div class="col-md-2">
+        Xeco Unit <div class="question-circle" title="Currently only Xeco Units can be connected to">?</div>
+      </div>
+      <div class="col-md-8"></div>
+      <div class="col-md-12">
+        The device controlled by this switch
+      </div>
+    </div>
+    <!--<div class="row" style="margin: 10px;" *ngFor="let switchSet of form.get('newSwitches').controls; let i=index" [formGroup]="switchSet">-->
+      <div class="col-md-1">
+        <!--<button *ngIf="switchSet.value.addedSwitchSet" type="button" class="red-button round-button" style="width:40px;height:40px;" (click)="removeSwitchSet(i)">
+          <span class="ss-hyphen" style="vertical-align:middle;"></span>
+        </button>-->
+      </div>
+      <div class="col-md-5">
+        <div class="form-group">
+          <label for="name" class="with-description">Name: </label>
+          <br><small class="text-muted pull-right">Custom label used to indicate the location of the switch control in a facility.</small>
+          <input type="text" class="form-control" id="name" name="name" formControlName="name" placeholder="e.g. BLDG5-C3-S2"> 
+        </div>
+      </div>
+
+      <div class="col-md-5">
+        <div class="form-group">
+          <label class="with-description" for="deviceId">Power Filter Controller SN#: </label>
+          <br><small class="text-muted pull-right">The serial number (from outside of box) of the load controller attached to the switch.</small>
+          <input type="text" class="form-control" id="deviceId" name="deviceId" formControlName="deviceId" placeholder="e.g. B8:27:EB:7B:06:67">
+          <div *ngIf="form.value.deviceId.errors && (form.value.deviceId.dirty || form.value.deviceId.touched)" class="alert alert-danger">
+            Device ID must be correct format e.g. B8:27:EB:7B:06:67
+          </div>
+        </div>
+      </div>
+    <!--</div>-->
+    <!--<div class="row text-center">
+      <button type="button" class="green-button round-button" style="width:40px;height:40px;" (click)="addSwitchSet()">
+        <span class="ss-plus" style="vertical-align:middle;"></span>
+      </button>
+    </div>-->
+    <div class="row">
+      <div class="col-md-12 text-right">
+        <button type="button" class="gray-button default-button" (click)="cancel()">Cancel</button>
+        <button type="button" class="green-button default-button" (click)="save()">Save</button>
+      </div>
+    </div>
+  </div>
+</form>
+

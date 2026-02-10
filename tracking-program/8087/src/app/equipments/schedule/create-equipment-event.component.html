@@ -1,0 +1,164 @@
+<form [formGroup]="form" *ngIf="form">
+  <!--div class="row">
+    <div class="col-md-6">
+      <div class="form-group">
+        <label for="type">Kind</label>
+        <select type="text" class="form-control" (change)="checkSelectedRecurring()" id="type" name="type" formControlName="type">
+          <option value="">--</option>
+          <option value="One-time">One-Time</option>
+          <option value="Recurring">Recurring</option>
+        </select>
+      </div>
+    </div>
+  </div-->
+
+  <div *ngIf="!oneTime">
+    <form [formGroup]="manualControlForm" (ngSubmit)="submit(manualControlForm)">
+      <div class="col-md-4" style="padding-left: 20px">
+        <h5>Please Select Days of Week for Schedule</h5>
+        <div>
+          <input name="checkAll" type="checkbox" (change)="select()" [checked]="allSelected" id="checkAll">
+          <label for="checkAll" style="color: darkgreen">Select All</label>
+        </div>
+        <div class="dayslist" *ngFor="let day of days; let i = index" [attr.data-index]="i">
+          <label class="form-check-label" for="{{day.name}}">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="{{day.name}}"
+              name="tagOptions"
+              (change)="changeCheckbox(i)"
+              [checked]="day.checked">
+            {{day.name}} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+          </label>
+        </div>
+        <font [hidden]="!selectDaysError" style="color: darkred">Please select 1 or more days for schedule.</font>
+        <br>
+      </div>
+        <div class="col-md-8" style="padding-left: 20px">
+          <h5>Select Date Range Of Schedule</h5>
+          <div class="col-md-6">
+            <div class="form-group">
+               <label for="startDate">From</label>
+                <my-date-picker
+                  name="startDate"
+                  id="startDate"
+                  [options]="datePickerOptions"
+                  formControlName="startDate">
+                </my-date-picker>
+                <div *ngIf="manualControlForm.controls.startDate.errors && (manualControlForm.controls.startDate.dirty || manualControlForm.controls.startDate.touched)" class="alert alert-danger">
+                  A date must be provided.
+                </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="endDate">To</label>
+              <my-date-picker
+                name="endDate"
+                id="endDate"
+                [options]="datePickerOptions"
+                formControlName="endDate">
+              </my-date-picker>
+              <div *ngIf="manualControlForm.controls.endDate.errors && (manualControlForm.controls.endDate.dirty || manualControlForm.controls.endDate.touched)" class="alert alert-danger">
+                A date must be provided.
+              </div>
+            </div>
+          </div>
+        
+          <div class="row" style="margin: 10px;" *ngFor="let timeSet of manualControlForm.get('scheduleDetail').controls; let i=index" [formGroup]="timeSet">
+            <h5>Select Time When Switch Is OFF</h5>
+            <div class="col-md-1">
+              <button *ngIf="timeSet.value.addedTimeSet" type="button" class="red-button round-button" style="width:40px;height:40px;" (click)="removeTimeSet(i)">
+                <span class="ss-hyphen" style="vertical-align:middle;"></span>
+              </button>
+            </div>
+            <div class="col-md-3">
+              <label for="offTime">From</label>
+              <timepicker #timePicker formControlName="offTime"></timepicker>
+              <div *ngIf="this.timePicker.invalidHours || this.timePicker.invalidMinutes" class="alert alert-danger">
+                A valid time must be provided.
+              </div>
+            </div>
+            <div class="col-md-2"></div>
+            <div class="col-md-3">
+              <label for="onTime">To</label>
+              <timepicker #timePicker formControlName="onTime"></timepicker>
+              <div *ngIf="this.timePicker.invalidHours || this.timePicker.invalidMinutes" class="alert alert-danger">
+                A valid time must be provided.
+              </div>
+            </div>
+            
+          </div>
+          <div class="row">
+            <div class="text-center">
+              <button type="button" class="green-button round-button" style="width:40px;height:40px;" (click)="addTimeSet()">
+                <span class="ss-plus" style="vertical-align:middle;"></span>
+              </button>
+            </div> 
+          </div>
+
+        </div>                          
+    </form>
+  </div>
+ 
+  <div *ngIf="oneTime" class="row">
+    <div class="col-md-4">
+      <div class="form-group">
+        <label for="type">Command</label>
+        <select type="text" class="form-control" id="command" name="command" formControlName="command">
+          <option value="">--</option>
+          <option value="1">Turn On</option>
+          <option value="2">Turn Off</option>
+        </select>
+      </div>
+    </div>
+    <div class="col-md-4" style="padding-top:10px;">
+      <div class="form-group">
+        <label for="date">Date</label>
+        <my-date-picker
+          name="date"
+          id="date"
+          [options]="datePickerOptions"
+          formControlName="date">
+        </my-date-picker>
+        <div *ngIf="form.controls.date.errors && (form.controls.date.dirty || form.controls.date.touched)" class="alert alert-danger">
+          A date must be provided.
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <timepicker #timePicker formControlName="time"></timepicker>
+      <div *ngIf="this.timePicker.invalidHours || this.timePicker.invalidMinutes" class="alert alert-danger">
+        A void time must be provided.
+      </div>
+    </div>
+  </div>
+</form>
+<div class="row">
+  <div class="col-xs-12" [ngClass]="{cancelled:cancelled}">
+    <p-dataTable tableStyleClass="table dataTable table-striped table-bordered" [value]="switches">
+      <p-column field="" header="" [style]="{'width':'5%', 'text-align':'center'}">
+        <ng-template pTemplate="header">
+          <input type="checkbox" [(ngModel)]="massSelectValue" (change)="massSelect()">
+        </ng-template>
+        <ng-template let-col let-row="rowData" pTemplate="body" let-i="rowIndex">
+          <input type="checkbox" [(ngModel)]="row.selected">
+        </ng-template>
+      </p-column>
+      <p-column field="name" header="Nickname"></p-column>
+      <p-column field="connectedTo" header="Connected To">
+        <ng-template pTemplate="body">
+          Xeco Unit
+        </ng-template>
+      </p-column>
+    </p-dataTable>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-12 text-right">
+    <button class="default-button white-button" [routerLink]="['/equipments/schedule/list']">Cancel</button>
+    <button class="default-button green-button" (click)="submit()">Save</button>
+  </div>
+</div>

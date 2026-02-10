@@ -1,0 +1,31 @@
+@import "../../../scss/_vars";
+
+:host {
+}
+
+.details-box {
+  h3 {
+    color: $primaryColor;
+    font-weight: 700;
+  }
+}
+
+
+.compare-box {
+  .compare-label {
+    color: $primaryColor7;
+  }
+  .compare-value {
+    font-size: 18px;
+  }
+}
+
+
+.legend {
+  padding: 23px;
+  span {
+    font-weight: 600;
+    vertical-align:center;
+    padding-left:3px;
+  }
+}

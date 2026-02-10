@@ -1,0 +1,151 @@
+@import "vars";
+
+input:focus {
+  outline:0 !important;
+}
+
+.input, .form-control {
+  border: 1px solid $primaryColor6;
+  border-radius:5px;
+  -moz-border-radius:5px;
+  -webkit-border-radius:5px;
+  font-size: $fontSize;
+  height: 40px;
+  outline: none;
+  padding: 8px;
+}
+
+label.with-description {
+  width: 100%;
+}
+
+button {
+  box-sizing: border-box;
+  border-style: none;
+  cursor: pointer;
+  display: inline-block;
+  text-decoration: none;
+  &:focus {
+    outline:0;
+  }
+  &.sm {
+    padding: 2px;
+    height: auto;
+    line-height: normal;
+  }
+}
+
+button.default-button {
+  font-size: 14px;
+  height: 40px;
+  padding: 1px 12px;
+  line-height: 38px;
+  border-radius: 3px;
+}
+
+button.green-button{
+  color: $whiteFont;
+  background-color: $primaryColor;
+  &:hover {
+    background-color: $primaryColor3;
+  }
+  &:active {
+    background-color: $primaryColor2;
+  }
+  &:disabled {
+    background-color: #6edbc3;
+  }
+}
+
+button.white-button {
+  background-color:$whiteFont;
+  border: 1px solid $primaryColor6;
+  color: $primaryColor9;
+  &:hover {
+    background-color: #d8d8d8;
+  }
+  &:active {
+    background-color: #eeeeee;
+  }
+}
+
+button.gray-button {
+  background-color:$primaryColor7;
+  color: white;
+  &:hover {
+    background-color: #7e7e7e;
+  }
+  &:active {
+    background-color: #6c6c6c;
+  }
+}
+
+button.red-button {
+  background-color:$primaryColor5;
+  border: 1px solid $primaryColor6;
+  color: $whiteFont;
+  &:hover {
+    background-color: #da626c;
+  }
+  &:active {
+    background-color: #ce5d67;
+  }
+}
+
+button.round-button {
+  border-radius: 50%;
+}
+
+.button-icon {
+  position: relative;
+  top: 2px;
+}
+
+
+.glyph {
+  color: $primaryColor;
+  cursor: pointer;
+}
+
+.checkbox-column {
+  label {
+    width: 100%;
+    font-weight: 400;
+    overflow-x: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+select.ng-invalid.ng-dirty, input.ng-invalid.ng-touched, input.ng-invalid.ng-dirty, select.ng-invalid.ng-dirty, textarea.ng-invalid.ng-dirty {
+  border-left: 5px solid $primaryColor5;
+}
+
+textarea.form-control {
+  resize: none;
+}
+
+my-date-picker.ng-invalid.ng-dirty .selectiongroup {
+  border-left: 5px solid $primaryColor5;
+}
+
+.rename-form {
+  position: relative;
+  width: 100%;
+  padding-right: 180px;
+  .save-button, .cancel-button {
+    position: absolute;
+    width: 80px;
+    top: 2px;
+  }
+  .save-button {
+    right: 90px;
+  }
+  .cancel-button {
+    right: 0px;
+  }
+  input {
+    display: block;
+    width: 100%;
+  }
+}

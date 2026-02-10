@@ -1,0 +1,61 @@
+<sd-subnav 
+      [links]="[
+        {title:'Switches',url:'/switches/devices/list/circuits'},
+        {title:'Alerts',url:'/switches/alerts'},
+        {title:'Schedule',url:'/switches/schedule/list'}
+      ]"></sd-subnav>
+<router-outlet></router-outlet>
+<div *ngIf="!type">
+  <div class="content-box container-fluid">
+    <div class="row">
+      <div class="box col-md-3" style="height: 300px;" *ngFor="let type of typeService.types;">
+        <div>
+          <h3>{{type.name}}</h3>
+          <p>{{type.description}}</p>
+          <div style="position:absolute;width:100%;bottom:0;padding: 20px;left:0">
+            <div><div [ngClass]="{'number-circle-red':type.count,'number-circle-gray':!type.count}">{{type.count}}</div> Instances Saved</div><br />
+            <div class="text-center"><button class="default-button green-button" style="width:75%;" type="button" (click)="selectType(type)">View</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content-box">
+    <switch-alert-events></switch-alert-events>
+  </div>
+</div>
+
+<div *ngIf="type">
+  <div class="col-md-6">
+    <create-switch-alert
+      [currentType]="type"
+      (cancelEvent)="selectType(null)"
+    ></create-switch-alert>
+  </div>
+  <div class="col-md-6">
+    <list-switch-alert
+      [currentType]="type"
+      (editAlertEvent)="editAlert($event)"
+    ></list-switch-alert>
+  </div>
+</div>
+
+<div class="modal fade" bsModal #editAlertModal="bs-modal" [config]="{backdrop: 'static'}"
+     tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title pull-left">Edit Alert</h4>
+      </div>
+      <div class="modal-body">
+        <create-switch-alert
+          *ngIf="currentAlert"
+          [currentAlert]="currentAlert"
+          [currentType]="type"
+          (editEvent)="cancelEdit($event)"
+          (cancelEvent)="cancelEdit($event)"
+        ></create-switch-alert>
+      </div>
+    </div>
+  </div>
+</div>

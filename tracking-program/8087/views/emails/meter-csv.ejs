@@ -1,0 +1,25 @@
+<% 
+/*
+ * Meter CSV email 
+ * 
+ * This email is sent to each user selected in the "Send email to:" dropdown when creating a new Meter CSV file.
+ *
+ * Available data:
+ * + user (the user that the report is being sent to, see api/models/User.js for attributes)
+ * + title (the title of the report)
+ * + url (the URL to download the report)
+ *
+ */
+%>
+
+<p>Hi <%= user.firstName %>,</p>
+
+<% var brandName = typeof brandName !== 'undefined' ? brandName : 'Xeco'; %>
+<p>A new meter data report &ldquo;<%= title %>&rdquo; has been generated on the <%= brandName %> portal.</p>
+
+<p>To download the report, <a href="<%=url%>">click here</a>.
+
+<p>
+  You&rsquo;re welcome,<br/>
+  The <%= brandName %> Team
+</p>

@@ -1,0 +1,43 @@
+<ng-progress id="progressIndicator" [color]="'#26c49d'"></ng-progress>
+<ng-sidebar-container [animate]="false" style="height: 100vh; display: block;">
+  <ng-sidebar
+    [(opened)]="_opened"
+    [mode]="'push'"
+    [dock]="true"
+    [dockedSize]="'50px'"
+    [animate]="false">
+    <sd-navbar (notify)='_toggleSidebar()'></sd-navbar>
+  </ng-sidebar>
+
+  <div class="page-content" ng-sidebar-content>
+    <sd-toolbar></sd-toolbar>
+    <router-outlet></router-outlet>
+  </div>
+</ng-sidebar-container>
+
+<div class="clearfix"></div>
+
+<p-confirmDialog icon="fa fa-question-circle" width="425"></p-confirmDialog>
+<footer class="site-footer">
+  <div class="container-fluid clearfix">
+    <div style="float: left; text-align: center;" class="left">
+        <span style="font-size: 10px;">©Copyright 2020 to Present. {{brandName}} Energy Corporation. All Rights Reserved. {{brandName}}, {{brandName}}480, {{brandName}}600, {{brandName}}RS, uBillTRACKER and uBill4CAST are Trademarks of {{brandName}} Energy Corporation. All other trademarks are the property of their respective owners.  Site Version 1.2.5</span>
+    </div>
+  </div>
+</footer>
+
+
+
+
+<style>
+
+.site-footer {
+  background: white;
+  height: 35px; 
+  left: 250px;
+  bottom: 0;
+  right: 0;
+  position: fixed;
+}
+
+</style>

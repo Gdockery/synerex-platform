@@ -1,0 +1,26 @@
+VPN connection
+
+user rikki.ovpn file
+sudo openvpn --config rikki.ovpn
+
+Digital Ocean update
+vagrant@DO file needed
+chmod 400 vagrant\@do
+ssh -i vagrant@do vagrant@134.209.76.163
+git pull in vagrat folder
+
+Aguas update (from DO)
+./aguas-maintenance/update_code.sh
+
+update all portals
+./portals-maintenance/update_code.sh
+
+Database update DO
+ssh -i root@do root@134.209.76.163
+root@do needed
+mysql -p
+Enter password: xecopass
+
+Database update aguas from DO
+aguas 
+mysql -uxeco_staging -pxecopass

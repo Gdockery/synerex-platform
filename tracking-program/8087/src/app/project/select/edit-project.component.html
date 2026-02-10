@@ -1,0 +1,467 @@
+<div class="container-fluid">
+  <h3>Edit project<span [hidden]="!project">:</span> <strong>{{project && project.name}}</strong>
+    <a *ngIf="project && !project.isDeleted" class="btn btn-danger pull-right" style="font-size: 12px" (click)="clickDeleteProjectButton()">Archive project</a>
+  </h3>
+  <hr/>
+  <div *ngIf="archivingProject" class="row">
+    <div class="col-xs-12">
+      <h4 class="text-primary"><span class="fa fa-spinner"></span>&nbsp;&nbsp;Archiving project...</h4>
+    </div>
+  </div>
+  <div *ngIf="syncingFormData" class="row"> 
+    <div class="col-xs-12">
+      <h4 class="text-primary"><span class="fa fa-spinner"></span>&nbsp;&nbsp;Loading project form...</h4>
+    </div>
+  </div>
+  <form [formGroup]="form" [class]="syncingFormData || archivingProject ? 'invisible' : ''">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="client">Client</label><br />
+          <select class="form-control" id="client" name="client" formControlName="client">
+            <option disabled="disabled" value="">--</option>
+            <option *ngFor="let client of clients" value="{{client.id}}">{{client.name}}</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="xecoManager">{{brandName}} account manager</label><br />
+          <select class="form-control" id="xecoManager" name="xecoManager" formControlName="xecoManager">
+            <option value="">--</option>
+            <option *ngFor="let manager of xecoAccountManagers" [ngValue]="manager.id">{{manager.fullName}}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="name">Project Name</label>
+          <input type="text" class="form-control" id="name" name="name" formControlName="name">
+          <div *ngIf="form.controls.name.errors && (form.controls.name.dirty || form.controls.name.touched)" class="alert alert-danger">
+            A name must be provided.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="name">Project Slug</label>
+          <input type="text" class="form-control" id="slug" name="slug" formControlName="slug" disabled>
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <h4>Install Info</h4>
+
+    <div class="row">
+      <div class="col-md-3">
+        <div class="form-group">
+          <h5><strong>Please Select A Payment Plan:</strong></h5>
+          <div class="radio">
+            <label><input type="radio" name="paymentPlan" formControlName="paymentPlan" value="1">30% Down, 30% Install, 40% Net</label>
+          </div>
+          <div class="radio">
+            <label><input type="radio" name="paymentPlan" formControlName="paymentPlan" min="0" max="99.99" value="2">Project Financing <input type="number" size="4" formControlName="downPaymentPercent" name="downPaymentPercent">% Down</label><label><input type="number" size="4" formControlName="interestRate" name="interestRate">% Interest</label>
+            <div *ngIf="form.controls.paymentPlan == '2' && form.controls.downPaymentPercent.errors && (form.controls.downPaymentPercent.dirty || form.controls.downPaymentPercent.touched) && form.controls.interestRate.errors && (form.controls.interestRate.dirty || form.controls.interestRate.touched)" class="alert alert-danger">
+              A down payment percentage and interest rate must be provided.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <h5><strong>Subscription Needed?</strong></h5>
+          <div class="checkbox">
+            <label><input type="checkbox" id="subNeeded" name="subNeeded" formControlName="subNeeded">
+              Check this box if the Client must subscribe to access this Project in the portal</label>
+          </div>
+          <label for="subStartDate">Date to Start Subscription</label>
+          <my-date-picker
+            name="subStartDate"
+            id="subStartDate"
+            [options]="datePickerOptions"
+            formControlName="subStartDate">
+          </my-date-picker>
+          Usually 1 year after PO Date.
+          <div *ngIf="form.controls.subStartDate.errors && (form.controls.subStartDate.dirty || form.controls.subStartDate.touched)" class="alert alert-danger">
+            A valid date must be provided.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+
+          <h5><strong>Number of Meters for Bill</strong></h5>
+          <select name="numberOfMeters" formControlName="numberOfMeters">
+            <option value=1 selected="selected">1</option>
+            <option value=2>2</option>
+            <option value=3>3</option>
+            <option value=4>4</option>
+            <option value=5>5</option>
+            <option value=6>6</option>
+            <option value=7>7</option>
+            <option value=8>8</option>
+            <option value=9>9</option>
+            <option value=10>10</option>
+          </select>
+          <div *ngIf="form.controls.numberOfMeters.errors && (form.controls.numberOfMeters.dirty || form.controls.numberOfMeters.touched)" class="alert alert-danger">
+            One Bill may include multiple meters.
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="multiplier">Inductive Load Ratio</label>
+          <input type="number" step="0.01" class="form-control" id="ILRatio" name="ILRatio" formControlName="ILRatio" placeholder="100">%
+          <p>Between 1 - 100 (%)</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="initialPf">Pre-Installation Load Factor</label>
+          <input type="number" step="1" class="form-control" id="initialPf" name="initialPf" formControlName="initialPf" placeholder="30">
+        </div>
+        <p>Between 0 - 100 (%)</p>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" class="form-control" id="location" name="location" formControlName="location">
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="proposalNumber">Proposal Number</label>
+          <input type="text" class="form-control" id="proposalNumber" name="proposalNumber" formControlName="proposalNumber">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="purchaseOrder">Purchase order #</label>
+          <input type="text" class="form-control" id="purchaseOrder" name="purchaseOrder" formControlName="purchaseOrder">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="currencyCode">Currency</label>
+          <select id="currencyCode" name="currencyCode" formControlName="currencyCode" class="form-control">
+            <option disabled="disabled" value="">--</option>
+            <option *ngFor="let currencyCode of currencyCodes" [ngValue]="currencyCode.value">{{currencyCode.label}}</option>
+          </select>
+          <div *ngIf="form.controls.currencyCode.errors && (form.controls.currencyCode.dirty || form.controls.currencyCode.touched)" class="alert alert-danger">
+            A currency must be provided.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="currencyExchangeRate">Exchange Rate to USD</label>
+          <input type="text" class="form-control" id="currencyExchangeRate" name="currencyExchangeRate" formControlName="currencyExchangeRate" placeholder="1" width=80>
+          <span style="font-size: 10px">i.e. .5, 1 xxx / 1 USD.  1 if using USD</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-3">
+      <div class="form-group">
+        <label for="depositAmount">Initial deposit</label>
+        <input type="text" class="form-control" id="depositAmount" name="depositAmount" formControlName="depositAmount">
+      </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="discount">Discount (percent)</label>
+          <input type="text" class="form-control" id="discount" name="discount" formControlName="discount" placeholder="10">
+          <span style="font-size: 10px">i.e. 8.5</span>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="salesTax">Sales Tax</label>
+          <input type="text" class="form-control" id="salesTax" name="salesTax" formControlName="salesTax">
+          <span style="font-size: 10px">i.e. 8.5</span>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="totalCost">Estimated total</label>
+          <input type="text" class="form-control" id="totalCost" name="totalCost" formControlName="totalCost">
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="carbonCreditRate">Carbon Credit Rate</label>
+          <input type="text" class="form-control" id="carbonCreditRate" name="carbonCreditRate" formControlName="carbonCreditRate">
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="startDate">Start Date</label>
+          <my-date-picker
+            name="startDate"
+            id="startDate"
+            [options]="datePickerOptions"
+            formControlName="startDate">
+          </my-date-picker>
+          <div *ngIf="form.controls.startDate.errors && (form.controls.startDate.dirty || form.controls.startDate.touched)" class="alert alert-danger">
+            A valid date must be provided.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="timeZoneId">Timezone</label>
+          <select id="timeZoneId" name="timeZoneId" formControlName="timeZoneId" class="form-control">
+            <option disabled="disabled" value="">--</option>
+            <option *ngFor="let zone of timezones" [ngValue]="zone.value">{{zone.label}}</option>
+          </select>
+          <div *ngIf="form.controls.timeZoneId.errors && (form.controls.timeZoneId.dirty || form.controls.timeZoneId.touched)" class="alert alert-danger">
+            A timezone must be provided.
+          </div>
+        </div>
+      </div>
+    </div>
+    <form [formGroup]="reportFields">
+      <div class="col-md-2">
+        <div class="form-group">
+          <h5><strong>Show I2RLosses: </strong></h5>
+          <div class="radio">
+            <label><input type="radio" id="showI2RLoss" name="showI2RLoss" formControlName="showI2RLoss" value=true>YES</label>
+          </div>
+          <div class="radio">
+            <label><input type="radio" id="showI2RLoss" name="showI2RLoss" formControlName="showI2RLoss" value=false>NO</label>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-group">
+          <h5><strong>Alternative Energy Supply: </strong></h5>
+          <label><input type="number" class="form-control" id="altEnergyRatio" name="altEnergyRatio" value="0" formControlName="altEnergyRatio">(0-100%)</label>
+        </div>
+        <div class="form-group">
+          <h5><strong>Percent of Circuit Under 600 Volt: </strong></h5>
+          <label><input type="number" class="form-control" id="effectivePercent" name="effectivePercent" value="0" formControlName="effectivePercent">(0-100%)</label>
+        </div>
+        <p>Between 0 - 100 (%)</p>
+      </div>
+      <div class="row">
+        <h2>Invoice PDF Fields</h2>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="depositInvoiceDate">Deposit Invoice Date</label>
+            <my-date-picker
+              name="depositInvoiceDate"
+              id="depositInvoiceDate"
+              [options]="datePickerOptions"
+              formControlName="depositInvoiceDate">
+            </my-date-picker>
+            <div *ngIf="reportFields.controls.depositInvoiceDate.errors && (reportFields.controls.depositInvoiceDate.dirty || reportFields.controls.depositInvoiceDate.touched)" class="alert alert-danger">
+              A valid date must be provided.
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="finalInvoiceDate">Final Invoice Date</label>
+            <my-date-picker
+              name="finalInvoiceDate"
+              id="finalInvoiceDate"
+              [options]="datePickerOptions"
+              formControlName="finalInvoiceDate">
+            </my-date-picker>
+            <div *ngIf="reportFields.controls.finalInvoiceDate.errors && (reportFields.controls.finalInvoiceDate.dirty || reportFields.controls.finalInvoiceDate.touched)" class="alert alert-danger">
+              A valid date must be provided.
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="installationInvoiceDate">Installation Invoice Date</label>
+            <my-date-picker
+              name="installationInvoiceDate"
+              id="installationInvoiceDate"
+              [options]="datePickerOptions"
+              formControlName="installationInvoiceDate">
+            </my-date-picker>
+            <div *ngIf="reportFields.controls.installationInvoiceDate.errors && (reportFields.controls.installationInvoiceDate.dirty || reportFields.controls.installationInvoiceDate.touched)" class="alert alert-danger">
+              A valid date must be provided.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="depositInvoicePercent">Deposit Invoice Percent</label>
+            <input type="text" class="form-control" id="depositInvoicePercent" name="depositInvoicePercent" formControlName="depositInvoicePercent">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="finalInvoicePercent">Final Invoice Percent</label>
+            <input type="text" class="form-control" id="finalInvoicePercent" name="finalInvoicePercent" formControlName="finalInvoicePercent">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="installationInvoicePercent">Installation Invoice Percent</label>
+            <input type="text" class="form-control" id="installationInvoicePercent" name="installationInvoicePercent" formControlName="installationInvoicePercent">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="rfcCode">RFC Code</label>
+            <input type="text" class="form-control" id="rfcCode" name="rfcCode" formControlName="rfcCode">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="invoiceContactName">Bill To Name</label>
+            <input type="text" class="form-control" id="invoiceContactName" name="invoiceContactName" formControlName="invoiceContactName">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="invoiceContactPhone">Bill To Phone</label>
+            <input type="text" class="form-control" id="invoiceContactPhone" name="invoiceContactPhone" formControlName="invoiceContactPhone">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label for="billToAddress">Bill To Address</label>
+            <input type="text" class="form-control" id="billToAddress" name="billToAddress" formControlName="billToAddress">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="billToCity">Bill To City</label>
+            <input type="text" class="form-control" id="billToCity" name="billToCity" formControlName="billToCity">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="billToState">Bill To State</label>
+            <input type="text" class="form-control" id="billToState" name="billToState" formControlName="billToState">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="billToZip">Bill To Zip</label>
+            <input type="text" class="form-control" id="billToZip" name="billToZip" formControlName="billToZip">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="billToCountry">Bill To Country</label>
+            <input type="text" class="form-control" id="billToCountry" name="billToCountry" formControlName="billToCountry">
+          </div>
+        </div>
+      </div>
+
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="form-group">
+            <label for="shipToAddress">Ship To Address</label>
+            <input type="text" class="form-control" id="shipToAddress" name="shipToAddress" formControlName="shipToAddress">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="shipToCity">Ship To City</label>
+            <input type="text" class="form-control" id="shipToCity" name="shipToCity" formControlName="shipToCity">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="shipToState">Ship To State</label>
+            <input type="text" class="form-control" id="shipToState" name="shipToState" formControlName="shipToState">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="shipToZip">Ship To Zip</label>
+            <input type="text" class="form-control" id="shipToZip" name="shipToZip" formControlName="shipToZip">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label for="shipToCountry">Ship To Country</label>
+            <input type="text" class="form-control" id="shipToCountry" name="shipToCountry" formControlName="shipToCountry">
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <h2>Bill Analytic PDF Fields</h2>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="billAnalyticDate">Bill Analytic Date</label>
+            <my-date-picker
+              name="billAnalyticDate"
+              id="billAnalyticDate"
+              [options]="datePickerOptions"
+              formControlName="billAnalyticDate">
+            </my-date-picker>
+            <div *ngIf="reportFields.controls.billAnalyticDate.errors && (reportFields.controls.billAnalyticDate.dirty || reportFields.controls.billAnalyticDate.touched)" class="alert alert-danger">
+              A valid date must be provided.
+            </div>
+          </div>
+        </div>
+        <!--<div class="col-md-4">
+          <div class="form-group">
+            <label for="recommendedReserveAdjustment">Recommended reserve adjustment</label>
+            <input type="text" class="form-control" id="recommendedReserveAdjustment" name="recommendedReserveAdjustment" formControlName="recommendedReserveAdjustment">
+          </div>
+        </div>-->
+      </div>
+
+      <div class="row">
+        <h2>Proposal PDF Fields</h2>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label for="proposalDate">Proposal Date</label>
+            <my-date-picker
+              name="proposalDate"
+              id="proposalDate"
+              [options]="datePickerOptions"
+              formControlName="proposalDate">
+            </my-date-picker>
+            <div *ngIf="reportFields.controls.proposalDate.errors && (reportFields.controls.proposalDate.dirty || reportFields.controls.proposalDate.touched)" class="alert alert-danger">
+              A valid date must be provided.
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="row">
+      <div class="col-md-12 text-right">
+        <a class="btn btn-default cancel-btn" *ngIf="userService.user.role == 8" [routerLink]="['/xeco-administrator/project/list']">Cancel</a>
+        <a class="btn btn-default cancel-btn" *ngIf="userService.user.role != 8" [routerLink]="['/project/select']">Cancel</a>
+        <button type="button" class="btn btn-primary" (click)="submitEditProjectForm()">Save changes</button>
+      </div>
+    </div>
+  </form>
+</div>

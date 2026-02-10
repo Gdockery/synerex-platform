@@ -1,0 +1,49 @@
+Update Friesland VM
+
+
+########
+# on DO:
+########
+
+cd ~/portals-maintenance/tmp/Xeco-Portal/
+git pull
+sudo n # switch to v12
+npm i
+sudo n # switch to v10
+cd ..
+zip --symlinks -r Xeco-Portal Xeco-Portal
+scp -i ~/.ssh/xcorp@office Xeco-Portal.zip  xcorp@10.8.0.62:~
+
+
+#################
+# on xeco_office:
+#################
+
+scp -o BindAddress=10.160.71.4 Xeco-Portal.zip 10.209.19.2:~/
+
+
+#######################
+# on Friesland machine:
+#######################
+
+# stop VM
+cd ~/Documents
+vagrant halt
+
+# remove old VMs
+VBoxManage list vms # this shows existing VMs
+# repeat following for all VMs
+VBoxManage unregistervm --delete "<put here the VM name>"
+
+# remove old code
+rm -rf ~/Documents/Xeco-Portal
+
+# bring new code & check it's working fine
+cd ~/Documents
+unzip ~/Xeco-Portal.zip
+cp maintenance/offline/Vagrantfile.Offline Vagrantfile
+vagrant up
+vagrant ssh
+# next, inside in the VM:
+sudo journalctl -u web -f
+

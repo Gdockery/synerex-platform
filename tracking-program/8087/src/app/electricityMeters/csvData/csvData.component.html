@@ -1,0 +1,39 @@
+<div *ngIf="!type">
+  <div class="content-box container-fluid">
+    <div class="row">
+      <div class="col-md-3" *ngFor="let type of typeService.types;">
+        <div class="box" style="height: 300px;">
+          <h3>{{type.name}}</h3>
+          <p>{{type.description}}</p>
+          <div style="position:absolute;width:100%;bottom:0;padding: 20px;left:0">
+            <div><div [ngClass]="{'number-circle-red':type.count,'number-circle-gray':!type.count}">{{type.count}}</div> Instances Saved</div><br />
+            <div class="text-center"><button class="default-button green-button" style="width:75%;" type="button" (click)="selectType(type)">View</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content-box">
+    <h3>History</h3>
+    <ul class="list-group">
+      <li *ngFor="let csv of modelObserver | async" class="list-group-item">
+        Detailed Meter -
+        {{(csv.fromDate | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}} to
+        {{(csv.toDate | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}
+        - {{csv.meterCount}} meters selected
+        <a (click)="csvDataService.downloadFile(csv)">Download</a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div *ngIf="type">
+  <div class="col-md-12">
+    <sd-create-csv
+      [currentType]="type"
+      [csvData]="csvData"
+      (cancelEvent)="selectType(null)"
+      (createEvent)="refresh()"
+    ></sd-create-csv>
+  </div>
+</div>

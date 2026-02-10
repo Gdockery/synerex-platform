@@ -1,0 +1,331 @@
+Data base changes
+
+alter table project change invoiceNumber invoiceNumber longtext;
+update project set invoiceNumber = NULL;
+
+alter table client change paymentTerms taxId varchar(255); 
+
+
+
+
+
+New:
+
+alter table project change totalKva totalKw double;
+alter table project add totalKwh double default 0;
+alter table project add projectTotalPeaks double default 0;
+alter table project add peakTime varchar(255) default NULL;
+alter table project add projectTotalKwh double default 0;
+alter table project add lastMonthPeak double default 0;
+alter table project add lastYearTotalPeaks double default 0;
+alter table project add yearTotalPeaks double default 0;
+alter table project add kwhRate double default 0;
+alter table project add kwRate double default 0;
+alter table project add lastKwh double default 0;
+
+alter table client add createdBy varchar(255) default NULL;
+
+alter table meter add minutesRecorded double default 0;
+
+alter table meter add peakTime varchar(255) default NULL;
+
+alter table meter add avg15MinuteKw double default 0;
+alter table meter add peakKw double default 0;
+alter table meter add lastMonthKwh double default 0;
+alter table meter add lastMonthAvgKw double default 0;
+alter table meter add lastMonthPeak double default 0;
+
+alter table meter add yearKwh double default 0;
+alter table meter add yearTotalPeaks double default 0;
+alter table meter add lastYearKwh double default 0;
+alter table meter add lastYearTotalPeaks double default 0;
+alter table meter add projectTotalPeaks double default 0;
+alter table meter add projectTotalKwh double default 0; 
+
+alter table project add monthPfc double default 0;
+alter table project add lastMonthPfc double default 0;
+alter table project add yearPfc double default 0;
+alter table project add lastYearPfc double default 0;
+alter table project add projectPfc double default 0;
+
+alter table project add yearTotalKwh double default 0;
+alter table project add lastMonthKwh double default 0;
+alter table project add lastYearTotalKwh double default 0;
+alter table project add lastMonthAvgKw double default 0;
+alter table project add todayKwh double default 0;
+alter table project add taxRate double default 0;
+alter table repeater add meshLastCommunicatedAt double default null;
+
+//change column default in project table
+
+alter table project change kwPeakSavings kwPeakSavings double default 0;
+alter table project change pfSavings pfSavings double default 0;
+alter table project change kvarSavings kvarSavings double default 0;
+alter table project change kvaSavings kvaSavings double default 0;
+alter table project change kwhSavings kwhSavings double default 0;
+alter table project drop totalKw;
+alter table project change totalL1Amp totalL1Amp double default 0;
+alter table project change totalL2Amp totalL2Amp double default 0;
+alter table project change totalL3Amp totalL3Amp double default 0;
+alter table project change avgL1Pf avgL1Pf double default 0;
+alter table project change avgL2Pf avgL2Pf double default 0;
+alter table project change avgL3Pf avgL3Pf double default 0;
+alter table project change totalL1Kvar totalL1Kvar double default 0;
+alter table project change totalL2Kvar totalL2Kvar double default 0;
+alter table project change totalL3Kvar totalL3Kvar double default 0;
+alter table project change avgL1Volt avgL1Volt double default 0;
+alter table project change avgL2Volt avgL2Volt double default 0;
+alter table project change avgL3Volt avgL3Volt double default 0;
+alter table project change avg15MinuteKva avg15MinuteKva double default 0;
+alter table project change peakKva peakKva double default 0;
+alter table project drop projectPeaks;
+
+alter table meter drop week;
+alter table meter drop month;
+alter table meter drop lastMonth;
+alter table meter drop year;
+alter table meter drop lastYear;
+alter table meter drop allTime;
+alter table meter drop lastRecordedTime;
+alter table meter drop minutesRecorded;
+
+alter table meter add todayKwh double default 0;
+alter table meter add totalKwh double default 0;
+alter table meter add lastKwh double default 0;
+alter table meter add weekKwh double default 0;
+
+alter table project add todayAvgKw double default 0;
+alter table meter add todayAvgKw double default 0;
+
+CREATE TABLE `file` (
+  `createdAt` bigint(20) DEFAULT NULL,
+  `updatedAt` bigint(20) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) DEFAULT NULL,
+  `description` longtext DEFAULT NULL,
+  `project` int(11) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+alter table meter add gateway varchar(255);
+alter table switch add gateway varchar(255);
+alter table repeater add gateway varchar(255);
+alter table meter add lastTimestamp bigInt(20);
+alter table schedule change switch switches longtext;
+alter table schedule add deviceType tinyint(1) default 2;
+
+CREATE TABLE `equipmentdata` (
+  `createdAt` bigint(20) DEFAULT NULL,
+  `updatedAt` bigint(20) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recordedAt` double DEFAULT NULL,
+  `day` varchar(255) DEFAULT NULL,
+  `minute` double DEFAULT NULL,
+  `intervalId` varchar(255) DEFAULT NULL,
+  `l1Volt` double DEFAULT NULL,
+  `l1Amp` double DEFAULT NULL,
+  `l1Kw` double DEFAULT NULL,
+  `l1Kva` double DEFAULT NULL,
+  `l1Pf` double DEFAULT NULL,
+  `l1Kvar` double DEFAULT NULL,
+  `l2Volt` double DEFAULT NULL,
+  `l2Amp` double DEFAULT NULL,
+  `l2Kw` double DEFAULT NULL,
+  `l2Kva` double DEFAULT NULL,
+  `l2Pf` double DEFAULT NULL,
+  `l2Kvar` double DEFAULT NULL,
+  `l3Volt` double DEFAULT NULL,
+  `l3Amp` double DEFAULT NULL,
+  `l3Kw` double DEFAULT NULL,
+  `l3Kva` double DEFAULT NULL,
+  `l3Pf` double DEFAULT NULL,
+  `l3Kvar` double DEFAULT NULL,
+  `totalVolt` double DEFAULT NULL,
+  `totalAmp` double DEFAULT NULL,
+  `totalKw` double DEFAULT NULL,
+  `totalKva` double DEFAULT NULL,
+  `totalPf` double DEFAULT NULL,
+  `totalKvar` double DEFAULT NULL,
+  `l1VoltTHD` double DEFAULT NULL,
+  `l2VoltTHD` double DEFAULT NULL,
+  `l3VoltTHD` double DEFAULT NULL,
+  `l1AmpTHD` double DEFAULT NULL,
+  `l2AmpTHD` double DEFAULT NULL,
+  `l3AmpTHD` double DEFAULT NULL,
+  `totalVoltTHD` double DEFAULT NULL,
+  `totalAmpTHD` double DEFAULT NULL,
+  `switch` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  UNIQUE KEY `uniq_idx` (`switch`,`recordedAt`)
+--  KEY `switch_idx` (`switch`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+CREATE TABLE `equipmentdataaggregate` (
+  `createdAt` bigint(20) DEFAULT NULL,
+  `updatedAt` bigint(20) DEFAULT NULL,
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `day` varchar(255) DEFAULT NULL,
+  `intervalId` varchar(255) DEFAULT NULL,
+  `numSamples` double DEFAULT NULL,
+  `intervalStartTime` double DEFAULT NULL,
+  `intervalEndTime` double DEFAULT NULL,
+  `avgVolt` double DEFAULT NULL,
+  `avgAmp` double DEFAULT NULL,
+  `avgKw` double DEFAULT NULL,
+  `avgKva` double DEFAULT NULL,
+  `avgPf` double DEFAULT NULL,
+  `avgKvar` double DEFAULT NULL,
+  `avgVoltTHD` double DEFAULT NULL,
+  `avgAmpTHD` double DEFAULT NULL,
+  `peakKva` double DEFAULT NULL,
+  `project` int(11) DEFAULT NULL,
+  `peakKw` double DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id` (`id`),
+  KEY `projday_idx` (`project`,`day`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+
+
+
+alter table project drop column totalL1Amp; 
+alter table project drop column totalL2Amp;
+alter table project drop column totalL3Amp; 
+alter table project drop column avgL1Pf;
+alter table project drop column avgL2Pf;
+alter table project drop column avgL3Pf;
+alter table project drop column totalL1Kvar;
+alter table project drop column totalL2Kvar;
+alter table project drop column totalL3Kvar;
+alter table project drop column avgL1Volt;
+alter table project drop column avgL2Volt;
+alter table project drop column avgL3Volt;
+alter table project drop column projectTotalPeaks;
+alter table project drop column peakKw;
+alter table project drop column totalKwh;
+alter table project drop column projectTotalKwh;
+alter table project drop column yearTotalPeaks;
+alter table project drop column lastYearTotalPeaks;
+alter table project drop column yearTotalKwh;
+alter table project drop column lastYearTotalKwh;
+alter table project drop column lastMonthAvgKw;
+alter table project drop column todayAvgKw;
+alter table meter drop column projectTotalPeaks;
+alter table meter drop column peakKw;
+alter table meter drop column totalKwh;
+alter table meter drop column projectTotalKwh;
+alter table meter drop column yearTotalPeaks;
+alter table meter drop column lastYearTotalPeaks;
+alter table meter drop column yearKwh;
+alter table meter drop column avg15MinuteKw;
+alter table meter drop column lastYearKwh;
+alter table meter drop column lastMonthAvgKw;
+alter table meter drop column todayAvgKw;
+alter table meter drop column month;
+alter table meter drop column week;
+alter table meter drop column lastMonth;
+alter table meter drop column year;
+alter table meter drop column lastYear;
+alter table meter drop column allTime;
+alter table project add totalAmpLoad double default 0;
+alter table project add lastTotalPf double default 100;
+alter table project add initialPf double default 100;
+alter table meter add monthKwh double default 0;
+alter table meter add avg15MinuteKva double default 0;
+alter table meter add monthPeak double default 0;
+alter table meter add lastMonthSavings double default 0;
+alter table meter add lastMonthBudget double default 0;
+alter table meter add yearSavings double default 0;
+alter table meter add lastYearSavings double default 0;
+alter table meter add projectSavings double default 0;
+alter table meter add monthI2RLoss double default 0;
+alter table meter add lastMonthI2RLoss double default 0;
+alter table meter add yearI2RLoss double default 0;
+alter table meter add lastYearI2RLoss double default 0;
+alter table meter add projectI2RLoss double default 0;
+alter table meter add todayI2RLoss double default 0;
+alter table meter add weekI2RLoss double default 0;
+alter table meter add kwhSavings double default 0;
+alter table meter add kwPeakSavings double default 0;
+alter table project add currencyExchangeRate double default 0;
+alter table project add currencyExchangeCharge double default 0;
+alter table switch drop column todayKwh; 
+alter table switch drop column todayCost; 
+alter table switch drop column weekCost; 
+alter table switch drop column monthCost; 
+alter table switch drop column yearCost; 
+alter table switch drop column projectCost; 
+alter table switch add meshIp varchar(255) default NULL;
+alter table meter add meshIp varchar(255) default NULL;
+alter table repeater add meshIp varchar(255) default NULL;
+alter table gateway add meshIp varchar(255) default NULL;
+alter table project drop column weekKwh;
+alter table project drop column todayKwh;
+alter table project drop column todayKwh;
+alter table project drop column week;
+alter table project drop column month;
+alter table project drop column lastMonth;
+alter table project drop column year;
+alter table project drop column allTime;
+alter table project drop column peakTime;
+alter table project drop column lastMonthPeak;
+alter table project drop column monthPfc;
+alter table project drop column lastMonthPfc;
+alter table project drop column yearPfc;
+alter table project drop column lastYearPfc;
+alter table project drop column projectPfc;
+alter table project drop column lastMonthSavings;
+alter table project drop column yearSavings;
+alter table project drop column projectSavings;
+alter table project drop column monthI2RLoss;
+alter table project drop column lastMonthI2RLoss;
+alter table project drop column yearI2RLoss;
+alter table project drop column lastYearI2RLoss;
+alter table project drop column projectI2RLoss;
+alter table project drop column todayI2RLoss;
+alter table project drop column yearCarbonSavingsValue;
+alter table project drop column projectCarbonSavings;
+alter table project drop column projectCarbonSavingsValue;
+alter table project drop column lastMonthBudget;
+alter table project drop column lastMonthKwh;
+alter table project drop column monthKwh;
+alter table project drop column monthPeak;
+alter table project drop column weekI2RLoss;
+alter table project drop column projectKwhSavings;
+alter table project drop column projectKwhSavingsValue;
+alter table project drop column projectPeakSavings;
+alter table project drop column projectPeakSavingsValue;
+alter table project drop column projectI2RLossSavings;
+alter table project drop column lastYearSavings;
+alter table project drop column totalKwh;
+alter table project drop column projectTotalPeaks;
+alter table project drop column projectTotalKwh;
+alter table project drop column lastYearTotalPeaks;
+alter table project drop column yearTotalPeaks;
+alter table project drop column yearTotalKwh;
+alter table project drop column lastYearTotalKwh;
+alter table project drop column lastMonthAvgKw;
+alter table project drop column lastYear;
+alter table project add subNeeded tinyint(1) default 0;
+alter table project add subStartDate varchar(255);
+
+alter table meter add isReporting tinyint(1) default 0;
+alter table project add multiplier double default 1;
+alter table project add peakMultiplier double default 1;
+alter table meterdata add totalTHD double default 0;
+alter table meterdata add l1THD double default 0;
+alter table meterdata add l2THD double default 0;
+alter table meterdata add l3THD double default 0;
+alter table project add ILRatio double default 100;
+alter table project add lat decimal(10,8);
+alter table project add lng decimal(11,8);
+
+
+
+
+
+

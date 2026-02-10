@@ -1,0 +1,2 @@
+20 * * * * vagrant /bin/bash /vagrant/maintenance/db-entities-backup/backup-entities.sh hourly
+0 0 * * 6 vagrant /bin/bash /vagrant/maintenance/db-entities-backup/backup-entities.sh weekly

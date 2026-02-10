@@ -1,0 +1,15 @@
+[Unit]
+Description=Web service
+After=network.target
+
+[Service]
+User=vagrant
+Environment=sails_environment="development"
+WorkingDirectory=/vagrant
+ExecStart=/vagrant/node_modules/.bin/sails lift
+Restart=always
+RestartSec=500ms
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target
