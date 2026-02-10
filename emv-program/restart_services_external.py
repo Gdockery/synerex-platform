@@ -84,9 +84,9 @@ def restart_services():
                 """Check if a service is healthy using curl"""
                 try:
                     if port == 8082:
-                        url = "http://127.0.0.1:8082/api/health"
+                        url = f"{os.getenv('EMV_BASE_URL')}/api/health"
                     else:
-                        url = f"http://127.0.0.1:{port}{endpoint}"
+                        url = f"{os.getenv('SERVICE_MANAGER_URL').split(':')[0]}://{os.getenv('SERVICE_MANAGER_URL').replace('http://', '').replace('https://', '').split(':')[0]}:{port}{endpoint}"
                     result = subprocess.run(
                         ['curl.exe', '-s', '-f', '--max-time', str(timeout), url],
                         capture_output=True,

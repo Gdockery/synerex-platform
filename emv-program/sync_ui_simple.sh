@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Simple UI sync script from remote server to localhost
+# Simple UI sync script from remote server to local machine
 # Preserves local projects and data
 
-echo "🚀 Syncing UI from remote server to localhost"
+echo "🚀 Syncing UI from remote server to local machine"
 echo "📡 Server: 134.209.14.71"
 echo ""
 

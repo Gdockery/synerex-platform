@@ -353,30 +353,29 @@
     <div class="header">
       <div class="header-content">
         <div class="logo-container">
-          <h1>
-            <img src="/static/synerex_logo_color.png" alt="Synerex" />
-          </h1>
+          <a href="{{ admin_url('') }}" style="display: flex; align-items: center; text-decoration: none; color: inherit;">
+            <img src="{{ admin_base }}/static/synerex_logo_color.png" alt="Synerex" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+            <span class="logo-text-replacement" style="display: none; font-size: 1.5rem; font-weight: 600;">Synerex</span>
+          </a>
         </div>
         <div class="user-actions">
-          <a href="/admin" class="btn btn-secondary btn-small" style="text-decoration: none; margin-right: 0.5rem;">← Back</a>
-          <form method="post" action="/admin/logout" style="display: inline;">
-            <button class="btn btn-secondary btn-small" type="submit">Logout</button>
-          </form>
+          <a href="{{ admin_url('') }}" class="btn btn-secondary btn-small" style="text-decoration: none; margin-right: 0.5rem;">← Back</a>
+          <a href="{{ admin_url('logout') }}" class="btn btn-secondary btn-small" style="text-decoration: none;">Logout</a>
         </div>
       </div>
     </div>
     
     <div class="nav-container">
       <nav>
-        <a href="/admin">Dashboard</a>
-        <a href="/admin/orgs">Organizations</a>
-        <a href="/admin/pe-registrations">PE Registrations</a>
-        <a href="/admin/api-keys">API Keys</a>
-        <a href="/admin/templates">Software Versions</a>
-        <a href="/admin/authorizations">Authorizations</a>
-        <a href="/admin/licenses">Licenses</a>
-        <a href="/admin/server">Server</a>
-        <a href="/docs">API Docs</a>
+        <a href=".">Dashboard</a>
+        <a href="orgs">Organizations</a>
+        <a href="pe-registrations">PE Registrations</a>
+        <a href="api-keys">API Keys</a>
+        <a href="templates">Software Versions</a>
+        <a href="authorizations">Authorizations</a>
+        <a href="licenses">Licenses</a>
+        <a href="server">Server</a>
+        <a href="{{ admin_base ~ '/docs' }}">API Docs</a>
       </nav>
     </div>
     

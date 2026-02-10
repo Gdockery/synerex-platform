@@ -2169,11 +2169,11 @@ function clearFileSelection(fileType) {
 }
 
 // Function to restore file selections from session storage or URL parameters
+// Supports both snake_case (selected_before_file_id) and camelCase (selectedBeforeFileId) from dashboard
 function restoreFileSelectionsFromStorage() {
   try {
-    // Try to restore from session storage first
-    const storedBeforeFileId = sessionStorage.getItem('selected_before_file_id');
-    const storedAfterFileId = sessionStorage.getItem('selected_after_file_id');
+    const storedBeforeFileId = sessionStorage.getItem('selected_before_file_id') || sessionStorage.getItem('selectedBeforeFileId');
+    const storedAfterFileId = sessionStorage.getItem('selected_after_file_id') || sessionStorage.getItem('selectedAfterFileId');
 
     if (storedBeforeFileId) {
       fetchFileInfoAndRestore(storedBeforeFileId, 'before');
@@ -12686,6 +12686,11 @@ function setupDataManagementListeners() {
   setTimeout(function() {
     loadProjectList();
   }, 100);
+
+  // On legacy page, restore before/after CSV selections from sessionStorage (from dashboard or previous choice)
+  if (window.location.pathname.includes('/legacy') && typeof restoreFileSelectionsFromStorage === 'function') {
+    setTimeout(restoreFileSelectionsFromStorage, 300);
+  }
 
   // Fallback: if DOM is already loaded, call immediately
   if (document.readyState === 'complete') {

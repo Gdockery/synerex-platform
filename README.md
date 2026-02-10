@@ -59,6 +59,23 @@ python main_hardened_ready_refactored.py
 - License Service authenticates users for EM&V Program
 - All components share consistent styling and navigation
 
+## Docker (Phase 4 baseline)
+
+```bash
+docker compose up --build
+```
+
+Proxy entrypoint:
+- `http://localhost:8080/` (website)
+- `http://localhost:8080/license/`
+- `http://localhost:8080/emv/`
+- `http://localhost:8080/tracking/`
+
+TLS (optional):
+- Place certs in `certs/fullchain.pem` and `certs/privkey.pem`
+- Or run `./scripts/gen_self_signed_certs.sh`
+- HTTPS entrypoint: `https://localhost:8443/`
+
 ## License
 
 Copyright © Synerex Laboratories, LLC

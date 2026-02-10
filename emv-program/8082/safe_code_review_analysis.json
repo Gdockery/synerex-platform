@@ -3738,7 +3738,7 @@
     {
       "type": "missing_docstring",
       "line": 96,
-      "function": "def __init__(self, weather_service_url=\"http://127.0.0.1:8200\"):",
+      "function": "def __init__(self, weather_service_url=os.getenv(\"WEATHER_SERVICE_URL\")):",
       "fix": "Add docstring to function on line 96"
     },
     {

@@ -64,7 +64,7 @@ def check_ollama_running():
     """Check if Ollama service is running on port 11434"""
     print_header("2. Checking if Ollama Service is Running")
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        response = requests.get(f"{os.getenv('OLLAMA_LOCAL_URL')}/api/tags", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = data.get('models', [])
@@ -88,7 +88,7 @@ def check_model_available():
     """Check if llama3.2:1b model is available"""
     print_header("3. Checking if Model 'llama3.2:1b' is Available")
     try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        response = requests.get(f"{os.getenv('OLLAMA_LOCAL_URL')}/api/tags", timeout=5)
         if response.status_code == 200:
             data = response.json()
             models = data.get('models', [])
@@ -118,7 +118,7 @@ def test_ollama_directly():
             "stream": False
         }
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            f"{os.getenv('OLLAMA_LOCAL_URL')}/api/generate",
             json=payload,
             timeout=30
         )
@@ -144,7 +144,7 @@ def check_backend_service():
     """Check if SYNEREX backend service (8090) is running"""
     print_header("5. Checking SYNEREX Backend Service (Port 8090)")
     try:
-        response = requests.get("http://localhost:8090/health", timeout=5)
+        response = requests.get(f"{os.getenv('OLLAMA_AI_URL')}/health", timeout=5)
         if response.status_code == 200:
             data = response.json()
             ollama_status = data.get('ollama_status', 'unknown')
@@ -183,7 +183,7 @@ def test_full_ai_pipeline():
             "conversation_history": []
         }
         response = requests.post(
-            "http://localhost:8090/api/ai/chat",
+            f"{os.getenv('OLLAMA_AI_URL')}/api/ai/chat",
             json=payload,
             timeout=60
         )

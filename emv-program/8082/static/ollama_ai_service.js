@@ -5,7 +5,7 @@
 
 class OllamaAIService {
     constructor() {
-        this.baseUrl = 'http://localhost:8090';
+        this.baseUrl = window.OLLAMA_AI_URL || '';
         this.conversationHistory = [];
         this.isConnected = false;
         this.initialized = false;

@@ -5,6 +5,7 @@ Verifies that all values in HTML reports are pulled from verified CSV data files
 """
 
 import requests
+import os
 import json
 import sqlite3
 from pathlib import Path
@@ -129,7 +130,7 @@ def verify_analysis_uses_verified_files():
             }
             
             print("Testing analysis API with verified file IDs...")
-            response = requests.post('http://127.0.0.1:8082/api/analyze', data=analyze_payload, timeout=30)
+            response = requests.post(f"{os.getenv('EMV_BASE_URL')}/api/analyze", data=analyze_payload, timeout=30)
             
             if response.status_code == 200:
                 data = response.json()
@@ -222,7 +223,7 @@ def verify_report_generation_uses_analysis_data():
             }
             
             print("Testing report generation with verified files...")
-            response = requests.post('http://127.0.0.1:8082/api/generate-report', data=report_payload, timeout=60)
+            response = requests.post(f"{os.getenv('EMV_BASE_URL')}/api/generate-report", data=report_payload, timeout=60)
             
             if response.status_code == 200:
                 print("PASS: Report generation successful")
@@ -332,7 +333,7 @@ def verify_data_chain_integrity():
                 
                 # Check if file is accessible via verified-files API
                 try:
-                    api_response = requests.get('http://127.0.0.1:8082/api/verified-files', timeout=10)
+                    api_response = requests.get(f"{os.getenv('EMV_BASE_URL')}/api/verified-files", timeout=10)
                     if api_response.status_code == 200:
                         api_data = api_response.json()
                         api_files = api_data.get('files', [])

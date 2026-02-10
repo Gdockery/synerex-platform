@@ -21,16 +21,31 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const serviceIntervalRef = useRef(null);
   
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
-  const SERVICE_MANAGER_URL = "http://localhost:9000";
-  const EMV_URL = "http://localhost:8082";
-  
+  // Fallbacks so links work even when env vars missing (e.g. Docker build without .env)
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
+  const SERVICE_MANAGER_URL = import.meta.env.VITE_SERVICE_MANAGER_URL || 'http://localhost:9000';
+  const EMV_URL = import.meta.env.VITE_EMV_URL || 'http://localhost:8082';
+  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || 'http://localhost:8087';
+  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
+  const WEBSITE_FRONTEND_URL = import.meta.env.VITE_WEBSITE_FRONTEND_URL || 'http://localhost:8080';
+
+  // Turn network/fetch errors into a clear message so user knows which service is unreachable
+  const messageForFetchError = (err, serviceName, url) => {
+    const isNetworkError = !err.message || err.message === 'Failed to fetch' || err.name === 'TypeError';
+    if (isNetworkError) {
+      return `${serviceName} is not reachable (${url}). Make sure it is running and try again.`;
+    }
+    return err.message;
+  };
+
   // Map website service IDs to Service Manager service IDs
   const mapServiceId = (websiteServiceId) => {
     const mapping = {
       'emv_service_9000': 'SELF_RESTART', // Service Manager itself - uses special self-restart endpoint
       'emv_program_8082': 'main_app', // EMV Program maps to main_app
-      'license_service_8000': null // License Service - not managed by Service Manager
+      'license_service_8000': null, // License Service - not managed by Service Manager
+      'tracking_program_8087': null, // Tracking Program - not managed by Service Manager
+      'website_frontend_5173': null // Website Frontend - not managed by Service Manager
     };
     // Check if key exists in mapping first, then return the value (even if null)
     if (websiteServiceId in mapping) {
@@ -157,7 +172,7 @@ export default function AdminDashboard() {
           transformedServices['emv_service_9000'] = {
             name: 'EM&V Service Manager',
             description: 'EM&V service manager',
-            url: 'http://localhost:9000',
+            url: SERVICE_MANAGER_URL,
             running: true, // Service Manager is always running if we can call it
             healthy: true,
             port: 9000,
@@ -169,7 +184,7 @@ export default function AdminDashboard() {
             transformedServices['emv_program_8082'] = {
               name: 'EM&V Program',
               description: 'EM&V program application',
-              url: 'http://localhost:8082',
+              url: EMV_URL,
               running: data.services.main_app.running || false,
               healthy: data.services.main_app.healthy || false,
               port: 8082,
@@ -186,7 +201,7 @@ export default function AdminDashboard() {
             transformedServices['license_service_8000'] = {
               name: 'License Service',
               description: 'License management service',
-              url: 'http://localhost:8000',
+              url: LICENSE_SERVICE_URL,
               running: licenseHealthResponse.ok,
               healthy: licenseHealthResponse.ok,
               port: 8000,
@@ -196,10 +211,65 @@ export default function AdminDashboard() {
             transformedServices['license_service_8000'] = {
               name: 'License Service',
               description: 'License management service',
-              url: 'http://localhost:8000',
+              url: LICENSE_SERVICE_URL,
               running: false,
               healthy: false,
               port: 8000,
+              dependencies: []
+            };
+          }
+          
+          // Check Tracking Program (8087) health
+          try {
+            const trackingHealthResponse = await fetch(`${TRACKING_URL}/`, {
+              credentials: 'omit',
+              signal: AbortSignal.timeout(2000)
+            });
+            transformedServices['tracking_program_8087'] = {
+              name: 'Tracking Program',
+              description: 'Tracking program application',
+              url: TRACKING_URL,
+              running: trackingHealthResponse.ok,
+              healthy: trackingHealthResponse.ok,
+              port: 8087,
+              dependencies: []
+            };
+          } catch (e) {
+            transformedServices['tracking_program_8087'] = {
+              name: 'Tracking Program',
+              description: 'Tracking program application',
+              url: TRACKING_URL,
+              running: false,
+              healthy: false,
+              port: 8087,
+              dependencies: []
+            };
+          }
+
+          // Check Website Frontend (5173) health
+          try {
+            const frontendHealthResponse = await fetch(`${WEBSITE_FRONTEND_URL}/`, {
+              credentials: 'omit',
+              signal: AbortSignal.timeout(2000)
+            });
+            // Vite dev server returns 200 even for 404 pages, so just check if it responds
+            transformedServices['website_frontend_5173'] = {
+              name: 'Website Frontend',
+              description: 'Vite/React frontend development server',
+              url: WEBSITE_FRONTEND_URL,
+              running: true,
+              healthy: frontendHealthResponse.ok,
+              port: 5173,
+              dependencies: []
+            };
+          } catch (e) {
+            transformedServices['website_frontend_5173'] = {
+              name: 'Website Frontend',
+              description: 'Vite/React frontend development server',
+              url: WEBSITE_FRONTEND_URL,
+              running: false,
+              healthy: false,
+              port: 5173,
               dependencies: []
             };
           }
@@ -225,6 +295,20 @@ export default function AdminDashboard() {
       console.warn('Service status refresh failed:', err);
     } finally {
       setLoadingServices(false);
+    }
+  };
+
+  const handleAdminLogout = async () => {
+    try {
+      await fetch(`${LICENSE_SERVICE_URL}/admin/logout`, {
+        method: "POST",
+        credentials: "include"
+      });
+    } catch (err) {
+      console.error("Failed to logout:", err);
+    } finally {
+      localStorage.removeItem("session_token");
+      window.location.href = `${LICENSE_SERVICE_URL}/admin/login`;
     }
   };
   
@@ -259,7 +343,7 @@ export default function AdminDashboard() {
           }
         } catch (err) {
           console.error('Failed to restart Service Manager:', err);
-          alert('Failed to restart Service Manager: ' + err.message);
+          alert('Failed to restart Service Manager: ' + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL));
           setServiceActions(prev => {
             const next = { ...prev };
             delete next[serviceId];
@@ -313,7 +397,53 @@ export default function AdminDashboard() {
             }
           } catch (err) {
             console.error(`Failed to ${action} License Service:`, err);
-            alert(`Failed to ${action} License Service: ` + err.message);
+            alert(`Failed to ${action} License Service: ` + messageForFetchError(err, 'EM&V Program (proxy)', EMV_URL));
+            setServiceActions(prev => {
+              const next = { ...prev };
+              delete next[serviceId];
+              return next;
+            });
+          }
+          return;
+        } else if (action === 'restart') {
+          // Restart License Service via stop -> start
+          setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+          try {
+            const stopResponse = await fetch(`${EMV_URL}/admin/license-service/stop`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const stopData = await stopResponse.json();
+            if (!stopData.success) {
+              throw new Error(stopData.message || 'Failed to stop License Service');
+            }
+
+            // Give the port time to release
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const startResponse = await fetch(`${EMV_URL}/admin/license-service/start`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const startData = await startResponse.json();
+            if (!startData.success) {
+              throw new Error(startData.message || 'Failed to start License Service');
+            }
+
+            alert(startData.message || 'License Service restart initiated');
+            setTimeout(() => {
+              loadServices();
+              setServiceActions(prev => {
+                const next = { ...prev };
+                delete next[serviceId];
+                return next;
+              });
+            }, 3000);
+          } catch (err) {
+            console.error('Failed to restart License Service:', err);
+            alert('Failed to restart License Service: ' + messageForFetchError(err, 'EM&V Program (proxy)', EMV_URL));
             setServiceActions(prev => {
               const next = { ...prev };
               delete next[serviceId];
@@ -324,6 +454,32 @@ export default function AdminDashboard() {
         } else {
           alert(`License Service (port 8000) only supports Start and Stop operations.`);
         }
+      } else if (serviceId === 'tracking_program_8087') {
+        // Tracking Program - provide manual instructions
+        const serviceName = 'Tracking Program (8087)';
+        const startCmd = 'cd tracking-program/8087 && npm run start (or start via Docker)';
+        const stopCmd = 'Stop the process or Docker container';
+        if (action === 'start') {
+          alert(`To start ${serviceName}, run:\n\n${startCmd}\n\nin a terminal or start the tracking-program container.`);
+        } else if (action === 'stop') {
+          alert(`To stop ${serviceName}:\n\n${stopCmd}`);
+        } else if (action === 'restart') {
+          alert(`To restart ${serviceName}:\n\n1. Stop: ${stopCmd}\n2. Start: ${startCmd}`);
+        }
+        return;
+      } else if (serviceId === 'website_frontend_5173') {
+        // Website Frontend (5173) - Docker or local dev
+        const dockerRestart = 'docker-compose restart website';
+        const localStart = 'cd website && npm run dev';
+        if (action === 'restart') {
+          const msg = `To restart the website (port 5173):\n\nDocker: In project root run:\n  ${dockerRestart}\n\nLocal dev: Ctrl+C in the terminal, then:\n  ${localStart}\n\nTip: Use "Copy restart command" in Maintenance Tools to copy the Docker command.`;
+          alert(msg);
+        } else if (action === 'start') {
+          alert(`To start the website (5173):\n\nDocker: docker-compose up -d website\nLocal: ${localStart}`);
+        } else if (action === 'stop') {
+          alert('To stop: Docker: docker-compose stop website\nLocal: Ctrl+C in the terminal.');
+        }
+        return;
       } else {
         alert(`Service ${serviceId} is not managed by Service Manager.`);
       }
@@ -373,7 +529,7 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error(`Failed to ${action} service:`, err);
-      alert(`Failed to ${action} service: ${err.message}`);
+      alert(`Failed to ${action} service: ` + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL));
       setServiceActions(prev => {
         const next = { ...prev };
         delete next[serviceId];
@@ -471,8 +627,8 @@ export default function AdminDashboard() {
       
       if (err.name === 'AbortError') {
         errorMessage = 'Request timed out. The services may still be starting. Please check the Service Manager status in a few moments.';
-      } else if (err.message) {
-        errorMessage = `Failed to start all services: ${err.message}`;
+      } else {
+        errorMessage = 'Failed to start all services: ' + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL);
       }
       
       alert(errorMessage);
@@ -521,7 +677,7 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error('Failed to stop all services:', err);
-      alert(`Failed to stop all services: ${err.message}`);
+      alert('Failed to stop all services: ' + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL));
       setServiceActions(prev => {
         const next = { ...prev };
         delete next['all'];
@@ -576,13 +732,22 @@ export default function AdminDashboard() {
           <p className="text-xl text-gray-300 mb-4 text-center">
             Welcome, {userInfo?.username || 'Admin'}!
           </p>
+          <div className="flex justify-center mb-4">
+            <button
+              type="button"
+              onClick={handleAdminLogout}
+              className="px-4 py-2 text-sm font-semibold bg-gray-800/80 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-md transition-colors"
+            >
+              Logout
+            </button>
+          </div>
           <p className="text-gray-400 text-center max-w-4xl mx-auto">
             Manage the Synerex platform, monitor system status, and access administrative tools.
           </p>
         </div>
         
         {/* Quick Access Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div
             onClick={(e) => {
               e.preventDefault();
@@ -592,8 +757,8 @@ export default function AdminDashboard() {
               const targetUrl = token 
                 ? `${LICENSE_SERVICE_URL}/admin?token=${encodeURIComponent(token)}`
                 : `${LICENSE_SERVICE_URL}/admin/login`;
-              // Navigate immediately
-              window.location.replace(targetUrl);
+              // Navigate in same window and preserve history
+              window.location.href = targetUrl;
             }}
             className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-6 border border-purple-700/50 hover:border-purple-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
           >
@@ -628,6 +793,28 @@ export default function AdminDashboard() {
               Manage EM&V program settings and configurations
             </p>
             <div className="text-blue-400 text-sm font-semibold">Open Admin Panel →</div>
+          </a>
+          
+          <a
+            href={`${TRACKING_URL}/sso?role=admin`}
+            onClick={(e) => {
+              e.preventDefault();
+              const token = localStorage.getItem('session_token');
+              const url = token ? `${TRACKING_URL}/sso?role=admin&token=${encodeURIComponent(token)}` : `${TRACKING_URL}/sso?role=admin`;
+              window.location.href = url;
+            }}
+            className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-6 border border-cyan-700/50 hover:border-cyan-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-cyan-400">Tracking Admin Portal</h3>
+              <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <p className="text-gray-300 text-sm mb-4">
+              Admin access to Tracking program (port 8087)
+            </p>
+            <div className="text-cyan-400 text-sm font-semibold">Open Admin Portal →</div>
           </a>
           
           <a
@@ -721,22 +908,23 @@ export default function AdminDashboard() {
           
           {loadingServices ? (
             <div className="text-center text-gray-400 py-8">Loading service status...</div>
-          ) : servicesError ? (
-            <div className="text-center text-yellow-400 py-8">
-              <p className="font-semibold mb-2">{servicesError}</p>
-              <button 
-                onClick={() => {
-                  setLoadingServices(true);
-                  setServicesError(null);
-                  loadServices();
-                }}
-                className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-              >
-                Retry Loading Services
-              </button>
-            </div>
           ) : (
             <div className="space-y-6">
+              {servicesError && (
+                <div className="text-center text-yellow-400 py-4 rounded-lg bg-yellow-900/20 border border-yellow-700/50">
+                  <p className="font-semibold mb-2">{servicesError}</p>
+                  <button 
+                    onClick={() => {
+                      setLoadingServices(true);
+                      setServicesError(null);
+                      loadServices();
+                    }}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  >
+                    Retry Loading Services
+                  </button>
+                </div>
+              )}
               {/* Always show EM&V buttons even if services object is empty */}
               {/* EM&V Program Services */}
               <div>
@@ -754,7 +942,7 @@ export default function AdminDashboard() {
                     const defaultService = {
                       name: serviceId === 'emv_service_9000' ? 'EM&V Service (Port 9000)' : 'EM&V Program (Port 8082)',
                       description: serviceId === 'emv_service_9000' ? 'EM&V service manager' : 'EM&V program application',
-                      url: serviceId === 'emv_service_9000' ? 'http://localhost:9000' : 'http://localhost:8082',
+                      url: serviceId === 'emv_service_9000' ? SERVICE_MANAGER_URL : EMV_URL,
                       running: false,
                       healthy: false,
                       dependencies: []
@@ -892,13 +1080,17 @@ export default function AdminDashboard() {
                 <div className="grid md:grid-cols-1 gap-4">
                   {['license_service_8000'].map(serviceId => {
                     const service = services[serviceId];
-                    if (!service) {
-                      console.warn(`Service ${serviceId} not found in services object`);
-                      return null;
-                    }
-                    
-                    const isRunning = service.running;
-                    const isHealthy = service.healthy;
+                    const defaultService = {
+                      name: 'License Service',
+                      description: 'License management service',
+                      url: LICENSE_SERVICE_URL,
+                      running: false,
+                      healthy: false,
+                      dependencies: []
+                    };
+                    const serviceData = service || defaultService;
+                    const isRunning = serviceData.running;
+                    const isHealthy = serviceData.healthy;
                     const actionInProgress = serviceActions[serviceId];
                     
                     let ledColor = 'bg-red-500';
@@ -915,9 +1107,9 @@ export default function AdminDashboard() {
                       <div key={serviceId} className="bg-gray-900 rounded-lg p-5 border border-gray-700">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
-                            <div className="text-base font-semibold text-gray-200 mb-1">{service.name}</div>
-                            <div className="text-xs text-gray-500 mb-2">{service.description}</div>
-                            <div className="text-xs text-gray-400">{service.url}</div>
+                            <div className="text-base font-semibold text-gray-200 mb-1">{serviceData.name}</div>
+                            <div className="text-xs text-gray-500 mb-2">{serviceData.description}</div>
+                            <div className="text-xs text-gray-400">{serviceData.url}</div>
                           </div>
                           <div className="flex flex-col items-center gap-2 ml-4">
                             <div className={`w-6 h-6 rounded-full ${ledColor} shadow-lg ${isHealthy ? 'animate-pulse led-green' : isRunning ? 'led-yellow' : 'led-red'}`} 
@@ -985,6 +1177,202 @@ export default function AdminDashboard() {
                   })}
                 </div>
               </div>
+              
+              {/* Tracking Program */}
+              <div>
+                <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Tracking Program
+                </h3>
+                <div className="grid md:grid-cols-1 gap-4">
+                  {['tracking_program_8087'].map(serviceId => {
+                    const service = services[serviceId];
+                    const defaultService = {
+                      name: 'Tracking Program (Port 8087)',
+                      description: 'Tracking program application',
+                      url: TRACKING_URL,
+                      running: false,
+                      healthy: false,
+                      dependencies: []
+                    };
+                    const serviceData = service || defaultService;
+                    const isRunning = serviceData.running;
+                    const isHealthy = serviceData.healthy;
+                    const actionInProgress = serviceActions[serviceId];
+                    let ledColor = 'bg-red-500';
+                    let statusText = 'Stopped';
+                    if (isHealthy) {
+                      ledColor = 'bg-green-500';
+                      statusText = 'Healthy';
+                    } else if (isRunning) {
+                      ledColor = 'bg-yellow-500';
+                      statusText = 'Running';
+                    }
+                    return (
+                      <div key={serviceId} className="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="text-base font-semibold text-gray-200 mb-1">{serviceData.name}</div>
+                            <div className="text-xs text-gray-500 mb-2">{serviceData.description}</div>
+                            <div className="text-xs text-gray-400">{serviceData.url}</div>
+                            <a
+                              href={serviceData.url}
+                              className="text-xs text-cyan-400 hover:text-cyan-300 underline mt-1 inline-block"
+                            >
+                              Open →
+                            </a>
+                            <div className="text-xs text-yellow-500 mt-2">Manual start/stop required</div>
+                          </div>
+                          <div className="flex flex-col items-center gap-2 ml-4">
+                            <div className={`w-6 h-6 rounded-full ${ledColor} shadow-lg ${isHealthy ? 'animate-pulse led-green' : isRunning ? 'led-yellow' : 'led-red'}`} title={statusText}></div>
+                            <span className={`text-xs font-semibold ${isHealthy ? 'text-green-400' : isRunning ? 'text-yellow-400' : 'text-red-400'}`}>{statusText}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'start')}
+                            disabled={isRunning || actionInProgress}
+                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Start
+                          </button>
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'stop')}
+                            disabled={!isRunning || actionInProgress}
+                            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                            </svg>
+                            Stop
+                          </button>
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'restart')}
+                            disabled={!isRunning || actionInProgress}
+                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Restart
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Website Services */}
+              <div>
+                <h3 className="text-lg font-bold text-green-400 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  Website Services
+                </h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {['website_frontend_5173'].map(serviceId => {
+                    const service = services[serviceId];
+                    // Use default values if service not found
+                    const defaultService = {
+                      name: 'Website Frontend (Port 5173)',
+                      description: 'Vite/React dev server',
+                      url: WEBSITE_FRONTEND_URL,
+                      running: false,
+                      healthy: false,
+                      dependencies: []
+                    };
+                    const serviceData = service || defaultService;
+                    
+                    const isRunning = serviceData.running;
+                    const isHealthy = serviceData.healthy;
+                    const actionInProgress = serviceActions[serviceId];
+                    
+                    let ledColor = 'bg-red-500';
+                    let statusText = 'Stopped';
+                    if (isHealthy) {
+                      ledColor = 'bg-green-500';
+                      statusText = 'Healthy';
+                    } else if (isRunning) {
+                      ledColor = 'bg-yellow-500';
+                      statusText = 'Running';
+                    }
+                    
+                    return (
+                      <div key={serviceId} className="bg-gray-900 rounded-lg p-5 border border-gray-700">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="text-base font-semibold text-gray-200 mb-1">{serviceData.name}</div>
+                            <div className="text-xs text-gray-500 mb-2">{serviceData.description}</div>
+                            <div className="text-xs text-gray-400">{serviceData.url}</div>
+                            <a
+                              href={serviceData.url}
+                              className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block"
+                            >
+                              Open →
+                            </a>
+                            <div className="text-xs text-yellow-500 mt-2">Restart: use &quot;Copy restart command&quot; in Maintenance Tools below, or click Restart for instructions.</div>
+                          </div>
+                          <div className="flex flex-col items-center gap-2 ml-4">
+                            <div className={`w-6 h-6 rounded-full ${ledColor} shadow-lg ${isHealthy ? 'animate-pulse led-green' : isRunning ? 'led-yellow' : 'led-red'}`} 
+                                 title={statusText}>
+                            </div>
+                            <span className={`text-xs font-semibold ${
+                              isHealthy ? 'text-green-400' : 
+                              isRunning ? 'text-yellow-400' : 'text-red-400'
+                            }`}>
+                              {statusText}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'start')}
+                            disabled={actionInProgress}
+                            className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Start
+                          </button>
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'stop')}
+                            disabled={actionInProgress}
+                            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10h6v4H9z" />
+                            </svg>
+                            Stop
+                          </button>
+                          <button
+                            onClick={() => handleServiceAction(serviceId, 'restart')}
+                            disabled={actionInProgress}
+                            className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Restart
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -993,6 +1381,28 @@ export default function AdminDashboard() {
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-6 text-purple-400">Maintenance Tools</h2>
           <div className="grid md:grid-cols-2 gap-4">
+            <div
+              className="bg-gray-900 rounded-lg p-4 border border-gray-700 flex flex-col justify-between"
+            >
+              <div>
+                <div className="font-semibold text-green-400 mb-1">Restart website (5173)</div>
+                <div className="text-sm text-gray-400 mb-3">Copy the Docker command and run it in a terminal from the project root to restart the website container.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const cmd = 'docker-compose restart website';
+                  navigator.clipboard.writeText(cmd).then(() => {
+                    alert('Command copied to clipboard:\n\n' + cmd + '\n\nPaste and run it in a terminal (from the project root).');
+                  }).catch(() => {
+                    alert('Run this in a terminal from the project root:\n\n' + cmd);
+                  });
+                }}
+                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-semibold text-white transition-colors"
+              >
+                Copy restart command
+              </button>
+            </div>
             <a
               href={`${LICENSE_SERVICE_URL}/admin/pe-registrations`}
               onClick={(e) => {

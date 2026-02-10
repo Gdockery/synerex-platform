@@ -25,7 +25,7 @@ try {
 Write-Host ""
 Write-Host "2. Checking if Ollama service is running on port 11434..." -ForegroundColor Yellow
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+    $response = Invoke-WebRequest -Uri "$env:OLLAMA_AI_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
     Write-Host "   [OK] Ollama service is running!" -ForegroundColor Green
     $models = ($response.Content | ConvertFrom-Json).models
     Write-Host "   Available models: $($models.Count)" -ForegroundColor Gray
@@ -83,7 +83,7 @@ try {
 
 $serviceOk = $false
 try {
-    $null = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+    $null = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
     $serviceOk = $true
 } catch { }
 

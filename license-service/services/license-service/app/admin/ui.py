@@ -53,33 +53,60 @@ def require_admin(request: Request):
         raise HTTPException(401, "Not authenticated")
     return True
 
+def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse:
+    return_url_param = f'?return_url={return_url}' if return_url else ''
+    back_href = return_url if return_url else settings.website_url
+    return HTMLResponse(f"""
+    <html>
+    <head>
+        <title>Admin Login - Synerex Platform</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }}
+            h1 {{ color: #1976d2; }}
+            .error {{ color: #b00020; background: #ffebee; padding: 12px; border-radius: 4px; margin-bottom: 20px; }}
+            input {{ width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
+            button {{ background: #1976d2; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; width: 100%; }}
+            button:hover {{ background: #1565c0; }}
+            .back-link {{ display: inline-block; margin-top: 16px; color: #1976d2; text-decoration: none; }}
+            .back-link:hover {{ text-decoration: underline; }}
+        </style>
+    </head>
+    <body>
+        <h1>Admin Login</h1>
+        {f'<div class="error">{error}</div>' if error else ''}
+        <form method="post" action="/admin/login{return_url_param}">
+            <label>Username:</label><br/>
+            <input name="username" required /><br/><br/>
+            <label>Password:</label><br/>
+            <input name="password" type="password" required /><br/><br/>
+            <button type="submit">Login</button>
+        </form>
+        <a id="back-link" class="back-link" href="{back_href}">Back to previous page</a>
+        <script>
+          (function () {{
+            var link = document.getElementById('back-link');
+            if (!link) return;
+            var returnUrl = {json.dumps(return_url)};
+            link.addEventListener('click', function (e) {{
+              if (returnUrl) {{
+                return;
+              }}
+              e.preventDefault();
+              window.location.href = {json.dumps(settings.website_url)};
+            }});
+          }})();
+        </script>
+    </body>
+    </html>
+    """)
+
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     """Display login page. Never redirects - always shows the form."""
     # Get return_url from query params to preserve it
     return_url = request.query_params.get("return_url", "")
-    # Explicitly return the template without any redirects or checks
-    # This ensures the page always loads without looping
-    try:
-        return templates.TemplateResponse("login.html", {"request": request, "error": None, "return_url": return_url})
-    except Exception as e:
-        # If template rendering fails, return a simple HTML response
-        return_url_param = f'?return_url={return_url}' if return_url else ''
-        return HTMLResponse(f"""
-        <html>
-        <body>
-            <h1>Admin Login</h1>
-            <p>Error loading template: {str(e)}</p>
-            <form method="post" action="/admin/login{return_url_param}">
-                <label>Username:</label><br/>
-                <input name="username" required /><br/><br/>
-                <label>Password:</label><br/>
-                <input name="password" type="password" required /><br/><br/>
-                <button type="submit">Login</button>
-            </form>
-        </body>
-        </html>
-        """)
+    # Always render the inline HTML so the Back link is visible.
+    return _render_admin_login_html(None, return_url)
 
 @router.post("/login", response_class=HTMLResponse)
 def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
@@ -112,7 +139,10 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
         
         # Otherwise, redirect to License Service admin dashboard
         return RedirectResponse("/admin", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials"}, status_code=401)
+    try:
+        return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials", "return_url": return_url}, status_code=401)
+    except Exception:
+        return _render_admin_login_html("Invalid credentials", return_url)
 
 @router.post("/logout")
 def logout(request: Request):
@@ -127,7 +157,36 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
         "authorizations": db.query(ProgramAuthorization).count(),
         "licenses": db.query(License).count(),
     }
-    return templates.TemplateResponse("dashboard.html", {"request": request, "counts": counts})
+    try:
+        html = templates.get_template("dashboard.html").render({"request": request, "counts": counts})
+        back_injection = """
+        <script data-back-link="true">
+        (function () {
+          var target = {json.dumps(settings.website_url)};
+          var candidates = document.querySelectorAll('a, button');
+          for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            var text = (el.textContent || '').trim().toLowerCase();
+            if (text === 'back' || text === 'back to previous page') {
+              if (el.tagName === 'A') {
+                el.setAttribute('href', target);
+              } else {
+                el.addEventListener('click', function (e) {
+                  e.preventDefault();
+                  window.location.href = target;
+                });
+              }
+              break;
+            }
+          }
+        })();
+        </script>
+        """
+        if "</body>" in html:
+            html = html.replace("</body>", back_injection + "\n</body>", 1)
+        return HTMLResponse(html)
+    except Exception:
+        return templates.TemplateResponse("dashboard.html", {"request": request, "counts": counts})
 
 # ---- Orgs ----
 @router.get("/pe-registrations", response_class=HTMLResponse)
@@ -510,9 +569,8 @@ def api_keys_disable(key_id: str, request: Request, _=Depends(require_admin), db
 
 # ---- Templates (read-only, from repo) ----
 # Path: services/license-service/app/admin/ui.py
-# parents[0]=admin, [1]=app, [2]=license-service, [3]=services, [4]=project root
-# Need to go up 4 levels to project root, then add templates/
-TEMPLATES_ROOT = Path(__file__).resolve().parents[4] / "templates"
+# In-container layout: /app/app/admin/ui.py, project root is /app.
+TEMPLATES_ROOT = Path(__file__).resolve().parents[2] / "templates"
 
 def _list_templates(program_id: str):
     """Load template files and extract summary information."""

@@ -51,7 +51,7 @@ def generate_report():
         # This ensures we get the complete stored data structure with all form data merged
         try:
             print("8084 Service: Fetching data from main app via GET /api/analysis/results...")
-            response = requests.get('http://127.0.0.1:8082/api/analysis/results', timeout=10)
+            response = requests.get(f"{os.getenv('EMV_BASE_URL')}/api/analysis/results", timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('results', data)
@@ -81,25 +81,34 @@ def generate_report():
         # Generate the HTML report using the exact template function
         print("8084 Service: Calling generate_exact_template_html...")
         try:
-            import signal
-            import sys
+            import threading
             
-            # Set a timeout for report generation (60 seconds)
-            def timeout_handler(signum, frame):
-                raise TimeoutError("Report generation timed out after 60 seconds")
+            # Check if we're in the main thread - signal only works there
+            is_main_thread = threading.current_thread() is threading.main_thread()
             
-            # Only set timeout on Unix systems
-            if hasattr(signal, 'SIGALRM'):
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(60)
-            
-            try:
+            if is_main_thread:
+                import signal
+                # Set a timeout for report generation (60 seconds)
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Report generation timed out after 60 seconds")
+                
+                # Only set timeout on Unix systems in main thread
+                if hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(60)
+                
+                try:
+                    html_content = generate_exact_template_html(results)
+                    print(f"8084 Service: Generated HTML content length: {len(html_content)}")
+                finally:
+                    # Cancel timeout
+                    if hasattr(signal, 'SIGALRM'):
+                        signal.alarm(0)
+            else:
+                # Not in main thread - just call directly without timeout
+                print("8084 Service: Not in main thread, skipping signal-based timeout")
                 html_content = generate_exact_template_html(results)
                 print(f"8084 Service: Generated HTML content length: {len(html_content)}")
-            finally:
-                # Cancel timeout
-                if hasattr(signal, 'SIGALRM'):
-                    signal.alarm(0)
                     
         except TimeoutError as te:
             print(f"8084 Service: Report generation timed out: {te}")
@@ -174,7 +183,7 @@ def generate_layman_report():
         # Fetch data from main app
         try:
             print("8084 Service: Fetching data for layman report from main app...")
-            response = requests.get('http://127.0.0.1:8082/api/analysis/results', timeout=10)
+            response = requests.get(f"{os.getenv('EMV_BASE_URL')}/api/analysis/results", timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 results = data.get('results', data)
@@ -215,9 +224,10 @@ def generate_layman_report():
 
 if __name__ == '__main__':
     print("Starting 8084 HTML Report Service...")
-    print("Health check: http://localhost:8084/health")
-    print("Generate Report: GET/POST http://localhost:8084/generate")
-    print("Generate Layman Report: GET/POST http://localhost:8084/generate-layman")
+    base_url = os.getenv("HTML_REPORT_URL")
+    print(f"Health check: {base_url}/health")
+    print(f"Generate Report: GET/POST {base_url}/generate")
+    print(f"Generate Layman Report: GET/POST {base_url}/generate-layman")
     print("Press Ctrl+C to stop")
     print("--------------------------------------------------")
     # Windows-compatible Flask configuration

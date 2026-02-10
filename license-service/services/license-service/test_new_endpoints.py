@@ -3,7 +3,9 @@ import requests
 import json
 from datetime import datetime
 
-BASE_URL = "http://localhost:8000"
+import os
+
+BASE_URL = os.getenv("LICENSE_SERVICE_URL")
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "admin123"
 

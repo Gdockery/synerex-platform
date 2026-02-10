@@ -7,9 +7,10 @@ This simulates what happens when a user saves and loads a project
 import json
 import requests
 import sys
+import os
 
 # Configuration
-BASE_URL = "http://127.0.0.1:8082"
+BASE_URL = os.getenv("EMV_BASE_URL")
 TEST_PROJECT_NAME = "TEST_SAVE_LOAD_SIMULATION"
 
 def print_section(title):

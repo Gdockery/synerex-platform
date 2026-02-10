@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sync UI files from remote server to localhost while preserving local projects
+Sync UI files from remote server to local machine while preserving local projects
 """
 
 import os
@@ -89,7 +89,7 @@ def preserve_local_projects():
 
 def main():
     """Main sync process"""
-    print("🚀 Starting UI sync from remote server to localhost")
+    print("🚀 Starting UI sync from remote server to local machine")
     print(f"📡 Remote server: {REMOTE_SERVER}")
     print(f"💻 Local path: {LOCAL_PATH}")
     print()

@@ -3090,8 +3090,8 @@
       "type": "hardcoded_url",
       "line": 94,
       "pattern": "http://[^\\s\\'\"]+",
-      "url": "http://127.0.0.1:8200",
-      "fix": "Replace hardcoded URL 'http://127.0.0.1:8200' on line 94 with dynamic placeholder"
+      "url": "${WEATHER_SERVICE_URL}",
+      "fix": "Replace hardcoded URL with ${WEATHER_SERVICE_URL}"
     },
     {
       "type": "hardcoded_url",
@@ -3118,8 +3118,8 @@
       "type": "hardcoded_url",
       "line": 12061,
       "pattern": "http://[^\\s\\'\"]+",
-      "url": "http://127.0.0.1:DEFAULT_PORT/api/verified-files",
-      "fix": "Replace hardcoded URL 'http://127.0.0.1:DEFAULT_PORT/api/verified-files' on line 12061 with dynamic placeholder"
+      "url": "${EMV_BASE_URL}/api/verified-files",
+      "fix": "Replace hardcoded URL with ${EMV_BASE_URL}/api/verified-files"
     },
     {
       "type": "hardcoded_url",

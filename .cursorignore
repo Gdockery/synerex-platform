@@ -27,3 +27,16 @@
 emv-program/8082/reports/**
 emv-program/8082/files/**
 emv-program/8082/venv/**
+**/logs/**
+**/.tmp/**
+**/results/**
+**/backups/**
+**/videos/**
+
+# Exclude more large/binary types
+**/*.tar.gz
+**/*.zip
+**/*.mp4
+**/*.map
+**/*.backup
+**/*.backup_*

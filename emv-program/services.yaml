@@ -43,6 +43,8 @@ services:
     dependencies: []
     health_endpoint: "/health"
     startup_timeout: 20
+    env:
+      PORT: "8086"
 
   ollama_ai:
     name: "Ollama AI Backend"
@@ -70,6 +72,40 @@ services:
     dependencies: []
     health_endpoint: "/health"
     startup_timeout: 20
+
+  license_service:
+    name: "License Service"
+    port: 8000
+    runtime: "uvicorn"
+    script: "app.main:app"
+    directory: "../license-service/services/license-service"
+    dependencies: []
+    health_endpoint: "/health"
+    startup_timeout: 30
+
+  website_frontend:
+    name: "Website Frontend"
+    port: 5173
+    runtime: "npm"
+    command: "run dev"
+    directory: "../website"
+    dependencies: []
+    health_endpoint: "/"
+    startup_timeout: 30
+
+  tracking_app:
+    name: "Tracking Program"
+    port: 8087
+    runtime: "node"
+    script: "app.js"
+    directory: "../tracking-program/8087"
+    dependencies: ["license_service"]
+    health_endpoint: "/login"
+    startup_timeout: 60
+    env:
+      PORT: "8087"
+      NODE_ENV: "development"
+      LICENSE_SERVICE_URL: "${LICENSE_SERVICE_URL}"
 
 service_manager:
   port: 9000

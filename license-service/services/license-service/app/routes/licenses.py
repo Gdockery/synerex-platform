@@ -74,6 +74,65 @@ def list_licenses(
         } for l in licenses]
     }
 
+
+@router.get("/licenses/check")
+def check_license(
+    org_id: str = Query(..., description="Organization ID to check"),
+    program_id: str = Query(..., description="Program ID (emv or tracking)"),
+    db: Session = Depends(db_session)
+):
+    """
+    Quick license check for integration with EMV program.
+    Returns whether the organization has a valid, active license for the specified program.
+    """
+    if program_id not in ("emv", "tracking"):
+        raise HTTPException(400, "program_id must be emv or tracking")
+    
+    # Find active license for org and program
+    license = db.query(License).filter(
+        License.org_id == org_id,
+        License.program_id == program_id,
+        License.revoked == False,
+        License.suspended == False,
+        License.expires_at > datetime.utcnow()
+    ).first()
+    
+    if not license:
+        # Check if there's an expired license
+        expired_license = db.query(License).filter(
+            License.org_id == org_id,
+            License.program_id == program_id,
+            License.expires_at <= datetime.utcnow()
+        ).first()
+        
+        if expired_license:
+            return {
+                "valid": False,
+                "reason": "License expired",
+                "expired_at": expired_license.expires_at.isoformat() if expired_license.expires_at else None
+            }
+        
+        # Check for revoked/suspended
+        inactive_license = db.query(License).filter(
+            License.org_id == org_id,
+            License.program_id == program_id
+        ).first()
+        
+        if inactive_license:
+            if inactive_license.revoked:
+                return {"valid": False, "reason": "License revoked"}
+            if inactive_license.suspended:
+                return {"valid": False, "reason": "License suspended"}
+        
+        return {"valid": False, "reason": "No license found for this organization"}
+    
+    return {
+        "valid": True,
+        "license_id": license.license_id,
+        "expires_at": license.expires_at.isoformat() if license.expires_at else None,
+        "program_id": license.program_id
+    }
+
 @router.post("/licenses/verify")
 def verify_license_endpoint(license_payload: dict, db: Session = Depends(db_session)):
     # 1) signature
@@ -377,6 +436,243 @@ def resend_license_receipt(license_id: str, db: Session = Depends(db_session)):
         if not org or not org.email:
             raise HTTPException(400, "No email address on file for this organization")
         raise HTTPException(500, "Failed to send email. Please check email configuration.")
+
+# ============================================================================
+# LICENSE RENEWAL ENDPOINTS
+# ============================================================================
+
+@router.get("/licenses/status/{org_id}")
+def get_org_license_status(
+    org_id: str,
+    program_id: str = Query("emv", description="Program ID (emv or tracking)"),
+    db: Session = Depends(db_session)
+):
+    """
+    Get comprehensive license status for an organization.
+    Returns expiration info, warning flags, and days remaining.
+    Used by EMV program to show renewal popups.
+    """
+    if program_id not in ("emv", "tracking"):
+        raise HTTPException(400, "program_id must be emv or tracking")
+    
+    # Find license for org
+    license = db.query(License).filter(
+        License.org_id == org_id,
+        License.program_id == program_id,
+        License.revoked == False,
+        License.suspended == False
+    ).order_by(License.expires_at.desc()).first()
+    
+    if not license:
+        return {
+            "has_license": False,
+            "status": "no_license",
+            "message": "No license found for this organization",
+            "purchase_url": f"/register/?program={program_id}"
+        }
+    
+    now = datetime.utcnow()
+    expires_at = license.expires_at
+    
+    if expires_at:
+        days_remaining = (expires_at - now).days
+        
+        if days_remaining < 0:
+            status = "expired"
+            warning_level = "critical"
+            message = f"License expired {abs(days_remaining)} days ago"
+        elif days_remaining <= 7:
+            status = "expiring_soon"
+            warning_level = "critical"
+            message = f"License expires in {days_remaining} days!"
+        elif days_remaining <= 30:
+            status = "expiring_soon"
+            warning_level = "warning"
+            message = f"License expires in {days_remaining} days"
+        else:
+            status = "active"
+            warning_level = None
+            message = f"License valid for {days_remaining} days"
+    else:
+        days_remaining = None
+        status = "active"
+        warning_level = None
+        message = "License is active (no expiration date)"
+    
+    return {
+        "has_license": True,
+        "status": status,
+        "warning_level": warning_level,
+        "message": message,
+        "license_id": license.license_id,
+        "expires_at": expires_at.isoformat() if expires_at else None,
+        "days_remaining": days_remaining,
+        "program_id": license.program_id,
+        "renewal_url": f"/renew/?license_id={license.license_id}"
+    }
+
+
+@router.post("/licenses/activate")
+def activate_license_key(
+    body: Dict[str, Any] = Body(...),
+    db: Session = Depends(db_session)
+):
+    """
+    Activate a new license key for an organization.
+    
+    Request body:
+    - license_key: str (required) - The license key/serial number to activate
+    - org_id: str (required) - The organization ID to activate for
+    - program_id: str (optional) - Program ID, defaults to 'emv'
+    
+    This endpoint is called when:
+    1. New user activates their first license
+    2. Existing user renews with a new license key
+    """
+    license_key = body.get("license_key")
+    org_id = body.get("org_id")
+    program_id = body.get("program_id", "emv")
+    
+    if not license_key:
+        raise HTTPException(400, "license_key is required")
+    if not org_id:
+        raise HTTPException(400, "org_id is required")
+    if program_id not in ("emv", "tracking"):
+        raise HTTPException(400, "program_id must be emv or tracking")
+    
+    # Look up the license by key
+    license = db.get(License, license_key)
+    
+    if not license:
+        log_event(db, actor="user", action="license.activate.fail", ref_id=org_id, 
+                  detail={"reason": "invalid_key", "key": license_key[:8] + "..."})
+        raise HTTPException(404, "Invalid license key")
+    
+    # Check if license is already assigned to a different org
+    if license.org_id and license.org_id != org_id:
+        log_event(db, actor="user", action="license.activate.fail", ref_id=org_id,
+                  detail={"reason": "already_assigned", "key": license_key[:8] + "..."})
+        raise HTTPException(400, "This license key is already assigned to another organization")
+    
+    # Check if license is revoked or suspended
+    if license.revoked:
+        raise HTTPException(400, "This license key has been revoked")
+    if license.suspended:
+        raise HTTPException(400, "This license key is suspended")
+    
+    # Check program matches
+    if license.program_id != program_id:
+        raise HTTPException(400, f"License is for '{license.program_id}', not '{program_id}'")
+    
+    # Check if already expired before activation
+    if license.expires_at and license.expires_at < datetime.utcnow():
+        raise HTTPException(400, "This license key has already expired")
+    
+    # Assign license to org (if not already assigned)
+    if not license.org_id:
+        license.org_id = org_id
+        license.activated_at = datetime.utcnow()
+    
+    db.commit()
+    
+    log_event(db, actor="user", action="license.activate.success", ref_id=license_key,
+              detail={"org_id": org_id, "program_id": program_id})
+    
+    return {
+        "ok": True,
+        "message": "License activated successfully",
+        "license_id": license.license_id,
+        "org_id": org_id,
+        "program_id": license.program_id,
+        "expires_at": license.expires_at.isoformat() if license.expires_at else None,
+        "days_remaining": (license.expires_at - datetime.utcnow()).days if license.expires_at else None
+    }
+
+
+@router.post("/licenses/renew")
+def renew_license(
+    body: Dict[str, Any] = Body(...),
+    db: Session = Depends(db_session)
+):
+    """
+    Renew an organization's license with a new license key.
+    
+    Request body:
+    - new_license_key: str (required) - The new renewal license key
+    - org_id: str (required) - The organization ID
+    - old_license_id: str (optional) - The expiring/expired license ID
+    
+    This marks the old license as superseded and activates the new one.
+    
+    IMPORTANT: DATA PRESERVATION GUARANTEE
+    ======================================
+    License renewal ONLY affects the license record in this service.
+    It does NOT touch any user data in the EMV/Tracking programs:
+    - Projects remain intact
+    - Reports remain intact  
+    - Database records remain intact
+    - Uploaded files remain intact
+    - User accounts remain intact
+    - All settings remain intact
+    
+    The org_id is the permanent identifier that links to all user data.
+    Licenses are temporary access grants tied to the org_id.
+    """
+    new_key = body.get("new_license_key")
+    org_id = body.get("org_id")
+    old_license_id = body.get("old_license_id")
+    
+    if not new_key:
+        raise HTTPException(400, "new_license_key is required")
+    if not org_id:
+        raise HTTPException(400, "org_id is required")
+    
+    # Look up the new license
+    new_license = db.get(License, new_key)
+    if not new_license:
+        log_event(db, actor="user", action="license.renew.fail", ref_id=org_id,
+                  detail={"reason": "invalid_key"})
+        raise HTTPException(404, "Invalid license key")
+    
+    # Check if already used
+    if new_license.org_id and new_license.org_id != org_id:
+        raise HTTPException(400, "This license key is already assigned to another organization")
+    
+    if new_license.revoked:
+        raise HTTPException(400, "This license key has been revoked")
+    if new_license.suspended:
+        raise HTTPException(400, "This license key is suspended")
+    if new_license.expires_at and new_license.expires_at < datetime.utcnow():
+        raise HTTPException(400, "This license key has already expired")
+    
+    # Mark old license as superseded (if provided)
+    if old_license_id:
+        old_license = db.get(License, old_license_id)
+        if old_license and old_license.org_id == org_id:
+            old_license.superseded_by = new_key
+            old_license.superseded_at = datetime.utcnow()
+    
+    # Activate new license
+    new_license.org_id = org_id
+    new_license.activated_at = datetime.utcnow()
+    new_license.renewed_from = old_license_id
+    
+    db.commit()
+    
+    log_event(db, actor="user", action="license.renew.success", ref_id=new_key,
+              detail={"org_id": org_id, "old_license": old_license_id})
+    
+    return {
+        "ok": True,
+        "message": "License renewed successfully",
+        "license_id": new_license.license_id,
+        "org_id": org_id,
+        "program_id": new_license.program_id,
+        "expires_at": new_license.expires_at.isoformat() if new_license.expires_at else None,
+        "days_remaining": (new_license.expires_at - datetime.utcnow()).days if new_license.expires_at else None,
+        "old_license_id": old_license_id
+    }
+
 
 # Note: Baseline management is handled by the EM&V program, not the license service
 # This endpoint has been removed as baselines are not stored in the license service

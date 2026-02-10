@@ -7,7 +7,7 @@
 **File:** `main_hardened_ready_fixed.py` (line ~27695)
 
 **Behavior:**
-- **Licensed PE users:** Redirects to My Account page (`http://localhost:5173/my-account`)
+- **Licensed PE users:** Redirects to My Account page (`${WEBSITE_URL}/my-account`)
 - **EM&V users:** Redirects to EM&V main dashboard (`/main-dashboard`)
 
 **Implementation:**
@@ -22,13 +22,13 @@
 **File:** `services/license-service/app/main.py`
 
 **Purpose:** Allows cross-origin requests from:
-- EM&V program (`http://localhost:8082`)
-- Website (`http://localhost:5173`)
+- EM&V program (`${EMV_BASE_URL}`)
+- Website (`${WEBSITE_URL}`)
 
 **Configuration:**
 - Allows credentials (cookies)
 - Allows all methods and headers
-- Configured for development (localhost)
+- Configured for development (set via env vars)
 
 ## How It Works
 

@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db import Base, engine
+from app.config import settings
 # Import all models so they're registered with Base
 from app.models import (
     org, license as license_model, authorization, api_key,
@@ -14,6 +15,9 @@ from app.models import (
 
 def setup_database():
     """Create all database tables."""
+    if settings.db_url.startswith("mysql"):
+        print("MySQL detected. Use scripts/migrate_sqlite_to_mysql.py to create schema.")
+        return
     print("Creating database tables...")
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully!")

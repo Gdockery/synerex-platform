@@ -115,12 +115,12 @@ echo ""
 echo "🎉 SYNEREX OneForm Services Started!"
 echo ""
 echo "📋 Service URLs:"
-echo "  Main App:     http://127.0.0.1:8082"
-echo "  PDF Service:  http://127.0.0.1:8083"
-echo "  HTML Reports: http://127.0.0.1:8084"
-echo "  Weather:      http://127.0.0.1:8200"
-echo "  Charts:       http://127.0.0.1:8086"
-echo "  Ollama AI:    http://127.0.0.1:8090"
+echo "  Main App:     $EMV_BASE_URL"
+echo "  PDF Service:  $PDF_SERVICE_URL"
+echo "  HTML Reports: $HTML_REPORT_URL"
+echo "  Weather:      $WEATHER_SERVICE_URL"
+echo "  Charts:       $CHART_SERVICE_URL"
+echo "  Ollama AI:    $OLLAMA_AI_URL"
 echo ""
 echo "📝 Logs are in the 'logs/' directory"
 echo ""
@@ -130,8 +130,8 @@ echo ""
 # Try to open browser (works on macOS, skip on Linux)
 if command -v xdg-open &> /dev/null; then
     echo "🌐 Opening main application in browser..."
-    xdg-open http://127.0.0.1:8082 2>/dev/null || true
+    xdg-open $EMV_BASE_URL 2>/dev/null || true
 elif [[ "$OSTYPE" == "darwin"* ]]; then
     echo "🌐 Opening main application in browser..."
-    open http://127.0.0.1:8082 2>/dev/null || true
+    open $EMV_BASE_URL 2>/dev/null || true
 fi

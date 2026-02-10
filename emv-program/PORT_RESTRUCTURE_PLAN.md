@@ -101,14 +101,14 @@ Port 8303: Metrics Collection
 ### 1. Nginx Configuration
 ```nginx
 upstream main_app {
-    server localhost:8000 weight=3;
-    server localhost:8001 weight=1 backup;
+    server ${LICENSE_SERVICE_URL} weight=3;
+    server ${LICENSE_SERVICE_BACKUP_URL} weight=1 backup;
 }
 
 upstream pdf_services {
-    server localhost:8100 weight=2;
-    server localhost:8101 weight=1;
-    server localhost:8102 weight=1;
+    server ${PDF_SERVICE_URL} weight=2;
+    server ${PDF_SERVICE_URL_ENVELOPE} weight=1;
+    server ${PDF_SERVICE_URL_STANDARD} weight=1;
 }
 
 server {
@@ -131,14 +131,14 @@ server {
 # service_registry.py
 SERVICES = {
     'main_app': {
-        'primary': 'localhost:8000',
-        'backup': 'localhost:8001',
+        'primary': '${LICENSE_SERVICE_URL}',
+        'backup': '${LICENSE_SERVICE_BACKUP_URL}',
         'health_check': '/health'
     },
     'pdf_service': {
-        'primary': 'localhost:8100',
-        'variants': ['localhost:8101', 'localhost:8102'],
-        'backup': 'localhost:8103'
+        'primary': '${PDF_SERVICE_URL}',
+        'variants': ['${PDF_SERVICE_URL_ENVELOPE}', '${PDF_SERVICE_URL_STANDARD}'],
+        'backup': '${PDF_SERVICE_URL_BACKUP}'
     }
 }
 ```

@@ -19,11 +19,11 @@ sleep 3
 
 # Check if service is running
 echo "Checking service status..."
-if curl -s http://localhost:8200/health > /dev/null; then
+if curl -s "$WEATHER_SERVICE_URL/health" > /dev/null; then
     echo "✅ Weather service is running and healthy"
-    echo "🌐 Weather Service: http://localhost:8200"
-    echo "📋 Health Check: http://localhost:8200/health"
-    echo "📊 Status: http://localhost:8200/status"
+    echo "🌐 Weather Service: $WEATHER_SERVICE_URL"
+    echo "📋 Health Check: $WEATHER_SERVICE_URL/health"
+    echo "📊 Status: $WEATHER_SERVICE_URL/status"
 else
     echo "❌ Weather service failed to start"
     echo "📋 Check logs: tail -f /Users/euphoria/Downloads/oneform/8085/weather_service.log"

@@ -4,11 +4,12 @@ import LicenseRegistration from "../components/LicenseRegistration.jsx";
 
 export default function EMVProgram() {
   const [isExporting, setIsExporting] = useState(false);
+  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
 
   const handleExportPDF = async () => {
     setIsExporting(true);
     try {
-      const response = await fetch('http://localhost:3001/api/pdf/generate-emv-program-pdf?url=' + encodeURIComponent(window.location.href), {
+      const response = await fetch(`${WEBSITE_BACKEND_URL}/api/pdf/generate-emv-program-pdf?url=` + encodeURIComponent(window.location.href), {
         method: 'GET',
       });
       

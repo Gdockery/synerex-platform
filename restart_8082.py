@@ -7,10 +7,11 @@ Requires Service Manager (port 9000) to be running
 import requests
 import sys
 import time
+import os
 
 def restart_8082():
     """Restart the Main App (8082) using Service Manager API"""
-    service_manager_url = "http://localhost:9000"
+    service_manager_url = os.getenv("SERVICE_MANAGER_URL")
     service_id = "main_app"
     
     print("=" * 60)
@@ -28,7 +29,7 @@ def restart_8082():
             print(f"✗ Service Manager returned status {health_response.status_code}")
             return False
     except requests.exceptions.ConnectionError:
-        print("✗ Cannot connect to Service Manager (port 9000)")
+        print("✗ Cannot connect to Service Manager")
         print("  Please start the Service Manager first!")
         return False
     except Exception as e:

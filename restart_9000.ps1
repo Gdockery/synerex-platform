@@ -6,7 +6,7 @@ Write-Host "Restarting Service Manager (Port 9000)" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$serviceManagerUrl = "http://localhost:9000"
+$serviceManagerUrl = $env:SERVICE_MANAGER_URL
 
 # Step 1: Check if Service Manager is running
 Write-Host "Step 1: Checking if Service Manager is running..." -ForegroundColor Yellow
@@ -154,7 +154,7 @@ if (-not $isRunning) {
             Write-Host "Service Manager started successfully!" -ForegroundColor Green
             Write-Host "============================================================" -ForegroundColor Green
             Write-Host ""
-            Write-Host "Service Manager URL: http://localhost:9000" -ForegroundColor Cyan
+            Write-Host "Service Manager URL: $serviceManagerUrl" -ForegroundColor Cyan
             exit 0
         } else {
             Write-Host "[WARNING] Service Manager may not have started properly" -ForegroundColor Yellow

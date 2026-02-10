@@ -136,10 +136,10 @@ Write-Host ""
 Write-Host "Services should be starting in new windows." -ForegroundColor Green
 Write-Host ""
 Write-Host "Service URLs:" -ForegroundColor Cyan
-Write-Host "  - License Service: http://localhost:8000/admin/login" -ForegroundColor White
-Write-Host "  - Website Frontend: http://localhost:5173" -ForegroundColor White
-Write-Host "  - Website Backend: http://localhost:3001/health" -ForegroundColor White
-Write-Host "  - EMV Main App: http://localhost:8082" -ForegroundColor White
+Write-Host "  - License Service: $env:LICENSE_SERVICE_URL/admin/login" -ForegroundColor White
+Write-Host "  - Website Frontend: $env:WEBSITE_FRONTEND_URL" -ForegroundColor White
+Write-Host "  - Website Backend: $env:WEBSITE_BACKEND_URL/health" -ForegroundColor White
+Write-Host "  - EMV Main App: $env:EMV_BASE_URL" -ForegroundColor White
 Write-Host ""
 Write-Host "Note: Services may take a few moments to fully start." -ForegroundColor Gray
 Write-Host ""

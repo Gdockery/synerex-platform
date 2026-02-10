@@ -8,7 +8,7 @@ export default function LicenseSuccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || "http://localhost:8000";
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
   const orderId = searchParams.get("order_id");
   const licenseId = searchParams.get("license_id");
   

@@ -6,7 +6,7 @@
       <h3 style="margin: 0 0 0.5rem 0;">Edit Authorization</h3>
       <p style="color: #718096; margin: 0;">{{ auth.authorization_id }}</p>
     </div>
-    <a href="/admin/authorizations/{{ auth.authorization_id }}" class="btn btn-secondary">← Back to Authorization</a>
+    <a href="{{ admin_url('authorizations/' ~ auth.authorization_id) }}" class="btn btn-secondary">← Back to Authorization</a>
   </div>
 
   {% if message %}
@@ -15,7 +15,7 @@
   </div>
   {% endif %}
 
-  <form method="post" action="/admin/authorizations/{{ auth.authorization_id }}/edit">
+  <form method="post" action="{{ admin_url('authorizations/' ~ auth.authorization_id ~ '/edit') }}">
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
       <div style="background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
         <h4 style="margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem;">Basic Information</h4>
@@ -67,7 +67,7 @@
     </div>
 
     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-      <a href="/admin/authorizations/{{ auth.authorization_id }}" class="btn btn-secondary">Cancel</a>
+      <a href="{{ admin_url('authorizations/' ~ auth.authorization_id) }}" class="btn btn-secondary">Cancel</a>
       <button type="submit" class="btn">💾 Save Changes</button>
     </div>
   </form>

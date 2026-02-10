@@ -130,7 +130,7 @@
   <body>
     <div class="container">
       <div class="logo-container">
-        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+        <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex" />
       </div>
       <div class="back-button">
         <a href="http://localhost:5173/">← Back to Home</a>
@@ -139,7 +139,7 @@
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
-      <form method="post" action="/auth/login{% if return_url %}?return_url={{ return_url|urlencode }}{% endif %}" id="loginForm">
+      <form method="post" action="{{ login_action }}{% if return_url %}?return_url={{ return_url|urlencode }}{% endif %}" id="loginForm">
         <label for="username">Username</label>
         <input type="text" name="username" id="username" required autocomplete="username" />
         
@@ -150,7 +150,7 @@
       </form>
       
       <div class="link">
-        <a href="/register">Don't have an account? Register here</a>
+        <a href="{{ register_href }}">Don't have an account? Register here</a>
       </div>
       
       <div class="info">

@@ -13,12 +13,24 @@ import signal
 import threading
 import subprocess
 import requests
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response, stream_with_context
 from flask_cors import CORS
 import psutil
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / "8082" / ".env")
+except Exception:
+    pass
+
+SERVICE_MANAGER_URL = os.getenv("SERVICE_MANAGER_URL")
+SERVICE_MANAGER_HOST = (
+    urlparse(SERVICE_MANAGER_URL).hostname if SERVICE_MANAGER_URL else None
+) or "127.0.0.1"  # default so health checks work when URL unset (e.g. in Docker)
 
 @dataclass
 class ServiceStatus:
@@ -71,16 +83,16 @@ class ServiceManager:
             raise ValueError(f"Invalid YAML in configuration file {config_path}: {e}")
         except Exception as e:
             raise RuntimeError(f"Error loading configuration from {config_path}: {e}")
-    
+
     def _is_service_healthy(self, service_id: str) -> bool:
         """Check if a service is healthy by making HTTP request"""
         service_config = self.config['services'][service_id]
         try:
             # Use longer timeout for main_app (8082) and weather service (8200) since they can be slow to respond
             timeout = 10 if service_id == 'main_app' else (5 if service_id == 'weather' else 2)
-            url = f"http://127.0.0.1:{service_config['port']}{service_config['health_endpoint']}"
+            url = f"http://{SERVICE_MANAGER_HOST}:{service_config['port']}{service_config['health_endpoint']}"
             if service_id == 'main_app':
-                url = "http://127.0.0.1:8082/api/health"
+                url = f"{os.getenv('EMV_BASE_URL')}/api/health"
             response = requests.get(url, timeout=timeout)
             return response.status_code == 200
         except:
@@ -113,7 +125,7 @@ class ServiceManager:
                     import socket
                     test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     test_sock.settimeout(1)
-                    result = test_sock.connect_ex(('127.0.0.1', port))
+                    result = test_sock.connect_ex((SERVICE_MANAGER_HOST, port))
                     test_sock.close()
                     if result == 0:
                         port_in_use = True
@@ -136,35 +148,72 @@ class ServiceManager:
             
             # Start the service
             service_dir = self.project_root / service_config['directory']
-            script_path = service_dir / service_config['script']
             
-            if not script_path.exists():
-                print(f"ERROR: Script not found: {script_path}")
-                service_status.error_message = f"Script not found: {script_path}"
+            # Get runtime type (default to python)
+            runtime = service_config.get('runtime', 'python')
+            script = service_config.get('script', '')
+            command = service_config.get('command', '')
+            
+            # Build the command based on runtime
+            if runtime == 'python':
+                script_path = service_dir / script
+                if not script_path.exists():
+                    print(f"ERROR: Script not found: {script_path}")
+                    service_status.error_message = f"Script not found: {script_path}"
+                    return False
+                cmd = [sys.executable, script]
+            elif runtime == 'uvicorn':
+                # For FastAPI apps: uvicorn app.main:app --host 0.0.0.0 --port PORT
+                cmd = [sys.executable, '-m', 'uvicorn', script, '--host', '0.0.0.0', '--port', str(port)]
+            elif runtime == 'node':
+                script_path = service_dir / script
+                if not script_path.exists():
+                    print(f"ERROR: Script not found: {script_path}")
+                    service_status.error_message = f"Script not found: {script_path}"
+                    return False
+                cmd = ['node', script]
+            elif runtime == 'npm':
+                # For npm commands like "npm run dev"
+                if sys.platform == 'win32':
+                    cmd = ['npm.cmd'] + command.split()
+                else:
+                    cmd = ['npm'] + command.split()
+            else:
+                print(f"ERROR: Unknown runtime '{runtime}' for service {service_id}")
+                service_status.error_message = f"Unknown runtime: {runtime}"
                 return False
             
             print(f"Starting {service_status.name} from {service_dir}")
-            print(f"Script: {script_path}")
+            print(f"Command: {' '.join(cmd)}")
+            
+            # Set up environment variables (merge with current env)
+            service_env = os.environ.copy()
+            if 'env' in service_config:
+                for key, value in service_config['env'].items():
+                    service_env[key] = str(value)
+                    print(f"  ENV: {key}={value}")
+            
+            # Set up log directory for all services
+            logs_dir = self.project_root / "logs"
+            logs_dir.mkdir(exist_ok=True)
+            stdout_file = logs_dir / f"{service_id}_stdout.log"
+            stderr_file = logs_dir / f"{service_id}_stderr.log"
             
             # Start service with cross-platform process creation
             # On Windows, redirect stdout/stderr to avoid buffer blocking issues
             if sys.platform == 'win32':
                 # Windows: Use CREATE_NO_WINDOW and redirect to files to avoid buffer blocking
-                logs_dir = self.project_root / "logs"
-                logs_dir.mkdir(exist_ok=True)
-                stdout_file = logs_dir / f"{service_id}_stdout.log"
-                stderr_file = logs_dir / f"{service_id}_stderr.log"
-                
                 # Open files in append mode and keep them open (don't use 'with' block)
                 # The subprocess will inherit the file handles and they must stay open
                 stdout_f = open(stdout_file, 'a', buffering=1)  # Line buffering
                 stderr_f = open(stderr_file, 'a', buffering=1)  # Line buffering
                 
                 process = subprocess.Popen(
-                    [sys.executable, service_config['script']],
+                    cmd,
                     cwd=str(service_dir),
                     stdout=stdout_f,
                     stderr=stderr_f,
+                    env=service_env,
                     creationflags=subprocess.CREATE_NO_WINDOW
                 )
                 
@@ -172,13 +221,19 @@ class ServiceManager:
                 # We'll close them when the process stops
                 self._log_files[service_id] = (stdout_f, stderr_f)
             else:
-                # Unix: Redirect to DEVNULL to avoid buffer blocking
+                # Unix: Redirect to log files for debugging
+                stdout_f = open(stdout_file, 'a', buffering=1)
+                stderr_f = open(stderr_file, 'a', buffering=1)
+                
                 process = subprocess.Popen(
-                    [sys.executable, service_config['script']],
+                    cmd,
                     cwd=str(service_dir),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stdout=stdout_f,
+                    stderr=stderr_f,
+                    env=service_env
                 )
+                
+                self._log_files[service_id] = (stdout_f, stderr_f)
             
             self.processes[service_id] = process
             service_status.pid = process.pid
@@ -314,6 +369,7 @@ class ServiceManager:
             
         except Exception as e:
             print(f"ERROR: Failed to stop {service_status.name}: {e}")
+            service_status.error_message = str(e)
             import traceback
             print(traceback.format_exc())
             return False
@@ -377,7 +433,7 @@ class ServiceManager:
             import socket
             test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             test_sock.settimeout(2)  # Increased timeout for reliability
-            result = test_sock.connect_ex(('127.0.0.1', port))
+            result = test_sock.connect_ex((SERVICE_MANAGER_HOST, port))
             test_sock.close()
             # connect_ex returns 0 if connection successful (port is in use and accepting connections)
             is_in_use = result == 0
@@ -547,6 +603,21 @@ class ServiceManager:
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+
+@app.errorhandler(500)
+def handle_500(e):
+    """Ensure every 500 returns JSON so the admin panel can show the message."""
+    import traceback
+    tb = traceback.format_exc()
+    print(f"ERROR (500): {e}\n{tb}")
+    return jsonify({
+        'success': False,
+        'message': 'Internal server error',
+        'error': str(e),
+        'details': {'traceback': tb}
+    }), 500
+
+
 # Initialize ServiceManager with error handling
 try:
     service_manager = ServiceManager()
@@ -563,6 +634,19 @@ def get_status():
         'success': True,
         'services': service_manager.get_service_status()
     })
+
+@app.route('/api/services/stream', methods=['GET'])
+def stream_status():
+    """Stream service status updates via SSE."""
+    def event_stream():
+        while True:
+            payload = {
+                'success': True,
+                'services': service_manager.get_service_status()
+            }
+            yield f"data: {json.dumps(payload)}\n\n"
+            time.sleep(2)
+    return Response(stream_with_context(event_stream()), mimetype='text/event-stream')
 
 @app.route('/api/services/start-all', methods=['POST'])
 def start_all():
@@ -642,50 +726,97 @@ def stop_service(service_id):
         'message': f"Service {service_id} {'stopped' if success else 'failed to stop'}"
     })
 
+def _write_restart_error(service_id: str, payload: dict) -> None:
+    """Write last restart error to a file so it can be inspected (e.g. cat emv-program/logs/last_restart_error.json)."""
+    try:
+        log_dir = Path(__file__).parent / "logs"
+        log_dir.mkdir(exist_ok=True)
+        path = log_dir / "last_restart_error.json"
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"service_id": service_id, **payload}, f, indent=2)
+    except Exception:
+        pass
+
+
+@app.route('/api/services/debug/last-restart-error', methods=['GET'])
+def last_restart_error():
+    """Return the last restart error payload (for debugging 500s)."""
+    try:
+        path = Path(__file__).parent / "logs" / "last_restart_error.json"
+        if not path.exists():
+            return jsonify({'success': True, 'message': 'No restart error recorded yet'})
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/services/restart/<service_id>', methods=['POST'])
 def restart_service(service_id):
-    """Restart a specific service"""
+    """Restart a specific service. Returns JSON on all paths including 500."""
+    import traceback
     print(f"=== Restarting {service_id} ===")
-    
-    if service_id not in service_manager.services:
-        return jsonify({
-            'success': False,
-            'message': f'Service {service_id} not found'
-        }), 404
-    
-    # Stop the service first
-    stop_result = service_manager._stop_service(service_id)
-    if not stop_result:
-        return jsonify({
-            'success': False,
-            'message': f'Failed to stop {service_id}'
-        }), 500
-    
-    # Wait longer for the service to fully stop and port to be released (especially important on Windows)
-    time.sleep(3)
-    
-    # Start the service
-    start_result = service_manager._start_service(service_id)
-    if start_result:
-        return jsonify({
-            'success': True,
-            'message': f'{service_id} restarted successfully',
-            'service': service_manager.get_service_status()[service_id]
-        })
-    else:
-        # Get more detailed error information
-        service_status = service_manager.services[service_id]
-        error_msg = service_status.error_message or "Service failed to become healthy within timeout"
-        return jsonify({
-            'success': False,
-            'message': f'Failed to start {service_id} after stopping',
-            'error': error_msg,
-            'details': {
-                'running': service_status.running,
-                'pid': service_status.pid,
-                'port': service_status.port
+    try:
+        if service_id not in service_manager.services:
+            return jsonify({
+                'success': False,
+                'message': f'Service {service_id} not found'
+            }), 404
+
+        # Stop the service first
+        stop_result = service_manager._stop_service(service_id)
+        if not stop_result:
+            payload = {
+                'success': False,
+                'message': f'Failed to stop {service_id}',
+                'error': getattr(service_manager.services[service_id], 'error_message', None) or 'Stop returned False'
             }
-        }), 500
+            _write_restart_error(service_id, payload)
+            return jsonify(payload), 500
+
+        # Wait longer for the service to fully stop and port to be released (especially important on Windows)
+        time.sleep(3)
+
+        # Start the service
+        start_result = service_manager._start_service(service_id)
+        if start_result:
+            try:
+                status = service_manager.get_service_status()[service_id]
+            except Exception as e:
+                status = {'running': True, 'error': str(e)}
+            return jsonify({
+                'success': True,
+                'message': f'{service_id} restarted successfully',
+                'service': status
+            })
+        else:
+            # Get more detailed error information
+            service_status = service_manager.services[service_id]
+            error_msg = service_status.error_message or "Service failed to become healthy within timeout"
+            payload = {
+                'success': False,
+                'message': f'Failed to start {service_id} after stopping',
+                'error': error_msg,
+                'details': {
+                    'running': service_status.running,
+                    'pid': service_status.pid,
+                    'port': service_status.port
+                }
+            }
+            _write_restart_error(service_id, payload)
+            return jsonify(payload), 500
+    except Exception as e:
+        print(f"ERROR: restart_service({service_id}): {e}")
+        traceback.print_exc()
+        payload = {
+            'success': False,
+            'message': f'Error restarting {service_id}',
+            'error': str(e),
+            'details': {'traceback': traceback.format_exc()}
+        }
+        _write_restart_error(service_id, payload)
+        return jsonify(payload), 500
 
 @app.route('/api/services/restart-self', methods=['POST'])
 def restart_self():
@@ -822,8 +953,8 @@ if __name__ == '__main__':
         # Start Flask API
         port = service_manager.config['service_manager']['port']
         print(f"Starting Service Manager API on port {port}")
-        print(f"Health check: http://localhost:{port}/health")
-        print(f"API docs: http://localhost:{port}/api/services/status")
+        print(f"Health check: {SERVICE_MANAGER_URL}/health")
+        print(f"API docs: {SERVICE_MANAGER_URL}/api/services/status")
         
         # Check if port is available with retry logic
         import socket
@@ -835,7 +966,7 @@ if __name__ == '__main__':
             try:
                 test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 test_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                test_sock.bind(('localhost', port))
+                test_sock.bind((SERVICE_MANAGER_HOST, port))
                 test_sock.close()
                 port_available = True
                 print(f"Port {port} is available")

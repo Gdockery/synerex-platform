@@ -183,7 +183,7 @@ The access gateway handles various error scenarios:
 Test the access gateway:
 
 1. **Get a license ID** from the database or registration
-2. **Visit access page**: `http://localhost:8000/access/emv?license_id=YOUR_LICENSE_ID`
+2. **Visit access page**: `${LICENSE_SERVICE_URL}/access/emv?license_id=YOUR_LICENSE_ID`
 3. **Enter serial number** and submit
 4. **Should redirect** to program URL with token parameter
 

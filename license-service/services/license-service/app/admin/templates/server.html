@@ -44,21 +44,21 @@
   <div class="card" style="margin-top: 2rem;">
     <h4 style="margin: 0 0 1.5rem 0; color: #2d3748;">Server Actions</h4>
     <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-      <form method="post" action="/admin/server/reload" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('server/reload') }}" style="display: inline-block;">
         <button type="submit" class="btn" 
                 onclick="return confirm('This will reload the server (if --reload is enabled). Continue?');">
           🔄 Reload Server
         </button>
       </form>
       
-      <form method="post" action="/admin/server/reload" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('server/reload') }}" style="display: inline-block;">
         <button type="submit" class="btn" style="background: #ed8936;"
                 onclick="return confirm('⚠️ This will restart the server (via reload). The page will disconnect. Continue?');">
           🔁 Restart Server
         </button>
       </form>
       
-      <form method="post" action="/admin/server/shutdown" style="display: inline-block;">
+      <form method="post" action="{{ admin_url('server/shutdown') }}" style="display: inline-block;">
         <button type="submit" class="btn btn-danger" 
                 onclick="return confirm('⚠️ WARNING: This will stop the server! Only use if you have a process manager to restart it. Continue?');">
           🛑 Shutdown Server

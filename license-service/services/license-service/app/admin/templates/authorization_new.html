@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card">
   <h3>Create New Authorization</h3>
-  <form method="post" action="/admin/authorizations">
+  <form method="post" action="{{ admin_url('authorizations') }}">
     <div class="row">
       <div class="form-group">
         <label for="authorization_id">Authorization ID</label>
@@ -60,7 +60,7 @@
     </div>
     <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
       <button class="btn" type="submit">Create Authorization</button>
-      <a href="/admin/authorizations" class="btn btn-secondary">Cancel</a>
+      <a href="{{ admin_url('authorizations') }}" class="btn btn-secondary">Cancel</a>
     </div>
   </form>
 </div>

@@ -21,7 +21,7 @@ after_file_id = 78
 
 # Simulate org_id
 org_id = 'admin'
-org_ids_to_try = [org_id, 'ADMIN', 'admin', None]
+org_ids_to_try = [org_id, 'admin', None]
 
 # Create temp directory like the real code does
 temp_dir = tempfile.mkdtemp()

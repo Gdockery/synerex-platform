@@ -7,6 +7,7 @@ Identifies why SynerexAI isn't responding to user questions
 import os
 import json
 import requests
+import os
 from typing import Dict, List, Any
 
 def check_services():
@@ -14,10 +15,10 @@ def check_services():
     print("=== SERVICE STATUS CHECK ===")
     
     services = {
-        "Main Service (8082)": "http://127.0.0.1:8082",
-        "HTML Service (8084)": "http://127.0.0.1:8084", 
-        "Weather Service (8085)": "http://127.0.0.1:8085",
-        "Chart Service (8086)": "http://127.0.0.1:8086"
+        "Main Service (8082)": os.getenv("EMV_BASE_URL"),
+        "HTML Service (8084)": os.getenv("HTML_REPORT_URL"), 
+        "Weather Service (8085)": os.getenv("WEATHER_SERVICE_URL"),
+        "Chart Service (8086)": os.getenv("CHART_SERVICE_URL")
     }
     
     for service_name, url in services.items():

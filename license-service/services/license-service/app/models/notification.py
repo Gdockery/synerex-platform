@@ -25,11 +25,11 @@ class Notification(Base):
     __tablename__ = "notifications"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    org_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    license_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
-    notification_type: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(String, default=NotificationStatus.PENDING.value)
-    recipient_email: Mapped[str] = mapped_column(String, nullable=False)
+    org_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    license_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    notification_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(255), default=NotificationStatus.PENDING.value)
+    recipient_email: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str] = mapped_column(Text, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

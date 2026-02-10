@@ -51,7 +51,7 @@ After migration:
 
 If you want to create a proper organization in the License Service:
 
-1. Go to `http://localhost:8000/register`
+1. Go to `${LICENSE_SERVICE_URL}/register`
 2. Register as a "customer" organization
 3. Note your `org_id` (it will be shown after registration)
 4. Run the migration script with that `org_id` instead of "admin"

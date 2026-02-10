@@ -43,7 +43,8 @@ PORT=3001
 NODE_ENV=development
 
 # CORS Configuration
-FRONTEND_URL=http://localhost:5180
+FRONTEND_URL=<comma-separated-frontend-urls>
+FRONTEND_BASE_URL=<frontend-base-url>
 
 # NDA Template Configuration
 NDA_TEMPLATE_ID=your_nda_template_id_here
@@ -107,7 +108,7 @@ npm start
 The frontend is already configured to call the backend API. Update the frontend's API endpoint in `NDAModal.jsx` if needed:
 
 ```javascript
-const targets = ["http://localhost:3001/api/docusign/createNDA"];
+const targets = [`${import.meta.env.VITE_WEBSITE_BACKEND_URL}/api/docusign/createNDA`];
 ```
 
 ## Security Considerations

@@ -14,7 +14,7 @@ try {
     
     # Check if service is running
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
         Write-Host "[OK] Ollama service is running!" -ForegroundColor Green
         
         # Check for model
@@ -81,7 +81,7 @@ $serviceRunning = $false
 
 while ($retryCount -lt $maxRetries -and -not $serviceRunning) {
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
         $serviceRunning = $true
         Write-Host "[OK] Ollama service is running!" -ForegroundColor Green
     } catch {
@@ -97,7 +97,7 @@ while ($retryCount -lt $maxRetries -and -not $serviceRunning) {
             if ($startManually -eq "Y" -or $startManually -eq "y") {
                 Start-Sleep -Seconds 3
                 try {
-                    $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
+                    $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop
                     $serviceRunning = $true
                     Write-Host "[OK] Ollama service is now running!" -ForegroundColor Green
                 } catch {
@@ -116,7 +116,7 @@ Write-Host ""
 Write-Host "Step 3: Checking for required model 'llama3.2:1b'..." -ForegroundColor Yellow
 
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
+    $response = Invoke-WebRequest -Uri "$env:OLLAMA_LOCAL_URL/api/tags" -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
     $models = ($response.Content | ConvertFrom-Json).models
     $modelNames = $models | ForEach-Object { $_.name }
     
@@ -161,7 +161,7 @@ try {
         stream = $false
     } | ConvertTo-Json
     
-    $response = Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body $testPayload -ContentType "application/json" -TimeoutSec 30
+    $response = Invoke-RestMethod -Uri "$env:OLLAMA_LOCAL_URL/api/generate" -Method Post -Body $testPayload -ContentType "application/json" -TimeoutSec 30
     $testResponse = $response.response
     
     Write-Host "[OK] Ollama is responding correctly!" -ForegroundColor Green

@@ -1,5 +1,5 @@
 # Stop service, wait 5 seconds, then restart
-$serviceManagerUrl = "http://localhost:9000"
+$serviceManagerUrl = $env:SERVICE_MANAGER_URL
 $serviceId = "main_app"
 
 Write-Host "Stopping service $serviceId..." -ForegroundColor Yellow

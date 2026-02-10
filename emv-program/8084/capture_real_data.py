@@ -4,6 +4,7 @@ Capture and analyze the real data structure from the UI
 """
 
 import json
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -66,7 +67,7 @@ def capture_data():
 
 if __name__ == '__main__':
     print("🚀 Starting Data Capture Service on port 8089...")
-    print("📱 Capture Data: POST http://localhost:8089/capture")
+    print(f"📱 Capture Data: POST {os.getenv('CAPTURE_SERVICE_URL')}/capture")
     print("🛑 Press Ctrl+C to stop")
     print("--------------------------------------------------")
     app.run(host='0.0.0.0', port=8089, debug=False)

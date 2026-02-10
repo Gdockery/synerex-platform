@@ -14,9 +14,11 @@ from ..downloads.watermark import watermark_pdf_bytes
 
 router = APIRouter(prefix="/downloads", tags=["downloads"])
 
-DOWNLOADS_DIR = Path(__file__).resolve().parents[3] / "downloads"
+# In-container layout: /app/app/routes/downloads.py, project root is /app.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 REGISTRY_PATH = DOWNLOADS_DIR / "registry.json"
-FILES_DIR = Path(__file__).resolve().parents[4] / "governance" / "pdfs"
+FILES_DIR = PROJECT_ROOT / "governance" / "pdfs"
 
 def db_session():
     db = SessionLocal()

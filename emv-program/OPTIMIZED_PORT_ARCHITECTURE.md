@@ -84,10 +84,10 @@ netstat -an | findstr "LISTENING" | findstr ":80"
 ```
 
 ### **Health Checks:**
-- **8082**: `http://127.0.0.1:8082/api/health`
-- **8084**: `http://127.0.0.1:8084/health`
-- **8086**: `http://127.0.0.1:8086/health`
-- **8200**: `http://127.0.0.1:8200/health`
+- **8082**: `${EMV_BASE_URL}/api/health`
+- **8084**: `${HTML_REPORT_URL}/health`
+- **8086**: `${CHART_SERVICE_URL}/health`
+- **8200**: `${WEATHER_SERVICE_URL}/health`
 
 ---
 
