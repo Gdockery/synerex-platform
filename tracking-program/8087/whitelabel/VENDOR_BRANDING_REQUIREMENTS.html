@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whitelabel Branding Requirements</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 25px;
+        }
+        h4 {
+            color: #666;
+            margin-top: 20px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+        .directory-tree {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+        .note {
+            background-color: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .section {
+            margin: 30px 0;
+        }
+        .asset-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+        .asset-item h4 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .specs {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .spec-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+            color: #777;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Whitelabel Branding Requirements for Vendors</h1>
+
+        <div class="section">
+            <h2>Overview</h2>
+            <p>This document outlines the branding assets (logos, graphics, and images) required to customize the portal for your organization. The portal supports URL-based whitelabeling, meaning different domains can display different branding while using the same codebase.</p>
+        </div>
+
+        <div class="section">
+            <h2>Directory Structure</h2>
+            <p>When providing your branding assets, please organize them in the following directory structure:</p>
+            <div class="directory-tree">
+whitelabel/
+└── {your-domain}/
+    ├── images/
+    │   ├── logo-small.png
+    │   ├── logo-big.png
+    │   ├── logo-big1.png
+    │   ├── xeco-logo-sm.png
+    │   ├── xeco-welcome2.png
+    │   ├── ubill-tracker-logo.png
+    │   ├── ubill-cast-logo.png
+    │   └── (other images as needed)
+    └── pdf-resources/
+        ├── logo.png
+        ├── bill-cover.png
+        ├── bill-logo.png
+        ├── proposal-cover.png
+        └── (other PDF resources as needed)
+            </div>
+            <div class="note">
+                <strong>Note:</strong> Replace <code>{your-domain}</code> with your subdomain identifier. For example:
+                <ul>
+                    <li><code>harmoniq.synerexlabs.com</code> → use directory <code>harmoniq/</code></li>
+                    <li><code>ucep.synerexlabs.com</code> → use directory <code>ucep/</code></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Required Assets</h2>
+
+            <h3>Frontend Images (Required)</h3>
+            <p>These images appear in the web interface:</p>
+
+            <div class="asset-item">
+                <h4>1. Logo - Small (<code>logo-small.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Navigation bar (top left)</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 120-150px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Main navigation logo</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>2. Logo - Big (<code>logo-big.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Login page, terms page, FAQ page</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 200-250px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Large logo for authentication and legal pages</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>3. Logo - Big Variant (<code>logo-big1.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Login page (alternative)</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 200-250px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Alternative large logo variant</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>4. Small Logo (<code>xeco-logo-sm.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Payment pages</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 100-120px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Small logo for payment/checkout pages</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>5. Welcome Image (<code>xeco-welcome2.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Welcome/dashboard page</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 800-1200px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG or JPG</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Hero image on welcome/dashboard</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>6. Third-Party Logos (Optional)</h4>
+                <div class="specs">
+                    <div class="spec-label">UBill Tracker Logo:</div>
+                    <div><code>ubill-tracker-logo.png</code> - Dimensions: 138px × 34px, Format: PNG, Usage: Energy savings reports</div>
+                    <div class="spec-label">UBill Cast Logo:</div>
+                    <div><code>ubill-cast-logo.png</code> - Dimensions: 138px × 34px, Format: PNG, Usage: Energy savings reports</div>
+                </div>
+            </div>
+
+            <h3>PDF Resources (Required)</h3>
+            <p>These images appear in generated PDF documents (invoices, proposals, reports):</p>
+
+            <div class="asset-item">
+                <h4>1. Main Logo (<code>logo.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>All PDF documents (header/footer)</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 200-300px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency (high resolution, 300 DPI recommended)</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Primary logo for all PDF documents</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>2. Bill Cover (<code>bill-cover.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Bill analytic reports</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 8.5" × 11" (2550 × 3300px at 300 DPI)</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG or JPG (high resolution, 300 DPI)</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Cover page for bill analysis reports</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>3. Bill Logo (<code>bill-logo.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Bill analytic reports, test reports</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 200-300px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency (high resolution, 300 DPI)</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Logo for bill analysis and test reports</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>4. Proposal Cover (<code>proposal-cover.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Client proposals</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 8.5" × 11" (2550 × 3300px at 300 DPI)</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG or JPG (high resolution, 300 DPI)</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Cover page for client proposals</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>5. Meter Certificate Logo (<code>meter-certificate-logo.png</code>)</h4>
+                <div class="specs">
+                    <div class="spec-label">Location:</div>
+                    <div>Meter certificates</div>
+                    <div class="spec-label">Dimensions:</div>
+                    <div>Recommended 200-300px width, proportional height</div>
+                    <div class="spec-label">Format:</div>
+                    <div>PNG with transparency (high resolution, 300 DPI)</div>
+                    <div class="spec-label">Usage:</div>
+                    <div>Logo for meter certification documents</div>
+                </div>
+            </div>
+
+            <div class="asset-item">
+                <h4>6. Additional PDF Graphics (Optional but Recommended)</h4>
+                <p>The following graphics are used in proposals and reports. If not provided, default graphics will be used:</p>
+                <table>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Usage</th>
+                    </tr>
+                    <tr><td><code>exclusive.png</code></td><td>Exclusive content indicator</td></tr>
+                    <tr><td><code>parts-procurement-graph.png</code></td><td>Parts procurement visualization</td></tr>
+                    <tr><td><code>head.png</code></td><td>Header graphic for CO2 savings reports</td></tr>
+                    <tr><td><code>graph.png</code></td><td>Graph/chart graphic</td></tr>
+                    <tr><td><code>energy.png</code></td><td>Energy icon/graphic</td></tr>
+                    <tr><td><code>graphic.png</code></td><td>General graphic element</td></tr>
+                    <tr><td><code>index-logo.png</code></td><td>Index/table of contents logo</td></tr>
+                    <tr><td><code>calculated-energy-savings.png</code></td><td>Energy savings calculation graphic</td></tr>
+                    <tr><td><code>efficiency-gains.png</code></td><td>Efficiency gains visualization</td></tr>
+                    <tr><td><code>advancing-red-curve.png</code></td><td>Red curve graphic</td></tr>
+                    <tr><td><code>electric-service-bill.png</code></td><td>Electric bill graphic</td></tr>
+                    <tr><td><code>calculation.png</code></td><td>Calculation graphic</td></tr>
+                    <tr><td><code>project-managers-engineers.png</code></td><td>Project team graphic</td></tr>
+                    <tr><td><code>installation-map.png</code></td><td>Installation map graphic</td></tr>
+                    <tr><td><code>xeco-clients.png</code></td><td>Clients showcase graphic</td></tr>
+                    <tr><td><code>insurance-coverage.png</code></td><td>Insurance coverage graphic</td></tr>
+                    <tr><td><code>signature.png</code></td><td>Signature graphic</td></tr>
+                    <tr><td><code>etl-logo.png</code></td><td>ETL certification logo</td></tr>
+                    <tr><td><code>power-quality-comparison.png</code></td><td>Power quality comparison chart</td></tr>
+                    <tr><td><code>power-quality-with-xeco.png</code></td><td>Power quality with service graphic</td></tr>
+                    <tr><td><code>power-quality-without-xeco.png</code></td><td>Power quality without service graphic</td></tr>
+                    <tr><td><code>xeco-realtime-portal.png</code></td><td>Real-time portal graphic</td></tr>
+                    <tr><td><code>power-quality-improvement.png</code></td><td>Power quality improvement graphic</td></tr>
+                    <tr><td><code>power-quality-cost.png</code></td><td>Power quality cost graphic</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>File Naming Requirements</h2>
+            <ul>
+                <li><strong>Exact filenames:</strong> Use the exact filenames listed above (case-sensitive)</li>
+                <li><strong>File extensions:</strong> Use <code>.png</code> for images with transparency, <code>.jpg</code> or <code>.png</code> for photos</li>
+                <li><strong>No spaces:</strong> Use hyphens (<code>-</code>) instead of spaces in filenames</li>
+                <li><strong>Lowercase:</strong> Use lowercase letters for consistency</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Image Specifications</h2>
+
+            <h3>General Guidelines</h3>
+            <ol>
+                <li><strong>Format:</strong> PNG for logos and graphics with transparency, JPG for photos</li>
+                <li><strong>Resolution:</strong>
+                    <ul>
+                        <li>Web images: 72-150 DPI is sufficient</li>
+                        <li>PDF resources: 300 DPI recommended for print quality</li>
+                    </ul>
+                </li>
+                <li><strong>Color Space:</strong> RGB (not CMYK)</li>
+                <li><strong>Transparency:</strong> Use PNG with alpha channel for logos that need transparent backgrounds</li>
+                <li><strong>File Size:</strong> Optimize images for web (compress without visible quality loss)</li>
+            </ol>
+
+            <h3>Logo Requirements</h3>
+            <ul>
+                <li><strong>Transparent Background:</strong> All logos should have transparent backgrounds (PNG with alpha channel)</li>
+                <li><strong>High Contrast:</strong> Ensure logos are readable on both light and dark backgrounds</li>
+                <li><strong>Scalable:</strong> Logos should look good when scaled down to small sizes</li>
+                <li><strong>Brand Colors:</strong> Maintain brand color accuracy</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Delivery Instructions</h2>
+            <ol>
+                <li><strong>Organize files</strong> in the directory structure shown above</li>
+                <li><strong>Name files exactly</strong> as specified (case-sensitive)</li>
+                <li><strong>Provide all required assets</strong> - missing files will fall back to default branding</li>
+                <li><strong>Include a README</strong> with any special instructions or notes about your branding</li>
+                <li><strong>Test files</strong> - ensure all images open correctly and have proper dimensions</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Optional Customizations</h2>
+
+            <h3>Additional Images</h3>
+            <p>If you have additional images you'd like to use (e.g., custom icons, graphics), you can include them in your <code>images/</code> directory. However, these will only be used if the application code is updated to reference them.</p>
+
+            <h3>Client-Specific Logos</h3>
+            <p>Client company logos are managed separately through the application interface and are stored in <code>/images/client_company_logo/</code>. These do not need to be included in your whitelabel package.</p>
+        </div>
+
+        <div class="section">
+            <h2>Testing Your Branding</h2>
+            <p>After your branding assets are installed:</p>
+            <ol>
+                <li>Access your portal at <code>{your-domain}.synerexlabs.com</code></li>
+                <li>Verify logos appear correctly in:
+                    <ul>
+                        <li>Navigation bar (top left)</li>
+                        <li>Login page</li>
+                        <li>Welcome/dashboard page</li>
+                        <li>Generated PDF documents</li>
+                    </ul>
+                </li>
+                <li>Check that images load properly and maintain aspect ratios</li>
+                <li>Verify PDF documents display your branding correctly</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Support</h2>
+            <p>If you have questions about:</p>
+            <ul>
+                <li><strong>File formats or specifications:</strong> Contact your project manager</li>
+                <li><strong>Technical implementation:</strong> Contact the development team</li>
+                <li><strong>Branding guidelines:</strong> Refer to your organization's brand guidelines</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Important Notes</h2>
+            <div class="note">
+                <strong>Portal Domain:</strong> If your domain is <code>portal.synerexlabs.com</code>, it will always use default branding (no whitelabel directory needed)
+            </div>
+            <div class="note">
+                <strong>Partial Branding:</strong> You can provide only some assets - missing files will use defaults
+            </div>
+            <div class="note">
+                <strong>Updates:</strong> Branding assets can be updated at any time by replacing files in the whitelabel directory
+            </div>
+            <div class="note">
+                <strong>Version Control:</strong> Whitelabel directories are not tracked in git, so your branding remains private to your deployment
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Last Updated:</strong> January 2026</p>
+            <p><strong>Version:</strong> 1.0</p>
+        </div>
+    </div>
+</body>
+</html>

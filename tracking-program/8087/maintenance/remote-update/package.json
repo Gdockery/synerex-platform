@@ -1,0 +1,15 @@
+{
+  "name": "remote-update",
+  "version": "1.0.0",
+  "description": "",
+  "main": "remote.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.0",
+    "ssh2": "^0.8.9"
+  }
+}

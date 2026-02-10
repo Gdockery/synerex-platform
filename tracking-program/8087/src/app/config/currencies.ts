@@ -1,0 +1,22 @@
+export let CURRENCIES = [
+  {label: 'USD', value: 'USD'},
+  {label: 'CAD', value: 'CAD'},
+  {label: 'MXN', value: 'MXN'},
+  {label: 'CNY', value: 'CNY'},
+  {label: 'BRL', value: 'BRL'},
+  {label: 'GBP', value: 'GBP'},
+  {label: 'EUR', value: 'EUR'},
+  {label: 'ZAR', value: 'ZAR'},
+  {label: 'MUR', value: 'MUR'},
+  {label: 'THB', value: 'THB'},
+  {label: 'PEN', value: 'PEN'},
+  {label: 'RUB', value: 'RUB'},
+  {label: 'INR', value: 'INR'},
+  {label: 'JPY', value: 'JPY'},
+  {label: 'AUD', value: 'AUD'},
+  {label: 'NZD', value: 'NZD'},
+  {label: 'NGN', value: 'NGN'},
+  {label: 'XBT', value: 'XBT'},
+  {label: 'ETH', value: 'ETH'},
+];
+

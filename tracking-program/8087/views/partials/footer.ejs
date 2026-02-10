@@ -1,0 +1,20 @@
+<div class="sticky-footer main-footer">
+  <div class="container-fluid clearfix">
+    <div style="float: left;" class="left">
+      <% var brandName = sails.config.whitelabel.getBrandName(req.hostname || req.get('host') || ''); %>
+      <span class="copy">Copyright © 2020 to Present. <%= brandName %> Energy Corporation. All Rights Reserved. <%= brandName %>, <%= brandName %>480, <%= brandName %>600, <%= brandName %>RS, uBillTRACKER and uBill4CAST are Trademarks of <%= brandName %> Energy Corporation. All other trademarks are the property of their respective owners.</span>
+      <a href="/terms">Terms of Use</a>
+      <span class="divider">|</span>
+      <a href="/agreement">Privacy Policy</a>
+    </div>
+    <div style="float: right;" class="right">
+      <a href="http://xecoenergy.com/overview/">About <%= brandName %></a>
+      <span class="divider">|</span>
+      <a href="http://xecoenergy.com/contact-us/">Contact Us</a>
+      <span class="divider">|</span>
+      <a class="icon" target="_blank" href="https://twitter.com/xecoenergy"><span class="fa fa-twitter-square"></span></a>
+      <br/>
+      <a href="/faq">Frequently Asked Questions (FAQ)</a>
+    </div>
+  </div>
+</div>

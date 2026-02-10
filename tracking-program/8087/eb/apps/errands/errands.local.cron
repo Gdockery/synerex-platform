@@ -1,0 +1,7 @@
+# errands
+
+* 3 * * * root curl -X POST -s http://localhost:1340/check-payment 2>&1
+* * * * * root curl -X POST -s http://localhost:1340/sync-data 2>&1
+* * * * * root ( sleep 30 ; curl -X POST -s http://localhost:1340/sync-data 2>&1 )
+1 0 * * */1 root curl -X POST -s http://localhost:1340/schedule-switches 2>&1
+

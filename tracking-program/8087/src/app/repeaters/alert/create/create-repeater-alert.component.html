@@ -1,0 +1,67 @@
+<div class="content-box">
+  <h3>Repeater Alert - {{currentType.name}}</h3>
+  <span>{{currentType.description}}</span>
+  <form [formGroup]="alertForm" (ngSubmit)="create(alertForm)">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group" *ngIf="!currentAlert">
+            <label for="note">Note</label>
+            <input type="text" class="form-control" id="note" name="note" formControlName="note">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label>&nbsp;</label>
+          <button type="button" class="default-button form-control green-button" (click)="metersModal.show();">({{selectedCount}}) repeaters selected</button>
+          <div *ngIf="!alertForm.controls.repeaters.valid" class="alert alert-danger">
+            At least one repeater must be selected
+          </div>
+          <div class="modal fade" bsModal #metersModal="bs-modal" [config]="{backdrop: 'static'}"
+               tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h4 class="modal-title pull-left">Select Repeaters</h4>
+                  <button type="button" class="default-button pull-right green-button" aria-label="Close" (click)="metersModal.hide();">
+                    Submit
+                  </button>
+                </div>
+                <div class="modal-body">
+                  <multi-select #repeaterSelect [dataSource]="repeaterObservable" [currentArray]="currentAlert ? currentAlert.devices : []" [formArray]="alertForm.controls['repeaters']" (selected)="selected($event)"></multi-select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div formArrayName="userArray">
+            <div class="form-group">
+              <label>Contact Email</label>
+              <user-select #alertUser [userFormArray]="alertForm.controls['userArray']"></user-select>
+              <button type="button" class="default-button green-button form-control" style="width:auto;" (click)="alertUser.addUser()">Add Email</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6" *ngIf="!currentAlert">
+          <div class="form-group">
+            <label for="threshold">Duration offline</label>
+            <input type="text" class="form-control" id="threshold" name="threshold" formControlName="threshold">
+            <div *ngIf="alertForm.controls.threshold.errors && (alertForm.controls.threshold.dirty || alertForm.controls.threshold.touched)" class="alert alert-danger">
+              A numeric duration must be provided.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <button type="button" class="default-button form-control white-button" (click)="cancelCreate()">Cancel</button>
+        </div>
+        <div class="col-md-6">
+          <button type="submit" class="default-button form-control green-button" [disabled]="!alertForm.valid">{{currentAlert ? 'Edit' : 'Add'}}</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>

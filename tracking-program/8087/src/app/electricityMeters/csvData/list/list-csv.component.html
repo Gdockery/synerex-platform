@@ -1,0 +1,22 @@
+<div class="content-box">
+  <h3>Set {{currentType.name}} CSV data</h3>
+  <div class="box" style="display:block;" *ngFor="let csv of csvData | where:['reportType', currentType.id] | orderBy:'-id'">
+    <div class="container-fluid">
+      <div class="col-md-12">
+        <div class="left">
+          {{csv.title}}
+        </div>
+        <div class="pull-right">
+          <a (click)="csvDataService.remove(csv.id)"><span class="ss-trash"></span>Delete</a>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <span>{{csv.meterCount}} meters selected</span>
+        <a (click)="csvDataService.downloadFile(csv)">Download</a>
+      </div>
+      <div class="col-md-12" style="margin-top: 30px;">
+        <span class="list-comma" *ngFor="let user of csv.users;">{{user.email}}</span>
+      </div>
+    </div>
+  </div>
+</div>

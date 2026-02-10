@@ -1,0 +1,26 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+    config.vm.box = "ubuntu/xenial64"
+  
+    config.vm.network "forwarded_port", guest: 1337, host: 1337
+    config.vm.network "forwarded_port", guest: 1883, host: 8883
+  
+    config.vm.provider "virtualbox" do |vb|
+      vb.memory = "2048"
+    end
+
+    config.vm.provision "shell", inline: <<-SHELL
+      apt-get update -y
+      apt-get upgrade -y
+      apt-get install -y redis-server redis-tools
+      apt-get install -y mosquitto mosquitto-clients
+      apt-get install -y libpng16-dev autoconf libtool nasm npm
+      rm -rf /vagrant/node_modules/
+      npm install -g n
+      n lts
+      echo 'export PATH=/vagrant/node_modules/.bin:$PATH' >> /home/vagrant/.profile
+    SHELL
+  end
+  

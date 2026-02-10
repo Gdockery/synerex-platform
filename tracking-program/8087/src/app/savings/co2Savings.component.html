@@ -1,0 +1,147 @@
+<div *ngIf="!hasRunTest" class="container-fluid"> 
+  Please run a test to display carbon emissions page.
+</div>
+<div *ngIf="hasRunTest" class="container-fluid">
+    <!--<div class="row">
+      <div class="nav col-md-7">Carbon Emission (Live Meter)</div>
+      <div class="col-md-5 text-right"><strong>
+        <a *ngIf="hasRunTest" class="default-button green-button" href="{{links.co2Savings}}" target="_blank">Detailed Report</a></strong>
+        <a *ngIf="!hasRunTest" class="default-button green-button" target="_blank">Run test to get detailed report</a>
+      </div>
+    </div>-->
+      <div class="row content-box" style="padding-top: 15px">
+        <div class="col-md-8">
+          <div class="col-md-7" style="font-size: 10px">Carbon Emission (Metric Tonnes) per hour</div>
+          <div class="col-md-5"> 
+            <legend style="font-size: 10px" [values]="[{text:'CO2 With Xeco', color: '#26c49d'},{text:'CO2 Without Xeco', color: '#9ca5d7'}]"></legend>
+          </div>
+          <div class="col-md-12">
+            <line-chart [beginAtZero]="false" style="height:250px;" #savingsChart></line-chart>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div style="text-align: center">Carbon Emission Savings Accumulator</div>
+          <br>
+          <div class="col-md-7"></div>
+          <div class="col-md-5">
+            <div style="font-size: 12px; width: 100%; text-align: center;">Recorded Hours Today</div>
+            <div *ngIf="breakdown" style="text-align: center; border: 1px solid black; background-color:lightgray; color:black; width:100%;padding-top:6px;padding-bottom: 6px"><strong style="font-size: 18px">{{breakdown.hours}}hrs {{breakdown.minutes}}min</strong></div>
+            <br>
+          </div>
+          <p style="font-size:18px"><strong>CO2 Savings in Metric Tonnes (Today)</strong></p>
+          <table style="width:100%" *ngIf="breakdown" >
+            <tr class="text-center">
+              <td style="width: 25%;text-align:right; font-size:14px"><strong>CO2(Before)&nbsp;&nbsp;</strong></td>
+              <td style="width: 15%;text-align:left; font-size:14px">{{breakdown.co2TodayBefore}}</td>
+              <td style="width: 25%;text-align:left; font-size:14px">Diff {{breakdown.co2TodayDiff}}</td>
+              <td style="width: 35%;text-align:left; font-size:16px"><strong>Today's C.C. Value</strong></td>
+              <td></td>
+            </tr>
+            <tr class="text-center" style="border-bottom:1px solid gray">
+              <td style="text-align:right; font-size:14px"><strong>CO2(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:left; font-size:14px">{{breakdown.co2Today}}</td>
+              <td style="text-align:left; font-size:14px">C.C. Rate ${{breakdown.carbonCreditRate}}</td>
+              <td style="text-align:center; font-size:14px">${{breakdown.ccValueToday}}</td>
+              <td></td>
+            </tr>
+          </table>
+          <br>
+          <div style="text-align:center; font-size: 16px"><strong>Real Time Carbon Credit Trade Value</strong></div>
+          <table style="background-color: #b1e3d8; width:100%" *ngIf="breakdown">
+            <tr class="text-center">
+              <td style="width: 25%;text-align:center; font-size: 10px;">Current Week</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">This Month</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">This Year</td>
+              <td style="width: 25%;text-align:center; font-size: 10px;">All Time</td>
+            </tr>
+            <tr class="text-center">
+              <td style="text-align:center; font-size: 18px;"><strong>${{breakdown.ccValueWeek | number : '1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 18px;"><strong>${{breakdown.ccValueMonth | number : '1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 18px;"><strong>${{breakdown.ccValueYear | number : '1.2-2'}}</strong></td>
+              <td style="text-align:center; font-size: 18px;"><strong>${{breakdown.ccValueProject | number : '1.2-2'}}</strong></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="row content-box">
+        <div class="fill col-md-7">
+          <img src="/images/carbonsmog.png" alt=""/>
+        </div>
+        <div class="col-md-5" style="background-color: #b3e2d8">
+          <h4 style="text-align: center"><strong>CO2 Emission Saving Equivalencies (All Time)</strong></h4>
+          <table id="conversion" *ngIf="breakdown" style="width:90%">
+            <tr>
+              <td style="width: 30%;text-align:center; border: 1px solid black;font-size: 16px; background-color: white">{{breakdown.passengerVehicles}}</td>
+              <td style="width: 70%;text-align:left; font-size: 14px;">&nbsp;&nbsp;passenger vehicles</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black;font-size: 16px; background-color: white">{{breakdown.gallonsOfGasoline}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;gallons of gasoline consumed</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black;font-size: 16px;background-color: white">{{breakdown.barrelsOfOil}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;barrels of oil consumed</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black; font-size: 16px;background-color: white">{{breakdown.tankerTrucksGasoline}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;tanker trucks' worth of gasoline</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black;font-size: 16px;background-color: white">{{breakdown.homesForOneYear}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;homes for one year</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black; font-size: 16px;background-color: white">{{breakdown.treeSeedlings}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;tree seedlings grown for 10 years</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black; font-size: 16px;background-color: white">{{breakdown.acresOfPine}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;acres of pine or fir forests</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black; font-size: 16px;background-color: white">{{breakdown.propaneCylinders}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;propane cylinders used for home barbeques</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black; font-size: 16px;background-color: white">{{breakdown.railcarsOfCoal}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;railcars worth of coal</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black;font-size: 16px;background-color: white">{{breakdown.tonsOfWaste}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;tons of waste instead of sending it to landfill</td>
+            </tr>
+            <tr>
+              <td style="text-align:center; border: 1px solid black;font-size: 14px;background-color: white">{{breakdown.milesDriven}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;miles driven by the average passenger vehicle</td>
+            </tr>
+            <tr style="margin-top: 10px; margin-bottom: 10px;">
+              <td style="text-align:center; border: 1px solid black;font-size: 14px;background-color: white">{{breakdown.incandescentToLed}}</td>
+              <td style="text-align:left; font-size: 14px;">&nbsp;&nbsp;of incandescent bulbs switched to LED bulbs</td>
+            </tr>
+          </table>
+        </div>
+        
+      </div>
+</div>
+<style>
+  div .row {
+    padding: 5px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+  table#conversion{
+    border-collapse:separate;
+    border-spacing:0 5px;
+  }
+   .fill {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden
+  }
+  .fill img {
+      flex-shrink: 0;
+      min-width: 100%;
+      height: 380px;
+  }
+</style>

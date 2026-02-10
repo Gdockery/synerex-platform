@@ -1,0 +1,155 @@
+<div class="content-box">
+  <div class="container-fluid">
+    <div [hidden]="!syncingDevice" class="row">
+      <div class="col-xs-12">
+        <h4 class="text-primary"><span class="fa fa-spinner"></span>&nbsp;&nbsp;Loading electricity meter info...</h4>
+      </div>
+    </div>
+    <div [class]="syncingDevice ? 'invisible' : ''">
+      <div class="row">
+        <div class="col-xs-12">
+          <h3 [hidden]="!isNameFormHidden">
+            <a class="back-btn" [routerLink]="['/electricity-meters/devices']"><span class="ss-navigateleft"></span></a>
+            {{device.name}}
+            <button [hideIfUserLevel]="[1, 3, 4, 7]" *ngIf="!device.isDeleted" class="btn btn-primary pull-right" (click)="enableChangeNameForm()">Rename</button>
+          </h3>
+          <h3 [hidden]="!isNameFormHidden">
+            <a class="btn btn-primary" href="{{links.meterCertificate}}" target="_blank">View Certificate</a>
+          </h3>
+          <form [hidden]="isNameFormHidden" [formGroup]="nameForm" (ngSubmit)="submitChangeNameForm()">
+            <div class="form-group rename-form">
+              <input type="text" class="form-control" id="name" name="name" formControlName="name">
+              <button class="btn btn-primary save-button">Save</button>
+              <span class="btn btn-default cancel-button" (click)="cancelChangeNameForm()">Cancel</span>
+            </div>
+          </form>
+        </div>
+      </div>
+      <hr/>
+
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>KW Supply:</strong></p>
+          <p><small>Measured in kilowatts</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalKw | round}}</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Power factor:</strong></p>
+          <p><small>Ratio between KW and KVA</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalPf | round:2}}%</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Voltage:</strong></p>
+          <p><small>Measured in volts</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalVolt | round}}</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Current:</strong></p>
+          <p><small>Measured in amps</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalAmp | round}}</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>KVA Demand:</strong></p>
+          <p><small>Maximum instantaneous energy demand in kilovolt-amps</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalKva | round}}</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Kvar:</strong></p>
+          <p><small>Power in kilovolt-amps reactive</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastTotalKvar | round}}</p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>OutputAmp:</strong></p>
+          <p><small>Power Filter Output (if applicable)</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{(device.lastOutputAmp/30) | round}}</p>
+        </div>
+      </div>
+
+      <hr/>
+
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Hardware:</strong></p>
+        </div>
+        <div class="col-md-8">
+          <p>Electricity Meter</p>
+          <p><small>Serial number: {{device.meterSerialNumber || 'Awaiting discovery'}}</small></p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Network Device:</strong></p>
+          <p><small>Serial number:</small></p>
+          <p><small>Mesh ID:</small></p>
+        </div>
+        <div class="col-md-8">
+          <p>Load Controller Serial#</p>
+          <p [hidden]="!isDeviceIdFormHidden"><small>{{device.deviceId}}</small> <a [hideIfUserLevel]="[1, 2, 3, 4, 7]" *ngIf="!device.isDeleted && isDeviceIdFormHidden" class="text-primary" (click)="enableChangeDeviceIdForm()"><span class="ss-write"></span></a></p>
+          <form [hidden]="isDeviceIdFormHidden" [formGroup]="deviceIdForm" (ngSubmit)="submitChangeDeviceIdForm()">
+            <div class="form-group rename-form">
+              <input type="text" class="form-control input-sm" id="deviceId" name="deviceId" formControlName="deviceId">
+              <button class="btn btn-primary save-button">Save</button>
+              <span class="btn btn-default cancel-button" (click)="cancelChangeDeviceIdForm()">Cancel</span>
+            </div>
+          </form>
+          <p><small>{{device.meshId || 'Awaiting discovery'}}</small></p>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <p><strong>Last Communicated:</strong></p>
+        </div>
+        <div class="col-md-8">
+          <p>{{device.lastCommunicatedAt === 0 ? 'Never' : device.lastCommunicatedAt | amTimeAgo}}</p>
+        </div>
+      </div>
+      <hr/>
+
+      <div class="row">
+        <div class="col-md-4"><strong>Status:</strong></div>
+        <div class="col-md-6">
+          <span class="status-label status-active" *ngIf="!device.isDeleted">Active</span>
+          <span class="status-label status-inactive" *ngIf="device.isDeleted">Retired</span>
+        </div>
+        <div class="col-md-2">
+          <button [hideIfUserLevel]="[1, 2, 4]" *ngIf="!device.isDeleted && (userService.user.role === 2 || userService.user.role === 8)" class="btn btn-sm btn-danger pull-right" (click)="clickDeleteDeviceButton()">
+            <span [hidden]="retiringDevice">Retire meter</span>
+            <span [hidden]="!retiringDevice">Retiring...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+
+    </div>
+
+  </div>
+
+</div>

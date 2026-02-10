@@ -1,0 +1,70 @@
+<style>
+  .error {
+    font-weight: bold;
+    color:#8b1313;
+  }
+</style>
+<div class="container-fluid">
+  <img src="/images/xeco-welcome2.png" />
+  <h3>Maintenance</h3>
+
+  <div class="row" *ngIf="status == 'disconnected'">
+    <form autocomplete="on" (ngSubmit)="connect()">
+      <input type="text" [(ngModel)]="remoteIp" placeholder="Remote IP" name="remoteIp">
+      <input type="text" [(ngModel)]="remotePort" placeholder="Port" name="remotePort">
+      <input type="text" [(ngModel)]="remoteSecret" placeholder="Passphrase" name="remoteSecret">
+      <button type="submit">Connect</button>
+    </form>
+  </div>
+  <div class="row" *ngIf="status == 'connecting'">
+    Connecting to {{remoteIp}}...
+  </div>
+  <div class="row" *ngIf="status == 'connected'">
+    <h4>{{remoteStatus.name}} / {{remoteIp}}
+      <button (click)="update()" [disabled]="actionsDisabled">Update</button>
+      <button (click)="rollback()" [disabled]="actionsDisabled">Rollback</button>
+      <button (click)="disconnect()">Disconnect</button>
+    </h4>
+
+    <div *ngIf="statusError" class="error">
+      {{statusError}}
+    </div>
+    <div *ngIf="updateStatus">
+      <hr>
+      <strong>Updating remote: {{updateStatus}}</strong>
+      <hr>
+    </div>
+    <div>
+      <strong>State:</strong> {{remoteStatus.state}}
+    </div>
+    <div>
+      <strong>Time:</strong> {{remoteStatus.time}}
+    </div>
+    <div>
+      <strong>Node JS:</strong> {{remoteStatus.nodeVersion}}
+    </div>
+    <div *ngIf="remoteStatus.error">
+      <strong>Last error:</strong>
+      <code>{{remoteStatus.error}}</code>
+    </div>
+    <div>
+      <strong>Last commits:</strong>
+      <pre>{{remoteStatus.lastCommits}}</pre>
+    </div>
+
+  </div>
+  <div class="row" *ngIf="errorMessage">
+    {{errorMessage}}
+  </div>
+  <style>
+    .container-fluid {
+      position: relative;
+    }
+
+    .container-fluid img {
+      position: absolute;
+      z-index: -1;
+      width: 100%;
+      left: 0;
+    }
+  </style>

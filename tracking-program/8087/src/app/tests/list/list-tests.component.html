@@ -1,0 +1,65 @@
+<div class="content-box">
+  <div class="container-fluid">
+    <div class="col-md-6">
+      <h3>{{tests?.length || 0}} Results</h3>
+    </div>
+    <div class="col-md-12">
+      <hr />
+      <br />
+      <a class="ss-refresh glyph pull-right" (click)="refreshTable()"></a>
+      <div class="clearfix"></div>
+      <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered" [value]="tests" [lazy]="true" [rows]="20" [paginator]="true" [rowsPerPageOptions]="[5,10,20]"
+                   [totalRecords]="recordCount" (onLazyLoad)="refresh($event)">
+        <p-column field="type" header="Start At" [sortable]="true">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{(row.startAt | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}
+          </ng-template>
+        </p-column>
+        <p-column field="duration" header="Duration (In hours)"></p-column>
+        <p-column field="interval" header="Every (In hours)"></p-column>
+        <p-column *ngIf="gwControl" field="" header="Gateways">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.gatewayNames}}
+          </ng-template>
+        </p-column>
+        <p-column field="" header="In Progress">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+              {{row.inProgress ? 'Yes' : 'No'}}
+          </ng-template>
+        </p-column>
+        <p-column field="" header="Completed">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.completed ? 'Yes' : 'No'}}
+          </ng-template>
+        </p-column>
+        <p-column field="name" header="View">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <div class="text-center" *ngIf="row.completed">
+              <button class="default-button green-button" style="padding:2px 4px; height:auto;" [routerLink]="['/tests/view', row.id]">View</button>
+            </div>
+            <div class="text-center" *ngIf="!row.completed">
+              Not Complete
+            </div>
+          </ng-template>
+        </p-column>
+        <p-column *ngIf="userService.user.role === 8" field="deleted" header="" [filter]="true" [filterMatchMode]="'equals'">
+          <ng-template pTemplate="filter"  let-col>
+            <select (change)="table.filter($event.target.value,'showCancelled',col.filterMatchMode)" class="ui-column-filter" style="display:block;width: 100%;">
+              <option value="false">Hide Deleted</option>
+              <option value="true">Show Deleted</option>
+            </select>
+          </ng-template>
+
+          <ng-template *ngIf="userService.user.role === 8" let-col let-row="rowData" pTemplate="body">
+            <div class="text-center" *ngIf="!row.isDeleted && showDeleteOption">
+              <a (click)="confirmDelete(row.id)"><span class="ss-trash"></span>Delete</a>
+            </div>
+            <div class="text-center" *ngIf="row.isDeleted">
+              Deleted
+            </div>
+          </ng-template>
+        </p-column>
+      </p-dataTable>
+    </div>
+  </div>
+</div>

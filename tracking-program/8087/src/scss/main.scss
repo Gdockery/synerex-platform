@@ -1,0 +1,340 @@
+@import "vars";
+@import "../../../css/font-awesome.css";
+@import "datatable.scss";
+@import "ss-junior";
+@import "primeng";
+@import "../../../css/bootstrap.custom.css";
+@import "formElements.scss";
+@import "primeicons";
+
+/* Reset */
+html, body, div {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100vh;
+  width: 100%;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Box-sizing border-box */
+*, *:before, *:after {
+  box-sizing: border-box;
+}
+
+/* Set up a default font and some padding to provide breathing room */
+body {
+  font-family: "Open Sans", sans-serif;
+  font-size: $fontSize;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+p {
+  letter-spacing: 0.01em;
+  line-height: 20px;
+  margin-bottom: 1em;
+  margin-top: 1em;
+}
+
+ul {
+  margin: 10px 0 0;
+  padding: 0 0 0 20px;
+}
+
+li {
+  margin-top: 4px;
+}
+
+ng-sidebar-container {
+  display:flex !important;
+  flex-direction: column;
+  flex: 1;
+}
+
+
+a {
+  text-decoration: none !important;
+}
+
+a:focus {
+  outline:0 !important;
+}
+
+a:hover {
+  text-decoration: none !important;
+  cursor: pointer;
+}
+
+//Helper styles
+
+.green {
+  color: $primaryColor;
+}
+
+.red {
+  color: $primaryColor5;
+}
+
+.purple {
+  color: $primaryColor4;
+}
+
+.green-background {
+  background: $primaryColor
+}
+
+.purple-background {
+  background: $primaryColor4
+}
+
+.oval {
+  display: inline-block;
+  border-radius: 40%;
+  width: 23px;
+  height: 15px;
+}
+
+.content-box-white {
+  background-color: white;
+}
+
+.content-box {
+  background-color: $lightBackground;
+}
+
+.content-box, .content-box-white {
+  margin: 10px 0 10px;
+  padding: 20px;
+  width:100%;
+}
+
+.page-content {
+  width: 100%;
+	padding: 0;
+	padding-bottom: 2em;
+	height:100%;
+	overflow: auto;
+}
+
+.white-box {
+  padding: 5px 10px;
+  border: 1px solid $primaryColor6;
+  background: $whiteFont;
+  border-radius: 2px;
+}
+
+ng-sidebar-container {
+  height: 100%;
+}
+
+.box {
+  border: 1px solid $primaryColor6;
+  padding: 20px;
+  margin:10px 0 10px 0;
+  position:relative;
+  background: $whiteFont;
+  border-radius: 3px;
+  -webkit-box-shadow: 2px 4px 10px -1px rgba(184,184,184,1);
+  -moz-box-shadow: 2px 4px 10px -1px rgba(184,184,184,1);
+  box-shadow: 2px 4px 10px -1px rgba(184,184,184,1);
+
+  h3 {
+    font-size: 15px;
+  }
+
+  p {
+    color: $primaryColor7;
+  }
+}
+
+.question-circle {
+  display: inline-block;
+  border-radius: 50%;
+
+  font-size: 11px;
+
+  font-weight: 600;
+
+  width: 16px;
+  height: 16px;
+
+  color:white;
+  cursor:pointer;
+
+  background: $primaryColor;
+
+  text-align: center;
+}
+
+.number-circle-red {
+  display: inline-block;
+  border-radius: 50%;
+
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+
+  background: $primaryColor5;
+  color: $whiteFont;
+  text-align: center;
+}
+
+.number-circle-gray {
+  display: inline-block;
+  border-radius: 50%;
+
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+
+  background: $primaryColor7;
+  color: $whiteFont;
+  text-align: center;
+}
+
+ul.unstyled-list {
+  li {
+    list-style:none;
+  }
+}
+
+.list-comma::before {
+  content: ', ';
+}
+.list-comma:first-child::before {
+  content: '';
+}
+
+// Sidebar
+.ng-sidebar {
+  background-color: #323232 !important;
+  z-index: 999999;
+}
+
+.ng-sidebar--closed li .icon {
+  float: right;
+  position:relative;
+  right: 15px;
+}
+
+
+.ng-sidebar--closed li .text {
+  display:none;
+}
+
+.ng-sidebar--closed .header {
+  display: none;
+}
+
+.ng-sidebar--closed .sidebarToggle {
+  display:block;
+  color: $primaryColor6;
+  border-bottom: 1px solid $primaryColor9;
+  padding: 15px 0 15px 10px;
+  font-size: 16px;
+  font-weight: 400;
+  width: 50px;
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  right: 0 !important;
+}
+
+div.ng-sidebar__content {
+  overflow: visible !important;
+}
+
+.modal-dialog {
+  height: 90%;
+  overflow: hidden;
+  z-index: 999999999;
+  .modal-content {
+    height: 100%;
+    overflow-y:auto;
+  }
+}
+
+// Overrides
+
+.row {
+  margin-top: 20px;
+}
+
+.list-group-item {
+  margin-top: 0;
+}
+
+.table {
+  tbody tr th {
+    text-align:center;
+    border: none;
+    background: none;
+  }
+  tr {
+    background: $whiteFont;
+  }
+  tr:hover {
+    background: $lightBackground;
+  }
+}
+
+body a {
+  color: darken($primaryColor, 5%);
+  &:hover {
+    color: darken($primaryColor, 15%);
+  }
+}
+
+.ss-trash {
+  color: $primaryColor5;
+}
+
+
+.invisible {
+  opacity: 0!important;
+  pointer-events: none;
+}
+
+h3 {
+  .back-btn {
+    position: relative;
+    top: 2px;
+    // color: $primaryColor;
+    color: lighten(#000, 25%);
+    margin-right: 10px;
+    font-size: 0.8em;
+    &:hover {
+      color: #000;
+      // color: darken($primaryColor, 10%);
+    }
+  }
+}
+
+.status-label {
+  font-size:  15px;
+  display: inline-block;
+  line-height: 25px;
+  vertical-align: middle;
+  border-radius: 25px;
+  font-weight: 500;
+  padding-left: 10px;
+  padding-right: 10px;
+  position: relative;
+  top: -3px;
+  &.status-active {
+    color: $primaryColor;
+    border: 2px solid $primaryColor;
+  }
+  &.status-inactive {
+    color: $primaryColor5;
+    border: 2px solid $primaryColor5;
+  }
+}

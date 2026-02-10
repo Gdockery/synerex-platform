@@ -1,0 +1,115 @@
+<div class="content-box">
+  <div class="col-md-6">
+    <h3>CSV Data - {{currentType.name}}</h3>
+    <span>{{currentType.description}}</span>
+    <form [formGroup]="csvForm" (ngSubmit)="create(csvForm)">
+      <div class="container-fluid">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group" *ngIf="!currentAlert">
+              <label for="frequency">Interval (In minutes) to group data</label>
+              <input type="text" class="form-control" id="frequency" name="frequency" formControlName="frequency">
+              <div *ngIf="csvForm.controls.frequency.errors && (csvForm.controls.frequency.dirty || csvForm.controls.frequency.touched)" class="alert alert-danger">
+                A numeric time must be provided.
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label>&nbsp;</label>
+            <button type="button" class="default-button form-control green-button" (click)="metersModal.show();">({{selectedCount}}) meters selected</button>
+            <div *ngIf="!csvForm.controls.meters.valid  && (csvForm.controls.fromDate.dirty || csvForm.controls.fromDate.touched)" class="alert alert-danger">
+              At least one meter must be selected
+            </div>
+            <div class="modal fade" bsModal #metersModal="bs-modal" [config]="{backdrop: 'static'}"
+                 tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-sm">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h4 class="modal-title pull-left">Select Meters</h4>
+                    <button type="button" class="default-button pull-right green-button" aria-label="Close" (click)="metersModal.hide();">
+                      Submit
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <multi-select #meterSelect [dataSource]="metersObservable" [currentArray]="[]" [formArray]="csvForm.controls['meters']" (selected)="meterSelected($event)"></multi-select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="fromDate">From Date</label>
+              <my-date-picker
+                name="fromDate"
+                id="fromDate"
+                [options]="datePickerOptions"
+                formControlName="fromDate">
+              </my-date-picker>
+              <div *ngIf="csvForm.controls.fromDate.hasError('invalidBeforeDateField') && (csvForm.controls.fromDate.dirty || csvForm.controls.fromDate.touched)" class="alert alert-danger">
+                From date must be before to date.
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="toDate">To Date</label>
+              <my-date-picker
+                name="toDate"
+                id="toDate"
+                [options]="datePickerOptions"
+                formControlName="toDate">
+              </my-date-picker>
+              <div *ngIf="csvForm.controls.toDate.hasError('invalidAfterDateField') && (csvForm.controls.toDate.dirty || csvForm.controls.toDate.touched)" class="alert alert-danger">
+                To date must be after from date.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div formArrayName="userArray">
+              <div class="form-group">
+                <label>Email report to:</label>
+                <user-select #alertUser [allowEmpty]=true [userFormArray]="csvForm.controls['userArray']"></user-select>
+                <button type="button" class="default-button green-button form-control" style="width:auto;" (click)="alertUser.addUser()">Add Email</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <button type="button" class="default-button form-control white-button" (click)="cancelCreate()">Cancel</button>
+          </div>
+          <div class="col-md-6">
+            <button type="submit" class="default-button form-control green-button">{{currentAlert ? 'Edit' : 'Add'}}</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="col-md-6">
+    <h3>Generated CSV data</h3>
+    <div class="box" style="display:block;" *ngFor="let csv of csvData">
+      <div class="container-fluid">
+        <div class="col-md-12">
+          <div class="left">
+            {{csv.title}}
+          </div>
+          <div class="pull-right">
+            <a (click)="delete(csv.id);"><span class="ss-trash"></span>Delete</a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <span>{{csv.meterCount}} meters selected</span>
+          <a (click)="csvDataService.downloadFile(csv)">Download</a>
+        </div>
+        <div class="col-md-12" style="margin-top: 30px;">
+          <span class="list-comma" *ngFor="let user of csv.users;">{{user.email}}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

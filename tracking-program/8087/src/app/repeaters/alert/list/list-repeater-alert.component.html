@@ -1,0 +1,25 @@
+<div class="content-box">
+  <h3>Set {{currentType.name}} Repeater alerts</h3>
+  <div class="box" style="display:block;" *ngFor="let alert of alerts | where:['alertType', currentType.id] | orderBy:'-id'">
+    <div class="container-fluid">
+      <div class="col-md-12">
+        <div class="left">
+          Lost communication for {{alert.threshold}} minutes
+        </div>
+        <div class="pull-right">
+          <a (click)="editAlert(alert)"><span class="ss-write"></span>Edit</a>
+          <a (click)="confirmDelete(alert.id)"><span class="ss-trash"></span>Delete</a>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <span>{{alert.deviceCount}} repeaters selected</span>
+      </div>
+      <div class="col-md-12">
+        {{alert.note}}
+      </div>
+      <div class="col-md-12" style="margin-top: 20px;">
+        <span class="list-comma" *ngFor="let user of alert.users;">{{user.email}}</span>
+      </div>
+    </div>
+  </div>
+</div>

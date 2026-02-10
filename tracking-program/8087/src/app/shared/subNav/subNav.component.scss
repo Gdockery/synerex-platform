@@ -1,0 +1,39 @@
+@import "../../../scss/_vars";
+
+:host {
+  display: block;
+  h4 {
+    text-align:left;
+    padding: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+  }
+  div .row {
+    padding: 2px;
+    margin-top: 0px;
+    margin-bottom: 5px;
+  }
+  ul {
+    text-align:right;
+    margin:0;
+    padding-left: 0;
+    li {
+      display:inline-block;
+      padding: 0 5px 0 5px;
+      .router-link-active {
+        border-bottom: 5px solid $primaryColor;
+      }
+      a {
+        padding: 5px 0 5px 0;
+      }
+      a:hover {
+        border-bottom: 3px solid $primaryColor6;
+      }
+    }
+  }
+  @media (max-width: 991px) {
+    ul {
+      text-align:left;
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+	"name": "xeco-monitoring",
+	"version": "1.0.0",
+	"description": "Create tasks that: - read data - process it - write data or send notifications",
+	"main": "dist/index.js",
+	"scripts": {
+		"start": "nodemon .",
+		"compile": "tsc",
+		"watch": "tsc --watch",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/mysql": "^2.15.13",
+		"@types/ssh2": "^0.5.44",
+		"nodemon": "^2.0.4",
+		"typescript": "^3.9.3"
+	},
+	"dependencies": {
+		"mysql": "^2.18.1",
+		"rxjs": "^6.5.5",
+		"ssh2": "^0.8.9"
+	}
+}

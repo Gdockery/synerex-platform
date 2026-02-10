@@ -1,0 +1,129 @@
+<sd-subnav style="font-size: 20px;" [links]="[]"></sd-subnav><router-outlet></router-outlet>
+<div class="container-fluid">
+  <div class="box col-md-8"> 
+    <div class="row">
+      <div class="col-md-12">
+        <snapshot-line-chart #voltChart [showLegend]="false" style="width: 100%; height: 150px; display: block;"
+        ></snapshot-line-chart>
+
+        <snapshot-line-chart #currentChart [showLegend]="false" style="width: 100%; height: 150px; display: block;"
+        ></snapshot-line-chart>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4" >
+    <div class="col-md-6" style="padding-top: 40px" *ngIf="meterReading">
+      <h5 style="text-align: center"><strong>Equipment Statistics</strong></h5>
+      
+      
+      <br> 
+      <p>VOLT THD: <strong style="text-align: center; font-size: 17px">{{meterReading.totalVoltTHD | number : '1.1-2'}}</strong></p>
+      <p>AMP THD: <strong style="text-align: center; font-size: 17px">{{meterReading.totalAmpTHD| number : '1.1-2'}}</strong></p>
+      <div>
+        <img width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Poweroff') || meterReading.scheduler.status.includes('Undefined') ? 'poweroff': 'na'}}.png"/>
+
+        <img  width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('On') ? 'on': 'na'}}.png"/>
+        <img  width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Off') ? 'off': 'na'}}.png"/>
+        <img width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Scheduled') ? 'test': 'na'}}.png"/>
+      </div>
+    </div>
+    <div class="col-md-6" style="padding-top: 40px" *ngIf="meterReading">
+      <div>
+        <h5 style="text-align: center"><strong>Current Daily Cost</strong></h5>
+        <h5 style="text-align: center; font-size: 25px"><strong>{{meterReading.todayCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></h5>
+      </div>
+      <div>
+        <div class="hours" style="font-size: 9px; width: 100%">Recorded Hours Today</div>
+        <div class="hours" style="text-align: center; border: 1px solid black; background-color:lightgray; color:black; width:100%"><strong style="font-size: 13px">{{meterReading.hours}}hrs {{meterReading.minutes}}min</strong></div>
+      </div>
+      
+      <h6 style="text-align: center">Today's KWH Usage</h6>
+      <p style="text-align: center; margin-top: -10px"><strong>{{meterReading.todayKwh | number : '1.2-2'}}</strong></p>
+      <h5 style="text-align: center"><strong>Power Quality</strong></h5>
+      <table class="table">
+        <tr>
+          <td style="width: 35%;text-align:center"></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d; text-align:center"><strong>Phase</strong></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d;text-align:center"><strong>Phase</strong></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d;text-align:center"><strong>Phase</strong></td>
+        </tr>
+        <tr style="margin-top: -10px">
+          <td style="width: 35%;text-align:center"></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d;text-align:center"><strong>1</strong></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d;text-align:center"><strong>2</strong></td>
+          <td style="width: 22%; font-size: 11px; color: #1ebf9d;text-align:center"><strong>3</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">Voltage: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.volt.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.volt.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.volt.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">Amp Load: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.amp.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.amp.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.amp.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">KW: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kw.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kw.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kw.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">KVA: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kva.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kva.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kva.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">KVAR: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kvar.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kvar.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.kva.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">PF: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.pf.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.pf.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.pf.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">Volt THD: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.voltTHD.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.voltTHD.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.voltTHD.p3}}</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 11px">Amp THD: </td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.ampTHD.p1}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.ampTHD.p2}}</strong></td>
+          <td style="text-align:center; font-size: 11px"><strong>{{meterReading.ampTHD.p3}}</strong></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+  <div class="col-md-12" *ngIf="meterReading">
+    <div class="box">
+      <table>
+        <tr>
+
+          <td style="width: 20%; font-size: 14px; text-align: center; color: #1ebf9d; padding-left: 50px"><strong>Weekly</strong></td>
+          <td style="width: 20%; font-size: 14px; text-align: center; color: #1ebf9d; padding-left: 50px"><strong>Monthly</strong></td>
+          <td style="width: 20%; font-size: 14px; text-align: center; color: #1ebf9d; padding-left: 50px"><strong>Yearly</strong></td>
+          <td style="width: 20%; font-size: 14px; text-align: center; color: #1ebf9d; padding-left: 50px"><strong>All Time</strong></td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left; font-size: 18px; padding-left: 50px"><strong>{{meterReading.weekCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+          <td style="text-align:left; font-size: 18px; padding-left: 50px"><strong>${{meterReading.monthCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+          <td style="text-align:left; font-size: 18px; padding-left: 50px"><strong>${{meterReading.yearCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+          <td style="text-align:left; font-size: 18px; padding-left: 50px"><strong>${{meterReading.projectCost || 0 | projectCurrency:"symbol":'1.2-2'}}</strong></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+

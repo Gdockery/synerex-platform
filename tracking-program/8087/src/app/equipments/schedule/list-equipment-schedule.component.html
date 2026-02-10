@@ -1,0 +1,43 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-6">
+      <p>To cancel an existing scheduled event, click on it below</p>
+    </div>
+    <div class="col-md-6 text-right">
+      <button  class="default-button green-button" [routerLink]="['/equipments/schedule/new/']">New Schedule</button>
+    </div>
+  </div>
+  <a class="btn btn-text ss-refresh glyph" (click)="refreshTable()"></a>
+  <div class="row">
+    <div class="col-md-12">
+      <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered" [value]="schedules" [lazy]="true" [paginator]="true" [rows]="perPage"
+                   [totalRecords]="recordCount" (onLazyLoad)="refresh($event)">
+        <p-column field="dateTime" header="Effective Date" [sortable]="true" >
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.startDate}} - {{row.endDate}}
+          </ng-template>
+        </p-column>
+        <p-column field="switches" header="Switches" >
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.switches}}
+          </ng-template>
+        </p-column>
+        <p-column field="scheduleDetail" header="Off At" >
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.scheduleDetail}}
+          </ng-template>
+        </p-column>
+        <p-column field="daysOfWeek" header="Day(s) of Schedule" >
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            {{row.daysOfWeek}}
+          </ng-template>
+        </p-column>
+        <p-column field="" header="Delete" [style]="{'text-align':'center', 'width':'5%'}">
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <a class="ss-trash" (click)="confirmDelete(row.id)"></a>
+          </ng-template>
+        </p-column>
+      </p-dataTable>
+    </div>
+  </div>
+</div>

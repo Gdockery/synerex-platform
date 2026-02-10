@@ -1,0 +1,199 @@
+.login-container {
+   /* The image used */
+    background-image: url(../images/xeco-portal-login.png);
+    min-height: 100%;
+    /* Center and scale the image nicely */
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    position: relative;
+    padding-top: 50px; 
+    padding-bottom: 200px; 
+}
+
+.banner{
+  height: 150px;
+  width: 100%;
+  background-color: rgba(255,255,255,0.4);
+}
+
+
+/* Add styles to the form container */
+.form-container {
+    text-align:center;
+    margin:100px auto;
+    max-width: 450px;
+    padding: 30px;
+    background-color: rgba(255,255,255,0.7);
+}
+
+.set-psw-container {
+    margin:0 auto;
+    max-width: 400px;
+    left: 0;
+    background-color: lightgray;
+    padding: 16px;
+}
+
+a {
+  color: black;
+}
+
+input {
+  border: 1px solid #E0E0E0;
+  font-size: 16px;
+  outline: none;
+  padding: 8px;
+}
+
+.invite-card input {
+  display: block;
+  width: 100%;
+}
+
+.card-container.card {
+  max-width:400px;
+}
+
+.invite-card label {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: 20px;
+  margin-bottom: 5px;
+}
+
+.invite-card label.email {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+
+@media (max-width: 600px) {
+  .card {
+    padding: 20px;
+  }
+}
+
+.logo-container > div {
+  background-color: #ffffff5c;
+}
+
+.logo-container .row1 {
+  height: 120px;
+  margin-bottom: 20px;
+}
+
+.license {
+  height: 700px;
+  width: 550px;
+  overflow: auto;
+}
+
+.logo-container .row2 {
+  color: #ffffffd9;
+  padding: 5px 30px;
+  font-size: 0.9em;
+  font-weight: bold;
+  text-shadow: 2px 2px #00000033;
+}
+
+.logo-image {
+  width:80%;
+  position: absolute;
+  top: 24px;
+}
+
+.btn{
+  border-style: none;
+  border-radius: 3px;
+  text-align: center;
+  margin:0 auto;
+  cursor: pointer;
+  font-size: 20px;
+  padding: 5px 12px;
+  text-decoration: none;
+  width: 50%;
+}
+
+.btn-green {
+  color: white;
+  background: #26c49d;
+}
+
+.btn-green:hover {
+  background-color: #5BB6A2;
+}
+
+.btn-green:active {
+  background-color: #68CCB3;
+}
+
+.profile-name-card{
+  font-size:16px;
+  font-weight:700;
+  text-align:center;margin:10px 0 0;
+  min-height:1em
+}
+
+.reauth-email{
+  display:block;
+  color:#404040;
+  line-height:2;
+  margin-bottom:10px;
+  font-size:14px;
+  text-align:center;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  -moz-box-sizing:border-box;
+  -webkit-box-sizing:border-box;
+  box-sizing:border-box
+}
+
+form button,form input[type=email],form input[type=password],form input[type=text] {
+  width:100%;
+  display:block;
+  margin-bottom:10px;
+  z-index:1;
+  position:relative;
+  -moz-box-sizing:border-box;
+  -webkit-box-sizing:border-box;
+  box-sizing:border-box
+}
+
+input[type=text],input[type=password],input[type=email] {
+  border-radius:25px;
+  -moz-border-radius:25px;
+  -webkit-border-radius:25px;
+  padding: 12px 20px;
+ 
+}
+
+input[type='checkbox'] {
+    width:15px;
+    height:15px;
+    background:white;
+    border-radius:5px;
+    border:2px solid #555;
+}
+
+.forgot-password:active,.forgot-password:focus,.forgot-password:hover{
+  color:#0c6121
+}
+
+.error{
+  display: none;
+  color: red;
+}
+
+/*login*/
+
+.form-signin .btn-submit {
+  border-radius:5px;
+  -moz-border-radius:5px;
+  -webkit-border-radius:5px;
+  max-width: 50%;
+  padding: 12px;
+  margin: 50px auto 20px auto;
+}

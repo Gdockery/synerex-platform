@@ -1,0 +1,142 @@
+<div class="container-fluid" *ngIf="!validBillAnalytic">
+  <div class="row">
+    <div class="col-md-6">
+      A billing analysis must be created before viewing project overview.
+    </div>
+  </div>
+</div>
+<div *ngIf="validBillAnalytic">
+  <div class="row">
+    <div class="col-md-6">
+      <month-year-picker #monthYearPicker [(date)]="test" (dateChanged)="dateChanged($event)"></month-year-picker>
+    </div>
+  </div>
+  <div class="col-md-9" [hidden]="!noData && loaded">
+    <div class="row content-box" >
+        No data for selected time period.
+    </div>
+  </div>
+  <div>
+    <div class="col-md-9" [hidden]="noData && loaded">
+      <div class="row content-box">
+        <div>
+          <div class="col-md-8">
+            <h2 style="margin:0">{{date?.format('MMMM Y')}} Overview</h2>
+            <p *ngIf="!currentUserService.user.selectedProject.hasRunTest">(No test has been run, so savings not displayed.)</p>
+          </div>
+          <div class="col-md-4 text-right">
+            <legend [values]="[{text:'Before XECO', color: '#9ca5d7'},{text:'CURRENT', color: '#26c49d'}]"></legend>
+          </div>
+          <div class="clearfix"></div>
+        </div>
+        <div>
+          <div class="col-md-4">
+            <div class="box">
+              <bar-chart style="height:200px;" #kilowattPeakChart [beginAtZero]="true" [colors]="[{backgroundColor:['#26c49d', '#9ca5d7']}]" [title]="'KILOWATT PEAK'"></bar-chart>
+              <P align="center">KW</P>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="box">
+              <bar-chart style="height:200px;" #kilowattHoursChart [beginAtZero]="true" [colors]="[{backgroundColor:['#26c49d', '#9ca5d7']}]" [title]="'KILOWATT HOURS'"></bar-chart>
+              <p align="center">KWH</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="box">
+              <bar-chart style="height:200px;" #carbonEmissionChart [beginAtZero]="true" [colors]="[{backgroundColor:['#26c49d', '#9ca5d7']}]" [title]="'CARBON EMISSION'"></bar-chart>
+              <p align="center">Metric Tonnes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row content-box">
+        <div class="col-md-6">
+          <div class="box compare-box">
+            <div class="col-md-12">
+              <h3>KVAR</h3>
+            </div>
+            <div class="col-md-6" style="border-right:1px solid #e0e0e0;">
+              <div class="compare-label">Current </div>
+              <div class="compare-value">{{kvarAfter | number : '1.0-0'}}<span class="ss-down green pull-right"></span></div>
+            </div>
+            <div class="col-md-6" style="border-left:1px solid #e0e0e0;">
+              <div class="compare-label">Before Xeco </div>
+              <div class="compare-value">{{kvarBefore | number : '1.0-0'}}<span class="ss-up red pull-right"></span></div>
+            </div>
+            <div class="clearfix"></div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="box compare-box">
+            <div class="col-md-12">
+              <h3>POWER FACTOR (Load Factor)</h3>
+            </div>
+            <div class="col-md-6" style="border-right:1px solid #e0e0e0;">
+              <div class="compare-label">Current </div>
+              <div class="compare-value">{{pfAfter| number : '1.2-2'}}%<span class="ss-up green pull-right"></span></div>
+            </div>
+            <div class="col-md-6" style="border-left:1px solid #e0e0e0;">
+              <div class="compare-label">Before Xeco </div>
+              <div class="compare-value">{{pfBefore| number : '1.2-2'}}%<span class="ss-down red pull-right"></span></div>
+            </div>
+            <div class="clearfix"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="content-box row">
+        <!--<div class="row">
+          <div class="col-md-12">
+            <div class="box details-box">
+              <h3>Project Details</h3>
+              <div>
+                Project Cost: <br/>
+                {{project.totalCost | projectCurrency:"symbol":'1.2-2'}}
+              </div><br/>
+              <div>
+                Project Start Date: <br/>
+                {{project.startDate}}
+              </div><br/>
+              <div *ngIf="warning" style="color:darkred; font-size: 16px">
+                {{warning}}
+              </div><br/>
+              <div *ngIf="newROI">
+                New ROI:<br/>
+                {{newROI| number : '1.0-0'}} Months
+              </div><br/>
+              <div *ngIf="greenText && amountToBreakEven">
+                <strong style="color: #1E8449">{{amountLabel}}:</strong><br/>
+                {{amountToBreakEven || 0 | projectCurrency:"symbol":'1.2-2'}}
+              </div>
+              <div *ngIf="!greenText && amountToBreakEven">
+                {{amountLabel}}:<br/>
+                {{amountToBreakEven || 0 | projectCurrency:"symbol":'1.2-2'}}
+              </div>
+            </div>
+          </div>
+        </div>-->
+        <div class="row">
+          <div class="col-md-12">
+            <div class="box details-box">
+              <h3>Energy Supplier</h3>
+              <div>
+                Provider Name: <br/>{{project.electricBillAnalysis.electricCompanyName}}<br />
+                {{project.electricBillAnalysis.electricCompanyCity}}, {{project.electricBillAnalysis.electricCompanyState}} {{project.electricBillAnalysis.electricCompanyZip}}
+              </div><br/>
+              <div>
+                Acct #:<br/>
+                {{project.electricBillAnalysis.accountNumber}}
+              </div><br/>
+              <div>
+                Tariff:<br/>
+                {{project.electricBillAnalysis.tariff}}
+              </div><br/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

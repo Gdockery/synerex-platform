@@ -1,0 +1,198 @@
+<div class="container-fluid">
+  <h3>New Client</h3>
+  <hr/>
+  <form [formGroup]="form" [hidden]="clientCreated" (ngSubmit)="submitCreateClientForm()">
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="threshold">Company display name</label>
+          <input type="text" class="form-control" id="name" name="name" formControlName="name">
+          <div *ngIf="form.controls.name.errors && (form.controls.name.dirty || form.controls.name.touched)" class="alert alert-danger">
+            A display name must be provided.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="legalName">Company legal name</label>
+          <input type="text" class="form-control" id="legalName" name="legalName" formControlName="legalName">
+        </div>
+      </div>
+    </div>
+
+    <!--<div class="row">
+      <div class="col-md-12">
+        <div class="form-group">
+          <label for="logoImgSrc">Company logo image URL</label>
+          <input type="text" class="form-control" id="logoImgSrc" name="logoImgSrc" formControlName="logoImgSrc">
+        </div>
+      </div>
+    </div>-->
+    
+    <hr/>
+    <div class="row">
+      <div class="col-md-12">
+        <div class="form-group">
+          <label for="address" class="with-description">Address<small class="text-muted pull-right">The address for the client's headquarters</small></label>
+          <textarea rows="3" class="form-control" id="address" name="address" formControlName="address"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="city">City</label>
+          <input type="text" class="form-control" id="city" name="city" formControlName="city">
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-group">
+          <label for="state">State</label>
+          <input type="text" class="form-control" id="state" name="state" formControlName="state">
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-group">
+          <label for="zip">Zip</label>
+          <input type="text" class="form-control" id="zip" name="zip" formControlName="zip">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="country">Country</label>
+          <input type="text" class="form-control" id="country" name="country" formControlName="country">
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <h4>Primary Contact</h4>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="form-group">
+          <label for="contactName">Name</label>
+          <input type="text" class="form-control" id="contactName" name="contactName" formControlName="contactName">
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="contactTitle">Title</label>
+          <input type="text" class="form-control" id="contactTitle" name="contactTitle" formControlName="contactTitle">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="contactPhone">Phone</label>
+          <input placeholder="(___) ___-____" type="text" class="form-control" id="contactPhone" name="contactPhone" formControlName="contactPhone">
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+    <h4>Manager</h4>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="managerName">Name</label>
+        <input type="text" class="form-control" id="managerName" name="managerName" formControlName="managerName">
+      </div>
+      <div class="col-md-6">
+        <label for="managerCertificate">Certificate</label>
+        <input type="text" class="form-control" id="managerCertificate" name="managerCertificate" formControlName="managerCertificate">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="managerPhone">Phone</label>
+        <input type="text" class="form-control" id="managerPhone" name="managerPhone" formControlName="managerPhone">
+      </div>
+      <div class="col-md-6">
+        <label for="managerEmail">Email</label>
+        <input type="text" class="form-control" id="managerEmail" name="managerEmail" formControlName="managerEmail">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <label for="managerLocation">Location</label>
+        <input type="text" class="form-control" id="managerLocation" name="managerLocation" formControlName="managerLocation">
+      </div>
+    </div>
+
+    <hr/>
+
+    <h4>Finance Department Contact</h4>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="financeEmail">Email</label>
+          <input type="text" class="form-control" id="financeEmail" name="financeEmail" formControlName="financeEmail">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="financePhone">Phone</label>
+          <input type="text" class="form-control" id="financePhone" name="financePhone" formControlName="financePhone">
+        </div>
+      </div>
+    </div>
+
+    <hr/>
+
+   <h4>Misc. Settings</h4>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="marketSegment">Market segment</label>
+          <input type="text" class="form-control" id="marketSegment" name="marketSegment" formControlName="marketSegment">
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label for="shippingTerms">Shipment terms</label>
+          <input type="text" class="form-control" id="shippingTerms" name="shippingTerms" formControlName="shippingTerms">
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12 text-right">
+        <a class="btn btn-default cancel-btn" [routerLink]="['/project/client/list']">Cancel</a>
+        <button type="submit" class="btn btn-primary">Add client</button>
+      </div>
+    </div>
+    <div class="row"></div>
+  </form>
+  <div class="success" [hidden]="!clientCreated">
+    <h4>Success!</h4>
+    <p>A new client has been created: <strong>{{newClient && newClient.name ? newClient.name : ''}}</strong>.
+    <div class="row">
+      <p-fileUpload  #uploaders mode="basic" auto="true" [multiple]="false" url="{{url}}" [files]="logo" (onSelect)="onFileUpload($event.files)" 
+           (onBeforeUpload)="uploadStarted()" (onUpload)="uploadComplete()" (onError)="uploadFailed()" 
+              name="logo" accept="image/*" [style]="{'display':'none'}">
+      </p-fileUpload>
+      <a class="ss-plus" *ngIf="!imagePreview" (click)="addLogo($event)">Please upload a company logo</a>
+      <br>
+      <label *ngIf="imagePreview"><strong>Company Logo</strong></label>
+      <div *ngIf="imagePreview" style="border-style: dashed; border-color: darkgray; border-width: 2px;height:85px;width:195px;">
+        <img style="height:80px;width:190px; margin: auto" src="{{imagePreview}}" >
+      </div>
+      <br>
+
+    </div>
+    <div class="clearfix">
+      <a [routerLink]="['/project/create']" class="btn btn-lg btn-info">Add a project</a>
+    </div>
+  </div>
+</div>

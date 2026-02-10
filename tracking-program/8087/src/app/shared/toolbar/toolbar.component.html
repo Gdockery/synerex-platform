@@ -1,0 +1,16 @@
+  <div class="container-fluid">
+  <div class="pull-left">
+    <h1 *ngIf="userService.user.selectedProject" [routerLink]="['project/select']" style="cursor:pointer;"><strong>
+      {{userService.user.selectedProject.name}}
+      <span *ngIf="userService.user.selectedProject" style="font-size:12px;">(Times displayed in {{userService.user.selectedProject?.timezoneAbbreviation}})
+        (Currency displayed in {{userService.user.selectedProject?.currencyCode}})<!--span *ngIf="userService.user.selectedProject?.subNeeded" style="font-size:12px;"> <font  color="{{colorOfSub}}">(Subscription expires in {{daysLeftInSub}} days)</font></span-->
+        <span *ngIf="userService.user.selectedProject?.subNeeded" style="font-size:12px;"> (Subscription expires {{userService.user.selectedProject?.subStartDate}})</span>
+      </span>
+    </strong></h1>
+  </div>
+  <div class="pull-right text-right">
+    <img src="{{logoPath}}"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <h2>{{userService.user.getInitials()}}</h2>
+  </div>
+  <div class="clearfix"></div>
+</div>

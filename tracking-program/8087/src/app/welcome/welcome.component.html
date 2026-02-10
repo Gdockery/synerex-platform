@@ -1,0 +1,167 @@
+
+
+<div class="container-fluid">
+  <img [src]="welcomeImageUrl" />
+  <h3>Welcome, {{userService.user.firstName}}!</h3>
+  <div *ngIf="userService.user.role === 8">
+    <p>Here in the {{brandName}} Web Portal, you can manage your clients and their projects, as well as users and advanced options for the portal itself.</p>
+    <div *ngIf="userService.user.projects.length !== 0">
+      <p>To get started, please choose an option from the menu to the left.</p>
+    </div>
+    <div *ngIf="userService.user.projects.length === 0">
+      <p>To get started, please set up your first client.</p>
+      <p><a class="btn btn-lg btn-primary" href="project/client/create">Set up your first client</a></p>
+    </div>
+  </div>
+
+  <div *ngIf="userService.user.role === 7">
+    <p>Here in the {{brandName}} Web Portal, you can manage projects for your clients.</p>
+    <div class="pull-right">
+      <button class="btn btn-primary" [routerLink]="['/project/client/create']">Add New Client</button>&nbsp;&nbsp;&nbsp;
+      <button class="btn btn-primary" [routerLink]="['/project/create']">Add New Project</button>
+    </div>
+    <div *ngIf="userService.user.projects.length !== 0">
+      <p>To get started, please choose a project or create a new one.</p>
+     
+    </div>
+  </div>
+
+  <div *ngIf="userService.user.role === 1 || userService.user.role === 2 || userService.user.role === 3 || userService.user.role === 4">
+    <p>Here in the {{brandName}} Web Portal, you can manage your {{brandName}} devices, review energy usage, estimate cost reduction, compute your carbon footprint, and much more.</p>
+    <div *ngIf="userService.user.projects.length !== 0">
+      <p>To get started, please choose a project.</p>
+    </div>
+  </div>
+  <div *ngIf="hasProjects" class="pull-right" style="padding-right: 400px;">
+    <select  [(ngModel)]="projectSelected" (change)="renderData()">
+      <option value=0 selected="selected">All Sites</option>
+      <option *ngFor="let project of projects" value={{project.id}}>{{project.name}}</option> 
+    </select>
+  </div>
+
+  <table *ngIf="realTimeData" border="0" width="850px" height="490px" align="center" position="absolute" background="images/ticker-boxes.png">
+    <tr style="height: 85px">
+      <td colspan="4" align="center">
+        <strong style="font-size: 40px">{{selectedProjectName}}</strong>
+      </td>
+    </tr>
+    
+    <tr style="height: 80px">
+      <td colspan="4" align="center">
+        <!--strong style="font-size: 45px; text-align: center;">US${{realTimeData.totalSavings | number : '1.0-0'}}-->
+          <!--div style="padding: 50px 100px">
+            </!--div style="width: 216px; height: 126px; position: relative; background: transparent url(plexiglas.png) no-repeat top left"--/>
+            <div style="width: 216px; height: 126px; position: relative">
+              <div style="position: absolute; left: 38px; top: 33px; width: 180px; height: 51px"-->
+                <canvas style="padding-left: 130px" id="display" width="300" height="90"></canvas>
+              <!--/div>
+            </div>
+          </div-->
+      </td>
+    </tr>
+    <tr style="height: 65px">
+    </tr>
+    <tr style="height: 50px;">
+      <td colspan="1" align="center" style="width: 130px;">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+      <td colspan="1" align="center" style="width: 140px;">
+        <strong style="font-size: 30px; color: white">
+          <canvas id="peakdisplay" width="170" height="40"></canvas>
+          <!--{{realTimeData.peakSavings | number : '1.0-0'}}-->
+        </strong>
+      </td>
+      <td colspan="1" align="center" style="width: 145px;">
+        <strong style="font-size: 30px; color: white;">
+          <canvas id="peakamtdisplay" width="170" height="40"></canvas>
+          <!--{{realTimeData.peakSavingsAmount | number : '1.0-0'}}-->
+        </strong>
+      </td>
+      <td colspan="1" align="center" style="width: 100px; text-align: right;">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+    </tr>
+    <tr style="height: 60px;">
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+      <td colspan="1" align="center" >
+        <strong style="font-size: 25px; color: white;">
+          <!--{{realTimeData.kwhSavings | number : '1.0-0'}}-->  
+          <canvas id="kwhdisplay" width="170" height="40"></canvas>
+        </strong>
+      </td>
+      <td colspan="1" align="center" >
+        <strong style="font-size: 25px; color: white;">
+          <!--{realTimeData.kwhSavingsAmount | number : '1.0-0'}}-->
+          <canvas id="kwhamtdisplay" width="170" height="40"></canvas>
+        </strong>
+      </td>
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+    </tr>
+    <tr style="height: 50px;">
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+      <td colspan="1" align="center">
+        <strong style="font-size: 25px; color: white;">
+          <canvas id="i2rlossdisplay" width="170" height="40"></canvas>
+            
+          </strong>
+      </td>
+      <td colspan="1" align="center">
+        <strong style="font-size: 25px; color: white;">
+          <canvas id="i2rlossamtdisplay" width="170" height="40"></canvas>
+            
+          </strong>
+      </td>
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+    </tr>
+    <tr style="height: 55px;">
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+      <td colspan="1" align="center" >
+        <strong style="font-size: 25px; color: white;">
+          <canvas id="carbondisplay" width="170" height="40"></canvas>
+            
+          </strong>
+      </td>
+      <td colspan="1" align="center" >
+        <strong style="font-size: 25px; color: white;">
+          <canvas id="carbonamtdisplay" width="170" height="40"></canvas>
+          
+        </strong>
+      </td>
+      <td colspan="1" align="center">
+        <strong style="font-size: 30px; color: white"></strong>
+      </td>
+    </tr>
+    <tr style="height: 50px">
+    </tr>
+  </table>
+  
+</div>
+
+<style>
+  .container-fluid {
+    position: relative;
+  }
+  .container-fluid img {
+      position: absolute;
+      z-index: -1;
+      width: 100%;
+      left: 0;
+  }
+
+  table {
+    margin-top: 50px;
+    background-size: 838px 490px;
+    background-repeat: no-repeat;
+  }
+
+</style>

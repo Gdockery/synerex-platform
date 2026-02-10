@@ -1,0 +1,91 @@
+<style>
+  .led {
+    white-space: nowrap;
+  }
+  .led::before {
+    content: '';
+    --size: 20px;
+    --mainColor: #ccc;
+    --darkColor: #999;
+    --lightColor: #ddd;
+    --highlightColor: #fff;
+    --margin: calc(var(--size) * 0.1);
+    --margin1: calc(var(--size) * -0.1);
+    --margin2: calc(var(--size) * 0.7);
+    --s1: var(--margin1) var(--margin1) var(--margin2) 0px var(--darkColor) inset;
+    --s2: var(--margin) var(--margin) var(--margin2) 0px var(--lightColor) inset;
+    --s3: var(--margin) var(--margin) var(--margin) 0px var(--highlightColor) inset;
+    --boxShadow: var(--s1), var(--s2), var(--s3);
+    display: inline-block;
+    width: var(--size);
+    height: var(--size);
+    border-radius: 50%;
+    background-color: var(--mainColor);
+    box-shadow: var(--boxShadow);
+    margin-bottom: -1px;
+  }
+  .led-red::before {
+    --mainColor: #f00;
+    --darkColor: #a70000;
+    --lightColor: #ff9696;
+  }
+  .led-yellow::before {
+    --mainColor: #ff0;
+    --darkColor: #d0a400;
+    --lightColor: #ffff8f;
+  }
+  .led-green::before {
+    --mainColor: #0f0;
+    --darkColor: #00a700;
+    --lightColor: #fff;
+  }
+  .led-blue::before {
+    --mainColor: #00f;
+    --darkColor: #0000a7;
+    --lightColor: #fff;
+  }
+  p.smaller {
+    font-size: x-small;
+  }
+  p.smaller .led::before {
+    --size: 10px;
+  }
+</style>
+<div class="content-box">
+  <div class="container-fluid">
+    <div class="col-md-6">
+      <h3>{{recordCount}} Results</h3>
+    </div>
+    <div class="col-md-12">
+      <hr />
+      <div class="clearfix"> 
+        <a class="ss-refresh glyph pull-left" (click)="refreshTable()"></a>
+        <a [hideIfUserLevel]="[1, 2, 3, 4, 7]" class="btn btn-text pull-right" [routerLink]="['/repeaters/new']"><span class="button-icon ss-plus"></span> Add new repeater</a>
+      </div>
+
+      <p-dataTable #table tableStyleClass="table dataTable table-striped table-bordered" [value]="devices" [lazy]="true" [paginator]="true" [rows]="perPage" [first]="tableFirst.get()"
+                   [totalRecords]="recordCount" (onLazyLoad)="refresh($event)" (onPage)="tableFirst.set($event.first)">
+        <p-column field="name" header="Name" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+        <p-column field="gateway" header="Gateway"></p-column>
+        <p-column field="name">
+          <ng-template pTemplate="header">
+            Communication
+            <p class="smaller">
+                <span class="led led-red">=No recent communication</span>
+                <span class="led led-yellow">=Communication from gateway</span>
+                <span class="led led-green">=Status updated in the last minute</span>
+            </p>
+          </ng-template>
+          <ng-template let-col let-row="rowData" pTemplate="body">
+            <span class="led led-{{ colorFromComStatus(row) }}"></span>
+          </ng-template>
+        </p-column>
+        <p-column field="" header="" [style]="{'width':'40px'}" styleClass="text-center">
+          <ng-template let-row="rowData" pTemplate="body">
+            <a class="btn btn-xs btn-text" [routerLink]="['/repeaters/detail', row.id]"><span class="ss-navigateright"></span></a>
+          </ng-template>
+        </p-column>
+      </p-dataTable>
+    </div>
+  </div>
+</div>
