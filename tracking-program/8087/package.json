@@ -23,6 +23,10 @@
     "moment-timezone": "^0.5.13",
     "mqtt": "^2.18.8",
     "mysql2": "^3.16.2",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^1.1.1",
+    "pdf.js-extract": "^0.2.1",
+    "pdf2pic": "^3.1.4",
     "pdfmake": "^0.1.28",
     "request": "^2.88.0",
     "sails": "1.0.0-32",
@@ -38,6 +42,7 @@
     "socket.io-client": "^1.7.3",
     "socket.io-redis": "^5.2.0",
     "stripe": "^6.12.1",
+    "tesseract.js": "^5.1.1",
     "tslib": "^1.13.0",
     "uuid": "3.0.1",
     "zip": "^1.2.0"
@@ -116,6 +121,7 @@
     "zone.js": "~0.9.1"
   },
   "scripts": {
+    "build": "webpack --config webpack.config.js",
     "start": "NODE_ENV=production node app.js",
     "test": "npm run lint && npm run custom-tests && echo 'Done.'",
     "lint": "node ./node_modules/eslint/bin/eslint . --max-warnings=0 && echo '✔  Your code looks good.'",
