@@ -153,6 +153,13 @@ class MainDashboard {
             });
             console.log('✅ Logout button listener attached');
         }
+        const footerLogoutBtn = document.getElementById('footer-logout-btn');
+        if (footerLogoutBtn) {
+            footerLogoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.logout();
+            });
+        }
         
         // Raw Meter File Storage
         const uploadRawData = document.getElementById('upload-raw-data');
@@ -578,29 +585,26 @@ class MainDashboard {
                 adminBtn.style.display = 'none';
             }
         }
-        
-        // Add My Account button for all users (licensees)
-        let accountBtn = document.getElementById('my-account-btn');
-        if (!accountBtn) {
-            accountBtn = document.createElement('button');
-            accountBtn.id = 'my-account-btn';
-            accountBtn.textContent = '👤 My Account';
-            accountBtn.className = 'btn btn-secondary';
-            accountBtn.style.cssText = 'margin-left: 10px; padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;';
-            
-            // Add to user-info section
+
+        // Add "Back to My Account" button (website's central My Account) when WEBSITE_URL is set
+        let backToMyAccountBtn = document.getElementById('back-to-my-account-btn');
+        if (WEBSITE_URL && !backToMyAccountBtn) {
+            backToMyAccountBtn = document.createElement('button');
+            backToMyAccountBtn.id = 'back-to-my-account-btn';
+            backToMyAccountBtn.textContent = '← Back to My Account';
+            backToMyAccountBtn.className = 'btn btn-secondary';
+            backToMyAccountBtn.style.cssText = 'margin-left: 10px; padding: 8px 16px; font-size: 14px;';
+            backToMyAccountBtn.onclick = function(e) {
+                e.preventDefault();
+                window.location.href = `${WEBSITE_URL}/my-account`;
+            };
             if (userInfo) {
-                userInfo.appendChild(accountBtn);
+                userInfo.appendChild(backToMyAccountBtn);
             } else if (currentUserName && currentUserName.parentElement) {
-                currentUserName.parentElement.appendChild(accountBtn);
+                currentUserName.parentElement.appendChild(backToMyAccountBtn);
             }
         }
-        accountBtn.style.display = 'inline-block';
-        accountBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            window.location.href = '/my-account';
-        };
+        if (backToMyAccountBtn) backToMyAccountBtn.style.display = WEBSITE_URL ? 'inline-block' : 'none';
     }
     
     loadOrganizationsDropdown() {
@@ -629,12 +633,6 @@ class MainDashboard {
             adminBtn.style.display = 'none';
         }
         
-        // Hide My Account button when showing login section
-        const accountBtn = document.getElementById('my-account-btn');
-        if (accountBtn) {
-            accountBtn.style.display = 'none';
-        }
-
         // Ensure "Back to previous page" button navigates to main website
         const backBtn = document.getElementById('back-to-website-btn');
         if (backBtn) {
@@ -650,6 +648,10 @@ class MainDashboard {
         this.currentUser = null;
         this.sessionToken = null;
         localStorage.removeItem('session_token');
+        if (WEBSITE_URL) {
+            window.location.href = `${WEBSITE_URL}/`;
+            return;
+        }
         this.showLoginSection();
         this.clearLoginForm();
         this.showNotification('Logged out successfully', 'info');

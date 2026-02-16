@@ -18,6 +18,9 @@ export default function AdminDashboard() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [servicesError, setServicesError] = useState(null);
   const [serviceActions, setServiceActions] = useState({}); // Track actions in progress
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [loginError, setLoginError] = useState(null);
+  const [loginLoading, setLoginLoading] = useState(false);
   const navigate = useNavigate();
   const serviceIntervalRef = useRef(null);
   
@@ -90,10 +93,8 @@ export default function AdminDashboard() {
         loadServices();
       }, 15000);
     } else {
-      // No token - redirect to login immediately (no checks, no timeouts)
-      console.log('AdminDashboard: No token found, redirecting to login');
-      const returnUrl = `${window.location.origin}/admin`;
-      window.location.href = `${LICENSE_SERVICE_URL}/admin/login?return_url=${encodeURIComponent(returnUrl)}`;
+      // No token - show inline login form (stays on same origin, no redirect to 8080)
+      setShowLoginForm(true);
     }
     
     return () => {
@@ -308,7 +309,7 @@ export default function AdminDashboard() {
       console.error("Failed to logout:", err);
     } finally {
       localStorage.removeItem("session_token");
-      window.location.href = `${LICENSE_SERVICE_URL}/admin/login`;
+      window.location.href = "/admin";
     }
   };
   
@@ -455,16 +456,78 @@ export default function AdminDashboard() {
           alert(`License Service (port 8000) only supports Start and Stop operations.`);
         }
       } else if (serviceId === 'tracking_program_8087') {
-        // Tracking Program - provide manual instructions
-        const serviceName = 'Tracking Program (8087)';
-        const startCmd = 'cd tracking-program/8087 && npm run start (or start via Docker)';
-        const stopCmd = 'Stop the process or Docker container';
-        if (action === 'start') {
-          alert(`To start ${serviceName}, run:\n\n${startCmd}\n\nin a terminal or start the tracking-program container.`);
-        } else if (action === 'stop') {
-          alert(`To stop ${serviceName}:\n\n${stopCmd}`);
-        } else if (action === 'restart') {
-          alert(`To restart ${serviceName}:\n\n1. Stop: ${stopCmd}\n2. Start: ${startCmd}`);
+        // Tracking Program - Restart via License Service proxy (session auth, same-origin)
+        if (action === 'restart') {
+          setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+          try {
+            const response = await fetch(`${LICENSE_SERVICE_URL}/admin/api/tracking-restart`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json().catch(() => ({ success: false, message: 'Invalid response' }));
+            if (data.success) {
+              alert(data.message || 'Tracking Program restart initiated.');
+              setTimeout(() => {
+                loadServices();
+                setServiceActions(prev => {
+                  const next = { ...prev };
+                  delete next[serviceId];
+                  return next;
+                });
+              }, 4000);
+            } else {
+              throw new Error(data.message || data.error || data.detail || 'Unknown error');
+            }
+          } catch (err) {
+            console.error('Failed to restart Tracking Program:', err);
+            alert('Failed to restart Tracking Program: ' + messageForFetchError(err, 'License Service (proxy)', LICENSE_SERVICE_URL));
+            setServiceActions(prev => {
+              const next = { ...prev };
+              delete next[serviceId];
+              return next;
+            });
+          }
+          return;
+        }
+        // Start/Stop: try Service Manager (tracking_app) when available, else manual
+        const serviceManagerId = 'tracking_app';
+        setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+        try {
+          const response = await fetch(
+            `${SERVICE_MANAGER_URL}/api/services/${action}/${serviceManagerId}`,
+            { method: 'POST', credentials: 'omit' }
+          );
+          const data = await response.json();
+          if (data.success !== false) {
+            alert(data.message || `Tracking Program ${action} initiated.`);
+            setTimeout(() => {
+              loadServices();
+              setServiceActions(prev => {
+                const next = { ...prev };
+                delete next[serviceId];
+                return next;
+              });
+            }, 3000);
+          } else {
+            throw new Error(data.message || data.error || 'Unknown error');
+          }
+        } catch (err) {
+          const serviceName = 'Tracking Program (8087)';
+          const startCmd = 'cd tracking-program/8087/flask_app && python run.py (or docker-compose up -d tracking-program)';
+          const stopCmd = 'Stop the process or: docker-compose stop tracking-program';
+          if (action === 'start') {
+            alert(`Service Manager unreachable. To start ${serviceName}, run:\n\n${startCmd}`);
+          } else if (action === 'stop') {
+            alert(`Service Manager unreachable. To stop ${serviceName}:\n\n${stopCmd}`);
+          } else {
+            alert('Failed to ' + action + ': ' + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL));
+          }
+          setServiceActions(prev => {
+            const next = { ...prev };
+            delete next[serviceId];
+            return next;
+          });
         }
         return;
       } else if (serviceId === 'website_frontend_5173') {
@@ -686,10 +749,75 @@ export default function AdminDashboard() {
     }
   };
   
-  // REMOVED: checkingAuth check - page loads immediately if token exists
-  
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const username = form.username?.value?.trim() || "";
+    const password = form.password?.value || "";
+    setLoginError(null);
+    setLoginLoading(true);
+    try {
+      const res = await fetch(`${LICENSE_SERVICE_URL}/admin/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (data.success && data.token) {
+        localStorage.setItem("session_token", data.token);
+        setShowLoginForm(false);
+        setIsAdmin(true);
+        setIsAuthenticated(true);
+        loadStats();
+        loadServices();
+        serviceIntervalRef.current = setInterval(loadServices, 15000);
+      } else {
+        setLoginError(data.error || "Invalid credentials");
+      }
+    } catch (err) {
+      setLoginError(err.message || "Login failed");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  if (showLoginForm && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-100" style={{
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)'
+      }}>
+        <LicenseSeal />
+        <div className="bg-gray-900/90 rounded-xl p-8 w-full max-w-md border border-gray-700 shadow-xl">
+          <h1 className="text-2xl font-bold text-center mb-6">Synerex Admin Login</h1>
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            {loginError && (
+              <div className="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm">
+                {loginError}
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
+              <input name="username" type="text" required autoComplete="username"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
+              <input name="password" type="password" required autoComplete="current-password"
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <button type="submit" disabled={loginLoading}
+              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded transition-colors">
+              {loginLoading ? "Logging in…" : "Login"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated || !isAdmin) {
-    return null; // Will redirect
+    return null;
   }
   
   return (
@@ -1223,7 +1351,7 @@ export default function AdminDashboard() {
                             >
                               Open →
                             </a>
-                            <div className="text-xs text-yellow-500 mt-2">Manual start/stop required</div>
+                            <div className="text-xs text-gray-500 mt-2">Restart: via app endpoint. Start/Stop: Service Manager when available.</div>
                           </div>
                           <div className="flex flex-col items-center gap-2 ml-4">
                             <div className={`w-6 h-6 rounded-full ${ledColor} shadow-lg ${isHealthy ? 'animate-pulse led-green' : isRunning ? 'led-yellow' : 'led-red'}`} title={statusText}></div>

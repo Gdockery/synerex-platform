@@ -598,18 +598,31 @@ export default function MyAccount() {
               )}
             </div>
             
-            {/* Access Button */}
-            {licenseStatus?.valid && (
+            {/* Access Button - show program-specific button based on license */}
+            {licenseStatus?.valid && licenseData?.program?.program_id && (
               <div className="mt-6">
-                <a
-                  href={getAccessUrl("emv")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block p-6 bg-purple-600 hover:bg-purple-400 rounded-lg text-center transition-colors"
-                >
-                  <div className="text-xl font-bold mb-2">Access EM&V Program</div>
-                  <div className="text-sm text-purple-500">Click to open the Energy Measurement & Verification program</div>
-                </a>
+                {licenseData.program.program_id === "emv" && (
+                  <a
+                    href={getAccessUrl("emv")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-6 bg-purple-600 hover:bg-purple-400 rounded-lg text-center transition-colors"
+                  >
+                    <div className="text-xl font-bold mb-2">Access EM&V Program</div>
+                    <div className="text-sm text-purple-500">Click to open the Energy Measurement & Verification program</div>
+                  </a>
+                )}
+                {licenseData.program.program_id === "tracking" && (
+                  <a
+                    href={getAccessUrl("tracking")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-6 bg-green-600 hover:bg-green-400 rounded-lg text-center transition-colors"
+                  >
+                    <div className="text-xl font-bold mb-2">Access Tracking Program</div>
+                    <div className="text-sm text-green-500">Click to open the Tracking program</div>
+                  </a>
+                )}
               </div>
             )}
             

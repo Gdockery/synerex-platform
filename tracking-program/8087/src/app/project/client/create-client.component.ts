@@ -96,7 +96,7 @@ export class ClientCreateComponent implements OnInit {
       this.syncingSubmit = false;
       this.newClient = formData;
       this.clientCreated = true;
-      window['SAILS_LOCALS'].clients.push({id: meta.response.id, name: this.newClient.name, createdBy: this.newClient.createdBy});
+      window['BOOTSTRAP_DATA'].clients.push({id: meta.response.id, name: this.newClient.name, createdBy: this.newClient.createdBy});
       this.url = '/api/client/' + meta.response.id + '/upload-logo';
     });
   }

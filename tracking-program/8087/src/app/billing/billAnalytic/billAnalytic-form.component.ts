@@ -1,5 +1,5 @@
-import {Component, EventEmitter, Inject, Input, OnInit, Output} from '@angular/core';
-import {FormBuilder, FormControl, Validators} from "@angular/forms";
+import {Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, SimpleChanges} from '@angular/core';
+import {FormArray, FormBuilder, FormControl, Validators} from "@angular/forms";
 import {CustomValidators} from "ng2-validation";
 import {IMyOptions} from "mydatepicker";
 import {TimeHelpers} from "../../shared/helpers/timeHelpers.service";
@@ -234,7 +234,7 @@ import {ItemService} from "../equipment/items.service";
     </form>
   `
 })
-export class BillAnalyticFormComponent implements OnInit {
+export class BillAnalyticFormComponent implements OnInit, OnChanges {
 
   @Output() submitEvent = new EventEmitter<any>();
 
@@ -246,6 +246,7 @@ export class BillAnalyticFormComponent implements OnInit {
 
   @Input() billAnalytic;
   @Input() billIndex;
+  @Input() scanData: any = null;
   private form;
   private projects;
   private items;
@@ -267,12 +268,77 @@ export class BillAnalyticFormComponent implements OnInit {
               @Inject('ELECTRICITY_CHARGE_TYPES') private ELECTRICITY_CHARGE_TYPES) {}
 
   ngOnInit() {
-	console.log("ahh");
     this.itemService.getAll().subscribe(data => {
       this.xecoUnits = data;
     });
     this.initializeForm();
+    if (this.scanData && this.form) {
+      this.prefillFromScanData(this.scanData);
+    }
+  }
 
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['scanData'] && this.scanData && this.form) {
+      this.prefillFromScanData(this.scanData);
+    }
+  }
+
+  private prefillFromScanData(d: any) {
+    if (!this.form || !d) return;
+    const billDateVal = d.billDate ? this.epochToDatepicker(Number(d.billDate)) : null;
+    this.form.patchValue({
+      billReference: d.billReference || '',
+      billDate: billDateVal,
+      electricCompanyName: d.electricCompanyName || '',
+      electricCompanyAddress: d.electricCompanyAddress || '',
+      electricCompanyCity: d.electricCompanyCity || '',
+      electricCompanyState: d.electricCompanyState || '',
+      electricCompanyZip: d.electricCompanyZip || '',
+      electricCompanyCountry: d.electricCompanyCountry || 'USA',
+      accountNumber: d.accountNumber || '',
+      meterNumber: d.meterNumber || '',
+      totalKwh: d.totalKwh || '',
+      kwPeak: d.kwPeak || '',
+      billAmount: d.billAmount || '',
+      daysBilled: d.daysBilled || '',
+      voltage: d.voltage ? Number(d.voltage) : '',
+      kwRatePerTariff: d.kwRatePerTariff || '',
+      customerCharge: d.customerCharge || '',
+      tariff: d.tariff || ''
+    });
+    if (billDateVal) {
+      this.form.controls.date.setValue(billDateVal);
+    }
+    const lineItems = d.lineItems || [
+      { name: 'KWH Charges', type: 'kwh', cost: 0, billingRate: 0, tierHours: '24', meterReading: d.totalKwh, savings: 0 },
+      { name: 'KW Charges', type: 'kw', cost: 0, billingRate: d.kwRatePerTariff || 0, tierHours: '24', meterReading: d.kwPeak, savings: 0 }
+    ];
+    this.items = lineItems;
+    const lineItemsArray = this.form.get('lineItems') as FormArray;
+    while (lineItemsArray.length) {
+      lineItemsArray.removeAt(0);
+    }
+    lineItems.forEach((item: any) => {
+      lineItemsArray.push(this.formBuilder.group({
+        name: new FormControl(item.name),
+        tierHours: new FormControl(item.tierHours || '24'),
+        type: new FormControl(item.type || 'kwh'),
+        cost: new FormControl(item.cost, [CustomValidators.number]),
+        billingRate: new FormControl(item.billingRate, [CustomValidators.number]),
+        meterReading: new FormControl(item.meterReading, [CustomValidators.number]),
+        savings: new FormControl(item.savings || 0, [CustomValidators.number]),
+      }));
+    });
+  }
+
+  private epochToDatepicker(ms: number): { date: { year: number; month: number; day: number } } | null {
+    if (!ms) return null;
+    try {
+      const dt = new Date(ms);
+      return { date: { year: dt.getFullYear(), month: dt.getMonth() + 1, day: dt.getDate() } };
+    } catch (_) {
+      return null;
+    }
   }
 
   initializeForm() {

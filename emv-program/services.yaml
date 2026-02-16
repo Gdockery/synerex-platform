@@ -96,15 +96,15 @@ services:
   tracking_app:
     name: "Tracking Program"
     port: 8087
-    runtime: "node"
-    script: "app.js"
-    directory: "../tracking-program/8087"
+    runtime: "python"
+    script: "run.py"
+    directory: "../tracking-program/8087/flask_app"
     dependencies: ["license_service"]
-    health_endpoint: "/login"
+    health_endpoint: "/health"
     startup_timeout: 60
     env:
       PORT: "8087"
-      NODE_ENV: "development"
+      FLASK_ENV: "development"
       LICENSE_SERVICE_URL: "${LICENSE_SERVICE_URL}"
 
 service_manager:

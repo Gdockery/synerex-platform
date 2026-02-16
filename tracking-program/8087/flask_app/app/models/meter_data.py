@@ -1,0 +1,45 @@
+"""MeterData model - api/models/MeterData.js"""
+from app.extensions import db
+from app.models.base import BaseModel
+
+
+class MeterData(BaseModel):
+    __tablename__ = "meterdata"
+
+    meter = db.Column(db.Integer, db.ForeignKey("meter.id"))
+    meshId = db.Column(db.String(255))
+    recordedAt = db.Column(db.BigInteger, nullable=False)
+    day = db.Column(db.String(255), nullable=False)
+    minute = db.Column(db.Integer, nullable=False)
+    intervalId = db.Column(db.String(255), nullable=False)
+    knownRead = db.Column(db.Boolean, default=False)
+    l1Volt = db.Column(db.Float)
+    l1Amp = db.Column(db.Float)
+    l1Kw = db.Column(db.Float)
+    l1Kva = db.Column(db.Float)
+    l1Pf = db.Column(db.Float)
+    l1THD = db.Column(db.Float, nullable=True)
+    l1Kvar = db.Column(db.Float)
+    l2Volt = db.Column(db.Float)
+    l2Amp = db.Column(db.Float)
+    l2Kw = db.Column(db.Float)
+    l2Kva = db.Column(db.Float)
+    l2Pf = db.Column(db.Float)
+    l2THD = db.Column(db.Float, nullable=True)
+    l2Kvar = db.Column(db.Float)
+    l3Volt = db.Column(db.Float)
+    l3Amp = db.Column(db.Float)
+    l3Kw = db.Column(db.Float)
+    l3Kva = db.Column(db.Float)
+    l3Pf = db.Column(db.Float)
+    l3THD = db.Column(db.Float, nullable=True)
+    l3Kvar = db.Column(db.Float)
+    totalVolt = db.Column(db.Float)
+    totalAmp = db.Column(db.Float)
+    totalKw = db.Column(db.Float)
+    totalKva = db.Column(db.Float)
+    totalPf = db.Column(db.Float)
+    totalKvar = db.Column(db.Float)
+    totalTHD = db.Column(db.Float, nullable=True)
+    outputAmp = db.Column(db.Float, nullable=True)
+    rawData = db.Column(db.JSON)

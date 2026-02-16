@@ -1,0 +1,44 @@
+{
+  "endpoints": [
+    {
+      "name": "whitelabel",
+      "path": "/api/whitelabel/brand-name",
+      "sails_status": 200,
+      "flask_status": null,
+      "ok": false,
+      "missing_in_flask": [],
+      "extra_in_flask": []
+    },
+    {
+      "name": "account",
+      "path": "/api/account",
+      "sails_status": 403,
+      "flask_status": null,
+      "ok": false,
+      "missing_in_flask": [],
+      "extra_in_flask": []
+    },
+    {
+      "name": "project_list",
+      "path": "/api/project",
+      "sails_status": 403,
+      "flask_status": null,
+      "ok": false,
+      "missing_in_flask": [],
+      "extra_in_flask": []
+    },
+    {
+      "name": "client_list",
+      "path": "/api/client",
+      "sails_status": 403,
+      "flask_status": null,
+      "ok": false,
+      "missing_in_flask": [],
+      "extra_in_flask": []
+    }
+  ],
+  "summary": {
+    "passed": 0,
+    "total": 4
+  }
+}

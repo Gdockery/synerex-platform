@@ -63,7 +63,7 @@
             </div>
             <div class="header-right">
                 <div class="header-buttons-left">
-                    <a id="back-to-home-btn" class="btn-secondary" href="http://localhost:5173/" aria-label="Back to previous page">Back to previous page</a>
+                    <a id="back-to-home-btn" class="btn-secondary" href="{{ website_url or "http://localhost:5173" }}/" aria-label="Back to previous page">Back to previous page</a>
 
                     <button id="help-btn" class="btn-help">Help</button>
                     <button id="users-guide-btn" class="btn-users-guide" onclick="window.open('/users-guide', '_blank')">User's Guide</button>
@@ -267,7 +267,7 @@
                         </div>
                     </div>
                     <div class="section-actions">
-                        <button id="back-to-website-btn" type="button" class="btn-secondary" aria-label="Back to previous page" onclick="window.location.href='http://localhost:5173/'">Back to previous page</button>
+                        <button id="back-to-website-btn" type="button" class="btn-secondary" aria-label="Back to previous page" onclick="window.location.href='{{ website_url or "http://localhost:5173" }}/'">Back to previous page</button>
                     </div>
                 </div>
             </div>
@@ -507,6 +507,8 @@
                     <a href="#" id="system-status">System Status</a>
                     <a href="#" id="audit-compliance">Audit Compliance</a>
                     <a href="#" id="documentation">Documentation</a>
+                    <a href="{% if website_url %}{{ website_url }}/my-account{% else %}/my-account{% endif %}" id="footer-my-account">My Account</a>
+                    <a href="#" id="footer-logout-btn">Logout</a>
                 </div>
             </div>
         </div>

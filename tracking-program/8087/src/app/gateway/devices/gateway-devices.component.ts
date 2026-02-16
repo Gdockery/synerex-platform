@@ -26,9 +26,18 @@ export class GatewayDevicesComponent {
   }
 
   refresh(params) {
-    this.gatewayService.getPaginated(params).subscribe(responseData =>{
-      this.recordCount = responseData.meta.total;
-      this.devices = responseData.response;
-    });
+    const safeParams = (params && params.rows != null && params.first != null)
+      ? params : { first: 0, rows: this.perPage, sortField: null, sortOrder: null };
+    this.gatewayService.getPaginated(safeParams).subscribe(
+      responseData => {
+        this.recordCount = (responseData && responseData.meta && responseData.meta.total != null)
+          ? responseData.meta.total : 0;
+        this.devices = (responseData && responseData.response) ? responseData.response : [];
+      },
+      () => {
+        this.recordCount = 0;
+        this.devices = [];
+      }
+    );
   }
 }

@@ -6,11 +6,11 @@
       <h3 style="margin: 0 0 0.5rem 0;">{{ lic.license_id }}</h3>
       <p style="color: #718096; margin: 0;">
         <span class="badge badge-info">{{ lic.program_id|upper }}</span>
-        <span style="margin-left: 1rem;">Organization: <a href="../orgs/{{ lic.org_id }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a></span>
+        <span style="margin-left: 1rem;">Organization: <a href="{{ admin_url('orgs/' ~ lic.org_id) }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a></span>
       </p>
     </div>
     <div style="display: flex; gap: 0.75rem;">
-      <a href=".." class="btn btn-secondary">← Back to Licenses</a>
+      <a href="{{ admin_url('licenses') }}" class="btn btn-secondary">← Back to Licenses</a>
     </div>
   </div>
 
@@ -46,7 +46,7 @@
       <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem;">Authorization</div>
       <div style="font-size: 0.9rem; font-weight: 500; margin-top: 0.5rem;">
         {% if auth %}
-        <a href="../authorizations/{{ lic.authorization_id }}" style="color: white; text-decoration: underline;">{{ lic.authorization_id }}</a>
+        <a href="{{ admin_url('authorizations/' ~ lic.authorization_id) }}" style="color: white; text-decoration: underline;">{{ lic.authorization_id }}</a>
         {% else %}
         {{ lic.authorization_id }}
         {% endif %}
@@ -119,7 +119,7 @@
           <div>
             <span style="color: #718096; font-size: 0.875rem;">Organization</span>
             <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
-              <a href="../orgs/{{ lic.org_id }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a>
+              <a href="{{ admin_url('orgs/' ~ lic.org_id) }}" style="color: #667eea; text-decoration: none;">{{ org.org_name if org else lic.org_id }}</a>
             </div>
           </div>
           <div>
@@ -254,7 +254,7 @@
         <div>
           <span style="color: #718096; font-size: 0.875rem;">Authorization ID</span>
           <div style="color: #2d3748; font-weight: 500; margin-top: 0.25rem;">
-            <a href="../authorizations/{{ auth.authorization_id }}" style="color: #667eea; text-decoration: none; font-family: monospace;">{{ auth.authorization_id }}</a>
+            <a href="{{ admin_url('authorizations/' ~ auth.authorization_id) }}" style="color: #667eea; text-decoration: none; font-family: monospace;">{{ auth.authorization_id }}</a>
           </div>
         </div>
         <div>
@@ -287,7 +287,7 @@
         </div>
       </div>
       <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;">
-        <a href="../authorizations/{{ auth.authorization_id }}" class="btn">View Full Authorization →</a>
+        <a href="{{ admin_url('authorizations/' ~ auth.authorization_id) }}" class="btn">View Full Authorization →</a>
       </div>
     </div>
     {% else %}

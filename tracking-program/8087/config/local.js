@@ -52,7 +52,7 @@ module.exports = {
 
   // Disable hooks that require external services or cause conflicts
   hooks: {
-    sockets: true,   // Enable sockets for sails.io.js client
+    sockets: true,
     pubsub: false,   // Disable pubsub (also requires Redis)
     grunt: false,    // Disable grunt 
     webpack: false   // Disable webpack/livereload to avoid port conflicts

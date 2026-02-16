@@ -1233,6 +1233,77 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # Return error message HTML instead of empty string so we can see what went wrong
         return f'<div style="margin-top: 1.5rem; padding: 20px; background: #ffebee; border-radius: 8px; border-left: 5px solid #f44336;"><h4 style="color: #c62828;">Error Generating Normalization Breakdown</h4><p style="color: #666;">An error occurred while generating the normalization breakdown: {str(e)}</p><p style="color: #999; font-size: 0.9em;">Please check the server logs for details.</p></div>'
 
+
+def _build_bill_import_from_results(results):
+    """Build electricBillAnalysis payload from analysis results for Tracking Bill Analytic pre-fill."""
+    if not results or not isinstance(results, dict):
+        return None
+    cfg = results.get("config") or {}
+    client = results.get("client_profile") or cfg
+    if not isinstance(client, dict):
+        client = {}
+    fin = results.get("financial") or {}
+    fdbg = results.get("financial_debug") or results.get("bill_weighted") or {}
+    energy = results.get("energy") or {}
+    wn = results.get("weather_normalization") or {}
+    pq = results.get("power_quality") or {}
+
+    def _f(key, default=None):
+        v = fdbg.get(key) or fin.get(key) or energy.get(key) or cfg.get(key)
+        return v if v is not None else default
+
+    def _safe_float(x, default=0):
+        try:
+            return float(x) if x is not None else default
+        except (TypeError, ValueError):
+            return default
+
+    energy_rate = float(cfg.get("energy_rate") or 0.10)
+    demand_rate = float(cfg.get("demand_rate") or 0)
+    kw_after_raw = _safe_float(_f("kw_after") or _f("after_kw") or fin.get("after_kw"))
+    kwh_after_raw = _safe_float(_f("kwh_after") or fin.get("after_kwh"))
+    weather_norm_kw_after = _safe_float(
+        wn.get("normalized_kw_after") or pq.get("weather_normalized_kw_after") or kw_after_raw
+    )
+    kw_peak = weather_norm_kw_after if weather_norm_kw_after > 0 else (kw_after_raw or 1)
+    if kw_after_raw > 0 and weather_norm_kw_after and weather_norm_kw_after != kw_after_raw:
+        usage_kwh = kwh_after_raw * (weather_norm_kw_after / kw_after_raw)
+    else:
+        usage_kwh = kwh_after_raw or (_safe_float(fin.get("delta_kwh_annual")) or 1000) / 12.0
+    days_billed = 30
+    cost_kwh = usage_kwh * energy_rate if energy_rate else 0
+    cost_kw = kw_peak * demand_rate if demand_rate else 0
+    total_bill = cost_kwh + cost_kw
+    electric_company = (str(client.get("utility_company") or client.get("utility") or cfg.get("utility") or "").strip() or None)
+    account = (str(client.get("account") or cfg.get("account") or "").strip() or None)
+    line_items = [
+        {"name": "KWH Charges", "type": "kwh", "cost": round(cost_kwh, 2), "billingRate": round(energy_rate, 5),
+         "savings": 0, "tierHours": "24", "meterReading": str(round(usage_kwh, 2))},
+        {"name": "KW Charges", "type": "kw", "cost": round(cost_kw, 2), "billingRate": round(demand_rate, 5),
+         "savings": 0, "tierHours": "24", "meterReading": str(round(kw_peak, 2))},
+        {"name": "Tax Charges", "type": "tax", "cost": 0, "savings": 0, "tierHours": "0", "meterReading": "0"},
+        {"name": "Miscellaneous Charges", "type": "m", "cost": 0, "savings": 0, "tierHours": "0", "meterReading": "0"},
+        {"name": "X Charges", "type": "x", "cost": 0, "savings": 0, "tierHours": "0", "meterReading": "0"},
+    ]
+    now = datetime.utcnow()
+    first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    bill_date_ts = int(first_of_month.timestamp() * 1000)
+    return {
+        "totalKwh": str(round(usage_kwh, 2)), "kwPeak": str(round(kw_peak, 2)), "daysBilled": str(days_billed),
+        "kwRatePerTariff": str(round(demand_rate, 2)) if demand_rate else "0", "lineItems": line_items,
+        "billAmount": str(round(total_bill, 2)), "date": int(now.timestamp() * 1000), "billDate": bill_date_ts,
+        "billReference": f"EM&V Bill Data {now.strftime('%B %Y')}",
+        "facilitySqFeet": str(client.get("facility_sq_feet") or client.get("facilitySqFeet") or ""),
+        "meterNumber": str(client.get("meter_number") or client.get("meterNumber") or ""),
+        "voltage": 480, "kWPerUnit": "75", "switchGearCount": "1", "mainCircuitCount": "1", "xecoUnitType": 3,
+        "kvarTariffRate": "0", "tariff": "", "customerCharge": "0",
+        "electricCompanyName": electric_company or "", "electricCompanyCountry": str(client.get("facility_country") or "United States"),
+        "electricCompanyAddress": str(client.get("facility_address") or ""), "electricCompanyCity": str(client.get("facility_city") or ""),
+        "electricCompanyState": str(client.get("facility_state") or ""), "electricCompanyZip": str(client.get("facility_zip") or ""),
+        "accountNumber": account or "",
+    }
+
+
 def generate_exact_template_html(r):
     """Generate HTML report using simple structured protocol - GET field values from UI service"""
     
@@ -7010,7 +7081,20 @@ def generate_exact_template_html(r):
         # Replace ALL remaining {{VARIABLE}} patterns with empty string
         template_content = re.sub(r'\{\{[A-Za-z0-9_]+\}\}', '', template_content)
         print("[CRITICAL] Final catch-all replacement completed")
-    
+
+    # Embed bill/utility data for Tracking to extract when baseline report is pushed
+    try:
+        bill_data = _build_bill_import_from_results(r)
+        if bill_data:
+            script_json = json.dumps(bill_data, separators=(',', ':'))
+            script_tag = '\n<script type="application/json" id="emv-bill-import-data">' + script_json + '</script>\n'
+            if '</body>' in template_content:
+                template_content = template_content.replace('</body>', script_tag + '</body>')
+            else:
+                template_content += script_tag
+    except Exception as e:
+        logger.warning("Could not embed bill import data: %s", e)
+
     return template_content
 
 def generate_fallback_html(r):

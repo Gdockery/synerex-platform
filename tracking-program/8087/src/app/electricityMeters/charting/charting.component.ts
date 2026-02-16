@@ -41,20 +41,20 @@ export class ChartingComponent implements OnInit, OnDestroy {
   constructor(protected userService: CurrentUserService, private timeHelpers: TimeHelpers, private formBuilder: FormBuilder, private projectOverviewService: ProjectOverviewService, private deviceService: DeviceService) {}
 
   ngOnInit() {
-    this.meters = this.userService.user.selectedProject.meters;
+    this.meters = this.userService.user.selectedProject.meters || [];
     this.dateForm = this.formBuilder.group({
       dateFrom: [this.timeHelpers.getDatepickerDictionary(this.timeHelpers.momentForUserTzUnadjusted()), [DateTimeValidators.beforeDateField('dateTo')]],
       dateTo: [this.timeHelpers.getDatepickerDictionary(this.timeHelpers.momentForUserTzUnadjusted()), [DateTimeValidators.afterDateField('dateFrom')]]
     });
-    this.selectedMeter = this.userService.user.selectedProject.meters[0].id;
-    this.timer = observableTimer(500,60000);
-    this.subscription = this.timer.subscribe(energySavingsData => {
-      this.updateMeter();
-    });
+    this.selectedMeter = (this.meters.length > 0) ? this.meters[0].id : null;
+    if (this.meters.length > 0) {
+      this.timer = observableTimer(500, 60000);
+      this.subscription = this.timer.subscribe(() => this.updateMeter());
+    }
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
+    if (this.subscription) this.subscription.unsubscribe();
   }
 
   validateParameter() {
@@ -75,6 +75,7 @@ export class ChartingComponent implements OnInit, OnDestroy {
   }
 
   updateMeter() {
+    if (!this.selectedMeter) return;
     this.projectOverviewService.getPowerQualityData({
         project: this.userService.user.selectedProject.id,
         meter: this.selectedMeter, 
@@ -86,6 +87,7 @@ export class ChartingComponent implements OnInit, OnDestroy {
   }
 
   updateChartData() { 
+    if (!this.selectedMeter || !this.chart) return;
     if(this.validateParameter()) {
       this.projectOverviewService.getPowerQualityChart({
         project: this.userService.user.selectedProject.id,

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Tracking Sign In</title>
+</head>
+<body>
+<script src="scripts/jquery-3.7.1.min.js"></script>
+<script type="text/javascript">
+$(function() {
+    var base = (location.pathname.match(/^(.+)\/login/) || ['',''])[1] || '';
+    var isWaiting;
+    $('form[data-purpose="login"]').on('submit', function() {
+        if (isWaiting) return;
+        isWaiting = true;
+        $('.error').hide();
+        $.post(base + '/login', { email: $('#inputEmail').val(), password: $('#inputPassword').val(), terms: $('#termsAndConditions').is(':checked') ? 'accept' : '' })
+            .done(function() { window.location = base + '/welcome#loaded'; })
+            .fail(function(err) {
+                isWaiting = false;
+                var msg = (err.responseJSON && err.responseJSON.error) || "";
+                if (msg) {
+                    $('.error').show().html(msg);
+                } else if (err.status === 404) {
+                    $('.error').show().html('Unrecognized email address/password combination.');
+                } else if (err.status === 400) {
+                    $('.error').show().html('Please make sure you\'ve entered a valid email address and password.');
+                } else {
+                    $('.error').show().html('Unknown error occurred, please try again.');
+                }
+            });
+        return false;
+    });
+    if (location.href.match('expired')) {
+        $('.error').show().html('Session Expired. Login Again.');
+    }
+    if (location.href.match('error=terms')) {
+        $('.error').show().html('Please accept the terms and conditions to sign in.');
+    }
+});
+</script>
+<link rel="stylesheet" type="text/css" href="css/font-awesome.css">
+<link rel="stylesheet" type="text/css" href="css/public-screens.css">
+<link rel="stylesheet" type="text/css" href="css/login.css">
+<div class="login-container">
+  <div class="logo-container">
+    <div class="row1">
+      <img id="profile-img" class="logo-image" src="images/logo-big1.png" />
+    </div>
+    <div class="row2">
+      EMV Energy & Cost Analysis Portal
+    </div>
+  </div>
+  <form class="form-container" data-purpose="login">
+    <span id="reauth-email" class="reauth-email"></span>
+    <input type="email" id="inputEmail" class="form-control" placeholder="Email Address" required autofocus>
+    <input type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+    <span class="error"></span>
+    <br>
+    <div>
+      <input type="checkbox" id="termsAndConditions" class="form-control" name="terms" value="accept" required
+          oninvalid="this.setCustomValidity('Please read and accept our terms & conditions to use the portal')"
+          onchange="this.setCustomValidity('')">
+      <label for="termsAndConditions"><a href="terms"><strong>I Accept Terms & Conditions</strong></a></label>
+    </div>
+    <button class="btn btn-signin btn-green btn-submit">Sign in</button>
+    <br>
+    <a href="forgot-password" class="bottom-link"><strong>Forgot password?</strong></a>
+  </form>
+</div>
+{% include "legal/_footer.html" %}
+</body>
+</html>

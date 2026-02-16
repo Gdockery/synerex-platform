@@ -118,9 +118,9 @@ export class ProjectCreateComponent {
       this.clients = responseData.response;
     });*/
 
-    this.clients = window['SAILS_LOCALS'].clients.filter(client => client.createdBy == this.userService.user.id);
+    this.clients = window['BOOTSTRAP_DATA'].clients.filter(client => client.createdBy == this.userService.user.id);
 
-    this.xecoAccountManagers = window['SAILS_LOCALS'].xecoUsersAndAdmins;
+    this.xecoAccountManagers = window['BOOTSTRAP_DATA'].xecoUsersAndAdmins;
   }
 
   submitCreateProjectForm() {
@@ -170,23 +170,36 @@ export class ProjectCreateComponent {
       let invoiceBase = 2143835 + parseInt(newProjectId);
       delete formData.id;
       formData.invoiceNumber = {'deposit': invoiceBase.toString() + '1', 'installation': invoiceBase.toString() + '2', 'final': invoiceBase.toString() + '3', 'total': invoiceBase.toString() + '4'};
+      formData.id = newProjectId;
+
+      // Add to user.projects immediately (real-time visibility without logout)
+      const projectToAdd = { ...formData, ...(responseData.response || {}) };
+      const existing = this.userService.user.projects || [];
+      this.userService.user.projects = [projectToAdd, ...existing];
+      if (typeof window !== 'undefined' && window['BOOTSTRAP_DATA'] && window['BOOTSTRAP_DATA'].user) {
+        window['BOOTSTRAP_DATA'].user.projects = this.userService.user.projects;
+      }
+      if (this.userService.user.role == 7) {
+        this.projectsToAccess = _.pluck(this.userService.user.projects, 'id');
+        this.usrService.update(this.userService.user.id, {projects: this.projectsToAccess}).subscribe(data =>{}, error => {});
+      }
+
       this.projectService.update(newProjectId, {
         valuesToSet: formData
       }).subscribe(resData => {
-        formData.id = newProjectId;
-        // Now update the information stored on the window.
-        this.userService.user.projects.unshift(formData);
-        if (this.userService.user.role == 7) {
-          this.projectsToAccess = _.pluck(this.userService.user.projects, 'id');
-          this.projectsToAccess.push(formData.id);
-          this.usrService.update(this.userService.user.id, {projects: this.projectsToAccess}).subscribe(data =>{
-          }, error => {});
-        }
-      
+        Object.assign(projectToAdd, formData);
         this.syncingSubmit = false;
         this.newProject = formData;
         this.projectCreated = true;
+      }, err => {
+        this.syncingSubmit = false;
+        const msg = (err && err.error && err.error.error) || (err && err.message) || 'Update failed';
+        alert('Project update failed: ' + msg + '. The project was created and appears in your list.');
       });
+    }, err => {
+      this.syncingSubmit = false;
+      const msg = (err && err.error && err.error.error) || (err && err.message) || 'Project creation failed';
+      alert('Project creation failed: ' + msg);
     });
 
     

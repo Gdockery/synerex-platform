@@ -16,6 +16,14 @@
   }
 }
 
+.logo-image {
+  max-height: 88px;
+  max-width: none;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 nav {
   width: 250px;
   position:relative;
@@ -68,6 +76,20 @@ nav a .icon {
 
 nav .router-link-active .icon {
   color: $primaryColor;
+}
+
+nav a.scan-bill-link {
+  background: #20B2AA;
+  color: #000;
+  font-weight: bold;
+}
+nav a.scan-bill-link:hover {
+  background: #2fc4bc;
+  color: #000;
+}
+nav a.scan-bill-link.router-link-active {
+  background: #1a9a93;
+  color: #000;
 }
 
 .navbar-bottom li {

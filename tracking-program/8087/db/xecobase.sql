@@ -580,7 +580,7 @@ CREATE TABLE `project` (
   `servicePlan` int(11) DEFAULT NULL,
   `lastBudgetInvoice` longtext,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
+  UNIQUE KEY `id` (`id`),
   UNIQUE KEY `servicePlan` (`servicePlan`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

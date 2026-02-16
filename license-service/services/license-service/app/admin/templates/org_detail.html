@@ -156,7 +156,7 @@
       <tbody>
         {% for lic in licenses %}
         <tr>
-          <td><a href="../licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ lic.license_id }}</a></td>
+          <td><a href="{{ admin_url('licenses/' ~ lic.license_id) }}" style="color: #667eea; text-decoration: none; font-weight: 500;">{{ lic.license_id }}</a></td>
           <td><span class="badge badge-info">{{ lic.program_id|upper }}</span></td>
           <td style="color: #718096; font-size: 0.9rem;">{{ lic.issued_at.strftime('%Y-%m-%d') if lic.issued_at else 'N/A' }}</td>
           <td style="color: #718096; font-size: 0.9rem;">{{ lic.expires_at.strftime('%Y-%m-%d') if lic.expires_at else 'N/A' }}</td>
@@ -169,7 +169,7 @@
             <span class="badge badge-success">Active</span>
             {% endif %}
           </td>
-          <td><a href="../licenses/{{ lic.license_id }}" style="color: #667eea; text-decoration: none;">View →</a></td>
+          <td><a href="{{ admin_url('licenses/' ~ lic.license_id) }}" style="color: #667eea; text-decoration: none;">View →</a></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -292,7 +292,7 @@
           <td style="color: #718096; font-size: 0.9rem;">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else 'N/A' }}</td>
           <td>
             {% if order.license_id %}
-            <a href="../licenses/{{ order.license_id }}" style="color: #667eea; text-decoration: none;">View License →</a>
+            <a href="{{ admin_url('licenses/' ~ order.license_id) }}" style="color: #667eea; text-decoration: none;">View License →</a>
             {% else %}
             <span style="color: #718096;">—</span>
             {% endif %}

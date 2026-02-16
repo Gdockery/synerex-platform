@@ -23,4 +23,5 @@ export class Project {
   public ILRatio: number;
   public initialPf: number;
   public slackChannel: number | null;
+  public activeEmvAnalysisId: number | null;
 }

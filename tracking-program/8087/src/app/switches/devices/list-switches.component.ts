@@ -79,12 +79,20 @@ export class ListSwitchesComponent {
   }
 
   refresh(params) {
-    //params.deviceType = 1;
-    params.project = this.userService.user.selectedProject.id;
-    this.switchService.getPaginated(params).subscribe(responseData => {
-      this.recordCount = responseData.meta.total;
-      this.switches = responseData.response;
-    });
+    const safeParams = (params && params.rows != null && params.first != null)
+      ? params : { first: 0, rows: this.perPage, sortField: null, sortOrder: null };
+    safeParams.project = this.userService.user.selectedProject.id;
+    this.switchService.getPaginated(safeParams).subscribe(
+      responseData => {
+        this.recordCount = (responseData && responseData.meta && responseData.meta.total != null)
+          ? responseData.meta.total : 0;
+        this.switches = (responseData && responseData.response) ? responseData.response : [];
+      },
+      () => {
+        this.recordCount = 0;
+        this.switches = [];
+      }
+    );
   }
 
  selectAllDays() {

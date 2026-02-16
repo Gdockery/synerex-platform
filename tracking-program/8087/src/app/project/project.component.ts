@@ -6,7 +6,8 @@ import {CurrentUserService} from "../shared/user/currentUser.service";
     <sd-subnav *ngIf= "userService.user.selectedProject"
       [links]="[
         {title:'Overview',url:'/project/overview'},
-        {title:'Power Quality',url:'/project/power-quality'}
+        {title:'Power Quality',url:'/project/power-quality'},
+        {title:'EM&V Report',url:'/project/emv-baseline'}
       ]"></sd-subnav>
     <router-outlet></router-outlet>
   `

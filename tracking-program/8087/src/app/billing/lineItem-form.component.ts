@@ -138,8 +138,11 @@ export class LineItemFormComponent implements OnInit {
 
   getBillingRate (lineItem) {
     if (!isNaN(lineItem.value.cost) && !isNaN(lineItem.value.meterReading)) {
-      lineItem.controls.billingRate.setValue(Math.round(lineItem.value.cost / lineItem.value.meterReading * 100000) / 100000);
+      const val = Math.round(lineItem.value.cost / lineItem.value.meterReading * 100000) / 100000;
+      setTimeout(() => lineItem.controls.billingRate.setValue(val), 0);
+      return val;
     }
+    return lineItem.value.billingRate;
   }
 
   getSavingsAmount(lineItem) {
@@ -162,8 +165,9 @@ export class LineItemFormComponent implements OnInit {
 
     console.log("savingsAmount: " , savingsAmount);
       if (isNaN(savingsAmount)) { savingsAmount = 0; }
-      lineItem.controls.savings.setValue(Math.round(savingsAmount*100)/100);
-      return lineItem.value.savings;
+      const rounded = Math.round(savingsAmount*100)/100;
+      setTimeout(() => lineItem.controls.savings.setValue(rounded), 0);
+      return rounded;
     } else {
       return 0;
     }

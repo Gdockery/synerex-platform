@@ -12,7 +12,7 @@ import { CustomValidators} from "ng2-validation";
 
 export default {
   client: [{value: this.clientId, disabled: false}, [Validators.required]],
-  xecoManager: [{value: '', disabled: false}, [Validators.required]],
+  xecoManager: [{value: '', disabled: false}],
   name: [{value: '', disabled: false}, [Validators.required]],
   purchaseOrder: [{value: '', disabled: false}],
   invoiceNumber: [{value: '', disabled: false}],

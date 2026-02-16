@@ -124,7 +124,7 @@ export default function Header(){
                 }}
               >
                 <a
-                  href={`${LICENSE_SERVICE_URL}/admin`}
+                  href="/license/admin"
                   target="_self"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-b border-gray-700 cursor-pointer no-underline"
                 >
@@ -132,7 +132,7 @@ export default function Header(){
                   <div className="text-xs text-gray-500 mt-1">Platform management & service controls</div>
                 </a>
                 <a
-                  href={`${LICENSE_SERVICE_URL}/admin`}
+                  href="/license/admin"
                   target="_self"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors cursor-pointer no-underline"
                 >

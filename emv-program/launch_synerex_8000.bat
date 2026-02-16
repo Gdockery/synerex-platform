@@ -23,7 +23,6 @@ echo Service started successfully!
 echo.
 echo The application is available at:
 echo   http://127.0.0.1:8000
-echo   http://localhost:8000
 echo.
 
 REM Open browser

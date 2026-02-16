@@ -32,10 +32,9 @@ export class CurrentUserService {
   }
 
   logout(expired: boolean = false) {
-    this.authService.logout().subscribe(data => {
-      this.deselectProject();
-      this.window.getNativeWindow().location.href = '/login' + ( expired ? '?expired' : '');
-    });
+    this.deselectProject();
+    // Use full-page navigation to avoid CORS when server redirects to different origin (e.g. 5173)
+    this.window.getNativeWindow().location.href = '/logout' + (expired ? '?expired=1' : '');
   }
 
   selectProject(projectId) {
@@ -57,7 +56,9 @@ export class CurrentUserService {
       return;
     }
 
-    projectToSelect.timezoneAbbreviation = moment().tz(projectToSelect.timeZoneId).format('zz');
+    const tz = projectToSelect.timeZoneId || 'America/Chicago';
+    const m = moment().tz(tz);
+    projectToSelect.timezoneAbbreviation = m && m.isValid() ? m.format('zz') : '';
     projectToSelect.hasRunTest = !!projectToSelect.kvaSavings;
     projectToSelect.selectedTest = projectToSelect.selectedTest;
     projectToSelect.savings = {

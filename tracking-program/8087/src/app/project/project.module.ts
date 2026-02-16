@@ -1,6 +1,9 @@
 import { NgModule } from '@angular/core';
 import {ProjectSelectComponent} from "./select/project-select.component";
 import {ProjectCreateComponent} from './select/create-project.component';
+import {CreateFromBillWizardComponent} from './create-from-bill/create-from-bill-wizard.component';
+import {CreateFromBillService} from './create-from-bill/create-from-bill.service';
+import {EmvService} from './emv/emv.service';
 import {ProjectEditComponent} from './select/edit-project.component';
 import {ClientListComponent} from './client/list-client.component';
 import {ClientEditComponent} from './client/edit-client.component';
@@ -17,6 +20,7 @@ import {ClientService} from "./client/client.service";
 import {ChartingModule} from "../charting/charting.module";
 import {PowerQualityComponent} from "./powerQuality/power-quality.component";
 import {SnapshotGaugeComponent} from "./powerQuality/snapshot-gauge.component";
+import {EmvBaselineComponent} from "./emv/emv-baseline.component";
 import {SocketModule} from "../socket/socket.module";
 import {DeviceService} from "../electricityMeters/devices/device.service";
 import {CommonModule} from "@angular/common";
@@ -49,6 +53,7 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
     ProjectComponent,
     ProjectSelectComponent,
     ProjectCreateComponent,
+    CreateFromBillWizardComponent,
     ProjectEditComponent,
     ClientListComponent,
     ClientEditComponent,
@@ -56,6 +61,7 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
     ProjectOverviewComponent,
     PowerQualityComponent,
     SnapshotGaugeComponent,
+    EmvBaselineComponent,
 
   ],
   exports: [],
@@ -67,6 +73,8 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
     PartService,
     BillAnalyticCalculationsService,
     AdminProjectService,
+    CreateFromBillService,
+    EmvService,
   ]
 })
 export class ProjectModule { }

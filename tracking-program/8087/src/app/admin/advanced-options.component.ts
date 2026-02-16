@@ -123,7 +123,7 @@ export class AdvancedOptionsComponent implements OnInit {
     });
 
     // Populate form with current values
-    this.form.patchValue(window['SAILS_LOCALS'].xecoAdvancedOptions || {});
+    this.form.patchValue(window['BOOTSTRAP_DATA'].xecoAdvancedOptions || {});
 
   }
 

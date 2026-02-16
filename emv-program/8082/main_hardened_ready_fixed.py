@@ -2077,13 +2077,9 @@ def get_db_connection(org_id=None, use_sessions_db=False):
             # Compute results directory path (BASE_DIR is defined earlier)
             results_dir = BASE_DIR / "results"
 
-        if use_sessions_db and USE_MYSQL:
-            logger.error("Sessions DB is still SQLite-only. Configure session storage for MySQL.")
-            yield None
-            return
-        if use_sessions_db:
-            # Use shared sessions database for session management
-            db_path = os.path.join(str(results_dir), "sessions.db")
+            if use_sessions_db:
+                # Use shared sessions database for session management
+                db_path = os.path.join(str(results_dir), "sessions.db")
             elif org_id:
                 # Use org-specific database
                 org_dir = os.path.join(str(results_dir), f"org_{org_id}")
@@ -8835,13 +8831,13 @@ class CSVIntegrityProtection:
                 )
             """
             )
-            # Create index for faster lookups
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_cell_annotations_file ON csv_cell_annotations(file_id)"
-            )
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_cell_annotations_cell ON csv_cell_annotations(file_id, row_index, column_name)"
-            )
+                # Create index for faster lookups
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_cell_annotations_file ON csv_cell_annotations(file_id)"
+                )
+                cursor.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_cell_annotations_cell ON csv_cell_annotations(file_id, row_index, column_name)"
+                )
                 conn.commit()
         except Exception as e:
             logger.error(f"Error setting up CSV fingerprints database: {e}")
@@ -9598,9 +9594,9 @@ class CSVIntegrityProtection:
                     }
                 cursor = conn.cursor()
 
-            # Get total fingerprint count
-            cursor.execute("SELECT COUNT(*) FROM csv_fingerprints")
-            total_fingerprints = cursor.fetchone()[0]
+                # Get total fingerprint count
+                cursor.execute("SELECT COUNT(*) FROM csv_fingerprints")
+                total_fingerprints = cursor.fetchone()[0]
 
                 # Get recent fingerprints (last 7 days)
                 if USE_MYSQL:
@@ -27089,6 +27085,154 @@ def api_health():
             "timestamp": datetime.now().isoformat(),
         }
     )
+
+
+# -----------------------------------------------------------------------------
+# Tracking Integration - Proxy routes for EMV <-> Tracking (same as refactored)
+# -----------------------------------------------------------------------------
+_TRACKING_URL = os.getenv("TRACKING_BASE_URL") or os.getenv("TRACKING_URL")
+_TRACKING_API_KEY = os.getenv("EMV_API_KEY") or os.getenv("TRACKING_API_KEY", "")
+
+
+@app.route("/api/tracking/health", methods=["GET"])
+def tracking_health():
+    """Diagnostic: check Tracking connectivity. No auth required."""
+    configured = bool(_TRACKING_URL and _TRACKING_API_KEY)
+    tracking_host = (_TRACKING_URL or "").replace("http://", "").replace("https://", "").split("/")[0] or "(not set)"
+    result = {"configured": configured, "trackingHost": tracking_host}
+    if not configured:
+        result["error"] = "Set TRACKING_URL and EMV_API_KEY in .env"
+        return jsonify(result), 200
+    try:
+        r = requests.get(f"{_TRACKING_URL.rstrip('/')}/health", timeout=5)
+        result["reachable"] = r.status_code == 200
+        result["trackingStatus"] = r.status_code
+        if r.status_code != 200:
+            result["hint"] = f"Tracking at {tracking_host} returned {r.status_code}. Ensure Tracking is running."
+    except requests.RequestException as e:
+        result["reachable"] = False
+        result["error"] = str(e)
+        result["hint"] = f"Cannot reach Tracking at {tracking_host}. If EMV is in Docker, use TRACKING_URL=http://tracking-program:8087. If local, use http://127.0.0.1:8087."
+    return jsonify(result), 200
+
+
+@app.route("/api/tracking/projects", methods=["GET"])
+def tracking_projects():
+    """Proxy to Tracking: GET /api/emv/projects."""
+    if not _TRACKING_URL or not _TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    # Prefer orgId from URL (when opened from Tracking with ?orgId=X) so projects in that org appear
+    org_id = (request.args.get("orgId") or "").strip()
+    if not org_id:
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            org_id = get_current_org_id(request)
+        except ImportError:
+            pass
+    if not org_id:
+        return jsonify({"error": "Authentication required (sign in or open from Tracking with project selected)"}), 401
+    client_id = request.args.get("clientId")
+    try:
+        params = {"orgId": org_id}
+        if client_id is not None and str(client_id).strip():
+            params["clientId"] = client_id
+        resp = requests.get(
+            f"{_TRACKING_URL.rstrip('/')}/api/emv/projects",
+            params=params,
+            headers={"X-EMV-API-Key": _TRACKING_API_KEY, "Accept": "application/json"},
+            timeout=15,
+        )
+        try:
+            data = resp.json()
+        except (ValueError, getattr(requests.exceptions, "JSONDecodeError", ValueError)):
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code}. Check TRACKING_URL and that Tracking is running."}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": data.get("error", "Tracking request failed")}), resp.status_code
+        return jsonify(data), 200
+    except requests.RequestException as e:
+        logger.warning("Tracking projects proxy failed: %s", e)
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
+
+
+@app.route("/api/tracking/bill-analytic", methods=["GET"])
+def tracking_bill_analytic():
+    """Proxy to Tracking: GET /api/emv/project/bill-analytic."""
+    if not _TRACKING_URL or not _TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    org_id = None
+    try:
+        from main_hardened_ready_refactored import get_current_org_id
+        org_id = get_current_org_id(request)
+    except ImportError:
+        pass
+    if not org_id:
+        return jsonify({"error": "Authentication required"}), 401
+    project_id = request.args.get("projectId")
+    client_id = request.args.get("clientId")
+    if not project_id:
+        return jsonify({"error": "projectId is required"}), 400
+    try:
+        params = {"orgId": org_id, "projectId": project_id}
+        if client_id is not None and str(client_id).strip():
+            params["clientId"] = client_id
+        resp = requests.get(
+            f"{_TRACKING_URL.rstrip('/')}/api/emv/project/bill-analytic",
+            params=params,
+            headers={"X-EMV-API-Key": _TRACKING_API_KEY, "Accept": "application/json"},
+            timeout=15,
+        )
+        try:
+            data = resp.json()
+        except (ValueError, getattr(requests.exceptions, "JSONDecodeError", ValueError)):
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response)"}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": data.get("error", "Tracking request failed")}), resp.status_code
+        return jsonify(data), 200
+    except requests.RequestException as e:
+        logger.warning("Tracking bill-analytic proxy failed: %s", e)
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
+
+
+@app.route("/api/tracking/push-baseline", methods=["POST"])
+def tracking_push_baseline():
+    """Proxy to Tracking: POST /api/emv/push-baseline."""
+    if not _TRACKING_URL or not _TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    org_id = None
+    try:
+        from main_hardened_ready_refactored import get_current_org_id
+        org_id = get_current_org_id(request)
+    except ImportError:
+        pass
+    if not org_id:
+        return jsonify({"error": "Authentication required"}), 401
+    data = request.get_json() or {}
+    if not data.get("projectId"):
+        return jsonify({"error": "projectId is required"}), 400
+    data["orgId"] = org_id
+    try:
+        resp = requests.post(
+            f"{_TRACKING_URL.rstrip('/')}/api/emv/push-baseline",
+            json=data,
+            headers={"X-EMV-API-Key": _TRACKING_API_KEY, "Content-Type": "application/json"},
+            timeout=30,
+        )
+        try:
+            resp_data = resp.json()
+        except (ValueError, getattr(requests.exceptions, "JSONDecodeError", ValueError)):
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response)"}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": resp_data.get("error", "Push failed")}), resp.status_code
+        return jsonify(resp_data), 200
+    except requests.RequestException as e:
+        logger.warning("Tracking push-baseline proxy failed: %s", e)
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
 @app.route("/api/backup/status", methods=["GET"])

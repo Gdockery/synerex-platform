@@ -135,6 +135,51 @@ SYNEREX implements fully ASHRAE Guideline 14-2014 compliant weather normalizatio
 - **5 Services**: All services properly integrated and tested
 - **Health Endpoints**: All services have `/health` endpoints for monitoring
 - **Admin Panel Integration**: Complete service management through web interface
+
+### Tracking Integration (EM&V ↔ Tracking)
+
+EMV can import Bill Analytic data from Tracking projects and push analysis results back to Tracking:
+
+- **Project selector:** Choose a Tracking project from the analysis form
+- **Import from Bill Analytic:** Pre-fill form fields from the project's electricBillAnalysis (totalKwh, kwPeak, electricCompanyName, etc.)
+- **Push Analysis to Tracking:** After running analysis, push savings % and HTML report to update the project baseline
+
+**Setup:** Set `TRACKING_URL` (or `TRACKING_BASE_URL`), `EMV_API_KEY` (or `TRACKING_API_KEY`) in both EMV and Tracking. Use the same API key value. See `tracking-program/8087/flask_app/docs/EMV_INTEGRATION.md` for details.
+
+### Admin "Start All" with Docker
+When the main app (8082) runs **inside Docker**, the Admin Panel **Start All** button runs `docker compose up -d` so the whole stack starts. The `emv-program` container needs:
+- **Volumes**: repo root at `/workspace`, Docker socket at `/var/run/docker.sock` (already set in `docker-compose.yml`).
+- **Env**: `COMPOSE_PROJECT_DIR=/workspace` (already set).
+- **Docker CLI in image** (optional): if the 8082 image does not include the `docker` command, Start All falls back to the Service Manager (host processes). To have Start All use Docker, extend the image with `apt-get install -y docker.io` (or install Docker Compose v2) so `docker compose up -d` runs inside the container.
+
+### Weather service (port 8200) – "Connection refused" or fetch failed
+If you see **"Weather fetch failed: ... Connection refused"** or **"Weather service error: ... port=8200"**, the Weather Service is not running or not reachable.
+
+1. **Start only the weather service** (from the `emv-program` directory):
+   ```bash
+   ./8085/start_weather_service.sh
+   ```
+   Logs go to `logs/weather_service.log`.
+
+2. **Or start all services** (stops existing ones first):
+   ```bash
+   ./start_services.sh
+   ```
+
+3. **Check that something is listening on 8200:**
+   ```bash
+   # Linux/macOS
+   lsof -i :8200
+   # or
+   curl -s http://127.0.0.1:8200/health
+   ```
+   If `curl` returns `{"status":"healthy",...}`, the service is up.
+
+4. **If it still fails:** Inspect the log for startup errors (e.g. missing `flask-cors` or port in use):
+   ```bash
+   tail -50 logs/weather_service.log
+   ```
+   Ensure you run the start script from the **emv-program** directory so paths and venv are correct.
 - **Error Handling**: Robust error handling and status reporting
 
 ### ⚠️ Important: Service Startup Timing

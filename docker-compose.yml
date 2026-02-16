@@ -20,7 +20,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -29,6 +29,10 @@ services:
       context: ./license-service/services/license-service
     env_file:
       - ./license-service/services/license-service/.env
+    environment:
+      TRACKING_PROGRAM_URL: http://tracking-program:8087
+      ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
+      RESTART_VIA_EXIT: "1"
     volumes:
       - ./license-service/templates:/app/templates:ro
     depends_on:
@@ -50,8 +54,17 @@ services:
     environment:
       EMV_DB_HOST: mysql-emv
       EMV_DB_PORT: "3306"
+      TRACKING_PROGRAM_URL: http://tracking-program:8087
+      TRACKING_URL: http://tracking-program:8087
+      EMV_API_KEY: ${EMV_API_KEY:-tracking-push-secret}
+      WEATHER_SERVICE_URL: http://host.docker.internal:8200
+      HTML_REPORT_URL: http://host.docker.internal:8084
+      ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./emv-program/8082:/app
+      - ./emv-program/8084:/app/8084
     ports:
       - "8082:8082"
     restart: unless-stopped
@@ -73,18 +86,77 @@ services:
              python /app/service_manager_daemon.py"
     restart: unless-stopped
   tracking-program:
+    image: synerex-platform_tracking:latest
     build:
-      context: ./tracking-program/8087
+      context: ./tracking-program
+      dockerfile: 8087/flask_app/Dockerfile
     env_file:
-      - ./tracking-program/8087/.env
+      - ./tracking-program/8087/flask_app/.env.docker
+    environment:
+      TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
+      LICENSE_SERVICE_URL: http://license-service:8000
+      TRACKING_BASE_URL: http://proxy:80/tracking
+      TRACKING_PUBLIC_WEBSITE_URL: http://localhost:5173
+      ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
+      RESTART_VIA_EXIT: "1"
+    depends_on:
+      mysql-tracking:
+        condition: service_healthy
     ports:
       - "8087:8087"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8087',res=>process.exit(res.statusCode<500?0:1)).on('error',()=>process.exit(1));"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/health').read()"]
       interval: 30s
       timeout: 5s
       retries: 3
+  tracking-rollup:
+    image: synerex-platform_tracking:latest
+    build:
+      context: ./tracking-program
+      dockerfile: 8087/flask_app/Dockerfile
+    env_file:
+      - ./tracking-program/8087/flask_app/.env.docker
+    environment:
+      TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
+      PORT: "1339"
+    depends_on:
+      mysql-tracking:
+        condition: service_healthy
+    command: ["python", "/app/8087-rollup/run.py"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:1339/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  tracking-errands:
+    image: synerex-platform_tracking:latest
+    build:
+      context: ./tracking-program
+      dockerfile: 8087/flask_app/Dockerfile
+    env_file:
+      - ./tracking-program/8087/flask_app/.env.docker
+    environment:
+      TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
+      PORT: "1340"
+    depends_on:
+      mysql-tracking:
+        condition: service_healthy
+    command: ["python", "/app/8087-errands/run.py"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:1340/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  tracking-cron:
+    image: alpine:3.19
+    depends_on:
+      - tracking-errands
+    command: >
+      sh -c "while true; do sleep 300; wget -qO- --post-data= http://tracking-errands:1340/check-alerts 2>/dev/null || true; done"
+    restart: unless-stopped
   website:
     build:
       context: ./website
@@ -94,7 +166,7 @@ services:
       - "5173:80"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -142,6 +214,24 @@ services:
     volumes:
       - mysql_emv_data:/var/lib/mysql
 
+  mysql-tracking:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: tracking
+      MYSQL_USER: tracking_user
+      MYSQL_PASSWORD: TrackingPass123
+      MYSQL_ROOT_PASSWORD: rootpass123
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_tracking_data:/var/lib/mysql
+
 volumes:
   mysql_data:
   mysql_emv_data:
+  mysql_tracking_data:
+  mysql_tracking_data:

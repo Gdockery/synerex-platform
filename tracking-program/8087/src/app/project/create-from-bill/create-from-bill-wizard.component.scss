@@ -1,0 +1,43 @@
+.create-from-bill-wizard {
+  padding: 1rem 0;
+  max-width: 900px;
+
+  @media (max-width: 768px) {
+    .row [class*="col-"] {
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  .steps-indicator {
+    margin: 1rem 0 1.5rem;
+    padding: 0;
+    list-style: none;
+
+    li {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      margin-right: 0.5rem;
+      background: #eee;
+      border-radius: 4px;
+      color: #666;
+      font-size: 0.9em;
+
+      &.active {
+        background: #337ab7;
+        color: white;
+      }
+
+      &.done {
+        background: #5cb85c;
+        color: white;
+      }
+    }
+  }
+
+  .content-box {
+    padding: 1.5rem;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+}

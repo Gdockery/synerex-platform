@@ -480,21 +480,21 @@ function fetchWeatherData() {
   const formData = new FormData();
 
   // Add facility address (combine all facility fields)
-  const addressField = document.querySelector('input[name="facility_address"]');
-  const cityField = document.querySelector('input[name="location"]'); // City field is named 'location'
-  const stateField = document.querySelector('input[name="facility_state"]');
-  const zipField = document.querySelector('input[name="facility_zip"]');
+  // Try id and name - legacy form may use either
+  const addressField = document.querySelector('input[name="facility_address"]') || document.getElementById('facility_address');
+  const cityField = document.querySelector('input[name="location"]') || document.getElementById('location'); // City field is often named 'location'
+  const stateField = document.querySelector('input[name="facility_state"]') || document.getElementById('facility_state');
+  const zipField = document.querySelector('input[name="facility_zip"]') || document.getElementById('facility_zip');
 
-  // CRITICAL DEBUG: Check if we can find the form field at all
-
-
-  // Debug: Check if addressField exists and has a value
   if (!addressField) {
     console.error('CRITICAL: Address field not found!');
+    statusSpan.innerHTML = '[ERROR]';
+    fetchBtn.disabled = false;
+    showNotification('Facility address field not found. Please fill in the Client Profile section.');
     return;
   }
 
-  if (!addressField || !addressField.value.trim()) {
+  if (!addressField.value.trim()) {
     statusSpan.innerHTML = '[ERROR]';
     fetchBtn.disabled = false;
     showNotification('Please enter a facility address first');
@@ -515,20 +515,21 @@ function fetchWeatherData() {
 
   formData.append('facility_address', fullAddress);
 
-  // Add file IDs (new file selection system)
-  const beforeFileId = document.getElementById('before_file_id');
-  const afterFileId = document.getElementById('after_file_id');
+  // Add file IDs (new file selection system) - check both DOM and sessionStorage (from dashboard)
+  let beforeId = (document.getElementById('before_file_id') || document.querySelector('input[name="before_file_id"]'))?.value?.trim();
+  let afterId = (document.getElementById('after_file_id') || document.querySelector('input[name="after_file_id"]'))?.value?.trim();
+  if (!beforeId) beforeId = sessionStorage.getItem('selected_before_file_id') || sessionStorage.getItem('selectedBeforeFileId');
+  if (!afterId) afterId = sessionStorage.getItem('selected_after_file_id') || sessionStorage.getItem('selectedAfterFileId');
 
-
-  if (!beforeFileId || !afterFileId || !beforeFileId.value || !afterFileId.value) {
+  if (!beforeId || !afterId) {
     statusSpan.innerHTML = '[ERROR]';
     fetchBtn.disabled = false;
     showNotification('Please select both before and after CSV files first');
     return;
   }
 
-  formData.append('before_file_id', beforeFileId.value);
-  formData.append('after_file_id', afterFileId.value);
+  formData.append('before_file_id', beforeId);
+  formData.append('after_file_id', afterId);
 
   for (let [key, value] of formData.entries()) {}
 
@@ -559,11 +560,12 @@ function fetchWeatherData() {
     }
   }, 10000); // Update every 10 seconds
 
-  // Make API call
+  // Make API call - credentials needed for org_id/session (required by backend)
   fetch('/api/fetch_weather', {
       method: 'POST',
       body: formData,
-      signal: controller.signal
+      signal: controller.signal,
+      credentials: 'same-origin'
     })
     .then(response => {
       clearTimeout(timeoutId);
@@ -3738,11 +3740,289 @@ function setupCPEventsAutoPopulation() {
 }
 
 
+// -----------------------------------------------------------------------------
+// Tracking Integration - Import from Bill Analytic, Push Analysis to Tracking
+// -----------------------------------------------------------------------------
+// API base: when under /emv/ (proxy at 8080), use /emv prefix so /api/ reaches EMV
+function _trackingApiBase() {
+  return (window.location.pathname.startsWith && window.location.pathname.startsWith('/emv')) ? '/emv' : '';
+}
+
+function setupTrackingIntegration() {
+  const form = document.getElementById('analysisForm');
+  if (!form) return;
+
+  let container = document.getElementById('tracking-integration-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'tracking-integration-container';
+    container.className = 'tracking-integration-section';
+    container.style.cssText = 'margin: 1em 0; padding: 0.8em; border: 1px solid #ccc; border-radius: 6px; background: #f8f9fa;';
+    form.insertBefore(container, form.firstChild);
+  }
+
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  if (!sessionToken) {
+    container.innerHTML = '<p style="color:#666; font-size:0.9em;">Sign in to use Tracking integration.</p>';
+    return;
+  }
+
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + sessionToken
+  };
+
+  container.innerHTML = [
+    '<div style="margin-bottom:0.5em; font-weight:600;">Tracking Integration</div>',
+    '<div style="display:flex; flex-wrap:wrap; gap:0.5em; align-items:center;">',
+    '  <label>Tracking Project: <select id="tracking-project-select" style="min-width:200px; padding:4px;"><option value="">-- Select project --</option></select></label>',
+    '  <button type="button" id="btn-import-bill-analytic" class="btn-secondary" style="padding:4px 10px;">Import from Bill Analytic</button>',
+    '</div>',
+    '<div id="tracking-status" style="margin-top:0.5em; font-size:0.85em; color:#666;"></div>'
+  ].join('');
+
+  const selectEl = document.getElementById('tracking-project-select');
+  const importBtn = document.getElementById('btn-import-bill-analytic');
+  const statusEl = document.getElementById('tracking-status');
+
+  function setStatus(msg, isError) {
+    if (statusEl) statusEl.textContent = msg || '';
+    statusEl.style.color = isError ? '#c00' : '#666';
+  }
+
+  async function loadProjects() {
+    try {
+      const base = _trackingApiBase();
+      const urlParams = new URLSearchParams(window.location.search || '');
+      const orgIdFromUrl = urlParams.get('orgId') || '';
+      const clientIdFromUrl = urlParams.get('clientId') || '';
+      let url = base + '/api/tracking/projects';
+      const q = [];
+      if (orgIdFromUrl) q.push('orgId=' + encodeURIComponent(orgIdFromUrl));
+      if (clientIdFromUrl) q.push('clientId=' + encodeURIComponent(clientIdFromUrl));
+      if (q.length) url += '?' + q.join('&');
+      const resp = await fetch(url, { headers: authHeaders });
+      let data;
+      try { data = await resp.json(); } catch (_) { data = {}; }
+      if (!resp.ok) {
+        if (resp.status === 502) {
+          const healthResp = await fetch(base + '/api/tracking/health').catch(function() { return null; });
+          let health = {};
+          if (healthResp && healthResp.ok) {
+            try { health = await healthResp.json(); } catch (_) {}
+          }
+          const hint = health.hint || health.error || 'Ensure Tracking is running and TRACKING_URL in EMV .env points to it.';
+          throw new Error(data.error || hint);
+        }
+        throw new Error(data.error || 'Failed to load projects (status ' + resp.status + ')');
+      }
+      const projects = (data.response && data.response.projects) || [];
+      selectEl.innerHTML = '<option value="">-- Select project --</option>';
+      if (projects.length === 0) {
+        setStatus('No Tracking projects found. Create a project in the Tracking program (8087) first.', true);
+      }
+      let preselectedIdx = -1;
+      const wantOrgId = urlParams.get('orgId') || '';
+      const wantProjectId = urlParams.get('projectId') || '';
+      const wantClientId = urlParams.get('clientId');
+      projects.forEach(function(p, idx) {
+        const opt = document.createElement('option');
+        opt.value = JSON.stringify({ orgId: p.orgId, clientId: p.clientId, projectId: p.projectId, projectName: p.projectName });
+        opt.textContent = (p.clientName ? p.clientName + ' / ' : '') + (p.projectName || 'Project ' + p.projectId);
+        selectEl.appendChild(opt);
+        if (wantProjectId && String(p.projectId) === String(wantProjectId)) {
+          if (!wantOrgId || String(p.orgId || '') === String(wantOrgId)) {
+            if (wantClientId == null || String(p.clientId || '') === String(wantClientId)) {
+              preselectedIdx = idx + 1;
+            }
+          }
+        }
+      });
+      if (preselectedIdx >= 0) {
+        selectEl.selectedIndex = preselectedIdx;
+        setStatus('Project pre-selected from Tracking.');
+      }
+    } catch (e) {
+      setStatus('Tracking not configured or unavailable: ' + e.message, true);
+    }
+  }
+
+  loadProjects();
+
+  importBtn.addEventListener('click', async function() {
+    const opt = selectEl.options[selectEl.selectedIndex];
+    if (!opt || !opt.value) {
+      setStatus('Please select a Tracking project first.', true);
+      return;
+    }
+    let params;
+    try { params = JSON.parse(opt.value); } catch (_) { return; }
+    setStatus('Importing...');
+    importBtn.disabled = true;
+    try {
+      const base = _trackingApiBase();
+      const url = base + '/api/tracking/bill-analytic?orgId=' + encodeURIComponent(params.orgId) + '&projectId=' + encodeURIComponent(params.projectId) + (params.clientId != null ? '&clientId=' + encodeURIComponent(params.clientId) : '');
+      const resp = await fetch(url, { headers: authHeaders });
+      let data;
+      try { data = await resp.json(); } catch (_) { data = {}; }
+      if (!resp.ok) throw new Error(data.error || 'Import failed (status ' + resp.status + ')');
+      const ebaRaw = (data.response && data.response.electricBillAnalysis) || {};
+      const eba = ebaRaw.meterBills && ebaRaw.meterBills[0] ? Object.assign({}, ebaRaw, ebaRaw.meterBills[0]) : ebaRaw;
+      const rf = (data.response && data.response.reportFields) || {};
+      const map = [
+        ['totalKwh', 'total_kwh'], ['kwPeak', 'kw_peak'], ['billAmount', 'bill_amount'],
+        ['electricCompanyName', 'electric_company'], ['electricCompanyName', 'utility_name'],
+        ['totalKwh', 'baseline_kwh'], ['kwPeak', 'baseline_kw']
+      ];
+      const periodFrom = eba.billDate || eba.date || (rf.billAnalyticDate ? String(rf.billAnalyticDate) : null);
+      let filled = 0;
+      map.forEach(function(m) {
+        const val = eba[m[0]];
+        if (val == null) return;
+        const field = document.querySelector('input[name="' + m[1] + '"], #' + m[1]);
+        if (field) { field.value = val; filled++; }
+      });
+      if (periodFrom) {
+        const before = document.getElementById('test_period_before') || document.querySelector('input[name="test_period_before"]');
+        if (before) { before.value = periodFrom; filled++; }
+      }
+      setStatus('Imported ' + filled + ' field(s) from Bill Analytic.');
+    } catch (e) {
+      setStatus('Import failed: ' + e.message, true);
+    }
+    importBtn.disabled = false;
+  });
+}
+
+// Push Analysis to Tracking - used by btn-push-to-tracking (in export section, enabled after analysis)
+async function handlePushToTracking() {
+  let selectEl = document.getElementById('tracking-project-select');
+  const pushBtn = document.getElementById('btn-push-to-tracking');
+  function setStatus(msg, isError) {
+    let el = document.getElementById('tracking-status') || document.getElementById('push-to-tracking-status');
+    if (!el && pushBtn) {
+      el = document.createElement('span');
+      el.id = 'push-to-tracking-status';
+      el.style.cssText = 'margin-left:8px;font-size:0.9em;';
+      pushBtn.parentNode && pushBtn.parentNode.insertBefore(el, pushBtn.nextSibling);
+    }
+    if (el) {
+      el.textContent = msg || '';
+      el.style.color = isError ? '#c00' : '#666';
+    }
+    if (msg && !el && typeof showNotification === 'function') {
+      showNotification(msg, isError ? 'error' : 'info');
+    } else if (msg && !el) {
+      alert(msg);
+    }
+  }
+  if (!pushBtn) {
+    alert('Push to Tracking button not found. Please refresh the page after running analysis.');
+    return;
+  }
+  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  if (!sessionToken) {
+    setStatus('Sign in to use Push to Tracking.', true);
+    return;
+  }
+  if (!selectEl) {
+    setStatus('Loading Tracking projects...', false);
+    if (typeof setupTrackingIntegration === 'function') {
+      setupTrackingIntegration();
+    }
+    await new Promise(function(r) { setTimeout(r, 500); });
+    selectEl = document.getElementById('tracking-project-select');
+  }
+  if (!selectEl) {
+    setStatus('Tracking integration not ready. Refresh the page (after signing in) to load projects.', true);
+    return;
+  }
+  const authHeaders = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sessionToken };
+  const opt = selectEl.options[selectEl.selectedIndex];
+  if (!opt || !opt.value) {
+    setStatus('Please select a Tracking project first (use the dropdown at the top).', true);
+    return;
+  }
+  let params;
+  try { params = JSON.parse(opt.value); } catch (_) {
+    setStatus('Invalid project selection. Please pick a Tracking project again.', true);
+    return;
+  }
+  setStatus('Generating report and pushing...');
+  pushBtn.disabled = true;
+  try {
+    const base = _trackingApiBase();
+    const reportResp = await fetch((base || '') + '/api/serve-template-report', { method: 'GET', credentials: 'include' });
+    if (!reportResp.ok) throw new Error('Could not generate HTML report');
+    const reportHtml = await reportResp.text();
+    const formEl = document.getElementById('analysisForm');
+    const config = {};
+    if (formEl) {
+      const fd = new FormData(formEl);
+      fd.forEach(function(v, k) { config[k] = v; });
+    }
+    const results = window.analysisResults || {};
+    const fin = (results.financial_debug || results.bill_weighted || results) || {};
+    const exec = results.executive_summary || {};
+    function toDecimal(v) {
+      if (v == null) return null;
+      const n = Number(v);
+      if (isNaN(n)) return null;
+      return n > 1 ? n / 100 : n;
+    }
+    const kwhPct = toDecimal(fin.kwh_savings_percent ?? fin.kwhSavingsPercent ?? exec.kwh_savings_percent ?? (results.savings && results.savings.kwh_percent));
+    const kwPct = toDecimal(fin.kw_peak_savings_percent ?? fin.kwPeakSavingsPercent ?? exec.kw_peak_savings_percent ?? (results.savings && results.savings.kw_percent));
+    const pfPct = toDecimal(fin.pf_savings_percent ?? (results.savings && results.savings.pf_percent));
+    const kvarPct = toDecimal(fin.kvar_savings_percent ?? (results.savings && results.savings.kvar_percent));
+    const kvaPct = toDecimal(fin.kva_savings_percent ?? (results.savings && results.savings.kva_percent));
+    const payload = {
+      orgId: params.orgId,
+      clientId: params.clientId,
+      projectId: params.projectId,
+      kwhSavings: kwhPct != null ? Number(kwhPct) : null,
+      kwPeakSavings: kwPct != null ? Number(kwPct) : null,
+      pfSavings: pfPct != null ? Number(pfPct) : null,
+      kvarSavings: kvarPct != null ? Number(kvarPct) : null,
+      kvaSavings: kvaPct != null ? Number(kvaPct) : null,
+      reportHtml: reportHtml,
+      analysisDate: new Date().toISOString().slice(0, 10),
+      offPeriod: { start: config.test_period_before || '', end: config.test_period_before || '' },
+      onPeriod: { start: config.test_period_after || '', end: config.test_period_after || '' }
+    };
+    const resp = await fetch((base || '') + '/api/tracking/push-baseline', {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      });
+      let data;
+      try { data = await resp.json(); } catch (_) { data = {}; }
+      if (!resp.ok) throw new Error(data.error || 'Push failed (status ' + resp.status + ')');
+    const url = (data.response && data.response.reportUrl) ? (window.SYNEREX_TRACKING_URL || window.location.origin.replace('8082', '8087')) + data.response.reportUrl : '';
+    setStatus('Pushed successfully.' + (url ? ' Share link: ' + url : ''));
+  } catch (e) {
+    setStatus('Push failed: ' + e.message, true);
+  }
+  pushBtn.disabled = false;
+}
+
 // *** FIX: Consolidated and corrected the primary form submission logic ***
 document.addEventListener('DOMContentLoaded', function() {
 
   // Setup CP/PLC Events auto-population
   setupCPEventsAutoPopulation();
+
+  // Setup Tracking Integration (Import from Bill Analytic, Push to Tracking)
+  setupTrackingIntegration();
+  // Ensure Push to Tracking always responds - event delegation in case post-analysis handler attachment fails
+  document.addEventListener('click', function(e) {
+    var t = e.target;
+    var btn = (t && t.id === 'btn-push-to-tracking') ? t : (t && t.closest && t.closest('#btn-push-to-tracking'));
+    if (btn && !btn.disabled) {
+      e.preventDefault();
+      handlePushToTracking();
+    }
+  });
 
   const _el_analysisForm = document.getElementById("analysisForm");
   if (_el_analysisForm) {
@@ -3991,6 +4271,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           }
 
+          window.analysisResults = data.results;
           displayResults(data.results);
         } else {
           resultsDiv.innerHTML =
@@ -11000,6 +11281,12 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     btnExportLayman.replaceWith(btnExportLayman.cloneNode(true));
     const _el_btnExportLayman = document.getElementById("btnExportLaymanReport");
     if (_el_btnExportLayman) _el_btnExportLayman.addEventListener("click", () => exportLaymanReport(r));
+  }
+
+  // Enable Push Analysis to Tracking button (handler is via document-level delegation)
+  const btnPushTracking = document.getElementById("btn-push-to-tracking");
+  if (btnPushTracking) {
+    btnPushTracking.disabled = false;
   }
 
   // Enable PDF export dropdown and button

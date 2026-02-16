@@ -1,0 +1,7 @@
+<sd-app>Loading...</sd-app>
+<script>
+window.BOOTSTRAP_DATA = {{ BOOTSTRAP_DATA | safe }};
+window.BOOTSTRAP_DATA.myAccountUrl = {{ my_account_url | tojson }};
+window.BOOTSTRAP_DATA.websiteHomeUrl = {{ website_home_url | tojson }};
+</script>
+<script async src="/js/main.bundle.js?v={{ app_version }}"></script>

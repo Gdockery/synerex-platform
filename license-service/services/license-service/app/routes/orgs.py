@@ -1,5 +1,7 @@
+import re
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from ..db import SessionLocal
@@ -10,6 +12,29 @@ from ..models.api_key import ApiKey
 from ..audit.events import log_event
 
 router = APIRouter(prefix="/api", tags=["orgs"])
+
+
+class EnsureOrgRequest(BaseModel):
+    """Request body for create-or-adopt org. Idempotent: returns existing org if present."""
+    org_id: Optional[str] = Field(None, description="Optional. If provided and exists, returns it. If new, creates with this id.")
+    org_name: str = Field(..., min_length=1)
+    org_type: str = Field(..., pattern="^(oem|customer|pe)$")
+    email: Optional[str] = None
+    contact_name: Optional[str] = None
+    phone: Optional[str] = None
+
+
+def _generate_org_id(db: Session, org_name: str, org_type: str) -> str:
+    """Generate a unique org_id from org_name."""
+    clean = re.sub(r'[^a-zA-Z0-9\s-]', '', org_name)
+    clean = re.sub(r'\s+', '-', clean.strip()).upper()
+    base_id = f"{org_type.upper()}-{clean[:20]}"
+    counter = 1
+    org_id = base_id
+    while db.get(Organization, org_id):
+        org_id = f"{base_id}-{counter:03d}"
+        counter += 1
+    return org_id
 
 def db_session():
     db = SessionLocal()
@@ -42,6 +67,55 @@ def list_orgs(
         "orgs": [{"org_id": o.org_id, "org_name": o.org_name, "org_type": o.org_type} for o in orgs]
     }
 
+
+@router.post("/orgs/ensure")
+def ensure_org(body: EnsureOrgRequest, db: Session = Depends(db_session)):
+    """
+    Create or adopt an organization. Idempotent registry endpoint for programs (EMV, Tracking).
+    - If org_id provided and exists: return 200 with org (adopt).
+    - If org_id provided and new: create with that id, return 201.
+    - If org_id not provided: generate unique id, create, return 201.
+    """
+    from fastapi.responses import JSONResponse
+
+    if body.org_id:
+        existing = db.get(Organization, body.org_id)
+        if existing:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "org_id": existing.org_id,
+                    "org_name": existing.org_name,
+                    "org_type": existing.org_type,
+                    "created": False,
+                },
+            )
+        org_id = body.org_id
+    else:
+        org_id = _generate_org_id(db, body.org_name, body.org_type)
+
+    org = Organization(
+        org_id=org_id,
+        org_name=body.org_name,
+        org_type=body.org_type,
+        email=body.email,
+        contact_name=body.contact_name,
+        phone=body.phone,
+    )
+    db.add(org)
+    db.commit()
+    log_event(db, actor="program", action="org.ensure", ref_id=org_id, detail={"org_type": body.org_type, "created": True})
+    return JSONResponse(
+        status_code=201,
+        content={
+            "org_id": org_id,
+            "org_name": body.org_name,
+            "org_type": body.org_type,
+            "created": True,
+        },
+    )
+
+
 @router.get("/orgs/{org_id}")
 def get_org(org_id: str, db: Session = Depends(db_session)):
     """Get a single organization by ID."""
@@ -49,6 +123,7 @@ def get_org(org_id: str, db: Session = Depends(db_session)):
     if not org:
         raise HTTPException(404, "Organization not found")
     return {"org_id": org.org_id, "org_name": org.org_name, "org_type": org.org_type}
+
 
 @router.post("/orgs")
 def create_org(org_id: str, org_name: str, org_type: str, db: Session = Depends(db_session)):

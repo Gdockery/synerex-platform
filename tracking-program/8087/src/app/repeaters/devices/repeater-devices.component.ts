@@ -27,10 +27,16 @@ export class RepeaterDevicesComponent {
   }
 
   refresh(params) {
-    this.repeaterService.getPaginated(params).subscribe(responseData =>{
-      this.recordCount = responseData.meta.total;
-      this.devices = responseData.response;
-    });
+    this.repeaterService.getPaginated(params).subscribe(
+      responseData => {
+        this.recordCount = (responseData && responseData.meta) ? responseData.meta.total : 0;
+        this.devices = (responseData && responseData.response) ? responseData.response : [];
+      },
+      () => {
+        this.recordCount = 0;
+        this.devices = [];
+      }
+    );
   }
 
   colorFromComStatus(item) {

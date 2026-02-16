@@ -150,7 +150,7 @@ export class CreateUserComponent implements OnInit {
       }
     });
 
-    this.clients = window['SAILS_LOCALS'].clients;
+    this.clients = window['BOOTSTRAP_DATA'].clients;
     this.form = this.formBuilder.group({
       role: ['', [Validators.required]],
       client: [''],
@@ -165,7 +165,7 @@ export class CreateUserComponent implements OnInit {
     var isClientRoleSelected = this.selectedRole && this.selectedRole != 8;
     var isAdminRoleSelected = this.selectedRole && this.selectedRole === 8;
     var clientId = this.selectedClient;
-    var allProjects = window['SAILS_LOCALS'].user.projects;
+    var allProjects = window['BOOTSTRAP_DATA'].user.projects;
 
     // Clear out selected projects.
     this.selectedProjects = [];

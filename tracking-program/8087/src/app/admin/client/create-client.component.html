@@ -198,7 +198,7 @@
 
     </div>
     <div class="clearfix">
-      <a [routerLink]="['/xeco-administrator/project/create']" class="btn btn-lg btn-info">Add a project</a>
+      <a [routerLink]="['/xeco-administrator/project/create']" [queryParams]="newClientId ? {clientId: newClientId} : {}" class="btn btn-lg btn-info">Add a project</a>
     </div>
   </div>
 </div>

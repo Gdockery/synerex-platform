@@ -33,7 +33,7 @@ from .admin.ui import router as admin_router
 if settings.db_url.startswith("sqlite"):
     Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="License Service")
+app = FastAPI(title="License Service", docs_url=None)  # Custom /docs with root_path support
 
 # Add CORS middleware BEFORE other middleware
 cors_origins = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
@@ -247,21 +247,47 @@ def api_server_restart(request: Request):
     db = SessionLocal()
     try:
         log_event(db, actor="admin", action="server.restart", ref_id="server", detail={"method": "api_call", "source": "website_dashboard"})
-        
-        script_path = Path(__file__).resolve().parents[1] / "restart_server.ps1"
-        if platform.system() == "Windows" and script_path.exists():
-            subprocess.Popen(
-                ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
-                cwd=str(script_path.parent)
-            )
-            message = "Server restart initiated! The service will restart in a few seconds."
+
+        def _running_in_container() -> bool:
+            if os.environ.get("RESTART_VIA_EXIT") == "1":
+                return True
+            if os.path.exists("/.dockerenv"):
+                return True
+            if os.environ.get("KUBERNETES_SERVICE_HOST"):
+                return True
+            try:
+                with open("/proc/1/cgroup", "r") as f:
+                    return any(x in f.read() for x in ("docker", "containerd", "kubepods"))
+            except Exception:
+                return False
+
+        if _running_in_container():
+            import threading
+            import time
+            def _exit_for_restart():
+                time.sleep(2)
+                os._exit(0)
+            threading.Thread(target=_exit_for_restart, daemon=True).start()
+            message = "Server restart initiated. The service will be back in a few seconds."
+        elif platform.system() == "Windows":
+            script_path = Path(__file__).resolve().parents[1] / "restart_server.ps1"
+            if script_path.exists():
+                subprocess.Popen(
+                    ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+                    cwd=str(script_path.parent)
+                )
+                message = "Server restart initiated! The service will restart in a few seconds."
+            else:
+                main_py = Path(__file__).resolve()
+                if main_py.exists():
+                    main_py.touch()
+                message = "Server reload triggered. If --reload is enabled, the server will restart."
         else:
-            # Fallback: touch main.py to trigger reload if --reload is enabled
             main_py = Path(__file__).resolve()
             if main_py.exists():
                 main_py.touch()
             message = "Server reload triggered. If --reload is enabled, the server will restart."
-        
+
         return JSONResponse(
             status_code=200,
             content={"success": True, "message": message}
@@ -392,20 +418,28 @@ from fastapi.responses import HTMLResponse
 @app.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     """Custom Swagger UI with logo and back button."""
+    # Use root_path so Swagger fetches openapi.json from correct path when behind /license proxy
+    openapi_url = f"{settings.root_path.rstrip('/')}/openapi.json"
     html_response = get_swagger_ui_html(
-        openapi_url=app.openapi_url,
+        openapi_url=openapi_url,
         title=app.title + " - API Documentation",
     )
     
     # Get HTML content from the response
     html_content = html_response.body.decode('utf-8')
-    
-    # Inject custom CSS and JavaScript
-    custom_css_js = """
+    # Fix openapi.json URL when behind proxy (get_swagger_ui_html ignores openapi_url in some versions)
+    html_content = html_content.replace(
+        "url: '/openapi.json'",
+        f"url: '{openapi_url}'",
+    )
+    # Inject custom CSS and JavaScript (root_path for when behind /license proxy)
+    root_path = settings.root_path.rstrip("/") or ""
+    custom_css_js = (
+        """
     <style>
-        .swagger-ui .topbar { 
-            display: flex; 
-            align-items: center; 
+        .swagger-ui .topbar {
+            display: flex;
+            align-items: center;
             padding: 10px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
@@ -457,22 +491,26 @@ async def custom_swagger_ui_html():
                     if (textSpan) {
                         textSpan.style.display = 'none';
                     }
-                    
+
                     // Add logo if not already present
                     if (!topbar.querySelector('img')) {
                         const logoImg = document.createElement('img');
-                        logoImg.src = '/static/synerex_logo_color.png';
+                        logoImg.src = '"""
+        + root_path
+        + """/static/synerex_logo_color.png';
                         logoImg.alt = 'Synerex';
                         logoImg.style.cssText = 'height: 40px; max-width: 180px; filter: brightness(0) invert(1);';
                         topbar.insertBefore(logoImg, topbar.firstChild);
                     }
                 }
-                
+
                 // Add back button
                 const topbarWrapper = document.querySelector('.swagger-ui .topbar .topbar-wrapper');
                 if (topbarWrapper && !document.querySelector('.back-button')) {
                     const backButton = document.createElement('a');
-                    backButton.href = '/admin';
+                    backButton.href = '"""
+        + root_path
+        + """/admin';
                     backButton.className = 'back-button';
                     backButton.textContent = '← Back to Admin';
                     topbarWrapper.appendChild(backButton);
@@ -481,6 +519,7 @@ async def custom_swagger_ui_html():
         });
     </script>
     """
+    )
     
     # Insert custom CSS/JS before closing head tag
     html_content = html_content.replace('</head>', custom_css_js + '</head>')

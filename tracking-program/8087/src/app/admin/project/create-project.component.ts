@@ -94,6 +94,12 @@ export class ProjectCreateComponent implements OnInit {
     });
 
     this.form = this.formBuilder.group(hydratedValidations);
+    if (this.clientId) {
+      const cid = parseInt(this.clientId, 10);
+      if (!isNaN(cid)) {
+        this.form.patchValue({ client: cid });
+      }
+    }
     this.form.addControl('paymentPlan', new FormControl('', []));
     this.form.addControl('downPaymentPercent', new FormControl('', []));
     this.form.addControl('interestRate', new FormControl('', []));
@@ -113,8 +119,8 @@ export class ProjectCreateComponent implements OnInit {
   fetch() {
     this.syncingSubmit = true;
 
-    this.clients = window['SAILS_LOCALS'].clients;
-    this.xecoAccountManagers = window['SAILS_LOCALS'].xecoUsersAndAdmins;
+    this.clients = window['BOOTSTRAP_DATA'].clients;
+    this.xecoAccountManagers = window['BOOTSTRAP_DATA'].xecoUsersAndAdmins;
   }
 
   submitCreateProjectForm() {
@@ -149,38 +155,58 @@ export class ProjectCreateComponent implements OnInit {
     delete formData.interestRate;
     delete formData.numberOfMeters;
 
-    // Format the date
+    // Format the date (safely when date fields are empty)
+    const fmt = (d) => this.timeHelpers.formatDatepickerDictionary(d && d.date ? d.date : d, 'YYYY-MM-DD', false);
+    formData.startDate = fmt(formData.startDate);
+    if (formData.reportFields) {
+      formData.reportFields.depositInvoiceDate = fmt(formData.reportFields.depositInvoiceDate);
+      formData.reportFields.finalInvoiceDate = fmt(formData.reportFields.finalInvoiceDate);
+      formData.reportFields.installationInvoiceDate = fmt(formData.reportFields.installationInvoiceDate);
+      formData.reportFields.billAnalyticDate = fmt(formData.reportFields.billAnalyticDate);
+      formData.reportFields.proposalDate = fmt(formData.reportFields.proposalDate);
+    }
+    formData.subStartDate = fmt(formData.subStartDate);
 
-    formData.startDate = this.timeHelpers.formatDatepickerDictionary(formData.startDate.date, 'YYYY-MM-DD', false);
-    formData.reportFields.depositInvoiceDate = this.timeHelpers.formatDatepickerDictionary(formData.reportFields.depositInvoiceDate.date, 'YYYY-MM-DD', false);
-    formData.reportFields.finalInvoiceDate = this.timeHelpers.formatDatepickerDictionary(formData.reportFields.finalInvoiceDate.date, 'YYYY-MM-DD', false);
-    formData.reportFields.installationInvoiceDate = this.timeHelpers.formatDatepickerDictionary(formData.reportFields.installationInvoiceDate.date, 'YYYY-MM-DD', false);
-    formData.reportFields.billAnalyticDate = this.timeHelpers.formatDatepickerDictionary(formData.reportFields.billAnalyticDate.date, 'YYYY-MM-DD', false);
-    formData.reportFields.proposalDate = this.timeHelpers.formatDatepickerDictionary(formData.reportFields.proposalDate.date, 'YYYY-MM-DD', false);
-    formData.subStartDate = this.timeHelpers.formatDatepickerDictionary(formData.subStartDate.date, 'YYYY-MM-DD', false);
+    if (!formData.client) {
+      alert('Please select a client.');
+      return;
+    }
 
     this.syncingSubmit = true;
     this.projectService.create({valuesToSet: formData}).subscribe(responseData=>{
       let newProjectId = responseData.response.id;
       let invoiceBase = 2143835 + parseInt(newProjectId);
       formData.invoiceNumber = {'deposit': invoiceBase.toString() + '1', 'installation': invoiceBase.toString() + '2', 'final': invoiceBase.toString() + '3', 'total': invoiceBase.toString() + '4'};
+      formData.id = newProjectId;
+
+      // Add to user.projects immediately (real-time visibility without logout)
+      const projectToAdd = { ...formData, ...(responseData.response || {}) };
+      const existing = this.userService.user.projects || [];
+      this.userService.user.projects = [projectToAdd, ...existing];
+      if (typeof window !== 'undefined' && window['BOOTSTRAP_DATA'] && window['BOOTSTRAP_DATA'].user) {
+        window['BOOTSTRAP_DATA'].user.projects = this.userService.user.projects;
+      }
+      if (this.userService.user.role == 7) {
+        this.projectsToAccess = _.pluck(this.userService.user.projects, 'id');
+        this.usrService.update(this.userService.user.id, {projects: this.projectsToAccess}).subscribe(data =>{}, error => {});
+      }
+
       this.projectService.update(newProjectId, {
         valuesToSet: formData
       }).subscribe(resData => {
-        formData.id = newProjectId;
-        // Now update the information stored on the window.
-        this.userService.user.projects.unshift(formData);
-        if (this.userService.user.role == 7) {
-          this.projectsToAccess = _.pluck(this.userService.user.projects, 'id');
-          this.projectsToAccess.push(formData.id);
-          this.usrService.update(this.userService.user.id, {projects: this.projectsToAccess}).subscribe(data =>{
-          }, error => {});
-        }
-      
+        Object.assign(projectToAdd, formData);
         this.syncingSubmit = false;
         this.newProject = formData;
         this.projectCreated = true;
+      }, err => {
+        this.syncingSubmit = false;
+        const msg = (err && err.error && err.error.error) || (err && err.message) || 'Update failed';
+        alert('Project update failed: ' + msg + '. The project was created and appears in your list.');
       });
+    }, err => {
+      this.syncingSubmit = false;
+      const msg = (err && err.error && err.error.error) || (err && err.message) || 'Project creation failed';
+      alert('Project creation failed: ' + msg);
     });
 
     

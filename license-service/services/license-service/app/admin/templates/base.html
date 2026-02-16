@@ -367,14 +367,14 @@
     
     <div class="nav-container">
       <nav>
-        <a href=".">Dashboard</a>
-        <a href="orgs">Organizations</a>
-        <a href="pe-registrations">PE Registrations</a>
-        <a href="api-keys">API Keys</a>
-        <a href="templates">Software Versions</a>
-        <a href="authorizations">Authorizations</a>
-        <a href="licenses">Licenses</a>
-        <a href="server">Server</a>
+        <a href="{{ admin_url('') }}">Dashboard</a>
+        <a href="{{ admin_url('orgs') }}">Organizations</a>
+        <a href="{{ admin_url('pe-registrations') }}">PE Registrations</a>
+        <a href="{{ admin_url('api-keys') }}">API Keys</a>
+        <a href="{{ admin_url('templates') }}">Software Versions</a>
+        <a href="{{ admin_url('authorizations') }}">Authorizations</a>
+        <a href="{{ admin_url('licenses') }}">Licenses</a>
+        <a href="{{ admin_url('server') }}">Server</a>
         <a href="{{ admin_base ~ '/docs' }}">API Docs</a>
       </nav>
     </div>

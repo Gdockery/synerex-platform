@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Body
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import case, or_, func
@@ -30,6 +30,18 @@ from ..audit.events import log_event
 
 ADMIN_TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(ADMIN_TEMPLATES_DIR))
+
+
+def _admin_url(path: str) -> str:
+    """Build admin URL with root_path for templates (e.g. behind /license/ proxy)."""
+    base = f"{settings.root_path.rstrip('/')}/admin"
+    if path:
+        return f"{base}/{path.lstrip('/')}"
+    return base
+
+
+templates.env.globals["admin_url"] = _admin_url
+templates.env.globals["admin_base"] = settings.root_path.rstrip("/") or ""
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -53,6 +65,45 @@ def require_admin(request: Request):
         raise HTTPException(401, "Not authenticated")
     return True
 
+@router.post("/api/login")
+def api_login(request: Request, body: dict = Body(...)):
+    """JSON API for admin login (e.g. from React AdminDashboard). Returns token on success."""
+    username = body.get("username", "")
+    password = body.get("password", "")
+    if username == settings.admin_username and password == settings.admin_password:
+        import uuid
+        from ..auth.admin_tokens import store_admin_token
+        session_token = str(uuid.uuid4())
+        store_admin_token(session_token)
+        request.session["admin_logged_in"] = True
+        request.session["admin_username"] = username
+        request.session["session_token"] = session_token
+        return JSONResponse({"token": session_token, "success": True})
+    return JSONResponse(
+        status_code=401,
+        content={"success": False, "error": "Invalid credentials"},
+    )
+
+
+@router.post("/api/tracking-restart")
+def api_tracking_restart(request: Request, _=Depends(require_admin)):
+    """Proxy restart request to Tracking program. Admin Panel calls this (same-origin with License Service)."""
+    if not settings.tracking_program_url:
+        raise HTTPException(500, "Tracking program URL not configured")
+    secret = getattr(settings, "admin_restart_secret", "") or os.environ.get("ADMIN_RESTART_SECRET", "")
+    if not secret:
+        raise HTTPException(500, "ADMIN_RESTART_SECRET not configured")
+    url = f"{settings.tracking_program_url.rstrip('/')}/admin/restart"
+    try:
+        resp = requests.post(url, headers={"X-Admin-Restart-Secret": secret}, timeout=10)
+        try:
+            content = resp.json() if "application/json" in resp.headers.get("content-type", "") else {"success": resp.status_code == 200, "message": resp.text or str(resp.status_code)}
+        except (ValueError, json.JSONDecodeError):
+            content = {"success": resp.status_code == 200, "message": resp.text or str(resp.status_code)}
+        return JSONResponse(status_code=resp.status_code, content=content)
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(502, f"Failed to reach Tracking program: {e}")
+
 def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse:
     return_url_param = f'?return_url={return_url}' if return_url else ''
     back_href = return_url if return_url else settings.website_url
@@ -74,7 +125,7 @@ def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse
     <body>
         <h1>Admin Login</h1>
         {f'<div class="error">{error}</div>' if error else ''}
-        <form method="post" action="/admin/login{return_url_param}">
+        <form method="post" action="{settings.root_path}/admin/login{return_url_param}">
             <label>Username:</label><br/>
             <input name="username" required /><br/><br/>
             <label>Password:</label><br/>
@@ -116,13 +167,14 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     # If already logged in, redirect appropriately
     if _is_logged_in(request):
         if return_url:
-            # Generate a simple session token for external use
             import uuid
+            from ..auth.admin_tokens import store_admin_token
             session_token = str(uuid.uuid4())
+            store_admin_token(session_token)
             request.session["session_token"] = session_token
             separator = "&" if "?" in return_url else "?"
             return RedirectResponse(f"{return_url}{separator}token={session_token}", status_code=303)
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse(f"{settings.root_path}/admin", status_code=303)
     
     if username == settings.admin_username and password == settings.admin_password:
         request.session["admin_logged_in"] = True
@@ -130,15 +182,16 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
         
         # If return_url is provided (from website), redirect there with token
         if return_url:
-            # Generate a session token for external use
             import uuid
+            from ..auth.admin_tokens import store_admin_token
             session_token = str(uuid.uuid4())
+            store_admin_token(session_token)
             request.session["session_token"] = session_token
             separator = "&" if "?" in return_url else "?"
             return RedirectResponse(f"{return_url}{separator}token={session_token}", status_code=303)
         
-        # Otherwise, redirect to License Service admin dashboard
-        return RedirectResponse("/admin", status_code=303)
+        # Otherwise, redirect to License Service admin dashboard (use root_path so we stay on same host:port)
+        return RedirectResponse(f"{settings.root_path}/admin", status_code=303)
     try:
         return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials", "return_url": return_url}, status_code=401)
     except Exception:
@@ -147,7 +200,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
 @router.post("/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/admin/login", status_code=303)
+    return RedirectResponse(f"{settings.root_path}/admin/login", status_code=303)
 
 @router.get("", response_class=HTMLResponse)
 def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
@@ -159,27 +212,28 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
     }
     try:
         html = templates.get_template("dashboard.html").render({"request": request, "counts": counts})
-        back_injection = """
+        admin_url_val = f"{settings.root_path.rstrip('/')}/admin"
+        back_injection = f"""
         <script data-back-link="true">
-        (function () {
-          var target = {json.dumps(settings.website_url)};
+        (function () {{
+          var target = {json.dumps(admin_url_val)};
           var candidates = document.querySelectorAll('a, button');
-          for (var i = 0; i < candidates.length; i++) {
+          for (var i = 0; i < candidates.length; i++) {{
             var el = candidates[i];
             var text = (el.textContent || '').trim().toLowerCase();
-            if (text === 'back' || text === 'back to previous page') {
-              if (el.tagName === 'A') {
+            if (text === 'back' || text === 'back to previous page') {{
+              if (el.tagName === 'A') {{
                 el.setAttribute('href', target);
-              } else {
-                el.addEventListener('click', function (e) {
+              }} else {{
+                el.addEventListener('click', function (e) {{
                   e.preventDefault();
                   window.location.href = target;
-                });
-              }
+                }});
+              }}
               break;
-            }
-          }
-        })();
+            }}
+          }}
+        }})();
         </script>
         """
         if "</body>" in html:
@@ -1225,7 +1279,7 @@ def server_reload(request: Request, _=Depends(require_admin), db: Session = Depe
                 log_event(db, actor="admin", action="server.reload.error", ref_id="server", detail={"error": "file_not_found", "path": str(main_py)})
             except:
                 pass
-            return RedirectResponse(f"/admin/server?message={error_msg}&message_type=error", status_code=303)
+            return RedirectResponse(f"{settings.root_path}/admin/server?message={error_msg}&message_type=error", status_code=303)
         
         # Touch the file to trigger uvicorn reload
         main_py.touch()
@@ -1233,7 +1287,7 @@ def server_reload(request: Request, _=Depends(require_admin), db: Session = Depe
             log_event(db, actor="admin", action="server.reload.success", ref_id="server", detail={"method": "file_touch", "path": str(main_py)})
         except:
             pass
-        return RedirectResponse("/admin/server?message=Server+reload+triggered.+If+--reload+is+enabled%2C+the+server+will+restart.&message_type=success", status_code=303)
+        return RedirectResponse(f"{settings.root_path}/admin/server?message=Server+reload+triggered.+If+--reload+is+enabled%2C+the+server+will+restart.&message_type=success", status_code=303)
     except ImportError as e:
         # Try alternative method if import fails
         try:
@@ -1245,7 +1299,7 @@ def server_reload(request: Request, _=Depends(require_admin), db: Session = Depe
                     log_event(db, actor="admin", action="server.reload.success", ref_id="server", detail={"method": "path_resolution", "path": str(main_py)})
                 except:
                     pass
-                return RedirectResponse("/admin/server?message=Server+reload+triggered.+If+--reload+is+enabled%2C+the+server+will+restart.&message_type=success", status_code=303)
+                return RedirectResponse(f"{settings.root_path}/admin/server?message=Server+reload+triggered.+If+--reload+is+enabled%2C+the+server+will+restart.&message_type=success", status_code=303)
         except:
             pass
         
@@ -1260,7 +1314,7 @@ def server_reload(request: Request, _=Depends(require_admin), db: Session = Depe
         except:
             pass
         error_msg = f"Import+error%3A+{str(e).replace(' ', '+').replace(':', '%3A')}"
-        return RedirectResponse(f"/admin/server?message={error_msg}&message_type=error", status_code=303)
+        return RedirectResponse(f"{settings.root_path}/admin/server?message={error_msg}&message_type=error", status_code=303)
     except Exception as e:
         # Log the actual error
         try:
@@ -1273,26 +1327,53 @@ def server_reload(request: Request, _=Depends(require_admin), db: Session = Depe
         except:
             pass
         error_msg = f"Reload+failed%3A+{type(e).__name__}%3A+{str(e).replace(' ', '+').replace(':', '%3A')[:100]}"
-        return RedirectResponse(f"/admin/server?message={error_msg}&message_type=error", status_code=303)
+        return RedirectResponse(f"{settings.root_path}/admin/server?message={error_msg}&message_type=error", status_code=303)
+
+def _running_in_container() -> bool:
+    """Detect if we're running in Docker or another container."""
+    if os.environ.get("RESTART_VIA_EXIT") == "1":
+        return True
+    if os.path.exists("/.dockerenv"):
+        return True
+    if os.environ.get("KUBERNETES_SERVICE_HOST"):
+        return True
+    try:
+        with open("/proc/1/cgroup", "r") as f:
+            return any(x in f.read() for x in ("docker", "containerd", "kubepods"))
+    except Exception:
+        return False
+
 
 @router.post("/server/restart")
 def server_restart(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
-    """Restart the server by executing the restart script."""
+    """Restart the server. In Docker, exits process so container restart policy kicks in."""
+    import threading
+
     try:
-        log_event(db, actor="admin", action="server.restart", ref_id="server", detail={"method": "script_execution"})
-        script_path = Path(__file__).resolve().parents[2] / "restart_server.ps1"
-        if platform.system() == "Windows" and script_path.exists():
-            import subprocess
-            subprocess.Popen(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path)], cwd=str(script_path.parent))
-            message = "Server restart initiated!"
+        log_event(db, actor="admin", action="server.restart", ref_id="server", detail={"method": "script_or_exit"})
+        if _running_in_container():
+            def _exit_for_restart():
+                time.sleep(2)
+                os._exit(0)
+
+            threading.Thread(target=_exit_for_restart, daemon=True).start()
+            msg = "Server restart initiated. The service will be back in a few seconds."
+        elif platform.system() == "Windows":
+            script_path = Path(__file__).resolve().parents[2] / "restart_server.ps1"
+            if script_path.exists():
+                import subprocess
+                subprocess.Popen(["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script_path)], cwd=str(script_path.parent))
+                msg = "Server restart initiated!"
+            else:
+                msg = "Restart script not found. Restart the process manually."
         else:
             main_py = Path(__file__).resolve().parents[2] / "main.py"
             if main_py.exists():
                 main_py.touch()
-            message = "Server reload triggered."
-        return RedirectResponse(f"/admin/server?message={message.replace(' ', '+')}&message_type=success", status_code=303)
+            msg = "Reload triggered. Restart manually if --reload is not enabled."
+        return RedirectResponse(f"{settings.root_path}/admin/server?message={msg.replace(' ', '+')}&message_type=success", status_code=303)
     except Exception as e:
-        return RedirectResponse(f"/admin/server?message=Restart+failed%3A+{str(e).replace(' ', '+')}&message_type=error", status_code=303)
+        return RedirectResponse(f"{settings.root_path}/admin/server?message=Restart+failed%3A+{str(e).replace(' ', '+')}&message_type=error", status_code=303)
 
 @router.post("/server/shutdown")
 def server_shutdown(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):

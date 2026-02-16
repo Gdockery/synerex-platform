@@ -212,7 +212,7 @@ export class EditUserComponent implements OnInit {
     });
 
     this.user = {};
-    this.allProjects = window['SAILS_LOCALS'].user.projects;
+    this.allProjects = window['BOOTSTRAP_DATA'].user.projects;
 
     // Initialize change name form:
     this.nameForm = this.formBuilder.group({

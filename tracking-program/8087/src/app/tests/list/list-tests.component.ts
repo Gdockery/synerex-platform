@@ -43,16 +43,23 @@ export class ListTestsComponent {
     if(!params.filters.showCancelled) {
       params.filters.showCancelled = {value:false};
     }
-    this.testService.getPaginated(params).subscribe(responseData =>{
-      this.recordCount = responseData.meta.total;
-      this.tests = _.map(responseData.response, function(test) {
-        test.gatewayNames = _.map(test.gateways, function(gateway) {
-          return gateway.name;
-        }).join(', ');
+    this.testService.getPaginated(params).subscribe(
+      responseData => {
+        this.recordCount = (responseData && responseData.meta) ? responseData.meta.total : 0;
+        const items = (responseData && responseData.response) ? responseData.response : [];
+        this.tests = _.map(items, function(test) {
+          test.gatewayNames = _.map(test.gateways || [], function(gateway) {
+            return gateway.name;
+          }).join(', ');
 
-        return test;
-      });
-    });
+          return test;
+        });
+      },
+      () => {
+        this.recordCount = 0;
+        this.tests = [];
+      }
+    );
   }
 
   getProjectSelectedTest() {

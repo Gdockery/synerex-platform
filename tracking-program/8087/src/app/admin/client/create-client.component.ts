@@ -21,6 +21,8 @@ export class ClientCreateComponent implements OnInit {
   private duplicateName;
   private form;
   private newClient;
+  /** ID of the newly created client (for "Add a project" link). */
+  newClientId: number;
   private selectedFile : File;
   private imagePreview: string;
   @ViewChildren('uploaders') uploaders: QueryList<FileUpload>;
@@ -47,7 +49,7 @@ export class ClientCreateComponent implements OnInit {
   checkForDuplicateClient(newClient) {
     this.duplicateClient = false;
     this.form.controls.legalName.status = "VALID";
-    let duplicate = window['SAILS_LOCALS'].clients.find(client => { return client.legalName.toLowerCase() == this.form.value.legalName.toLowerCase()});
+    let duplicate = window['BOOTSTRAP_DATA'].clients.find(client => { return client.legalName.toLowerCase() == this.form.value.legalName.toLowerCase()});
     if (duplicate) {
       this.duplicateClient = true;
       this.form.controls.legalName.status = "INVALID";
@@ -97,7 +99,11 @@ export class ClientCreateComponent implements OnInit {
     }
 
     // If client-side validation fails, don't even try to send it to the cloud.
-    if(!this.form.valid) { return; }
+    if (!this.form.valid) {
+      const invalid = Object.keys(this.form.controls).filter(k => !this.form.controls[k].valid);
+      console.warn("[create-client] Form invalid, request not sent. Invalid fields:", invalid);
+      return;
+    }
 
     var formData = this.form.value;
     formData.createdBy = this.currentUserService.user.id;
@@ -106,13 +112,23 @@ export class ClientCreateComponent implements OnInit {
 
     this.apiRequest.post('/api/client', {
       valuesToSet: formData
-    }).subscribe(meta => {
-      this.syncingSubmit = false;
-      this.newClient = formData;
-      this.clientCreated = true;
-      window['SAILS_LOCALS'].clients.push({id: meta.response.id, name: this.newClient.name, createdBy: this.newClient.createdBy});
-      this.url = '/api/client/' + meta.response.id + '/upload-logo';
-    });
+    }).subscribe(
+      meta => {
+        this.syncingSubmit = false;
+        this.newClient = formData;
+        this.newClientId = meta.response.id;
+        this.clientCreated = true;
+        window['BOOTSTRAP_DATA'].clients.push({id: meta.response.id, name: this.newClient.name, createdBy: this.newClient.createdBy});
+        this.url = '/api/client/' + meta.response.id + '/upload-logo';
+      },
+      err => {
+        this.syncingSubmit = false;
+        const msg = err?.error?.error?.message || err?.error?.error || err?.message || 'Failed to create client. Please try again.';
+        if (err?.code !== 500 && err?.code !== 0 && err?.code !== 403) {
+          alert(msg);
+        }
+      }
+    );
   }
 
 }

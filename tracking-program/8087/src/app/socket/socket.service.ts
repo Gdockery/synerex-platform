@@ -1,65 +1,81 @@
-import {Injectable, NgZone}              from '@angular/core';
-
-
-
-window['io'] = window['io'] || require('sails.io.js/sails.io.js')(require('socket.io-client/dist/socket.io.js'));
-var io = window['io'];
+import { Injectable, NgZone } from '@angular/core';
+// socket.io-client v2 - use default import for TS 3.9 compatibility
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const io = require('socket.io-client');
 
 @Injectable()
 export class SocketService {
+  private socket: any = null;
 
-  //Allows Angular view to update after asynchronous callback
-  private doThenRender;
+  constructor(private ngZone: NgZone) {}
 
-  constructor() {
-    let _zone = new NgZone({ enableLongStackTrace: false });
-    this.doThenRender = function(proceed){ _zone.run(proceed); };
+  private getSocket(): any {
+    if (!this.socket) {
+      const base = (window as any).location.origin;
+      const path = (window as any).location.pathname.startsWith('/tracking')
+        ? '/tracking/socket.io'
+        : '/socket.io';
+      this.socket = io(base, {
+        path,
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+      });
+    }
+    return this.socket as any;
   }
 
-  on(action, callback:Function) {
-    let self = this;
-    io.socket.on(action, function onRelevantServerSentMsg(result) {
-      self.doThenRender(()=>{
-        callback(result);
-      });
+  private doThenRender(callback: () => void): void {
+    if (NgZone.isInAngularZone()) {
+      callback();
+    } else {
+      this.ngZone.run(callback);
+    }
+  }
+
+  /** Listen for server events (replaces io.socket.on) */
+  on(event: string, callback: (data: any) => void): void {
+    this.getSocket().on(event, (data: any) => {
+      this.doThenRender(() => callback(data));
     });
   }
 
-  get(url, params, callback:Function) {
-    let self = this;
-    io.socket.get(url, params, (result, jwr)=>{
-      if (jwr.error) {
-        // this should never fail, but if it does, error toaster time
-        // TODO: toast  (in the mean time, just throwing)
-        throw jwr.error;
+  /** Unsubscribe from event */
+  off(event: string): void {
+    this.socket?.off(event);
+  }
+
+  /** Emit to server (for join_project, leave_project, etc.) */
+  emit(event: string, data?: any, callback?: (res: any) => void): void {
+    const sock = this.getSocket();
+    if (callback) {
+      sock.emit(event, data, callback);
+    } else {
+      sock.emit(event, data);
+    }
+  }
+
+  /** Join project room for ticker updates. Call after HTTP GET /api/project/ticker. */
+  joinProject(projectId: number, callback?: (ok: boolean) => void): void {
+    this.emit('join_project', { project: projectId }, (res: any) => {
+      const ok = res && !res.error;
+      if (callback) {
+        this.doThenRender(() => callback(ok));
       }
-      self.doThenRender(()=>{
-        callback(result);
-      });
     });
   }
 
-  /**
-   * Get data from a url, and also subscribe to socket.io.
-   *
-   * @param url
-   * @param action
-   * @param params
-   * @param callback
-   */
-  getThenOn(action, url, params, callback:Function) {
-    this.get(url, params, callback);
-    this.on(action, callback);
+  /** Leave project room */
+  leaveProject(projectId: number, callback?: (ok: boolean) => void): void {
+    this.emit('leave_project', { project: projectId }, (res: any) => {
+      const ok = res && !res.error;
+      if (callback) {
+        this.doThenRender(() => callback(ok));
+      }
+    });
   }
 
-  off(action) {
-    let self = this;
-    io.socket.off(action);
-    /*io.socket.off(action, function onRelevantServerSentMsg(result) {
-      self.doThenRender(()=>{
-        callback(result);
-      });
-    });*/
+  /** Connection state (for debugging) */
+  get connected(): boolean {
+    return !!this.socket?.connected;
   }
-
 }

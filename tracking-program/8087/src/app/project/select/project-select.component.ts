@@ -27,7 +27,11 @@ import {DeviceService} from "../../electricityMeters/devices/device.service";
     </style>
     <div class="container-fluid"> 
       <h3>Your Projects
-        <a class="btn btn-primary pull-right" *ngIf="userService.user.role === 7" [routerLink]="['/project/create']">Add new project</a>
+      <p *ngIf="!userService.user.projects || userService.user.projects.length === 0" class="text-muted" style="margin-top: 8px;">
+        No projects yet. Use <strong>New from bill</strong> to create one from an electric bill PDF, or <strong>Add new project</strong> to create manually.
+      </p>
+        <a class="btn btn-default pull-right" style="margin-left: 8px" *ngIf="userService.user.role === 7 || userService.user.role === 8" [routerLink]="['/project/create-from-bill']">New from bill</a>
+        <a class="btn btn-primary pull-right" *ngIf="userService.user.role === 7 || userService.user.role === 8" [routerLink]="['/project/create']">Add new project</a>
       </h3>
       <div class="col-md-2" *ngFor="let project of userService.user.projects;">
         <div class="box text-center" style="height: 200px;" [class.disabled]="isExpired(project)">
@@ -47,7 +51,7 @@ export class ProjectSelectComponent {
   constructor(private userService: CurrentUserService, private router: Router, private deviceService: DeviceService) {
 
     userService.user.projects.forEach(function(project){
-      let hasClient = window['SAILS_LOCALS'].clients.find(client => { return client.id === project.client});
+      let hasClient = window['BOOTSTRAP_DATA'].clients.find(client => { return client.id === project.client});
       if (hasClient) {
         project.logoImgSrc = hasClient.logoImgSrc;
       }

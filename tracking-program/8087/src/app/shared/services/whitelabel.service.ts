@@ -65,8 +65,9 @@ export class WhitelabelService {
    * @returns URL path to the logo
    */
   getLogoUrl(size: 'small' | 'big' | 'big1'): string {
-    const filename = size === 'small' ? 'logo-small.png' : 
-                     size === 'big' ? 'logo-big.png' : 
+    // Navbar uses 'small' - show Synerex white logo; big/big1 for other views
+    const filename = size === 'small' ? 'synerex_logo_white.png' :
+                     size === 'big' ? 'logo-big.png' :
                      'logo-big1.png';
     return this.getImageUrl(filename);
   }

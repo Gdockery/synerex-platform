@@ -1,0 +1,40 @@
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="content-box">
+        <div class="box details-box">
+          <h3>EM&V Client HTML Report</h3>
+          <p class="text-muted" style="margin-bottom: 1em;">
+            Analyses shown here match the current User, org, and project. Push analyses from the EMV program (8082) to add them.
+          </p>
+          <div *ngIf="emvLoading">Loading...</div>
+          <div *ngIf="!emvLoading && emvAnalyses.length === 0" style="color:#666;">
+            No EM&V reports yet. Run an analysis in the EMV program, then click <strong>Push Analysis to Tracking</strong> to add reports here.
+            <p style="margin-top:12px;">
+              <a [href]="emvLegacyUrl" class="btn btn-primary btn-sm">Run EM&V Analysis</a>
+            </p>
+          </div>
+          <div *ngIf="!emvLoading && emvAnalyses.length > 0">
+            <label>Active baseline:</label>
+            <select class="form-control" style="margin-bottom:12px; max-width: 400px;"
+              [ngModel]="emvActiveId"
+              (ngModelChange)="onEmvAnalysisChange($event)"
+              [disabled]="emvSettingActive">
+              <option [ngValue]="null">-- Select --</option>
+              <option *ngFor="let a of emvAnalyses" [ngValue]="a.id">
+                {{a.analysisDate || ('Analysis #' + a.id)}}{{a.isActive ? ' (active)' : ''}}
+              </option>
+            </select>
+            <p>
+              <a [href]="getEmvReportUrl(emvActiveId)" target="_blank" class="btn btn-default btn-sm">View Report (new tab)</a>
+            </p>
+            <div *ngIf="emvActiveId" style="margin-top:1em;">
+              <h4>Report preview</h4>
+              <iframe [src]="getEmvReportSafeUrl(emvActiveId)" style="width:100%; height:70vh; border:1px solid #ddd; border-radius:4px;" title="EM&V Client Report"></iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

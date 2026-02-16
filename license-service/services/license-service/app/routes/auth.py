@@ -197,14 +197,24 @@ def get_user_jwt(request: Request):
 
 @router.post("/api/verify-jwt")
 def verify_user_jwt(body: dict):
-    """Verify a user JWT and return claims."""
+    """Verify a user JWT or admin session token; return claims."""
     token = body.get("token")
     if not token:
         raise HTTPException(400, "token required")
     try:
         claims = validate_user_token(token)
-    except ValueError as e:
-        raise HTTPException(401, str(e))
+    except ValueError:
+        # Not a JWT - check if it's a valid admin session token (for SSO from AdminDashboard)
+        from ..auth.admin_tokens import verify_admin_token
+        from ..config import settings
+        if verify_admin_token(token):
+            claims = {
+                "email": settings.admin_sso_email,
+                "sub": "synerex",
+                "roles": ["admin"],
+            }
+        else:
+            raise HTTPException(401, "Invalid or expired token")
     return {"valid": True, "claims": claims}
 
 @router.post("/api/login-jwt")

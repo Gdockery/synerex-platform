@@ -8,7 +8,8 @@ Monorepo containing all Synerex platform components.
 synerex-platform/
 ├── website/              # Main website (React/Vite)
 ├── license-service/      # License Management Service (FastAPI)
-└── emv-program/         # EM&V Program (Flask)
+├── emv-program/         # EM&V Program (Flask)
+└── tracking-program/    # Tracking Program (Flask + Angular)
 ```
 
 ## Components
@@ -28,6 +29,11 @@ synerex-platform/
 ### EM&V Program (`emv-program/`)
 - Flask-based Energy Measurement & Verification program
 - Audit and utility-grade power analysis
+- Integrates with License Service for authentication
+
+### Tracking Program (`tracking-program/`)
+- Flask backend at `8087/flask_app` with Angular frontend in `8087/`
+- Rollup (1339) and Errands (1340) services for cron jobs
 - Integrates with License Service for authentication
 
 ## Development
@@ -53,10 +59,18 @@ cd emv-program/8082
 python main_hardened_ready_refactored.py
 ```
 
+### Tracking Program
+```bash
+cd tracking-program/8087/flask_app
+python run.py
+# Rollup: cd ../../8087-rollup && PORT=1339 python run.py
+# Errands: cd ../../8087-errands && PORT=1340 python run.py
+```
+
 ## Integration
 
 - Website links to License Service for registration
-- License Service authenticates users for EM&V Program
+- License Service authenticates users for EM&V and Tracking
 - All components share consistent styling and navigation
 
 ## Docker (Phase 4 baseline)

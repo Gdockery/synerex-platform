@@ -61,8 +61,9 @@ export class ListFilesComponent implements OnInit {
     }
     let requestParameters = this.apiHelpers.parsePaginationParams(params);
     this.filesService.getFiles(requestParameters).subscribe(data => {
-      this.recordCount = data.meta.total;
-      this.files = data.response;
+      const meta = data && data.meta;
+      this.recordCount = (meta && meta.total != null) ? meta.total : (data.response || []).length;
+      this.files = data && data.response ? data.response : [];
     });
     
   }

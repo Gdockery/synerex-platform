@@ -42,10 +42,16 @@ export class ListSwitchEventComponent {
 
   refresh(params) {
     params.deviceType = 1;
-    this.switchEventService.getPaginated(params).subscribe(responseData => {
-      this.recordCount = responseData.meta.total;
-      this.switches = responseData.response;
-    }); 
+    this.switchEventService.getPaginated(params).subscribe(
+      responseData => {
+        this.recordCount = (responseData && responseData.meta) ? responseData.meta.total : 0;
+        this.switches = (responseData && responseData.response) ? responseData.response : [];
+      },
+      () => {
+        this.recordCount = 0;
+        this.switches = [];
+      }
+    );
   }
 
   confirmClear() {

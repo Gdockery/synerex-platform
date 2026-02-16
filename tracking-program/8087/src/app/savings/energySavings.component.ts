@@ -58,11 +58,9 @@ public logoPath;
   }
 
   ngOnInit() {
-    if (this.userService.user.selectedProject.reportFields.showI2RLoss) {
-      this.addI2RLoss = JSON.parse(this.userService.user.selectedProject.reportFields.showI2RLoss);
-    } else {
-      this.addI2RLoss = true;
-    }
+    const rf = this.userService.user.selectedProject?.reportFields;
+    const showI2R = rf && rf.showI2RLoss != null;
+    this.addI2RLoss = showI2R ? (typeof rf.showI2RLoss === 'string' ? JSON.parse(rf.showI2RLoss) : !!rf.showI2RLoss) : true;
    
     setInterval(() => {
       this.time = new Date();

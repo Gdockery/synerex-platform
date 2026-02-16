@@ -1,5 +1,15 @@
 # Troubleshooting
 
+## Synerex Admin (Platform Owner)
+
+**Synerex Admin** is the owner of the entire platform. No client has the same credentials. Access is via:
+- **Website footer:** "Synerex Admin" link on every page (kept in the footer to avoid conflict with client admins)
+- **Direct:** `{LICENSE_SERVICE_URL}/admin/login`
+
+Credentials are set in `.env` as `ADMIN_USERNAME` and `ADMIN_PASSWORD`. For production, use a unique username (e.g. `synerex admin`). Default dev: `admin` / `admin123`.
+
+---
+
 ## Login doesn't work (redirects back to login or "Invalid credentials")
 
 **Symptom:** You enter admin / admin123 at `http://localhost/license/admin/login?return_url=...` but stay on the login page or get "Invalid credentials".

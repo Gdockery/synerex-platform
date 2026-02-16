@@ -26,6 +26,16 @@ class RawFilesList {
         document.getElementById('logout-btn').addEventListener('click', () => {
             this.logout();
         });
+        const footerLogoutBtn = document.getElementById('footer-logout-btn');
+        if (footerLogoutBtn) {
+            footerLogoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.logout();
+            });
+        }
+
+        // Add "Back to My Account" when WEBSITE_URL is set (platform flow)
+        this.addBackToMyAccountButton();
         
         // Search and filters
         document.getElementById('search-input').addEventListener('input', () => {
@@ -437,6 +447,22 @@ class RawFilesList {
             this.showNotification('Assignment failed', 'error');
         }
     }
+
+    addBackToMyAccountButton() {
+        const websiteUrl = window.SYNEREX_WEBSITE_URL;
+        if (!websiteUrl) return;
+        let btn = document.getElementById('back-to-my-account-btn');
+        if (btn) return;
+        btn = document.createElement('a');
+        btn.id = 'back-to-my-account-btn';
+        btn.textContent = '← Back to My Account';
+        btn.href = `${websiteUrl}/my-account`;
+        btn.style.cssText = 'margin-left: 10px; padding: 8px 16px; color: #93c5fd; text-decoration: none; font-size: 14px;';
+        btn.onclick = (e) => { e.preventDefault(); window.location.href = `${websiteUrl}/my-account`; };
+        const logoutBtn = document.getElementById('logout-btn');
+        const parent = logoutBtn && logoutBtn.parentElement;
+        if (parent) parent.insertBefore(btn, logoutBtn);
+    }
     
     async logout() {
         try {
@@ -449,7 +475,12 @@ class RawFilesList {
             console.error('Logout error:', error);
         } finally {
             localStorage.removeItem('session_token');
-            window.location.href = '/main-dashboard';
+            const websiteUrl = window.SYNEREX_WEBSITE_URL;
+            if (websiteUrl) {
+                window.location.href = `${websiteUrl}/`;
+            } else {
+                window.location.href = '/main-dashboard';
+            }
         }
     }
     

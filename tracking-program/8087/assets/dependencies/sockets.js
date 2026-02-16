@@ -1,4 +1,4 @@
-// Wrap instantiation of sails.io.js in a module, so it can be safely shared
-// required from different modules even if they're nested within each other.
-var io = require('sails.io.js/sails.io.js')(require('socket.io-client/dist/socket.io.js'));
+// Legacy module - SocketService now uses socket.io-client directly.
+// This file kept for any scripts that might require('dependencies/sockets').
+var io = require('socket.io-client');
 module.exports = io;

@@ -708,8 +708,18 @@ export class WelcomeComponent implements AfterViewInit {
 			this.loadDataTimeout = null
 		}
 
-		const data = await this.http.get('/files/ticker2.txt', {responseType: 'text'}).toPromise()
-		this.dataLoadedTimestamp = Date.now()
+		let data: string;
+		try {
+			data = await this.http.get('/files/ticker2.txt', {responseType: 'text'}).toPromise();
+		} catch (err) {
+			// ticker2.txt may not exist (e.g. before rollup runs); use empty data
+			data = '';
+		}
+		this.dataLoadedTimestamp = Date.now();
+		if (!data || !data.trim()) {
+			this.loadDataTimeout = setTimeout(() => this.loadData(), this.dataRefreshInterval);
+			return;
+		}
 		
 		data.trim().split('\n').forEach(line => {
 				const [

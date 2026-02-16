@@ -1135,9 +1135,12 @@ def admin_required(fn):
 
 # License Required decorator - enforces valid license for protected features
 LICENSE_SERVICE_URL = os.getenv("LICENSE_SERVICE_URL")
-WEATHER_SERVICE_URL = os.getenv("WEATHER_SERVICE_URL")
+WEATHER_SERVICE_URL = os.getenv("WEATHER_SERVICE_URL") or "http://127.0.0.1:8200"
 WEBSITE_URL = os.getenv("WEBSITE_URL")
 EMV_BASE_URL = os.getenv("EMV_BASE_URL")
+# Tracking Integration (Bill Analytic import, Push Analysis) - set in .env
+# TRACKING_URL: Tracking program base URL (local: http://127.0.0.1:8087)
+# EMV_API_KEY: Shared secret; same value in Tracking .env. See 8082/.env.example
 TRACKING_URL = os.getenv("TRACKING_BASE_URL") or os.getenv("TRACKING_URL")
 SERVICE_MANAGER_URL = os.getenv("SERVICE_MANAGER_URL")
 HTML_REPORT_URL = os.getenv("HTML_REPORT_URL")
@@ -6025,11 +6028,25 @@ def analyze():
     except Exception as e:
         logger.debug(f"Could not get org_id/user_id from session: {e}")
     
-    # CRITICAL: Require org_id for multi-tenant isolation
+    # When org_id missing (analysis-first flow): create/adopt org via License registry
     if not org_id:
-        logger.warning("Analysis request without org_id - rejecting for security")
-        return jsonify({"error": "Organization ID required. Please log in again."}), 401
-    
+        form = request.form if hasattr(request, 'form') and request.form else {}
+        project_name = form.get("project_name") or (request.get_json(silent=True) or {}).get("project_name") if request.is_json else None
+        company_name = form.get("company_name") or (request.get_json(silent=True) or {}).get("company_name") if request.is_json else None
+        org_name = (company_name or project_name or "Analysis").strip() or "Analysis"
+        try:
+            from org_registry import ensure_org
+            result = ensure_org(org_name=org_name, org_type="customer")
+            if result and result.get("org_id"):
+                org_id = result["org_id"]
+                logger.info("Analysis-first: ensured org_id=%s from org_name=%r", org_id, org_name)
+            else:
+                logger.warning("Analysis request without org_id - ensure_org failed")
+                return jsonify({"error": "Organization ID required. Please log in or provide company name."}), 401
+        except Exception as e:
+            logger.warning("ensure_org failed: %s", e)
+            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+
     # CRITICAL: Extract file IDs FIRST before any cache operations
     # This allows us to use file IDs for cache invalidation
     form = request.form if hasattr(request, 'form') and request.form else {}
@@ -10494,12 +10511,59 @@ def serve_template_report():
                 else:
                     return jsonify({"error": f"HTML report service returned status {response.status_code}"}), response.status_code
             except requests.exceptions.ConnectionError as conn_e:
-                logger.error(f"Connection error forwarding to 8084 service: {conn_e}")
-                logger.error(f"Connection error details: {type(conn_e).__name__}: {str(conn_e)}")
-                # Try to restart the HTML service connection
-                import traceback
-                logger.error(traceback.format_exc())
-                return jsonify({"error": f"Could not connect to HTML report service. Please ensure the service is running on port 8084. Error: {str(conn_e)}"}), 500
+                logger.warning(f"8084 HTML service unreachable: {conn_e}. Trying inline fallback...")
+                # Inline fallback: generate report using 8084 module (available at /app/8084 when mounted)
+                try:
+                    _app_dir = Path(__file__).resolve().parent
+                    _8084_dir = _app_dir / "8084"
+                    if _8084_dir.exists():
+                        import sys
+                        import shutil
+                        if str(_8084_dir) not in sys.path:
+                            sys.path.insert(0, str(_8084_dir))
+                        # 8084 expects (8084_dir)/../8082/... = /app/8082 when 8084 at /app/8084
+                        # Ensure /app/8082 exists pointing to 8082 content (symlink or copy)
+                        _8082_for_8084 = _app_dir / "8082"
+                        if not (_8082_for_8084 / "report_template.html").exists():
+                            try:
+                                os.symlink(str(_app_dir), str(_8082_for_8084))
+                            except OSError:
+                                _8082_for_8084.mkdir(parents=True, exist_ok=True)
+                                for f in ("report_template.html", "report_head.html"):
+                                    src = _app_dir / f
+                                    if src.exists():
+                                        shutil.copy(src, _8082_for_8084 / f)
+                                _static_src = _app_dir / "static"
+                                if _static_src.exists():
+                                    shutil.copytree(_static_src, _8082_for_8084 / "static", dirs_exist_ok=True)
+                        from generate_exact_template_html import generate_exact_template_html
+                        stored = getattr(app, "_latest_analysis_results", None)
+                        if stored:
+                            html_content = generate_exact_template_html(stored)
+                            return Response(
+                                html_content,
+                                mimetype="text/html",
+                                headers={
+                                    "Content-Type": "text/html; charset=utf-8",
+                                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                                    "Pragma": "no-cache",
+                                    "Expires": "0",
+                                },
+                            )
+                except Exception as fallback_e:
+                    logger.warning(f"Inline report fallback failed: {fallback_e}")
+                    import traceback
+                    logger.debug(traceback.format_exc())
+                # Last resort: serve raw template so user gets something
+                stored = getattr(app, "_latest_analysis_results", None)
+                if stored:
+                    template_file = Path(__file__).parent / "report_template.html"
+                    if template_file.exists():
+                        content = template_file.read_text(encoding="utf-8")
+                        import re
+                        content = re.sub(r"\{\{[A-Za-z0-9_]+\}\}", "", content)
+                        return Response(content, mimetype="text/html", headers={"Content-Type": "text/html; charset=utf-8"})
+                return jsonify({"error": f"HTML report service (port 8084) unavailable. Run the 8084 service: cd emv-program/8084 && python html_report_service.py. Error: {str(conn_e)}"}), 500
             except requests.exceptions.Timeout as timeout_e:
                 logger.error(f"Timeout error forwarding to 8084 service: {timeout_e}")
                 return jsonify({"error": f"HTML report generation timed out. The report may be too large. Please try again or contact support."}), 500
@@ -12343,6 +12407,146 @@ def validate_session():
     except Exception as e:
         logger.error(f"Error validating session: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# -----------------------------------------------------------------------------
+# Tracking Integration - Proxy routes for EMV <-> Tracking
+# -----------------------------------------------------------------------------
+# Set TRACKING_URL and EMV_API_KEY (or TRACKING_API_KEY) in .env. See .env.example.
+
+TRACKING_API_KEY = os.getenv("EMV_API_KEY") or os.getenv("TRACKING_API_KEY", "")
+
+
+@app.route("/api/tracking/health", methods=["GET"])
+def tracking_health():
+    """Diagnostic: check Tracking connectivity. No auth required. Returns config status and reachability."""
+    configured = bool(TRACKING_URL and TRACKING_API_KEY)
+    tracking_host = (TRACKING_URL or "").replace("http://", "").replace("https://", "").split("/")[0] or "(not set)"
+    result = {"configured": configured, "trackingHost": tracking_host}
+    if not configured:
+        result["error"] = "Set TRACKING_URL and EMV_API_KEY in .env"
+        return jsonify(result), 200
+    try:
+        r = requests.get(f"{TRACKING_URL.rstrip('/')}/health", timeout=5)
+        result["reachable"] = r.status_code == 200
+        result["trackingStatus"] = r.status_code
+        if r.status_code != 200:
+            result["hint"] = f"Tracking at {tracking_host} returned {r.status_code}. Ensure Tracking is running."
+    except requests.RequestException as e:
+        result["reachable"] = False
+        result["error"] = str(e)
+        result["hint"] = f"Cannot reach Tracking at {tracking_host}. If EMV is in Docker, use TRACKING_URL=http://tracking-program:8087. If local, use http://127.0.0.1:8087."
+    return jsonify(result), 200
+
+
+@app.route("/api/tracking/projects", methods=["GET"])
+@license_required
+def tracking_projects():
+    """Proxy to Tracking: GET /api/emv/projects. Returns projects for org for Bill Analytic import."""
+    if not TRACKING_URL or not TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    # Prefer orgId from URL (when opened from Tracking with ?orgId=X) so projects in that org appear
+    org_id = (request.args.get("orgId") or "").strip() or get_current_org_id(request)
+    if not org_id:
+        return jsonify({"error": "Authentication required (sign in or open from Tracking with project selected)"}), 401
+    client_id = request.args.get("clientId")
+    try:
+        params = {"orgId": org_id}
+        if client_id is not None and str(client_id).strip():
+            params["clientId"] = client_id
+        resp = requests.get(
+            f"{TRACKING_URL.rstrip('/')}/api/emv/projects",
+            params=params,
+            headers={"X-EMV-API-Key": TRACKING_API_KEY, "Accept": "application/json"},
+            timeout=15,
+        )
+        try:
+            data = resp.json()
+        except (ValueError, requests.exceptions.JSONDecodeError):
+            logger.warning(
+                "Tracking projects: invalid JSON response status=%s url=%s body_len=%d",
+                resp.status_code, resp.url, len(resp.text or ""),
+            )
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response). Check TRACKING_URL={TRACKING_URL!r} and that Tracking is running."}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": data.get("error", "Tracking request failed")}), resp.status_code
+        return jsonify(data), 200
+    except requests.RequestException as e:
+        logger.warning(f"Tracking projects proxy failed: {e}")
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
+
+
+@app.route("/api/tracking/bill-analytic", methods=["GET"])
+@license_required
+def tracking_bill_analytic():
+    """Proxy to Tracking: GET /api/emv/project/bill-analytic. Returns electricBillAnalysis for import."""
+    if not TRACKING_URL or not TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    org_id = get_current_org_id(request)
+    if not org_id:
+        return jsonify({"error": "Authentication required"}), 401
+    project_id = request.args.get("projectId")
+    client_id = request.args.get("clientId")
+    if not project_id:
+        return jsonify({"error": "projectId is required"}), 400
+    try:
+        params = {"orgId": org_id, "projectId": project_id}
+        if client_id is not None and str(client_id).strip():
+            params["clientId"] = client_id
+        resp = requests.get(
+            f"{TRACKING_URL.rstrip('/')}/api/emv/project/bill-analytic",
+            params=params,
+            headers={"X-EMV-API-Key": TRACKING_API_KEY, "Accept": "application/json"},
+            timeout=15,
+        )
+        try:
+            data = resp.json()
+        except (ValueError, requests.exceptions.JSONDecodeError):
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response)"}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": data.get("error", "Tracking request failed")}), resp.status_code
+        return jsonify(data), 200
+    except requests.RequestException as e:
+        logger.warning(f"Tracking bill-analytic proxy failed: {e}")
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
+
+
+@app.route("/api/tracking/push-baseline", methods=["POST"])
+@license_required
+def tracking_push_baseline():
+    """Proxy to Tracking: POST /api/emv/push-baseline. Push analysis results and report HTML."""
+    if not TRACKING_URL or not TRACKING_API_KEY:
+        return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
+    org_id = get_current_org_id(request)
+    if not org_id:
+        return jsonify({"error": "Authentication required"}), 401
+    data = request.get_json() or {}
+    if not data.get("projectId"):
+        return jsonify({"error": "projectId is required"}), 400
+    data["orgId"] = org_id
+    try:
+        resp = requests.post(
+            f"{TRACKING_URL.rstrip('/')}/api/emv/push-baseline",
+            json=data,
+            headers={"X-EMV-API-Key": TRACKING_API_KEY, "Content-Type": "application/json"},
+            timeout=30,
+        )
+        try:
+            resp_data = resp.json()
+        except (ValueError, requests.exceptions.JSONDecodeError):
+            if resp.status_code != 200:
+                return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response)"}), 502
+            return jsonify({"error": "Tracking returned invalid JSON"}), 502
+        if resp.status_code != 200:
+            return jsonify({"error": resp_data.get("error", "Push failed")}), resp.status_code
+        return jsonify(resp_data), 200
+    except requests.RequestException as e:
+        logger.warning(f"Tracking push-baseline proxy failed: {e}")
+        return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
 @app.route("/sso", methods=["GET"])
@@ -18192,9 +18396,13 @@ def raw_files_list():
             "synerex_logo_url": "static/synerex_logo_transparent.png",
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "website_url": WEBSITE_URL or "",
         }
         logger.info(f"Rendering raw files list with cache_bust: {context['cache_bust']}")
         result = render_template("raw_files_list.html", **context)
+        website_url = WEBSITE_URL or ""
+        if "</head>" in result:
+            result = result.replace("</head>", f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>\n</head>", 1)
         logger.info(
             f"Raw files list template rendered successfully, length: {len(result)}"
         )
@@ -18216,11 +18424,15 @@ def clipping_interface():
             "synerex_logo_url": "static/synerex_logo_transparent.png",
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "website_url": WEBSITE_URL or "",
         }
         logger.info(
             f"Rendering clipping interface with cache_bust: {context['cache_bust']}"
         )
         result = render_template("clipping_interface.html", **context)
+        website_url = WEBSITE_URL or ""
+        if "</head>" in result:
+            result = result.replace("</head>", f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>\n</head>", 1)
         logger.info(
             f"Clipping interface template rendered successfully, length: {len(result)}"
         )
@@ -18242,11 +18454,15 @@ def upload_interface():
             "synerex_logo_url": "static/synerex_logo_transparent.png",
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "website_url": WEBSITE_URL or "",
         }
         logger.info(
             f"Rendering upload interface with cache_bust: {context['cache_bust']}"
         )
         result = render_template("upload_interface.html", **context)
+        website_url = WEBSITE_URL or ""
+        if "</head>" in result:
+            result = result.replace("</head>", f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>\n</head>", 1)
         logger.info(
             f"Upload interface template rendered successfully, length: {len(result)}"
         )
@@ -20849,6 +21065,7 @@ def main_dashboard():
         # Get system statistics
         stats = get_dashboard_statistics()
 
+        website_url = WEBSITE_URL or ""
         context = {
             "version": get_current_version(),
             "cache_bust": int(time.time()),
@@ -20856,12 +21073,18 @@ def main_dashboard():
             "synerex_logo_url": "static/synerex_logo_transparent.png",
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "website_url": website_url,
         }
 
         logger.info(
             f"Rendering main dashboard with cache_bust: {context['cache_bust']}"
         )
         result = render_template("main_dashboard.html", **context)
+        config_script = (
+            f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>"
+        )
+        if "</head>" in result:
+            result = result.replace("</head>", config_script + "\n</head>", 1)
         logger.info(f"Template rendered successfully, length: {len(result)}")
 
         # Add aggressive cache-busting headers
@@ -35813,6 +36036,29 @@ def admin_panel():
                                 }}, 4000);
                                 return;
                             }}
+                            if (id === 'tracking_app' && action === 'restart') {{
+                                setRestartBusy(true);
+                                try {{
+                                    const r = await fetch('/admin/proxy/tracking-restart', {{
+                                        method: 'POST',
+                                        credentials: 'include',
+                                        headers: {{ 'Content-Type': 'application/json' }}
+                                    }});
+                                    const d = await r.json();
+                                    if (r.ok && d.success) {{
+                                        showToast(d.message || 'Tracking Program restart initiated', 'success');
+                                    }} else {{
+                                        showToast(d.message || d.error || 'Failed to restart Tracking Program', 'error');
+                                    }}
+                                }} catch (e) {{
+                                    showToast('Action failed: ' + (e.message || e), 'error');
+                                }}
+                                setTimeout(function () {{
+                                    loadServiceStatus();
+                                    setRestartBusy(false);
+                                }}, 4000);
+                                return;
+                            }}
                         }} catch (e) {{
                             showToast('Action failed: ' + e.message, 'error');
                             setRestartBusy(false);
@@ -38442,6 +38688,28 @@ def admin_restart_service():
             ),
             500,
         )
+
+
+@app.route("/admin/proxy/tracking-restart", methods=["POST"])
+@admin_required
+def admin_proxy_tracking_restart():
+    """Proxy restart request to Tracking program. Used by 8082 admin panel when Service Manager cannot restart the Tracking Docker container."""
+    tracking_url = os.environ.get("TRACKING_PROGRAM_URL", "http://localhost:8087")
+    secret = os.environ.get("ADMIN_RESTART_SECRET", "")
+    if not secret:
+        return jsonify({"success": False, "message": "ADMIN_RESTART_SECRET not configured"}), 500
+    url = f"{tracking_url.rstrip('/')}/admin/restart"
+    try:
+        resp = requests.post(url, headers={"X-Admin-Restart-Secret": secret}, timeout=10)
+        try:
+            content = resp.json()
+        except (ValueError, json.JSONDecodeError):
+            content = {"success": resp.status_code == 200, "message": resp.text or str(resp.status_code)}
+        return jsonify(content), resp.status_code
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to reach Tracking program at {url}: {e}")
+        return jsonify({"success": False, "message": f"Failed to reach Tracking program: {e}"}), 502
+
 
 @app.route("/admin/stop-all-services", methods=["POST"])
 @admin_required

@@ -102,8 +102,8 @@ export class ProjectEditComponent implements OnInit {
     this.projectService.get(this.selectedProjectId).subscribe(currentProjectData => {
       this.syncingFormData = false;
 
-      this.clients = window['SAILS_LOCALS'].clients;
-      this.xecoAccountManagers = window['SAILS_LOCALS'].xecoUsersAndAdmins;
+      this.clients = window['BOOTSTRAP_DATA'].clients;
+      this.xecoAccountManagers = window['BOOTSTRAP_DATA'].xecoUsersAndAdmins;
       this.project = currentProjectData.response;
       this.project.client = currentProjectData.response.client;
       this.project.xecoManager = currentProjectData.response.xecoManager;

@@ -5,6 +5,38 @@
     </div>
   </div>
 </div>
+<!-- EM&V section - always visible when project selected (independent of billing analysis) -->
+<div class="container-fluid" *ngIf="currentUserService.user.selectedProject" id="emv-report" style="margin-top:1em;">
+  <div class="row">
+    <div class="col-md-6 col-lg-5">
+      <div class="content-box">
+        <div class="box details-box">
+          <h3>EM&V Client HTML Report</h3>
+          <div *ngIf="emvLoading">Loading...</div>
+          <div *ngIf="!emvLoading && emvAnalyses.length === 0" style="color:#666;">
+            No EM&V reports yet. Run an analysis in the EMV program, then click <strong>Push Analysis to Tracking</strong> to add reports here.
+            <p style="margin-top:10px;">
+              <a [href]="emvLegacyUrl" target="_blank" class="btn btn-primary btn-sm">Run EM&V Analysis</a>
+            </p>
+          </div>
+          <div *ngIf="!emvLoading && emvAnalyses.length > 0">
+            <label>Active baseline:</label>
+            <select class="form-control" style="margin-bottom:8px;"
+              [ngModel]="emvActiveId"
+              (ngModelChange)="onEmvAnalysisChange($event)"
+              [disabled]="emvSettingActive">
+              <option [ngValue]="null">-- Select --</option>
+              <option *ngFor="let a of emvAnalyses" [ngValue]="a.id">
+                {{a.analysisDate || ('Analysis #' + a.id)}}{{a.isActive ? ' (active)' : ''}}
+              </option>
+            </select>
+            <a [href]="getEmvReportUrl(emvActiveId)" target="_blank" class="btn btn-default btn-sm">View Report</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div *ngIf="validBillAnalytic">
   <div class="row">
     <div class="col-md-6">
@@ -136,6 +168,7 @@
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>

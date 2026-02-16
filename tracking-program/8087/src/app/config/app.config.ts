@@ -9,6 +9,6 @@ export interface IAppConfig {
 }
 
 export const AppConfig: IAppConfig = {
-  locals: window["SAILS_LOCALS"],
+  locals: window["BOOTSTRAP_DATA"],
   constants: constants.constants
 };

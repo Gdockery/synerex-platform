@@ -128,16 +128,19 @@ export class ListBillAnalyticComponent implements OnInit {
     this.billAnalyticService.getAnalytic().subscribe(billAnalytic => {
       this.analytic = billAnalytic;
     });
-    this.metersInProject = this.userService.user.selectedProject.reportFields.numberOfMeters;
-    this.meterBills = this.userService.user.selectedProject.electricBillAnalysis.meterBills;
+    const project = this.userService.user.selectedProject;
+    this.metersInProject = (project && project.reportFields) ? project.reportFields.numberOfMeters : 0;
+    const electricBillAnalysis = (project && project.electricBillAnalysis) ? project.electricBillAnalysis : null;
+    this.meterBills = electricBillAnalysis ? electricBillAnalysis.meterBills : null;
     if (this.meterBills) {
       this.recordCount = this.meterBills.length;
       this.hasBill = true;
     } else {
+      this.meterBills = [];
       this.recordCount = 0;
     }
 
-    this.billsNeeded = this.metersInProject - this.recordCount;
+    this.billsNeeded = (this.metersInProject || 0) - this.recordCount;
     if (this.billsNeeded == 0) { // if all bills analytics are entered
       this.viewEquipments = true;
     }
@@ -148,7 +151,9 @@ export class ListBillAnalyticComponent implements OnInit {
   }
 
   refreshData(params) {
-    this.meterBills = this.userService.user.selectedProject.electricBillAnalysis.meterBills;
+    const project = this.userService.user.selectedProject;
+    const electricBillAnalysis = (project && project.electricBillAnalysis) ? project.electricBillAnalysis : null;
+    this.meterBills = (electricBillAnalysis && electricBillAnalysis.meterBills) ? electricBillAnalysis.meterBills : [];
   }
 
   addToReport(event) {

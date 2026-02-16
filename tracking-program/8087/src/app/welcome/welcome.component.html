@@ -6,17 +6,21 @@
   <div *ngIf="userService.user.role === 8">
     <p>Here in the {{brandName}} Web Portal, you can manage your clients and their projects, as well as users and advanced options for the portal itself.</p>
     <div *ngIf="userService.user.projects.length !== 0">
-      <p>To get started, please choose an option from the menu to the left.</p>
+      <p>To get started, please choose an option from the menu to the left, or <a [routerLink]="['/project/create-from-bill']">Scan Bill</a> to add a new project from a bill.</p>
     </div>
     <div *ngIf="userService.user.projects.length === 0">
-      <p>To get started, please set up your first client.</p>
-      <p><a class="btn btn-lg btn-primary" href="project/client/create">Set up your first client</a></p>
+      <p>To get started, scan an electric bill to create a client and project, or set up your first client manually.</p>
+      <p>
+        <a class="btn btn-lg btn-primary" [routerLink]="['/project/create-from-bill']">Scan Bill</a>&nbsp;&nbsp;
+        <a class="btn btn-lg btn-default" href="project/client/create">Set up your first client</a>
+      </p>
     </div>
   </div>
 
   <div *ngIf="userService.user.role === 7">
     <p>Here in the {{brandName}} Web Portal, you can manage projects for your clients.</p>
     <div class="pull-right">
+      <button class="btn btn-primary" [routerLink]="['/project/create-from-bill']">Scan Bill</button>&nbsp;&nbsp;&nbsp;
       <button class="btn btn-primary" [routerLink]="['/project/client/create']">Add New Client</button>&nbsp;&nbsp;&nbsp;
       <button class="btn btn-primary" [routerLink]="['/project/create']">Add New Project</button>
     </div>

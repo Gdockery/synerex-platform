@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     session_secret: str = ""
     jwt_secret: str = ""  # Secret key for JWT session tokens
     cors_origins: str = ""
+    root_path: str = ""  # URL prefix when behind reverse proxy (e.g. /license)
     
     @property
     def private_key_pem(self) -> Path:
@@ -86,6 +87,12 @@ class Settings(BaseSettings):
     
     # Website URL for navigation links
     website_url: str = ""
+
+    # Secret for Admin Panel to restart Tracking (proxied via License Service)
+    admin_restart_secret: str = ""
+
+    # Email for Synerex admin SSO - must match a role=8 User in Tracking program DB
+    admin_sso_email: str = "admin@synerex.local"
     
     # Software License Agreement settings
     software_license_agreement_version: str = "2026.01"

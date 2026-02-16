@@ -67,6 +67,8 @@ module.exports = function index(req, res) {
     })
     // Set up some locals.
     // (Note that we'll continue editing this thing's properties like `user` by reference below.)
+    // Set up some locals.
+    // (Note that we'll continue editing this thing's properties like `user` by reference below.)
     var locals = {
       environment: process.env.NODE_ENV || 'development',
       user: user

@@ -2,6 +2,7 @@ import { Component, OnInit} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 import {AdminProjectService} from "./admin-project.service";
+import {ClientService} from "../client/client.service";
 import {DeviceService} from "../../electricityMeters/devices/device.service";
 import {EnergySavingsService} from "../../savings/energySavings.service";
 import {WhitelabelService} from '../../shared/services/whitelabel.service';
@@ -9,14 +10,15 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
 @Component({
   template: `
     <div class="container-fluid">
-      <h3>Manage Projects
-        <button class="btn btn-primary pull-right" [routerLink]="['/xeco-administrator/project/create']">Add new project</button>
+      <h3>{{pageTitle}}
+        <button class="btn btn-primary pull-right" [routerLink]="['/xeco-administrator/project/create']" [queryParams]="selectedClientId ? {clientId: selectedClientId} : {}">Add new project</button>
       </h3>
-      <p>To explore or edit one of the projects below, just give it a click.</p>
+      <p *ngIf="selectedClientId"><a [routerLink]="['/xeco-administrator/client/list']">&larr; Back to clients</a> &nbsp;|&nbsp; {{pageDescription}}</p>
+      <p *ngIf="!selectedClientId">To explore or edit one of the projects below, just give it a click.</p>
       <p-dataTable tableStyleClass="table dataTable table-striped table-bordered" [value]="projects" [lazy]="true" [paginator]="true" [rows]="perPage"
                    [totalRecords]="recordCount" (onLazyLoad)="fetch($event)">
         <p-column field="name" header="Project" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
-        <p-column field="client.name" header="Client" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+        <p-column *ngIf="!selectedClientId" field="client.name" header="Client" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="xecoManager.fullName" [header]="brandName + ' Manager'" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="slug" header="Slug"></p-column>
         <p-column field="" header="" [filterMatchMode]="'contains'" [style]="{'width': isAdmin ? '140px' : '90px'}" styleClass="text-center">
@@ -38,12 +40,15 @@ export class ProjectListComponent implements OnInit {
   private perPage = 17;
   public selectedClientId;
   public brandName: string = 'Synerex';
+  public pageTitle = 'Manage Projects';
+  public pageDescription = 'Add a new project for this client or select an existing project to view.';
 
   constructor(
     private currentUserService: CurrentUserService,
     private route: ActivatedRoute,
     private router: Router,
     private projectService: AdminProjectService,
+    private clientService: ClientService,
     private deviceService: DeviceService,
     private energySavingsService: EnergySavingsService,
     private whitelabelService: WhitelabelService,
@@ -56,6 +61,15 @@ export class ProjectListComponent implements OnInit {
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;
     });
+    if (this.selectedClientId) {
+      this.pageTitle = 'Projects';
+      this.clientService.get(this.selectedClientId).subscribe((res: any) => {
+        const c = res.response || res;
+        this.pageTitle = c.name ? `Projects for ${c.name}` : 'Projects for this client';
+      }, () => {
+        this.pageTitle = 'Projects for this client';
+      });
+    }
   }
 
   fetch(params) {
@@ -63,9 +77,10 @@ export class ProjectListComponent implements OnInit {
       params.client = this.selectedClientId;
     }
     if (this.isAdmin) {
-      this.projectService.getPaginated(params).subscribe(responseData =>{
-        this.recordCount = responseData.meta.total;
-        this.projects = responseData.response;
+      this.projectService.getPaginated(params).subscribe(responseData => {
+        const meta = responseData && responseData.meta;
+        this.recordCount = (meta && meta.total != null) ? meta.total : (responseData.response || []).length;
+        this.projects = responseData && responseData.response ? responseData.response : [];
       });
     } else {
       this.projects = [];

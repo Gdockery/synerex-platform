@@ -9,10 +9,14 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
       <h3>Manage {{brandName}}'s Clients
         <a *ngIf="isAdmin" class="btn btn-primary pull-right" [routerLink]="['/xeco-administrator/client/create']">Add new client</a>
       </h3>
-      <p>To view or edit one of the clients below, click the corresponding icon.</p>
+      <p>Click a client to view their projects, then add a new project or select an existing one.</p>
       <p-dataTable tableStyleClass="table dataTable table-striped table-bordered" [value]="clients" [lazy]="true" [paginator]="true" [rows]="perPage"
                    [totalRecords]="recordCount" (onLazyLoad)="fetch($event)">
-        <p-column field="name" header="Client" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
+        <p-column field="name" header="Client" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'">
+          <ng-template let-row="rowData" pTemplate="body">
+            <a [routerLink]="['/xeco-administrator/client/projects', row.id]">{{row.name}}</a>
+          </ng-template>
+        </p-column>
         <p-column field="contactName" header="Contact" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="country" header="Country" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="" header="" [style]="{'width':'180px'}" styleClass="text-center">
@@ -42,12 +46,11 @@ export class ClientListComponent implements OnInit {
   }
 
   fetch(params) {
-   
-      this.clientService.getPaginated(params).subscribe(responseData =>{
-        this.recordCount = responseData.meta.total;
-        this.clients = responseData.response;
-      });
-    
+    this.clientService.getPaginated(params).subscribe(responseData => {
+      const meta = responseData && responseData.meta;
+      this.recordCount = (meta && meta.total != null) ? meta.total : (responseData.response || []).length;
+      this.clients = responseData && responseData.response ? responseData.response : [];
+    });
   }
 
 }

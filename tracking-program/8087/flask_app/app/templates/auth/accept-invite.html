@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Accept Invite</title>
+</head>
+<body>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+$(function() {
+  $('button[type="submit"]').on('click', function() {
+    $('.error').hide();
+    if ($('#password').val() !== $('#confirm_password').val()) {
+      $('.error').show().html('Passwords do not match'); return;
+    }
+    var token = $('#token').val();
+    $.post('/api/account', { token: token, password: $('#password').val() })
+      .done(function() { window.location = '/'; })
+      .fail(function(err) {
+        $('.error').show().html(err.responseJSON?.error || 'Error occurred');
+      });
+    return false;
+  });
+});
+</script>
+<div class="card" style="max-width:500px;margin:50px auto;padding:20px">
+  <h3>Welcome, {{ full_name }}!</h3>
+  <p>Choose a password for your account.</p>
+  <p><strong>Email:</strong> {{ email }}</p>
+  <input type="hidden" id="token" value="{{ token }}">
+  <input type="password" id="password" placeholder="Password" required>
+  <input type="password" id="confirm_password" placeholder="Confirm password" required>
+  <span class="error" style="color:red;display:none"></span>
+  <button type="submit">Continue</button>
+</div>
+</body>
+</html>

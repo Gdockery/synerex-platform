@@ -40,10 +40,16 @@ export class CreateTestComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.gatewayService.getAll({pageSize:500}).subscribe((gateways => {
-       this.availableGateways = gateways.response;
-       this.selectedGateways = [];
-    }));
+    this.gatewayService.getAll({pageSize:500}).subscribe(
+      gateways => {
+        this.availableGateways = (gateways && gateways.response) ? gateways.response : [];
+        this.selectedGateways = [];
+      },
+      () => {
+        this.availableGateways = [];
+        this.selectedGateways = [];
+      }
+    );
 
     this.initializeForm();
   }

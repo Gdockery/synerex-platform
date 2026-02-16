@@ -1,0 +1,39 @@
+<link rel="stylesheet" type="text/css" href="/css/font-awesome.css">
+<link rel="stylesheet" type="text/css" href="/css/login.css">
+<link rel="stylesheet" type="text/css" href="/css/public-screens.css">
+<div class="container">
+  <div class="row">
+    <div class="col-md-2">
+      <button class="btn btn-green" onclick="goBack()" style="width: 100px">Back</button>
+    </div>
+    <div class="col-md-10"></div>
+  </div>
+  <div class="card card-container text-card">
+    <img id="profile-img" class="logo-image" src="/images/logo-big.png" />
+    <h3>ONLINE PRIVACY POLICY AGREEMENT</h3>
+    <div class="text">
+      <p>{{ brand_name }} Energy Corporation, ({{ brand_name }}), is committed to keeping any and all personal information
+      collected of those individuals that visit our website and make use of our online facilities and
+      services accurate, confidential, secure and private.</p>
+      <p><strong>THEREFORE,</strong> this Privacy Policy Agreement shall apply to {{ brand_name }} Energy Corporation. Through the use of xecoenergy.com
+      you are herein consenting to the following data procedures expressed within this agreement.</p>
+      <h5>Collection of Information</h5>
+      <p>This website collects various types of information, such as: Voluntarily provided information (name, address, email, etc.); Information automatically collected (cookies, server logs).</p>
+      <h5>Use of Information Collected</h5>
+      <p>{{ brand_name }} Energy Corporation may collect and make use of personal information to assist in the operation of our website and to ensure delivery of the services you need.</p>
+      <h5>Children Under Age of 13</h5>
+      <p>{{ brand_name }} Energy Corporation does not knowingly collect personal identifiable information from children under the age of thirteen (13) without verifiable parental consent.</p>
+      <h5>Unsubscribe or Opt-Out</h5>
+      <p>To discontinue receiving communication, send an email to unsubscribe@xecoenergy.com.</p>
+      <h5>Links to Other Web Sites</h5>
+      <p>{{ brand_name }} Energy Corporation does not claim responsibility for the privacy policies of other websites.</p>
+      <h5>Security</h5>
+      <p>{{ brand_name }} Energy Corporation shall take every precaution to maintain adequate physical, procedural and technical security.</p>
+      <h5>How to Contact Us</h5>
+      <p><strong>Email:</strong> support@xecoenergy.com</p>
+      <p><strong>Mailing Address:</strong> {{ brand_name }} Energy Corporation, PO Box 1538, Cedar Park, Texas 78630</p>
+    </div>
+  </div>
+</div>
+{% include 'legal/_footer.html' %}
+<script>function goBack(){ window.history.back() }</script>
