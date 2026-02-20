@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
 import os
+import re
 import sqlite3
 from pathlib import Path
 from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 
 import pymysql
+
+
+def _resolve_emv_db_url(url):
+    """Apply EMV_DB_HOST/EMV_DB_PORT override for Docker (mysql-emv:3306)."""
+    if not url:
+        return url
+    host = os.getenv("EMV_DB_HOST")
+    port = os.getenv("EMV_DB_PORT")
+    if host:
+        url = re.sub(r"@[^:/]+", "@" + host, url, count=1)
+    if port:
+        url = re.sub(r":\d+(?=/)", ":" + str(port), url, count=1)
+    return url
 
 
 ORG_TABLES = {
@@ -187,6 +201,7 @@ def main():
     mysql_url = os.getenv("EMV_DB_URL")
     if not mysql_url:
         raise RuntimeError("EMV_DB_URL is not set.")
+    mysql_url = _resolve_emv_db_url(mysql_url)
 
     cfg = parse_mysql_url(mysql_url)
     mysql_conn = pymysql.connect(

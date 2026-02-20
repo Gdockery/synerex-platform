@@ -64,9 +64,24 @@ def extract_project_data_from_report():
     
     return data
 
+def _resolve_emv_db_url(url):
+    """Apply EMV_DB_HOST/EMV_DB_PORT override for Docker (mysql-emv:3306)."""
+    if not url:
+        return url
+    host = os.getenv("EMV_DB_HOST")
+    port = os.getenv("EMV_DB_PORT")
+    if host:
+        url = re.sub(r"@[^:/]+", "@" + host, url, count=1)
+    if port:
+        url = re.sub(r":\d+(?=/)", ":" + str(port), url, count=1)
+    return url
+
+
 def restore_project_to_database(project_data, org_id=None):
     """Restore project to database"""
     mysql_url = os.getenv("EMV_DB_URL")
+    if mysql_url:
+        mysql_url = _resolve_emv_db_url(mysql_url)
 
     # Determine database path
     if mysql_url:

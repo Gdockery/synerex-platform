@@ -4,6 +4,7 @@ Migrate all org_id 'ADMIN' to 'admin' in MySQL and remove the ADMIN org.
 Run from 8082 with EMV_DB_URL set (e.g. source .env).
 """
 import os
+import re
 import sys
 from pathlib import Path
 from urllib.parse import urlparse
@@ -18,6 +19,13 @@ EMV_DB_URL = os.getenv("EMV_DB_URL")
 if not EMV_DB_URL:
     print("EMV_DB_URL not set. Set it or run from 8082 with .env present.")
     sys.exit(1)
+# Apply EMV_DB_HOST/EMV_DB_PORT override for Docker (mysql-emv:3306)
+_emv_db_host = os.getenv("EMV_DB_HOST")
+_emv_db_port = os.getenv("EMV_DB_PORT")
+if _emv_db_host:
+    EMV_DB_URL = re.sub(r"@[^:/]+", "@" + _emv_db_host, EMV_DB_URL, count=1)
+if _emv_db_port:
+    EMV_DB_URL = re.sub(r":\d+(?=/)", ":" + str(_emv_db_port), EMV_DB_URL, count=1)
 
 # Tables that have org_id (from main_hardened_ready_refactored.py ORG_TABLES + sessions)
 ORG_TABLES = {

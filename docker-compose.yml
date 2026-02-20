@@ -49,6 +49,9 @@ services:
   emv-program:
     build:
       context: ./emv-program/8082
+    depends_on:
+      mysql-emv:
+        condition: service_healthy
     env_file:
       - ./emv-program/8082/.env
     environment:
@@ -92,6 +95,8 @@ services:
       dockerfile: 8087/flask_app/Dockerfile
     env_file:
       - ./tracking-program/8087/flask_app/.env.docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
       LICENSE_SERVICE_URL: http://license-service:8000
@@ -102,6 +107,10 @@ services:
     depends_on:
       mysql-tracking:
         condition: service_healthy
+    volumes:
+      - ./tracking-program/8087/.tmp:/app/8087/.tmp
+      - ./tracking-program/8087/assets/images:/app/8087/.tmp/public/images:ro
+      - ./tracking-program/8087/flask_app/app:/app/8087-flask/app:ro
     ports:
       - "8087:8087"
     restart: unless-stopped

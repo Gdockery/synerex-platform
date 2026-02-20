@@ -1694,7 +1694,7 @@ function saveProject() {
     'contact': document.getElementById('project_contact'), // Contact field has id="project_contact" but name="contact"
     'phone': document.getElementById('project_phone'), // Phone field has id="project_phone" but name="phone"
     'email': document.getElementById('project_email'), // Email field has id="project_email" but name="email"
-    'project_type': document.getElementById('project-type') // Project Type field has id="project-type" but name="project_type"
+    'project_type': document.getElementById('project-type') || document.querySelector('[name="project_type"]')
   };
   
   let explicitFieldsAdded = 0;
@@ -4264,7 +4264,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 console.log((function() { var capped = (cappedPfAfter * 100).toFixed(1); var csv = (pfAfter * 100).toFixed(1); return '[OK] Auto-populated After Power Factor: ' + capped + '% (from CSV: ' + csv + '%, capped at 95% for utility billing)'; })());
               } else {
-                console.warn('[WARNING] After Power Factor field (name="power_factor_after") not found in form');
+                console.log('[INFO] After Power Factor field (name="power_factor_after") not in form - using backend-calculated value');
               }
             } else {
               console.log('[INFO] After Power Factor not available in analysis results to auto-populate');
@@ -6129,18 +6129,35 @@ async function generateAuditPackage(r) {
       analysis_session_id: r.analysis_session_id
     });
 
+    // Session token for auth (required for org_id / multi-tenant)
+    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
+      console.log('🔑 Session token found, adding to audit package request');
+    }
+
     // Send results to audit package generation endpoint
     const response = await fetch('/api/generate-audit-package', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(r)
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to generate audit package');
+      let errMsg = 'Failed to generate audit package';
+      try {
+        const text = await response.text();
+        try {
+          const errorData = JSON.parse(text);
+          errMsg = errorData.error || errMsg;
+        } catch (_) {
+          errMsg = text || response.statusText || errMsg;
+        }
+      } catch (_) {
+        errMsg = response.statusText || errMsg;
+      }
+      throw new Error(errMsg);
     }
 
     // Download the ZIP file
@@ -6148,7 +6165,7 @@ async function generateAuditPackage(r) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `SYNEREX_Audit_Package_${new Date().toISOString().slice(1,1).replace(/:/g,'-')}.zip`;
+    a.download = `SYNEREX_Audit_Package_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.zip`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);

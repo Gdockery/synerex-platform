@@ -615,15 +615,35 @@ def _normalize_sql_for_mysql(sql: str) -> str:
     if "sqlite_master" in sql:
         return ""
     sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "INT AUTO_INCREMENT PRIMARY KEY")
+    # INSERT OR IGNORE / INSERT OR REPLACE (SQLite) -> MySQL equivalents
+    sql = sql.replace("INSERT OR REPLACE INTO", "REPLACE INTO")
+    sql = sql.replace("INSERT OR IGNORE INTO", "INSERT IGNORE INTO")
     # Translate SQLite datetime helpers to MySQL equivalents.
     sql = sql.replace("datetime('now')", "NOW()")
     sql = sql.replace("datetime(expires_at)", "expires_at")
     sql = sql.replace("datetime(updated_at)", "updated_at")
     sql = sql.replace("datetime(created_at)", "created_at")
+    # SQLite datetime('now', '-N days') -> MySQL DATE_SUB(NOW(), INTERVAL N DAY)
+    sql = sql.replace("datetime('now', '-7 days')", "DATE_SUB(NOW(), INTERVAL 7 DAY)")
+    sql = sql.replace("datetime('now', '-30 days')", "DATE_SUB(NOW(), INTERVAL 30 DAY)")
+    sql = re.sub(
+        r"datetime\s*\(\s*'now'\s*,\s*'\s*-\s*'\s*\|\|\s*\?\s*\|\|\s*'\s*days'\s*\)",
+        "DATE_SUB(NOW(), INTERVAL ? DAY)",
+        sql,
+        flags=re.IGNORECASE,
+    )
     # Normalize common TEXT datetime columns to MySQL-friendly DATETIME.
     sql = sql.replace("expires_at TEXT NOT NULL", "expires_at DATETIME NOT NULL")
     sql = sql.replace("created_at TEXT DEFAULT CURRENT_TIMESTAMP", "created_at DATETIME DEFAULT CURRENT_TIMESTAMP")
     sql = sql.replace("updated_at TEXT DEFAULT CURRENT_TIMESTAMP", "updated_at DATETIME DEFAULT CURRENT_TIMESTAMP")
+    sql = sql.replace("upload_date TEXT DEFAULT CURRENT_TIMESTAMP", "upload_date DATETIME DEFAULT CURRENT_TIMESTAMP")
+    # MySQL: BLOB/TEXT cannot have DEFAULT; use VARCHAR for status columns
+    sql = sql.replace("verification_status TEXT DEFAULT 'pending'", "verification_status VARCHAR(50) DEFAULT 'pending'")
+    # COLLATE NOCASE is SQLite-only; MySQL default collation is case-insensitive
+    sql = sql.replace(" COLLATE NOCASE", "")
+    # MySQL does not support CREATE INDEX IF NOT EXISTS; remove IF NOT EXISTS (caller must handle duplicate)
+    sql = sql.replace("CREATE UNIQUE INDEX IF NOT EXISTS ", "CREATE UNIQUE INDEX ")
+    sql = sql.replace("CREATE INDEX IF NOT EXISTS ", "CREATE INDEX ")
     return sql
 
 
@@ -663,7 +683,9 @@ class MySQLCursor:
         if "org_id" in sql_lower:
             return sql, params
 
-        insert_match = re.match(r"\s*insert\s+into\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)", sql_lower)
+        # Use sentinel for NOW() so [^)]+ doesn't break on nested parens
+        _sql_inject = sql.replace("NOW()", "\x00NOW_PLACEHOLDER\x00")
+        insert_match = re.match(r"\s*insert\s+into\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)", _sql_inject.lower())
         if insert_match:
             table = insert_match.group(1)
             if table in ORG_TABLES:
@@ -671,13 +693,15 @@ class MySQLCursor:
                 if "org_id" not in columns:
                     columns.append("org_id")
                     placeholders = [p.strip() for p in insert_match.group(3).split(",")]
+                    placeholders = [p if "\x00NOW_PLACEHOLDER\x00" not in p.upper() else "NOW()" for p in placeholders]
                     placeholders.append("%s")
                     sql = re.sub(
                         r"\(([^)]+)\)\s*values\s*\(([^)]+)\)",
                         f"({', '.join(columns)}) VALUES ({', '.join(placeholders)})",
-                        sql,
+                        _sql_inject,
                         flags=re.IGNORECASE,
                     )
+                    sql = sql.replace("\x00NOW_PLACEHOLDER\x00", "NOW()")
                     params = list(params or [])
                     params.append(self._org_id)
                     return sql, params
@@ -686,28 +710,29 @@ class MySQLCursor:
         if update_match:
             table = update_match.group(1)
             if table in ORG_TABLES:
-                sql, params = self._append_where(sql, params)
+                sql, params = self._append_where(sql, params, table)
                 return sql, params
 
         delete_match = re.match(r"\s*delete\s+from\s+([a-zA-Z0-9_]+)\s+", sql_lower)
         if delete_match:
             table = delete_match.group(1)
             if table in ORG_TABLES:
-                sql, params = self._append_where(sql, params)
+                sql, params = self._append_where(sql, params, table)
                 return sql, params
 
         select_match = re.search(r"\sfrom\s+([a-zA-Z0-9_]+)\s+", sql_lower)
         if select_match:
             table = select_match.group(1)
             if table in ORG_TABLES:
-                sql, params = self._append_where(sql, params)
+                sql, params = self._append_where(sql, params, table)
                 return sql, params
 
         return sql, params
 
-    def _append_where(self, sql: str, params):
+    def _append_where(self, sql: str, params, table=None):
         params = list(params or [])
-        insertion = "org_id = %s"
+        # Use table-qualified org_id to avoid "Column 'org_id' is ambiguous" in JOINs
+        insertion = f"{table}.org_id = %s" if table else "org_id = %s"
         sql_lower = sql.lower()
         # Find the first clause that should stay at the end.
         end_idx = -1
@@ -737,7 +762,14 @@ class MySQLCursor:
         if params is not None:
             normalized = normalized.replace("?", "%s")
         normalized, params = self._inject_org_id(normalized, params)
-        return self._cursor.execute(normalized, params)
+        try:
+            return self._cursor.execute(normalized, params)
+        except Exception as e:
+            # MySQL 1061 = Duplicate key name (index already exists); ignore for CREATE INDEX
+            if (getattr(e, "args", (None,))[0] == 1061 or (hasattr(e, "errno") and e.errno == 1061)):
+                if normalized.upper().strip().startswith(("CREATE INDEX", "CREATE UNIQUE INDEX")):
+                    return None
+            raise
 
     def executemany(self, sql, seq):
         normalized = _normalize_sql_for_mysql(sql)
@@ -991,6 +1023,9 @@ def get_current_org_id(request):
                         claims = resp.json().get("claims") or {}
                         org_id = claims.get("sub")
                         if org_id:
+                            # Admin SSO returns "synerex"; projects use org_id "admin"
+                            if org_id.lower() == "synerex":
+                                return "admin"
                             return org_id
             except Exception as e:
                 logger.debug(f"JWT validation failed: {e}")
@@ -1027,7 +1062,12 @@ def get_current_org_id(request):
             row = cursor.fetchone()
             if row and row[0]:
                 # Normalize to lowercase so ADMIN/admin match (DB uses 'admin')
-                return (row[0] or "").strip().lower() or None
+                org_id = (row[0] or "").strip().lower() or None
+                if org_id:
+                    # Admin SSO uses "synerex"; projects use org_id "admin"
+                    if org_id == "synerex":
+                        return "admin"
+                    return org_id
     except Exception as e:
         logger.debug(f"Could not get org_id from session: {e}")
     return None
@@ -13114,12 +13154,17 @@ def get_projects():
             has_feeders = table_exists(conn, "feeders_data")
             has_transformers = table_exists(conn, "transformers_data")
             archived_filter = "WHERE (archived IS NULL OR archived = 0)" if has_archived else ""
+            # Add org_id filter explicitly so cursor skips injection (avoids bug when
+            # subqueries reference feeders_data/transformers_data and cursor would
+            # wrongly inject at outer level)
+            if USE_MYSQL and org_id:
+                org_clause = " AND p.org_id = %s" if "WHERE" in archived_filter else " WHERE p.org_id = %s"
+                archived_filter = archived_filter + org_clause
             
             # Build query based on available tables
             # Filter out archived projects (archived IS NULL OR archived = 0)
             if has_feeders and has_transformers:
-                cursor.execute(
-                    """
+                q = """
                         SELECT id, name, 
                                COALESCE(description, '') as description,
                                created_at, updated_at,
@@ -13129,23 +13174,26 @@ def get_projects():
                     {archived_filter}
                     ORDER BY updated_at DESC
                 """
-                    .format(archived_filter=archived_filter)
-                )
+                if USE_MYSQL and org_id:
+                    cursor.execute(q.format(archived_filter=archived_filter), (org_id,))
+                else:
+                    cursor.execute(q.format(archived_filter=archived_filter))
             else:
                 # Fallback query without subqueries if tables don't exist
-                cursor.execute(
-                    """
+                q = """
                     SELECT id, name, 
                            COALESCE(description, '') as description,
                            created_at, updated_at,
                            0 as feeder_count,
                            0 as transformer_count
-                    FROM projects
+                    FROM projects p
                     {archived_filter}
                     ORDER BY updated_at DESC
             """
-                    .format(archived_filter=archived_filter)
-                )
+                if USE_MYSQL and org_id:
+                    cursor.execute(q.format(archived_filter=archived_filter), (org_id,))
+                else:
+                    cursor.execute(q.format(archived_filter=archived_filter))
             
             rows = cursor.fetchall()
             logger.info(f"Found {len(rows)} projects in database")
@@ -18550,6 +18598,8 @@ def upload_raw_meter_data():
 
                 cursor = conn.cursor()
                 # Ensure raw_meter_data table exists in org-specific database
+                # Note: Use created_at (not upload_date) for consistency with rest of codebase.
+                # Use DATETIME for MySQL compatibility (TEXT DEFAULT CURRENT_TIMESTAMP invalid in MySQL 5.7+)
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS raw_meter_data (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18558,8 +18608,8 @@ def upload_raw_meter_data():
                         file_size INTEGER,
                         fingerprint TEXT,
                         uploaded_by TEXT,
-                        upload_date TEXT DEFAULT CURRENT_TIMESTAMP,
-                        verification_status TEXT DEFAULT 'pending'
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        verification_status VARCHAR(50) DEFAULT 'pending'
                     )
                 """)
                 conn.commit()
@@ -19008,7 +19058,13 @@ def apply_clipping_to_original_file(file_id):
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_modifications_file ON data_modifications(file_id)
             """)
-            
+            # Add modification_details column if missing (table may exist from older schema)
+            if table_exists(conn, "data_modifications") and not column_exists(conn, "data_modifications", "modification_details"):
+                try:
+                    cursor.execute("ALTER TABLE data_modifications ADD COLUMN modification_details TEXT")
+                    logger.info("Added modification_details column to data_modifications")
+                except Exception as alt_e:
+                    logger.debug(f"Could not add modification_details column: {alt_e}")
             conn.commit()
             
             cursor.execute(
@@ -27733,9 +27789,9 @@ def get_audit_trail_for_session(analysis_session_id, org_id=None):
                         WHERE analysis_session_id = ?
                         ORDER BY created_at
                     """, (analysis_session_id,))
-                except sqlite3.OperationalError as e:
-                    if "no such column: analysis_session_id" in str(e):
-                        # Fallback: try with session_id column name
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "analysis_session_id" in err_str and ("no such column" in err_str or "unknown column" in err_str):
                         cursor.execute("""
                             SELECT calculation_type, standard_name, input_values, output_values,
                                    methodology, formula, standards_reference, created_at
@@ -27766,9 +27822,9 @@ def get_audit_trail_for_session(analysis_session_id, org_id=None):
                         WHERE analysis_session_id = ?
                         ORDER BY created_at
                     """, (analysis_session_id,))
-                except sqlite3.OperationalError as e:
-                    if "no such column: analysis_session_id" in str(e):
-                        # Fallback: try with session_id column name
+                except Exception as e:
+                    err_str = str(e).lower()
+                    if "analysis_session_id" in err_str and ("no such column" in err_str or "unknown column" in err_str):
                         cursor.execute("""
                             SELECT access_type, file_id, user_id, ip_address, access_details, created_at
                             FROM data_access_log
@@ -27803,8 +27859,10 @@ def get_audit_trail_for_session(analysis_session_id, org_id=None):
                             WHERE dm.file_id IN ({placeholders})
                             ORDER BY dm.created_at
                         """, file_ids)
-                    except sqlite3.OperationalError as e:
-                        if "no such column: modification_details" in str(e):
+                    except Exception as e:
+                        err_str = str(e).lower()
+                        # SQLite: "no such column: modification_details"; MySQL: "Unknown column"
+                        if "modification_details" in err_str and ("no such column" in err_str or "unknown column" in err_str):
                             # Fallback: query without modification_details
                             cursor.execute(f"""
                                 SELECT dm.id, dm.file_id, dm.modifier_id, dm.modification_type, dm.reason,
@@ -36413,7 +36471,7 @@ def system_status_page():
     <div class="status-container">
         <div class="status-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 44px; width: auto;">
+                <img src="/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
                 <h1 style="margin: 0;">[FIX] System Status & Health</h1>
             </div>
             <p>Real-time system monitoring and operational status</p>
