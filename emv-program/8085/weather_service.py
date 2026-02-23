@@ -6,6 +6,7 @@ Provides weather data via Open-Meteo API
 
 import json
 import logging
+import unicodedata
 import requests
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
@@ -23,14 +24,87 @@ except Exception as e:
     logger.warning(f"Failed to initialize CORS (non-critical): {e}")
     # Continue without CORS if it fails - service can still work
 
+def _is_us_address(address):
+    """Return True if address appears to be in the USA; False for international (e.g. Brazil)."""
+    if not address or not isinstance(address, str):
+        return True
+    import re
+    addr_lower = address.lower()
+    # Explicit non-USA indicators
+    if "brazil" in addr_lower or "brasil" in addr_lower:
+        return False
+    # Brazilian CEP format: 00000-000 (5 digits, hyphen, 3 digits)
+    if re.search(r"\d{5}-\d{3}\b", address):
+        return False
+    # Brazilian-style: "XX 00000-000" or "XX 00000-0000" with XX = Brazilian state (e.g. SP, RJ)
+    br_states = {"ac", "al", "ap", "am", "ba", "ce", "df", "es", "go", "ma", "mt", "ms", "mg", "pa", "pb", "pr", "pe", "pi", "rj", "rn", "rs", "ro", "rr", "sc", "sp", "se", "to"}
+    match = re.search(r"\b([a-z]{2})\s+\d{5}-\d{3,4}\b", addr_lower)
+    if match and match.group(1) in br_states:
+        return False
+    # Default: treat as USA (preserves existing behavior)
+    return True
+
+
+def _parse_international_address(address):
+    """
+    Parse international address (e.g. Brazil: Street, City, State CEP).
+    Returns (street, city, state, postal, country_code) for building search attempts.
+    Only used when _is_us_address returns False.
+    """
+    import re
+    parts = [p.strip() for p in address.split(",")]
+    street = city = state = postal = None
+    country_code = None
+
+    # Brazilian state codes -> BR
+    BR_STATES = {"ac", "al", "ap", "am", "ba", "ce", "df", "es", "go", "ma", "mt", "ms", "mg", "pa", "pb", "pr", "pe", "pi", "rj", "rn", "rs", "ro", "rr", "sc", "sp", "se", "to"}
+    # Brazilian CEP: 00000-000 or 00000-0000 (allow typo)
+    cep_match = re.search(r"\b(\d{5}-\d{3,4})\b", address)
+
+    if len(parts) >= 4:
+        # "Street, Street2, City, State POSTAL" (e.g. "Rua Ari, 155 - Vila Pereira, Cordeirópolis, SP 13490-000")
+        last = parts[-1].strip()
+        sp_match = re.search(r"^([A-Za-z]{2})\s+(\d{5}-\d{3,4})$", last)
+        if sp_match:
+            state, postal = sp_match.group(1), sp_match.group(2)
+            # Street may span parts[0], parts[1]; city is the part before state
+            street = ", ".join(parts[:-2][:2]) if len(parts) > 2 else parts[0]
+            city = parts[-2] if len(parts) >= 3 else None
+        else:
+            state = last
+            street = parts[0]
+            city = parts[1] if len(parts) > 1 else None
+        if state and len(state) == 2 and state.lower() in BR_STATES:
+            country_code = "BR"
+    elif len(parts) == 3:
+        city, state_part = parts[0], parts[1]
+        last = parts[2]
+        sp_match = re.search(r"^([A-Za-z]{2})\s+(\d{5}-\d{3,4})$", last)
+        if sp_match:
+            state, postal = sp_match.group(1), sp_match.group(2)
+        else:
+            state = last
+        if state and len(state) == 2 and state.lower() in BR_STATES:
+            country_code = "BR"
+    elif cep_match:
+        postal = cep_match.group(1)
+        country_code = "BR"
+
+    return street, city, state, postal, country_code
+
+
 def geocode_address(address):
     """Geocode address to get coordinates using Open-Meteo Geocoding API with fallbacks"""
     try:
         import re
         import time
-        
+
         # Static fallback coordinates for known project addresses
         static_coordinates = {
+            # Brazil - Cordeirópolis, SP
+            "cordeirópolis": (-22.4819, -47.4567, "Cordeirópolis, SP, Brazil"),
+            "cordeiropolis": (-22.4819, -47.4567, "Cordeirópolis, SP, Brazil"),
+            # USA
             "1680 Great Western Drive, Windsor, CO, 80550": (40.4772, -104.9014, "Windsor, CO"),
             "1680 Great Western Drive": (40.4772, -104.9014, "Windsor, CO"),
             "Windsor, CO, 80550": (40.4772, -104.9014, "Windsor, CO"),
@@ -47,79 +121,89 @@ def geocode_address(address):
             "Gateway Drive": (33.1507, -96.8236, "Frisco, TX"),
         }
         
-        # Check static coordinates first
+        # Check static coordinates first (accent-insensitive for international names)
+        def _normalize(s):
+            return unicodedata.normalize("NFD", s.lower()).encode("ascii", "ignore").decode("ascii") if s else ""
+
+        addr_norm = _normalize(address)
         for key, coords in static_coordinates.items():
-            if key.lower() in address.lower():
+            key_norm = _normalize(key)
+            if key_norm and key_norm in addr_norm:
                 logger.info(f"Using static coordinates for: {key}")
                 return coords[0], coords[1], coords[2]
-        
-        # Parse the address components
-        # Expected formats: 
-        #   "Street Address, City, State, ZIP" (comma-separated)
-        #   "Street Address, City, State ZIP" (ZIP attached to state)
-        parts = [part.strip() for part in address.split(',')]
-        
-        # Extract ZIP code from the last part if it contains a ZIP
-        zip_code = None
-        state = None
-        city = None
-        street_address = None
-        
-        if len(parts) >= 3:
-            street_address = parts[0]
-            city = parts[1]
-            last_part = parts[2] if len(parts) > 2 else ""
-            
-            # Check if last part has ZIP code (5 digits, optionally with 4-digit extension)
-            zip_match = re.search(r'\b(\d{5}(?:-\d{4})?)\b', last_part)
-            if zip_match:
-                zip_code = zip_match.group(1)
-                # Extract state (everything before the ZIP)
-                state = last_part.replace(zip_code, "").strip()
-            else:
-                # No ZIP found, treat entire last part as state
-                state = last_part
-        elif len(parts) == 2:
-            # Format: "City, State ZIP" or "City, State"
-            city = parts[0]
-            last_part = parts[1]
-            zip_match = re.search(r'\b(\d{5}(?:-\d{4})?)\b', last_part)
-            if zip_match:
-                zip_code = zip_match.group(1)
-                state = last_part.replace(zip_code, "").strip()
-            else:
-                state = last_part
-        elif len(parts) == 1:
-            # Single part - could be just ZIP, city+state, or full address
-            zip_match = re.search(r'\b(\d{5}(?:-\d{4})?)\b', address)
-            if zip_match and len(address.strip()) == len(zip_match.group(1)):
-                # Just a ZIP code
-                zip_code = zip_match.group(1)
-        
-        # Build search attempts with available components
+
+        is_us = _is_us_address(address)
         search_attempts = []
-        
-        if street_address and city and state and zip_code:
-            search_attempts = [
-                f"{street_address}, {city}, {state} {zip_code}",  # Full address with zip
-                f"{city}, {state} {zip_code}",  # City, state, zip
-                f"{zip_code}",  # Just zip code
-                f"{city}, {state}",  # City, state
-                f"{street_address}, {city}, {state}",  # Street, city, state
-                address  # Original full address
-            ]
-        elif city and state and zip_code:
-            search_attempts = [
-                f"{city}, {state} {zip_code}",  # City, state, zip
-                f"{zip_code}",  # Just zip code
-                f"{city}, {state}",  # City, state
-                address  # Original address
-            ]
-        elif zip_code:
-            search_attempts = [zip_code, address]
+        country_code = None
+
+        if is_us:
+            # USA: existing parsing (unchanged)
+            parts = [part.strip() for part in address.split(",")]
+            zip_code = None
+            state = None
+            city = None
+            street_address = None
+
+            if len(parts) >= 3:
+                street_address = parts[0]
+                city = parts[1]
+                last_part = parts[2] if len(parts) > 2 else ""
+                zip_match = re.search(r"\b(\d{5}(?:-\d{4})?)\b", last_part)
+                if zip_match:
+                    zip_code = zip_match.group(1)
+                    state = last_part.replace(zip_code, "").strip()
+                else:
+                    state = last_part
+            elif len(parts) == 2:
+                city = parts[0]
+                last_part = parts[1]
+                zip_match = re.search(r"\b(\d{5}(?:-\d{4})?)\b", last_part)
+                if zip_match:
+                    zip_code = zip_match.group(1)
+                    state = last_part.replace(zip_code, "").strip()
+                else:
+                    state = last_part
+            elif len(parts) == 1:
+                zip_match = re.search(r"\b(\d{5}(?:-\d{4})?)\b", address)
+                if zip_match and len(address.strip()) == len(zip_match.group(1)):
+                    zip_code = zip_match.group(1)
+
+            if street_address and city and state and zip_code:
+                search_attempts = [
+                    f"{street_address}, {city}, {state} {zip_code}",
+                    f"{city}, {state} {zip_code}",
+                    zip_code,
+                    f"{city}, {state}",
+                    f"{street_address}, {city}, {state}",
+                    address,
+                ]
+            elif city and state and zip_code:
+                search_attempts = [
+                    f"{city}, {state} {zip_code}",
+                    zip_code,
+                    f"{city}, {state}",
+                    address,
+                ]
+            elif zip_code:
+                search_attempts = [zip_code, address]
+            else:
+                search_attempts = [address]
         else:
-            # Fallback to original address
-            search_attempts = [address]
+            # International (e.g. Brazil): use dedicated parsing and add country-aware attempts
+            street, city, state, postal, country_code = _parse_international_address(address)
+            search_attempts = []
+            if city and state and country_code == "BR":
+                search_attempts = [
+                    f"{city}, {state}, Brazil",
+                    f"{city}, {state}",
+                    address,
+                ]
+            elif city and state:
+                search_attempts = [f"{city}, {state}", address]
+            elif city:
+                search_attempts = [city, address]
+            else:
+                search_attempts = [address]
         
         # Try Open-Meteo Geocoding API first
         url = "https://geocoding-api.open-meteo.com/v1/search"
@@ -133,10 +217,11 @@ def geocode_address(address):
                     "name": attempt,
                     "count": 1,
                     "language": "en",
-                    "format": "json"
+                    "format": "json",
                 }
-                
-                logger.info(f"Trying Open-Meteo geocoding for: {attempt}")
+                if country_code:
+                    params["countryCode"] = country_code
+                logger.info(f"Trying Open-Meteo geocoding for: {attempt}" + (f" (country={country_code})" if country_code else ""))
                 response = requests.get(url, params=params, timeout=10)
                 response.raise_for_status()
                 
