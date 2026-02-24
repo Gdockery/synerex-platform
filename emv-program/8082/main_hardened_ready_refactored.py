@@ -1195,6 +1195,11 @@ if EMV_DB_URL and _emv_db_host:
 if EMV_DB_URL and _emv_db_port:
     EMV_DB_URL = re.sub(r":\d+(?=/)", ":" + _emv_db_port, EMV_DB_URL, count=1)
 USE_MYSQL = bool(EMV_DB_URL)
+if not USE_MYSQL:
+    raise RuntimeError(
+        "EMV_DB_URL is required. Set to a MySQL connection string "
+        "(e.g. mysql://user:pass@host:3306/emv). SQLite is not supported."
+    )
 
 def license_required(fn):
     """Decorator that requires a valid license to access endpoint. Admins bypass license check."""
@@ -10456,7 +10461,10 @@ def serve_template_report():
                 adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=1, pool_maxsize=1)
                 session.mount("http://", adapter)
                 session.mount("https://", adapter)
-                response = session.get(f"{HTML_REPORT_URL}/generate", timeout=30)
+                # Forward show_dollars so 8084 hides dollar amounts when "Show Dollar Savings" is unchecked
+                show_dollars_param = request.args.get("show_dollars", "true")
+                gen_url = f"{HTML_REPORT_URL}/generate?show_dollars={show_dollars_param}"
+                response = session.get(gen_url, timeout=30)
                 if response.status_code == 200:
                     html_content = response.text
                     
@@ -10579,6 +10587,14 @@ def serve_template_report():
                         from generate_exact_template_html import generate_exact_template_html
                         stored = getattr(app, "_latest_analysis_results", None)
                         if stored:
+                            # Merge show_dollars from request for inline fallback (same as 8084)
+                            show_dollars_param = request.args.get("show_dollars", "true")
+                            show_dollars = str(show_dollars_param).lower() not in ("false", "0", "off")
+                            stored = dict(stored) if isinstance(stored, dict) else stored
+                            cfg = stored.get("config") or {}
+                            cfg = dict(cfg)
+                            cfg["show_dollars"] = show_dollars
+                            stored["config"] = cfg
                             html_content = generate_exact_template_html(stored)
                             return Response(
                                 html_content,

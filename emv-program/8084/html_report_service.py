@@ -78,6 +78,17 @@ def generate_report():
         print(f"8084 Service: Config keys in results: {list(results.get('config', {}).keys()) if isinstance(results, dict) else 'No config'}")
         print(f"8084 Service: Client profile keys in results: {list(results.get('client_profile', {}).keys()) if isinstance(results, dict) else 'No client_profile'}")
         
+        # Apply show_dollars from query param: "false", "0", "off" = hide dollar amounts in export
+        show_dollars_param = request.args.get("show_dollars", "true")
+        show_dollars = str(show_dollars_param).lower() not in ("false", "0", "off")
+        if isinstance(results, dict):
+            results = dict(results)
+            config = results.get("config") or {}
+            config = dict(config)
+            config["show_dollars"] = show_dollars
+            results["config"] = config
+            print(f"8084 Service: show_dollars={show_dollars} (from param={show_dollars_param})")
+        
         # Generate the HTML report using the exact template function
         print("8084 Service: Calling generate_exact_template_html...")
         try:

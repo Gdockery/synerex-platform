@@ -4404,7 +4404,11 @@ async function exportReport(r) {
 
     // Make API call using GET (Direct GET Approach - uses stored results from /api/analyze)
     // This ensures the Client HTML Report gets the complete stored data structure
-    const response = await fetch('/api/serve-template-report', {
+    // Pass show_dollars based on checkbox - hide dollar amounts in export when unchecked
+    const showDollarsCheckbox = document.getElementById('show_dollars_checkbox');
+    const showDollars = showDollarsCheckbox ? showDollarsCheckbox.checked : true;
+    const reportUrl = '/api/serve-template-report' + (showDollars ? '' : '?show_dollars=false');
+    const response = await fetch(reportUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

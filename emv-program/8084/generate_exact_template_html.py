@@ -102,6 +102,113 @@ def format_number(value, decimals=2):
     except (ValueError, TypeError):
         return f"0.{'0' * decimals}"
 
+
+# Marker for blocks to remove when show_dollars is False (engineering-only report)
+_DOLLAR_BLOCK_MARKER = "__REMOVE_DOLLAR_BLOCK__"
+
+def _fmt_dollar(value, show_dollars, decimals=2):
+    """Format dollar amount, or return marker to remove block when show_dollars is False."""
+    if not show_dollars:
+        return _DOLLAR_BLOCK_MARKER
+    try:
+        return f"${float(value):,.{decimals}f}"
+    except (ValueError, TypeError):
+        return "—"
+
+def _remove_dollar_blocks(html_content, show_dollars):
+    """Remove dollar-related blocks when show_dollars is False (engineering-only report).
+    Protected sections (engineering, no dollar removal): M&V Compliance Status, Engineering Results
+    (including Load Factor Analysis, Raw Meter Test Data, IEEE 519 Power Quality Analysis).
+    """
+    if show_dollars or _DOLLAR_BLOCK_MARKER not in html_content:
+        return html_content
+    marker = re.escape(_DOLLAR_BLOCK_MARKER)
+    # Protect M&V Compliance Status section
+    mv_placeholder = "__MV_COMPLIANCE_PROTECTED__"
+    mv_match = re.search(
+        r'(<h2[^>]*>\s*M&V Compliance Status\s*</h2>.*?)(?=<h2[^>]*>)',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    if not mv_match:
+        mv_match = re.search(
+            r'(<h2[^>]*>\s*M&amp;V Compliance Status\s*</h2>.*?)(?=<h2[^>]*>)',
+            html_content,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+    if mv_match:
+        mv_section = mv_match.group(1)
+        html_content = html_content[:mv_match.start(1)] + mv_placeholder + html_content[mv_match.end(1):]
+    # Protect Engineering Results section (Load Factor, Energy Flow, Raw Meter Test Data, IEEE 519)
+    # From "Engineering Results" h2 up to (but not including) "Bill-Weighted Savings" h3
+    eng_placeholder = "__ENGINEERING_RESULTS_PROTECTED__"
+    eng_match = re.search(
+        r'(<h2[^>]*>\s*Engineering Results\s*</h2>.*?)(?=<h3[^>]*>\s*Bill-Weighted Savings\s*</h3>)',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    if eng_match:
+        eng_section = eng_match.group(1)
+        html_content = html_content[:eng_match.start(1)] + eng_placeholder + html_content[eng_match.end(1):]
+    # Remove entire Bill-Weighted Savings section (h3 with possible attributes)
+    html_content = re.sub(
+        r'<h3[^>]*>\s*Bill-Weighted Savings\s*</h3>.*?(?=<h[23])',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove entire Financial Analysis Methods section
+    html_content = re.sub(
+        r'<h4[^>]*>\s*Financial Analysis Methods\s*</h4>.*?(?=<h[34])',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove table rows where a td contains ONLY the marker (dollar-only cells)
+    # Preserves rows with mixed content (e.g. "X kWh<br/>$Y" -> "X kWh<br/>")
+    html_content = re.sub(
+        r'<tr[^>]*>.*?<td[^>]*>\s*' + marker + r'\s*</td>.*?</tr>',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove list items that contain ONLY the marker as sole content (not mixed)
+    html_content = re.sub(
+        r'<li[^>]*>\s*' + marker + r'\s*</li>',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove lines like "<strong>NPV:</strong> __MARKER__<br>" from summary blocks
+    html_content = re.sub(
+        r'<strong>[^<]*:</strong>\s*' + marker + r'\s*<br\s*/?>\s*',
+        '',
+        html_content,
+        flags=re.IGNORECASE
+    )
+    # Remove "• Annual Network Savings: $X" bullet line in Methods & Formulas
+    html_content = re.sub(
+        r'•\s*Annual Network Savings:\s*<strong>' + marker + r'</strong>\s*<em>[^<]*</em>\s*<br\s*/?>\s*',
+        '',
+        html_content,
+        flags=re.IGNORECASE
+    )
+    # Remove divs/spans/td that only contain the marker (and whitespace)
+    html_content = re.sub(
+        r'<(?:div|span|td)[^>]*>\s*' + marker + r'\s*</(?:div|span|td)>',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove any remaining marker (handles mixed cells like "X kWh<br/>__MARKER__")
+    html_content = html_content.replace(_DOLLAR_BLOCK_MARKER, '')
+    # Restore protected sections (order: Engineering Results first, then M&V - eng may reference mv)
+    if eng_match:
+        html_content = html_content.replace(eng_placeholder, eng_section)
+    if mv_match:
+        html_content = html_content.replace(mv_placeholder, mv_section)
+    return html_content
+
 def generate_verification_certificate_html(r):
     """Generate HTML version of verification certificate for Client HTML Report"""
     try:
@@ -1348,6 +1455,10 @@ def generate_exact_template_html(r):
     config = safe_get(r, "config", default={})
     client_profile = safe_get(r, "client_profile", default={})
     
+    # Show dollar amounts in export? "Show Dollar Savings in report" checkbox - default True
+    _sd = config.get("show_dollars", True)
+    show_dollars = _sd if isinstance(_sd, bool) else str(_sd).lower() not in ("false", "0", "off")
+    
     # Extract custom labels for Before/After headings
     before_label = (
         safe_get(config, "before_label") or 
@@ -1917,7 +2028,7 @@ def generate_exact_template_html(r):
     network_loss_reduction_formatted = f"{total_network_loss_reduction:.3f}" if isinstance(total_network_loss_reduction, (int, float)) else "0.000"
     conductor_loss_reduction_formatted = f"{conductor_loss_reduction:.3f}" if isinstance(conductor_loss_reduction, (int, float)) else "0.000"
     transformer_loss_reduction_formatted = f"{(transformer_copper_loss_reduction + transformer_stray_loss_reduction):.3f}" if isinstance(transformer_copper_loss_reduction, (int, float)) and isinstance(transformer_stray_loss_reduction, (int, float)) else "0.000"
-    annual_network_savings_formatted = f"${annual_network_savings:,.2f}" if isinstance(annual_network_savings, (int, float)) else "$0.00"
+    annual_network_savings_formatted = _fmt_dollar(annual_network_savings if isinstance(annual_network_savings, (int, float)) else 0, show_dollars)
     
     # Replace network smoothing and network loss placeholders
     template_content = template_content.replace('{{LETTER_SMOOTHING_INDEX}}', smoothing_index_formatted)
@@ -1993,8 +2104,8 @@ def generate_exact_template_html(r):
     # Format Annual kWh Savings with "kWh" unit
     annual_kwh_savings_formatted = f"{format_number(annual_kwh_savings, 0)} kWh"
     template_content = template_content.replace('{{ANNUAL_KWH_SAVINGS}}', annual_kwh_savings_formatted)
-    # Format NPV with dollar sign (it's a dollar amount)
-    npv_formatted = f"${npv:,.2f}" if isinstance(npv, (int, float)) else "$0.00"
+    # Format NPV with dollar sign (it's a dollar amount) - hide when show_dollars unchecked
+    npv_formatted = _fmt_dollar(npv if isinstance(npv, (int, float)) else 0, show_dollars)
     template_content = template_content.replace('{{NPV}}', npv_formatted)
     # Format Simple Payback with "years" unit
     simple_payback_formatted = f"{format_number(simple_payback, 1)} years"
@@ -3298,25 +3409,25 @@ def generate_exact_template_html(r):
     total_annual_savings = demand_savings + reactive_savings + battery_savings + maintenance_savings
     total_5yr_savings = total_annual_savings * 5
     
-    # BESS Financial Impact
-    template_content = template_content.replace('{{BESS_DEMAND_COST_BEFORE}}', f"{demand_cost_before:,.0f}")
-    template_content = template_content.replace('{{BESS_DEMAND_COST_AFTER}}', f"{demand_cost_after:,.0f}")
-    template_content = template_content.replace('{{BESS_DEMAND_SAVINGS}}', f"{demand_savings:,.0f}")
-    template_content = template_content.replace('{{BESS_DEMAND_SAVINGS_5YR}}', f"{demand_savings_5yr:,.0f}")
-    template_content = template_content.replace('{{BESS_REACTIVE_COST_BEFORE}}', f"{reactive_cost_before:,.0f}")
-    template_content = template_content.replace('{{BESS_REACTIVE_COST_AFTER}}', f"{reactive_cost_after:,.0f}")
-    template_content = template_content.replace('{{BESS_REACTIVE_SAVINGS}}', f"{reactive_savings:,.0f}")
-    template_content = template_content.replace('{{BESS_REACTIVE_SAVINGS_5YR}}', f"{reactive_savings_5yr:,.0f}")
-    template_content = template_content.replace('{{BESS_BATTERY_COST_BEFORE}}', f"{battery_cost_before:,.0f}")
-    template_content = template_content.replace('{{BESS_BATTERY_COST_AFTER}}', f"{battery_cost_after:,.0f}")
-    template_content = template_content.replace('{{BESS_BATTERY_SAVINGS}}', f"{battery_savings:,.0f}")
-    template_content = template_content.replace('{{BESS_BATTERY_SAVINGS_5YR}}', f"{battery_savings_5yr:,.0f}")
-    template_content = template_content.replace('{{BESS_MAINTENANCE_COST_BEFORE}}', f"{maintenance_cost_before:,.0f}")
-    template_content = template_content.replace('{{BESS_MAINTENANCE_COST_AFTER}}', f"{maintenance_cost_after:,.0f}")
-    template_content = template_content.replace('{{BESS_MAINTENANCE_SAVINGS}}', f"{maintenance_savings:,.0f}")
-    template_content = template_content.replace('{{BESS_MAINTENANCE_SAVINGS_5YR}}', f"{maintenance_savings_5yr:,.0f}")
-    template_content = template_content.replace('{{BESS_TOTAL_ANNUAL_SAVINGS}}', f"{total_annual_savings:,.0f}")
-    template_content = template_content.replace('{{BESS_TOTAL_5YR_SAVINGS}}', f"{total_5yr_savings:,.0f}")
+    # BESS Financial Impact (hide dollar amounts when show_dollars unchecked)
+    template_content = template_content.replace('{{BESS_DEMAND_COST_BEFORE}}', _fmt_dollar(demand_cost_before, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_DEMAND_COST_AFTER}}', _fmt_dollar(demand_cost_after, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_DEMAND_SAVINGS}}', _fmt_dollar(demand_savings, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_DEMAND_SAVINGS_5YR}}', _fmt_dollar(demand_savings_5yr, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_REACTIVE_COST_BEFORE}}', _fmt_dollar(reactive_cost_before, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_REACTIVE_COST_AFTER}}', _fmt_dollar(reactive_cost_after, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_REACTIVE_SAVINGS}}', _fmt_dollar(reactive_savings, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_REACTIVE_SAVINGS_5YR}}', _fmt_dollar(reactive_savings_5yr, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_BATTERY_COST_BEFORE}}', _fmt_dollar(battery_cost_before, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_BATTERY_COST_AFTER}}', _fmt_dollar(battery_cost_after, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_BATTERY_SAVINGS}}', _fmt_dollar(battery_savings, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_BATTERY_SAVINGS_5YR}}', _fmt_dollar(battery_savings_5yr, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_MAINTENANCE_COST_BEFORE}}', _fmt_dollar(maintenance_cost_before, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_MAINTENANCE_COST_AFTER}}', _fmt_dollar(maintenance_cost_after, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_MAINTENANCE_SAVINGS}}', _fmt_dollar(maintenance_savings, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_MAINTENANCE_SAVINGS_5YR}}', _fmt_dollar(maintenance_savings_5yr, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_TOTAL_ANNUAL_SAVINGS}}', _fmt_dollar(total_annual_savings, show_dollars, 0))
+    template_content = template_content.replace('{{BESS_TOTAL_5YR_SAVINGS}}', _fmt_dollar(total_5yr_savings, show_dollars, 0))
     
     # BESS Compliance Status
     template_content = template_content.replace('{{BESS_IEEE_1547_STATUS}}', "PASS")
@@ -4624,11 +4735,11 @@ def generate_exact_template_html(r):
     # Average kW savings
     average_kw_savings = get_financial_value("delta_kw_avg", 0)
     
-    # Replace Bill-Weighted Savings template variables
-    template_content = template_content.replace('{{ENERGY_ANNUAL_SAVINGS}}', f"${energy_annual_savings:,.2f}")
-    template_content = template_content.replace('{{DEMAND_ANNUAL_SAVINGS}}', f"${demand_annual_savings:,.2f}")
-    template_content = template_content.replace('{{NETWORK_ANNUAL_SAVINGS}}', f"${network_annual_savings:,.2f}")
-    template_content = template_content.replace('{{TOTAL_ANNUAL_SAVINGS}}', f"${total_annual_savings:,.2f}")
+    # Replace Bill-Weighted Savings template variables (hide dollar amounts when show_dollars unchecked)
+    template_content = template_content.replace('{{ENERGY_ANNUAL_SAVINGS}}', _fmt_dollar(energy_annual_savings, show_dollars))
+    template_content = template_content.replace('{{DEMAND_ANNUAL_SAVINGS}}', _fmt_dollar(demand_annual_savings, show_dollars))
+    template_content = template_content.replace('{{NETWORK_ANNUAL_SAVINGS}}', _fmt_dollar(network_annual_savings, show_dollars))
+    template_content = template_content.replace('{{TOTAL_ANNUAL_SAVINGS}}', _fmt_dollar(total_annual_savings, show_dollars))
     template_content = template_content.replace('{{AVERAGE_KW_SAVINGS}}', f"{format_number(average_kw_savings, 1)} kW")
     
     # Methods & Formulas - ASHRAE Guideline 14 Baseline Model
@@ -5034,10 +5145,10 @@ def generate_exact_template_html(r):
     # Debug logging
     print(f"DEBUG: FINANCIAL CONFIG DEBUG: energy_rate = {energy_rate}, demand_rate = {demand_rate}, discount_rate = {discount_rate}, target_pf = {target_power_factor}")
     
-    # Replace Financial Analysis template variables
-    template_content = template_content.replace('{{ENERGY_RATE}}', f"${format_number(energy_rate, 5)}")
-    template_content = template_content.replace('{{DEMAND_RATE}}', f"${format_number(demand_rate, 2)}")
-    template_content = template_content.replace('{{PROJECT_COST}}', f"${project_cost:,.0f}")
+    # Replace Financial Analysis template variables (hide dollar amounts when show_dollars unchecked)
+    template_content = template_content.replace('{{ENERGY_RATE}}', _fmt_dollar(energy_rate, show_dollars, 5))
+    template_content = template_content.replace('{{DEMAND_RATE}}', _fmt_dollar(demand_rate, show_dollars))
+    template_content = template_content.replace('{{PROJECT_COST}}', _fmt_dollar(project_cost, show_dollars, 0))
     template_content = template_content.replace('{{OPERATING_HOURS}}', str(operating_hours))
     template_content = template_content.replace('{{TARGET_POWER_FACTOR}}', f"{format_number(target_power_factor, 2)}")
     template_content = template_content.replace('{{DISCOUNT_RATE}}', f"{format_number(discount_rate, 1)}%")
@@ -5148,7 +5259,7 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{CONDUCTOR_LOSS_REDUCTION}}', f"{format_number(conductor_loss_reduction, 3)} kW")
     template_content = template_content.replace('{{TRANSFORMER_COPPER_LOSS_REDUCTION}}', f"{format_number(transformer_copper_loss_reduction, 3)} kW")
     template_content = template_content.replace('{{TRANSFORMER_STRAY_LOSS_REDUCTION}}', f"{format_number(transformer_stray_loss_reduction, 3)} kW")
-    template_content = template_content.replace('{{ANNUAL_NETWORK_SAVINGS}}', f"${format_number(annual_network_savings, 2)}")
+    template_content = template_content.replace('{{ANNUAL_NETWORK_SAVINGS}}', _fmt_dollar(annual_network_savings, show_dollars))
     
     # Savings Attribution Card - Savings Category Analysis
     # Use attribution data source (same as UI) for consistency
@@ -5245,21 +5356,21 @@ def generate_exact_template_html(r):
     
     # Replace Savings Attribution Card template variables
     template_content = template_content.replace('{{BASELINE_ENERGY}}', f"{baseline_energy:,.0f}")
-    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', f"${baseline_energy_cost:,.2f}")
+    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', _fmt_dollar(baseline_energy_cost, show_dollars))
     template_content = template_content.replace('{{BASE_ENERGY_KWH}}', f"{base_energy_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_ENERGY_KWH}}', f"{network_energy_kwh:,.0f}")
-    template_content = template_content.replace('{{ENERGY_RATE_DETAILED}}', f"${energy_rate_detailed:.5f}/kWh")
-    template_content = template_content.replace('{{DEMAND_SAVINGS_COST}}', f"${demand_savings_cost:,.2f}")
-    template_content = template_content.replace('{{POWER_FACTOR_SAVINGS_COST}}', f"${power_factor_savings_cost:,.2f}")
+    template_content = template_content.replace('{{ENERGY_RATE_DETAILED}}', _fmt_dollar(energy_rate_detailed, show_dollars, 5) + ("/kWh" if show_dollars else ""))
+    template_content = template_content.replace('{{DEMAND_SAVINGS_COST}}', _fmt_dollar(demand_savings_cost, show_dollars))
+    template_content = template_content.replace('{{POWER_FACTOR_SAVINGS_COST}}', _fmt_dollar(power_factor_savings_cost, show_dollars))
     template_content = template_content.replace('{{CP_PLC_KW}}', f"{cp_plc_kw:,.2f}")
-    template_content = template_content.replace('{{CP_PLC_COST}}', f"${cp_plc_cost:,.2f}")
-    template_content = template_content.replace('{{CP_PLC_RATE}}', f"${cp_plc_rate:.2f}")
-    template_content = template_content.replace('{{ENVELOPE_SMOOTHING_COST}}', f"${envelope_smoothing_cost:,.2f}")
+    template_content = template_content.replace('{{CP_PLC_COST}}', _fmt_dollar(cp_plc_cost, show_dollars))
+    template_content = template_content.replace('{{CP_PLC_RATE}}', _fmt_dollar(cp_plc_rate, show_dollars) if show_dollars else "—")
+    template_content = template_content.replace('{{ENVELOPE_SMOOTHING_COST}}', _fmt_dollar(envelope_smoothing_cost, show_dollars))
     template_content = template_content.replace('{{HARMONIC_LOSSES_ENERGY}}', f"{harmonic_losses_energy:,.0f}")
-    template_content = template_content.replace('{{HARMONIC_LOSSES_COST}}', f"${harmonic_losses_cost:,.2f}")
-    template_content = template_content.replace('{{OM_SAVINGS_COST}}', f"${om_savings_cost:,.2f}")
-    template_content = template_content.replace('{{OM_RATE_PER_KW}}', f"${om_rate_per_kw:.2f}/kW")
-    template_content = template_content.replace('{{TOTAL_ATTRIBUTED_DOLLARS}}', f"${total_attributed_dollars:,.2f}")
+    template_content = template_content.replace('{{HARMONIC_LOSSES_COST}}', _fmt_dollar(harmonic_losses_cost, show_dollars))
+    template_content = template_content.replace('{{OM_SAVINGS_COST}}', _fmt_dollar(om_savings_cost, show_dollars))
+    template_content = template_content.replace('{{OM_RATE_PER_KW}}', _fmt_dollar(om_rate_per_kw, show_dollars) + ("/kW" if show_dollars else ""))
+    template_content = template_content.replace('{{TOTAL_ATTRIBUTED_DOLLARS}}', _fmt_dollar(total_attributed_dollars, show_dollars))
     template_content = template_content.replace('{{RECONCILES_STATUS}}', reconciles_status)
     template_content = template_content.replace('{{INCLUDES_CATEGORIES}}', includes_categories)
     
@@ -5496,8 +5607,10 @@ def generate_exact_template_html(r):
             </table>
         """
         
-        # Add financial impact if savings data is available
+        # Add financial impact if savings data is available (hide dollar amounts when show_dollars unchecked)
         if savings_per_lb > 0 or annual_savings_per_lb > 0:
+            sp_val = _fmt_dollar(savings_per_lb, show_dollars, 4) if savings_per_lb > 0 else ("N/A" if show_dollars else "—")
+            asp_val = _fmt_dollar(annual_savings_per_lb, show_dollars, 4) if annual_savings_per_lb > 0 else ("N/A" if show_dollars else "—")
             cold_storage_html += f"""
             <h4 style="margin-top: 16px; color: #1976d2;">Financial Impact</h4>
             <table style="width: 100%; margin-bottom: 16px;">
@@ -5507,8 +5620,8 @@ def generate_exact_template_html(r):
                     <td style="width: 33%;"><strong>Storage Utilization:</strong></td>
                 </tr>
                 <tr>
-                    <td style="color: #28a745;">${format_number(savings_per_lb, 4) if savings_per_lb > 0 else 'N/A'}</td>
-                    <td style="color: #28a745;">${format_number(annual_savings_per_lb, 4) if annual_savings_per_lb > 0 else 'N/A'}</td>
+                    <td style="color: #28a745;">{sp_val}</td>
+                    <td style="color: #28a745;">{asp_val}</td>
                     <td>{format_number(storage_utilization, 1) if storage_utilization > 0 else 'N/A'}%</td>
                 </tr>
             </table>
@@ -6848,11 +6961,12 @@ def generate_exact_template_html(r):
             """
             
             if demand_cost_savings > 0:
+                demand_savings_display = _fmt_dollar(demand_cost_savings, show_dollars) + ("/month" if show_dollars else "")
                 manufacturing_html += f"""
             <table style="width: 100%; margin-bottom: 16px; background: #d4edda; padding: 8px; border-radius: 4px;">
                 <tr>
                     <td><strong>Monthly Demand Cost Savings:</strong></td>
-                    <td style="font-size: 1.2em; color: #28a745; font-weight: bold;">${format_number(demand_cost_savings, 2)}/month</td>
+                    <td style="font-size: 1.2em; color: #28a745; font-weight: bold;">{demand_savings_display}</td>
                 </tr>
             </table>
             """
@@ -7094,6 +7208,9 @@ def generate_exact_template_html(r):
                 template_content += script_tag
     except Exception as e:
         logger.warning("Could not embed bill import data: %s", e)
+
+    # Remove dollar-related blocks when show_dollars is False (engineering-only report)
+    template_content = _remove_dollar_blocks(template_content, show_dollars)
 
     return template_content
 
@@ -7385,8 +7502,10 @@ def generate_layman_report_html(r):
         # Get logo for header
         logo_data_uri = get_logo_data_uri()
         
-        # Format all values
+        # Format all values (hide dollar blocks when show_dollars unchecked - engineering-only)
         def format_currency(value):
+            if not show_dollars:
+                return _DOLLAR_BLOCK_MARKER
             return f"${value:,.2f}" if value >= 0 else f"-${abs(value):,.2f}"
         
         def format_number(value, decimals=0):
