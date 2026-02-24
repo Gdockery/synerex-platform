@@ -19431,7 +19431,7 @@ def pe_dashboard():
         <div class="header">
             <img src="{{ synerex_logo_url }}" alt="Synerex Logo" class="logo">
             <div class="header-text">
-                <h1>👷 Professional Engineer Dashboard</h1>
+                <h1>Professional Engineer Dashboard</h1>
                 <p>Utility Audit Grade - Professional Oversight System</p>
             </div>
             <div class="header-actions">

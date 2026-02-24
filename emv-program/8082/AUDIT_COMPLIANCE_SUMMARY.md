@@ -217,7 +217,7 @@ normalized_kw_after = kw_after × adjustment_factor
 - **FEMP**: Federal guidelines for M&V protocols
 - **ISO 50001**: Energy management system requirements
 
-## 👨‍💼 Professional Engineer Oversight
+## Professional Engineer Oversight
 
 ### PE Certification Management
 **System**: Complete PE registration and verification system
