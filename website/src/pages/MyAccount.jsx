@@ -24,6 +24,13 @@ export default function MyAccount() {
   
   const checkAuth = async () => {
     try {
+      // If token in URL (from login redirect), store it and clean URL - but always use check-session for full user info (org_type from DB)
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) {
+        setJwtToken(urlToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
       const response = await fetch(`${LICENSE_SERVICE_URL}/auth/api/check-session`, {
         credentials: 'include'
       });
@@ -57,12 +64,14 @@ export default function MyAccount() {
         }
       } else {
         setIsAuthenticated(false);
-        // Redirect to login
-        window.location.href = `${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.href)}`;
+        // Redirect to login - use clean return URL (strip token params to avoid duplication)
+        const cleanReturnUrl = window.location.origin + window.location.pathname;
+        window.location.href = `${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(cleanReturnUrl)}`;
       }
     } catch (err) {
       setIsAuthenticated(false);
-      window.location.href = `${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.href)}`;
+      const cleanReturnUrl = window.location.origin + window.location.pathname;
+      window.location.href = `${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(cleanReturnUrl)}`;
     } finally {
       setCheckingAuth(false);
     }
@@ -143,16 +152,8 @@ export default function MyAccount() {
   };
 
   const handleClientLogout = async () => {
-    try {
-      await fetch(`${LICENSE_SERVICE_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include"
-      });
-    } catch (err) {
-      console.error("Failed to logout:", err);
-    } finally {
-      window.location.href = `${LICENSE_SERVICE_URL}/auth/login`;
-    }
+    // Unified SSO logout: redirect to logout-all to clear license, EMV, and tracking
+    window.location.href = `${LICENSE_SERVICE_URL}/auth/logout-all`;
   };
   
   const formatDate = (dateString) => {
@@ -421,8 +422,68 @@ export default function MyAccount() {
           </div>
         )}
         
-        {/* License Selection Section - Only show if user doesn't have licenses */}
-        {userInfo && !licenseData && (
+        {/* Admin Access - EMV/Tracking links for platform admins */}
+        {userInfo && userInfo.user_type === "admin" && (
+          <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
+            <h2 className="text-2xl font-bold mb-4 text-purple-400">Admin Access</h2>
+            <p className="text-gray-300 mb-6">
+              As a platform administrator, you can access the EM&V and Tracking admin panels.
+            </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <a
+                href={`${EMV_URL}/admin-panel`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
+              >
+                <div className="text-xl font-bold mb-2 text-white">EM&V Admin Panel</div>
+                <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
+              </a>
+              <a
+                href={`${TRACKING_URL}/sso?role=admin`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
+              >
+                <div className="text-xl font-bold mb-2 text-white">Tracking Admin Portal</div>
+                <div className="text-sm text-green-200">Equipment & Meter Tracking</div>
+              </a>
+            </div>
+          </div>
+        )}
+        
+        {/* OEM Access - Direct links for OEM org users (no prices) */}
+        {userInfo && userInfo.org_type === "oem" && (
+          <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
+            <h2 className="text-2xl font-bold mb-4 text-purple-400">OEM Access</h2>
+            <p className="text-gray-300 mb-6">
+              As an OEM partner, you have access to Synerex programs. Click below to open each application.
+            </p>
+            <div className="grid md:grid-cols-2 gap-6">
+              <a
+                href={getAccessUrl("emv")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
+              >
+                <div className="text-xl font-bold mb-2 text-white">EM&V Program</div>
+                <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
+              </a>
+              <a
+                href={getAccessUrl("tracking")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
+              >
+                <div className="text-xl font-bold mb-2 text-white">Tracking Program</div>
+                <div className="text-sm text-green-200">Equipment & Meter Tracking</div>
+              </a>
+            </div>
+          </div>
+        )}
+        
+        {/* License Selection Section - Only show if user doesn't have licenses, is NOT OEM, and is NOT admin */}
+        {userInfo && !licenseData && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && (
           <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
             <h2 className="text-2xl font-bold mb-4 text-purple-400">Select a License</h2>
             <p className="text-gray-300 mb-6">
@@ -505,7 +566,8 @@ export default function MyAccount() {
           </div>
         )}
         
-        {/* Lookup Form */}
+        {/* Lookup Form - hidden for OEM and admin users */}
+        {userInfo?.org_type !== "oem" && userInfo?.user_type !== "admin" && (
         <div className="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
           <h2 className="text-2xl font-bold mb-4 text-purple-400">Lookup License</h2>
           <p className="text-gray-300 mb-6">
@@ -547,6 +609,7 @@ export default function MyAccount() {
             </button>
           </form>
         </div>
+        )}
         
         {/* License Information */}
         {licenseData && (

@@ -713,14 +713,14 @@ class MySQLCursor:
                 sql, params = self._append_where(sql, params, table)
                 return sql, params
 
-        delete_match = re.match(r"\s*delete\s+from\s+([a-zA-Z0-9_]+)\s+", sql_lower)
+        delete_match = re.match(r"\s*delete\s+from\s+([a-zA-Z0-9_]+)(?:\s|$|\)|,)", sql_lower)
         if delete_match:
             table = delete_match.group(1)
             if table in ORG_TABLES:
                 sql, params = self._append_where(sql, params, table)
                 return sql, params
 
-        select_match = re.search(r"\sfrom\s+([a-zA-Z0-9_]+)\s+", sql_lower)
+        select_match = re.search(r"\sfrom\s+([a-zA-Z0-9_]+)(?:\s|$|\)|,)", sql_lower)
         if select_match:
             table = select_match.group(1)
             if table in ORG_TABLES:
@@ -1117,7 +1117,7 @@ def admin_required(fn):
                     return jsonify({"error": "Invalid or expired token", "code": "TOKEN_INVALID"}), 401
                 claims = resp.json().get("claims") or {}
                 roles = claims.get("roles") or []
-                if "administrator" in roles or "admin" in roles:
+                if "administrator" in roles or "admin" in roles or "oem_admin" in roles:
                     return fn(*args, **kwargs)
                 return jsonify({
                     "error": "Administrator access required",
@@ -1154,7 +1154,7 @@ def admin_required(fn):
                         return jsonify({"error": "User not found", "code": "USER_NOT_FOUND"}), 401
                     
                     user_role = user[0]
-                    if user_role != "administrator":
+                    if user_role not in ("administrator", "oem_admin"):
                         logger.warning(f"Non-admin user (role={user_role}) attempted to access admin endpoint: {request.path}")
                         return jsonify({
                             "error": "Administrator access required",
@@ -1171,6 +1171,11 @@ def admin_required(fn):
     
     _admin_check.__name__ = fn.__name__
     return _admin_check
+
+
+def oem_admin_required(fn):
+    """Decorator that requires OEM Admin role (oem_admin, administrator, or admin) for equipment/org management."""
+    return admin_required(fn)
 
 
 # License Required decorator - enforces valid license for protected features
@@ -1201,6 +1206,47 @@ if not USE_MYSQL:
         "(e.g. mysql://user:pass@host:3306/emv). SQLite is not supported."
     )
 
+
+def _get_oem_visible_org_ids(org_id: str) -> List[str]:
+    """
+    For OEM users: return [org_id] + customer org_ids (orgs where sponsor_org_id = org_id).
+    For non-OEM: return [org_id].
+    Used so OEM sees files from their own org and all their sponsored customers.
+    """
+    org_ids = [org_id]
+    license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+    if not license_service_url:
+        return org_ids
+    try:
+        # Get org type
+        resp = requests.get(
+            f"{license_service_url.rstrip('/')}/api/orgs/{org_id}",
+            timeout=3,
+        )
+        if resp.status_code != 200:
+            return org_ids
+        org_data = resp.json()
+        org_type = org_data.get("org_type")
+        if org_type != "oem":
+            return org_ids
+        # OEM: fetch customers (orgs where sponsor_org_id = org_id)
+        resp2 = requests.get(
+            f"{license_service_url.rstrip('/')}/api/orgs",
+            params={"sponsor_org_id": org_id},
+            timeout=3,
+        )
+        if resp2.status_code != 200:
+            return org_ids
+        data = resp2.json()
+        customers = data.get("orgs") or []
+        customer_ids = [c["org_id"] for c in customers if c.get("org_id")]
+        org_ids = [org_id] + customer_ids
+        logger.info(f"OEM org_id={org_id}: including {len(customer_ids)} customer orgs in file list")
+    except Exception as e:
+        logger.debug(f"Could not fetch OEM customers from License Service: {e}")
+    return org_ids
+
+
 def license_required(fn):
     """Decorator that requires a valid license to access endpoint. Admins bypass license check."""
     @wraps(fn)
@@ -1229,7 +1275,7 @@ def license_required(fn):
                         if resp.status_code == 200:
                             claims = resp.json().get("claims") or {}
                             roles = claims.get("roles") or []
-                            if "administrator" in roles or "admin" in roles:
+                            if "administrator" in roles or "admin" in roles or "oem_admin" in roles:
                                 logger.info(f"Admin user bypassing license check for {fn.__name__}")
                                 return fn(*args, **kwargs)
                     except Exception as e:
@@ -1247,7 +1293,7 @@ def license_required(fn):
                                     org_cursor = org_conn.cursor()
                                     org_cursor.execute("SELECT role FROM users WHERE id = ?", (session[0],))
                                     user = org_cursor.fetchone()
-                                    if user and user[0] == "administrator":
+                                    if user and user[0] in ("administrator", "oem_admin"):
                                         logger.info(f"Admin user bypassing license check for {fn.__name__}")
                                         return fn(*args, **kwargs)
             
@@ -11969,8 +12015,13 @@ def handle_license_token_login(token: str):
             
             if not user:
                 # Create a temporary user record for license-based access
-                # Use a default role based on license features
-                default_role = "engineer" if "engineer" in roles else "technician"
+                # Map license roles to EMV roles: oem_admin→administrator, oem_engineer/oem_manager→engineer, oem_user→technician
+                if "oem_admin" in roles:
+                    default_role = "administrator"
+                elif "oem_engineer" in roles or "oem_manager" in roles:
+                    default_role = "engineer"
+                else:
+                    default_role = "technician"
                 
                 cursor.execute(
                     """
@@ -12072,10 +12123,25 @@ def handle_license_token_login(token: str):
 
 @app.route("/api/auth/organizations", methods=["GET"])
 def list_organizations():
-    """Return list of org_id and company_name for login dropdown. Only Synerex (admin) until other orgs are set up."""
+    """Return list of org_id and company_name for login dropdown. Includes admin + orgs synced from License service."""
     try:
-        # Only Synerex (admin) in dropdown; no DB/dir scan so no other orgs appear until explicitly added
         orgs = [{"org_id": "admin", "company_name": "Synerex (admin)"}]
+        try:
+            with get_db_connection(use_sessions_db=True) as conn:
+                if conn:
+                    _ensure_organizations_table(conn)
+                    cur = conn.cursor()
+                    cur.execute("SELECT org_id, company_name FROM organizations ORDER BY org_id")
+                    rows = cur.fetchall()
+                    seen = {"admin"}
+                    for row in rows:
+                        oid = row[0] if isinstance(row, (tuple, list)) else row.get("org_id")
+                        cname = row[1] if isinstance(row, (tuple, list)) else row.get("company_name")
+                        if oid and oid not in seen:
+                            orgs.append({"org_id": str(oid), "company_name": cname or str(oid)})
+                            seen.add(str(oid))
+        except Exception as db_err:
+            logger.warning("Could not load orgs from DB for dropdown: %s", db_err)
         resp = jsonify({"status": "success", "organizations": orgs})
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         resp.headers["Pragma"] = "no-cache"
@@ -12083,6 +12149,49 @@ def list_organizations():
         return resp
     except Exception as e:
         logger.error(f"Error listing organizations: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/orgs/sync", methods=["POST"])
+def sync_org_from_license():
+    """Receive org sync from License service. Idempotent - insert or update org in EMV organizations table."""
+    try:
+        data = request.get_json() or {}
+        org_id = (data.get("org_id") or "").strip()
+        org_name = (data.get("org_name") or "").strip()
+        if not org_id or not org_name:
+            return jsonify({"status": "error", "error": "org_id and org_name required"}), 400
+        company_name = org_name
+        address = (data.get("company_address") or "").strip() or None
+        city = (data.get("company_city") or "").strip() or None
+        state = (data.get("company_state") or "").strip() or None
+        zip_code = (data.get("company_zip") or "").strip() or None
+        contact_name = (data.get("contact_name") or "").strip() or None
+        contact_phone = (data.get("phone") or "").strip() or None
+        with get_db_connection(use_sessions_db=True) as conn:
+            if not conn:
+                return jsonify({"status": "error", "error": "Sessions DB unavailable"}), 500
+            _ensure_organizations_table(conn)
+            cur = conn.cursor()
+            if USE_MYSQL:
+                cur.execute(
+                    """INSERT INTO organizations (org_id, company_name, address, city, state, zip, contact_name, contact_phone, created_at)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                       ON DUPLICATE KEY UPDATE company_name=%s, address=%s, city=%s, state=%s, zip=%s, contact_name=%s, contact_phone=%s""",
+                    (org_id, company_name, address, city, state, zip_code, contact_name, contact_phone,
+                     company_name, address, city, state, zip_code, contact_name, contact_phone),
+                )
+            else:
+                cur.execute(
+                    """INSERT OR REPLACE INTO organizations (org_id, company_name, address, city, state, zip, contact_name, contact_phone)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (org_id, company_name, address, city, state, zip_code, contact_name, contact_phone),
+                )
+            conn.commit()
+        logger.info("Org %s synced from License service", org_id)
+        return jsonify({"status": "success", "org_id": org_id}), 201
+    except Exception as e:
+        logger.error("Org sync failed: %s", e)
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
@@ -12322,7 +12431,7 @@ def login_user():
                     "status": "success",
                     "session_token": session_token,
                     "org_id": org_id,
-                    "is_admin": user_role == "administrator",
+                    "is_admin": user_role in ("administrator", "oem_admin"),
                     "user": {
                         "id": user_id,
                         "full_name": user_full_name,
@@ -12362,22 +12471,39 @@ def validate_session():
                 return jsonify({"status": "error", "error": "Invalid or expired token"}), 401
             claims = resp.json().get("claims") or {}
             roles = claims.get("roles") or []
-            return jsonify(
-                {
-                    "status": "success",
-                    "org_id": claims.get("sub"),
-                    "is_admin": ("administrator" in roles or "admin" in roles),
-                    "user": {
-                        "id": None,
-                        "full_name": claims.get("username"),
-                        "email": None,
-                        "username": claims.get("username"),
-                        "role": roles[0] if roles else "user",
-                        "pe_license_number": None,
-                        "state": None,
-                    },
-                }
-            ), 200
+            org_id = claims.get("sub")
+            org_type = None
+            oem_customers = []
+            license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+            if org_id and license_service_url:
+                try:
+                    o_resp = requests.get(f"{license_service_url.rstrip('/')}/api/orgs/{org_id}", timeout=2)
+                    if o_resp.status_code == 200:
+                        org_type = o_resp.json().get("org_type")
+                        if org_type == "oem":
+                            c_resp = requests.get(f"{license_service_url.rstrip('/')}/api/orgs", params={"sponsor_org_id": org_id}, timeout=2)
+                            if c_resp.status_code == 200:
+                                oem_customers = (c_resp.json().get("orgs") or [])
+                except Exception:
+                    pass
+            payload = {
+                "status": "success",
+                "org_id": org_id,
+                "org_type": org_type,
+                "is_admin": ("administrator" in roles or "admin" in roles or "oem_admin" in roles),
+                "user": {
+                    "id": None,
+                    "full_name": claims.get("username"),
+                    "email": None,
+                    "username": claims.get("username"),
+                    "role": roles[0] if roles else "user",
+                    "pe_license_number": None,
+                    "state": None,
+                },
+            }
+            if oem_customers:
+                payload["oem_customers"] = [{"org_id": c["org_id"], "org_name": c["org_name"]} for c in oem_customers]
+            return jsonify(payload), 200
 
         # First, get session info from shared sessions database
         with get_db_connection(use_sessions_db=True) as sessions_conn:
@@ -12447,9 +12573,24 @@ def validate_session():
             if not user:
                 return jsonify({"status": "error", "error": "User not found in organization database"}), 404
 
-            return jsonify({
+            org_type = None
+            oem_customers = []
+            license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+            if org_id and license_service_url:
+                try:
+                    o_resp = requests.get(f"{license_service_url.rstrip('/')}/api/orgs/{org_id}", timeout=2)
+                    if o_resp.status_code == 200:
+                        org_type = o_resp.json().get("org_type")
+                        if org_type == "oem":
+                            c_resp = requests.get(f"{license_service_url.rstrip('/')}/api/orgs", params={"sponsor_org_id": org_id}, timeout=2)
+                            if c_resp.status_code == 200:
+                                oem_customers = (c_resp.json().get("orgs") or [])
+                except Exception:
+                    pass
+            payload = {
                 "status": "success",
                 "org_id": org_id,
+                "org_type": org_type,
                 "user": {
                     "id": user[0],
                     "full_name": user[1],
@@ -12459,7 +12600,10 @@ def validate_session():
                     "pe_license_number": user[5],
                     "state": user[6],
                 },
-            })
+            }
+            if oem_customers:
+                payload["oem_customers"] = [{"org_id": c["org_id"], "org_name": c["org_name"]} for c in oem_customers]
+            return jsonify(payload)
     except Exception as e:
         logger.error(f"Error validating session: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -12605,17 +12749,32 @@ def tracking_push_baseline():
         return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
+def _static_base():
+    """Return path prefix for static assets when behind proxy (e.g. /emv). Empty when at root."""
+    if not EMV_BASE_URL:
+        return ""
+    parsed = urlparse(EMV_BASE_URL)
+    path = (parsed.path or "").rstrip("/")
+    return path if path else ""
+
+
+def _main_dashboard_url():
+    """Return main-dashboard URL (use EMV_BASE_URL when behind proxy at /emv/)."""
+    base = EMV_BASE_URL or ""
+    return f"{base.rstrip('/')}/main-dashboard" if base else "/main-dashboard"
+
+
 @app.route("/sso", methods=["GET"])
 def sso_login():
     """SSO entry: accept JWT token and create session for EMV."""
     try:
         token = request.args.get("token")
         if not token:
-            return redirect("/main-dashboard")
+            return redirect(_main_dashboard_url())
 
         license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
         if not license_service_url:
-            return redirect("/main-dashboard")
+            return redirect(_main_dashboard_url())
 
         resp = requests.post(
             f"{license_service_url}/auth/api/verify-jwt",
@@ -12623,14 +12782,14 @@ def sso_login():
             timeout=5,
         )
         if resp.status_code != 200:
-            return redirect("/main-dashboard")
+            return redirect(_main_dashboard_url())
 
         claims = resp.json().get("claims") or {}
         org_id = claims.get("sub")
-        username = claims.get("username") or "sso_user"
+        username = claims.get("username") or claims.get("sub") or "sso_user"
         roles = claims.get("roles") or []
         if not org_id:
-            return redirect("/main-dashboard")
+            return redirect(_main_dashboard_url())
 
         # Create a session token in shared sessions DB
         session_token = str(uuid.uuid4())
@@ -12661,22 +12820,54 @@ def sso_login():
                 )
                 org_conn.commit()
                 cursor.execute(
-                    "SELECT id FROM users WHERE username = ?",
+                    "SELECT id, full_name FROM users WHERE username = ?",
                     (username,),
                 )
                 row = cursor.fetchone()
                 if row:
                     user_id = row[0]
+                    # Fix existing users who were created with full_name="sso_user"
+                    if row[1] == "sso_user" and username != "sso_user":
+                        cursor.execute(
+                            "UPDATE users SET full_name = ? WHERE id = ?",
+                            (username, user_id),
+                        )
+                        org_conn.commit()
                 else:
-                    role = "administrator" if ("administrator" in roles or "admin" in roles) else "user"
-                    cursor.execute(
-                        """
-                        INSERT INTO users (username, email, full_name, role, password_hash)
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (username, f"{username}@synerex.com", username, role, ""),
-                    )
-                    user_id = cursor.lastrowid
+                    # Migrate existing sso_user to real username when SSO provides it
+                    if username != "sso_user":
+                        cursor.execute(
+                            "SELECT id FROM users WHERE username = ?",
+                            ("sso_user",),
+                        )
+                        sso_row = cursor.fetchone()
+                        if sso_row:
+                            user_id = sso_row[0]
+                            cursor.execute(
+                                "UPDATE users SET username = ?, email = ?, full_name = ? WHERE id = ?",
+                                (username, f"{username}@synerex.com", username, user_id),
+                            )
+                            org_conn.commit()
+                        else:
+                            user_id = None
+                    else:
+                        user_id = None
+                    if user_id is None:
+                        cursor.execute("SELECT COUNT(*) FROM users")
+                        count_row = cursor.fetchone()
+                        user_count = (count_row[0] if count_row else 0) if count_row else 0
+                        is_first_user = user_count == 0
+                        role = "administrator" if (
+                            is_first_user or "administrator" in roles or "admin" in roles or "oem_admin" in roles
+                        ) else "user"
+                        cursor.execute(
+                            """
+                            INSERT INTO users (username, email, full_name, role, password_hash)
+                            VALUES (?, ?, ?, ?, ?)
+                            """,
+                            (username, f"{username}@synerex.com", username, role, ""),
+                        )
+                        user_id = cursor.lastrowid
                 org_conn.commit()
 
         with get_db_connection(use_sessions_db=True) as sessions_conn:
@@ -12703,12 +12894,16 @@ def sso_login():
                 )
                 sessions_conn.commit()
 
-        resp = redirect("/main-dashboard")
-        resp.set_cookie("session_token", session_token, max_age=86400, samesite="Lax")
+        resp = redirect(_main_dashboard_url())
+        # Use path=/emv when behind proxy so cookie is sent for /emv/api/* requests
+        cookie_path = _static_base() or "/"
+        # Clear any existing session cookie first (e.g. from previous user) so we don't leave stale sessions
+        resp.set_cookie("session_token", "", max_age=0, path=cookie_path, samesite="Lax")
+        resp.set_cookie("session_token", session_token, max_age=86400, samesite="Lax", path=cookie_path)
         return resp
     except Exception as e:
         logger.error(f"SSO login failed: {e}")
-        return redirect("/main-dashboard")
+        return redirect(_main_dashboard_url())
 
 def _make_org_id(company_name):
     """Generate a unique 8-character org_id from company name. Collisions get _1, _2, etc."""
@@ -14336,16 +14531,27 @@ def get_raw_files_stats():
 
 @app.route("/api/dashboard/project-stats")
 def get_project_stats():
-    """Get statistics for projects"""
+    """Get statistics for projects (filtered by org_id for multi-tenant)."""
     try:
-        # Import database connection function from original
-        with get_db_connection() as conn:
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({
+                "status": "success",
+                "total_projects": 0,
+                "active_projects": 0,
+                "recent_projects": 0,
+                "completed_projects": 0,
+                "project_files": 0,
+            })
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({
                     "status": "success",
                     "total_projects": 0,
                     "active_projects": 0,
                     "recent_projects": 0,
+                    "completed_projects": 0,
+                    "project_files": 0,
                 })
 
             cursor = conn.cursor()
@@ -14375,11 +14581,29 @@ def get_project_stats():
             except:
                 recent_projects = 0
 
+            # Count completed projects (distinct project names in project_files)
+            try:
+                cursor.execute(
+                    "SELECT COUNT(DISTINCT project_name) FROM project_files WHERE project_name IS NOT NULL AND project_name != ''"
+                )
+                completed_projects = cursor.fetchone()[0]
+            except:
+                completed_projects = 0
+
+            # Count project files
+            try:
+                cursor.execute("SELECT COUNT(*) FROM project_files")
+                project_files = cursor.fetchone()[0]
+            except:
+                project_files = 0
+
             return jsonify({
                 "status": "success",
                 "total_projects": total_projects,
                 "active_projects": active_projects,
                 "recent_projects": recent_projects,
+                "completed_projects": completed_projects,
+                "project_files": project_files,
             })
 
     except Exception as e:
@@ -14389,13 +14613,25 @@ def get_project_stats():
             "total_projects": 0,
             "active_projects": 0,
             "recent_projects": 0,
+            "completed_projects": 0,
+            "project_files": 0,
         })
 
 @app.route("/api/dashboard/clipping-stats")
 def get_clipping_stats():
     """Get statistics for clipping analysis (clipped files, modifications, integrity)."""
     try:
-        org_id = get_current_org_id(request) or "default"
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({
+                "status": "success",
+                "clipped_files": 0,
+                "modifications": 0,
+                "integrity_status": "100%",
+                "total_analyses": 0,
+                "clipping_detected": 0,
+                "recent_analyses": 0,
+            })
         logger.info(f"clipping-stats: org_id={org_id!r}")
         with get_db_connection(org_id=org_id) as conn:
             if conn is None:
@@ -14464,54 +14700,7 @@ def get_clipping_stats():
             except Exception:
                 pass
 
-            # If no data for this org, retry with admin (data often lives under org admin)
-            if clipped_files == 0:
-                logger.info("clipping-stats: 0 for org_id=%s, retrying with org_id=admin", org_id)
-                with get_db_connection(org_id="admin") as admin_conn:
-                    if admin_conn:
-                        cur = admin_conn.cursor()
-                        try:
-                            cur.execute("SELECT COUNT(*) FROM project_files WHERE is_clipped = 1")
-                            clipped_files = cur.fetchone()[0] or 0
-                        except Exception:
-                            pass
-                        try:
-                            cur.execute(
-                                "SELECT COUNT(*) FROM raw_meter_data WHERE file_path IS NOT NULL AND file_path LIKE %s",
-                                ("%protected/verified%",),
-                            )
-                            clipped_files += cur.fetchone()[0] or 0
-                        except Exception:
-                            pass
-                        if clipped_files == 0:
-                            try:
-                                cur.execute(
-                                    "SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL AND fingerprint != ''"
-                                )
-                                clipped_files = cur.fetchone()[0] or 0
-                            except Exception:
-                                pass
-                        try:
-                            cur.execute("SELECT COUNT(*) FROM data_modifications")
-                            modifications = cur.fetchone()[0] or 0
-                        except Exception:
-                            pass
-                        try:
-                            cur.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL AND fingerprint != ''")
-                            raw_fp = cur.fetchone()[0] or 0
-                            cur.execute("SELECT COUNT(*) FROM raw_meter_data")
-                            raw_total = cur.fetchone()[0] or 0
-                            cur.execute("SELECT COUNT(*) FROM project_files")
-                            pf_total = cur.fetchone()[0] or 0
-                            pf_fp = 0
-                            total_fp = raw_fp + pf_fp
-                            total = raw_total + pf_total
-                            integrity_status = round((total_fp / max(total, 1)) * 100, 1)
-                        except Exception:
-                            pass
-                if clipped_files:
-                    logger.info("clipping-stats: got %s clipped_files from admin", clipped_files)
-
+            # Do NOT fall back to admin - each org sees only its own data
             logger.info("clipping-stats: org_id=%s clipped_files=%s modifications=%s", org_id, clipped_files, modifications)
             return jsonify({
                 "status": "success",
@@ -14524,38 +14713,29 @@ def get_clipping_stats():
             })
     except Exception as e:
         logger.error(f"Error getting clipping stats: {e}")
-        # Fallback: try admin org so UI still gets a count when primary conn fails
-        fallback_clipped = 0
-        fallback_mods = 0
-        fallback_integrity = "100%"
-        try:
-            with get_db_connection(org_id="admin") as conn:
-                if conn:
-                    cur = conn.cursor()
-                    cur.execute(
-                        "SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL AND fingerprint != ''"
-                    )
-                    fallback_clipped = (cur.fetchone() or (0,))[0] or 0
-                    cur.execute("SELECT COUNT(*) FROM data_modifications")
-                    fallback_mods = (cur.fetchone() or (0,))[0] or 0
-        except Exception as e2:
-            logger.debug("clipping-stats fallback failed: %s", e2)
         return jsonify({
             "status": "success",
-            "clipped_files": fallback_clipped,
-            "modifications": fallback_mods,
-            "integrity_status": fallback_integrity,
+            "clipped_files": 0,
+            "modifications": 0,
+            "integrity_status": "100%",
             "total_analyses": 0,
-            "clipping_detected": fallback_clipped,
+            "clipping_detected": 0,
             "recent_analyses": 0,
         })
 
 @app.route("/api/dashboard/pe-stats")
 def get_pe_stats():
-    """Get statistics for Professional Engineers"""
+    """Get statistics for Professional Engineers (filtered by org_id for multi-tenant)."""
     try:
-        # Import database connection function from original
-        with get_db_connection() as conn:
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({
+                "status": "success",
+                "total_pe": 0,
+                "active_pe": 0,
+                "recent_pe": 0,
+            })
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({
                     "status": "success",
@@ -15169,40 +15349,50 @@ def verify_all_csv_integrity():
 
 @app.route("/api/original-files")
 def get_original_files():
-    """Get list of original files"""
+    """Get list of original files. OEM users see files from their org + sponsored customers."""
     try:
         # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
             return jsonify({"status": "success", "files": []}), 200  # Return empty list instead of error
         
-        # Import database connection function from original
-        with get_db_connection(org_id=org_id) as conn:
+        org_ids = _get_oem_visible_org_ids(org_id)
+        use_multi_org = len(org_ids) > 1
+        
+        with get_db_connection(org_id=None if use_multi_org else org_id) as conn:
             if conn is None:
                 return jsonify({"status": "success", "files": []})
 
             cursor = conn.cursor()
             
-            # Get original files (most recent first)
             try:
-                cursor.execute("""
-                    SELECT id, file_name, file_size, created_at, fingerprint, file_path
-                    FROM raw_meter_data
-                    ORDER BY created_at DESC
-                    LIMIT 200
-                """)
+                if use_multi_org:
+                    placeholders = ", ".join(["%s"] * len(org_ids))
+                    cursor.execute(
+                        f"""
+                        SELECT id, file_name, file_size, created_at, fingerprint, file_path, org_id
+                        FROM raw_meter_data
+                        WHERE org_id IN ({placeholders})
+                        ORDER BY created_at DESC
+                        LIMIT 200
+                    """,
+                        tuple(org_ids),
+                    )
+                else:
+                    cursor.execute("""
+                        SELECT id, file_name, file_size, created_at, fingerprint, file_path
+                        FROM raw_meter_data
+                        ORDER BY created_at DESC
+                        LIMIT 200
+                    """)
                 rows = cursor.fetchall()
-                files = [
-                    {
-                        "id": r[0],
-                        "file_name": r[1],
-                        "file_size": r[2] or 0,
-                        "created_at": r[3],
-                        "fingerprint": r[4],
-                        "file_path": r[5],
-                    }
-                    for r in rows
-                ]
+                files = []
+                for r in rows:
+                    if len(r) == 7:
+                        f = {"id": r[0], "file_name": r[1], "file_size": r[2] or 0, "created_at": r[3], "fingerprint": r[4], "file_path": r[5], "org_id": r[6]}
+                    else:
+                        f = {"id": r[0], "file_name": r[1], "file_size": r[2] or 0, "created_at": r[3], "fingerprint": r[4], "file_path": r[5]}
+                    files.append(f)
                 return jsonify({"status": "success", "files": files})
             except Exception:
                 return jsonify({"status": "success", "files": []})
@@ -15214,14 +15404,15 @@ def get_original_files():
 
 @app.route("/api/original-files/<int:file_id>/download")
 def download_original_file(file_id: int):
-    """Download a raw meter data file by id"""
+    """Download a raw meter data file by id. OEM can download files from their org + sponsored customers."""
     try:
-        # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
             return "Organization ID required. Please log in again.", 401
         
-        # Get user ID from session if available
+        org_ids = _get_oem_visible_org_ids(org_id)
+        use_multi_org = len(org_ids) > 1
+        
         user_id = None
         try:
             session_token = request.headers.get('Authorization') or request.cookies.get('session_token')
@@ -15237,14 +15428,21 @@ def download_original_file(file_id: int):
             pass
         
         base_dir = Path(__file__).parent
-        with get_db_connection(org_id=org_id) as conn:
+        with get_db_connection(org_id=None if use_multi_org else org_id) as conn:
             if conn is None:
                 return "Database not available", 500
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT file_name, file_path FROM raw_meter_data WHERE id = ?",
-                (file_id,),
-            )
+            if use_multi_org:
+                placeholders = ", ".join(["%s"] * len(org_ids))
+                cursor.execute(
+                    f"SELECT file_name, file_path FROM raw_meter_data WHERE id = ? AND org_id IN ({placeholders})",
+                    (file_id,) + tuple(org_ids),
+                )
+            else:
+                cursor.execute(
+                    "SELECT file_name, file_path FROM raw_meter_data WHERE id = ?",
+                    (file_id,),
+                )
             row = cursor.fetchone()
             if not row:
                 return "File not found", 404
@@ -18415,29 +18613,44 @@ def download_pe_review_checklist(analysis_session_id):
 
 @app.route("/api/original-files/<int:file_id>", methods=["DELETE"])
 def delete_original_file(file_id: int):
-    """Delete a raw meter data file and its DB entry"""
+    """Delete a raw meter data file and its DB entry. OEM can delete files from their org + sponsored customers."""
     try:
-        # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
         
+        org_ids = _get_oem_visible_org_ids(org_id)
+        use_multi_org = len(org_ids) > 1
+        
         base_dir = Path(__file__).parent
-        with get_db_connection(org_id=org_id) as conn:
+        with get_db_connection(org_id=None if use_multi_org else org_id) as conn:
             if conn is None:
                 return jsonify({"status": "error", "error": "Database not available"}), 500
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT file_path FROM raw_meter_data WHERE id = ?",
-                (file_id,),
-            )
+            if use_multi_org:
+                placeholders = ", ".join(["%s"] * len(org_ids))
+                cursor.execute(
+                    f"SELECT file_path FROM raw_meter_data WHERE id = ? AND org_id IN ({placeholders})",
+                    (file_id,) + tuple(org_ids),
+                )
+            else:
+                cursor.execute(
+                    "SELECT file_path FROM raw_meter_data WHERE id = ?",
+                    (file_id,),
+                )
             row = cursor.fetchone()
             if not row:
                 return jsonify({"status": "error", "error": "File not found"}), 404
             rel_path = row[0]
             abs_path = (base_dir / rel_path).resolve()
-            # Remove DB entry first
-            cursor.execute("DELETE FROM raw_meter_data WHERE id = ?", (file_id,))
+            # Remove DB entry first (scope to org_ids for multi-org)
+            if use_multi_org:
+                cursor.execute(
+                    f"DELETE FROM raw_meter_data WHERE id = ? AND org_id IN ({placeholders})",
+                    (file_id,) + tuple(org_ids),
+                )
+            else:
+                cursor.execute("DELETE FROM raw_meter_data WHERE id = ?", (file_id,))
             conn.commit()
             # Try to remove physical file
             try:
@@ -18515,9 +18728,9 @@ def upload_interface():
         context = {
             "version": get_current_version(),
             "cache_bust": int(time.time()),
-            "synerex_logo_url": "static/synerex_logo_transparent.png",
-            "synerex_logo_main_url": "static/synerex_logo_transparent.png",
-            "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "synerex_logo_url": "static/synerex_logo.png",
+            "synerex_logo_main_url": "static/synerex_logo.png",
+            "synerex_logo_other_url": "static/synerex_logo.png",
             "website_url": WEBSITE_URL or "",
         }
         logger.info(
@@ -18536,6 +18749,40 @@ def upload_interface():
         import traceback
         logger.error(traceback.format_exc())
         return f"Error loading upload interface: {str(e)}", 500
+
+
+@app.route("/api/oem-customers", methods=["GET"])
+def get_oem_customers():
+    """Return customers only (orgs where sponsor_org_id = oem_org_id). Excludes OEM org itself."""
+    org_id = get_current_org_id(request)
+    if not org_id:
+        return jsonify({"status": "success", "orgs": []}), 200
+    license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+    if not license_service_url:
+        return jsonify({"status": "success", "orgs": []}), 200
+    try:
+        resp = requests.get(
+            f"{license_service_url.rstrip('/')}/api/orgs/{org_id}",
+            timeout=2,
+        )
+        if resp.status_code != 200:
+            return jsonify({"status": "success", "orgs": []}), 200
+        org_data = resp.json()
+        if org_data.get("org_type") != "oem":
+            return jsonify({"status": "success", "orgs": []}), 200
+        resp2 = requests.get(
+            f"{license_service_url.rstrip('/')}/api/orgs",
+            params={"sponsor_org_id": org_id},
+            timeout=2,
+        )
+        if resp2.status_code != 200:
+            return jsonify({"status": "success", "orgs": []}), 200
+        data = resp2.json()
+        orgs = [{"org_id": c["org_id"], "org_name": c.get("org_name", c["org_id"])} for c in (data.get("orgs") or [])]
+        return jsonify({"status": "success", "orgs": orgs}), 200
+    except Exception as e:
+        logger.debug(f"Could not fetch OEM customers: {e}")
+        return jsonify({"status": "success", "orgs": []}), 200
 
 
 @app.route("/api/raw-meter-data/upload", methods=["POST"])
@@ -18567,6 +18814,24 @@ def upload_raw_meter_data():
         if not uploaded_by:
             return jsonify({"status": "error", "error": "User ID required"}), 400
 
+        # Get org_id for multi-tenant isolation
+        org_id = get_current_org_id(request)
+        if not org_id:
+            return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
+
+        # OEM: target_org_id required - must assign to a sponsored customer (not OEM org itself)
+        target_org_id = (request.form.get("target_org_id") or "").strip()
+        org_ids = _get_oem_visible_org_ids(org_id)
+        is_oem = len(org_ids) > 1
+        if target_org_id:
+            if target_org_id == org_id:
+                return jsonify({"status": "error", "error": "Please select a customer to assign these files to."}), 400
+            if target_org_id not in org_ids:
+                return jsonify({"status": "error", "error": "Invalid customer. You can only assign files to your sponsored customers."}), 403
+            org_id = target_org_id
+        elif is_oem:
+            return jsonify({"status": "error", "error": "Please select a customer to assign these files to."}), 400
+
         # Import CSVIntegrityProtection from fixed file
         from main_hardened_ready_fixed import CSVIntegrityProtection
 
@@ -18597,12 +18862,7 @@ def upload_raw_meter_data():
             fingerprint_data = csv_integrity.create_content_fingerprint(file_content)
             fingerprint = fingerprint_data["content_hash"]  # Store just the hash string
 
-            # Get org_id for multi-tenant isolation
-            org_id = get_current_org_id(request)
-            if not org_id:
-                return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
-
-            # Store file metadata in org-specific database
+            # Store file metadata in org-specific database (org_id set above, may be target_org_id for OEM)
             with get_db_connection(org_id=org_id) as conn:
                 if conn is None:
                     return (
@@ -18667,7 +18927,7 @@ def upload_raw_meter_data():
 
 @app.route("/api/original-files", methods=["GET"])
 def list_original_files():
-    """List all original raw meter data files"""
+    """List all original raw meter data files. OEM users see files from their org + sponsored customers."""
     try:
         logger.info("≡ƒöì /api/original-files endpoint called")
         
@@ -18679,7 +18939,10 @@ def list_original_files():
             logger.warning("Γ¥î /api/original-files: No org_id found - authentication required")
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
         
-        with get_db_connection(org_id=org_id) as conn:
+        # OEM users see files from their org + all customer orgs (sponsor_org_id = oem_org_id)
+        org_ids = _get_oem_visible_org_ids(org_id)
+        
+        with get_db_connection(org_id=None if len(org_ids) > 1 else org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -18687,20 +18950,37 @@ def list_original_files():
                 )
 
             cursor = conn.cursor()
-            cursor.execute(
+            if len(org_ids) > 1:
+                # OEM: query multiple orgs (use raw SQL with org_id IN)
+                placeholders = ", ".join(["%s"] * len(org_ids))
+                cursor.execute(
+                    f"""
+                    SELECT id, file_name, file_path, file_size, fingerprint, created_at, org_id
+                    FROM raw_meter_data
+                    WHERE org_id IN ({placeholders})
+                    ORDER BY created_at DESC
+                """,
+                    tuple(org_ids),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id, file_name, file_path, file_size, fingerprint, created_at
+                    FROM raw_meter_data
+                    ORDER BY created_at DESC
                 """
-                SELECT id, file_name, file_path, file_size, fingerprint, created_at
-                FROM raw_meter_data
-                ORDER BY created_at DESC
-            """
-            )
+                )
             
             db_results = cursor.fetchall()
             logger.info(f"≡ƒôè Found {len(db_results)} files in database for org_id={org_id}")
 
             files = []
             for row in db_results:
-                file_id, file_name, file_path, file_size, fingerprint, created_at = row
+                if len(row) == 7:
+                    file_id, file_name, file_path, file_size, fingerprint, created_at, file_org_id = row
+                else:
+                    file_id, file_name, file_path, file_size, fingerprint, created_at = row
+                    file_org_id = None
                 
                 # Check if file exists on disk
                 file_path_obj = Path(file_path) if file_path else None
@@ -18709,18 +18989,19 @@ def list_original_files():
                 # Determine if file is verified (in protected/verified directory)
                 is_verified = file_path and 'protected/verified' in str(file_path) if file_path else False
                 
-                files.append(
-                    {
-                        "id": file_id,
-                        "file_name": file_name,
-                        "file_path": str(file_path) if file_path else None,
-                        "file_size": file_size,
-                        "fingerprint": fingerprint,
-                        "created_at": created_at,
-                        "exists": file_exists,
-                        "is_verified": is_verified,
-                    }
-                )
+                file_dict = {
+                    "id": file_id,
+                    "file_name": file_name,
+                    "file_path": str(file_path) if file_path else None,
+                    "file_size": file_size,
+                    "fingerprint": fingerprint,
+                    "created_at": created_at,
+                    "exists": file_exists,
+                    "is_verified": is_verified,
+                }
+                if file_org_id:
+                    file_dict["org_id"] = file_org_id
+                files.append(file_dict)
             
             logger.info(f"Γ£à Returning {len(files)} files (verified: {sum(1 for f in files if f.get('is_verified'))}, unverified: {sum(1 for f in files if not f.get('is_verified'))})")
             return jsonify({"status": "success", "files": files})
@@ -18771,7 +19052,11 @@ def get_file_for_clipping(file_id):
             except Exception as e:
                 logger.debug(f"Could not validate user session for access logging: {e}")
 
-        with get_db_connection(org_id=org_id) as conn:
+        # OEM can access files from their org + sponsored customers
+        org_ids = _get_oem_visible_org_ids(org_id)
+        use_multi_org = len(org_ids) > 1
+
+        with get_db_connection(org_id=None if use_multi_org else org_id) as conn:
             if conn is None:
                 logger.error("Database connection failed")
                 return (
@@ -18782,17 +19067,33 @@ def get_file_for_clipping(file_id):
             cursor = conn.cursor()
 
             # First, let's see what files exist
-            cursor.execute("SELECT id, file_name FROM raw_meter_data ORDER BY id")
+            if use_multi_org:
+                placeholders = ", ".join(["%s"] * len(org_ids))
+                cursor.execute(
+                    f"SELECT id, file_name FROM raw_meter_data WHERE org_id IN ({placeholders}) ORDER BY id",
+                    tuple(org_ids),
+                )
+            else:
+                cursor.execute("SELECT id, file_name FROM raw_meter_data ORDER BY id")
             all_files = cursor.fetchall()
             logger.info(f"All files in database: {all_files}")
 
-            cursor.execute(
-                """
-                SELECT file_name, file_path, file_size, fingerprint, created_at
-                FROM raw_meter_data WHERE id = ?
-            """,
-                (file_id,),
-            )
+            if use_multi_org:
+                cursor.execute(
+                    """
+                    SELECT file_name, file_path, file_size, fingerprint, created_at, org_id
+                    FROM raw_meter_data WHERE id = ? AND org_id IN ({})
+                """.format(", ".join(["%s"] * len(org_ids))),
+                    (file_id,) + tuple(org_ids),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT file_name, file_path, file_size, fingerprint, created_at
+                    FROM raw_meter_data WHERE id = ?
+                """,
+                    (file_id,),
+                )
 
             row = cursor.fetchone()
             logger.info(f"File query result for ID {file_id}: {row}")
@@ -18809,7 +19110,10 @@ def get_file_for_clipping(file_id):
                     404,
                 )
 
-            filename, file_path, file_size, fingerprint, created_at = row
+            if len(row) == 6:
+                filename, file_path, file_size, fingerprint, created_at, _ = row
+            else:
+                filename, file_path, file_size, fingerprint, created_at = row
             logger.info(
                 f"File details - Name: {filename}, Path: {file_path}, Size: {file_size}"
             )
@@ -18985,21 +19289,20 @@ def apply_clipping_to_original_file(file_id):
                 400,
             )
 
-        # Get org_id for multi-tenant isolation
         org_id = get_current_org_id(request)
         if not org_id:
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
         
-        # Get user session for tracking
+        org_ids = _get_oem_visible_org_ids(org_id)
+        use_multi_org = len(org_ids) > 1
+        
         session_token = request.headers.get("Authorization", "").replace("Bearer ", "")
         logger.info(
             f"Session token received: {session_token[:20] if session_token else 'None'}..."
         )
         
-        # Import CSVIntegrityProtection from fixed file
         from main_hardened_ready_fixed import CSVIntegrityProtection
         
-        # Validate session using sessions database
         user_id = None
         try:
             with get_db_connection(use_sessions_db=True) as sessions_conn:
@@ -19043,7 +19346,7 @@ def apply_clipping_to_original_file(file_id):
                 "role": user_row[4]
             }
 
-        with get_db_connection(org_id=org_id) as conn:
+        with get_db_connection(org_id=None if use_multi_org else org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -19083,19 +19386,33 @@ def apply_clipping_to_original_file(file_id):
                     logger.debug(f"Could not add modification_details column: {alt_e}")
             conn.commit()
             
-            cursor.execute(
-                """
-                SELECT file_name, file_path, fingerprint
-                FROM raw_meter_data WHERE id = ?
-            """,
-                (file_id,),
-            )
+            if use_multi_org:
+                placeholders = ", ".join(["%s"] * len(org_ids))
+                cursor.execute(
+                    f"""
+                    SELECT file_name, file_path, fingerprint, org_id
+                    FROM raw_meter_data WHERE id = ? AND org_id IN ({placeholders})
+                """,
+                    (file_id,) + tuple(org_ids),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT file_name, file_path, fingerprint
+                    FROM raw_meter_data WHERE id = ?
+                """,
+                    (file_id,),
+                )
 
             row = cursor.fetchone()
             if not row:
                 return jsonify({"status": "error", "error": "File not found"}), 404
 
-            filename, file_path, original_fingerprint = row
+            if len(row) == 4:
+                filename, file_path, original_fingerprint, file_org_id = row
+                org_id = file_org_id  # Use file's org for subsequent DB operations
+            else:
+                filename, file_path, original_fingerprint = row
             logger.info(f"Apply clipping - Original file path from DB: {file_path}")
 
             # Resolve file_path to absolute path based on script directory
@@ -19148,21 +19465,28 @@ def apply_clipping_to_original_file(file_id):
             )
             new_fingerprint = new_fingerprint_data["content_hash"]
 
-            # Update file fingerprint in database
-            logger.info(f"≡ƒÆ╛ Updating fingerprint in database for file_id={file_id}")
-            logger.info(f"≡ƒÆ╛ New fingerprint: {new_fingerprint[:32]}...")
-            cursor.execute(
-                """
-                UPDATE raw_meter_data 
-                SET fingerprint = ?
-                WHERE id = ?
-            """,
-                (new_fingerprint, file_id),
-            )
-            
-            # Verify the update
-            cursor.execute("SELECT fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
-            verify_row = cursor.fetchone()
+            # Update file fingerprint in database (use file's org for multi-org)
+            db_cursor = cursor
+            if use_multi_org:
+                with get_db_connection(org_id=org_id) as org_conn:
+                    db_cursor = org_conn.cursor()
+                    db_cursor.execute(
+                        "UPDATE raw_meter_data SET fingerprint = ? WHERE id = ?",
+                        (new_fingerprint, file_id),
+                    )
+                    org_conn.commit()
+                    db_cursor.execute("SELECT fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
+                    verify_row = db_cursor.fetchone()
+            else:
+                logger.info(f"≡ƒÆ╛ Updating fingerprint in database for file_id={file_id}")
+                logger.info(f"≡ƒÆ╛ New fingerprint: {new_fingerprint[:32]}...")
+                cursor.execute(
+                    "UPDATE raw_meter_data SET fingerprint = ? WHERE id = ?",
+                    (new_fingerprint, file_id),
+                )
+                conn.commit()
+                cursor.execute("SELECT fingerprint FROM raw_meter_data WHERE id = ?", (file_id,))
+                verify_row = cursor.fetchone()
             if verify_row and verify_row[0] == new_fingerprint:
                 logger.info(f"Γ£à Fingerprint updated successfully in database for file_id={file_id}")
             else:
@@ -19186,47 +19510,49 @@ def apply_clipping_to_original_file(file_id):
                 modification_details,
             )
 
-            # Store modification record in database
-            # Try to insert with modification_details, fallback if column doesn't exist
-            try:
-                cursor.execute(
+            # Store modification record in database (use file's org for multi-org)
+            def _do_insert(c):
+                c.execute(
                     """
                     INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
                                                   modification_details, fingerprint_before, fingerprint_after, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """,
-                    (
-                        file_id,
-                        user["id"],
-                        "content_modification",
-                        modification_reason,
-                        modification_details,
-                        original_fingerprint,
-                        new_fingerprint,
-                    ),
+                    (file_id, user["id"], "content_modification", modification_reason,
+                     modification_details, original_fingerprint, new_fingerprint),
                 )
+            try:
+                if use_multi_org:
+                    with get_db_connection(org_id=org_id) as mod_conn:
+                        mod_cursor = mod_conn.cursor()
+                        _do_insert(mod_cursor)
+                        mod_conn.commit()
+                else:
+                    _do_insert(cursor)
             except sqlite3.OperationalError as e:
                 error_msg = str(e).lower()
-                # Check for various formats of the "column doesn't exist" error
                 if ("no such column" in error_msg or "has no column" in error_msg) and "modification_details" in error_msg:
-                    # Fallback: insert without modification_details if column doesn't exist
                     logger.warning("modification_details column not found, storing without details")
                     try:
-                        cursor.execute(
-                            """
-                            INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
-                                                          fingerprint_before, fingerprint_after, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-                        """,
-                            (
-                                file_id,
-                                user["id"],
-                                "content_modification",
-                                modification_reason,
-                                original_fingerprint,
-                                new_fingerprint,
-                            ),
-                        )
+                        if use_multi_org:
+                            with get_db_connection(org_id=org_id) as mod_conn:
+                                mod_cursor = mod_conn.cursor()
+                                mod_cursor.execute(
+                                    """INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
+                                                                      fingerprint_before, fingerprint_after, created_at)
+                                       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
+                                    (file_id, user["id"], "content_modification", modification_reason,
+                                     original_fingerprint, new_fingerprint),
+                                )
+                                mod_conn.commit()
+                        else:
+                            cursor.execute(
+                                """INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
+                                                                   fingerprint_before, fingerprint_after, created_at)
+                                   VALUES (?, ?, ?, ?, ?, ?, datetime('now'))""",
+                                (file_id, user["id"], "content_modification", modification_reason,
+                                 original_fingerprint, new_fingerprint),
+                            )
                         logger.info("Successfully inserted modification record without modification_details")
                     except Exception as fallback_error:
                         logger.error(f"Error in fallback insert: {fallback_error}")
@@ -21127,8 +21453,8 @@ def manufacturing_analysis():
 
 @app.route("/", methods=["GET"])
 def index():
-    """Redirect to main dashboard"""
-    return redirect("/main-dashboard")
+    """Redirect to main dashboard (use full URL when behind proxy at /emv/)"""
+    return redirect(_main_dashboard_url())
 
 @app.route("/main-dashboard")
 def main_dashboard():
@@ -21138,6 +21464,13 @@ def main_dashboard():
         stats = get_dashboard_statistics()
 
         website_url = WEBSITE_URL or ""
+        static_base = _static_base()
+
+        def static_url(filename):
+            """URL for static file, with base path when behind proxy."""
+            base = static_base
+            return f"{base}/static/{filename}" if base else f"/static/{filename}"
+
         context = {
             "version": get_current_version(),
             "cache_bust": int(time.time()),
@@ -21146,6 +21479,7 @@ def main_dashboard():
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
             "website_url": website_url,
+            "static_url": static_url,
         }
 
         logger.info(
@@ -35478,15 +35812,59 @@ def upload_transformers_csv():
 # Auth Logout Route
 @app.route("/api/auth/logout", methods=["POST"])
 def logout_user():
-    """Logout user and clear session"""
+    """Logout user: remove from user_sessions and clear session_token cookie."""
     try:
-        # Clear session data (if using sessions)
-        # For now, just return success
-        # The frontend will handle clearing local storage/session storage
-        return jsonify({"status": "success", "message": "Logged out successfully"}), 200
+        session_token = request.cookies.get("session_token")
+        if session_token:
+            session_token = session_token.strip()
+            if session_token.startswith("Bearer "):
+                session_token = session_token[7:]
+            try:
+                with get_db_connection(use_sessions_db=True) as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        if USE_MYSQL:
+                            cursor.execute("DELETE FROM user_sessions WHERE session_token = %s", (session_token,))
+                        else:
+                            cursor.execute("DELETE FROM user_sessions WHERE session_token = ?", (session_token,))
+                        conn.commit()
+            except Exception as db_err:
+                logger.debug(f"Logout: could not remove session from DB: {db_err}")
+        resp = jsonify({"status": "success", "message": "Logged out successfully"})
+        cookie_path = _static_base() or "/"
+        resp.set_cookie("session_token", "", max_age=0, path=cookie_path, samesite="Lax")
+        return resp, 200
     except Exception as e:
         logger.error(f"Error during logout: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/logout", methods=["GET"])
+def logout_redirect():
+    """Clear EMV session cookie and localStorage/sessionStorage, then redirect. Used for full logout when switching accounts.
+    Must serve HTML that clears client-side storage; server cannot clear localStorage."""
+    return_url = request.args.get("return_url", "/")
+    cookie_path = _static_base() or "/"
+    # Serve HTML that clears localStorage/sessionStorage (prevents stale xctadmin showing after login as harmoniqadmin)
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Logging out...</title></head>
+<body>
+<script>
+(function() {{
+  try {{
+    localStorage.removeItem('session_token');
+    sessionStorage.removeItem('session_token');
+    localStorage.removeItem('org_id');
+  }} catch (e) {{}}
+  window.location.replace({json.dumps(return_url)});
+}})();
+</script>
+<p>Logging out...</p>
+</body></html>"""
+    resp = make_response(html, 200)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    resp.set_cookie("session_token", "", max_age=0, path=cookie_path, samesite="Lax")
+    return resp
 
 # Admin Panel Route
 @app.route("/admin-panel")
@@ -35713,8 +36091,8 @@ def admin_panel():
                 </html>
                 """
             
-            # Check if user is administrator
-            if user_data[4] != "administrator":
+            # Check if user is administrator or OEM admin
+            if user_data[4] not in ("administrator", "oem_admin"):
                 # Return access denied page
                 return (
                     """
@@ -36419,6 +36797,7 @@ def system_status_page():
     """System status and health information page"""
     try:
         cache_bust = int(time.time())
+        static_base = _static_base()
         support_heading = "Support Information"  # Set in code to avoid encoding corruption
         resp = render_template_string(
             """
@@ -36428,7 +36807,7 @@ def system_status_page():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Status - SYNEREX</title>
-    <link rel="stylesheet" href="/static/main_dashboard.css?v={{ cache_bust }}">
+    <link rel="stylesheet" href="{{ static_base }}/static/main_dashboard.css?v={{ cache_bust }}">
     <style>
         .status-container {
             max-width: 1200px;
@@ -36487,7 +36866,7 @@ def system_status_page():
     <div class="status-container">
         <div class="status-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
+                <img src="{{ static_base }}/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
                 <h1 style="margin: 0;">[FIX] System Status & Health</h1>
             </div>
             <p>Real-time system monitoring and operational status</p>
@@ -36541,6 +36920,7 @@ def system_status_page():
         """,
             cache_bust=cache_bust,
             support_heading=support_heading,
+            static_base=static_base or "",
         )
         from flask import Response
         if not isinstance(resp, Response):
@@ -36559,6 +36939,7 @@ def documentation_page():
     """System documentation page"""
     try:
         cache_bust = int(time.time())
+        static_base = _static_base() or ""
         return render_template_string(
             """
 <!DOCTYPE html>
@@ -36567,7 +36948,7 @@ def documentation_page():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Documentation - SYNEREX</title>
-    <link rel="stylesheet" href="/static/main_dashboard.css?v={{ cache_bust }}">
+    <link rel="stylesheet" href="{{ static_base }}/static/main_dashboard.css?v={{ cache_bust }}">
     <style>
         .doc-container {
             max-width: 1200px;
@@ -36610,11 +36991,11 @@ def documentation_page():
     <div class="doc-container">
         <div class="doc-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 40px; width: auto;">
+                <img src="{{ static_base }}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 40px; width: auto;">
                 <h1 style="margin: 0;">Documentation</h1>
             </div>
             <p>Complete system documentation and user guides</p>
-            <button class="btn-doc" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/main-dashboard'; }" style="background: #6c757d; margin-top: 15px;">← Back</button>
+            <button class="btn-doc" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{{ static_base }}/main-dashboard'; }" style="background: #6c757d; margin-top: 15px;">← Back</button>
         </div>
 
         <div class="doc-section">
@@ -36626,7 +37007,7 @@ def documentation_page():
                 <li><strong>Generate Report:</strong> Create comprehensive HTML reports</li>
                 <li><strong>Audit Package:</strong> Generate complete audit documentation</li>
             </ol>
-            <button class="btn-doc" onclick="window.location.href='/main-dashboard'">Go to Dashboard</button>
+            <button class="btn-doc" onclick="window.location.href='{{ static_base }}/main-dashboard'">Go to Dashboard</button>
         </div>
 
         <div class="doc-section">
@@ -36637,7 +37018,7 @@ def documentation_page():
                 <li><strong>View Sync Status:</strong> See which documents are in sync or out of sync</li>
                 <li><strong>Identify Discrepancies:</strong> Find and resolve any inconsistencies between documents</li>
             </ul>
-            <button class="btn-doc" onclick="window.location.href='/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
+            <button class="btn-doc" onclick="window.location.href='{{ static_base }}/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
         </div>
 
         <div class="doc-section">
@@ -36648,13 +37029,14 @@ def documentation_page():
                 <li>Check the audit compliance page for regulatory information</li>
                 <li>Review the system status for operational information</li>
             </ul>
-            <button class="btn-doc" onclick="window.location.href='/main-dashboard'">Back to Dashboard</button>
+            <button class="btn-doc" onclick="window.location.href='{{ static_base }}/main-dashboard'">Back to Dashboard</button>
         </div>
     </div>
 </body>
 </html>
         """,
             cache_bust=cache_bust,
+            static_base=static_base,
         )
     except Exception as e:
         logger.error(f"Error rendering documentation page: {e}")
@@ -36666,6 +37048,7 @@ def document_sync_console():
     """Document Sync Console - Verify and sync HTML Reports, Audit documents, and Utility Submission documents"""
     try:
         cache_bust = int(time.time())
+        static_base = _static_base() or ""
         return render_template_string(
             """
 <!DOCTYPE html>
@@ -36674,7 +37057,7 @@ def document_sync_console():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Sync Console - SYNEREX</title>
-    <link rel="stylesheet" href="/static/main_dashboard.css?v={{ cache_bust }}">
+    <link rel="stylesheet" href="{{ static_base }}/static/main_dashboard.css?v={{ cache_bust }}">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

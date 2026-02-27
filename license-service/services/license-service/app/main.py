@@ -9,9 +9,11 @@ from .config import settings
 from .db import Base, engine
 # Import all models to ensure they're registered
 from .models import (
-    org, license as license_model, authorization, api_key, 
+    org, license as license_model, authorization, api_key,
     seats, billing, audit, notification, webhook, usage, payment
 )
+from .models.user import User
+from .models.admin_user import AdminUser
 from .routes.authorizations import router as authz_router
 from .routes.licenses import router as lic_router
 from .routes.api_keys import router as api_keys_router
@@ -21,6 +23,7 @@ from .routes.audit_api import router as audit_api_router
 from .routes.downloads import router as downloads_router
 from .routes.billing import router as billing_router
 from .routes.registration import router as registration_router
+from .routes.oem_admin import router as oem_admin_router
 from .routes.auth import router as auth_router
 from .routes.templates import router as templates_router
 from .routes.lifecycle import router as lifecycle_router
@@ -29,9 +32,6 @@ from .routes.analytics import router as analytics_router
 from .routes.exports import router as exports_router
 from .routes.access import router as access_router
 from .admin.ui import router as admin_router
-
-if settings.db_url.startswith("sqlite"):
-    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="License Service", docs_url=None)  # Custom /docs with root_path support
 
@@ -53,7 +53,9 @@ if settings.enable_usage_tracking:
     app.add_middleware(UsageTrackingMiddleware)
 
 from .middleware.rate_limit import RateLimitMiddleware
+from .middleware.redirect_rewrite import RedirectRewriteMiddleware
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RedirectRewriteMiddleware)
 
 # Add exception handler for 401 errors to prevent redirect loops
 @app.exception_handler(HTTPException)
@@ -75,6 +77,7 @@ def unauthorized_handler(request: Request, exc: HTTPException):
     return HTMLResponse(content=f"<h1>401 Unauthorized</h1><p>{exc.detail}</p>", status_code=401)
 
 app.include_router(registration_router)
+app.include_router(oem_admin_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(orgs_router)
@@ -147,6 +150,17 @@ def check_session(request: Request):
             
             return response
         
+        # Check for platform admin session (for Header dropdown: OEM vs Admin)
+        admin_logged_in = request.session.get("admin_logged_in", False)
+        if admin_logged_in:
+            admin_username = request.session.get("admin_username", "Admin")
+            return {
+                "authenticated": True,
+                "user_type": "admin",
+                "username": admin_username,
+                "org_type": None,
+            }
+        
         # Fallback: Check for org_id in session (legacy or admin sessions)
         org_id = request.session.get("org_id") or request.query_params.get("org_id")
         
@@ -167,6 +181,7 @@ def check_session(request: Request):
         # Build response based on org_type
         response = {
             "authenticated": True,
+            "username": org.org_name or org.email or "User",
             "org_id": org.org_id,
             "org_name": org.org_name,
             "org_type": org.org_type,
