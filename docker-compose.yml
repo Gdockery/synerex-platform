@@ -55,6 +55,7 @@ services:
     env_file:
       - ./emv-program/8082/.env
     environment:
+      EMV_BASE_URL: http://localhost:8080/emv
       EMV_DB_HOST: mysql-emv
       EMV_DB_PORT: "3306"
       TRACKING_PROGRAM_URL: http://tracking-program:8087

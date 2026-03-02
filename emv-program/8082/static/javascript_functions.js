@@ -1163,8 +1163,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
     if (!select) {
       // Only log if we're not on the main dashboard (where projectList doesn't exist)
-      const isMainDashboard = window.location.pathname === '/main-dashboard' || 
-                               window.location.pathname === '/' ||
+      const p = window.location.pathname || '';
+      const isMainDashboard = p === '/main-dashboard' || p.endsWith('/main-dashboard') || p === '/' || p.endsWith('/') ||
                                document.getElementById('main-dashboard');
       if (!isMainDashboard) {
         console.warn('[WARNING] Project list select element not found');

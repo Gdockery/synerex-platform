@@ -12,9 +12,10 @@ from ..db import SessionLocal
 from ..models.user import User
 from ..models.org import Organization
 from ..services.jwt_tokens import generate_user_token, validate_user_token
-from ..services.jwt_tokens import generate_user_token, validate_user_token
+from ..config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+_path = lambda p: f"{settings.root_path.rstrip('/')}{p}" if settings.root_path else p
 
 # Templates directory
 TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "admin" / "templates"
@@ -39,12 +40,15 @@ def client_login_page(request: Request):
     """Display client login page."""
     return_url = request.query_params.get("return_url", "")
     error = request.query_params.get("error", "")
-    
+    ctx = {
+        "request": request,
+        "error": error if error else None,
+        "return_url": return_url,
+        "login_action": _path("/auth/login"),
+        "register_href": _path("/register"),
+    }
     try:
-        return templates.TemplateResponse(
-            "client_login.html",
-            {"request": request, "error": error if error else None, "return_url": return_url}
-        )
+        return templates.TemplateResponse("client_login.html", ctx)
     except Exception as e:
         # Fallback HTML if template fails
         return_url_param = f'?return_url={return_url}' if return_url else ''
@@ -93,7 +97,7 @@ def client_login_submit(
         if not user or not user.is_active:
             error_msg = "Invalid username or password"
             if return_url:
-                return RedirectResponse(f"/auth/login?error={error_msg}&return_url={return_url}", status_code=303)
+                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
             return templates.TemplateResponse(
                 "client_login.html",
                 {"request": request, "error": error_msg, "return_url": return_url},
@@ -112,7 +116,7 @@ def client_login_submit(
         if not password_valid:
             error_msg = "Invalid username or password"
             if return_url:
-                return RedirectResponse(f"/auth/login?error={error_msg}&return_url={return_url}", status_code=303)
+                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
             return templates.TemplateResponse(
                 "client_login.html",
                 {"request": request, "error": error_msg, "return_url": return_url},
@@ -169,8 +173,8 @@ def client_login_submit(
         return RedirectResponse("/my-account", status_code=303)
     except Exception as e:
         error_msg = f"Login failed: {str(e)}"
-        if return_url:
-            return RedirectResponse(f"/auth/login?error={error_msg}&return_url={return_url}", status_code=303)
+            if return_url:
+                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
         return templates.TemplateResponse(
             "client_login.html",
             {"request": request, "error": error_msg, "return_url": return_url},
@@ -181,7 +185,21 @@ def client_login_submit(
 def client_logout(request: Request):
     """Handle client logout."""
     request.session.clear()
-    return RedirectResponse("/auth/login", status_code=303)
+    return RedirectResponse(_path("/auth/login"), status_code=303)
+
+
+@router.get("/logout-all")
+def client_logout_all(request: Request):
+    """Unified logout (GET for link navigation). Clears session, redirects to login with return to my-account."""
+    request.session.clear()
+    from urllib.parse import quote
+    return_url = request.query_params.get("return_url", "")
+    if not return_url:
+        origin = f"{request.url.scheme}://{request.url.netloc}"
+        return_url = f"{origin}/my-account"
+    login_url = _path("/auth/login")
+    sep = "&" if "?" in login_url else "?"
+    return RedirectResponse(f"{login_url}{sep}return_url={quote(return_url, safe='')}", status_code=303)
 
 
 @router.get("/api/jwt")

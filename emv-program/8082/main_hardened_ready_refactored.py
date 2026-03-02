@@ -21471,6 +21471,7 @@ def main_dashboard():
             base = static_base
             return f"{base}/static/{filename}" if base else f"/static/{filename}"
 
+        base = static_base or ""
         context = {
             "version": get_current_version(),
             "cache_bust": int(time.time()),
@@ -21480,6 +21481,7 @@ def main_dashboard():
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
             "website_url": website_url,
             "static_url": static_url,
+            "static_base": base,
         }
 
         logger.info(
@@ -21487,7 +21489,8 @@ def main_dashboard():
         )
         result = render_template("main_dashboard.html", **context)
         config_script = (
-            f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>"
+            f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';"
+            f"window.SYNEREX_EMV_BASE = '{base}';</script>"
         )
         if "</head>" in result:
             result = result.replace("</head>", config_script + "\n</head>", 1)

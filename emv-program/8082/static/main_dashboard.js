@@ -1,6 +1,8 @@
 // Main Dashboard JavaScript
 const LICENSE_SERVICE_URL = window.SYNEREX_LICENSE_SERVICE_URL;
 const WEBSITE_URL = window.SYNEREX_WEBSITE_URL;
+const EMV_BASE = (typeof window !== 'undefined' && window.SYNEREX_EMV_BASE) || '';
+function emvUrl(p) { return (EMV_BASE || '') + p; }
 class MainDashboard {
     constructor() {
 
@@ -1255,7 +1257,7 @@ class MainDashboard {
                             cursor: pointer;
                             margin-right: 10px;
                         ">Cancel</button>
-                        <button onclick="window.location.href='/upload-interface'" style="
+                        <button onclick="window.location.href=emvUrl('/upload-interface')" style="
                             background: #007bff;
                             color: white;
                             border: none;
@@ -1487,7 +1489,7 @@ class MainDashboard {
                                                 </span>
                                             </td>
                                             <td style="padding: 12px;">
-                                                <button onclick="window.location.href='/raw-files-list'" 
+                                                <button onclick="window.location.href=emvUrl('/raw-files-list')" 
                                                         style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                     View Details
                                                 </button>
@@ -1508,7 +1510,7 @@ class MainDashboard {
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">Close</button>
-                    <button class="btn btn-secondary" onclick="window.location.href='/raw-files-list'" style="margin-left: 10px;">View Full List</button>
+                    <button class="btn btn-secondary" onclick="window.location.href=emvUrl('/raw-files-list')" style="margin-left: 10px;">View Full List</button>
                 </div>
             </div>
         `;
@@ -1607,7 +1609,7 @@ class MainDashboard {
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">Close</button>
-                    <button class="btn btn-secondary" onclick="window.location.href='/raw-files-list'" style="margin-left: 10px;">Manage Files</button>
+                    <button class="btn btn-secondary" onclick="window.location.href=emvUrl('/raw-files-list')" style="margin-left: 10px;">Manage Files</button>
                 </div>
             </div>
         `;
@@ -1710,7 +1712,7 @@ class MainDashboard {
                                                     </span>
                                                 </td>
                                                 <td style="padding: 12px;">
-                                                    <button onclick="window.location.href='/raw-files-list'" 
+                                                    <button onclick="window.location.href=emvUrl('/raw-files-list')" 
                                                             style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                         View
                                                     </button>
@@ -1731,7 +1733,7 @@ class MainDashboard {
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">Close</button>
-                    <button class="btn btn-secondary" onclick="window.location.href='/raw-files-list'" style="margin-left: 10px;">View All Files</button>
+                    <button class="btn btn-secondary" onclick="window.location.href=emvUrl('/raw-files-list')" style="margin-left: 10px;">View All Files</button>
                 </div>
             </div>
         `;
@@ -2625,7 +2627,7 @@ class MainDashboard {
                                                 </code>
                                             </td>
                                             <td style="padding: 12px;">
-                                                <button onclick="window.location.href='/clipping-interface?file=${file.id || file.file_id}'" 
+                                                <button onclick="window.location.href=emvUrl('/clipping-interface?file=' + (file.id || file.file_id))" 
                                                         style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                                     View/Edit
                                                 </button>
@@ -2658,7 +2660,7 @@ class MainDashboard {
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">Close</button>
-                    <button class="btn btn-secondary" onclick="window.location.href='/clipping-interface'" style="margin-left: 10px;">Start Clipping</button>
+                    <button class="btn btn-secondary" onclick="window.location.href=emvUrl('/clipping-interface')" style="margin-left: 10px;">Start Clipping</button>
                 </div>
             </div>
         `;

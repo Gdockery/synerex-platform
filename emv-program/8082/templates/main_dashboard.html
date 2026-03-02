@@ -7,8 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Synerex - CSV Tamper-Proofing Utility-Grade Audit System (Updated 19:35)</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main_dashboard.css') }}?v={{ cache_bust }}">
-    <link rel="icon" href="{{ url_for('static', filename='synerex_logo_transparent.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ static_url('main_dashboard.css') }}?v={{ cache_bust }}">
+    <link rel="icon" href="{{ static_url('synerex_logo_transparent.png') }}" type="image/png">
 </head>
 <body>
     <!-- CRITICAL: Clear all spinners immediately on page load, even before DOM is ready -->
@@ -57,7 +57,7 @@
         <!-- Header -->
         <div class="dashboard-header">
             <div class="header-left">
-                <img src="{{ url_for('static', filename='synerex_logo_transparent.png') }}?v={{ cache_bust }}&t={{ cache_bust }}" alt="Synerex" class="logo">
+                <img src="{{ static_url('synerex_logo_transparent.png') }}?v={{ cache_bust }}&t={{ cache_bust }}" alt="Synerex" class="logo">
                 <h1>CSV Tamper-Proofing Utility-Grade Audit System</h1>
                 <!-- Template updated: 2025-10-05 22:30 - Logo changed to transparent version -->
             </div>
@@ -66,10 +66,10 @@
                     <a id="back-to-home-btn" class="btn-secondary" href="{{ website_url or "http://localhost:5173" }}/" aria-label="Back to previous page">Back to previous page</a>
 
                     <button id="help-btn" class="btn-help">Help</button>
-                    <button id="users-guide-btn" class="btn-users-guide" onclick="window.open('/users-guide', '_blank')">User's Guide</button>
-                    <button id="csv-editor-guide-btn" class="btn-users-guide" onclick="window.open('/csv-editor-guide', '_blank')" title="CSV Editor Guide">📖 CSV Guide</button>
-                    <button id="standards-guide-btn" class="btn-standards-guide" onclick="window.open('/standards-guide', '_blank')">Standards Guide</button>
-                    <button id="synerex-ai-btn" class="btn-synerex-ai" onclick="window.open('/synerex-ai', '_blank')">SynerexAI</button>
+                    <button id="users-guide-btn" class="btn-users-guide" onclick="window.open('{{ static_base or "" }}/users-guide', '_blank')">User's Guide</button>
+                    <button id="csv-editor-guide-btn" class="btn-users-guide" onclick="window.open('{{ static_base or "" }}/csv-editor-guide', '_blank')" title="CSV Editor Guide">📖 CSV Guide</button>
+                    <button id="standards-guide-btn" class="btn-standards-guide" onclick="window.open('{{ static_base or "" }}/standards-guide', '_blank')">Standards Guide</button>
+                    <button id="synerex-ai-btn" class="btn-synerex-ai" onclick="window.open('{{ static_base or "" }}/synerex-ai', '_blank')">SynerexAI</button>
                     <button id="admin-btn" class="btn-admin" onclick="openAdminPanel()" style="display: none;">Admin</button>
                 </div>
                 <div class="header-buttons-right">
@@ -86,7 +86,7 @@
         <div id="synerex-ai-chat-widget" class="synerex-ai-chat-widget" style="display: none;">
             <div class="chat-widget-header">
                 <div class="chat-widget-title">
-                    <img src="{{ url_for('static', filename='synerex_logo_transparent.png') }}?v={{ cache_bust }}" alt="SYNEREX" class="chat-logo">
+                    <img src="{{ static_url('synerex_logo_transparent.png') }}?v={{ cache_bust }}" alt="SYNEREX" class="chat-logo">
                     <span class="ai-suffix">AI</span>
                     <span class="chat-title">SynerexAI Assistant</span>
                 </div>
@@ -369,7 +369,7 @@
                     </div>
                     <div class="section-content">
                         <div class="facility-type-grid">
-                            <div class="facility-card" onclick="window.location.href='/legacy'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/legacy'">
                                 <div class="facility-icon">Settings</div>
                                 <h3>General Energy Analysis</h3>
                                 <p>Standard power quality and energy analysis</p>
@@ -384,7 +384,7 @@
                                 </div>
                                 <button class="facility-btn">Start Analysis →</button>
                             </div>
-                            <div class="facility-card" onclick="window.location.href='/cold-storage'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/cold-storage'">
                                 <div class="facility-icon">❄️</div>
                                 <h3>Cold Storage Facility</h3>
                                 <p>Energy intensity per unit of product</p>
@@ -399,7 +399,7 @@
                                 </div>
                                 <button class="facility-btn">Start Analysis →</button>
                             </div>
-                            <div class="facility-card" onclick="window.location.href='/data-center'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/data-center'">
                                 <div class="facility-icon">🖥️</div>
                                 <h3>Data Center / GPU Facility</h3>
                                 <p>PUE, ITE, and compute efficiency</p>
@@ -414,7 +414,7 @@
                                 </div>
                                 <button class="facility-btn">Start Analysis →</button>
                             </div>
-                            <div class="facility-card" onclick="window.location.href='/healthcare'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/healthcare'">
                                 <div class="facility-icon">🏥</div>
                                 <h3>Healthcare Facilities</h3>
                                 <p>Energy per patient day and critical power analysis</p>
@@ -431,7 +431,7 @@
                                 </div>
                                 <button class="facility-btn">Start Analysis →</button>
                             </div>
-                            <div class="facility-card" onclick="window.location.href='/hospitality'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/hospitality'">
                                 <div class="facility-icon">Hotel</div>
                                 <h3>Hospitality Facilities</h3>
                                 <p>Energy per room-night, guest, and meal analysis</p>
@@ -448,7 +448,7 @@
                                 </div>
                                 <button class="facility-btn">Start Analysis →</button>
                             </div>
-                            <div class="facility-card" onclick="window.location.href='/manufacturing'">
+                            <div class="facility-card" onclick="window.location.href='{{ static_base or "" }}/manufacturing'">
                                 <div class="facility-icon">🏭</div>
                                 <h3>Manufacturing & Industrial</h3>
                                 <p>Energy per unit produced and process efficiency</p>
@@ -618,9 +618,9 @@
             }
         })();
     </script>
-    <script src="{{ url_for('static', filename='main_dashboard.js') }}?v={{ cache_bust }}"></script>
-    <script src="{{ url_for('static', filename='ollama_ai_service.js') }}?v={{ cache_bust }}"></script>
-    <script src="{{ url_for('static', filename='javascript_functions.js') }}?v={{ cache_bust }}"></script>
+    <script src="{{ static_url('main_dashboard.js') }}?v={{ cache_bust }}"></script>
+    <script src="{{ static_url('ollama_ai_service.js') }}?v={{ cache_bust }}"></script>
+    <script src="{{ static_url('javascript_functions.js') }}?v={{ cache_bust }}"></script>
     <script>
         console.log('main_dashboard.js script tag loaded');
         console.log('ollama_ai_service.js script tag loaded');

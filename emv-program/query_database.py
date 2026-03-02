@@ -2,15 +2,33 @@
 """
 Simple script to query the SYNEREX database
 """
-import sqlite3
-from urllib.parse import urlparse
-import pymysql
-import sys
 import os
+import re
+import sqlite3
+import sys
+from urllib.parse import urlparse
+
+import pymysql
+
+
+def _resolve_emv_db_url(url):
+    """Apply EMV_DB_HOST/EMV_DB_PORT override for Docker (mysql-emv:3306)."""
+    if not url:
+        return url
+    host = os.getenv("EMV_DB_HOST")
+    port = os.getenv("EMV_DB_PORT")
+    if host:
+        url = re.sub(r"@[^:/]+", "@" + host, url, count=1)
+    if port:
+        url = re.sub(r":\d+(?=/)", ":" + str(port), url, count=1)
+    return url
+
 
 # Database path
 db_path = os.path.join("8082", "results", "app.db")
 mysql_url = os.getenv("EMV_DB_URL")
+if mysql_url:
+    mysql_url = _resolve_emv_db_url(mysql_url)
 
 if not mysql_url and not os.path.exists(db_path):
     print(f"❌ Database not found at: {db_path}")
