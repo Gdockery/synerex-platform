@@ -19,7 +19,7 @@
       </div>
       <div class="col-md-6">
         <div class="form-group">
-          <label for="xecoManager">{{brandName}} account manager</label><br />
+          <label for="xecoManager">{{accountManagerLabel}} Account Manager</label><br />
           <select class="form-control" id="xecoManager" name="xecoManager" formControlName="xecoManager">
             <option value="">--</option>
             <option *ngFor="let manager of xecoAccountManagers" [ngValue]="manager.id">{{manager.fullName}}</option>
@@ -232,7 +232,7 @@
         </div>
       </div>
     </div>
-    <form [formGroup]="reportFields">
+    <div formGroupName="reportFields">
       <div class="col-md-2">
         <div class="form-group">
           <h5><strong>Show I2RLosses: </strong></h5>
@@ -328,13 +328,13 @@
         </div>
         <div class="col-md-4">
           <div class="form-group">
-            <label for="invoiceContactName">Xeco Invoice Contact</label>
+            <label for="invoiceContactName">{{accountManagerLabel}} Invoice Contact</label>
             <input type="text" class="form-control" id="invoiceContactName" name="invoiceContactName" formControlName="invoiceContactName">
           </div>
         </div>
         <div class="col-md-4">
           <div class="form-group">
-            <label for="invoiceContactPhone">Xeco Invoice Phone</label>
+            <label for="invoiceContactPhone">{{accountManagerLabel}} Invoice Phone</label>
             <input type="text" class="form-control" id="invoiceContactPhone" name="invoiceContactPhone" formControlName="invoiceContactPhone">
           </div>
         </div>
@@ -453,13 +453,13 @@
           </div>
         </div>
       </div>
-    </form>
+    </div>
 
     <div class="row">
       <div class="col-md-12 text-right">
         <a class="btn btn-default cancel-btn" *ngIf="userService.user.role==8" [routerLink]="['/xeco-administrator/project/list']">Cancel</a>
         <a class="btn btn-default cancel-btn" *ngIf="userService.user.role != 8" [routerLink]="['/project/select']">Cancel</a>
-        <button class="btn btn-primary">Create project</button>
+        <button type="button" class="btn btn-primary" (click)="submitCreateProjectForm()">Create project</button>
       </div>
     </div>
   </form>

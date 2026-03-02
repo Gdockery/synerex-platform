@@ -23,6 +23,7 @@ import {ELECTRICITY_CHARGE_TYPES} from "./config/electricityChargeTypes";
 import {TIER_HOURS} from "./config/tierHours";
 import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
 import { MyAccountComponent } from './my-account/my-account.component';
+import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
 import {SubNavService} from "./shared/subNav/subNav.service";
 import {ConfirmationService, ConfirmDialogModule} from "primeng/primeng";
 import {NgProgressModule} from "ngx-progressbar";
@@ -34,7 +35,8 @@ import {GlobalNotificationService} from "./shared/globalNotification.service";
 import {SocketService} from "./socket/socket.service";
 import { PaymentModule } from './payment/payment.module';
 import { PaymentService } from './payment/payment.service';
-import { HttpClientModule, HttpClientXsrfModule } from '@angular/common/http'; 
+import { HttpClientModule, HttpClientXsrfModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { ApiBaseInterceptor } from './api/api-base.interceptor';
 import {NgPipesModule} from "angular-pipes";
 //import { HighchartsChartModule } from 'highcharts-angular';
 
@@ -69,10 +71,11 @@ import {NgPipesModule} from "angular-pipes";
     MyAccountComponent,
     WelcomeComponent,
     MaintenanceComponent,
-    NotFoundComponent
+    NotFoundComponent,
+    HomeRedirectComponent
   ],
   providers: [
-    {provide: APP_BASE_HREF, useValue: '/'},
+    {provide: APP_BASE_HREF, useValue: ''},
     {provide: APP_CONFIG, useValue: AppConfig},
     {provide: 'TIMEZONES', useValue: TIMEZONES},
     {provide: 'COUNTRIES', useValue: COUNTRIES},
@@ -88,6 +91,7 @@ import {NgPipesModule} from "angular-pipes";
     GlobalNotificationService,
     SocketService,
     PaymentService,
+    { provide: HTTP_INTERCEPTORS, useClass: ApiBaseInterceptor, multi: true },
 
   ],
   bootstrap: [AppComponent]

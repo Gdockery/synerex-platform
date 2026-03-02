@@ -3,7 +3,7 @@ Phase 6: Alerts (meter, repeater, switch), Test, User (admin), Meter CSV.
 Ported from api/controllers/web/
 """
 import secrets
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user, login_required
 
 from app.extensions import db
@@ -106,7 +106,7 @@ def _user_has_project_access(project_id):
 
 def _role_friendly_name(role):
     names = {1: "Client User", 2: "Client Admin", 3: "Client Manager", 4: "Xeco User",
-             7: "Account Manager", 8: "Xeco Admin"}
+             7: "Account Manager", 8: "Synerex Admin", 9: "OEM Admin", 10: "OEM User"}
     return names.get(role, "User")
 
 
@@ -530,6 +530,112 @@ def remove_test(tid):
 
 # ----- USER (admin) -----
 
+def _get_oem_org_id_for_user(user):
+    """Return org_id for OEM users (role 9, 10). None for non-OEM or if unset."""
+    if not user or getattr(user, "role", None) not in (9, 10):
+        return None
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+    if not org_id and user.client:
+        oem_client = db.session.query(Client).get(user.client)
+        if oem_client:
+            org_id = getattr(oem_client, "org_id", None)
+    return org_id
+
+
+def _get_client_org_id_for_user(user):
+    """Return org_id of user's client for client roles (1, 2, 3, 7). None if no client or unset."""
+    if not user or not user.client:
+        return None
+    c = db.session.query(Client).get(user.client)
+    return getattr(c, "org_id", None) if c else None
+
+
+def _user_can_access_user(current_user_obj, target_user):
+    """True if current user can access target user (view/edit/delete). Role 8: all; 9,10: same org; 1-7: same org."""
+    if not current_user_obj or not target_user:
+        return False
+    role = getattr(current_user_obj, "role", None)
+    if role == 8:
+        return True
+    if role in (9, 10):
+        oem_org_id = _get_oem_org_id_for_user(current_user_obj)
+        if not oem_org_id:
+            return False
+        if not target_user.client:
+            return False
+        c = db.session.query(Client).get(target_user.client)
+        return c is not None and getattr(c, "org_id", None) == oem_org_id
+    if role in (1, 2, 3, 7):
+        my_org = _get_client_org_id_for_user(current_user_obj)
+        if not my_org:
+            return False
+        if not target_user.client:
+            return False
+        c = db.session.query(Client).get(target_user.client)
+        return c is not None and getattr(c, "org_id", None) == my_org
+    return True
+
+
+def _client_in_scope(user, client_id):
+    """True if client_id is in scope for user when creating/assigning users. Role 8: any; 1-7: same org; 9,10: same org."""
+    if not user:
+        return False
+    role = getattr(user, "role", None)
+    if role == 8:
+        return True
+    if role in (9, 10):
+        if not client_id:
+            return True
+        oem_org_id = _get_oem_org_id_for_user(user)
+        if not oem_org_id:
+            return False
+        c = db.session.query(Client).get(client_id)
+        return c is not None and getattr(c, "org_id", None) == oem_org_id
+    if role in (1, 2, 3, 7):
+        if not client_id:
+            return True
+        my_org = _get_client_org_id_for_user(user)
+        if not my_org:
+            return False
+        c = db.session.query(Client).get(client_id)
+        return c is not None and getattr(c, "org_id", None) == my_org
+    return True
+
+
+def _projects_in_scope(user, project_ids):
+    """True if all project_ids belong to clients in user's scope. Role 8: any; 1-7: same org; 9,10: same org."""
+    if not user or not project_ids:
+        return True
+    role = getattr(user, "role", None)
+    if role == 8:
+        return True
+    if role in (9, 10):
+        oem_org_id = _get_oem_org_id_for_user(user)
+        if not oem_org_id:
+            return False
+        for pid in project_ids:
+            p = Project.query.get(pid)
+            if not p:
+                return False
+            c = db.session.query(Client).get(p.client) if p.client else None
+            if not c or getattr(c, "org_id", None) != oem_org_id:
+                return False
+        return True
+    if role in (1, 2, 3, 7):
+        my_org = _get_client_org_id_for_user(user)
+        if not my_org:
+            return False
+        for pid in project_ids:
+            p = Project.query.get(pid)
+            if not p:
+                return False
+            c = db.session.query(Client).get(p.client) if p.client else None
+            if not c or getattr(c, "org_id", None) != my_org:
+                return False
+        return True
+    return True
+
+
 @phase6_bp.route("/api/user", methods=["GET"])
 @phase6_bp.route("/api/user/", methods=["GET"])
 @login_required
@@ -545,7 +651,26 @@ def list_users():
     email = request.args.get("email", "").strip()
     full_name = request.args.get("fullName", "").strip()
 
+    user = User.query.get(current_user.id)
+    role = getattr(user, "role", None)
+
     q = User.query.filter_by(isDeleted=False)
+
+    # Role 8 (Synerex Admin): no org filter - sees all users
+    # Role 9, 10 (OEM): only users whose client has org_id == oem_org_id
+    # Role 1, 2, 3, 7 (Client): only users whose client has org_id == their client's org_id
+    if role in (9, 10):
+        oem_org_id = _get_oem_org_id_for_user(user)
+        if oem_org_id:
+            q = q.join(Client, User.client == Client.id).filter(Client.org_id == oem_org_id)
+        else:
+            q = q.filter(User.id == -1)  # OEM without org_id: show no users
+    elif role in (1, 2, 3, 7) and user and user.client:
+        client_org_id = _get_client_org_id_for_user(user)
+        if client_org_id:
+            q = q.join(Client, User.client == Client.id).filter(Client.org_id == client_org_id)
+        else:
+            q = q.filter(User.id == -1)  # Client without org_id: show no users
     if email:
         q = q.filter(User.email.ilike(f"%{email}%"))
     if full_name:
@@ -583,6 +708,9 @@ def get_user(uid):
     u = User.query.get(uid)
     if not u:
         return jsonify({"error": "Not found"}), 404
+    current = User.query.get(current_user.id)
+    if not _user_can_access_user(current, u):
+        return jsonify({"error": "Not found"}), 404
     proj_ids = [r[0] for r in db.session.query(project_user.c.project_users).filter(project_user.c.user_projects == u.id).all()]
     projs = [{"id": p.id, "name": p.name} for pid in proj_ids for p in [Project.query.get(pid)] if p]
     client = Client.query.get(u.client) if u.client else None
@@ -608,6 +736,11 @@ def create_user():
     projects = data.get("projects") or []
     if not role or not full_name or not email:
         return jsonify({"error": "role, fullName, email required"}), 400
+    current = User.query.get(current_user.id)
+    if client_id is not None and not _client_in_scope(current, client_id):
+        return jsonify({"error": "Client not in your scope"}), 403
+    if projects and not _projects_in_scope(current, projects):
+        return jsonify({"error": "One or more projects not in your scope"}), 403
     parts = full_name.split(None, 1)
     if len(parts) < 2:
         return jsonify({"error": "fullName must have first and last name"}), 400
@@ -654,6 +787,9 @@ def update_user(uid):
     u = User.query.filter_by(id=uid).filter(User.isDeleted != True).first()
     if not u:
         return jsonify({"error": "Not found"}), 404
+    current = User.query.get(current_user.id)
+    if not _user_can_access_user(current, u):
+        return jsonify({"error": "Not found"}), 404
     data = request.get_json() or {}
     if "projects" in data:
         db.session.execute(project_user.delete().where(project_user.c.user_projects == uid))
@@ -678,7 +814,10 @@ def update_user(uid):
     if "role" in data:
         u.role = data["role"]
     if "client" in data:
-        u.client = data["client"]
+        new_client = data["client"]
+        if not _client_in_scope(current, new_client):
+            return jsonify({"error": "Client not in your scope"}), 403
+        u.client = new_client
     db.session.commit()
     return jsonify({"meta": {}, "response": {"uriEncodedToken": getattr(u, "resetPasswordToken", "") or ""}})
 
@@ -689,6 +828,9 @@ def update_user(uid):
 def destroy_user(uid):
     u = User.query.get(uid)
     if not u:
+        return jsonify({"error": "Not found"}), 404
+    current = User.query.get(current_user.id)
+    if not _user_can_access_user(current, u):
         return jsonify({"error": "Not found"}), 404
     u.isDeleted = True
     db.session.commit()

@@ -6,8 +6,9 @@ WORKDIR /build
 COPY 8087/package.json 8087/package-lock.json* ./
 RUN npm install --legacy-peer-deps
 
-# Copy 8087 source and build
+# Copy 8087 source and build (NODE_ENV=production enables minification)
 COPY 8087/ ./
+ENV NODE_ENV=production
 RUN npm run build
 
 # Stage 2 - Flask app

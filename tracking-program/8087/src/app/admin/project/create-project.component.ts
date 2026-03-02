@@ -32,7 +32,8 @@ export class ProjectCreateComponent implements OnInit {
   private financePercent;
   private projectsToAccess;
   public brandName: string = 'Synerex';
-
+  /** For "X Account Manager" label - uses oemDisplayName for OEM users, else brandName */
+  public accountManagerLabel: string = 'Synerex';
 
   public datePickerOptions: IMyOptions = {
     dateFormat: 'yyyy-mm-dd',
@@ -58,8 +59,11 @@ export class ProjectCreateComponent implements OnInit {
   }
 
   ngOnInit() {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.accountManagerLabel = (bootstrap['oemDisplayName'] || this.brandName || 'Synerex').trim();
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;
+      this.accountManagerLabel = (bootstrap['oemDisplayName'] || brandName || 'Synerex').trim();
     });
     var hydratedValidations = _.cloneDeep(VALIDATIONS);
     _.each(hydratedValidations, (def, fieldName)=>{
@@ -129,7 +133,10 @@ export class ProjectCreateComponent implements OnInit {
     }
 
     // If client-side validation fails, don't even try to send it to the cloud.
-    if(!this.form.valid) { return; }
+    if (!this.form.valid) {
+      alert('Please fill in all required fields: Client, Project Name, Slug, Timezone, Currency, Initial Pf, Multiplier, Peak Multiplier, Inductive Load Ratio.');
+      return;
+    }
 
     //set interest rate and downpayment rate
 

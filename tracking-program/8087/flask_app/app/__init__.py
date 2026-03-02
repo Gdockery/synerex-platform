@@ -52,6 +52,12 @@ def create_app(config_class=Config):
     login_manager.login_view = "auth.show_login_page"
     login_manager.login_message = None
 
+    @login_manager.unauthorized_handler
+    def _redirect_to_login():
+        from flask import redirect
+        app_root = app.config.get("APPLICATION_ROOT", "") or ""
+        return redirect(f"{app_root}/login" if app_root else "/login")
+
     # Flask-SocketIO with CORS - allow multiple origins for socket connections
     allowed_origins = [
         config_class.TRACKING_BASE_URL,

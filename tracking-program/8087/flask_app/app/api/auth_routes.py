@@ -22,6 +22,13 @@ from app.services.license_service import verify_jwt
 auth_bp = Blueprint("auth", __name__, url_prefix="", template_folder="../templates")
 
 
+def _login_url(query=""):
+    """Login URL with application root when behind proxy."""
+    base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    path = f"{base}/login" if base else "/login"
+    return f"{path}{query}" if query else path
+
+
 @login_manager.user_loader
 def load_user(user_id):
     try:
@@ -134,16 +141,16 @@ def logout():
     session.clear()
     # Session expired: redirect to login with message (avoid cross-origin redirect to 5173)
     if request.args.get("expired"):
-        return redirect(url_for("auth.show_login_page") + "?expired=1")
+        return redirect(_login_url("?expired=1"))
     # Redirect to Synerex home (5173 or proxy) - use public URL when config has Docker hostnames
     website_url = current_app.config.get("WEBSITE_URL") or current_app.config.get("MY_ACCOUNT_URL", "")
     public_url = current_app.config.get("TRACKING_PUBLIC_WEBSITE_URL", "").rstrip("/").replace("/my-account", "")
     if public_url:
-        return redirect(public_url + "/" if public_url else url_for("auth.show_login_page"))
+        return redirect(public_url + "/" if public_url else _login_url())
     if website_url and not any(h in website_url.lower() for h in ("website", "license-service", "proxy")):
         home = website_url.rstrip("/").replace("/my-account", "")
-        return redirect(home + "/" if home else url_for("auth.show_login_page"))
-    return redirect(url_for("auth.show_login_page"))
+        return redirect(home + "/" if home else _login_url())
+    return redirect(_login_url())
 
 
 @auth_bp.route("/api/auth/verify-jwt", methods=["POST"])
@@ -170,21 +177,21 @@ def sso_login():
     """GET /sso?token=... - SSO login via JWT from License Service."""
     token = request.args.get("token")
     if not token:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
 
     license_url = current_app.config.get("LICENSE_SERVICE_URL")
     if not license_url:
         current_app.logger.warning("sso-login: LICENSE_SERVICE_URL not set")
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
 
     claims = verify_jwt(token, license_url)
     if not claims:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
 
     email = claims.get("email")
     org_id = claims.get("sub")
     if not email:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
 
     if use_per_org_db() and org_id:
         ensure_org_db(org_id)
@@ -194,7 +201,7 @@ def sso_login():
     else:
         user = get_session().query(User).filter_by(email=email, isDeleted=False).first()
     if not user:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
 
     login_user(user, remember=True)
     session["userId"] = user.id
@@ -210,8 +217,12 @@ def sso_login():
     session["orgId"] = org_id
     if session["orgId"]:
         session.setdefault("user", {})["orgId"] = session["orgId"]
+    else:
+        # JWT had no org_id (sub) - fall back to user's client.org_id for OEM
+        _set_org_id_in_session(user)
 
-    return redirect("/")
+    base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    return redirect(f"{base}/" if base else "/")
 
 
 @auth_bp.route("/forgot-password", methods=["GET"])

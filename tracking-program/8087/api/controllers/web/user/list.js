@@ -30,7 +30,7 @@ module.exports = {
       fullName: 'Xander Jones',
       lastActiveAt: 19238724223,
       role: 3,
-      roleFriendlyName: 'XECO Admin',
+      roleFriendlyName: 'Synerex Admin',
       client: { id: 123, name: 'Foo' },
       projects: [
         { id: 987, name: 'Foo' },
@@ -115,9 +115,9 @@ module.exports = {
               _.invert(sails.config.constants.USER_ROLES)[record.role+'']
             )
           );
-          // Replace "Xeco Admin" with dynamic brand name
+          // Role 8 (XECO_ADMIN) displays as Synerex Admin
           if (record.roleFriendlyName === 'Xeco Admin') {
-            record.roleFriendlyName = brandName + ' Admin';
+            record.roleFriendlyName = 'Synerex Admin';
           }
           record.fullName = record.firstName + ' ' + record.lastName;
           delete record.firstName;

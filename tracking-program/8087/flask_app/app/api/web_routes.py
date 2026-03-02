@@ -40,6 +40,12 @@ from app.services import pdf_service as pdf_service_module
 web_bp = Blueprint("web", __name__, url_prefix="")
 
 
+def _login_url():
+    """Login URL with application root when behind proxy (e.g. /tracking/login)."""
+    base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    return f"{base}/login" if base else url_for("auth.show_login_page")
+
+
 def _get_static_root():
     """Static root: .tmp/public or assets from 8087 dir."""
     from app.config import _8087_ROOT
@@ -85,6 +91,18 @@ def _get_brand_name():
     return "Synerex"
 
 
+_ROLE_FRIENDLY_NAMES = {
+    1: "Client User",
+    2: "Client Admin",
+    3: "Client Manager",
+    4: "Xeco User",
+    7: "Account Manager",
+    8: "Synerex Admin",
+    9: "OEM Admin",
+    10: "OEM User",
+}
+
+
 def _user_to_dict(user):
     """Serialize user for Angular (omit sensitive fields)."""
     if not user:
@@ -95,6 +113,7 @@ def _user_to_dict(user):
         "lastName": user.lastName,
         "email": user.email,
         "role": user.role,
+        "roleFriendlyName": _ROLE_FRIENDLY_NAMES.get(getattr(user, "role", None), "User"),
         "client": user.client,
         "defaultProject": user.defaultProject,
         "lastActiveAt": user.lastActiveAt,
@@ -140,7 +159,7 @@ def _serve_spa():
     sess = get_session()
     user = sess.query(User).get(current_user.id)
     if not user:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
     projects = []
     if user.role == 8:
         projs = sess.query(Project).filter_by(isDeleted=False).all()
@@ -157,6 +176,15 @@ def _serve_spa():
     xeco = sess.query(Xeco).first()
     try:
         clients_q = sess.query(Client).filter_by(isDeleted=False).all()
+        # OEM users (9, 10): only their org's clients, excluding OEM's own client (e.g. HarmoniQ)
+        if user.role in (9, 10):
+            org_id_bootstrap = session.get("orgId") or (session.get("user") or {}).get("orgId")
+            if not org_id_bootstrap and user.client:
+                oem_c = sess.query(Client).get(user.client)
+                if oem_c:
+                    org_id_bootstrap = getattr(oem_c, "org_id", None)
+            if org_id_bootstrap:
+                clients_q = [c for c in clients_q if getattr(c, "org_id", None) == org_id_bootstrap and (not user.client or c.id != user.client)]
         clients = [
             {
                 "id": c.id,
@@ -206,6 +234,17 @@ def _serve_spa():
             public_emv = f"{scheme}://{host}/emv".rstrip("/")
         emv_url = public_emv
 
+    # OEM display name: for OEM users (role 9, 10), use their client's name (e.g. "HarmoniQ")
+    # Strip "Oem " / "OEM " prefix for display (e.g. "Oem Harmoniq" -> "Harmoniq")
+    oem_display_name = None
+    if user.role in (9, 10) and user.client:
+        oem_client = sess.query(Client).get(user.client)
+        if oem_client:
+            name = (oem_client.name or "").strip()
+            if name.lower().startswith("oem "):
+                name = name[4:].strip()
+            oem_display_name = name or oem_client.name
+
     locals_data = {
         "environment": current_app.config.get("ENV", "development"),
         "user": _user_to_dict(user),
@@ -216,14 +255,34 @@ def _serve_spa():
         "myAccountUrl": my_account_url,
         "websiteHomeUrl": (website_home + "/") if website_home else "",
         "emvUrl": emv_url.rstrip("/"),
+        "oemDisplayName": oem_display_name,
     }
     locals_data["user"]["projects"] = projects
+    # SSO JWT may set session userRole; use it for bootstrap so OEM (9,10) get correct nav
+    sess_role = session.get("userRole")
+    if sess_role is not None:
+        locals_data["user"]["role"] = sess_role
+    elif session.get("user", {}).get("role") is not None:
+        locals_data["user"]["role"] = session["user"]["role"]
+    app_root = current_app.config.get("APPLICATION_ROOT", "") or ""
+    req_host = (request.host or "") if request else ""
+    if app_root and "8087" in str(req_host):
+        app_root = ""
+    locals_data["apiBasePath"] = app_root
+    # Production build may have vendor.bundle.js (CommonsChunkPlugin); load it before main
+    prefix = f"{app_root}/js" if app_root else "/js"
+    static_root = Path(_get_static_root())
+    script_paths = []
+    if (static_root / "js" / "vendor.bundle.js").exists():
+        script_paths.append(f"{prefix}/vendor.bundle.js")
+    script_paths.append(f"{prefix}/main.bundle.js")
     return render_template(
         "web/app.html",
         BOOTSTRAP_DATA=json.dumps(locals_data),
         app_version=locals_data["appVersion"],
         my_account_url=my_account_url,
         website_home_url=(website_home + "/") if website_home else "",
+        script_paths=script_paths,
     )
 
 
@@ -342,9 +401,9 @@ def index():
                 email=user.email,
                 full_name=f"{user.firstName} {user.lastName}",
             )
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
     if not current_user.is_authenticated:
-        return redirect(url_for("auth.show_login_page"))
+        return redirect(_login_url())
     return _serve_spa_licensed()
 
 
@@ -386,11 +445,20 @@ def get_account():
         "firstName": user.firstName,
         "lastName": user.lastName,
         "email": user.email,
+        "role": user.role,
         "defaultProject": default_project,
         "lastActiveAt": user.lastActiveAt,
     }
     if hasattr(user, "userLogo"):
         resp["userLogo"] = bool(user.userLogo)
+    # Include orgId for verification (OEM/Client org-scoped features)
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id and user.client:
+        c = db.session.query(Client).get(user.client)
+        if c:
+            org_id = getattr(c, "org_id", None)
+    if org_id is not None:
+        resp["orgId"] = org_id
     return jsonify({"meta": {}, "response": resp})
 
 
@@ -471,7 +539,7 @@ def accept_invite():
 @login_required
 @license_required
 def list_projects():
-    """GET /api/project - list projects with pagination."""
+    """GET /api/project - list projects with pagination. OEM users (role 9, 10) only see projects for their org's clients."""
     sess = get_session()
     page = request.args.get("page", 1, type=int)
     page_size = request.args.get("pageSize", 500, type=int)
@@ -487,11 +555,24 @@ def list_projects():
 
     current_app.logger.info("[list_projects] client_arg=%r client_id=%s", client_arg, client_id)
 
+    user = sess.query(User).get(current_user.id)
+    oem_org_id = _get_oem_org_id(sess, user) if user else None
+
+    # OEM users: if client_id provided, verify it belongs to their org
+    if user and getattr(user, "role", None) in (9, 10) and oem_org_id and client_id:
+        client_obj = sess.query(Client).filter_by(id=client_id, isDeleted=False).first()
+        if not client_obj or getattr(client_obj, "org_id", None) != oem_org_id:
+            return jsonify({"meta": {"page": page, "total": 0}, "response": []}), 200
+
     q = sess.query(Project).filter_by(isDeleted=False)
     if name:
         q = q.filter(Project.name.ilike(f"%{name}%"))
     if client_id:
         q = q.filter(Project.client == client_id)
+
+    # OEM users: only projects whose client belongs to their org
+    if user and getattr(user, "role", None) in (9, 10) and oem_org_id:
+        q = q.join(Client, Project.client == Client.id).filter(Client.org_id == oem_org_id)
 
     q = q.order_by(Project.name.asc())
     total = q.count()
@@ -503,7 +584,17 @@ def list_projects():
         row = {"id": p.id, "name": p.name, "slug": p.slug, "xecoManager": p.xecoManager}
         if p.client:
             c = sess.query(Client).get(p.client)
-            row["client"] = {"id": c.id, "name": c.name} if c else {"id": p.client, "name": "(deleted)"}
+            # Prefer legalName for display; name may be "Client - {address}" from create-from-bill
+            if c:
+                display_name = c.legalName if c.legalName else c.name
+                # When name is "Client - {address}" and org is OEM-HARMONIQ, use "Cloud Kitchen"
+                if not c.legalName and c.name and c.name.startswith("Client - "):
+                    org_id = getattr(c, "org_id", None) or ""
+                    if org_id == "OEM-HARMONIQ":
+                        display_name = "Cloud Kitchen"
+            else:
+                display_name = "(deleted)"
+            row["client"] = {"id": c.id, "name": display_name} if c else {"id": p.client, "name": "(deleted)"}
         else:
             row["client"] = None
         if p.xecoManager:
@@ -525,16 +616,9 @@ def get_project(pid):
     if not p:
         return jsonify({"error": "Not found"}), 404
     user = sess.query(User).get(current_user.id) if current_user.is_authenticated else None
-    if not user:
+    if not user or not _user_can_access_project(sess, user, p):
         return jsonify({"error": "Unauthorized"}), 403
-    if user.role != 8:
-        row = sess.query(project_user).filter(
-            project_user.c.project_users == pid,
-            project_user.c.user_projects == user.id,
-        ).first()
-        if not row:
-            return jsonify({"error": "Unauthorized"}), 403
-    return jsonify({"meta": {}, "response": _project_to_dict(p, sess=sess)})
+    return jsonify({"meta": {}, "response": _project_to_dict(p, include_meters=True, sess=sess)})
 
 
 def _slugify(name):
@@ -597,6 +681,53 @@ PROJECT_UPDATE_BLACKLIST = {"id", "createdAt", "updatedAt", "isDeleted", "org_id
 CLIENT_UPDATE_BLACKLIST = {"id", "createdAt", "updatedAt", "isDeleted", "users", "org_id"}
 
 _PROJECT_BOOL_FIELDS = {"subNeeded", "gwControl"}
+
+
+def _get_oem_org_id(sess, user):
+    """Return org_id for OEM users (role 9, 10). None for non-OEM or if unset."""
+    if not user or getattr(user, "role", None) not in (9, 10):
+        return None
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+    if not org_id and user.client:
+        oem_client = sess.query(Client).get(user.client)
+        if oem_client:
+            org_id = getattr(oem_client, "org_id", None)
+    return org_id
+
+
+def _oem_can_access_client(sess, user, client):
+    """True if user is admin (8), Account Manager (7) accessing assigned client, or OEM (9,10) with client in their org."""
+    if not user or not client:
+        return False
+    if getattr(user, "role", None) == 8:
+        return True
+    if getattr(user, "role", None) == 7:
+        return user.client and client.id == user.client
+    if getattr(user, "role", None) not in (9, 10):
+        return True  # Other roles: allow
+    org_id = _get_oem_org_id(sess, user)
+    if not org_id:
+        return False
+    return getattr(client, "org_id", None) == org_id
+
+
+def _user_can_access_project(sess, user, project):
+    """True if user can access project: admin, in project_user, or OEM with client in their org."""
+    if not user or not project:
+        return False
+    if getattr(user, "role", None) == 8:
+        return True
+    row = sess.query(project_user).filter(
+        project_user.c.project_users == project.id,
+        project_user.c.user_projects == user.id,
+    ).first()
+    if row:
+        return True
+    if getattr(user, "role", None) in (9, 10) and project.client:
+        c = sess.query(Client).get(project.client)
+        return c is not None and _oem_can_access_client(sess, user, c)
+    return False
+
 _PROJECT_INT_NULLABLE_FIELDS = {"xecoManager", "selectedTest", "servicePlan", "active_emv_analysis_id"}
 _SANITIZE_SKIP = object()  # sentinel: do not set this attribute
 
@@ -869,6 +1000,9 @@ def update_project(pid):
     p = sess.query(Project).filter_by(id=pid, isDeleted=False).first()
     if not p:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not user or not _user_can_access_project(sess, user, p):
+        return jsonify({"error": "Forbidden"}), 403
 
     data = request.get_json() or {}
     vals = data.get("valuesToSet") or {}
@@ -899,6 +1033,9 @@ def destroy_project(pid):
     p = sess.query(Project).filter_by(id=pid, isDeleted=False).first()
     if not p:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not user or not _user_can_access_project(sess, user, p):
+        return jsonify({"error": "Forbidden"}), 403
     p.isDeleted = True
     sess.commit()
     return jsonify({"meta": {}, "response": {"id": pid}})
@@ -909,7 +1046,8 @@ def destroy_project(pid):
 @login_required
 @license_required
 def list_clients():
-    """GET /api/client - list clients with pagination. Supports page, pageSize, orderBy, orderDirection, name, contactName, country."""
+    """GET /api/client - list clients with pagination. Supports page, pageSize, orderBy, orderDirection, name, contactName, country.
+    OEM users (role 9, 10) only see clients in their org. Cloud Kitchen is deduplicated per org (one per OEM)."""
     sess = get_session()
     page = request.args.get("page", 1, type=int)
     page_size = min(request.args.get("pageSize", 10, type=int), 500)
@@ -917,6 +1055,24 @@ def list_clients():
     order_dir = request.args.get("orderDirection", "ASC").upper()
 
     base = sess.query(Client).filter_by(isDeleted=False)
+
+    # OEM users (9, 10) only see clients in their org
+    user = sess.query(User).get(current_user.id)
+    role = getattr(user, "role", None)
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+    if not org_id and user and user.client:
+        oem_client = sess.query(Client).get(user.client)
+        if oem_client:
+            org_id = getattr(oem_client, "org_id", None)
+    if role in (9, 10) and org_id:
+        base = base.filter(Client.org_id == org_id)
+        # Exclude OEM's own client record (e.g. HarmoniQ) - only show their customers (e.g. Cloud Kitchen)
+        if user and user.client:
+            base = base.filter(Client.id != user.client)
+    elif role == 7 and user and user.client:
+        # Account Manager: only their assigned client (e.g. Cloud Kitchen)
+        base = base.filter(Client.id == user.client)
+
     name_filter = request.args.get("name", "").strip()
     if name_filter:
         base = base.filter(Client.name.ilike(f"%{name_filter}%"))
@@ -927,8 +1083,6 @@ def list_clients():
     if country_filter:
         base = base.filter(Client.country.ilike(f"%{country_filter}%"))
 
-    total = base.count()
-
     if order_by and order_by in ("name", "contactName", "country", "legalName", "id"):
         col = getattr(Client, order_by, Client.name)
         if order_dir == "DESC":
@@ -937,8 +1091,23 @@ def list_clients():
     else:
         base = base.order_by(Client.name)
 
+    # Cloud Kitchen: only one per org - deduplicate when multiple exist (HarmoniQ etc.)
+    all_clients = base.all()
+    seen_cloud_kitchen_org = {}
+    deduped = []
+    for c in all_clients:
+        org = getattr(c, "org_id", None) or ""
+        if c.name and "Cloud Kitchen" in c.name:
+            if org in seen_cloud_kitchen_org:
+                if c.id != seen_cloud_kitchen_org[org]:
+                    continue
+            else:
+                seen_cloud_kitchen_org[org] = c.id
+        deduped.append(c)
+
+    total = len(deduped)
     offset = (page - 1) * page_size
-    clients = base.offset(offset).limit(page_size).all()
+    clients = deduped[offset : offset + page_size]
 
     records = [
         {
@@ -963,6 +1132,9 @@ def get_client(cid):
     c = sess.query(Client).filter_by(id=cid, isDeleted=False).first()
     if not c:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not _oem_can_access_client(sess, user, c):
+        return jsonify({"error": "Forbidden"}), 403
     resp = {"id": c.id, "name": c.name, "legalName": c.legalName, "address": c.address}
     if hasattr(c, "org_id"):
         resp["org_id"] = c.org_id
@@ -982,6 +1154,26 @@ def create_client():
         return jsonify({"error": "name required"}), 400
     vals.setdefault("createdBy", current_user.id)
     vals.setdefault("isDeleted", False)
+
+    # Cloud Kitchen: only one per org (e.g. HarmoniQ)
+    client_name = (vals.get("name") or "").strip()
+    if "Cloud Kitchen" in client_name:
+        org_id_for_check = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+        if not org_id_for_check:
+            user = sess.query(User).get(current_user.id)
+            if user and user.client:
+                oem_client = sess.query(Client).get(user.client)
+                if oem_client:
+                    org_id_for_check = getattr(oem_client, "org_id", None)
+        if org_id_for_check:
+            existing = sess.query(Client).filter(
+                Client.isDeleted == False,
+                Client.org_id == org_id_for_check,
+                Client.name.ilike("%Cloud Kitchen%"),
+            ).first()
+            if existing:
+                return jsonify({"error": "This organization already has a Cloud Kitchen client. Only one Cloud Kitchen is allowed per organization."}), 400
+
     c = Client()
     # Ensure org in License registry (create or adopt) - org_id available to all programs
     org_name = vals.get("name") or vals.get("legalName") or "Unknown"
@@ -1012,6 +1204,9 @@ def update_client(cid):
     c = sess.query(Client).filter_by(id=cid, isDeleted=False).first()
     if not c:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not _oem_can_access_client(sess, user, c):
+        return jsonify({"error": "Forbidden"}), 403
     data = request.get_json() or {}
     vals = data.get("valuesToSet") or {}
     for k, v in vals.items():
@@ -1032,6 +1227,9 @@ def destroy_client(cid):
     c = sess.query(Client).filter_by(id=cid, isDeleted=False).first()
     if not c:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not _oem_can_access_client(sess, user, c):
+        return jsonify({"error": "Forbidden"}), 403
     c.isDeleted = True
     sess.commit()
     return jsonify({"meta": {}, "response": {"id": cid}})
@@ -1046,6 +1244,9 @@ def upload_client_logo(cid):
     c = sess.query(Client).filter_by(id=cid, isDeleted=False).first()
     if not c:
         return jsonify({"error": "Not found"}), 404
+    user = sess.query(User).get(current_user.id)
+    if not _oem_can_access_client(sess, user, c):
+        return jsonify({"error": "Forbidden"}), 403
 
     logo = request.files.get("logo")
     if not logo or not logo.filename:
@@ -1145,7 +1346,11 @@ def serve_static(path):
     static_root = Path(_get_static_root())
     folder = static_root / prefix
     if folder.exists():
-        return send_from_directory(str(folder), path)
+        resp = send_from_directory(str(folder), path)
+        # Prevent aggressive caching of JS/CSS so dev changes are visible
+        if prefix in ("js", "css"):
+            resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return resp
     return {"error": "Not found"}, 404
 
 

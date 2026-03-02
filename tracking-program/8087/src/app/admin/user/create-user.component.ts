@@ -143,10 +143,10 @@ export class CreateUserComponent implements OnInit {
     // Load brand name
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;
-      // Update the admin role display name dynamically
+      // Update the admin role display name - Synerex Admin for role 8
       var adminRole = this.userRoles.find(role => role.id === 8);
       if (adminRole) {
-        adminRole.displayName = brandName + ' Admin';
+        adminRole.displayName = 'Synerex Admin';
       }
     });
 
@@ -182,7 +182,7 @@ export class CreateUserComponent implements OnInit {
     else if (isClientRoleSelected) {
       this.availableProjects = [];
     }
-    // Otherwise, if the user role is for a Xeco admin user, clear out the available projects.
+    // Otherwise, if the user role is for a Synerex admin user, clear out the available projects.
     // (Admins always have access to ALL projects.)
     else if (isAdminRoleSelected) {
       this.availableProjects = [];

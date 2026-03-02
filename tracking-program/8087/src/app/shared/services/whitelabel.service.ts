@@ -82,6 +82,26 @@ export class WhitelabelService {
   }
 
   /**
+   * Get navbar logo URL based on user role.
+   * - Account Manager (7): assigned client's logo
+   * - OEM (9, 10): OEM's client logo (from user.client)
+   * - Synerex Master (8) or other: Synerex/whitelabel logo
+   * @param user - User object with role and optional client (id or {id})
+   * @returns URL path to the logo
+   */
+  getNavbarLogoUrl(user?: any): string {
+    if (!user) {
+      return this.getLogoUrl('small');
+    }
+    const role = Number(user.role);
+    const clientId = user.client && (typeof user.client === 'object' ? user.client.id : user.client);
+    if ((role === 7 || role === 9 || role === 10) && clientId) {
+      return this.getClientLogoUrl(clientId);
+    }
+    return this.getLogoUrl('small');
+  }
+
+  /**
    * Get user logo URL
    * @param userId - User ID
    * @returns URL path to the user logo

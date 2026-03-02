@@ -4,6 +4,7 @@ import { NotFoundComponent } from './notFound/notFound.component';
 import { WelcomeComponent } from './welcome/welcome.component';
 import { MaintenanceComponent } from './maintenance/maintenance.component';
 import { MyAccountComponent } from './my-account/my-account.component';
+import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
 
 
 // Client-side routing for XECO Web Portal single page app.
@@ -14,8 +15,8 @@ import { MyAccountComponent } from './my-account/my-account.component';
       // Hack to force-display the 404 screen
       { path: '404', component: NotFoundComponent},
 
-      // Home (redirect to appropriate screen)
-      { path: '', redirectTo:'welcome', pathMatch: 'full'},
+      // Home (redirect: OEM 9/10 → clients list, others → welcome)
+      { path: '', component: HomeRedirectComponent, pathMatch: 'full'},
 
       // Account settings
       // ====================================================================================
@@ -47,7 +48,7 @@ import { MyAccountComponent } from './my-account/my-account.component';
       // Catch-all (404 behavior)
       { path: '**', component: NotFoundComponent, data: {title: 'Not Found'} }
 
-    ])
+    ], { useHash: true })
   ],
   exports: [RouterModule]
 })

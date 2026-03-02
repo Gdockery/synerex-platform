@@ -1,7 +1,10 @@
 <div class="container-fluid">
-  <h3>Edit project<span [hidden]="!project">:</span> <strong>{{project && project.name}}</strong>
-    <a *ngIf="project && !project.isDeleted" class="btn btn-danger pull-right" style="font-size: 12px" (click)="clickDeleteProjectButton()">Archive project</a>
-  </h3>
+  <div class="row" style="position: relative;">
+    <div class="col-xs-12 edit-project-header" style="text-align: center;">
+      <h3 style="margin-top: 0; text-align: center;">Edit project<span [hidden]="!project">:</span> <strong>{{project && project.name}}</strong></h3>
+    </div>
+    <a *ngIf="project && !project.isDeleted" class="btn btn-danger" style="font-size: 12px; position: absolute; right: 0; top: 0;" (click)="clickDeleteProjectButton()">Archive project</a>
+  </div>
   <hr/>
   <div *ngIf="archivingProject" class="row">
     <div class="col-xs-12">
@@ -26,7 +29,7 @@
       </div>
       <div class="col-md-6">
         <div class="form-group">
-          <label for="xecoManager">{{brandName}} account manager</label><br />
+          <label for="xecoManager">{{accountManagerLabel}} Account Manager</label><br />
           <select class="form-control" id="xecoManager" name="xecoManager" formControlName="xecoManager">
             <option value="">--</option>
             <option *ngFor="let manager of xecoAccountManagers" [ngValue]="manager.id">{{manager.fullName}}</option>
@@ -48,7 +51,7 @@
       <div class="col-md-6">
         <div class="form-group">
           <label for="name">Project Slug</label>
-          <input type="text" class="form-control" id="slug" name="slug" formControlName="slug" disabled>
+          <input type="text" class="form-control" id="slug" name="slug" formControlName="slug">
         </div>
       </div>
     </div>
@@ -330,13 +333,13 @@
         </div>
         <div class="col-md-4">
           <div class="form-group">
-            <label for="invoiceContactName">XECO Invoice Name</label>
+            <label for="invoiceContactName">{{accountManagerLabel}} Invoice Name</label>
             <input type="text" class="form-control" id="invoiceContactName" name="invoiceContactName" formControlName="invoiceContactName">
           </div>
         </div>
         <div class="col-md-4">
           <div class="form-group">
-            <label for="invoiceContactPhone">XECO Invoice Phone</label>
+            <label for="invoiceContactPhone">{{accountManagerLabel}} Invoice Phone</label>
             <input type="text" class="form-control" id="invoiceContactPhone" name="invoiceContactPhone" formControlName="invoiceContactPhone">
           </div>
         </div>

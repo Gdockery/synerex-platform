@@ -13,7 +13,8 @@ var _ = require('lodash');
 var VALIDATIONS = require('./project.validations').default;
 
 @Component({
-  templateUrl: 'edit-project.component.html'
+  templateUrl: 'edit-project.component.html',
+  styles: ['.edit-project-header { text-align: center !important; } .edit-project-header h3 { text-align: center !important; }']
 })
 export class ProjectEditComponent implements OnInit {
 
@@ -34,6 +35,8 @@ export class ProjectEditComponent implements OnInit {
   private paymentPlan;
   private numberOfMeters;
   public brandName: string = 'Synerex';
+  /** For "X Account Manager" label - uses oemDisplayName for OEM users, else brandName */
+  public accountManagerLabel: string = 'Synerex';
 
   constructor(
     private formBuilder: FormBuilder,
@@ -50,14 +53,17 @@ export class ProjectEditComponent implements OnInit {
   }
 
   ngOnInit() {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.accountManagerLabel = (bootstrap['oemDisplayName'] || this.brandName || 'Synerex').trim();
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;
+      this.accountManagerLabel = (bootstrap['oemDisplayName'] || brandName || 'Synerex').trim();
     });
     this.project = {};
 
     var hydratedValidations = _.cloneDeep(VALIDATIONS);
     _.each(hydratedValidations, (def, fieldName) => {
-      def[0].disabled = this.archivingProject || this.syncingSubmit || this.project.isDeleted;
+      def[0].disabled = fieldName === 'slug' ? true : (this.archivingProject || this.syncingSubmit || this.project.isDeleted);
     });
     hydratedValidations.reportFields = this.formBuilder.group({
       depositInvoicePercent: [{value: '0', disabled: false}, [CustomValidators.range([0,100])]],

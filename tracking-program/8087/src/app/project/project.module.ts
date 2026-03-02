@@ -5,6 +5,7 @@ import {CreateFromBillWizardComponent} from './create-from-bill/create-from-bill
 import {CreateFromBillService} from './create-from-bill/create-from-bill.service';
 import {EmvService} from './emv/emv.service';
 import {ProjectEditComponent} from './select/edit-project.component';
+import {ClientRouterComponent} from './client/client-router.component';
 import {ClientListComponent} from './client/list-client.component';
 import {ClientEditComponent} from './client/edit-client.component';
 import {ClientCreateComponent} from './client/create-client.component';
@@ -55,6 +56,7 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
     ProjectCreateComponent,
     CreateFromBillWizardComponent,
     ProjectEditComponent,
+    ClientRouterComponent,
     ClientListComponent,
     ClientEditComponent,
     ClientCreateComponent,

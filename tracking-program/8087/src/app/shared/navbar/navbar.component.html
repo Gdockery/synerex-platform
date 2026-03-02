@@ -1,7 +1,7 @@
 <nav>
 
   <div>
-    <div [routerLink]="['/welcome']" class="header"><img class="logo-image" [src]="logoUrl" style="filter: brightness(0) invert(1);" /></div>
+    <div [routerLink]="['/welcome']" class="header"><img class="logo-image" [src]="logoUrl" [style.filter]="logoUseInvert ? 'brightness(0) invert(1)' : 'none'" /></div>
     <a class="sidebarToggle ss-menu" (click)="_toggleSidebar()"></a>
     <div class="clearfix"></div>
   </div>
@@ -20,13 +20,13 @@
         <span class="text">Welcome</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 7 || userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 7 || userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <a class="scan-bill-link" [routerLink]="['/project/create-from-bill']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-file-text-o"></span>
         <span class="text">Scan Bill</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <!-- (only (A) XECO Managers and (B) XECO Administrators can see this choice) -->
       <a [routerLink]="['/xeco-administrator/client']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-building-o"></span>
@@ -40,7 +40,7 @@
         <span class="text">Clients</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <a [routerLink]="['/xeco-administrator/project']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-industry"></span>
         <span class="text">Projects</span>
@@ -52,13 +52,7 @@
         <span class="text">Projects</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject">
-      <a [routerLink]="['/project/select']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-document"></span>
-        <span class="text">EM&V Report</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <!-- (again, this choice is further limited.  Note that this pattern continues for some other choices below) -->
       <a [routerLink]="['/xeco-administrator/user']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-users"></span>
@@ -66,13 +60,13 @@
       </a>
     </li>
 
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <a [routerLink]="['/xeco-administrator/advanced']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-sliders"></span>
         <span class="text">Advanced Options</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <a [routerLink]="['/admin-files/files/list']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-sliders"></span>
         <span class="text">Admin Files</span>
@@ -221,7 +215,7 @@
       </a>
     </li>
 
-    <li *ngIf="userService.user.selectedProject && (userService.user.role === 8)">
+    <li *ngIf="userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <a [routerLink]="['/admin-files/files/list', userService.user.selectedProject.id]" [routerLinkActive]="['router-link-active']">
         <span class="icon ss-box"></span>
         <span class="text">Project Admin Files</span>

@@ -4,6 +4,7 @@ import {ProjectSelectComponent} from './select/project-select.component';
 import {ProjectCreateComponent} from './select/create-project.component';
 import {CreateFromBillWizardComponent} from './create-from-bill/create-from-bill-wizard.component';
 import {ProjectEditComponent} from './select/edit-project.component';
+import {ClientRouterComponent} from './client/client-router.component';
 import {ClientListComponent} from './client/list-client.component';
 import {ClientEditComponent} from './client/edit-client.component';
 import {ClientCreateComponent} from './client/create-client.component';
@@ -27,7 +28,6 @@ import {EmvBaselineComponent} from "./emv/emv-baseline.component";
         { path: 'create', component: ProjectCreateComponent, data: {title: 'Create New Project'}},
         { path: 'create-from-bill', component: CreateFromBillWizardComponent, data: {title: 'Create Project from Bill'}},
         { path: 'edit/:id', component: ProjectEditComponent, data: {title: 'Edit Project'}},
-        { path: 'client', component: ProjectCreateComponent, data: {title: 'Create New Project'}},
         { path: 'overview', component: ProjectOverviewComponent, data: {title: 'Project Overview'}},
         { path: 'power-quality', component: PowerQualityComponent, data: {title: 'Power Quality'}},
         { path: 'emv-baseline', component: EmvBaselineComponent, data: {title: 'EM&V Baseline'}},

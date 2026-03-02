@@ -75,6 +75,8 @@ class Config:
     # Base path when behind proxy (e.g. /tracking). Empty when served at root.
     _base = (__import__("urllib.parse", fromlist=["urlparse"]).urlparse(TRACKING_BASE_URL).path or "").rstrip("/")
     APPLICATION_ROOT = _base if _base and _base != "/" else ""
+    LOGIN_VIEW = (APPLICATION_ROOT + "/login") if APPLICATION_ROOT else "/login"
+    LOGIN_VIEW = (APPLICATION_ROOT + "/login") if APPLICATION_ROOT else "/login"
 
     # Email (for password reset and invites)
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
