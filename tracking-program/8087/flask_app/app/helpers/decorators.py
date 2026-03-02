@@ -3,6 +3,7 @@ Policy decorators - ported from config/policies.js and api/policies/
 """
 import logging
 import os
+import time
 import urllib.request
 import urllib.error
 import json
@@ -15,6 +16,27 @@ from app.services.license_service import verify_jwt
 
 logger = logging.getLogger(__name__)
 
+# In-memory cache for license validity: key -> (valid: bool, expires_at: float)
+# TTL 120 seconds to reduce License Service calls while keeping reasonable freshness
+_LICENSE_CACHE = {}
+_LICENSE_CACHE_TTL = 120
+
+
+def _license_cache_get(org_id):
+    """Return cached validity (True/False) or None if miss/expired."""
+    key = f"license:{org_id}"
+    if key in _LICENSE_CACHE:
+        valid, expires = _LICENSE_CACHE[key]
+        if time.time() < expires:
+            return valid
+        del _LICENSE_CACHE[key]
+    return None
+
+
+def _license_cache_set(org_id, valid):
+    """Cache license validity for TTL seconds."""
+    _LICENSE_CACHE[f"license:{org_id}"] = (valid, time.time() + _LICENSE_CACHE_TTL)
+
 
 def license_required(f):
     """
@@ -26,7 +48,7 @@ def license_required(f):
         if not current_user.is_authenticated:
             if (request.headers.get("Accept") or "").startswith("application/json"):
                 return jsonify({"error": "Login required", "code": "LOGIN_REQUIRED"}), 403
-            return redirect(current_app.config.get("LOGIN_VIEW", "/login"))
+            return redirect(current_app.config.get("LOGIN_VIEW", "/login") or "/login")
 
         # Admin bypass (XECO_ADMIN=8 per config constants)
         role = getattr(current_user, "role", None)
@@ -67,22 +89,41 @@ def license_required(f):
                 }), 403
             return redirect(f"{license_url}/register/?program=tracking")
 
-        # Check license via License Service
+        # Check license via License Service (with cache to reduce HTTP calls)
         license_url = current_app.config.get("LICENSE_SERVICE_URL")
         if not license_url:
             return f(*args, **kwargs)  # Fail open
+
+        cached = _license_cache_get(org_id)
+        if cached is True:
+            return f(*args, **kwargs)
+        if cached is False:
+            reason = "No valid license found"
+            if (request.headers.get("Accept") or "").startswith("application/json"):
+                return jsonify({
+                    "error": reason,
+                    "code": "LICENSE_REQUIRED",
+                    "program_id": "tracking",
+                    "purchase_url": f"{license_url}/register/?program=tracking",
+                    "message": "A valid Tracking Program license is required.",
+                }), 403
+            return redirect(f"{license_url}/register/?program=tracking")
 
         check_url = f"{license_url.rstrip('/')}/api/licenses/check?org_id={org_id}&program_id=tracking"
         try:
             with urllib.request.urlopen(check_url, timeout=5) as resp:
                 if resp.status != 200:
+                    _license_cache_set(org_id, True)  # Fail open: cache as valid
                     return f(*args, **kwargs)
                 body = json.loads(resp.read().decode())
-                if body.get("valid"):
-                    logger.info("license_required: org_id=%s valid", org_id)
+                valid = bool(body.get("valid"))
+                _license_cache_set(org_id, valid)
+                if valid:
+                    logger.debug("license_required: org_id=%s valid", org_id)
                     return f(*args, **kwargs)
         except Exception as e:
             current_app.logger.warning("license_required: License check failed (%s), allowing (fail open)", e)
+            _license_cache_set(org_id, True)  # Fail open: cache as valid
             return f(*args, **kwargs)
 
         reason = "No valid license found"

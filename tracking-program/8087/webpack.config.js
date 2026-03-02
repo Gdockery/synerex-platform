@@ -7,6 +7,7 @@ var webpack = require('webpack');
 var webpackMerge = require('webpack-merge');
 var CleanWebpackPlugin = require('clean-webpack-plugin');
 var CopyWebpackPlugin = require('copy-webpack-plugin');
+var UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 var WatchLiveReloadPlugin = require('webpack-watch-livereload-plugin');
 
 /**
@@ -126,7 +127,7 @@ var webpackConfig = {
 
     new webpack.ContextReplacementPlugin(
       /angular(\\|\/)core(\\|\/)@angular/,
-      path.resolve(__dirname, '../src')
+      path.resolve(__dirname, 'src')
     ),
 
   ]
@@ -143,7 +144,18 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 if (process.env.NODE_ENV === 'production') {
-  webpackConfig.plugins.push(new webpack.optimize.UglifyJsPlugin());
+  // Use uglifyjs-webpack-plugin (supports ES6); built-in UglifyJsPlugin only handles ES5
+  webpackConfig.plugins.push(new UglifyJsPlugin({
+    uglifyOptions: { ecma: 6 },
+    sourceMap: true
+  }));
+  // Split vendor chunk so it can be cached separately (Angular, rxjs, etc.)
+  webpackConfig.plugins.push(new webpack.optimize.CommonsChunkPlugin({
+    name: 'vendor',
+    minChunks: function (module) {
+      return module.context && module.context.indexOf('node_modules') !== -1;
+    }
+  }));
 }
 
 // Our Webpack Defaults
@@ -151,7 +163,7 @@ var defaultConfig = {
   devtool: 'source-map',
 
   output: {
-    publicPath: '/',
+    publicPath: '',  // Relative - chunks load from same path as page (/tracking/js/ when behind proxy)
     filename: 'js/[name].bundle.js',
     sourceMapFilename: 'js/[name].map',
     chunkFilename: 'js/[id].chunk.js'
