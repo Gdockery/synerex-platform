@@ -150,6 +150,19 @@ export class CreateUserComponent implements OnInit {
       }
     });
 
+    // Filter available roles based on the logged-in user's role:
+    // - Synerex Admin (8): all roles
+    // - OEM Admin (9): OEM User (10) + Client roles (1-4). NOT Synerex Admin (8) or OEM Admin (9)
+    // - OEM User (10): Client Admin (2) and client-level roles (1-4). NOT OEM roles
+    // - Client Admin (2) and below: only client-level roles (1-4)
+    const myRole = Number(this.currentUserService.user.role);
+    this.userRoles = this.userRoles.filter(r => {
+      if (myRole === 8) return true;                              // Synerex Admin: all roles
+      if (myRole === 9) return r.id !== 8 && r.id !== 9;         // OEM Admin: all except Synerex/OEM Admin
+      if (myRole === 10) return r.id >= 1 && r.id <= 4;          // OEM User: client roles only
+      return r.id >= 1 && r.id <= 4;                             // Client roles: client-level only
+    });
+
     this.clients = window['BOOTSTRAP_DATA'].clients;
     this.form = this.formBuilder.group({
       role: ['', [Validators.required]],

@@ -107,7 +107,8 @@ def is_token_expired(token: str) -> bool:
 def generate_user_token(
     username: str,
     org_id: str,
-    roles: Optional[list] = None
+    roles: Optional[list] = None,
+    email: Optional[str] = None,
 ) -> str:
     """
     Generate a JWT for user SSO across services.
@@ -121,6 +122,8 @@ def generate_user_token(
         "iat": now,
         "exp": now + USER_JWT_TTL_SECONDS,
     }
+    if email:
+        claims["email"] = email
     return jwt.encode(claims, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def validate_user_token(token: str) -> Dict[str, Any]:

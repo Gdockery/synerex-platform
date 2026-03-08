@@ -53,6 +53,8 @@ class Config:
 
     # License Service
     LICENSE_SERVICE_URL = os.environ.get("LICENSE_SERVICE_URL", "http://localhost:8000")
+    # Browser-accessible URL for links/redirects (e.g. http://localhost:8080/license). Uses internal URL if unset.
+    LICENSE_SERVICE_PUBLIC_URL = os.environ.get("LICENSE_SERVICE_PUBLIC_URL", "")
     LICENSE_PROGRAM_ID = "tracking"
 
     # Synerex Platform URLs
@@ -65,6 +67,19 @@ class Config:
 
     # Application
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
+    # Use a distinct cookie name to avoid collision with license-service's "session" cookie
+    SESSION_COOKIE_NAME = "tracking_session"
+    # Redis session store (optional). When REDIS_URL is set, sessions use Redis.
+    REDIS_URL = os.environ.get("REDIS_URL", "")
+    SESSION_TYPE = "redis" if REDIS_URL else "filesystem"
+    SESSION_REDIS = None
+    if REDIS_URL:
+        try:
+            import redis
+            SESSION_REDIS = redis.from_url(REDIS_URL)
+        except Exception:
+            SESSION_TYPE = "filesystem"
+            SESSION_REDIS = None
     PORT = int(os.environ.get("PORT", 8087))
     ENV = os.environ.get("FLASK_ENV", os.environ.get("NODE_ENV", "development"))
     # Use "test_prod" to skip S3 redirect in prod-like runs
@@ -109,7 +124,7 @@ class Config:
         WHITELABEL_DOMAIN_MAPPINGS = {}
     DEFAULT_BRANDING = os.environ.get("WHITELABEL_DEFAULT_BRANDING", "tracking")
     # App version for S3 static paths
-    APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
+    APP_VERSION = os.environ.get("APP_VERSION", "1.0.1")
 
     # PDF: Path to Node pdf-bridge.js for full PDF layouts. When set, Flask uses it for
     # billAnalytic, costSavings, lsPotential, co2Savings, partsProcurement, shippingDocuments, financeAgreement.

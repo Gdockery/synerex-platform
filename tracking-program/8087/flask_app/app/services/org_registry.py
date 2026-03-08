@@ -26,6 +26,8 @@ def ensure_org(org_name: str, org_type: str = "customer", org_id: str = None, ba
     payload = {"org_name": org_name, "org_type": org_type}
     if org_id:
         payload["org_id"] = org_id
+    if kwargs.get("sponsor_org_id"):
+        payload["sponsor_org_id"] = kwargs["sponsor_org_id"]
     for k in ("email", "contact_name", "phone"):
         if kwargs.get(k):
             payload[k] = kwargs[k]

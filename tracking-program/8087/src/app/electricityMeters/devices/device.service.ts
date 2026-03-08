@@ -3,6 +3,7 @@ import { Injectable }              from '@angular/core';
 
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
 import {BehaviorSubject, Observable} from "rxjs";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class DeviceService extends BaseApiCrudService {
@@ -32,5 +33,9 @@ export class DeviceService extends BaseApiCrudService {
 
   getConsolidatedDeviceData(fromDate, toDate) {
     return this.apiRequestService.get('/api/meter/period', this.apiRequestService.createRequestParams({fromDate: fromDate, toDate: toDate, project: this.userService.user.selectedProject.id}))
+  }
+
+  constructor(injector: Injector) {
+    super(injector);
   }
 }

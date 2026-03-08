@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user, login_required
 
 from app.extensions import db
+from sqlalchemy import or_
 from app.helpers.decorators import license_required
 from app.models.meter import Meter
 from app.models.meter_alert import MeterAlert
@@ -564,7 +565,9 @@ def _user_can_access_user(current_user_obj, target_user):
         if not target_user.client:
             return False
         c = db.session.query(Client).get(target_user.client)
-        return c is not None and getattr(c, "org_id", None) == oem_org_id
+        return c is not None and (
+            getattr(c, "org_id", None) == oem_org_id or getattr(c, "sponsor_org_id", None) == oem_org_id
+        )
     if role in (1, 2, 3, 7):
         my_org = _get_client_org_id_for_user(current_user_obj)
         if not my_org:
@@ -590,7 +593,9 @@ def _client_in_scope(user, client_id):
         if not oem_org_id:
             return False
         c = db.session.query(Client).get(client_id)
-        return c is not None and getattr(c, "org_id", None) == oem_org_id
+        return c is not None and (
+            getattr(c, "org_id", None) == oem_org_id or getattr(c, "sponsor_org_id", None) == oem_org_id
+        )
     if role in (1, 2, 3, 7):
         if not client_id:
             return True
@@ -618,7 +623,10 @@ def _projects_in_scope(user, project_ids):
             if not p:
                 return False
             c = db.session.query(Client).get(p.client) if p.client else None
-            if not c or getattr(c, "org_id", None) != oem_org_id:
+            if not c:
+                return False
+            co, spo = getattr(c, "org_id", None), getattr(c, "sponsor_org_id", None)
+            if co != oem_org_id and spo != oem_org_id:
                 return False
         return True
     if role in (1, 2, 3, 7):
@@ -662,7 +670,9 @@ def list_users():
     if role in (9, 10):
         oem_org_id = _get_oem_org_id_for_user(user)
         if oem_org_id:
-            q = q.join(Client, User.client == Client.id).filter(Client.org_id == oem_org_id)
+            q = q.join(Client, User.client == Client.id).filter(
+                or_(Client.org_id == oem_org_id, Client.sponsor_org_id == oem_org_id)
+            )
         else:
             q = q.filter(User.id == -1)  # OEM without org_id: show no users
     elif role in (1, 2, 3, 7) and user and user.client:
@@ -682,7 +692,8 @@ def list_users():
     if order_by == "fullName":
         q = q.order_by(User.firstName.asc() if order_dir == "ASC" else User.firstName.desc())
     else:
-        col = getattr(User, order_by, User.role)
+        # Use _role (the actual DB column) when sorting by role, since User.role is a @property
+        col = User._role if order_by == "role" else getattr(User, order_by, User._role)
         q = q.order_by(col.asc() if order_dir == "ASC" else col.desc())
     total = q.count()
     items = q.offset((page - 1) * page_size).limit(page_size).all()
@@ -727,6 +738,7 @@ def get_user(uid):
 @login_required
 @license_required
 def create_user():
+    from app.services.license_service import check_seat_available, assign_seat as ls_assign_seat
     data = request.get_json() or {}
     role = data.get("role")
     full_name = data.get("fullName", "").strip()
@@ -737,10 +749,43 @@ def create_user():
     if not role or not full_name or not email:
         return jsonify({"error": "role, fullName, email required"}), 400
     current = User.query.get(current_user.id)
+    current_role = int(current.role) if current and current.role is not None else 0
+
+    # Role creation permission checks:
+    # - Synerex Admin (8): can create any role
+    # - OEM Admin (9): can create OEM User (10) and client roles (1-4)
+    # - OEM User (10): can create client roles (1-4) only
+    # - Client Admin (2): can create client roles (1-4) within their org
+    new_role = int(role)
+    allowed = False
+    if current_role == 8:
+        allowed = True
+    elif current_role == 9:
+        allowed = new_role in (1, 2, 3, 4, 10)
+    elif current_role == 10:
+        allowed = new_role in (1, 2, 3, 4)
+    elif current_role == 2:
+        allowed = new_role in (1, 2, 3, 4)
+    if not allowed:
+        return jsonify({"error": "You are not permitted to create a user with that role"}), 403
+
     if client_id is not None and not _client_in_scope(current, client_id):
         return jsonify({"error": "Client not in your scope"}), 403
     if projects and not _projects_in_scope(current, projects):
         return jsonify({"error": "One or more projects not in your scope"}), 403
+
+    # Seat limit check: enforce for client-level users (roles 1-4) created under a client org.
+    # OEM internal users (role 9/10) are free — no seat check.
+    seat_license_id = None
+    if new_role in (1, 2, 3, 4) and client_id:
+        target_client = Client.query.get(client_id)
+        client_org_id = getattr(target_client, "org_id", None) if target_client else None
+        if client_org_id:
+            available, lic_id, seat_err = check_seat_available(client_org_id, "tracking")
+            if not available:
+                return jsonify({"error": seat_err or "Seat limit reached. Please upgrade your subscription."}), 402
+            seat_license_id = lic_id
+
     parts = full_name.split(None, 1)
     if len(parts) < 2:
         return jsonify({"error": "fullName must have first and last name"}), 400
@@ -765,7 +810,9 @@ def create_user():
         for pid in projects:
             db.session.execute(project_user.insert().values(project_users=pid, user_projects=existing.id))
         db.session.commit()
-    if token and not hashed:
+        if seat_license_id:
+            ls_assign_seat(seat_license_id, str(existing.id))
+    if token and not hashed and existing:
         _send_invite_email(existing, token, subject="Welcome back to the Energy Portal")
         return jsonify({"meta": {}, "response": {"id": existing.id, "uriEncodedToken": token, "reEnabledUser": True}})
     u = User(firstName=first_name, lastName=last_name, email=email, role=role, client=client_id, isDeleted=False,
@@ -775,6 +822,8 @@ def create_user():
     for pid in projects:
         db.session.execute(project_user.insert().values(project_users=pid, user_projects=u.id))
     db.session.commit()
+    if seat_license_id:
+        ls_assign_seat(seat_license_id, str(u.id))
     if token and not hashed:
         _send_invite_email(u, token, subject="Welcome to the Energy Portal")
     return jsonify({"meta": {}, "response": {"id": u.id, "uriEncodedToken": token, "reEnabledUser": False}})

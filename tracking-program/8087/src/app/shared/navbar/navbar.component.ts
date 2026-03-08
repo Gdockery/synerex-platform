@@ -19,6 +19,10 @@ export class NavbarComponent {
   public myAccountUrl: string;
   /** Synerex website home URL - for "Back to" link. */
   public websiteHomeUrl: string;
+  /** Fallback text shown when OEM logo image fails to load. */
+  public logoFallbackText: string = '';
+  /** True after the logo image fires an error event. */
+  public logoFailed: boolean = false;
 
   constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService) {
     const user = this.userService.user;
@@ -29,6 +33,15 @@ export class NavbarComponent {
     const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
     this.myAccountUrl = (bootstrap['myAccountUrl'] || '').replace(/\/$/, '');
     this.websiteHomeUrl = (bootstrap['websiteHomeUrl'] || '').replace(/\/$/, '');
+    // Prepare fallback text from bootstrap OEM display name or brand name
+    const oemName = bootstrap['oemDisplayName'] || '';
+    if (oemName) {
+      this.logoFallbackText = oemName;
+    }
+  }
+
+  onLogoError() {
+    this.logoFailed = true;
   }
 
   /** Website My Account page URL (when in platform flow). Avoids double /my-account. */

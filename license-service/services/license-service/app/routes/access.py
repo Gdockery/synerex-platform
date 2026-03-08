@@ -34,11 +34,13 @@ def db_session():
 KEYS_DIR = Path(__file__).resolve().parents[2] / "keys"
 PUB = load_public_key(KEYS_DIR / "issuer_public.key")
 
-# Program URLs from settings
-PROGRAM_URLS = {
-    "emv": settings.emv_program_url,
-    "tracking": settings.tracking_program_url
-}
+
+def _get_redirect_base_url(request: Request) -> str:
+    """Get browser-accessible base URL (e.g. http://localhost:8080) for redirects.
+    Uses X-Forwarded-* headers when behind proxy, else request URL."""
+    proto = request.headers.get("X-Forwarded-Proto", request.url.scheme)
+    host = request.headers.get("X-Forwarded-Host", request.url.netloc)
+    return f"{proto}://{host}".rstrip("/")
 
 @router.get("/{program_id}", response_class=HTMLResponse)
 def access_program(
@@ -59,25 +61,30 @@ def access_program(
     
     # If token provided, validate and redirect
     if token:
+        base = _get_redirect_base_url(request)
+        # First try as a user SSO JWT (from my-account page)
+        from ..services.jwt_tokens import validate_user_token
+        try:
+            validate_user_token(token)
+            # Valid user JWT — redirect directly to the program SSO endpoint
+            if program_id == "emv":
+                return RedirectResponse(url=f"{base}/emv/sso?token={token}", status_code=302)
+            else:
+                return RedirectResponse(url=f"{base}/tracking/sso?token={token}", status_code=302)
+        except ValueError:
+            pass  # Not a user JWT, try as session token below
+
+        # Try as a program session token
         try:
             claims = validate_session_token(token)
             if claims.get("program_id") != program_id:
                 raise HTTPException(403, "Token is for a different program")
-            
-            # Redirect to program with token
-            program_url = PROGRAM_URLS.get(program_id)
-            if not program_url:
-                raise HTTPException(500, "Program URL not configured")
-            
-            # For EM&V, redirect to root with token (it will auto-login)
-            # For other programs, adjust as needed
             if program_id == "emv":
-                redirect_url = f"{program_url}/?token={token}"
+                redirect_url = f"{base}/emv/?token={token}"
             else:
-                redirect_url = f"{program_url}/login?token={token}"
+                redirect_url = f"{base}/tracking/sso?token={token}"
             return RedirectResponse(url=redirect_url, status_code=302)
         except ValueError as e:
-            # Token invalid or expired
             return templates.TemplateResponse(
                 "access_verify.html",
                 {
@@ -217,18 +224,12 @@ def verify_and_redirect(
         }, ensure_ascii=False)
     )
     
-    # Get program URL
-    program_url = PROGRAM_URLS.get(program_id)
-    if not program_url:
-        raise HTTPException(500, "Program URL not configured")
-    
-    # Redirect to program with token
-    # For EM&V, redirect to root with token (it will auto-login)
-    # For other programs, adjust as needed
+    # Build browser-accessible redirect URL from request origin (works behind proxy)
+    base = _get_redirect_base_url(request)
     if program_id == "emv":
-        redirect_url = f"{program_url}/?token={session_token}"
+        redirect_url = f"{base}/emv/?token={session_token}"
     else:
-        redirect_url = f"{program_url}/login?token={session_token}"
+        redirect_url = f"{base}/tracking/sso?token={session_token}"
     return RedirectResponse(url=redirect_url, status_code=302)
 
 @router.post("/api/validate-session-token")

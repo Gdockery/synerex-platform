@@ -1,6 +1,7 @@
 import { Injectable }              from '@angular/core';
 
 import {BaseApiCrudService} from "../api/baseApiCrud.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class TestDataService extends BaseApiCrudService {
@@ -21,4 +22,8 @@ export class TestDataService extends BaseApiCrudService {
     return this.apiRequestService.put(this.baseUrl + testId + '/data', {rowIds: dataIds});
   }
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

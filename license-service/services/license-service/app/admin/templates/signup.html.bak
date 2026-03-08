@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Register - Synerex Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #ffffff; color: #111827; padding: 2rem; line-height: 1.5; }
+    .container { max-width: 520px; margin: 0 auto; background: #ffffff; padding: 2rem; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    h1 { color: #111827; margin-bottom: 1rem; font-size: 1.5rem; }
+    .error { background: #fef2f2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #fecaca; }
+    .success { background: #f0fdf4; color: #166534; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #bbf7d0; }
+    label { display: block; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #111827; }
+    input, select { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: #ffffff; color: #111827; }
+    .row { margin-bottom: 0.5rem; }
+    button[type="submit"] { margin-top: 1rem; padding: 0.75rem 1.5rem; background: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; }
+    a { color: #1976d2; }
+    .links { margin-top: 1.5rem; }
+    .logo-container { text-align: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
+    .logo-container img { height: 56px; max-width: 220px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo-container"><img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex" /></div>
+    <h1>Create an account</h1>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="success">{{ success }}</div>
+    {% endif %}
+    <form method="post" action="{{ register_action or ((path_prefix + '/register') if path_prefix else '/register') }}">
+      <input type="hidden" name="return_url" value="{{ return_url or '' }}"/>
+      <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc"/></div>
+      <div class="row"><label>Account type *</label><select name="org_type" id="org_type" required><option value="customer">Customer / Licensee</option><option value="pe">Licensed PE</option><option value="oem">OEM</option></select></div>
+      <div class="row" id="sponsor-row" style="display:none;"><label>OEM Sponsor *</label><select name="sponsor_org_id"><option value="">— Select OEM Sponsor —</option>{% for o in (oem_orgs or []) %}<option value="{{ o.org_id }}">{{ o.org_name }}</option>{% endfor %}</select></div>
+      <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe"/></div>
+      <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8"/></div>
+      <div class="row"><label>Confirm password *</label><input type="password" name="password_confirm" required minlength="8"/></div>
+      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com"/></div>
+      <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St"/></div>
+      <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City"/></div>
+      <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2"/></div>
+      <div class="row"><label>ZIP *</label><input type="text" name="company_zip" required placeholder="12345"/></div>
+      <div class="row"><label>Company phone *</label><input type="tel" name="company_phone" required placeholder="555-123-4567"/></div>
+      <div class="row"><label>Company cell (optional)</label><input type="tel" name="company_cell"/></div>
+      <div class="row"><label>Physical address (optional)</label><input type="text" name="physical_address"/></div>
+      <div class="row"><label>Physical city (optional)</label><input type="text" name="physical_city"/></div>
+      <div class="row"><label>Physical state (optional)</label><input type="text" name="physical_state" maxlength="2"/></div>
+      <div class="row"><label>Physical ZIP (optional)</label><input type="text" name="physical_zip"/></div>
+      <div class="row"><label>Physical phone (optional)</label><input type="tel" name="physical_phone"/></div>
+      <div class="row"><label>Physical cell (optional)</label><input type="tel" name="physical_cell"/></div>
+      <div class="row" id="pe-fields" style="display:none;"><label>PE License number *</label><input type="text" name="pe_license_number"/></div>
+      <div class="row" id="pe-state-row" style="display:none;"><label>PE License state *</label><input type="text" name="pe_license_state" maxlength="2"/></div>
+      <div class="row"><label><input type="checkbox" name="agreement_accepted" value="on" required/> I accept the Software License Agreement</label></div>
+      <button type="submit">Register</button>
+    </form>
+    <div class="links"><a href="{{ login_href or ((path_prefix + '/auth/login') if path_prefix else '/auth/login') }}">Already have an account? Log in</a></div>
+  </div>
+  <script>
+  (function(){ var s=document.querySelector('#org_type'); var pe=document.getElementById('pe-fields'); var st=document.getElementById('pe-state-row'); var sponsor=document.getElementById('sponsor-row');
+  if(s&&pe&&st){ function t(){ var isPe=s.value==='pe'; var needsSponsor=s.value==='customer';
+  pe.style.display=isPe?'block':'none'; st.style.display=isPe?'block':'none'; pe.querySelector('input').required=isPe; st.querySelector('input').required=isPe;
+  if(sponsor){ sponsor.style.display=needsSponsor?'block':'none'; sponsor.querySelector('select').required=needsSponsor; } }
+  s.addEventListener('change',t); t(); } })();
+  </script>
+</body>
+</html>

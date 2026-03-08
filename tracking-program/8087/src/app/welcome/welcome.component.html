@@ -2,7 +2,7 @@
 
 <div class="container-fluid">
   <img [src]="welcomeImageUrl" />
-  <h3 class="welcome-title">Welcome, {{userService.user.firstName}}!</h3>
+  <h3 class="welcome-title">Welcome, {{displayName}}!</h3>
   <div *ngIf="userService.user.role === 8">
     <p>Here in the {{brandName}} Web Portal, you can manage your clients and their projects, as well as users and advanced options for the portal itself.</p>
     <div *ngIf="userService.user.projects.length !== 0">

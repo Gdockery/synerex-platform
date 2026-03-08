@@ -24,42 +24,36 @@ export default function MyAccount() {
   
   const checkAuth = async () => {
     try {
-      // If token in URL (from login redirect), store it and clean URL - but always use check-session for full user info (org_type from DB)
       const urlParams = new URLSearchParams(window.location.search);
       const urlToken = urlParams.get('token');
       if (urlToken) {
         setJwtToken(urlToken);
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      const response = await fetch(`${LICENSE_SERVICE_URL}/auth/api/check-session`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const userData = await response.json();
+      // Fetch check-session and JWT in parallel to reduce load time
+      const [sessionResp, jwtResp] = await Promise.all([
+        fetch(`${LICENSE_SERVICE_URL}/auth/api/check-session`, { credentials: 'include' }),
+        fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: 'include' })
+      ]);
+      if (sessionResp.ok) {
+        const userData = await sessionResp.json();
         setIsAuthenticated(true);
         setUserInfo(userData);
-        try {
-          const jwtResp = await fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, {
-            credentials: "include",
-          });
-          if (jwtResp.ok) {
+        if (jwtResp.ok) {
+          try {
             const jwtData = await jwtResp.json();
-            if (jwtData?.token) {
-              setJwtToken(jwtData.token);
-            }
+            if (jwtData?.token) setJwtToken(jwtData.token);
+          } catch (e) {
+            if (urlToken) setJwtToken(urlToken);
           }
-        } catch (jwtErr) {
-          console.warn("JWT fetch failed:", jwtErr);
+        } else if (urlToken) {
+          setJwtToken(urlToken);
         }
-        // If user has a license_id, auto-load it
         if (userData.license_id) {
           setLicenseSerial(userData.license_id);
-          // Auto-trigger lookup
           setTimeout(() => {
             const form = document.querySelector('form');
-            if (form) {
-              form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-            }
+            if (form) form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
           }, 100);
         }
       } else {
@@ -394,7 +388,7 @@ export default function MyAccount() {
                 </p>
                 <a 
                   href={`${EMV_URL}/pe-dashboard`}
-                  target="_blank"
+                  
                   rel="noopener noreferrer"
                   className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors font-semibold"
                 >
@@ -432,7 +426,7 @@ export default function MyAccount() {
             <div className="grid md:grid-cols-2 gap-6">
               <a
                 href={`${EMV_URL}/admin-panel`}
-                target="_blank"
+                
                 rel="noopener noreferrer"
                 className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
               >
@@ -441,7 +435,7 @@ export default function MyAccount() {
               </a>
               <a
                 href={`${TRACKING_URL}/sso?role=admin`}
-                target="_blank"
+                
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >
@@ -462,7 +456,7 @@ export default function MyAccount() {
             <div className="grid md:grid-cols-2 gap-6">
               <a
                 href={getAccessUrl("emv")}
-                target="_blank"
+                
                 rel="noopener noreferrer"
                 className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
               >
@@ -471,7 +465,7 @@ export default function MyAccount() {
               </a>
               <a
                 href={getAccessUrl("tracking")}
-                target="_blank"
+                
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >
@@ -667,7 +661,7 @@ export default function MyAccount() {
                 {licenseData.program.program_id === "emv" && (
                   <a
                     href={getAccessUrl("emv")}
-                    target="_blank"
+                    
                     rel="noopener noreferrer"
                     className="block p-6 bg-purple-600 hover:bg-purple-400 rounded-lg text-center transition-colors"
                   >
@@ -678,7 +672,7 @@ export default function MyAccount() {
                 {licenseData.program.program_id === "tracking" && (
                   <a
                     href={getAccessUrl("tracking")}
-                    target="_blank"
+                    
                     rel="noopener noreferrer"
                     className="block p-6 bg-green-600 hover:bg-green-400 rounded-lg text-center transition-colors"
                   >
@@ -749,7 +743,7 @@ export default function MyAccount() {
                 <li>• Can't find your License Serial Number? Check your license receipt email.</li>
                 <li>• License expired? <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact us to renew</a></li>
                 <li>• Having trouble accessing the program? <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact Support</a></li>
-                <li>• Need to upgrade your license? <a href="/licensing" className="text-purple-400 hover:text-purple-300">View licensing options</a></li>
+                <li>• Need to upgrade your license? <a href="/license/register/" className="text-purple-400 hover:text-purple-300">View licensing options</a></li>
               </ul>
             </div>
             <div>

@@ -19,6 +19,7 @@ requests==2.32.3
 
 PyJWT==2.9.0
 bcrypt==4.2.0  # Password hashing for user authentication
+redis>=5.0.0
 
 # New dependencies for enterprise features
 stripe==10.0.0  # Payment processing

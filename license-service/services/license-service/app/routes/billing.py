@@ -364,3 +364,138 @@ def run_suspension_scan(db: Session = Depends(db_session)):
             log_event(db, actor="system", action="billing.order.auto_overdue", ref_id=o.order_id, detail={"license_id": o.license_id})
     db.commit()
     return {"ok": True, "overdue": overdue, "licenses_suspended": suspended}
+
+
+# ---------------------------------------------------------------------------
+# Client-facing subscription endpoints (no admin auth required — scoped by org_id)
+# ---------------------------------------------------------------------------
+
+@router.get("/subscription/{org_id}")
+def get_subscription_info(org_id: str, program_id: str = "tracking", db: Session = Depends(db_session)):
+    """
+    Return current subscription info for a client org.
+    Called by the tracking program to show the Manage Subscription page.
+    """
+    from ..models.license import License
+    from ..models.seats import SeatAssignment
+    from ..services.pricing import PRICING
+
+    # Find the most recent paid order for this org
+    order = (
+        db.query(BillingOrder)
+        .filter(BillingOrder.org_id == org_id, BillingOrder.program_id == program_id,
+                BillingOrder.status == "paid")
+        .order_by(BillingOrder.created_at.desc())
+        .first()
+    )
+
+    # Find active license
+    lic = (
+        db.query(License)
+        .filter(License.org_id == org_id, License.program_id == program_id,
+                License.revoked == False, License.suspended == False)
+        .order_by(License.issued_at.desc())
+        .first()
+    )
+
+    seat_limit = 0
+    seats_used = 0
+    meter_limit = 0
+    if lic:
+        entitlements = lic.entitlements or {}
+        limits = entitlements.get("limits", {})
+        seat_limit = int(limits.get("seat_limit", 0) or 0)
+        meter_limit = int(limits.get("meter_limit", 0) or 0)
+        seats_used = db.query(SeatAssignment).filter(
+            SeatAssignment.license_id == lic.license_id,
+            SeatAssignment.is_active == True
+        ).count()
+
+    current_plan = order.plan if order else None
+
+    # Build available upgrade plans
+    tracking_plans = PRICING.get("tracking", {})
+    plan_order = ["basic", "pro", "enterprise"]
+    upgrade_options = []
+    for p in plan_order:
+        if p == current_plan:
+            continue
+        info = tracking_plans.get(p, {})
+        upgrade_options.append({
+            "plan": p,
+            "description": info.get("description", ""),
+            "base_price": str(info.get("base_price", "0")),
+            "per_meter": str(info.get("per_meter", "0")),
+            "max_users": info.get("max_users"),
+        })
+
+    return {
+        "org_id": org_id,
+        "program_id": program_id,
+        "current_plan": current_plan,
+        "seat_limit": seat_limit,
+        "seats_used": seats_used,
+        "seats_available": max(0, seat_limit - seats_used),
+        "meter_limit": meter_limit,
+        "license_id": lic.license_id if lic else None,
+        "license_expires": lic.expires_at.isoformat() if lic and lic.expires_at else None,
+        "upgrade_options": upgrade_options,
+    }
+
+
+@router.post("/subscription/{org_id}/upgrade-request")
+def request_upgrade(org_id: str, body: Dict[str, Any] = Body(...), db: Session = Depends(db_session)):
+    """
+    Create a pending billing order for a plan upgrade.
+    The OEM or Synerex Admin reviews and marks it paid to activate.
+    Returns an order_id that can be used to track the upgrade.
+    """
+    import uuid
+    from ..services.pricing import calculate_price
+
+    program_id = body.get("program_id", "tracking")
+    new_plan = body.get("plan")
+    meter_count = int(body.get("meter_count", 0) or 0)
+    notes = body.get("notes", "")
+
+    if not new_plan:
+        raise HTTPException(400, "plan is required")
+
+    try:
+        pricing = calculate_price(program_id, new_plan, meter_count=meter_count)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    order_id = f"ORD-UPG-{uuid.uuid4().hex[:12].upper()}"
+    today = datetime.utcnow().date()
+    order = BillingOrder(
+        order_id=order_id,
+        org_id=org_id,
+        program_id=program_id,
+        plan=new_plan,
+        term_start=today.isoformat(),
+        term_end=(today + timedelta(days=365)).isoformat(),
+        seat_count=0,
+        meter_count=meter_count,
+        unit_price=pricing["per_meter"],
+        amount_total=pricing["amount_total"],
+        currency=pricing["currency"],
+        status="pending",
+        notes=f"Upgrade request. {notes}".strip(),
+        due_at=datetime.utcnow() + timedelta(days=30),
+    )
+    db.add(order)
+    db.commit()
+    log_event(db, actor=org_id, action="billing.upgrade.request", ref_id=order_id,
+              detail={"org_id": org_id, "program_id": program_id, "plan": new_plan,
+                      "meter_count": meter_count, "amount_total": pricing["amount_total"]})
+
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "plan": new_plan,
+        "amount_total": pricing["amount_total"],
+        "currency": pricing["currency"],
+        "status": "pending",
+        "message": "Upgrade request submitted. Your OEM or Synerex will review and activate your new plan.",
+    }

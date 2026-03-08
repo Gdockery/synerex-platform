@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from sqlalchemy import insert
+from sqlalchemy import insert, or_
 
 from flask import (
     Blueprint,
@@ -103,6 +103,19 @@ _ROLE_FRIENDLY_NAMES = {
 }
 
 
+def _get_client_name_for_user(user):
+    """Return the client company name for the given user, or None."""
+    if not user or not user.client:
+        return None
+    try:
+        from app.db.db import get_session as _gs
+        from app.models.client import Client
+        client = _gs().query(Client).get(user.client)
+        return client.name if client else None
+    except Exception:
+        return None
+
+
 def _user_to_dict(user):
     """Serialize user for Angular (omit sensitive fields)."""
     if not user:
@@ -115,11 +128,23 @@ def _user_to_dict(user):
         "role": user.role,
         "roleFriendlyName": _ROLE_FRIENDLY_NAMES.get(getattr(user, "role", None), "User"),
         "client": user.client,
+        "clientName": _get_client_name_for_user(user),
         "defaultProject": user.defaultProject,
         "lastActiveAt": user.lastActiveAt,
     }
     if hasattr(user, "userLogo"):
         d["userLogo"] = bool(user.userLogo)
+    # Include sponsorOrgId for client users so Angular can load the OEM's logo
+    if user.client:
+        try:
+            from app.models.client import Client as _Client
+            c = get_session().query(_Client).get(user.client)
+            if c:
+                sponsor = getattr(c, "sponsor_org_id", None)
+                if sponsor:
+                    d["sponsorOrgId"] = sponsor
+        except Exception:
+            pass
     return d
 
 
@@ -184,7 +209,14 @@ def _serve_spa():
                 if oem_c:
                     org_id_bootstrap = getattr(oem_c, "org_id", None)
             if org_id_bootstrap:
-                clients_q = [c for c in clients_q if getattr(c, "org_id", None) == org_id_bootstrap and (not user.client or c.id != user.client)]
+                clients_q = [
+                    c for c in clients_q
+                    if (getattr(c, "org_id", None) == org_id_bootstrap or getattr(c, "sponsor_org_id", None) == org_id_bootstrap)
+                    and (not user.client or c.id != user.client)
+                ]
+        # Client Admin (2), Client Manager (3): only their own client
+        elif user.role in (2, 3) and user.client:
+            clients_q = [c for c in clients_q if c.id == user.client]
         clients = [
             {
                 "id": c.id,
@@ -272,10 +304,11 @@ def _serve_spa():
     # Production build may have vendor.bundle.js (CommonsChunkPlugin); load it before main
     prefix = f"{app_root}/js" if app_root else "/js"
     static_root = Path(_get_static_root())
-    script_paths = []
+    vendor_path = None
     if (static_root / "js" / "vendor.bundle.js").exists():
-        script_paths.append(f"{prefix}/vendor.bundle.js")
-    script_paths.append(f"{prefix}/main.bundle.js")
+        vendor_path = f"{prefix}/vendor.bundle.js"
+    main_path = f"{prefix}/main.bundle.js"
+    script_paths = [p for p in [vendor_path, main_path] if p]
     return render_template(
         "web/app.html",
         BOOTSTRAP_DATA=json.dumps(locals_data),
@@ -283,6 +316,8 @@ def _serve_spa():
         my_account_url=my_account_url,
         website_home_url=(website_home + "/") if website_home else "",
         script_paths=script_paths,
+        script_path=main_path,
+        vendor_path=vendor_path,
     )
 
 
@@ -419,11 +454,24 @@ def favicon():
 
 
 @web_bp.route("/<path:path>")
-@login_required
-@license_required
 def serve_spa_catchall(path):
-    """SPA catch-all: serve index for Angular client-side routes. Requires valid license."""
-    return _serve_spa()
+    """SPA catch-all: serve static assets without auth; protect SPA routes with login+license."""
+    from app.config import _8087_ROOT
+    # Serve real static files (JS, CSS, fonts, images) without requiring authentication
+    public_dir = _8087_ROOT / ".tmp" / "public"
+    candidate = public_dir / path
+    try:
+        candidate_resolved = candidate.resolve()
+        public_resolved = public_dir.resolve()
+        if candidate_resolved.is_file() and str(candidate_resolved).startswith(str(public_resolved)):
+            from flask import send_from_directory
+            return send_from_directory(str(public_resolved), path)
+    except Exception:
+        pass
+    # Not a static file — protect with login + license
+    if not current_user.is_authenticated:
+        return redirect(_login_url())
+    return _serve_spa_licensed()
 
 
 @web_bp.route("/api/account", methods=["GET"])
@@ -539,7 +587,9 @@ def accept_invite():
 @login_required
 @license_required
 def list_projects():
-    """GET /api/project - list projects with pagination. OEM users (role 9, 10) only see projects for their org's clients."""
+    """GET /api/project - list projects with pagination.
+    OEM users (role 9, 10) only see projects for their org's clients.
+    Client Admin/Manager (2, 3) only see projects under their client (their organization)."""
     sess = get_session()
     page = request.args.get("page", 1, type=int)
     page_size = request.args.get("pageSize", 500, type=int)
@@ -558,10 +608,18 @@ def list_projects():
     user = sess.query(User).get(current_user.id)
     oem_org_id = _get_oem_org_id(sess, user) if user else None
 
-    # OEM users: if client_id provided, verify it belongs to their org
+    # OEM users: if client_id provided, verify it belongs to their org (legacy or sponsored)
     if user and getattr(user, "role", None) in (9, 10) and oem_org_id and client_id:
         client_obj = sess.query(Client).filter_by(id=client_id, isDeleted=False).first()
-        if not client_obj or getattr(client_obj, "org_id", None) != oem_org_id:
+        if not client_obj or (
+            getattr(client_obj, "org_id", None) != oem_org_id
+            and getattr(client_obj, "sponsor_org_id", None) != oem_org_id
+        ):
+            return jsonify({"meta": {"page": page, "total": 0}, "response": []}), 200
+
+    # Client Admin, Client Manager: if client_id provided, must be their client
+    if user and getattr(user, "role", None) in (2, 3) and user.client and client_id:
+        if client_id != user.client:
             return jsonify({"meta": {"page": page, "total": 0}, "response": []}), 200
 
     q = sess.query(Project).filter_by(isDeleted=False)
@@ -570,9 +628,17 @@ def list_projects():
     if client_id:
         q = q.filter(Project.client == client_id)
 
-    # OEM users: only projects whose client belongs to their org
+    # OEM users: only projects whose client belongs to their org (legacy or sponsored)
     if user and getattr(user, "role", None) in (9, 10) and oem_org_id:
-        q = q.join(Client, Project.client == Client.id).filter(Client.org_id == oem_org_id)
+        q = q.join(Client, Project.client == Client.id).filter(
+            or_(Client.org_id == oem_org_id, Client.sponsor_org_id == oem_org_id)
+        )
+    # Client Admin, Client Manager: only projects under their client (their organization)
+    elif user and getattr(user, "role", None) in (2, 3) and user.client:
+        q = q.filter(Project.client == user.client)
+    # Account Manager: only projects for their assigned client
+    elif user and getattr(user, "role", None) == 7 and user.client:
+        q = q.filter(Project.client == user.client)
 
     q = q.order_by(Project.name.asc())
     total = q.count()
@@ -678,7 +744,7 @@ def _create_report_data_for_project(project_id):
 
 
 PROJECT_UPDATE_BLACKLIST = {"id", "createdAt", "updatedAt", "isDeleted", "org_id"}
-CLIENT_UPDATE_BLACKLIST = {"id", "createdAt", "updatedAt", "isDeleted", "users", "org_id"}
+CLIENT_UPDATE_BLACKLIST = {"id", "createdAt", "updatedAt", "isDeleted", "users", "org_id", "sponsor_org_id"}
 
 _PROJECT_BOOL_FIELDS = {"subNeeded", "gwControl"}
 
@@ -705,14 +771,44 @@ def _oem_can_access_client(sess, user, client):
         return user.client and client.id == user.client
     if getattr(user, "role", None) not in (9, 10):
         return True  # Other roles: allow
-    org_id = _get_oem_org_id(sess, user)
-    if not org_id:
+    oem_org_id = _get_oem_org_id(sess, user)
+    if not oem_org_id:
         return False
-    return getattr(client, "org_id", None) == org_id
+    # Legacy: client.org_id == oem_org_id; new: client.sponsor_org_id == oem_org_id
+    return (
+        getattr(client, "org_id", None) == oem_org_id
+        or getattr(client, "sponsor_org_id", None) == oem_org_id
+    )
+
+
+def _user_can_create_project_for_client(sess, user, client):
+    """
+    True if user can create a project for this client.
+    OEM Admin: clients in their org. Client Admin/Manager: only their own client.
+    Synerex Admin: any. Account Manager: only their assigned client.
+    """
+    if not user or not client:
+        return False
+    role = getattr(user, "role", None)
+    if role == 8:
+        return True
+    if role == 7:
+        return user.client and client.id == user.client
+    if role in (9, 10):
+        oem_org_id = _get_oem_org_id(sess, user)
+        if not oem_org_id:
+            return False
+        return (
+            getattr(client, "org_id", None) == oem_org_id
+            or getattr(client, "sponsor_org_id", None) == oem_org_id
+        )
+    if role in (2, 3):  # Client Admin, Client Manager
+        return user.client and client.id == user.client
+    return False
 
 
 def _user_can_access_project(sess, user, project):
-    """True if user can access project: admin, in project_user, or OEM with client in their org."""
+    """True if user can access project: admin, in project_user, OEM with client in their org, or Client Admin/Manager with project under their client."""
     if not user or not project:
         return False
     if getattr(user, "role", None) == 8:
@@ -726,6 +822,9 @@ def _user_can_access_project(sess, user, project):
     if getattr(user, "role", None) in (9, 10) and project.client:
         c = sess.query(Client).get(project.client)
         return c is not None and _oem_can_access_client(sess, user, c)
+    if getattr(user, "role", None) in (2, 3) and user.client and project.client:
+        # Client Admin, Client Manager: any project under their client (their organization)
+        return project.client == user.client
     return False
 
 _PROJECT_INT_NULLABLE_FIELDS = {"xecoManager", "selectedTest", "servicePlan", "active_emv_analysis_id"}
@@ -800,6 +899,9 @@ def create_project_from_bill():
             c = sess.query(Client).filter_by(id=client_id, isDeleted=False).first()
             if not c:
                 return jsonify({"error": "Client not found or access denied"}), 400
+            user = sess.query(User).get(current_user.id)
+            if not _user_can_create_project_for_client(sess, user, c):
+                return jsonify({"error": "You cannot create projects for this client"}), 403
             # Ensure client has org_id so project appears in EMV dropdown
             if not (getattr(c, "org_id", None) or "").strip():
                 from app.services.org_registry import ensure_org
@@ -811,15 +913,29 @@ def create_project_from_bill():
                     sess.add(c)
                     sess.flush()
         else:
+            # Client Admin (2) and Client Manager (3) can only create projects under existing client
+            role = getattr(current_user, "role", None)
+            if role in (2, 3):
+                return jsonify({"error": "Client Admin must select an existing client. Use clientId to create a project."}), 400
             if not client_vals.get("name"):
                 return jsonify({"error": "Client name is required when creating a new client"}), 400
             org_name = client_vals.get("name") or client_vals.get("legalName") or "Unknown"
-            role = getattr(current_user, "role", None)
             org_id_from_session = None
-            if role != 8:
+            sponsor_org_id = None
+            if role in (9, 10):
+                user_obj = sess.query(User).get(current_user.id)
+                oem_org_id = _get_oem_org_id(sess, user_obj)
+                if oem_org_id:
+                    sponsor_org_id = oem_org_id
+            elif role != 8:
                 org_id_from_session = session.get("orgId") or (session.get("user") or {}).get("org_id")
             from app.services.org_registry import ensure_org
-            result = ensure_org(org_name=org_name, org_type="customer", org_id=org_id_from_session)
+            result = ensure_org(
+                org_name=org_name,
+                org_type="customer",
+                org_id=org_id_from_session,
+                sponsor_org_id=sponsor_org_id,
+            )
             org_id = result.get("org_id") if result else None
             c = Client(
                 name=client_vals["name"],
@@ -827,6 +943,8 @@ def create_project_from_bill():
                 isDeleted=False,
                 createdBy=current_user.id,
             )
+            if sponsor_org_id and hasattr(c, "sponsor_org_id"):
+                c.sponsor_org_id = sponsor_org_id
             for k in ("legalName", "address", "city", "state", "zip", "country",
                       "contactName", "contactTitle", "contactPhone", "marketSegment",
                       "taxId", "shippingTerms", "salesTax", "financeEmail", "financePhone",
@@ -919,6 +1037,10 @@ def create_project():
     client = sess.query(Client).filter_by(id=client_id, isDeleted=False).first()
     if not client:
         return jsonify({"error": "Client not found"}), 400
+
+    user = sess.query(User).get(current_user.id)
+    if not _user_can_create_project_for_client(sess, user, client):
+        return jsonify({"error": "You cannot create projects for this client"}), 403
 
     # Ensure client has org_id so project appears in EMV dropdown (filtered by org_id)
     client_org_id = getattr(client, "org_id", None) or ""
@@ -1047,7 +1169,8 @@ def destroy_project(pid):
 @license_required
 def list_clients():
     """GET /api/client - list clients with pagination. Supports page, pageSize, orderBy, orderDirection, name, contactName, country.
-    OEM users (role 9, 10) only see clients in their org. Cloud Kitchen is deduplicated per org (one per OEM)."""
+    OEM users (role 9, 10) only see clients in their org. Client Admin/Manager (2, 3) only see their own client.
+    Cloud Kitchen is deduplicated per org (one per OEM)."""
     sess = get_session()
     page = request.args.get("page", 1, type=int)
     page_size = min(request.args.get("pageSize", 10, type=int), 500)
@@ -1065,12 +1188,21 @@ def list_clients():
         if oem_client:
             org_id = getattr(oem_client, "org_id", None)
     if role in (9, 10) and org_id:
-        base = base.filter(Client.org_id == org_id)
-        # Exclude OEM's own client record (e.g. HarmoniQ) - only show their customers (e.g. Cloud Kitchen)
+        # OEM sees clients: legacy (org_id match) or sponsored (sponsor_org_id match)
+        base = base.filter(
+            or_(
+                Client.org_id == org_id,
+                Client.sponsor_org_id == org_id,
+            )
+        )
+        # Exclude OEM's own client record (e.g. HarmoniQ) - only show their customers
         if user and user.client:
             base = base.filter(Client.id != user.client)
     elif role == 7 and user and user.client:
         # Account Manager: only their assigned client (e.g. Cloud Kitchen)
+        base = base.filter(Client.id == user.client)
+    elif role in (2, 3) and user and user.client:
+        # Client Admin, Client Manager: only their own client (their organization)
         base = base.filter(Client.id == user.client)
 
     name_filter = request.args.get("name", "").strip()
@@ -1155,21 +1287,24 @@ def create_client():
     vals.setdefault("createdBy", current_user.id)
     vals.setdefault("isDeleted", False)
 
-    # Cloud Kitchen: only one per org (e.g. HarmoniQ)
+    # Cloud Kitchen: only one per OEM org (legacy: org_id; new: sponsor_org_id)
     client_name = (vals.get("name") or "").strip()
     if "Cloud Kitchen" in client_name:
+        user = sess.query(User).get(current_user.id)
         org_id_for_check = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
-        if not org_id_for_check:
-            user = sess.query(User).get(current_user.id)
-            if user and user.client:
-                oem_client = sess.query(Client).get(user.client)
-                if oem_client:
-                    org_id_for_check = getattr(oem_client, "org_id", None)
+        if not org_id_for_check and user and user.client:
+            oem_client = sess.query(Client).get(user.client)
+            if oem_client:
+                org_id_for_check = getattr(oem_client, "org_id", None)
         if org_id_for_check:
+            # Legacy: org_id match; new: sponsor_org_id match
             existing = sess.query(Client).filter(
                 Client.isDeleted == False,
-                Client.org_id == org_id_for_check,
                 Client.name.ilike("%Cloud Kitchen%"),
+                or_(
+                    Client.org_id == org_id_for_check,
+                    Client.sponsor_org_id == org_id_for_check,
+                ),
             ).first()
             if existing:
                 return jsonify({"error": "This organization already has a Cloud Kitchen client. Only one Cloud Kitchen is allowed per organization."}), 400
@@ -1179,12 +1314,27 @@ def create_client():
     org_name = vals.get("name") or vals.get("legalName") or "Unknown"
     role = getattr(current_user, "role", None)
     org_id_from_session = None
-    if role != 8:  # Not XECO_ADMIN - customer creating their own client, adopt their org
+    sponsor_org_id = None
+    if role in (9, 10):
+        # OEM Admin/User: create new customer org with its own org_id, linked via sponsor_org_id
+        oem_org_id = _get_oem_org_id(sess, sess.query(User).get(current_user.id))
+        if oem_org_id:
+            sponsor_org_id = oem_org_id
+            # Do NOT pass org_id - let License Service generate unique org_id per customer
+    elif role != 8:
+        # Account Manager (7) etc: adopt existing org from session
         org_id_from_session = session.get("orgId") or (session.get("user") or {}).get("org_id")
     from app.services.org_registry import ensure_org
-    result = ensure_org(org_name=org_name, org_type="customer", org_id=org_id_from_session)
+    result = ensure_org(
+        org_name=org_name,
+        org_type="customer",
+        org_id=org_id_from_session,
+        sponsor_org_id=sponsor_org_id,
+    )
     if result:
         c.org_id = result.get("org_id")
+        if sponsor_org_id and hasattr(c, "sponsor_org_id"):
+            c.sponsor_org_id = sponsor_org_id
     for k, v in vals.items():
         if k in CLIENT_UPDATE_BLACKLIST:
             continue
@@ -1292,24 +1442,209 @@ def agreement_page():
 
 @web_bp.route("/api/whitelabel/brand-name", methods=["GET"])
 def get_brand_name():
-    """GET /api/whitelabel/brand-name - no auth required."""
-    hostname = request.host or ""
-    base_path = Path(current_app.config.get("WHITELABEL_BASE_PATH", ""))
-    if not base_path.exists():
-        return jsonify({"response": "Synerex"})
-
-    parts = hostname.split(".")
-    subdomain = parts[0].lower() if parts else ""
-    if subdomain in ("", "www", "portal"):
-        return jsonify({"response": "Synerex"})
-
-    brand_file = base_path / subdomain / "brandname.txt"
-    if brand_file.exists():
+    """GET /api/whitelabel/brand-name - returns brand name for logged-in user's OEM org.
+    Falls back to hostname-based whitelabel, then 'Synerex'."""
+    from flask_login import current_user
+    # 1. Try org_id from session (set during SSO/login)
+    org_id = None
+    if current_user and current_user.is_authenticated:
+        org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if not org_id and current_user.client:
+            try:
+                from app.db.request_session import get_session as _gs
+                from app.models.client import Client as _Client
+                _c = _gs().query(_Client).get(current_user.client)
+                if _c:
+                    org_id = getattr(_c, "org_id", None)
+            except Exception:
+                pass
+    if org_id:
         try:
-            return jsonify({"response": brand_file.read_text().strip() or "Synerex"})
+            from app.models.oem_branding import OemBranding
+            branding = get_session().query(OemBranding).filter_by(org_id=org_id).first()
+            if branding and branding.brand_name:
+                return jsonify({"brandName": branding.brand_name, "response": branding.brand_name})
         except Exception:
             pass
-    return jsonify({"response": "Synerex"})
+    # 2. Fallback: hostname-based whitelabel file
+    hostname = request.host or ""
+    base_path = Path(current_app.config.get("WHITELABEL_BASE_PATH", ""))
+    if base_path.exists():
+        parts = hostname.split(".")
+        subdomain = parts[0].lower() if parts else ""
+        if subdomain not in ("", "www", "portal"):
+            brand_file = base_path / subdomain / "brandname.txt"
+            if brand_file.exists():
+                try:
+                    name = brand_file.read_text().strip()
+                    if name:
+                        return jsonify({"brandName": name, "response": name})
+                except Exception:
+                    pass
+    return jsonify({"brandName": "Synerex", "response": "Synerex"})
+
+
+@web_bp.route("/api/whitelabel/oem-branding", methods=["GET"])
+@login_required
+def get_oem_branding():
+    """GET /api/whitelabel/oem-branding - get full branding for logged-in OEM user."""
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id and current_user.client:
+        try:
+            from app.models.client import Client as _Client
+            _c = get_session().query(_Client).get(current_user.client)
+            if _c:
+                org_id = getattr(_c, "org_id", None)
+        except Exception:
+            pass
+    if not org_id:
+        return jsonify({"error": "No org_id"}), 400
+    try:
+        from app.models.oem_branding import OemBranding
+        b = get_session().query(OemBranding).filter_by(org_id=org_id).first()
+        if b:
+            return jsonify({"response": {
+                "org_id": b.org_id,
+                "brand_name": b.brand_name,
+                "logo_url": f"/images/oem_logo/{org_id}" if b.logo_path else None,
+                "primary_color": b.primary_color,
+                "secondary_color": b.secondary_color,
+                "support_email": b.support_email,
+                "website_url": b.website_url,
+                "portal_title": b.portal_title,
+            }})
+        return jsonify({"response": {"org_id": org_id}})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@web_bp.route("/api/whitelabel/oem-branding", methods=["POST", "PUT"])
+@login_required
+def save_oem_branding():
+    """POST/PUT /api/whitelabel/oem-branding - save OEM branding settings."""
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"error": "Forbidden"}), 403
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id and current_user.client:
+        try:
+            from app.models.client import Client as _Client
+            _c = get_session().query(_Client).get(current_user.client)
+            if _c:
+                org_id = getattr(_c, "org_id", None)
+        except Exception:
+            pass
+    if not org_id:
+        return jsonify({"error": "No org_id"}), 400
+    data = request.get_json(silent=True) or {}
+    try:
+        from app.models.oem_branding import OemBranding
+        sess = get_session()
+        b = sess.query(OemBranding).filter_by(org_id=org_id).first()
+        if not b:
+            b = OemBranding(org_id=org_id)
+            sess.add(b)
+        if "brand_name" in data:
+            b.brand_name = data["brand_name"]
+        if "primary_color" in data:
+            b.primary_color = data["primary_color"]
+        if "secondary_color" in data:
+            b.secondary_color = data["secondary_color"]
+        if "support_email" in data:
+            b.support_email = data["support_email"]
+        if "website_url" in data:
+            b.website_url = data["website_url"]
+        if "portal_title" in data:
+            b.portal_title = data["portal_title"]
+        sess.commit()
+        return jsonify({"response": "saved"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@web_bp.route("/api/whitelabel/oem-logo", methods=["POST"])
+@login_required
+def upload_oem_logo():
+    """POST /api/whitelabel/oem-logo - upload OEM logo image."""
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"error": "Forbidden"}), 403
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id and current_user.client:
+        try:
+            from app.models.client import Client as _Client
+            _c = get_session().query(_Client).get(current_user.client)
+            if _c:
+                org_id = getattr(_c, "org_id", None)
+        except Exception:
+            pass
+    if not org_id:
+        return jsonify({"error": "No org_id"}), 400
+    logo = request.files.get("logo")
+    if not logo or not logo.filename:
+        return jsonify({"error": "logo file required"}), 400
+    storage = Path(current_app.config.get("STORAGE_PATH", current_app.root_path)).parent
+    upload_dir = storage / "images" / "oem_logo"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
+    dest = upload_dir / safe_org
+    logo.save(str(dest))
+    try:
+        from app.models.oem_branding import OemBranding
+        sess = get_session()
+        b = sess.query(OemBranding).filter_by(org_id=org_id).first()
+        if not b:
+            b = OemBranding(org_id=org_id)
+            sess.add(b)
+        b.logo_path = str(dest)
+        sess.commit()
+    except Exception:
+        pass
+    return jsonify({"response": f"/images/oem_logo/{safe_org}", "logo_url": f"/images/oem_logo/{safe_org}"})
+
+
+
+
+@web_bp.route("/api/whitelabel/oem-branding-by-org", methods=["GET"])
+def get_oem_branding_by_org():
+    """
+    Public (no auth) endpoint for internal service-to-service use.
+    Returns OEM branding for a given org_id or sponsor_org_id.
+    Called by the license service to brand the payment page.
+    Only accessible from within the Docker network (not exposed publicly via Nginx).
+    """
+    org_id = request.args.get("org_id", "").strip()
+    if not org_id:
+        return jsonify({}), 200
+    try:
+        from app.models.oem_branding import OemBranding
+        from app.models.client import Client
+        sess = get_session()
+        # 1. Direct lookup: org_id is itself an OEM org
+        b = sess.query(OemBranding).filter_by(org_id=org_id).first()
+        if not b:
+            # 2. Client lookup: find the sponsor_org_id for this customer org
+            client = sess.query(Client).filter(
+                Client.org_id == org_id, Client.isDeleted == False
+            ).first()
+            sponsor = getattr(client, "sponsor_org_id", None) if client else None
+            if sponsor:
+                b = sess.query(OemBranding).filter_by(org_id=sponsor).first()
+        if b:
+            logo_url = None
+            if b.logo_path:
+                logo_url = f"/images/oem_logo/{b.org_id}"
+            return jsonify({
+                "org_id": b.org_id,
+                "brand_name": b.brand_name or "",
+                "logo_url": logo_url,
+                "primary_color": b.primary_color or "",
+                "website_url": b.website_url or "",
+                "portal_title": b.portal_title or "",
+            })
+    except Exception:
+        pass
+    return jsonify({}), 200
 
 
 @web_bp.route("/js/<path:path>")
@@ -1332,6 +1667,13 @@ def serve_static(path):
         return redirect(s3_url, code=302)
     # Whitelabel image lookup for /images/*
     if prefix == "images":
+        # OEM logo: /images/oem_logo/{org_id}
+        if path.startswith("oem_logo/"):
+            storage = Path(current_app.config.get("STORAGE_PATH", current_app.root_path)).parent
+            oem_dir = storage / "images" / "oem_logo"
+            oem_file = oem_dir / path[len("oem_logo/"):]
+            if oem_file.exists() and oem_file.is_file():
+                return send_from_directory(str(oem_dir), path[len("oem_logo/")])
         hostname = (request.host or "").split(":")[0]
         mappings = current_app.config.get("WHITELABEL_DOMAIN_MAPPINGS") or {}
         branding = mappings.get(hostname) or _get_branding_from_hostname(hostname)
@@ -1391,3 +1733,114 @@ def serve_files(path):
     if full.exists() and full.is_file():
         return send_from_directory(str(files_dir), path)
     return {"error": "Not found"}, 404
+
+
+# ---------------------------------------------------------------------------
+# Subscription management endpoints (proxy to license service)
+# ---------------------------------------------------------------------------
+
+@web_bp.route("/api/subscription", methods=["GET"])
+@login_required
+@license_required
+def get_subscription():
+    """
+    Return current subscription info for the logged-in user's org.
+    Proxies GET /register/api/subscription from the license service.
+    Client Admins (role 2) and OEM Admins (role 9) can view this.
+    """
+    import urllib.request as _ur
+    import urllib.error as _ue
+
+    user = get_session().query(User).get(current_user.id)
+    if not user:
+        return jsonify({"error": "Not found"}), 404
+
+    role = int(user.role) if user.role is not None else 0
+    # Determine the org_id to check
+    if role in (9, 10):
+        org_id = _get_oem_org_id(get_session(), user)
+    else:
+        org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if not org_id and user.client:
+            from app.models.client import Client as _Client
+            c = get_session().query(_Client).get(user.client)
+            org_id = getattr(c, "org_id", None) if c else None
+
+    if not org_id:
+        return jsonify({"error": "No org found"}), 404
+
+    license_url = current_app.config.get("LICENSE_SERVICE_URL", "http://license-service:8000")
+    url = f"{license_url.rstrip('/')}/register/api/subscription?org_id={org_id}&program_id=tracking"
+    try:
+        req = _ur.Request(url)
+        with _ur.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        return jsonify(data)
+    except _ue.HTTPError as e:
+        return jsonify({"error": f"License service error {e.code}"}), e.code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@web_bp.route("/api/subscription/upgrade", methods=["POST"])
+@login_required
+@license_required
+def upgrade_subscription():
+    """
+    Create an upgrade billing order and return the payment URL.
+    Proxies POST /register/api/upgrade from the license service.
+    Only Client Admins (role 2) and OEM Admins (role 9) can upgrade.
+    """
+    import urllib.request as _ur
+    import urllib.parse as _up
+    import urllib.error as _ue
+
+    user = get_session().query(User).get(current_user.id)
+    if not user:
+        return jsonify({"error": "Not found"}), 404
+
+    role = int(user.role) if user.role is not None else 0
+    if role not in (2, 9):
+        return jsonify({"error": "Only Client Admins or OEM Admins can upgrade"}), 403
+
+    data = request.get_json(silent=True) or {}
+    new_plan = data.get("new_plan")
+    meter_count = int(data.get("meter_count") or 0)
+    return_url = data.get("return_url") or ""
+
+    if not new_plan:
+        return jsonify({"error": "new_plan required"}), 400
+
+    # Determine org_id
+    if role == 9:
+        org_id = _get_oem_org_id(get_session(), user)
+    else:
+        org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if not org_id and user.client:
+            from app.models.client import Client as _Client
+            c = get_session().query(_Client).get(user.client)
+            org_id = getattr(c, "org_id", None) if c else None
+
+    if not org_id:
+        return jsonify({"error": "No org found"}), 404
+
+    license_url = current_app.config.get("LICENSE_SERVICE_URL", "http://license-service:8000")
+    url = f"{license_url.rstrip('/')}/register/api/upgrade"
+    form_data = _up.urlencode({
+        "org_id": org_id,
+        "program_id": "tracking",
+        "new_plan": new_plan,
+        "meter_count": meter_count,
+        "return_url": return_url,
+    }).encode()
+    req = _ur.Request(url, data=form_data, method="POST",
+                      headers={"Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with _ur.urlopen(req, timeout=5) as resp:
+            result = json.loads(resp.read().decode())
+        return jsonify(result)
+    except _ue.HTTPError as e:
+        body = e.read().decode()
+        return jsonify({"error": body}), e.code
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

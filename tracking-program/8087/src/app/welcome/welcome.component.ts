@@ -20,6 +20,12 @@ export class WelcomeComponent implements AfterViewInit {
   public welcomeImageUrl: string;
   public brandName: string = 'Xeco'; // Default, will be updated
 
+  get displayName(): string {
+    const user = this.userService.user;
+    if (!user) return '';
+    return user.firstName ? String(user.firstName) : '';
+  }
+
   constructor(private userService: CurrentUserService, private http: HttpClient, private whitelabelService: WhitelabelService) {
     this.welcomeImageUrl = '';
     // Load brand name

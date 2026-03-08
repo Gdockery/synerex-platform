@@ -19,6 +19,17 @@ from app.models.client import Client
 from app.models.user import User
 from app.services.license_service import verify_jwt
 
+
+def _get_client_name(user):
+    """Return the client company name for the given user, or None."""
+    if not user or not user.client:
+        return None
+    try:
+        client = get_session().query(Client).get(user.client)
+        return client.name if client else None
+    except Exception:
+        return None
+
 auth_bp = Blueprint("auth", __name__, url_prefix="", template_folder="../templates")
 
 
@@ -49,7 +60,36 @@ def show_login_page():
         else ("Tracking User Sign In" if role == "user" else "Tracking Sign In")
     )
     base_path = current_app.config.get("APPLICATION_ROOT", "") or ""
-    return render_template("auth/login.html", login_label=login_label, brand_name=_get_brand_name(), base_path=base_path)
+    # Load OEM branding if a sponsor token is present (e.g. ?oem=OEM-HARMONIQ)
+    oem_logo_url = None
+    oem_primary_color = None
+    portal_title = None
+    brand_name = _get_brand_name()
+    oem_ref = request.args.get("oem") or request.args.get("ref")
+    if oem_ref:
+        try:
+            from app.models.oem_branding import OemBranding
+            from app.db.request_session import get_session as _gs
+            b = _gs().query(OemBranding).filter_by(org_id=oem_ref).first()
+            if b:
+                if b.brand_name:
+                    brand_name = b.brand_name
+                if b.logo_path:
+                    safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in oem_ref)
+                    oem_logo_url = f"{base_path}/images/oem_logo/{safe_org}"
+                oem_primary_color = b.primary_color
+                portal_title = b.portal_title
+        except Exception:
+            pass
+    return render_template(
+        "auth/login.html",
+        login_label=login_label,
+        brand_name=brand_name,
+        base_path=base_path,
+        oem_logo_url=oem_logo_url,
+        oem_primary_color=oem_primary_color,
+        portal_title=portal_title,
+    )
 
 
 def _wants_json_response():
@@ -100,6 +140,7 @@ def login():
         "email": user.email,
         "role": user.role,
         "client": user.client,
+        "clientName": _get_client_name(user),
     }
     _set_org_id_in_session(user)
 
@@ -212,6 +253,7 @@ def sso_login():
         "email": user.email,
         "role": user.role,
         "client": user.client,
+        "clientName": _get_client_name(user),
     }
     session["userRole"] = user.role
     session["orgId"] = org_id

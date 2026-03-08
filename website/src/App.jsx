@@ -70,7 +70,14 @@ export default function App(){
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
       <Header />
-      <Suspense fallback={<div className="p-12 text-center text-gray-300">Loading…</div>}>
+      <Suspense fallback={
+        <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-gray-400 text-sm">Loading…</span>
+          </div>
+        </div>
+      }>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />

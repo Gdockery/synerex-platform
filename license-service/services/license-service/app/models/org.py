@@ -32,6 +32,9 @@ class Organization(Base):
     physical_phone: Mapped[str | None] = mapped_column(String(255), nullable=True)
     physical_cell: Mapped[str | None] = mapped_column(String(255), nullable=True)
     
+    # OEM sponsor for customer/pe orgs (orgs created by OEM Admin)
+    sponsor_org_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # PE-specific fields (only used when org_type = 'pe')
     pe_license_number: Mapped[str | None] = mapped_column(String(255), nullable=True)
     pe_license_state: Mapped[str | None] = mapped_column(String(255), nullable=True)

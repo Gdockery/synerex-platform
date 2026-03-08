@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core'
+
+import {Injector} from '@angular/core';import { Injectable } from '@angular/core'
 import { BaseApiCrudService } from "../api/baseApiCrud.service"
 
 @Injectable()
@@ -15,5 +16,9 @@ export class PaymentService extends BaseApiCrudService {
 
   createSubscription(params) {
     return this.apiRequestService.post(this.baseUrl + 'create-subscription', { params: params })
+  }
+
+  constructor(injector: Injector) {
+    super(injector);
   }
 }

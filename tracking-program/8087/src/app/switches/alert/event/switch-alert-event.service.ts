@@ -3,6 +3,7 @@ import { Injectable }              from '@angular/core';
 
 
 import {BaseApiCrudService} from "../../../api/baseApiCrud.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class SwitchAlertEventService extends BaseApiCrudService {
@@ -11,4 +12,8 @@ export class SwitchAlertEventService extends BaseApiCrudService {
   public models = [];
   protected shouldIncludeProjectId:boolean = true;
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

@@ -64,7 +64,18 @@ export class SharedModule {
   static forRoot(): ModuleWithProviders {
     return {
       ngModule: SharedModule,
-      providers: []
+      providers: [
+        SubNavService,
+        ProjectSelectedGuard,
+        AuthService,
+        CsvExportService,
+        PdfLinkService,
+        UserService,
+        TimeHelpers,
+        ApiHelpers,
+        WindowRef,
+        SessionStorage,
+      ]
     };
   }
 }

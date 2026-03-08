@@ -1,6 +1,7 @@
 import {Injectable} from "@angular/core";
 import {BaseApiCrudService} from "../api/baseApiCrud.service";
 import {CurrentUserService} from "../shared/user/currentUser.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class AccountService extends BaseApiCrudService {
@@ -15,4 +16,8 @@ export class AccountService extends BaseApiCrudService {
     return response;
   }
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

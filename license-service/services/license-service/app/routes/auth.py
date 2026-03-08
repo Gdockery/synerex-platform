@@ -46,6 +46,7 @@ def client_login_page(request: Request):
         "return_url": return_url,
         "login_action": _path("/auth/login"),
         "register_href": _path("/register"),
+        "path_prefix": settings.root_path.rstrip("/") if settings.root_path else "",
     }
     try:
         return templates.TemplateResponse("client_login.html", ctx)
@@ -136,7 +137,6 @@ def client_login_submit(
                 org_id=user.org_id,
                 username=username,
                 email=user.email,
-                org_type=org_type,
                 roles=["user"],
             )
             request.session["user_token"] = user_token
@@ -164,17 +164,20 @@ def client_login_submit(
         request.session["user_jwt"] = jwt_token
         
         if return_url:
+            return_url = _normalize_return_url(return_url)
             separator = "&" if "?" in return_url else "?"
             # Prefer JWT token for SSO if available, fallback to session token
             token_to_use = request.session.get("user_token") or session_token
             return RedirectResponse(f"{return_url}{separator}token={token_to_use}", status_code=303)
         
-        # Default redirect to my-account
-        return RedirectResponse("/my-account", status_code=303)
+        # Default redirect to my-account (use website_url so port is included; request.url can omit port)
+        base = (settings.website_url or "").rstrip("/")
+        default_url = f"{base}/my-account" if base else "/my-account"
+        return RedirectResponse(default_url, status_code=303)
     except Exception as e:
         error_msg = f"Login failed: {str(e)}"
-            if return_url:
-                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
+        if return_url:
+            return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
         return templates.TemplateResponse(
             "client_login.html",
             {"request": request, "error": error_msg, "return_url": return_url},
@@ -188,6 +191,32 @@ def client_logout(request: Request):
     return RedirectResponse(_path("/auth/login"), status_code=303)
 
 
+def _my_account_url(request: Request) -> str:
+    """Build browser-accessible my-account URL. Uses website_url so port is included (request.url can omit port)."""
+    base = (settings.website_url or "").rstrip("/")
+    if base:
+        return f"{base}/my-account"
+    origin = f"{request.url.scheme}://{request.url.netloc}"
+    return f"{origin}/my-account"
+
+
+def _normalize_return_url(return_url: str) -> str:
+    """Rewrite return_url to always use the canonical website_url origin (localhost not 127.0.0.1, correct port)."""
+    if not return_url or not settings.website_url:
+        return return_url
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(return_url)
+        if parsed.hostname in ("localhost", "127.0.0.1"):
+            base = urlparse(settings.website_url)
+            origin = f"{base.scheme}://{base.netloc}"
+            path = parsed.path or "/my-account"
+            return f"{origin}{path}{('?' + parsed.query) if parsed.query else ''}"
+    except Exception:
+        pass
+    return return_url
+
+
 @router.get("/logout-all")
 def client_logout_all(request: Request):
     """Unified logout (GET for link navigation). Clears session, redirects to login with return to my-account."""
@@ -195,8 +224,7 @@ def client_logout_all(request: Request):
     from urllib.parse import quote
     return_url = request.query_params.get("return_url", "")
     if not return_url:
-        origin = f"{request.url.scheme}://{request.url.netloc}"
-        return_url = f"{origin}/my-account"
+        return_url = _my_account_url(request)
     login_url = _path("/auth/login")
     sep = "&" if "?" in login_url else "?"
     return RedirectResponse(f"{login_url}{sep}return_url={quote(return_url, safe='')}", status_code=303)

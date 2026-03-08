@@ -1,5 +1,6 @@
 import { Injectable }              from '@angular/core';
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class AlertService extends BaseApiCrudService {
@@ -11,5 +12,9 @@ export class AlertService extends BaseApiCrudService {
   transformUpdatedModel(model) {
     model.deviceCount = model.devices.length;
     return model;
+  }
+
+  constructor(injector: Injector) {
+    super(injector);
   }
 }

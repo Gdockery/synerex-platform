@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OEM Admin Panel - Synerex Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; line-height: 1.6; padding: 2rem; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 2rem; margin-bottom: 2rem; }
+    .card h2 { margin-bottom: 1.5rem; color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f7fafc; font-weight: 600; color: #4a5568; }
+    tr:hover { background: #f7fafc; }
+    .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-customer { background: #c6f6d5; color: #22543d; }
+    a { color: #667eea; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .btn { display: inline-block; padding: 0.5rem 1rem; background: #667eea; color: white; border-radius: 6px; font-weight: 500; margin-right: 0.5rem; }
+    .btn:hover { background: #5a67d8; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .empty { color: #718096; padding: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>OEM Admin Panel — {{ oem_org.org_name }}</h1>
+    <div>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/register" class="btn">+ Register Customer</a>
+      <a href="/my-account" class="btn btn-secondary">My Account</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Your Customers ({{ customers|length }})</h2>
+    {% if customers %}
+    <table>
+      <thead>
+        <tr>
+          <th>Organization</th>
+          <th>ID</th>
+          <th>Email</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        <tr>
+          <td><strong>{{ c.org_name }}</strong></td>
+          <td><code>{{ c.org_id }}</code></td>
+          <td>{{ c.email or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No customers yet. <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/register">Register your first customer</a>.</div>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -85,6 +85,9 @@ export class ProjectListComponent implements OnInit {
   }
 
   fetch(params) {
+    if (!params || params.first == null || params.rows == null) {
+      params = { first: 0, rows: this.perPage };
+    }
     if (this.selectedClientId) {
       params.client = this.selectedClientId;
     }

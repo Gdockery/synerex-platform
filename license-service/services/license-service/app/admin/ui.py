@@ -24,6 +24,7 @@ from ..models.license import License
 from ..models.audit import AuditEvent
 from ..models.billing import BillingOrder
 from ..auth.api_keys import create_api_key, _hash_key  # internal use for key creation
+from ..routes.auth import _normalize_return_url
 from ..templates_loader import load_template
 from ..programs.guardrails import validate_template
 from ..audit.events import log_event
@@ -167,6 +168,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     # If already logged in, redirect appropriately
     if _is_logged_in(request):
         if return_url:
+            return_url = _normalize_return_url(return_url)
             import uuid
             from ..auth.admin_tokens import store_admin_token
             session_token = str(uuid.uuid4())
@@ -182,6 +184,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
         
         # If return_url is provided (from website), redirect there with token
         if return_url:
+            return_url = _normalize_return_url(return_url)
             import uuid
             from ..auth.admin_tokens import store_admin_token
             session_token = str(uuid.uuid4())

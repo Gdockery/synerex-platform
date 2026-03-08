@@ -2,6 +2,8 @@ import {NgModule} from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { APP_BASE_HREF } from '@angular/common';
 import { AppComponent } from './app.component';
+import {ApiHelpers} from './shared/helpers/apiHelpers.service';
+import {TimeHelpers} from './shared/helpers/timeHelpers.service';
 import { AppRoutingModule } from './app-routing.module';
 import {CommonModule} from "@angular/common";
 import { SharedModule } from './shared/shared.module';
@@ -92,6 +94,8 @@ import {NgPipesModule} from "angular-pipes";
     SocketService,
     PaymentService,
     { provide: HTTP_INTERCEPTORS, useClass: ApiBaseInterceptor, multi: true },
+    ApiHelpers,
+    TimeHelpers,
 
   ],
   bootstrap: [AppComponent]

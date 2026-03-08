@@ -5,36 +5,21 @@ export default function Header(){
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false);
   const adminDropdownTimeoutRef = useRef(null);
   const [jwtToken, setJwtToken] = useState(null);
+  const jwtFetchedRef = useRef(false);
   
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL;
   const EMV_URL = import.meta.env.VITE_EMV_URL;
   const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL;
   
-  useEffect(() => {
-    let isMounted = true;
-    const fetchJwt = async () => {
-      try {
-        const resp = await fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, {
-          credentials: "include",
-        });
-        if (!resp.ok) return;
-        const data = await resp.json();
-        if (isMounted && data?.token) {
-          setJwtToken(data.token);
-        }
-      } catch (err) {
-        // Ignore errors for unauthenticated users
-      }
-    };
-    fetchJwt();
-    // Cleanup timeout on unmount
-    return () => {
-      isMounted = false;
-      if (adminDropdownTimeoutRef.current) {
-        clearTimeout(adminDropdownTimeoutRef.current);
-      }
-    };
-  }, []);
+  // Defer JWT fetch until Admin dropdown opens - avoids blocking every page load
+  const fetchJwtLazy = () => {
+    if (jwtFetchedRef.current) return;
+    jwtFetchedRef.current = true;
+    fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: "include" })
+      .then((resp) => (resp.ok ? resp.json() : null))
+      .then((data) => data?.token && setJwtToken(data.token))
+      .catch(() => {});
+  };
 
   const withJwt = (url) => {
     if (!jwtToken) return url;
@@ -43,7 +28,7 @@ export default function Header(){
   };
   
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-gray-800">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-black/95 border-b border-gray-800">
       <nav className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <img 
@@ -82,11 +67,11 @@ export default function Header(){
           <div 
             className="relative"
             onMouseEnter={() => {
-              // Clear any pending close timeout
               if (adminDropdownTimeoutRef.current) {
                 clearTimeout(adminDropdownTimeoutRef.current);
                 adminDropdownTimeoutRef.current = null;
               }
+              fetchJwtLazy();
               setAdminDropdownOpen(true);
             }}
             onMouseLeave={() => {

@@ -1,6 +1,7 @@
 import { Injectable }              from '@angular/core';
 import {BaseApiCrudService} from "../api/baseApiCrud.service";
 import {Observable} from "rxjs";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class SwitchScheduleService extends BaseApiCrudService {
@@ -42,4 +43,8 @@ export class SwitchScheduleService extends BaseApiCrudService {
     return this.apiRequestService.post('/api/switch/equipment/test-schedules');
   }
   
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

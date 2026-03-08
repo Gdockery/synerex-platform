@@ -1,7 +1,11 @@
 <nav>
 
   <div>
-    <div [routerLink]="['/welcome']" class="header"><img class="logo-image" [src]="logoUrl" [style.filter]="logoUseInvert ? 'brightness(0) invert(1)' : 'none'" /></div>
+    <div [routerLink]="['/welcome']" class="header">
+      <img *ngIf="!logoFailed" class="logo-image" [src]="logoUrl" [style.filter]="logoUseInvert ? 'brightness(0) invert(1)' : 'none'" (error)="onLogoError()" />
+      <span *ngIf="logoFailed && logoFallbackText" class="logo-fallback-text">{{ logoFallbackText }}</span>
+      <img *ngIf="logoFailed && !logoFallbackText" class="logo-image" src="/images/synerex_logo_white.png" style="filter: brightness(0) invert(1);" />
+    </div>
     <a class="sidebarToggle ss-menu" (click)="_toggleSidebar()"></a>
     <div class="clearfix"></div>
   </div>
@@ -64,6 +68,18 @@
       <a [routerLink]="['/xeco-administrator/advanced']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-sliders"></span>
         <span class="text">Advanced Options</span>
+      </a>
+    </li>
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10)">
+      <a [routerLink]="['/xeco-administrator/branding']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-paint-brush"></span>
+        <span class="text">Branding</span>
+      </a>
+    </li>
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 2 || userService.user.role === 9)">
+      <a [routerLink]="['/xeco-administrator/subscription']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-credit-card"></span>
+        <span class="text">Subscription</span>
       </a>
     </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">

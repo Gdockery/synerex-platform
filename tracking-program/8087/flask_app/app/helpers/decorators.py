@@ -77,8 +77,29 @@ def license_required(f):
             if org_id:
                 logger.debug("license_required: org_id=%s from session", org_id)
 
+        # Fall back: look up org_id from user's client record in DB
+        if not org_id and current_user.is_authenticated:
+            try:
+                from app.db.request_session import get_session as _get_session
+                from app.models.client import Client
+                from app.models.user import User as _User
+                _sess = _get_session()
+                _user = _sess.query(_User).get(current_user.id)
+                if _user and _user.client:
+                    _client = _sess.query(Client).get(_user.client)
+                    if _client:
+                        org_id = getattr(_client, 'org_id', None)
+                        if org_id:
+                            session['orgId'] = org_id
+                            session.setdefault('user', {})['orgId'] = org_id
+                            logger.info("license_required: resolved org_id=%s from DB for user=%s", org_id, current_user.id)
+            except Exception as _e:
+                logger.warning("license_required: DB org_id lookup failed: %s", _e)
+
         if not org_id:
-            license_url = current_app.config.get("LICENSE_SERVICE_URL")
+            logger.warning("license_required: NO org_id resolved for user_id=%s role=%s",
+                getattr(current_user, 'id', None), getattr(current_user, 'role', None))
+            license_url = current_app.config.get("LICENSE_SERVICE_PUBLIC_URL") or current_app.config.get("LICENSE_SERVICE_URL")
             if (request.headers.get("Accept") or "").startswith("application/json"):
                 return jsonify({
                     "error": "No org_id",
@@ -121,21 +142,24 @@ def license_required(f):
                 if valid:
                     logger.debug("license_required: org_id=%s valid", org_id)
                     return f(*args, **kwargs)
+                else:
+                    logger.warning("license_required: org_id=%s INVALID - license check returned valid=False body=%s", org_id, body)
         except Exception as e:
             current_app.logger.warning("license_required: License check failed (%s), allowing (fail open)", e)
             _license_cache_set(org_id, True)  # Fail open: cache as valid
             return f(*args, **kwargs)
 
         reason = "No valid license found"
+        purchase_url_base = current_app.config.get("LICENSE_SERVICE_PUBLIC_URL") or license_url
         if (request.headers.get("Accept") or "").startswith("application/json"):
             return jsonify({
                 "error": reason,
                 "code": "LICENSE_REQUIRED",
                 "program_id": "tracking",
-                "purchase_url": f"{license_url}/register/?program=tracking",
+                "purchase_url": f"{purchase_url_base}/register/?program=tracking",
                 "message": "A valid Tracking Program license is required.",
             }), 403
-        return redirect(f"{license_url}/register/?program=tracking")
+        return redirect(f"{purchase_url_base}/register/?program=tracking")
 
     return decorated
 

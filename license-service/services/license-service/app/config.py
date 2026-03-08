@@ -5,7 +5,8 @@ from pathlib import Path
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[1] / ".env",
-        env_file_encoding="utf-8"
+        env_file_encoding="utf-8",
+        extra="ignore",  # Ignore unknown env vars (e.g. EMV_DIRECT_URL, TRACKING_DIRECT_URL)
     )
 
     db_url: str = ""
@@ -87,6 +88,9 @@ class Settings(BaseSettings):
     
     # Website URL for navigation links
     website_url: str = ""
+
+    # Redis URL for stats cache (optional; falls back to in-memory when empty)
+    redis_url: str = ""
 
     # Secret for Admin Panel to restart Tracking (proxied via License Service)
     admin_restart_secret: str = ""

@@ -1,6 +1,7 @@
 import { Injectable }              from '@angular/core';
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
 import {Observable} from "rxjs";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class SavingsReportService extends BaseApiCrudService {
@@ -19,4 +20,8 @@ export class SavingsReportService extends BaseApiCrudService {
   	removeBill(month) {
     	return this.apiRequestService.delete(this.getBillURL(month));
   	} 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

@@ -1308,6 +1308,8 @@ def _safe_save_upload(file_obj, label_prefix: str) -> Path:
 warnings.filterwarnings("ignore")
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = "synerex-admin-secret-key-2025"  # Required for sessions
+# Distinct cookie name to avoid collision with license-service's "session" cookie
+app.config["SESSION_COOKIE_NAME"] = "emv_session"
 
 # Increase URL length limit to handle long GET requests
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB

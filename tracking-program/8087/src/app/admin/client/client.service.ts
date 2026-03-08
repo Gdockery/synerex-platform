@@ -1,5 +1,6 @@
 import { Injectable }              from '@angular/core';
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class ClientService extends BaseApiCrudService {
@@ -8,4 +9,8 @@ export class ClientService extends BaseApiCrudService {
   public models = [];
   protected shouldIncludeProjectId = false;
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

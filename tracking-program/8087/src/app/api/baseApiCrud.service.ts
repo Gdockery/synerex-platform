@@ -1,4 +1,4 @@
-import {Injectable}              from '@angular/core';
+import {Injectable, Injector}    from '@angular/core';
 import {Observable, BehaviorSubject} from "rxjs";
 import {CurrentUserService} from "../shared/user/currentUser.service";
 import {ApiRequestService} from "./api-request.service";
@@ -13,7 +13,24 @@ export class BaseApiCrudService {
 
   public models = [];
 
-  constructor (protected userService: CurrentUserService, protected apiRequestService: ApiRequestService, protected apiHelpers: ApiHelpers) {
+  private _userService: CurrentUserService;
+  private _apiRequestService: ApiRequestService;
+  private _apiHelpers: ApiHelpers;
+
+  protected get userService(): CurrentUserService {
+    if (!this._userService) this._userService = this._injector.get(CurrentUserService);
+    return this._userService;
+  }
+  protected get apiRequestService(): ApiRequestService {
+    if (!this._apiRequestService) this._apiRequestService = this._injector.get(ApiRequestService);
+    return this._apiRequestService;
+  }
+  protected get apiHelpers(): ApiHelpers {
+    if (!this._apiHelpers) this._apiHelpers = this._injector.get(ApiHelpers);
+    return this._apiHelpers;
+  }
+
+  constructor (protected _injector: Injector) {
     this.modelObserver = new BehaviorSubject([]);
   }
 

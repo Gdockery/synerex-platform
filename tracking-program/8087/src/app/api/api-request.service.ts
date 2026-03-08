@@ -34,6 +34,10 @@ export class ApiRequestService {
     return this.handleRequest(this.http.delete(url, params));
   }
 
+  public postFormData(url, formData: FormData): Observable<any> {
+    return this.handleRequest(this.http.post(url, formData));
+  }
+
   protected handleRequest(request: Observable<any>) {
     this.pService.ref("progressIndicator").start();
     let response = request.pipe(

@@ -31,12 +31,15 @@ services:
       - ./license-service/services/license-service/.env
     environment:
       TRACKING_PROGRAM_URL: http://tracking-program:8087
+      REDIS_URL: redis://redis:6379/0
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
     volumes:
       - ./license-service/templates:/app/templates:ro
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -83,10 +86,14 @@ services:
     network_mode: "host"
     env_file:
       - ./emv-program/8082/.env
+    environment:
+      CHROMA_URL: http://localhost:8100
+      OLLAMA_EMBED_MODEL: nomic-embed-text
     volumes:
       - ./emv-program:/app
     command: >
       sh -c "pip install --no-cache-dir -r /app/8082/requirements.txt &&
+             (python /app/8082/ollama_ai_backend.py &) &&
              python /app/service_manager_daemon.py"
     restart: unless-stopped
   tracking-program:
@@ -101,12 +108,18 @@ services:
     environment:
       TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
       LICENSE_SERVICE_URL: http://license-service:8000
+      LICENSE_SERVICE_PUBLIC_URL: http://localhost:8080/license
       TRACKING_BASE_URL: http://proxy:80/tracking
       TRACKING_PUBLIC_WEBSITE_URL: http://localhost:5173
+      REDIS_URL: redis://redis:6379/1
+      OLLAMA_LOCAL_URL: http://192.168.1.14:11434
+      OLLAMA_BILL_VISION_MODEL: qwen2.5vl:32b
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
     depends_on:
       mysql-tracking:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./tracking-program/8087/.tmp:/app/8087/.tmp
@@ -180,6 +193,22 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  chromadb:
+    image: chromadb/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    ports:
+      - "8100:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
@@ -244,4 +273,4 @@ volumes:
   mysql_data:
   mysql_emv_data:
   mysql_tracking_data:
-  mysql_tracking_data:
+  chroma_data:

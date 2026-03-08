@@ -1,0 +1,248 @@
+<div class="container-fluid create-from-bill-wizard">
+  <h3>Create Project from Electric Bill</h3>
+  <p class="text-muted">Upload a bill PDF, then we'll pre-fill Client, Project, and Bill Analytic from the extracted data.</p>
+
+  <ul class="steps-indicator list-inline">
+    <li [class.active]="step >= 1" [class.done]="step > 1">1. Upload</li>
+    <li [class.active]="step >= 2" [class.done]="step > 2">2. Client</li>
+    <li [class.active]="step >= 3" [class.done]="step > 3">3. Project</li>
+    <li [class.active]="step >= 4" [class.done]="step > 4">4. Bill Analytic</li>
+    <li [class.active]="step >= 5" [class.done]="step > 5">5. Summary</li>
+  </ul>
+
+  <div *ngIf="step === 1" class="content-box">
+    <h4>Upload Electric Bill PDF</h4>
+    <input #pdfFileInput type="file" accept=".pdf,application/pdf" (change)="onFileSelect($event); pdfFileInput.value=''" style="display:none">
+    <button type="button" class="btn btn-default" (click)="pdfFileInput.click()">
+      <span class="fa fa-plus"></span> Choose PDF
+    </button>
+    <span *ngIf="selectedFile" class="ml-2 text-muted">{{ selectedFile.name }}</span>
+    <div *ngIf="scanError" class="alert alert-danger mt-2">{{ scanError }}</div>
+    <div class="mt-2">
+      <button class="btn btn-primary" (click)="uploadAndAnalyze()" [disabled]="!selectedFile || uploading">
+        <span *ngIf="uploading">Analyzing...</span>
+        <span *ngIf="!uploading">Analyze Bill</span>
+      </button>
+      <button class="btn btn-default ml-1" (click)="cancel()">Cancel</button>
+    </div>
+  </div>
+
+  <div *ngIf="step === 2" class="content-box">
+    <h4>Client Information</h4>
+    <form [formGroup]="clientForm">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Company Name *</label>
+            <input type="text" class="form-control" formControlName="name" placeholder="Acme Corp">
+            <div *ngIf="clientForm.get('name').invalid && clientForm.get('name').touched" class="text-danger">Required</div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Address</label>
+            <input type="text" class="form-control" formControlName="address">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" class="form-control" formControlName="city">
+          </div>
+        </div>
+        <div class="col-md-1">
+          <div class="form-group">
+            <label>State</label>
+            <input type="text" class="form-control" formControlName="state">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Zip</label>
+            <input type="text" class="form-control" formControlName="zip">
+          </div>
+        </div>
+      </div>
+    </form>
+    <button class="btn btn-primary" (click)="nextStep()">Next</button>
+    <button class="btn btn-default ml-1" (click)="prevStep()">Back</button>
+  </div>
+
+  <div *ngIf="step === 3" class="content-box">
+    <h4>Project Information</h4>
+    <form [formGroup]="projectForm">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Project Name *</label>
+            <input type="text" class="form-control" formControlName="name" placeholder="Acme - 123 Main St">
+            <div *ngIf="projectForm.get('name').invalid && projectForm.get('name').touched" class="text-danger">Required</div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" class="form-control" formControlName="location">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="form-group">
+            <label>Timezone *</label>
+            <select class="form-control" formControlName="timeZoneId">
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Denver">America/Denver</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="America/Phoenix">America/Phoenix</option>
+              <option *ngFor="let tz of timezones" [value]="tz.value">{{ tz.label }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </form>
+    <button class="btn btn-primary" (click)="nextStep()">Next</button>
+    <button class="btn btn-default ml-1" (click)="prevStep()">Back</button>
+  </div>
+
+  <div *ngIf="step === 4" class="content-box">
+    <h4>Bill Analytic (Review & Edit)</h4>
+    <form [formGroup]="billForm">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Total KWH *</label>
+            <input type="text" class="form-control" formControlName="totalKwh">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>KW Peak *</label>
+            <input type="text" class="form-control" formControlName="kwPeak">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Bill Amount *</label>
+            <input type="text" class="form-control" formControlName="billAmount">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="form-group">
+            <label>Days Billed</label>
+            <input type="text" class="form-control" formControlName="daysBilled" placeholder="30">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-group">
+            <label>Electric Company</label>
+            <input type="text" class="form-control" formControlName="electricCompanyName">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Account #</label>
+            <input type="text" class="form-control" formControlName="accountNumber">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Meter #</label>
+            <input type="text" class="form-control" formControlName="meterNumber" placeholder="1">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Voltage</label>
+            <input type="number" class="form-control" formControlName="voltage" placeholder="480">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Bill Date</label>
+            <my-date-picker formControlName="billDate" [options]="datePickerOptions"></my-date-picker>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>$/kWh Rate</label>
+            <input type="text" class="form-control" formControlName="kwhRate" placeholder="0.08">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>$/kW Rate</label>
+            <input type="text" class="form-control" formControlName="kwRatePerTariff" placeholder="12.50">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Customer Charge</label>
+            <input type="text" class="form-control" formControlName="customerCharge" placeholder="0">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Tax Amount</label>
+            <input type="text" class="form-control" formControlName="taxAmount" placeholder="0">
+          </div>
+        </div>
+      </div>
+      <div *ngIf="scanData?.lineItems?.length" class="row mt-2">
+        <div class="col-md-12">
+          <h5>Line Items (from bill)</h5>
+          <table class="table table-bordered table-sm">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Cost ($)</th>
+                <th>Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of scanData.lineItems">
+                <td>{{ item.name }}</td>
+                <td>{{ item.type }}</td>
+                <td>{{ item.cost }}</td>
+                <td>{{ item.billingRate != null ? item.billingRate : '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </form>
+    <button class="btn btn-primary" (click)="nextStep()">Next</button>
+    <button class="btn btn-default ml-1" (click)="prevStep()">Back</button>
+  </div>
+
+  <div *ngIf="step === 5" class="content-box">
+    <div *ngIf="!createdProject">
+      <h4>Summary</h4>
+      <p><strong>Client:</strong> {{ clientForm.get('name').value }}</p>
+      <p><strong>Project:</strong> {{ projectForm.get('name').value }}</p>
+      <p><strong>Location:</strong> {{ projectForm.get('location').value }}</p>
+      <p><strong>Bill:</strong> {{ billForm.get('totalKwh').value }} kWh, {{ billForm.get('kwPeak').value }} kW peak, ${{ billForm.get('billAmount').value }}</p>
+      <p *ngIf="billForm.get('kwhRate').value"><strong>Rates:</strong> ${{ billForm.get('kwhRate').value }}/kWh, ${{ billForm.get('kwRatePerTariff').value }}/kW</p>
+      <p *ngIf="billForm.get('taxAmount').value"><strong>Tax:</strong> ${{ billForm.get('taxAmount').value }}</p>
+      <button class="btn btn-primary" (click)="submitCreate()" [disabled]="submitting">
+        <span *ngIf="submitting">Creating...</span>
+        <span *ngIf="!submitting">Create Client & Project</span>
+      </button>
+      <button class="btn btn-default ml-1" (click)="prevStep()" [disabled]="submitting">Back</button>
+    </div>
+    <div *ngIf="createdProject">
+      <h4>Success</h4>
+      <p>Client and Project have been created. Bill Analytic is saved.</p>
+      <button class="btn btn-primary" (click)="goToProject()">Go to Project</button>
+      <button class="btn btn-default ml-1" [routerLink]="['/project/select']">Back to Projects</button>
+    </div>
+  </div>
+</div>

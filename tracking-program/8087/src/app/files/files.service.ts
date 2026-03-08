@@ -1,6 +1,7 @@
 import { Injectable }              from '@angular/core';
 import {BaseApiCrudService} from "../api/baseApiCrud.service";
 import {Observable} from "rxjs";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class FilesService extends BaseApiCrudService {
@@ -20,4 +21,8 @@ export class FilesService extends BaseApiCrudService {
   		return this.apiRequestService.delete('/api/project/delete-file/' + params.fileName + '/' + params.fileId);
   	}
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

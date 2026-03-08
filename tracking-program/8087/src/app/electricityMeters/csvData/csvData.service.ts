@@ -1,10 +1,7 @@
-import { Injectable }              from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import {Observable} from "rxjs";
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
 import {WindowRef} from "../../shared/windowRef.component";
-import {CurrentUserService} from "../../shared/user/currentUser.service";
-import {ApiRequestService} from "../../api/api-request.service";
-import {ApiHelpers} from "../../shared/helpers/apiHelpers.service";
 
 @Injectable()
 export class CsvDataService extends BaseApiCrudService {
@@ -13,8 +10,8 @@ export class CsvDataService extends BaseApiCrudService {
   public models = [];
   protected shouldIncludeProjectId:boolean = true;
 
-  constructor(protected userService: CurrentUserService, protected apiRequestService: ApiRequestService, protected apiHelpers: ApiHelpers, private window: WindowRef) {
-    super(userService, apiRequestService, apiHelpers);
+  constructor(injector: Injector, private window: WindowRef) {
+    super(injector);
   }
 
   public getDownloadLink(id) {

@@ -17,8 +17,17 @@ class User(UserMixin, BaseModel):
     certificateNo = db.Column(db.String(255))
     hashedPassword = db.Column(db.String(255))
     resetPasswordToken = db.Column(db.String(255))
-    role = db.Column(db.Integer)
+    _role = db.Column("role", db.Integer)
     lastActiveAt = db.Column(db.BigInteger)
+
+    @property
+    def role(self):
+        """Always return role as int — MySQL may return float via some drivers."""
+        return int(self._role) if self._role is not None else None
+
+    @role.setter
+    def role(self, value):
+        self._role = int(value) if value is not None else None
     isDeleted = db.Column(db.Boolean, default=False)
     client = db.Column(db.Integer, db.ForeignKey("client.id"))
     defaultProject = db.Column(db.Integer, nullable=True)  # FK to project.id

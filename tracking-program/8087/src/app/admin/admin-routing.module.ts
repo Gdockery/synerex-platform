@@ -5,6 +5,8 @@ import {ClientListComponent} from './client/list-client.component';
 import {ClientEditComponent} from './client/edit-client.component';
 import {ClientCreateComponent} from './client/create-client.component';
 import {AdvancedOptionsComponent} from "./advanced-options.component";
+import {OemBrandingComponent} from "./branding/oem-branding.component";
+import {ManageSubscriptionComponent} from "./subscription/manage-subscription.component";
 import {ProjectEditComponent} from "./project/edit-project.component";
 import {ProjectCreateComponent} from "./project/create-project.component";
 import {ProjectListComponent} from "./project/list-project.component";
@@ -36,6 +38,8 @@ import {EditUserComponent} from "./user/edit-user.component";
           { path: '', redirectTo:'/xeco-administrator/user/list' , pathMatch: 'full'}
         ]},
         { path: 'advanced', component: AdvancedOptionsComponent },
+        { path: 'branding', component: OemBrandingComponent, data: {title: 'Brand Settings'} },
+        { path: 'subscription', component: ManageSubscriptionComponent, data: {title: 'Manage Subscription'} },
       ]},
     ])
   ],

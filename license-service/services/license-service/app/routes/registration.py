@@ -220,7 +220,21 @@ def payment_page(
     
     # Get pricing info for display
     pricing_info = get_pricing_info(order.program_id, order.plan)
-    
+
+    # Fetch OEM branding from tracking program (best-effort, no failure if unavailable)
+    oem_branding = {}
+    try:
+        import urllib.request as _ur
+        import json as _json
+        tracking_url = settings.tracking_program_url.rstrip("/") if getattr(settings, "tracking_program_url", None) else "http://tracking-program:8087"
+        branding_url = f"{tracking_url}/api/whitelabel/oem-branding-by-org?org_id={order.org_id}"
+        with _ur.urlopen(branding_url, timeout=2) as _resp:
+            _data = _json.loads(_resp.read().decode())
+            if _data and _data.get("brand_name"):
+                oem_branding = _data
+    except Exception:
+        pass
+
     return templates.TemplateResponse(
         "payment.html",
         {
@@ -232,6 +246,7 @@ def payment_page(
             "paypal_enabled": bool(settings.paypal_client_id),
             "return_url": return_url,
             "website_url": settings.website_url,
+            "oem_branding": oem_branding,
         }
     )
 
@@ -951,4 +966,186 @@ def register_api(
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Registration failed: {str(e)}")
+
+
+@router.post("/api/upgrade", response_class=JSONResponse)
+def upgrade_plan_api(
+    org_id: str = Form(...),
+    program_id: str = Form(...),
+    new_plan: str = Form(...),
+    meter_count: int = Form(0),
+    return_url: Optional[str] = Form(None),
+    db: Session = Depends(db_session)
+):
+    """
+    Create an upgrade billing order for an existing org.
+    Returns {order_id, payment_url} so the client can complete payment
+    via the existing /register/payment flow.
+    """
+    valid_plans = {
+        "tracking": ("basic", "pro", "enterprise"),
+        "emv": ("single_report", "annual"),
+    }
+    if program_id not in valid_plans:
+        raise HTTPException(400, "Invalid program_id")
+    if new_plan not in valid_plans[program_id]:
+        raise HTTPException(400, f"Invalid plan '{new_plan}' for {program_id}")
+
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    # Calculate price for new plan
+    try:
+        pricing = calculate_price(program_id, new_plan, term_days=365,
+                                  seat_count=0, meter_count=meter_count)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    # Create pending billing order
+    import uuid
+    from datetime import date
+    today = date.today()
+    order_id = f"UPG-{org_id}-{uuid.uuid4().hex[:8].upper()}"
+    order = BillingOrder(
+        order_id=order_id,
+        org_id=org_id,
+        program_id=program_id,
+        plan=new_plan,
+        term_start=today.isoformat(),
+        term_end=(today.replace(year=today.year + 1)).isoformat(),
+        seat_count=0,
+        meter_count=meter_count,
+        unit_price=pricing["per_meter"] if meter_count else pricing["base_price"],
+        amount_total=pricing["amount_total"],
+        currency="USD",
+        status="pending",
+        notes=f"Plan upgrade to {new_plan}",
+    )
+    db.add(order)
+    db.commit()
+    log_event(db, actor=org_id, action="billing.upgrade.created", ref_id=order_id,
+              detail={"org_id": org_id, "program_id": program_id, "new_plan": new_plan,
+                      "meter_count": meter_count, "amount_total": pricing["amount_total"]})
+
+    base = (settings.website_url or "").rstrip("/")
+    root = settings.root_path.rstrip("/") if settings.root_path else ""
+    payment_url = f"{base}{root}/register/payment?order_id={order_id}"
+    if return_url:
+        payment_url += f"&return_url={return_url}"
+
+    return {
+        "order_id": order_id,
+        "payment_url": payment_url,
+        "amount_total": pricing["amount_total"],
+        "plan": new_plan,
+        "program_id": program_id,
+    }
+
+
+@router.get("/api/subscription", response_class=JSONResponse)
+def get_subscription(
+    org_id: str,
+    program_id: str = "tracking",
+    db: Session = Depends(db_session)
+):
+    """
+    Get current subscription details for an org.
+    Returns plan, meter_count, seat_limit, seats_used, and available upgrade plans.
+    """
+    import json as _json
+    from ..models.seats import SeatAssignment
+
+    # Find active license (entitlements live inside payload_json)
+    lic = db.query(License).filter(
+        License.org_id == org_id,
+        License.program_id == program_id,
+        License.revoked == False,
+        License.suspended == False,
+    ).order_by(License.issued_at.desc()).first()
+
+    if not lic:
+        # Check authorization table as fallback (no license issued yet)
+        auth = db.query(ProgramAuthorization).filter_by(
+            org_id=org_id, program_id=program_id, status="active"
+        ).first()
+        if not auth:
+            return {"org_id": org_id, "program_id": program_id, "active": False}
+
+    # Parse entitlements from license payload
+    seat_limit = 0
+    meter_limit = 0
+    if lic:
+        try:
+            payload = _json.loads(lic.payload_json or "{}")
+        except Exception:
+            payload = {}
+        limits = payload.get("entitlements", {}).get("limits", {})
+        seat_limit = int(limits.get("seat_limit", 0) or 0)
+        meter_limit = int(limits.get("meter_limit", 0) or 0)
+
+    seats_used = 0
+    if lic:
+        seats_used = db.query(SeatAssignment).filter(
+            SeatAssignment.license_id == lic.license_id,
+            SeatAssignment.is_active == True,
+        ).count()
+
+    # Find latest paid billing order for current plan
+    order = db.query(BillingOrder).filter(
+        BillingOrder.org_id == org_id,
+        BillingOrder.program_id == program_id,
+        BillingOrder.status == "paid",
+    ).order_by(BillingOrder.created_at.desc()).first()
+
+    # Derive current plan: paid order > authorization template_id > license payload
+    if order:
+        current_plan = order.plan
+    elif lic:
+        # Try to get plan from entitlements first, then template_id fallback
+        auth = db.query(ProgramAuthorization).filter_by(
+            org_id=org_id, program_id=program_id, status="active"
+        ).order_by(ProgramAuthorization.starts_at.desc()).first()
+        tpl = (auth.template_id or "") if auth else ""
+        # Strip program prefix e.g. "tracking_enterprise" -> "enterprise"
+        current_plan = tpl.replace(f"{program_id}_", "").strip() if tpl else "unknown"
+        if not current_plan or current_plan == "unknown":
+            current_plan = "unknown"
+    else:
+        auth = db.query(ProgramAuthorization).filter_by(
+            org_id=org_id, program_id=program_id, status="active"
+        ).order_by(ProgramAuthorization.starts_at.desc()).first()
+        tpl = (auth.template_id or "") if auth else ""
+        current_plan = tpl.replace(f"{program_id}_", "").strip() if tpl else "unknown"
+
+    # Build upgrade options (plans higher than current)
+    from ..services.pricing import PRICING
+    plan_order = ["basic", "pro", "enterprise"]
+    upgrade_plans = []
+    if current_plan in plan_order:
+        idx = plan_order.index(current_plan)
+        for p in plan_order[idx + 1:]:
+            info = get_pricing_info(program_id, p)
+            max_users = PRICING.get(program_id, {}).get(p, {}).get("max_users")
+            upgrade_plans.append({
+                "plan": p,
+                "base_price": info.get("base_price"),
+                "per_meter": info.get("per_meter"),
+                "max_users": max_users,
+                "description": PRICING.get(program_id, {}).get(p, {}).get("description", ""),
+            })
+
+    return {
+        "org_id": org_id,
+        "program_id": program_id,
+        "active": True,
+        "current_plan": current_plan,
+        "seat_limit": seat_limit,
+        "seats_used": seats_used,
+        "seats_available": max(0, seat_limit - seats_used),
+        "meter_limit": meter_limit,
+        "license_id": lic.license_id if lic else None,
+        "expires_at": lic.expires_at.isoformat() if lic and lic.expires_at else None,
+        "upgrade_plans": upgrade_plans,
+    }
 

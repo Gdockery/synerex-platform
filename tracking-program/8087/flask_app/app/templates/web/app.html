@@ -4,4 +4,5 @@ window.BOOTSTRAP_DATA = {{ BOOTSTRAP_DATA | safe }};
 window.BOOTSTRAP_DATA.myAccountUrl = {{ my_account_url | tojson }};
 window.BOOTSTRAP_DATA.websiteHomeUrl = {{ website_home_url | tojson }};
 </script>
+{% if vendor_path %}<script src="{{ vendor_path }}?v={{ app_version }}"></script>{% endif %}
 <script async src="{{ script_path | default("/js/main.bundle.js") }}?v={{ app_version }}"></script>

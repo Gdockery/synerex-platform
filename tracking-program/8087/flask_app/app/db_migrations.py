@@ -102,6 +102,28 @@ def add_client_org_id_column():
         return "error"
 
 
+def add_client_sponsor_org_id_column():
+    """Add sponsor_org_id column to client table if missing. OEM org_id when client created by OEM."""
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri:
+        print("Skipping: using sqlite :memory:. Use a file DB or MySQL to add client.sponsor_org_id.")
+        return "skipped"
+    sql = "ALTER TABLE client ADD COLUMN sponsor_org_id VARCHAR(255) NULL"
+    try:
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("Added sponsor_org_id column to client table.")
+        return "ok"
+    except Exception as e:
+        err = str(e).lower()
+        if "duplicate column" in err or "already exists" in err:
+            print("client.sponsor_org_id column already exists.")
+            return "ok"
+        print(f"Error: {e}")
+        return "error"
+
+
 def _add_column_if_missing(table, col, col_def):
     """Add column to table if missing. Returns True if added or exists."""
     try:
@@ -610,4 +632,104 @@ def ensure_synerex_admin_user():
     db.session.add(u)
     db.session.commit()
     print(f"Created Synerex admin user ({SYNEREX_ADMIN_EMAIL}) for SSO.")
+    return "ok"
+
+
+CLIENT_ADMIN_EMAIL = "clientadmin@example.com"
+CLIENT_ADMIN_PASSWORD = "client123"
+
+
+def ensure_client_admin_user():
+    """Create Client Admin user (role 2) for testing if missing. Uses Cloud Kitchen as client."""
+    from app.models.user import User
+    from app.models.client import Client
+    from flask import current_app
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri:
+        return "skipped"
+    existing = db.session.query(User).filter_by(email=CLIENT_ADMIN_EMAIL, isDeleted=False).first()
+    if existing:
+        return "ok"
+    # Get or create Cloud Kitchen client
+    client = db.session.query(Client).filter(
+        Client.isDeleted == False,
+        Client.name.ilike("%Cloud Kitchen%"),
+    ).first()
+    if not client:
+        client = Client(name="Cloud Kitchen", org_id="OEM-HARMONIQ", isDeleted=False)
+        db.session.add(client)
+        db.session.flush()
+    import bcrypt
+    hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
+    u = User(
+        firstName="Client",
+        lastName="Admin",
+        email=CLIENT_ADMIN_EMAIL,
+        hashedPassword=hashed,
+        role=2,  # Client Admin
+        client=client.id,
+        isDeleted=False,
+    )
+    db.session.add(u)
+    db.session.commit()
+    print(f"Created Client Admin user ({CLIENT_ADMIN_EMAIL}) for testing.")
+    return "ok"
+
+
+CLIENT_ADMIN_EMAIL = "clientadmin@example.com"
+CLIENT_ADMIN_PASSWORD = "client123"
+
+
+def ensure_client_admin_user():
+    """Create Client Admin user (role 2) for testing if missing. Uses Cloud Kitchen as client."""
+    from app.models.user import User
+    from app.models.client import Client
+    from flask import current_app
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri:
+        return "skipped"
+
+    # Get or create Cloud Kitchen client
+    client = db.session.query(Client).filter(
+        Client.isDeleted == False,
+        Client.name.ilike("%Cloud Kitchen%"),
+    ).first()
+    if not client:
+        client = Client(
+            name="Cloud Kitchen",
+            org_id="OEM-HARMONIQ",
+            isDeleted=False,
+        )
+        db.session.add(client)
+        db.session.flush()
+        db.session.commit()
+        print("Created Cloud Kitchen client for Client Admin seed.")
+
+    existing = db.session.query(User).filter_by(email=CLIENT_ADMIN_EMAIL, isDeleted=False).first()
+    if existing:
+        existing.client = client.id
+        existing.role = 2
+        import bcrypt
+        hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
+        existing.hashedPassword = hashed
+        existing.resetPasswordToken = ""
+        db.session.commit()
+        return "ok"
+
+    import bcrypt
+    hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
+    u = User(
+        firstName="Client",
+        lastName="Admin",
+        email=CLIENT_ADMIN_EMAIL,
+        hashedPassword=hashed,
+        role=2,  # Client Admin
+        client=client.id,
+        isDeleted=False,
+    )
+    db.session.add(u)
+    db.session.commit()
+    print(f"Created Client Admin user ({CLIENT_ADMIN_EMAIL}) for testing.")
     return "ok"

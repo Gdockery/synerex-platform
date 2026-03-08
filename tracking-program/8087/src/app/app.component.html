@@ -21,23 +21,53 @@
 <footer class="site-footer">
   <div class="container-fluid clearfix">
     <div style="float: left; text-align: center;" class="left">
-        <span style="font-size: 10px;">©Copyright 2020 to Present. {{brandName}} Energy Corporation. All Rights Reserved. {{brandName}}, {{brandName}}480, {{brandName}}600, {{brandName}}RS, uBillTRACKER and uBill4CAST are Trademarks of {{brandName}} Energy Corporation. All other trademarks are the property of their respective owners.  Site Version 1.2.5</span>
+      <span style="font-size: 10px;">©Copyright 2020 to Present. {{brandName}} Energy Corporation. All Rights Reserved. {{brandName}}, {{brandName}}480, {{brandName}}600, {{brandName}}RS, uBillTRACKER and uBill4CAST are Trademarks of {{brandName}} Energy Corporation. All other trademarks are the property of their respective owners.  Site Version 1.2.5</span>
+    </div>
+    <div class="powered-by">
+      <span>Powered by</span>
+      <img src="/images/synerex_logo_color.png" alt="Synerex" />
     </div>
   </div>
 </footer>
 
-
-
-
 <style>
-
 .site-footer {
   background: white;
-  height: 35px; 
+  height: 35px;
   left: 250px;
   bottom: 0;
   right: 0;
   position: fixed;
+  display: flex;
+  align-items: center;
 }
-
+.site-footer .container-fluid {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.site-footer .left {
+  float: none !important;
+  flex: 1;
+}
+.powered-by {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding-right: 12px;
+}
+.powered-by span {
+  font-size: 10px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.powered-by img {
+  height: 16px;
+  width: auto;
+  opacity: 0.55;
+  filter: grayscale(20%);
+}
 </style>

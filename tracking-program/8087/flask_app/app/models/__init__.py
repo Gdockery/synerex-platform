@@ -35,3 +35,4 @@ from app.models.file import File
 from app.models.service_plan import ServicePlan
 from app.models.pi_board import PiBoard
 from app.models.emv_analysis import EmvAnalysis
+from app.models.oem_branding import OemBranding

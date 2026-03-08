@@ -11,7 +11,9 @@ export class User {
   public projects: Array<Project>;
   public selectedProject: Project;
   public client: any;
+  public clientName: String;
   public userLogo: String;
+  public sponsorOrgId: String;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   // Reminder:  Be careful -- it seems like this `User` class is used
@@ -32,10 +34,26 @@ export class User {
       this.projects = user.projects;
       this.selectedProject = null;
       this.client = user.client;
+      this.clientName = user.clientName;
+      this.sponsorOrgId = user.sponsorOrgId || '';
     }
   }
 
   getInitials() {
     return this.firstName[0].toUpperCase() + ' ' +this.lastName[0].toUpperCase();
+  }
+
+  /**
+   * Returns the best display name for the welcome greeting:
+   * - OEM users (role 9/10): their client/company name
+   * - Client users (role 1-4): their client/company name
+   * - Others: their first name
+   */
+  getDisplayName(): String {
+    const r = Number(this.role);
+    if ((r >= 1 && r <= 4) || r === 9 || r === 10) {
+      if (this.clientName) return this.clientName;
+    }
+    return this.firstName;
   }
 }

@@ -62,8 +62,13 @@ app.add_middleware(RedirectRewriteMiddleware)
 def unauthorized_handler(request: Request, exc: HTTPException):
     """Handle 401 errors by redirecting to login page (for HTML requests only)."""
     if exc.status_code != 401:
-        # Let other HTTPExceptions pass through
-        raise exc
+        # Return proper HTTP error response instead of re-raising (re-raising causes 500)
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return HTMLResponse(
+            content=f"<h1>{exc.status_code} Error</h1><p>{exc.detail}</p>",
+            status_code=exc.status_code
+        )
     
     # For API requests, return JSON
     if request.url.path.startswith("/api/"):
@@ -317,9 +322,55 @@ def api_server_restart(request: Request):
     finally:
         db.close()
 
+# Stats cache: Redis when REDIS_URL set, else in-memory (15s TTL)
+STATS_CACHE_TTL = 15.0
+STATS_CACHE_KEY = "license_service:api:stats"
+
+def _get_stats_cache():
+    """Return cached stats if valid, else None."""
+    if settings.redis_url:
+        try:
+            import redis
+            r = redis.from_url(settings.redis_url)
+            raw = r.get(STATS_CACHE_KEY)
+            if raw:
+                import json
+                return json.loads(raw)
+        except Exception:
+            pass
+        return None
+    import time as _time
+    global _stats_cache, _stats_cache_time
+    now = _time.time()
+    if _stats_cache is not None and (now - _stats_cache_time) < STATS_CACHE_TTL:
+        return _stats_cache
+    return None
+
+def _set_stats_cache(result: dict):
+    """Store stats in cache."""
+    if settings.redis_url:
+        try:
+            import redis
+            import json
+            r = redis.from_url(settings.redis_url)
+            r.setex(STATS_CACHE_KEY, int(STATS_CACHE_TTL) + 1, json.dumps(result))
+        except Exception:
+            pass
+        return
+    global _stats_cache, _stats_cache_time
+    _stats_cache = result
+    import time as _time
+    _stats_cache_time = _time.time()
+
+_stats_cache: dict | None = None
+_stats_cache_time: float = 0
+
 @app.get("/api/stats")
 def get_stats():
-    """Get system statistics and counts."""
+    """Get system statistics and counts. Cached 15s to reduce DB load."""
+    cached = _get_stats_cache()
+    if cached is not None:
+        return cached
     from .db import SessionLocal
     from .models.org import Organization
     from .models.api_key import ApiKey
@@ -379,7 +430,7 @@ def get_stats():
             billing_orders_pending = 0
             billing_orders_paid = 0
         
-        return {
+        result = {
             "organizations": organizations,
             "api_keys": api_keys,
             "api_keys_active": api_keys_active,
@@ -393,6 +444,8 @@ def get_stats():
             "billing_orders_pending": billing_orders_pending,
             "billing_orders_paid": billing_orders_paid,
         }
+        _set_stats_cache(result)
+        return result
     except Exception as e:
         # Catch any other unexpected errors
         print(f"Unexpected error in /api/stats: {e}")

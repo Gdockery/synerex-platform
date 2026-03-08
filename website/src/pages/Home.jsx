@@ -3,7 +3,7 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
+    <div className="min-h-screen bg-purple-950 text-gray-100 font-sans pt-16">
       <style>{`
         @keyframes gradientMove {
           0% { background-position: 0% 50%; }
@@ -57,7 +57,6 @@ export default function Home() {
           width: 100%;
           height: 2px;
           background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.5), transparent);
-          animation: pulse 2s ease-in-out infinite;
         }
         .data-visualization {
           background: linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
@@ -66,8 +65,7 @@ export default function Home() {
         .stat-card {
           background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
           border: 1px solid rgba(168, 85, 247, 0.3);
-          backdrop-filter: blur(10px);
-          opacity: 0.9;
+          opacity: 0.95;
         }
         .wave-pattern {
           background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q25 30, 50 50 T100 50' stroke='rgba(126,34,206,0.2)' fill='none' stroke-width='1'/%3E%3C/svg%3E");
@@ -76,25 +74,13 @@ export default function Home() {
       `}</style>
 
       {/* Hero Section - Scientific Laboratory Focus */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-32 px-4 text-center text-white overflow-hidden">
-        {/* Video Background */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          style={{ zIndex: 0, opacity: 0.37 }}
-          onError={(e) => console.error('Video error:', e)}
-          onLoadedData={() => console.log('Video loaded successfully')}
-        >
-          <source src="/videos/14683955_3840_2160_30fps.mp4" type="video/mp4" />
+      <section className="relative from-purple-950 via-purple-900 to-purple-950 bg-gradient-to-br pt-32 pb-32 px-4 text-center text-white overflow-hidden">
+        <video autoPlay loop muted playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ zIndex: 0 }}>
+          <source src="/videos/background_720p.mp4" type="video/mp4" />
         </video>
-        {/* Gradient Overlay - Blue shade */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
-        <div className="absolute inset-0 scientific-grid opacity-30" style={{ zIndex: 1 }}></div>
-        <div className="absolute inset-0 wave-pattern opacity-20" style={{ zIndex: 1 }}></div>
+        <div className="absolute inset-0 bg-purple-950/70" style={{ zIndex: 1 }} />
         <div className="relative fade-in z-10" style={{ zIndex: 2 }}>
           <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-8 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <p className="text-gray-200 mb-6 text-[1.6875rem] md:text-[2.025rem] font-bold" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 0.7)' }}>The &quot;Network-wide&quot; Solution for making Single-Circuit Applications Obsolete.</p>
@@ -116,7 +102,7 @@ export default function Home() {
       <LicenseSeal />
 
       {/* Scientific Mission Section */}
-      <section className="relative bg-gradient-to-b from-gray-950 via-purple-900/20 to-gray-950 py-20 px-3">
+      <section className="relative bg-gradient-to-b from-purple-950 via-purple-900/60 to-purple-950 py-20 px-3">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
@@ -157,7 +143,7 @@ export default function Home() {
       </section>
 
       {/* Research & Development Focus */}
-      <section className="py-20 px-3 bg-gray-900 fade-in">
+      <section className="py-20 px-3 bg-purple-950 fade-in">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-bold text-purple-400 mb-12 text-center">Our Scientific Approach</h2>
           <div className="grid md:grid-cols-2 gap-12">
@@ -233,7 +219,7 @@ export default function Home() {
       </section>
 
       {/* Core Technology Solutions */}
-      <section className="relative py-20 px-3 bg-gray-950 fade-in">
+      <section className="relative py-20 px-3 bg-purple-950 fade-in">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-no-repeat opacity-20"
@@ -250,7 +236,7 @@ export default function Home() {
           </p>
           
           <div className="grid md:grid-cols-3 gap-6 mb-12">
-            <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl hover:border-purple-200 transition-all duration-300">
+            <div className="p-6 border border-purple-700 bg-purple-900/60 rounded-xl hover:border-purple-300 transition-all duration-300">
               <a href="/patented-technology" className="hover:text-purple-400">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center mr-3">
@@ -267,7 +253,7 @@ export default function Home() {
               </p>
             </div>
             
-            <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl hover:border-purple-200 transition-all duration-300">
+            <div className="p-6 border border-purple-700 bg-purple-900/60 rounded-xl hover:border-purple-300 transition-all duration-300">
               <a href="/real-time-analytics" className="hover:text-purple-400">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center mr-3">
@@ -284,7 +270,7 @@ export default function Home() {
               </p>
             </div>
             
-            <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl hover:border-purple-200 transition-all duration-300">
+            <div className="p-6 border border-purple-700 bg-purple-900/60 rounded-xl hover:border-purple-300 transition-all duration-300">
               <a href="/manufacturing" className="hover:text-purple-400">
                 <div className="flex items-center mb-3">
                   <div className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center mr-3">
@@ -305,7 +291,7 @@ export default function Home() {
       </section>
 
       {/* Scientific Impact Section */}
-      <section className="py-20 px-3 bg-gradient-to-br from-purple-950/30 via-gray-950 to-blue-950/30 fade-in">
+      <section className="py-20 px-3 bg-gradient-to-br from-purple-950 via-purple-900/80 to-purple-950 fade-in">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-purple-400 mb-4">Advancing Power Quality Science</h2>
@@ -316,7 +302,7 @@ export default function Home() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-gray-800/50 rounded-xl p-8 border border-purple-500/30">
+            <div className="bg-purple-900/40 rounded-xl p-8 border border-purple-500/30">
               <h3 className="text-2xl font-bold text-purple-300 mb-4">Research Contributions</h3>
               <ul className="space-y-3 text-gray-300">
                 <li className="flex items-start">
@@ -342,7 +328,7 @@ export default function Home() {
               </ul>
             </div>
 
-            <div className="bg-gray-800/50 rounded-xl p-8 border border-blue-500/30">
+            <div className="bg-purple-900/40 rounded-xl p-8 border border-purple-400/30">
               <h3 className="text-2xl font-bold text-purple-300 mb-4">Scientific Applications</h3>
               <ul className="space-y-3 text-gray-300">
                 <li className="flex items-start">
@@ -372,7 +358,7 @@ export default function Home() {
       </section>
 
       {/* Call to Action */}
-      <section className="py-20 px-3 bg-gray-900 fade-in">
+      <section className="py-20 px-3 bg-purple-950 fade-in">
         <div className=" text-center">
           <h2 className="text-4xl font-bold text-purple-400 mb-6">Join the Future of Power Quality Science</h2>
           <p className="text-xl text-gray-300 mb-8">
@@ -386,7 +372,7 @@ export default function Home() {
             <a href="/software" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 shadow-lg hover:shadow-blue-500/40">
               Discover Analytics Platform
             </a>
-            <a href="/licensing" className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 shadow-lg">
+            <a href="/licensing" className="bg-purple-800 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 shadow-lg">
               Licensing Opportunities
             </a>
           </div>

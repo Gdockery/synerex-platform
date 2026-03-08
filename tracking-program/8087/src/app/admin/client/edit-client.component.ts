@@ -64,10 +64,13 @@ export class ClientEditComponent implements OnInit {
   }
 
   uploadFile(clientId) {
-    //Upload file here send a binary data
-   /* this.http.post('/api/client/' + clientId + '/upload-logo', {logo: this.selectedFile}).subscribe(response => {
-        console.log("file uploaded");
-    });*/
+    if (!this.selectedFile) { return; }
+    const formData = new FormData();
+    formData.append('logo', this.selectedFile);
+    this.apiService.postFormData('/api/client/' + clientId + '/upload-logo', formData).subscribe(
+      response => { console.log('Logo uploaded successfully'); },
+      error => { console.error('Logo upload failed', error); }
+    );
   }
 
   uploadStarted() {

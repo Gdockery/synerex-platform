@@ -2,7 +2,7 @@ import { NgModule } from '@angular/core';
 import {DropdownModule} from 'primeng/primeng';
 import {SharedModule} from "../shared/shared.module";
 import {MyDatePickerModule} from "mydatepicker";
-import {ReactiveFormsModule} from "@angular/forms";
+import {ReactiveFormsModule, FormsModule} from "@angular/forms";
 import {AdminRoutingModule} from "./admin-routing.module";
 import {AdminComponent} from "./admin.component";
 import {ClientListComponent} from "./client/list-client.component";
@@ -23,8 +23,12 @@ import {AdminProjectService} from "./project/admin-project.service";
 import {UserService} from "../shared/user/user.service";
 import {DeviceService} from "../electricityMeters/devices/device.service";
 import { HttpClientModule } from '@angular/common/http';
-import { FileUploadModule } from 'primeng/components/fileupload/fileupload'; 
+import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
 import {EnergySavingsService} from "../savings/energySavings.service";
+import {OemBrandingComponent} from "./branding/oem-branding.component";
+import {ManageSubscriptionComponent} from "./subscription/manage-subscription.component";
+import {ApiHelpers} from "../shared/helpers/apiHelpers.service";
+import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
 
 @NgModule({
   imports: [
@@ -33,12 +37,12 @@ import {EnergySavingsService} from "../savings/energySavings.service";
     MyDatePickerModule,
     MomentModule,
     ReactiveFormsModule,
+    FormsModule,
     DataTableModule,
     TextMaskModule,
     DropdownModule,
     HttpClientModule,
-    FileUploadModule
-
+    FileUploadModule,
   ],
   declarations: [
     AdminComponent,
@@ -52,6 +56,8 @@ import {EnergySavingsService} from "../savings/energySavings.service";
     UserListComponent,
     CreateUserComponent,
     EditUserComponent,
+    OemBrandingComponent,
+    ManageSubscriptionComponent,
   ],
   exports: [AdminComponent],
   providers: [
@@ -59,7 +65,9 @@ import {EnergySavingsService} from "../savings/energySavings.service";
     AdminProjectService,
     EnergySavingsService,
     UserService,
-    DeviceService
+    DeviceService,
+    ApiHelpers,
+    TimeHelpers,
   ]
 })
 export class AdminModule { }

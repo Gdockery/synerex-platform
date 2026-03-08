@@ -45,6 +45,11 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    # Flask-Session: Redis when REDIS_URL set, else filesystem
+    if config_class.REDIS_URL:
+        from flask_session import Session
+        Session(app)
+
     # Initialize extensions (explicit import to avoid app.db package shadowing)
     from app.extensions import db as _db
     _db.init_app(app)

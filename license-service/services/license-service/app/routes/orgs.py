@@ -19,6 +19,7 @@ class EnsureOrgRequest(BaseModel):
     org_id: Optional[str] = Field(None, description="Optional. If provided and exists, returns it. If new, creates with this id.")
     org_name: str = Field(..., min_length=1)
     org_type: str = Field(..., pattern="^(oem|customer|pe)$")
+    sponsor_org_id: Optional[str] = Field(None, description="OEM org_id when creating customer/pe org (OEM-sponsored)")
     email: Optional[str] = None
     contact_name: Optional[str] = None
     phone: Optional[str] = None
@@ -101,6 +102,7 @@ def ensure_org(body: EnsureOrgRequest, db: Session = Depends(db_session)):
         email=body.email,
         contact_name=body.contact_name,
         phone=body.phone,
+        sponsor_org_id=body.sponsor_org_id if body.org_type in ("customer", "pe") else None,
     )
     db.add(org)
     db.commit()

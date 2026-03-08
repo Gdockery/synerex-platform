@@ -2,6 +2,7 @@
 import {map} from 'rxjs/operators';
 import {Injectable} from '@angular/core';
 import {BaseApiCrudService} from "../../api/baseApiCrud.service";
+import {Injector} from '@angular/core';
 
 @Injectable()
 export class UserService extends BaseApiCrudService {
@@ -21,5 +22,9 @@ export class UserService extends BaseApiCrudService {
         return (user.role === 4 || user.role === 8);
       })};
     }));
+  }
+
+  constructor(injector: Injector) {
+    super(injector);
   }
 }

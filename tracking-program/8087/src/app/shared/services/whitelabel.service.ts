@@ -95,8 +95,24 @@ export class WhitelabelService {
     }
     const role = Number(user.role);
     const clientId = user.client && (typeof user.client === 'object' ? user.client.id : user.client);
-    if ((role === 7 || role === 9 || role === 10) && clientId) {
-      return this.getClientLogoUrl(clientId);
+    // OEM users (9, 10): show OEM's own logo
+    if (role === 9 || role === 10) {
+      const orgId = (user.orgId || user.org_id || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
+      if (orgId) {
+        return `/images/oem_logo/${orgId}`;
+      }
+      if (clientId) return this.getClientLogoUrl(clientId);
+    }
+    // Client roles (2, 3, 4, 5, 6) and Account Manager (7):
+    // If the client is sponsored by an OEM, show the OEM's logo
+    if (role <= 7 && role >= 2) {
+      const sponsorOrgId = (user.sponsorOrgId || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
+      if (sponsorOrgId) {
+        return `/images/oem_logo/${sponsorOrgId}`;
+      }
+      if (role === 7 && clientId) {
+        return this.getClientLogoUrl(clientId);
+      }
     }
     return this.getLogoUrl('small');
   }

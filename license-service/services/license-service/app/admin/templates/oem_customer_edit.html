@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Edit Customer — OEM Admin - Synerex Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; line-height: 1.6; padding: 2rem; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 2rem; margin-bottom: 2rem; }
+    .card h2 { margin-bottom: 1.5rem; color: #2c3e50; }
+    a { color: #667eea; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .btn { display: inline-block; padding: 0.5rem 1rem; background: #667eea; color: white; border-radius: 6px; font-weight: 500; margin-right: 0.5rem; border: none; cursor: pointer; font-size: 1rem; }
+    .btn:hover { background: #5a67d8; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .logo-container { text-align: center; margin-bottom: 1.5rem; }
+    .logo-container img { height: 48px; max-width: 200px; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: 500; color: #4a5568; margin-bottom: 0.35rem; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 1rem; }
+    .form-group input:disabled { background: #edf2f7; cursor: not-allowed; }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-section { background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .form-section h4 { margin: 0 0 1rem 0; color: #4a5568; font-size: 1rem; }
+    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
+    .message { padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; }
+    .message.ok { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .message.error { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex"/>
+  </div>
+  <div class="header">
+    <h1>Edit Customer — {{ oem_org.org_name }}</h1>
+    <div>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">← Back to Customers</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Edit {{ customer.org_name }}</h2>
+    <p style="color: #718096; margin-bottom: 1.5rem;">Organization ID: <code>{{ customer.org_id }}</code> (cannot be changed)</p>
+
+    {% if message %}
+    <div class="message {% if message_type == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+    {% endif %}
+
+    <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ customer.org_id }}/edit">
+      <div class="form-section">
+        <h4>Basic Information</h4>
+        <div class="form-group">
+          <label for="org_name">Organization Name *</label>
+          <input type="text" id="org_name" name="org_name" value="{{ customer.org_name or '' }}" required>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h4>Contact Information</h4>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" value="{{ customer.email or '' }}" placeholder="contact@example.com">
+        </div>
+        <div class="form-group">
+          <label for="contact_name">Contact Name</label>
+          <input type="text" id="contact_name" name="contact_name" value="{{ customer.contact_name or '' }}" placeholder="John Doe">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" name="phone" value="{{ customer.phone or '' }}" placeholder="+1 (555) 123-4567">
+        </div>
+        <div class="form-group">
+          <label for="billing_email">Billing Email</label>
+          <input type="email" id="billing_email" name="billing_email" value="{{ customer.billing_email or '' }}" placeholder="billing@example.com">
+        </div>
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" name="address" placeholder="123 Main St, City, State, ZIP">{{ customer.address or '' }}</textarea>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

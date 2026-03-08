@@ -9,6 +9,7 @@ class Client(BaseModel):
     __tablename__ = "client"
 
     org_id = db.Column(db.String(255), nullable=True)  # From License service - links to org registry
+    sponsor_org_id = db.Column(db.String(255), nullable=True)  # OEM org_id when client created by OEM
     name = db.Column(db.String(255), nullable=False)
     legalName = db.Column(db.String(255))
     address = db.Column(db.String(255))

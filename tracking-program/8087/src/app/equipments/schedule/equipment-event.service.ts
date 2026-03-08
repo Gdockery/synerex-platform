@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core'
+
+import {Injector} from '@angular/core';import { Injectable } from '@angular/core'
 import { BaseApiCrudService } from "../../api/baseApiCrud.service"
 import { Observable } from 'rxjs'
 
@@ -27,4 +28,8 @@ export class EquipmentEventService extends BaseApiCrudService {
     return response
   }
 
+
+  constructor(injector: Injector) {
+    super(injector);
+  }
 }

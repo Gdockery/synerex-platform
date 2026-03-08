@@ -64,7 +64,7 @@ public logoPath;
    
     setInterval(() => {
       this.time = new Date();
-    }, 1000);
+    }, 10000); // 10s - was 1s; reduces re-renders
 
     this.selectedTest = this.userService.user.selectedProject.selectedTest;
     console.log("energySavings.component.ts");

@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [loginLoading, setLoginLoading] = useState(false);
   const navigate = useNavigate();
   const serviceIntervalRef = useRef(null);
+  const POLL_INTERVAL_MS = 60000; // 60s - reduce load; pause when tab hidden via visibilitychange
   
   // Fallbacks so links work even when env vars missing (e.g. Docker build without .env)
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
@@ -62,47 +63,47 @@ export default function AdminDashboard() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    // Debug logging
-    console.log('AdminDashboard: Checking for token in URL:', token);
-    console.log('AdminDashboard: Current URL:', window.location.href);
-    
     if (token) {
-      console.log('AdminDashboard: Token found in URL, storing in localStorage');
       localStorage.setItem('session_token', token);
-      // Clean URL by removing token parameter
       window.history.replaceState({}, document.title, window.location.pathname);
-      console.log('AdminDashboard: Token stored, URL cleaned');
     }
     
-    // Check for token in localStorage (either from URL or previous session)
     const tokenFromStorage = localStorage.getItem('session_token');
-    console.log('AdminDashboard: Token from localStorage:', tokenFromStorage ? 'Found' : 'Not found');
     
     if (tokenFromStorage) {
-      // Token exists - trust it and show page immediately (no checks, no timeouts)
-      console.log('AdminDashboard: Token exists, showing dashboard');
       setIsAdmin(true);
       setIsAuthenticated(true);
-      
-      // Load data in background (non-blocking, no error handling needed)
       loadStats();
       loadServices();
-      
-      // Poll service status every 15 seconds
-      serviceIntervalRef.current = setInterval(() => {
-        loadServices();
-      }, 15000);
     } else {
-      // No token - show inline login form (stays on same origin, no redirect to 8080)
       setShowLoginForm(true);
     }
-    
-    return () => {
+  }, []);
+
+  // Polling + visibility when authenticated (covers both token-from-storage and login-form flows)
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) return;
+    const startPolling = () => {
+      if (serviceIntervalRef.current) return;
+      serviceIntervalRef.current = setInterval(loadServices, POLL_INTERVAL_MS);
+    };
+    const stopPolling = () => {
       if (serviceIntervalRef.current) {
         clearInterval(serviceIntervalRef.current);
+        serviceIntervalRef.current = null;
       }
     };
-  }, []);
+    const onVisibilityChange = () => {
+      if (document.hidden) stopPolling();
+      else startPolling();
+    };
+    startPolling();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isAuthenticated, isAdmin]);
   
   // REMOVED: checkAuth function - no longer needed, we trust the token
   
@@ -193,87 +194,40 @@ export default function AdminDashboard() {
             };
           }
           
-          // Check License Service health
-          try {
-            const licenseHealthResponse = await fetch(`${LICENSE_SERVICE_URL}/health`, {
-              credentials: 'omit',
-              signal: AbortSignal.timeout(2000)
-            });
-            transformedServices['license_service_8000'] = {
-              name: 'License Service',
-              description: 'License management service',
-              url: LICENSE_SERVICE_URL,
-              running: licenseHealthResponse.ok,
-              healthy: licenseHealthResponse.ok,
-              port: 8000,
-              dependencies: []
-            };
-          } catch (e) {
-            transformedServices['license_service_8000'] = {
-              name: 'License Service',
-              description: 'License management service',
-              url: LICENSE_SERVICE_URL,
-              running: false,
-              healthy: false,
-              port: 8000,
-              dependencies: []
-            };
-          }
+          // Check License, Tracking, Website health in parallel
+          const [licenseResult, trackingResult, frontendResult] = await Promise.allSettled([
+            fetch(`${LICENSE_SERVICE_URL}/health`, { credentials: 'omit', signal: AbortSignal.timeout(2000) }),
+            fetch(`${TRACKING_URL}/`, { credentials: 'omit', signal: AbortSignal.timeout(2000) }),
+            fetch(`${WEBSITE_FRONTEND_URL}/`, { credentials: 'omit', signal: AbortSignal.timeout(2000) })
+          ]);
           
-          // Check Tracking Program (8087) health
-          try {
-            const trackingHealthResponse = await fetch(`${TRACKING_URL}/`, {
-              credentials: 'omit',
-              signal: AbortSignal.timeout(2000)
-            });
-            transformedServices['tracking_program_8087'] = {
-              name: 'Tracking Program',
-              description: 'Tracking program application',
-              url: TRACKING_URL,
-              running: trackingHealthResponse.ok,
-              healthy: trackingHealthResponse.ok,
-              port: 8087,
-              dependencies: []
-            };
-          } catch (e) {
-            transformedServices['tracking_program_8087'] = {
-              name: 'Tracking Program',
-              description: 'Tracking program application',
-              url: TRACKING_URL,
-              running: false,
-              healthy: false,
-              port: 8087,
-              dependencies: []
-            };
-          }
-
-          // Check Website Frontend (5173) health
-          try {
-            const frontendHealthResponse = await fetch(`${WEBSITE_FRONTEND_URL}/`, {
-              credentials: 'omit',
-              signal: AbortSignal.timeout(2000)
-            });
-            // Vite dev server returns 200 even for 404 pages, so just check if it responds
-            transformedServices['website_frontend_5173'] = {
-              name: 'Website Frontend',
-              description: 'Vite/React frontend development server',
-              url: WEBSITE_FRONTEND_URL,
-              running: true,
-              healthy: frontendHealthResponse.ok,
-              port: 5173,
-              dependencies: []
-            };
-          } catch (e) {
-            transformedServices['website_frontend_5173'] = {
-              name: 'Website Frontend',
-              description: 'Vite/React frontend development server',
-              url: WEBSITE_FRONTEND_URL,
-              running: false,
-              healthy: false,
-              port: 5173,
-              dependencies: []
-            };
-          }
+          transformedServices['license_service_8000'] = {
+            name: 'License Service',
+            description: 'License management service',
+            url: LICENSE_SERVICE_URL,
+            running: licenseResult.status === 'fulfilled' && licenseResult.value.ok,
+            healthy: licenseResult.status === 'fulfilled' && licenseResult.value.ok,
+            port: 8000,
+            dependencies: []
+          };
+          transformedServices['tracking_program_8087'] = {
+            name: 'Tracking Program',
+            description: 'Tracking program application',
+            url: TRACKING_URL,
+            running: trackingResult.status === 'fulfilled' && trackingResult.value.ok,
+            healthy: trackingResult.status === 'fulfilled' && trackingResult.value.ok,
+            port: 8087,
+            dependencies: []
+          };
+          transformedServices['website_frontend_5173'] = {
+            name: 'Website Frontend',
+            description: 'Vite/React frontend development server',
+            url: WEBSITE_FRONTEND_URL,
+            running: true,
+            healthy: frontendResult.status === 'fulfilled' && frontendResult.value.ok,
+            port: 5173,
+            dependencies: []
+          };
           
           setServices(transformedServices);
           setServicesError(null); // Clear error on success
@@ -771,7 +725,6 @@ export default function AdminDashboard() {
         setIsAuthenticated(true);
         loadStats();
         loadServices();
-        serviceIntervalRef.current = setInterval(loadServices, 15000);
       } else {
         setLoginError(data.error || "Invalid credentials");
       }
@@ -821,17 +774,8 @@ export default function AdminDashboard() {
   }
   
   return (
-    <div className="min-h-screen text-gray-100 font-sans pt-16" style={{
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)',
-      backgroundSize: '400% 400%',
-      animation: 'gradientMove 15s ease infinite'
-    }}>
+    <div className="min-h-screen text-gray-100 font-sans pt-16 bg-gradient-to-br from-indigo-950 via-blue-900 to-indigo-950">
       <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
         .fade-in {
           opacity: 0;
           transform: translateY(15px);
@@ -967,14 +911,19 @@ export default function AdminDashboard() {
           </a>
         </div>
         
-        {/* Statistics Section */}
-        {loadingStats ? (
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
-            <div className="text-center text-gray-400">Loading statistics...</div>
-          </div>
-        ) : (
-          <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
-            <h2 className="text-2xl font-bold mb-6 text-purple-400">Platform Statistics</h2>
+        {/* Statistics Section - show skeleton immediately */}
+        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
+          <h2 className="text-2xl font-bold mb-6 text-purple-400">Platform Statistics</h2>
+          {loadingStats ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[1,2,3,4,5,6,7,8].map((i) => (
+                <div key={i} className="bg-gray-900 rounded-lg p-4 border border-gray-700 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded w-24 mb-3" />
+                  <div className="h-8 bg-gray-600 rounded w-16" />
+                </div>
+              ))}
+            </div>
+          ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Organizations</div>
@@ -1009,8 +958,8 @@ export default function AdminDashboard() {
                 <div className="text-3xl font-bold text-purple-400">{stats.seat_assignments || 0}</div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         
         {/* Service Management Section */}
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
@@ -1035,7 +984,14 @@ export default function AdminDashboard() {
           </div>
           
           {loadingServices ? (
-            <div className="text-center text-gray-400 py-8">Loading service status...</div>
+            <div className="space-y-4">
+              {[1,2,3,4,5].map((i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-gray-900 rounded-lg border border-gray-700 animate-pulse">
+                  <div className="h-4 bg-gray-700 rounded w-48" />
+                  <div className="h-6 w-20 bg-gray-600 rounded" />
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="space-y-6">
               {servicesError && (
