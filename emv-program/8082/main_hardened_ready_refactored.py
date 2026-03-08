@@ -551,6 +551,11 @@ from functools import wraps
 
 app = Flask(__name__)
 
+# Serve static files under /emv/static/ as well (for direct port access without Nginx proxy)
+@app.route('/emv/static/<path:filename>')
+def emv_static_alias(filename):
+    return app.send_static_file(filename)
+
 # Configuration
 class Config:
     """Application configuration"""

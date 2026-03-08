@@ -747,7 +747,7 @@ export default function AdminDashboard() {
             <img src="/images/synerex_logo.PNG" alt="Synerex" className="h-12 mb-3" />
             <h1 className="text-2xl font-bold text-center text-white">Admin Login</h1>
           </div>
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
+          <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="off">
             {loginError && (
               <div className="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm">
                 {loginError}
@@ -755,12 +755,12 @@ export default function AdminDashboard() {
             )}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
-              <input name="username" type="text" required autoComplete="username"
+              <input name="username" type="text" required autoComplete="off"
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-              <input name="password" type="password" required autoComplete="current-password"
+              <input name="password" type="password" required autoComplete="new-password"
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
             </div>
             <button type="submit" disabled={loginLoading}

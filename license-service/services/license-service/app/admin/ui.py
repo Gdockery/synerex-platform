@@ -107,7 +107,7 @@ def api_tracking_restart(request: Request, _=Depends(require_admin)):
 
 def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse:
     return_url_param = f'?return_url={return_url}' if return_url else ''
-    back_href = return_url if return_url else settings.website_url
+    back_href = "/admin"
     return HTMLResponse(f"""
     <html>
     <head>
@@ -133,7 +133,7 @@ def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse
             <input name="password" type="password" required /><br/><br/>
             <button type="submit">Login</button>
         </form>
-        <a id="back-link" class="back-link" href="{back_href}">Back to previous page</a>
+        <a id="back-link" class="back-link" href="{back_href}">← Synerex Admin</a>
         <script>
           (function () {{
             var link = document.getElementById('back-link');
