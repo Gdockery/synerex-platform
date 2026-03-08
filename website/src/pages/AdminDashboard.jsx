@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const SERVICE_MANAGER_URL = import.meta.env.VITE_SERVICE_MANAGER_URL || 'http://localhost:9000';
   const EMV_URL = import.meta.env.VITE_EMV_URL || 'http://localhost:8082';
   const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || 'http://localhost:8087';
+  const TRACKING_PROXY_URL = 'http://localhost:8080/tracking';
   const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
   const WEBSITE_FRONTEND_URL = import.meta.env.VITE_WEBSITE_FRONTEND_URL || 'http://localhost:8080';
 
@@ -197,7 +198,7 @@ export default function AdminDashboard() {
           // Check License, Tracking, Website health in parallel
           const [licenseResult, trackingResult, frontendResult] = await Promise.allSettled([
             fetch(`${LICENSE_SERVICE_URL}/health`, { credentials: 'omit', signal: AbortSignal.timeout(2000) }),
-            fetch(`${TRACKING_URL}/`, { credentials: 'omit', signal: AbortSignal.timeout(2000) }),
+            fetch(`${TRACKING_PROXY_URL}/health`, { credentials: 'omit', signal: AbortSignal.timeout(2000) }),
             fetch(`${WEBSITE_FRONTEND_URL}/`, { credentials: 'omit', signal: AbortSignal.timeout(2000) })
           ]);
           
@@ -214,8 +215,8 @@ export default function AdminDashboard() {
             name: 'Tracking Program',
             description: 'Tracking program application',
             url: TRACKING_URL,
-            running: trackingResult.status === 'fulfilled' && trackingResult.value.ok,
-            healthy: trackingResult.status === 'fulfilled' && trackingResult.value.ok,
+            running: data.services?.tracking_app?.running || (trackingResult.status === 'fulfilled' && (trackingResult.value.ok || trackingResult.value.status === 302)),
+            healthy: data.services?.tracking_app?.healthy || (trackingResult.status === 'fulfilled' && (trackingResult.value.ok || trackingResult.value.status === 302)),
             port: 8087,
             dependencies: []
           };
@@ -742,7 +743,10 @@ export default function AdminDashboard() {
       }}>
         <LicenseSeal />
         <div className="bg-gray-900/90 rounded-xl p-8 w-full max-w-md border border-gray-700 shadow-xl">
-          <h1 className="text-2xl font-bold text-center mb-6">Synerex Admin Login</h1>
+          <div className="flex flex-col items-center mb-6">
+            <img src="/images/synerex_logo.PNG" alt="Synerex" className="h-12 mb-3" />
+            <h1 className="text-2xl font-bold text-center text-white">Admin Login</h1>
+          </div>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             {loginError && (
               <div className="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm">
@@ -868,12 +872,10 @@ export default function AdminDashboard() {
           </a>
           
           <a
-            href={`${TRACKING_URL}/sso?role=admin`}
+            href="http://localhost:8080/tracking/login"
             onClick={(e) => {
               e.preventDefault();
-              const token = localStorage.getItem('session_token');
-              const url = token ? `${TRACKING_URL}/sso?role=admin&token=${encodeURIComponent(token)}` : `${TRACKING_URL}/sso?role=admin`;
-              window.location.href = url;
+              window.location.href = 'http://localhost:8080/tracking/login';
             }}
             className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-6 border border-cyan-700/50 hover:border-cyan-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
           >

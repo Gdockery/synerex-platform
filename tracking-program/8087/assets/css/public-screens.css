@@ -1,11 +1,7 @@
 html, body{
-  /*-moz-box-sizing: border-box;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
-  background-repeat:no-repeat;
-  background-color: #f6f6f6;*/
   font-family: "Open Sans", sans-serif;
   height: 100%;
+  background-color: #1a0533;
 }
 
 /*html {

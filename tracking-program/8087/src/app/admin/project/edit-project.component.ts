@@ -13,7 +13,7 @@ var _ = require('lodash');
 var VALIDATIONS = require('./project.validations').default;
 
 @Component({
-  templateUrl: 'edit-project.component.html',
+  templateUrl: './edit-project.component.html',
   styles: ['.edit-project-header { text-align: center !important; } .edit-project-header h3 { text-align: center !important; }']
 })
 export class ProjectEditComponent implements OnInit {

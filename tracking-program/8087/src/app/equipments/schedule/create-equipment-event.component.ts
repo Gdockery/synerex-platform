@@ -12,7 +12,7 @@ import { ConfirmationService } from "primeng/primeng";
 import {EquipmentsService} from "../equipments.service";
 
 @Component({
-  templateUrl: 'create-equipment-event.component.html',
+  templateUrl: './create-equipment-event.component.html',
 })
 export class CreateEquipmentEventComponent {
 

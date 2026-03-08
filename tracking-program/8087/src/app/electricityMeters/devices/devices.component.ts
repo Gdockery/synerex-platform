@@ -10,7 +10,7 @@ import { SessionStorage } from '../../shared/helpers/sessionStorage.service';
 let _ = require('lodash');
 
 @Component({
-  templateUrl: 'devices.component.html',
+  templateUrl: './devices.component.html',
 })
 export class DevicesComponent implements OnInit {
   @ViewChild('table', {static: false}) table;

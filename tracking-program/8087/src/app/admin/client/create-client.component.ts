@@ -12,7 +12,7 @@ var VALIDATIONS = require('./client.validations').default;
 
 
 @Component({
-  templateUrl: 'create-client.component.html'
+  templateUrl: './create-client.component.html'
 })
 export class ClientCreateComponent implements OnInit {
   private clientCreated = false;

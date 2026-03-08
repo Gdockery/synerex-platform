@@ -10,7 +10,7 @@ var VALIDATIONS = require('./client.validations').default;
 
 
 @Component({
-  templateUrl: 'edit-client.component.html'
+  templateUrl: './edit-client.component.html'
 })
 export class ClientEditComponent implements OnInit {
 

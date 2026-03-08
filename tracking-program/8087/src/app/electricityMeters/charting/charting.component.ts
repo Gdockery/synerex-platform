@@ -12,7 +12,7 @@ import {DeviceService} from "../../electricityMeters/devices/device.service";
 
 @Component({
   selector: 'charting',
-  templateUrl: 'charting.component.html',
+  templateUrl: './charting.component.html',
 })
 export class ChartingComponent implements OnInit, OnDestroy {
   @ViewChild('chart', {static: false}) chart;

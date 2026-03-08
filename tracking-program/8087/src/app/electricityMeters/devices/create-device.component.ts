@@ -5,7 +5,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 import {DeviceService} from "./device.service";
 
 @Component({
-  templateUrl: 'create-device.component.html',
+  templateUrl: './create-device.component.html',
 })
 export class CreateDeviceComponent implements OnInit {
 

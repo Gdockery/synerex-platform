@@ -5,7 +5,7 @@ import {ConfirmationService} from "primeng/primeng";
 
 @Component({
   selector: 'sd-list-alert',
-  templateUrl: 'list-alert.component.html'
+  templateUrl: './list-alert.component.html'
 })
 export class ListAlertComponent implements OnInit {
   @Input() public currentAlertType;

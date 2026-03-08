@@ -15,7 +15,7 @@ import { SessionStorage } from '../../shared/helpers/sessionStorage.service';
 
 @Component({
   selector: 'list-switches',
-  templateUrl: 'list-switches.component.html'
+  templateUrl: './list-switches.component.html'
 })
 export class ListSwitchesComponent {
 

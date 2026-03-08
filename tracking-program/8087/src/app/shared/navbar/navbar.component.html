@@ -76,6 +76,12 @@
         <span class="text">Branding</span>
       </a>
     </li>
+    <li *ngIf="!userService.user.selectedProject && userService.user.role === 8">
+      <a [routerLink]="['/xeco-administrator/company-settings']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-building"></span>
+        <span class="text">Company Settings</span>
+      </a>
+    </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 2 || userService.user.role === 9)">
       <a [routerLink]="['/xeco-administrator/subscription']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-credit-card"></span>

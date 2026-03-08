@@ -131,7 +131,7 @@
                     <div class="login-forms">
                         <div class="login-form">
                             <h3>Sign in</h3>
-                            <form id="user-login">
+                            <form id="user-login" autocomplete="on">
                                 <div class="form-group">
                                     <label>Organization:</label>
                                     <select id="org-id" required>
@@ -140,12 +140,12 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Username/Email:</label>
-                                    <input type="text" id="username" required>
+                                    <input type="text" id="username" required autocomplete="username">
                                 </div>
                                 <div class="form-group">
                                     <label>Password:</label>
                                     <div class="password-input-container">
-                                        <input type="password" id="password" required>
+                                        <input type="password" id="password" required autocomplete="current-password">
                                         <button type="button" class="password-toggle" id="toggle-login-password" onclick="togglePasswordVisibility('password', 'toggle-login-password')">
                                             <span class="eye-icon">Show</span>
                                         </button>
@@ -169,7 +169,7 @@
                         
                         <div class="register-form">
                             <h3>Register New User</h3>
-                            <form id="user-registration">
+                            <form id="user-registration" autocomplete="off">
                                 <div class="form-group">
                                     <label>Company Name:</label>
                                     <input type="text" id="reg-company-name" required placeholder="e.g. Acme Corp">
@@ -200,20 +200,20 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Full Name:</label>
-                                    <input type="text" id="full-name" required>
+                                    <input type="text" id="full-name" required autocomplete="off">
                                 </div>
                                 <div class="form-group">
                                     <label>Email:</label>
-                                    <input type="email" id="email" required>
+                                    <input type="email" id="email" required autocomplete="off">
                                 </div>
                                 <div class="form-group">
                                     <label>Username:</label>
-                                    <input type="text" id="reg-username" required>
+                                    <input type="text" id="reg-username" required autocomplete="off">
                                 </div>
                                 <div class="form-group">
                                     <label>Password:</label>
                                     <div class="password-input-container">
-                                        <input type="password" id="reg-password" required placeholder="Minimum 8 characters with numbers and symbols">
+                                        <input type="password" id="reg-password" required placeholder="Minimum 8 characters with numbers and symbols" autocomplete="new-password">
                                         <button type="button" class="password-toggle" id="toggle-password" onclick="togglePasswordVisibility('reg-password', 'toggle-password')">
                                             <span class="eye-icon">Show</span>
                                         </button>
@@ -236,7 +236,7 @@
                                 <div class="form-group">
                                     <label>Confirm Password:</label>
                                     <div class="password-input-container">
-                                        <input type="password" id="reg-confirm-password" required placeholder="Re-enter your password">
+                                        <input type="password" id="reg-confirm-password" required placeholder="Re-enter your password" autocomplete="new-password">
                                         <button type="button" class="password-toggle" id="toggle-confirm-password" onclick="togglePasswordVisibility('reg-confirm-password', 'toggle-confirm-password')">
                                             <span class="eye-icon">Show</span>
                                         </button>

@@ -9,7 +9,7 @@ import {SwitchAlertService} from "../switch-alert.service";
 
 @Component({
   selector: 'create-switch-alert',
-  templateUrl: 'create-switch-alert.component.html'
+  templateUrl: './create-switch-alert.component.html'
 })
 export class CreateSwitchAlertComponent implements OnInit {
   @Input() public currentType;

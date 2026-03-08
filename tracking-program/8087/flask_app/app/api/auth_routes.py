@@ -52,6 +52,10 @@ def load_user(user_id):
 @auth_bp.route("/login", methods=["GET"])
 def show_login_page():
     from app.api.web_routes import _get_brand_name
+    from flask_login import logout_user
+    # Always clear any existing session when landing on the login page
+    logout_user()
+    session.clear()
     role = (request.args.get("role") or "").lower()
     is_admin = role == "admin"
     login_label = (
@@ -147,7 +151,7 @@ def login():
     if _wants_json_response():
         return {"status": "success"}
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
-    return redirect(request.args.get("next") or f"{base}/welcome#loaded")
+    return redirect(request.args.get("next") or f"{base}/")
 
 
 def _login_fail():
@@ -215,10 +219,8 @@ def verify_jwt_route():
 
 @auth_bp.route("/sso", methods=["GET"])
 def sso_login():
-    """GET /sso?token=... - SSO login via JWT from License Service."""
-    token = request.args.get("token")
-    if not token:
-        return redirect(_login_url())
+    """GET /sso?token=... - SSO login via JWT from License Service. Always redirects to login page."""
+    return redirect(_login_url())
 
     license_url = current_app.config.get("LICENSE_SERVICE_URL")
     if not license_url:

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 
 export default function Header(){
@@ -6,25 +6,42 @@ export default function Header(){
   const adminDropdownTimeoutRef = useRef(null);
   const [jwtToken, setJwtToken] = useState(null);
   const jwtFetchedRef = useRef(false);
-  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const location = useLocation();
+  const isAdminPage = location.pathname.startsWith('/admin');
+
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL;
   const EMV_URL = import.meta.env.VITE_EMV_URL;
   const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL;
-  
-  // Defer JWT fetch until Admin dropdown opens - avoids blocking every page load
-  const fetchJwtLazy = () => {
-    if (jwtFetchedRef.current) return;
-    jwtFetchedRef.current = true;
+
+  useEffect(() => {
+    if (isAdminPage) return;
     fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: "include" })
-      .then((resp) => (resp.ok ? resp.json() : null))
+      .then((resp) => {
+        if (resp.ok) {
+          setIsLoggedIn(true);
+          return resp.json();
+        }
+        setIsLoggedIn(false);
+        return null;
+      })
       .then((data) => data?.token && setJwtToken(data.token))
-      .catch(() => {});
-  };
+      .catch(() => setIsLoggedIn(false));
+  }, [LICENSE_SERVICE_URL]);
 
   const withJwt = (url) => {
     if (!jwtToken) return url;
     const separator = url.includes("?") ? "&" : "?";
     return `${url}${separator}token=${encodeURIComponent(jwtToken)}`;
+  };
+
+  const fetchJwtLazy = () => {
+    if (isAdminPage || jwtFetchedRef.current) return;
+    jwtFetchedRef.current = true;
+    fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: "include" })
+      .then((resp) => (resp.ok ? resp.json() : null))
+      .then((data) => data?.token && setJwtToken(data.token))
+      .catch(() => {});
   };
   
   return (
@@ -59,9 +76,18 @@ export default function Header(){
           >
             Register
           </a>
-          <Link to="/my-account" className="hover:text-purple-600 transition-colors">
-            My Account
-          </Link>
+          {isLoggedIn ? (
+            <Link to="/my-account" className="hover:text-purple-600 transition-colors">
+              My Account
+            </Link>
+          ) : (
+            <a
+              href={`${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.origin + '/my-account')}`}
+              className="hover:text-purple-600 transition-colors"
+            >
+              Login
+            </a>
+          )}
           
           {/* Admin Dropdown */}
           <div 
@@ -132,7 +158,7 @@ export default function Header(){
                   <div className="text-xs text-gray-500 mt-1">Manage EM&V program settings</div>
                 </a>
                 <a
-                  href={withJwt(`${TRACKING_URL}/sso?role=admin`)}
+                  href="http://localhost:8080/tracking/login"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Tracking Admin Portal</div>

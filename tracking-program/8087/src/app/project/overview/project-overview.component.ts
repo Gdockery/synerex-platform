@@ -11,8 +11,8 @@ import {ApiRequestService} from "../../api/api-request.service";
 
 @Component({
   selector: 'project-overview',
-  styleUrls: ['project-overview.component.scss'],
-  templateUrl: 'project-overview.component.html'
+  styleUrls: ['./project-overview.component.scss'],
+  templateUrl: './project-overview.component.html'
 })
 export class ProjectOverviewComponent implements OnInit {
 

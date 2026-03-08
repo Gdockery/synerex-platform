@@ -15,7 +15,7 @@ var _ = require('lodash');
 var VALIDATIONS = require('./project.validations').default;
 
 @Component({
-  templateUrl: 'create-project.component.html'
+  templateUrl: './create-project.component.html'
 })
 export class ProjectCreateComponent {
 

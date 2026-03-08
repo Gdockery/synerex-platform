@@ -14,7 +14,7 @@ import {CurrentUserService} from "../../../shared/user/currentUser.service";
 
 @Component({
   selector: 'sd-create-csv',
-  templateUrl: 'create-csv.component.html'
+  templateUrl: './create-csv.component.html'
 })
 export class CreateCsvComponent implements OnInit {
   @Input() public currentType;

@@ -4,7 +4,7 @@ import {WhitelabelService} from "../services/whitelabel.service";
 
 @Component({
   selector: 'sd-navbar',
-  templateUrl: 'navbar.component.html',
+  templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss'],
 })
 export class NavbarComponent {

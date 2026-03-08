@@ -7,7 +7,7 @@ import {ActivatedRoute} from "@angular/router";
 import {DeviceService} from '../../electricityMeters/devices/device.service';
 
 @Component({
-  templateUrl: 'create-switch.component.html',
+  templateUrl: './create-switch.component.html',
 })
 export class CreatePowerFilterComponent {
 

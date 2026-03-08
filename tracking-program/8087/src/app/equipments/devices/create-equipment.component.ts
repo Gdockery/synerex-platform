@@ -5,7 +5,7 @@ import {Router} from "@angular/router";
 import {ActivatedRoute} from "@angular/router";
 
 @Component({
-  templateUrl: 'create-equipment.component.html',
+  templateUrl: './create-equipment.component.html',
 })
 export class CreateEquipmentComponent {
 

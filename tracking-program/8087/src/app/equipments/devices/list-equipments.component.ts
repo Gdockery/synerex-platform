@@ -14,7 +14,7 @@ import {Router} from "@angular/router";
 
 @Component({
   selector: 'list-equipments',
-  templateUrl: 'list-equipments.component.html'
+  templateUrl: './list-equipments.component.html'
 })
 export class ListEquipmentsComponent {
 

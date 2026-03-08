@@ -15,7 +15,7 @@ let _ = require('lodash');
 
 @Component({
   selector: 'create-test',
-  templateUrl: 'create-test.component.html'
+  templateUrl: './create-test.component.html'
 })
 export class CreateTestComponent implements OnInit {
 

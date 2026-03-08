@@ -8,7 +8,7 @@ import {WhitelabelService} from "./shared/services/whitelabel.service";
 
 @Component({
   selector: 'sd-app',
-  templateUrl: 'app.component.html',
+  templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   encapsulation: ViewEncapsulation.None
 })

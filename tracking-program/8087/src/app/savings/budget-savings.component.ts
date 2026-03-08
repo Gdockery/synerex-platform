@@ -14,7 +14,7 @@ import {CurrentUserService} from "../shared/user/currentUser.service";
 
 @Component({
   selector: 'view-budget',
-  templateUrl: 'budget-savings.component.html'
+  templateUrl: './budget-savings.component.html'
 })
 export class BudgetSavingsComponent implements OnInit {
 

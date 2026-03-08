@@ -9,7 +9,7 @@ let _ = require('lodash');
 
 @Component({
   selector: 'list-tests',
-  templateUrl: 'list-tests.component.html'
+  templateUrl: './list-tests.component.html'
 })
 export class ListTestsComponent {
 

@@ -10,7 +10,7 @@ export default function LicenseRegistration({ program = "emv", plan = "annual" }
     setRedirecting(true);
     // Redirect to License Service registration with return URL
     const returnUrl = encodeURIComponent(`${window.location.origin}/license-success`);
-    window.location.href = `${LICENSE_SERVICE_URL}/register?program=${program}&plan=${plan}&return_url=${returnUrl}`;
+    window.location.href = `${LICENSE_SERVICE_URL}/register/?program=${program}&plan=${plan}&return_url=${returnUrl}`;
   };
   
   const programNames = {

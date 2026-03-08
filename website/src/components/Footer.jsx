@@ -34,7 +34,7 @@ export default function Footer(){
       {/* Synerex Admin: platform servicing link - separate from client admins, unique credentials */}
       <div className="max-w-7xl mx-auto px-3 pb-4 pt-2 border-t border-gray-800/50 text-center">
         <a
-          href="http://localhost:5173/admin"
+          href="/admin"
           className="text-gray-500 hover:text-purple-400 text-xs transition-colors"
           title="Synerex platform administration and servicing"
         >

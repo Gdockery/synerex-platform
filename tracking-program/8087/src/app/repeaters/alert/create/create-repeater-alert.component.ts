@@ -9,7 +9,7 @@ import {RepeaterService} from "../../devices/repeater-device.service";
 
 @Component({
   selector: 'create-repeater-alert',
-  templateUrl: 'create-repeater-alert.component.html'
+  templateUrl: './create-repeater-alert.component.html'
 })
 export class CreateRepeaterAlertComponent implements OnInit {
   @Input() public currentType;

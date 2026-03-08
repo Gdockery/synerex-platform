@@ -15,7 +15,7 @@ $(function() {
         isWaiting = true;
         $('.error').hide();
         $.post(base + '/login', { email: $('#inputEmail').val(), password: $('#inputPassword').val(), terms: $('#termsAndConditions').is(':checked') ? 'accept' : '' })
-            .done(function() { window.location = base + '/welcome#loaded'; })
+            .done(function() { window.location = base + '/'; })
             .fail(function(err) {
                 isWaiting = false;
                 var msg = (err.responseJSON && err.responseJSON.error) || "";
@@ -60,14 +60,14 @@ $(function() {
       {% if brand_name %}{{ brand_name }} Portal{% else %}EMV Energy &amp; Cost Analysis Portal{% endif %}
     </div>
   </div>
-  <form class="form-container" data-purpose="login">
+  <form class="form-container" data-purpose="login" autocomplete="off">
     <span id="reauth-email" class="reauth-email"></span>
-    <input type="email" id="inputEmail" class="form-control" placeholder="Email Address" required autofocus>
-    <input type="password" id="inputPassword" class="form-control" placeholder="Password" required>
+    <input type="email" id="inputEmail" class="form-control" placeholder="Email Address" required autofocus autocomplete="off">
+    <input type="password" id="inputPassword" class="form-control" placeholder="Password" required autocomplete="new-password">
     <span class="error"></span>
     <br>
     <div>
-      <input type="checkbox" id="termsAndConditions" class="form-control" name="terms" value="accept" required
+      <input type="checkbox" id="termsAndConditions" class="form-control" name="terms" value="accept" checked
           oninvalid="this.setCustomValidity('Please read and accept our terms & conditions to use the portal')"
           onchange="this.setCustomValidity('')">
       <label for="termsAndConditions"><a href="terms"><strong>I Accept Terms &amp; Conditions</strong></a></label>

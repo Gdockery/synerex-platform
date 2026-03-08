@@ -4,7 +4,7 @@ import {GatewayService} from "./gateway-device.service";
 import { SessionStorage } from '../../shared/helpers/sessionStorage.service';
 
 @Component({
-  templateUrl: 'gateway-devices.component.html',
+  templateUrl: './gateway-devices.component.html',
 })
 export class GatewayDevicesComponent {
 

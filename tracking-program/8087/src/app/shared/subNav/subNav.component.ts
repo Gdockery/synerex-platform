@@ -23,7 +23,7 @@ let _ = require('lodash');
     </div>
 
   `,
-  styleUrls: ['subNav.component.scss'],
+  styleUrls: ['./subNav.component.scss'],
 })
 export class SubNavComponent implements OnInit{
 

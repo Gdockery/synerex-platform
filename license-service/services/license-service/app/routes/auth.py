@@ -219,15 +219,10 @@ def _normalize_return_url(return_url: str) -> str:
 
 @router.get("/logout-all")
 def client_logout_all(request: Request):
-    """Unified logout (GET for link navigation). Clears session, redirects to login with return to my-account."""
+    """Unified logout (GET for link navigation). Clears session, redirects to website Home page."""
     request.session.clear()
-    from urllib.parse import quote
-    return_url = request.query_params.get("return_url", "")
-    if not return_url:
-        return_url = _my_account_url(request)
-    login_url = _path("/auth/login")
-    sep = "&" if "?" in login_url else "?"
-    return RedirectResponse(f"{login_url}{sep}return_url={quote(return_url, safe='')}", status_code=303)
+    home_url = (settings.website_url or "").rstrip("/") + "/"
+    return RedirectResponse(home_url, status_code=303)
 
 
 @router.get("/api/jwt")

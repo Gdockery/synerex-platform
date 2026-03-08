@@ -23,7 +23,7 @@
 </head>
 <body>
   <div class="container">
-    <div class="logo-container"><img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex" /></div>
+    <div class="logo-container"><img src="/license/static/synerex_logo_color.png" alt="Synerex" /></div>
     <h1>Create an account</h1>
     {% if error %}
     <div class="error">{{ error }}</div>
@@ -31,14 +31,14 @@
     {% if success %}
     <div class="success">{{ success }}</div>
     {% endif %}
-    <form method="post" action="{{ register_action or ((path_prefix + '/register') if path_prefix else '/register') }}">
+    <form method="post" autocomplete="off" action="{{ register_action or ((path_prefix + '/register') if path_prefix else '/register') }}">
       <input type="hidden" name="return_url" value="{{ return_url or '' }}"/>
-      <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc"/></div>
+      <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc" autocomplete="off"/></div>
       <div class="row"><label>Account type *</label><select name="org_type" required><option value="customer">Customer / Licensee</option><option value="pe">Licensed PE</option></select></div>
-      <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe"/></div>
-      <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8"/></div>
-      <div class="row"><label>Confirm password *</label><input type="password" name="password_confirm" required minlength="8"/></div>
-      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com"/></div>
+      <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe" autocomplete="off"/></div>
+      <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"/></div>
+      <div class="row"><label>Confirm password *</label><input type="password" name="password_confirm" required minlength="8" autocomplete="new-password"/></div>
+      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com" autocomplete="off"/></div>
       <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St"/></div>
       <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City"/></div>
       <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2"/></div>

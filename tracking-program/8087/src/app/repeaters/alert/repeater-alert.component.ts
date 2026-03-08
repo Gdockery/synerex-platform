@@ -4,8 +4,8 @@ import {RepeaterAlertService} from "./repeater-alert.service";
 import {ModalDirective} from "ngx-bootstrap/modal";
 
 @Component({
-  templateUrl: 'repeater-alert.component.html',
-  styleUrls: ['repeater-alert.component.scss'],
+  templateUrl: './repeater-alert.component.html',
+  styleUrls: ['./repeater-alert.component.scss'],
 })
 export class RepeaterAlertComponent implements OnInit {
 

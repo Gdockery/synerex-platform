@@ -4,7 +4,7 @@ import { Router } from "@angular/router";
 import {GatewayService} from "./gateway-device.service";
 
 @Component({
-  templateUrl: 'create-gateway-device.component.html',
+  templateUrl: './create-gateway-device.component.html',
 })
 export class CreateGatewayComponent implements OnInit {
 

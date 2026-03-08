@@ -12,7 +12,7 @@ import {SwitchScheduleService} from "../switch-schedule.service";
 import { ConfirmationService } from "primeng/primeng";
 
 @Component({
-  templateUrl: 'create-switch-event.component.html',
+  templateUrl: './create-switch-event.component.html',
 })
 export class CreateSwitchEventComponent {
 

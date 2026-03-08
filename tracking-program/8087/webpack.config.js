@@ -39,7 +39,10 @@ var webpackConfig = {
   ***************************************************************************/
   output: {
     filename: 'js/[name].bundle.js',
-    path: path.resolve(__dirname, '.tmp', 'public')
+    path: path.resolve(__dirname, '.tmp', 'public'),
+    publicPath: '/tracking/',
+    sourceMapFilename: 'js/[name].map',
+    chunkFilename: 'js/[id].chunk.js'
   },
 
   /***************************************************************************
@@ -161,13 +164,6 @@ if (process.env.NODE_ENV === 'production') {
 // Our Webpack Defaults
 var defaultConfig = {
   devtool: 'source-map',
-
-  output: {
-    publicPath: '',  // Relative - chunks load from same path as page (/tracking/js/ when behind proxy)
-    filename: 'js/[name].bundle.js',
-    sourceMapFilename: 'js/[name].map',
-    chunkFilename: 'js/[id].chunk.js'
-  },
 
   resolve: {
     extensions: [ '.ts', '.js' ],

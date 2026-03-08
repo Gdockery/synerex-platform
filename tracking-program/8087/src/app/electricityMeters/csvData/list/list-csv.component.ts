@@ -4,7 +4,7 @@ import {WindowRef} from "../../../shared/windowRef.component";
 
 @Component({
   selector: 'sd-list-csv',
-  templateUrl: 'list-csv.component.html'
+  templateUrl: './list-csv.component.html'
 })
 export class ListCsvComponent implements OnInit{
   @Input() public currentType;

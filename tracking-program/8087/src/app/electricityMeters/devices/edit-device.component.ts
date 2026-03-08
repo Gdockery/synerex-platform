@@ -6,7 +6,7 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
 import {PdfLinkService} from "../../shared/pdfLink.service";
 
 @Component({
-  templateUrl: 'edit-device.component.html',
+  templateUrl: './edit-device.component.html',
 })
 export class EditDeviceComponent implements OnInit {
 

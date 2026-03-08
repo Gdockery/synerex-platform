@@ -13,6 +13,7 @@ import {ProjectListComponent} from "./project/list-project.component";
 import {UserListComponent} from "./user/list-user.component";
 import {CreateUserComponent} from "./user/create-user.component";
 import {EditUserComponent} from "./user/edit-user.component";
+import {CompanySettingsComponent} from "./company/company-settings.component";
 
 @NgModule({
   imports: [
@@ -40,6 +41,7 @@ import {EditUserComponent} from "./user/edit-user.component";
         { path: 'advanced', component: AdvancedOptionsComponent },
         { path: 'branding', component: OemBrandingComponent, data: {title: 'Brand Settings'} },
         { path: 'subscription', component: ManageSubscriptionComponent, data: {title: 'Manage Subscription'} },
+        { path: 'company-settings', component: CompanySettingsComponent, data: {title: 'Company Settings'} },
       ]},
     ])
   ],

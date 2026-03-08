@@ -4,7 +4,7 @@ import {ConfirmationService} from "primeng/primeng";
 
 @Component({
   selector: 'list-repeater-alert',
-  templateUrl: 'list-repeater-alert.component.html'
+  templateUrl: './list-repeater-alert.component.html'
 })
 export class ListRepeaterAlertComponent implements OnInit {
   @Input() public currentType;

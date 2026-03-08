@@ -12,7 +12,7 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
 
 
 @Component({
-  templateUrl: 'list-files.component.html',
+  templateUrl: './list-files.component.html',
 })
 export class ListFilesComponent implements OnInit {
 

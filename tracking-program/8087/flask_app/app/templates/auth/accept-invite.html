@@ -28,8 +28,8 @@ $(function() {
   <p>Choose a password for your account.</p>
   <p><strong>Email:</strong> {{ email }}</p>
   <input type="hidden" id="token" value="{{ token }}">
-  <input type="password" id="password" placeholder="Password" required>
-  <input type="password" id="confirm_password" placeholder="Confirm password" required>
+  <input type="password" id="password" placeholder="Password" required autocomplete="new-password">
+  <input type="password" id="confirm_password" placeholder="Confirm password" required autocomplete="new-password">
   <span class="error" style="color:red;display:none"></span>
   <button type="submit">Continue</button>
 </div>

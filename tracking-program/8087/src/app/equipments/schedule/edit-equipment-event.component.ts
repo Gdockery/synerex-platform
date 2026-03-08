@@ -4,7 +4,7 @@ import {ActivatedRoute} from "@angular/router";
 import {ConfirmationService} from "primeng/primeng";
 
 @Component({
-  templateUrl: 'edit-equipment-event.component.html',
+  templateUrl: './edit-equipment-event.component.html',
   styles: [`
     .cancelled *, .cancelled {
       color: #bdbdbd !important;

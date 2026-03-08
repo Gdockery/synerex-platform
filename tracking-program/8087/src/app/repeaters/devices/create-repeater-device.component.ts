@@ -5,7 +5,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 import {RepeaterService} from "./repeater-device.service";
 
 @Component({
-  templateUrl: 'create-repeater-device.component.html',
+  templateUrl: './create-repeater-device.component.html',
 })
 export class CreateRepeaterComponent implements OnInit {
 

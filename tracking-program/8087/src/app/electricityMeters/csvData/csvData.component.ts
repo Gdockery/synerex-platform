@@ -3,7 +3,7 @@ import {CsvDataTypesService} from "./csvDataType.service";
 import {CsvDataService} from "./csvData.service";
 
 @Component({
-  templateUrl: 'csvData.component.html',
+  templateUrl: './csvData.component.html',
 })
 export class CsvDataComponent implements OnInit {
 

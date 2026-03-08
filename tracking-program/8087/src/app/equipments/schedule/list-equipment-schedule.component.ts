@@ -5,7 +5,7 @@ import { ActivatedRoute } from "@angular/router";
 import {TimeHelpers} from "../../shared/helpers/timeHelpers.service";
 
 @Component({
-  templateUrl: 'list-equipment-schedule.component.html'
+  templateUrl: './list-equipment-schedule.component.html'
 })
 export class ListEquipmentScheduleComponent {
 

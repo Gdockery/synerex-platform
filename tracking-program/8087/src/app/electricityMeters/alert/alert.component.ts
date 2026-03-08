@@ -4,7 +4,7 @@ import {ModalDirective} from "ngx-bootstrap/modal";
 import {MeterAlertTypesService} from "./meterAlertType.service";
 
 @Component({
-  templateUrl: 'alert.component.html',
+  templateUrl: './alert.component.html',
 })
 export class AlertComponent implements OnInit {
 

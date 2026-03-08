@@ -5,7 +5,7 @@ import {ConfirmationService} from "primeng/primeng";
 import {CurrentUserService} from "../../shared/user/currentUser.service";
 
 @Component({
-  templateUrl: 'edit-switch.component.html',
+  templateUrl: './edit-switch.component.html',
   styles: [`
     h3 {
       margin: 0;

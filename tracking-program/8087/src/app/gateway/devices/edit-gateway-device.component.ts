@@ -5,7 +5,7 @@ import {GatewayService} from "./gateway-device.service";
 import {ConfirmationService} from "primeng/primeng";
 
 @Component({
-  templateUrl: 'edit-gateway-device.component.html',
+  templateUrl: './edit-gateway-device.component.html',
   styles: [`
     .retired *, .retired {
       color: #bdbdbd;

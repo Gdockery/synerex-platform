@@ -8,7 +8,7 @@ import {PdfLinkService} from "../../shared/pdfLink.service";
 
 @Component({
   selector: 'view-test',
-  templateUrl: 'view-test.component.html'
+  templateUrl: './view-test.component.html'
 })
 export class ViewTestComponent implements OnInit {
   protected testData;

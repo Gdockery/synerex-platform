@@ -5,7 +5,7 @@ import {Router} from "@angular/router";
 import {ActivatedRoute} from "@angular/router";
 
 @Component({
-  templateUrl: 'create-switch.component.html',
+  templateUrl: './create-switch.component.html',
 })
 export class CreateSwitchComponent {
 

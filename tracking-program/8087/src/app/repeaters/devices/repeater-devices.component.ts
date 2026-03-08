@@ -5,7 +5,7 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
 import { SessionStorage } from '../../shared/helpers/sessionStorage.service';
 
 @Component({
-  templateUrl: 'repeater-devices.component.html',
+  templateUrl: './repeater-devices.component.html',
 })
 export class RepeaterDevicesComponent {
 

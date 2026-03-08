@@ -4,7 +4,7 @@ import { ConfirmationService } from 'primeng/primeng';
 import { ActivatedRoute } from "@angular/router";
 
 @Component({
-  templateUrl: 'list-equipment-event.component.html'
+  templateUrl: './list-equipment-event.component.html'
 })
 export class ListEquipmentEventComponent {
 

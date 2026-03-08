@@ -138,6 +138,9 @@ export default function MyAccount() {
   };
   
   const getAccessUrl = (program) => {
+    if (program === "tracking") {
+      return "http://localhost:8080/tracking/login";
+    }
     if (jwtToken) {
       return `${LICENSE_SERVICE_URL}/access/${program}?token=${encodeURIComponent(jwtToken)}`;
     }
@@ -434,7 +437,7 @@ export default function MyAccount() {
                 <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
               </a>
               <a
-                href={`${TRACKING_URL}/sso?role=admin`}
+                href="/tracking/login"
                 
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"

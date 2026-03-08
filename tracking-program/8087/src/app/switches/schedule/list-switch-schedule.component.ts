@@ -6,7 +6,7 @@ import {TimeHelpers} from "../../shared/helpers/timeHelpers.service";
 import {CurrentUserService} from "../../shared/user/currentUser.service";
 
 @Component({
-  templateUrl: 'list-switch-schedule.component.html'
+  templateUrl: './list-switch-schedule.component.html'
 })
 export class ListSwitchScheduleComponent {
 

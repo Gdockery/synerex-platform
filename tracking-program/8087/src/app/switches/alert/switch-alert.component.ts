@@ -5,8 +5,8 @@ import {SwitchAlertService} from "./switch-alert.service";
 import {SwitchAlertTypesService} from "./switch-alert-type.service";
 
 @Component({
-  templateUrl: 'switch-alert.component.html',
-  styleUrls: ['switch-alert.component.scss'],
+  templateUrl: './switch-alert.component.html',
+  styleUrls: ['./switch-alert.component.scss'],
 })
 export class SwitchAlertComponent implements OnInit {
 

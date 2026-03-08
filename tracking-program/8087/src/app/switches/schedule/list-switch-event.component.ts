@@ -5,7 +5,7 @@ import { ConfirmationService } from 'primeng/primeng';
 import { ActivatedRoute } from "@angular/router";
 
 @Component({
-  templateUrl: 'list-switch-event.component.html'
+  templateUrl: './list-switch-event.component.html'
 })
 export class ListSwitchEventComponent {
 

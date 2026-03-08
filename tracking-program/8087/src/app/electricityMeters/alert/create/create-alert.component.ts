@@ -7,7 +7,7 @@ import {DeviceService} from "../../devices/device.service";
 
 @Component({
   selector: 'sd-create-alert',
-  templateUrl: 'create-alert.component.html'
+  templateUrl: './create-alert.component.html'
 })
 export class CreateAlertComponent implements OnInit {
   @Input() public currentAlertType;
