@@ -65,7 +65,7 @@ services:
       TRACKING_URL: http://tracking-program:8087
       EMV_API_KEY: ${EMV_API_KEY:-tracking-push-secret}
       WEATHER_SERVICE_URL: http://host.docker.internal:8200
-      HTML_REPORT_URL: http://host.docker.internal:8084
+      HTML_REPORT_URL: http://html-report-service:8084
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -80,6 +80,29 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  html-report-service:
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./emv-program/8082/.env
+    environment:
+      EMV_BASE_URL: http://emv-program:8082
+      EMV_APP_URL: http://emv-program:8082
+    volumes:
+      - ./emv-program/8082:/app
+      - ./emv-program/8084:/app/8084
+    command: >
+      sh -c "pip install --no-cache-dir flask flask-cors requests &&
+             cd /app/8084 && python html_report_service.py"
+    ports:
+      - "8084:8084"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8084/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   service-manager:
     image: python:3.11-slim
     working_dir: /app

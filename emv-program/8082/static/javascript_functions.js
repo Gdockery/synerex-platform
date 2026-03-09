@@ -3869,22 +3869,83 @@ function setupTrackingIntegration() {
       const ebaRaw = (data.response && data.response.electricBillAnalysis) || {};
       const eba = ebaRaw.meterBills && ebaRaw.meterBills[0] ? Object.assign({}, ebaRaw, ebaRaw.meterBills[0]) : ebaRaw;
       const rf = (data.response && data.response.reportFields) || {};
-      const map = [
+
+      // Full field map: reportFields key → list of element id/name candidates in EMV form
+      const rfFieldMap = {
+        'company':             ['projectName', 'company'],
+        'cp_address':          ['cp_address'],
+        'cp_location':         ['cp_location'],
+        'cp_city_state':       ['cp_city_state'],
+        'cp_zip':              ['cp_zip'],
+        'contact':             ['project_contact', 'contact'],
+        'phone':               ['project_phone', 'phone'],
+        'email':               ['project_email', 'email'],
+        'project_type':        ['project-type', 'project_type'],
+        'facility_address':    ['facility_address'],
+        'location':            ['facility_city', 'location'],
+        'facility_state':      ['facility_state'],
+        'facility_zip':        ['facility_zip'],
+        'project_cost':        ['project_cost'],
+        'utility':             ['utility', 'utility_name', 'electric_company'],
+        'utility_name':        ['utility_name', 'electric_company', 'utility'],
+        'utility_program':     ['utility_program', 'utility_program_name'],
+        'account':             ['account', 'account_number'],
+        'energy_rate':         ['energy_rate'],
+        'demand_rate':         ['demand_rate'],
+        'capacity_rate':       ['capacity_rate'],
+        'billing_model':       ['billing_model'],
+        'kva_demand_rate':     ['kva_demand_rate'],
+        'reactive_adder':      ['reactive_adder'],
+        'ncp_demand_rate':     ['ncp_demand_rate'],
+        'cp_demand_rate':      ['cp_demand_rate'],
+        'coincident_peak':     ['coincident_peak', 'coincident_peak_rate'],
+        'target_pf':           ['target_pf', 'target_power_factor'],
+        'discount_rate':       ['discount_rate'],
+        'escalation_rate':     ['escalation_rate'],
+        'analysis_period':     ['analysis_period'],
+        'tou_on_peak':         ['tou_on_peak', 'tou_on_peak_rate'],
+        'tou_off_peak':        ['tou_off_peak', 'tou_off_peak_rate'],
+        'summer_fraction_pct': ['summer_fraction_pct'],
+        'summer_on_peak':      ['summer_on_peak', 'summer_on_peak_rate'],
+        'summer_off_peak':     ['summer_off_peak', 'summer_off_peak_rate'],
+        'winter_on_peak':      ['winter_on_peak', 'winter_on_peak_rate'],
+        'winter_off_peak':     ['winter_off_peak', 'winter_off_peak_rate'],
+        'onpeak_fraction_pct': ['onpeak_fraction_pct'],
+        'ratchet_percent':     ['ratchet_percent'],
+        'ratchet_ref_peak':    ['ratchet_ref_peak', 'ratchet_reference_peak'],
+      };
+
+      // Bill analytic fields from electricBillAnalysis (scalar meter data)
+      const ebaMap = [
         ['totalKwh', 'total_kwh'], ['kwPeak', 'kw_peak'], ['billAmount', 'bill_amount'],
         ['electricCompanyName', 'electric_company'], ['electricCompanyName', 'utility_name'],
         ['totalKwh', 'baseline_kwh'], ['kwPeak', 'baseline_kw']
       ];
-      const periodFrom = eba.billDate || eba.date || (rf.billAnalyticDate ? String(rf.billAnalyticDate) : null);
+
       let filled = 0;
-      map.forEach(function(m) {
-        const val = eba[m[0]];
-        if (val == null) return;
-        const field = document.querySelector('input[name="' + m[1] + '"], #' + m[1]);
-        if (field) { field.value = val; filled++; }
+
+      // Apply all saved reportFields (Client, Project, Billing info)
+      Object.keys(rfFieldMap).forEach(function(key) {
+        var val = rf[key];
+        if (val == null || val === '') return;
+        rfFieldMap[key].forEach(function(id) {
+          var el = document.getElementById(id) || document.querySelector('[name="' + id + '"]');
+          if (el && !el.value) { el.value = val; filled++; }
+        });
       });
+
+      // Apply scalar bill analytic fields from electricBillAnalysis
+      ebaMap.forEach(function(m) {
+        var val = eba[m[0]];
+        if (val == null) return;
+        var field = document.querySelector('input[name="' + m[1] + '"], #' + m[1]);
+        if (field && !field.value) { field.value = val; filled++; }
+      });
+
+      const periodFrom = eba.billDate || eba.date || (rf.billAnalyticDate ? String(rf.billAnalyticDate) : null);
       if (periodFrom) {
         const before = document.getElementById('test_period_before') || document.querySelector('input[name="test_period_before"]');
-        if (before) { before.value = periodFrom; filled++; }
+        if (before && !before.value) { before.value = periodFrom; filled++; }
       }
       setStatus('Imported ' + filled + ' field(s) from Bill Analytic.');
     } catch (e) {
@@ -4014,6 +4075,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Setup Tracking Integration (Import from Bill Analytic, Push to Tracking)
   setupTrackingIntegration();
+
+  // Pre-fill Client & Project Information fields from Tracking Savings Report ("Send to EMV")
+  if (window.TRACKING_PREFILL && typeof window.TRACKING_PREFILL === 'object') {
+    const prefill = window.TRACKING_PREFILL;
+    const fieldMap = {
+      // Client Information
+      'company':              ['projectName', 'company'],
+      'cp_address':           ['cp_address'],
+      'cp_location':          ['cp_location'],
+      'cp_city_state':        ['cp_city_state'],
+      'cp_zip':               ['cp_zip'],
+      'contact':              ['project_contact', 'contact'],
+      'phone':                ['project_phone', 'phone'],
+      'email':                ['project_email', 'email'],
+      // Project Information
+      'project_type':         ['project-type', 'project_type'],
+      'facility_address':     ['facility_address'],
+      'location':             ['facility_city', 'location'],
+      'facility_state':       ['facility_state'],
+      'facility_zip':         ['facility_zip'],
+      // Billing Information
+      'project_cost':         ['project_cost'],
+      'utility':              ['utility', 'utility_name', 'electric_company'],
+      'utility_name':         ['utility_name', 'electric_company', 'utility'],
+      'utility_program':      ['utility_program', 'utility_program_name'],
+      'account':              ['account', 'account_number'],
+      'energy_rate':          ['energy_rate'],
+      'demand_rate':          ['demand_rate'],
+      'capacity_rate':        ['capacity_rate'],
+      'billing_model':        ['billing_model'],
+      'kva_demand_rate':      ['kva_demand_rate'],
+      'reactive_adder':       ['reactive_adder'],
+      'ncp_demand_rate':      ['ncp_demand_rate'],
+      'cp_demand_rate':       ['cp_demand_rate'],
+      'coincident_peak':      ['coincident_peak', 'coincident_peak_rate'],
+      'target_pf':            ['target_pf', 'target_power_factor'],
+      'discount_rate':        ['discount_rate'],
+      'escalation_rate':      ['escalation_rate'],
+      'analysis_period':      ['analysis_period'],
+      'tou_on_peak':          ['tou_on_peak', 'tou_on_peak_rate'],
+      'tou_off_peak':         ['tou_off_peak', 'tou_off_peak_rate'],
+      'summer_fraction_pct':  ['summer_fraction_pct'],
+      'summer_on_peak':       ['summer_on_peak', 'summer_on_peak_rate'],
+      'summer_off_peak':      ['summer_off_peak', 'summer_off_peak_rate'],
+      'winter_on_peak':       ['winter_on_peak', 'winter_on_peak_rate'],
+      'winter_off_peak':      ['winter_off_peak', 'winter_off_peak_rate'],
+      'onpeak_fraction_pct':  ['onpeak_fraction_pct'],
+      'ratchet_percent':      ['ratchet_percent'],
+      'ratchet_ref_peak':     ['ratchet_ref_peak', 'ratchet_reference_peak'],
+    };
+    let filled = 0;
+    Object.keys(prefill).forEach(function(key) {
+      const val = prefill[key];
+      if (!val) return;
+      const ids = fieldMap[key] || [key];
+      ids.forEach(function(id) {
+        const el = document.getElementById(id) || document.querySelector('[name="' + id + '"]');
+        if (el && !el.value) { el.value = val; filled++; }
+      });
+    });
+    if (filled > 0) {
+      console.log('[TRACKING_PREFILL] Pre-filled ' + filled + ' field(s) from Tracking Savings Report.');
+    }
+  }
+
   // Ensure Push to Tracking always responds - event delegation in case post-analysis handler attachment fails
   document.addEventListener('click', function(e) {
     var t = e.target;

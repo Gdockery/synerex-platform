@@ -121,6 +121,33 @@ def create_meter():
     if Meter.query.filter_by(deviceId=device_id, isDeleted=False).first():
         return jsonify({"error": "A meter already exists with this device ID"}), 409
 
+    # Enforce meter_limit from license entitlements
+    from flask_login import current_user as _cu
+    if getattr(_cu, "role", None) != 8:
+        from app.services.license_service import get_limit
+        from app.models.project import Project as _Proj
+        from app.models.client import Client as _Cli
+        _proj = _Proj.query.filter_by(id=vals["project"], isDeleted=False).first()
+        _org_id = getattr(_proj, "org_id", None) if _proj else None
+        if not _org_id and _proj and _proj.client:
+            _cli = _Cli.query.filter_by(id=_proj.client, isDeleted=False).first()
+            _org_id = getattr(_cli, "org_id", None) if _cli else None
+        if _org_id:
+            meter_limit = get_limit(_org_id, "meter_limit", "tracking")
+            if meter_limit is not None and meter_limit > 0:
+                from app.models.meter import Meter as _M
+                current_count = _M.query.join(
+                    _Proj, _M.project == _Proj.id
+                ).filter(_Proj.org_id == _org_id, _M.isDeleted == False).count()
+                if current_count >= meter_limit:
+                    return jsonify({
+                        "error": f"Meter limit reached ({current_count}/{meter_limit}). Please upgrade your subscription.",
+                        "code": "LIMIT_EXCEEDED",
+                        "limit": "meter_limit",
+                        "current": current_count,
+                        "max": meter_limit,
+                    }), 403
+
     m = Meter(deviceId=device_id, project=vals["project"], isDeleted=False)
     for k in ("name", "meshId", "meshIp", "meterSerialNumber", "gateway", "isReporting", "multiplier",
               "isSub", "isMain", "isFilter"):

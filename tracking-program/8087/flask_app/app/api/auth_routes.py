@@ -17,7 +17,7 @@ from app.db.org_db import get_org_session, ensure_org_db, use_per_org_db
 from app.helpers.auth import validate_password
 from app.models.client import Client
 from app.models.user import User
-from app.services.license_service import verify_jwt
+from app.services.license_service import verify_jwt, verify_credentials
 
 
 def _get_client_name(user):
@@ -127,13 +127,23 @@ def login():
 
     sess = get_session()
     user = sess.query(User).filter_by(email=email, isDeleted=False).first()
-    if not user or not user.hashedPassword:
-        return _login_fail()
-    try:
-        if not bcrypt.checkpw(password.encode("utf-8"), user.hashedPassword.encode("utf-8")):
+
+    # Try local password first; fall back to License Service credential verification
+    local_ok = False
+    if user and user.hashedPassword:
+        try:
+            local_ok = bcrypt.checkpw(password.encode("utf-8"), user.hashedPassword.encode("utf-8"))
+        except (ValueError, TypeError):
+            local_ok = False
+
+    if not local_ok:
+        license_url = current_app.config.get("LICENSE_SERVICE_URL")
+        claims = verify_credentials(email, password, license_service_url=license_url) if license_url else None
+        if not claims:
             return _login_fail()
-    except (ValueError, TypeError):
-        return _login_fail()
+        # If no local user, we can't log them in to the tracking app (no tracking record)
+        if not user:
+            return _login_fail()
 
     login_user(user, remember=True)
     session["userId"] = user.id
@@ -147,6 +157,40 @@ def login():
         "clientName": _get_client_name(user),
     }
     _set_org_id_in_session(user)
+
+    # Enforce seat limit — non-admin users consume a seat on the org's active license
+    if getattr(user, "role", None) != 8:
+        try:
+            from app.services.license_service import check_seat_available, assign_seat
+            org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+            if org_id:
+                available, license_id, seat_err = check_seat_available(org_id, "tracking")
+                if not available:
+                    logout_user()
+                    if _wants_json_response():
+                        return {"status": "error", "error": seat_err or "Seat limit reached. Please contact your administrator."}, 403
+                    base = current_app.config.get("APPLICATION_ROOT", "") or ""
+                    return redirect(f"{base}/login?error=seat_limit")
+                if license_id:
+                    assign_seat(license_id, str(user.id))
+        except Exception as _seat_ex:
+            current_app.logger.warning("Seat check failed at login (fail open): %s", _seat_ex)
+
+    # Enforce seat limit — check and assign seat for non-admin users
+    if getattr(user, "role", None) != 8:
+        org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if org_id:
+            from app.services.license_service import check_seat_available, assign_seat, get_license_for_org
+            available, license_id, seat_error = check_seat_available(org_id, "tracking")
+            if not available:
+                from flask_login import logout_user
+                logout_user()
+                if _wants_json_response():
+                    return {"status": "error", "error": seat_error, "code": "SEAT_LIMIT_EXCEEDED"}, 403
+                base = current_app.config.get("APPLICATION_ROOT", "") or ""
+                return redirect(f"{base}/login?error=seat_limit")
+            if license_id:
+                assign_seat(license_id, str(user.id))  # best-effort, non-blocking
 
     if _wants_json_response():
         return {"status": "success"}
@@ -219,8 +263,10 @@ def verify_jwt_route():
 
 @auth_bp.route("/sso", methods=["GET"])
 def sso_login():
-    """GET /sso?token=... - SSO login via JWT from License Service. Always redirects to login page."""
-    return redirect(_login_url())
+    """GET /sso?token=... - SSO login via JWT from License Service."""
+    token = request.args.get("token")
+    if not token:
+        return redirect(_login_url())
 
     license_url = current_app.config.get("LICENSE_SERVICE_URL")
     if not license_url:

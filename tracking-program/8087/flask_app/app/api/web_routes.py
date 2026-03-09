@@ -1042,6 +1042,24 @@ def create_project():
     if not _user_can_create_project_for_client(sess, user, client):
         return jsonify({"error": "You cannot create projects for this client"}), 403
 
+    # Enforce project_limit from license entitlements
+    user_org_id = getattr(client, "org_id", None) or session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if user_org_id and getattr(user, "role", None) != 8:
+        from app.services.license_service import get_limit
+        project_limit = get_limit(user_org_id, "site_limit", "tracking")
+        if project_limit is not None and project_limit > 0:
+            existing_count = sess.query(Project).filter_by(isDeleted=False).join(
+                Client, Project.client == Client.id
+            ).filter(Client.org_id == user_org_id).count()
+            if existing_count >= project_limit:
+                return jsonify({
+                    "error": f"Project limit reached ({existing_count}/{project_limit}). Please upgrade your subscription.",
+                    "code": "LIMIT_EXCEEDED",
+                    "limit": "site_limit",
+                    "current": existing_count,
+                    "max": project_limit,
+                }), 403
+
     # Ensure client has org_id so project appears in EMV dropdown (filtered by org_id)
     client_org_id = getattr(client, "org_id", None) or ""
     if not str(client_org_id).strip():

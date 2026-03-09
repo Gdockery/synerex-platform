@@ -57,6 +57,24 @@ def _call_license_api(method: str, path: str, body: dict = None, license_service
         return None
 
 
+def verify_credentials(email: str, password: str, license_service_url: str = None) -> Optional[dict]:
+    """
+    Verify email+password against the License Service.
+    Returns user info dict (with org_id, org_type, etc.) if valid, None otherwise.
+    """
+    if not email or not password:
+        return None
+    result = _call_license_api(
+        "POST",
+        "/auth/api/verify-credentials",
+        body={"email": email, "password": password},
+        license_service_url=license_service_url,
+    )
+    if not result or "_http_error" in result:
+        return None
+    return result if result.get("valid") else None
+
+
 def get_license_for_org(org_id: str, program_id: str = "tracking") -> Optional[dict]:
     """
     Get the active license for an org from the license service.
@@ -116,3 +134,108 @@ def check_seat_available(org_id: str, program_id: str = "tracking") -> tuple:
     if used >= seat_limit:
         return False, license_id, f"Seat limit reached ({used}/{seat_limit}). Please upgrade your subscription."
     return True, license_id, None
+
+
+def get_license_entitlements(org_id: str, program_id: str = "tracking") -> Optional[dict]:
+    """
+    Fetch the full entitlements dict for an org's active license.
+    Returns { features: [...], limits: {...} } or None if no active license.
+    Cached for 5 minutes to reduce License Service calls.
+    """
+    result = _call_license_api("GET", f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}")
+    if not result or not result.get("valid"):
+        return None
+    return result.get("entitlements") or {}
+
+
+def check_feature(org_id: str, feature: str, program_id: str = "tracking") -> bool:
+    """
+    Return True if the org's active license for the given program includes the named feature.
+    Fails open (returns True) if the License Service is unreachable.
+    """
+    if not org_id:
+        return True  # Fail open
+    result = _call_license_api(
+        "GET",
+        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&feature={feature}"
+    )
+    if result is None:
+        return True  # Fail open — License Service unreachable
+    if not result.get("valid"):
+        return False  # No active license
+    return bool(result.get("has_feature", False))
+
+
+def get_limit(org_id: str, limit_name: str, program_id: str = "tracking") -> Optional[int]:
+    """
+    Return the numeric value of a license limit for an org (e.g. meter_limit, seat_limit, project_limit).
+    Returns None if no active license or limit not set (meaning unlimited).
+    """
+    if not org_id:
+        return None
+    result = _call_license_api(
+        "GET",
+        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&limit={limit_name}"
+    )
+    if not result or not result.get("valid"):
+        return None
+    val = result.get("limit_value")
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def get_license_entitlements(org_id: str, program_id: str = "tracking") -> dict:
+    """
+    Fetch full entitlements for an org's active license.
+    Returns entitlements dict (features list + limits dict), or empty dict if none.
+    """
+    if not org_id:
+        return {}
+    result = _call_license_api("GET", f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}")
+    if not result or not result.get("valid"):
+        return {}
+    return result.get("entitlements") or {}
+
+
+def has_feature(org_id: str, feature: str, program_id: str = "tracking") -> bool:
+    """
+    Return True if the org's active license includes the given feature.
+    Fails open (returns True) if the License Service is unreachable.
+    """
+    if not org_id or not feature:
+        return True  # fail open
+    result = _call_license_api(
+        "GET",
+        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&feature={feature}"
+    )
+    if result is None:
+        return True  # fail open — license service unreachable
+    if not result.get("valid"):
+        return False  # no active license
+    return bool(result.get("has_feature", True))
+
+
+def get_limit(org_id: str, limit_name: str, program_id: str = "tracking") -> Optional[int]:
+    """
+    Return a numeric limit from the org's active license entitlements, or None if not set.
+    e.g. get_limit(org_id, 'meter_limit'), get_limit(org_id, 'project_limit')
+    """
+    if not org_id or not limit_name:
+        return None
+    result = _call_license_api(
+        "GET",
+        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&limit={limit_name}"
+    )
+    if not result or not result.get("valid"):
+        return None
+    val = result.get("limit_value")
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None

@@ -160,6 +160,44 @@ def emv_project_bill_analytic():
 
 
 # -----------------------------------------------------------------------------
+# Step 2b: Save EM&V Pre-fill Fields
+# -----------------------------------------------------------------------------
+
+@emv_bp.route("/api/emv/save-prefill", methods=["POST"])
+@emv_api_key_or_login
+def emv_save_prefill():
+    """
+    POST /api/emv/save-prefill
+    Called by Tracking frontend when user clicks "Send to EM&V".
+    Saves all Client/Project/Billing pre-fill fields into project.reportFields
+    so the EMV dropdown import can retrieve them without URL parameters.
+    Body: { orgId, projectId, clientId, fields: { company, cp_address, ... } }
+    """
+    data = request.get_json() or {}
+    org_id = (data.get("orgId") or "").strip()
+    project_id_arg = data.get("projectId")
+    fields = data.get("fields") or {}
+    if not org_id or project_id_arg is None:
+        return jsonify({"error": "orgId and projectId are required"}), 400
+    try:
+        project_id = int(project_id_arg)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid projectId"}), 400
+    sess = get_session()
+    q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
+    p = q.first()
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+    if not _is_emv_api_key_request() and not _user_has_project_access(sess, project_id):
+        return jsonify({"error": "Access denied"}), 403
+    existing = dict(p.reportFields or {})
+    existing.update({k: v for k, v in fields.items() if v is not None and v != ""})
+    p.reportFields = existing
+    sess.commit()
+    return jsonify({"meta": {}, "response": {"saved": len(fields)}}), 200
+
+
+# -----------------------------------------------------------------------------
 # Step 3 & 4: EMV Analysis Storage + Push Baseline API
 # -----------------------------------------------------------------------------
 

@@ -217,6 +217,126 @@ def _normalize_return_url(return_url: str) -> str:
     return return_url
 
 
+@router.get("/change-password", response_class=HTMLResponse)
+def change_password_page(request: Request):
+    """Display change password form for logged-in users."""
+    if not _is_user_logged_in(request):
+        login_url = _path("/auth/login")
+        return_url = _path("/auth/change-password")
+        return RedirectResponse(f"{login_url}?return_url={return_url}", status_code=303)
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+    username = request.session.get("username", "")
+    path_prefix = (settings.root_path or "").rstrip("/")
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Change Password - Synerex Platform</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; line-height: 1.6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }}
+    .card {{ background: white; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); padding: 2.5rem; width: 100%; max-width: 440px; }}
+    .logo-container {{ text-align: center; margin-bottom: 1.5rem; }}
+    .logo-container img {{ height: 44px; max-width: 180px; }}
+    h1 {{ font-size: 1.4rem; font-weight: 700; color: #2c3e50; margin-bottom: 0.25rem; text-align: center; }}
+    .subtitle {{ font-size: 0.9rem; color: #718096; margin-bottom: 1.75rem; text-align: center; }}
+    .form-group {{ margin-bottom: 1.1rem; }}
+    .form-group label {{ display: block; font-weight: 500; color: #4a5568; margin-bottom: 0.35rem; font-size: 0.9rem; }}
+    .form-group input {{ width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.95rem; transition: border-color 0.2s; }}
+    .form-group input:focus {{ outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12); }}
+    .btn {{ display: block; width: 100%; padding: 0.7rem; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-top: 1.5rem; transition: background 0.2s; }}
+    .btn:hover {{ background: #5a67d8; }}
+    .back-link {{ display: block; text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #667eea; text-decoration: none; }}
+    .back-link:hover {{ text-decoration: underline; }}
+    .message {{ padding: 0.85rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.9rem; font-weight: 500; }}
+    .message.ok {{ background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }}
+    .message.error {{ background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }}
+    .hint {{ font-size: 0.8rem; color: #a0aec0; margin-top: 0.25rem; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-container">
+      <img src="{path_prefix}/static/synerex_logo_color.png" alt="Synerex"/>
+    </div>
+    <h1>Change Password</h1>
+    <p class="subtitle">Logged in as <strong>{username}</strong></p>
+    {"<div class='message ok'>" + message + "</div>" if message and message_type != "error" else ""}
+    {"<div class='message error'>" + message + "</div>" if message and message_type == "error" else ""}
+    <form method="post" action="{path_prefix}/auth/change-password" autocomplete="off">
+      <div class="form-group">
+        <label for="current_password">Current Password</label>
+        <input type="password" id="current_password" name="current_password" required autocomplete="current-password"/>
+      </div>
+      <div class="form-group">
+        <label for="new_password">New Password</label>
+        <input type="password" id="new_password" name="new_password" required autocomplete="new-password" minlength="8"/>
+        <div class="hint">Minimum 8 characters.</div>
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm New Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password"/>
+      </div>
+      <button type="submit" class="btn">Update Password</button>
+    </form>
+    <a href="{(settings.website_url or "").rstrip("/")}/my-account" class="back-link">← Back to My Account</a>
+  </div>
+</body>
+</html>""")
+
+
+@router.post("/change-password", response_class=RedirectResponse)
+def change_password_submit(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Process password change for logged-in user."""
+    change_url = _path("/auth/change-password")
+    if not _is_user_logged_in(request):
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    username = request.session.get("username")
+    if not username:
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    if new_password != confirm_password:
+        return RedirectResponse(
+            f"{change_url}?message=New+passwords+do+not+match&message_type=error", status_code=303
+        )
+    if len(new_password) < 8:
+        return RedirectResponse(
+            f"{change_url}?message=Password+must+be+at+least+8+characters&message_type=error", status_code=303
+        )
+
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        return RedirectResponse(
+            f"{change_url}?message=User+not+found&message_type=error", status_code=303
+        )
+
+    try:
+        current_valid = bcrypt.checkpw(current_password.encode("utf-8"), user.password_hash.encode("utf-8"))
+    except Exception:
+        current_valid = False
+
+    if not current_valid:
+        return RedirectResponse(
+            f"{change_url}?message=Current+password+is+incorrect&message_type=error", status_code=303
+        )
+
+    user.password_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    db.commit()
+
+    return RedirectResponse(
+        f"{change_url}?message=Password+updated+successfully&message_type=success", status_code=303
+    )
+
+
 @router.get("/logout-all")
 def client_logout_all(request: Request):
     """Unified logout (GET for link navigation). Clears session, redirects to website Home page."""
@@ -234,6 +354,39 @@ def get_user_jwt(request: Request):
     if not token:
         raise HTTPException(404, "JWT not available")
     return {"token": token}
+
+
+@router.post("/api/verify-credentials")
+def verify_credentials(body: dict, db: Session = Depends(db_session)):
+    """Verify username+password for a user — used by other services (e.g. Tracking Program) for SSO credential check."""
+    username = body.get("username") or body.get("email")
+    password = body.get("password")
+    if not username or not password:
+        raise HTTPException(400, "username and password required")
+
+    user = db.query(User).filter(
+        (User.username == username) | (User.email == username)
+    ).first()
+    if not user:
+        raise HTTPException(401, "Invalid credentials")
+
+    try:
+        valid = bcrypt.checkpw(password.encode("utf-8"), user.password_hash.encode("utf-8"))
+    except Exception:
+        valid = False
+
+    if not valid:
+        raise HTTPException(401, "Invalid credentials")
+
+    org = db.get(Organization, user.org_id) if user.org_id else None
+    return {
+        "valid": True,
+        "username": user.username,
+        "email": getattr(user, "email", None),
+        "org_id": user.org_id,
+        "org_type": org.org_type if org else None,
+        "org_name": org.org_name if org else None,
+    }
 
 
 @router.post("/api/verify-jwt")

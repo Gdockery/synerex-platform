@@ -6,117 +6,85 @@
   </div>
   <div *ngIf="hasAnalytic===true && (userService.user.role === 8 || userService.user.role === 7) && !viewOwnerManuals" class="row">
     <hr>
-    <h3>Sales Documents & Agreements</h3>
+    <h3>Sales Documents &amp; Agreements</h3>
     <p>XECO Energy sales and financial agreement and tools for sales representatives.</p>
     <div class="col-md-2">
       <h4>Financing Agreement</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.financeAgreement}}" target="_blank" #proposal><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.financeAgreement}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
     <div class="col-md-2">
-      <h4>Bill Analytic</h4> 
+      <h4>Bill Analytic</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.billAnalytic}}" target="_blank" #proposal><img src="/images/bill_analytic_cover.png" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.billAnalytic}}" target="_blank"><img src="/images/bill_analytic_cover.png" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
-    
     <div class="col-md-2">
       <h4>Proposal</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.proposal}}" target="_blank" #proposal><img src="/images/xeco_proposal_cover.png" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.proposal}}" target="_blank"><img src="/images/xeco_proposal_cover.png" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
-
     <div class="col-md-2">
       <h4>Lost Savings Tracker</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.lsPotential}}" target="_blank" #proposal><img src="/images/xeco_lsp_cover.png" style="width:210px; height:160px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.lsPotential}}" target="_blank"><img src="/images/xeco_lsp_cover.png" style="width:210px; height:160px;"/></a>
+      </div></div>
     </div>
 
     <div class="col-md-12" *ngIf="userService.user.role === 8 || userService.user.role === 4 || userService.user.role === 7">
-    <h3>Install Guides</h3>
-    <p>Installation instructions for equipments and softwre devices</p>
-
-    <div *ngIf="hasAnalytic && (userService.user.role === 8) && !viewOwnerManuals" class="col-md-2">
-      <h4>Xeco Hardware Install Guide</h4>
-      <div>
-        <div class="well invoice-link">
-          <a href="/images/xeco-hardware-install-guide.pdf" target="_blank" #proposal><img src="/images/xeco-hardware-install-cover.png" style="width:160px; height:210px;"/></a>
-        </div>
+      <h3>Install Guides</h3>
+      <p>Installation instructions for equipments and software devices</p>
+      <div *ngIf="hasAnalytic && (userService.user.role === 8) && !viewOwnerManuals" class="col-md-2">
+        <h4>Xeco Hardware Install Guide</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/xeco-hardware-install-guide.pdf" target="_blank"><img src="/images/xeco-hardware-install-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2" *ngIf="userService.user.role === 8">
+        <h4>Xeco Software Install Guide</h4>
+        <p></p>
+        <div><div class="well invoice-link">
+          <a href="/images/xeco-software-install-guide.pdf" target="_blank"><img src="/images/xeco-software-install-cover.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
       </div>
     </div>
-    <div class="col-md-2" *ngIf="userService.user.role === 8">
-      <h4>Xeco Software Install Guide</h4>
-      <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="/images/xeco-software-install-guide.pdf" target="_blank" #proposal><img src="/images/xeco-software-install-cover.jpg" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-    
 
     <div class="col-md-12" *ngIf="userService.user.role === 8 || userService.user.role === 4 || userService.user.role === 7">
       <h3>Invoices</h3>
       <p>XECO Energy uses three different invoices during its onboarding process for a new client project. Stakeholders can view or download each invoice as a PDF file using the links below.</p>
-
       <div class="col-md-3">
         <h4>Deposit Invoice</h4>
-        <div>
-          <div class="well invoice-link">
-            <!--<a href="{{links.depositInvoice}}" target="_blank" #depositInvoice><img src="/images/deposit_invoice.png" style="width:230px; height:160px;"/></a>-->
-            <a (click)="showModal(1);formModal.show();" target="_blank" #depositInvoice><img src="/images/deposit_invoice.png" style="width:230px; height:160px;"/></a>
-          </div>
-        </div>
+        <div><div class="well invoice-link">
+          <a (click)="showModal(1);formModal.show();" target="_blank" #depositInvoice><img src="/images/deposit_invoice.png" style="width:230px; height:160px;"/></a>
+        </div></div>
       </div>
-
       <div class="col-md-3">
         <h4>Installation Invoice</h4>
-        <div>
-          <div class="well invoice-link">
-            
-            <a (click)="showModal(2);formModal.show();" target="_blank" #installationInvoice><img src="/images/installation_invoice.png" style="width:230px; height:160px;"/></a>
-          </div>
-        </div>
+        <div><div class="well invoice-link">
+          <a (click)="showModal(2);formModal.show();" target="_blank" #installationInvoice><img src="/images/installation_invoice.png" style="width:230px; height:160px;"/></a>
+        </div></div>
       </div>
-
       <div class="col-md-3">
         <h4>Final Invoice</h4>
-        <div>
-          <div class="well invoice-link">
-            <a (click)="showModal(3);formModal.show();" target="_blank" #finalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
-          </div>
-        </div>
+        <div><div class="well invoice-link">
+          <a (click)="showModal(3);formModal.show();" target="_blank" #finalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
+        </div></div>
       </div>
-
       <div class="col-md-3">
         <h4>Total Invoice</h4>
-        <div>
-          <div class="well invoice-link">
-            
-            <a href="{{links.totalInvoice}}" target="_blank" #totalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
-
-          </div>
-        </div>
+        <div><div class="well invoice-link">
+          <a href="{{links.totalInvoice}}" target="_blank" #totalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
+        </div></div>
       </div>
     </div>
-    <div class="modal fade" bsModal #formModal="bs-modal" >
+
+    <div class="modal fade" bsModal #formModal="bs-modal">
       <div class="modal-dialog modal-sm">
         <div class="modal-content">
           <div class="modal-header">
@@ -128,19 +96,13 @@
                 <div class="col-md-12">
                   <div class="form-group">
                     <label for="invoiceDate">Invoice Date</label>
-                    <my-date-picker
-                      name="invoiceDate"
-                      id="invoiceDate"
-                      [options]="datePickerOptions"
-                      formControlName="invoiceDate">
-                    </my-date-picker>
+                    <my-date-picker name="invoiceDate" id="invoiceDate" [options]="datePickerOptions" formControlName="invoiceDate"></my-date-picker>
                     <div *ngIf="form.controls.invoiceDate.errors && (form.controls.invoiceDate.dirty || form.controls.invoiceDate.touched)" class="alert alert-danger">
                       A valid date must be provided.
                     </div>
                   </div>
                 </div>
               </div>
-
               <div class="row">
                 <div class="col-md-12 text-right">
                   <a class="btn btn-default cancel-btn" (click)="invoiceDateUpdated=false;invoiceType=null;formModal.hide();">Cancel</a>
@@ -158,175 +120,129 @@
   <div class="col-md-12" *ngIf="hasAnalytic===true && (userService.user.role === 8 || userService.user.role === 4 || userService.user.role === 7)">
     <h3>Logistics Documents</h3>
     <p>Documents needed for customs and procurement.</p>
-
     <div *ngIf="hasAnalytic && (userService.user.role === 8) && !viewOwnerManuals" class="col-md-2">
       <h4>Parts Procurement</h4>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.partsProcurement}}" target="_blank" #partsProcurement><img src="/images/parts_procurement_cover.png" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.partsProcurement}}" target="_blank"><img src="/images/parts_procurement_cover.png" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8">
       <h4>Shipping Docs</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.shippingDocuments}}" target="_blank" #proposal><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.shippingDocuments}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8">
       <h4>EU Declaration</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="/images/EU-declaration.pdf" target="_blank" #proposal><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="/images/EU-declaration.pdf" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8">
       <h4>Meter Certificate</h4>
       <p></p>
-      <div>
-        <div class="well invoice-link">
-          <a href="{{links.meterCertificate}}" target="_blank" #proposal><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
-        </div>
-      </div>
+      <div><div class="well invoice-link">
+        <a href="{{links.meterCertificate}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+      </div></div>
     </div>
   </div>
-
 
   <button *ngIf="viewOwnerManuals" class="default-button green-button pull-left" (click)="viewOwnerManuals=false">Back to Documents</button>
   <div *ngIf="!viewOwnerManuals" class="col-md-2">
     <h3>Owner Manuals</h3>
-   
-    <div>
-      <div class="well invoice-link">
-        <img (click)="viewOwnerManuals=true" src="/images/view-owner-manuals.jpg" style="width:160px; height:210px;"/>
+    <div><div class="well invoice-link">
+      <img (click)="viewOwnerManuals=true" src="/images/view-owner-manuals.jpg" style="width:160px; height:210px;"/>
+    </div></div>
+  </div>
+
+  <div *ngIf="viewOwnerManuals" class="col-md-12">
+    <div class="row">
+      <h3>Owner Manuals</h3>
+      <div class="col-md-2">
+        <h4>ES 40 Manual</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/es-40-owners-manual.pdf" target="_blank"><img src="/images/es-40-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>ES 60 Manual</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/es-60-owners-manual.pdf" target="_blank"><img src="/images/es-60-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>ES 90 Manual</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/es-90-owners-manual.pdf" target="_blank"><img src="/images/es-90-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>LC 600 Manual</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/lc-600-owners-manual.pdf" target="_blank"><img src="/images/lc-600-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>XPS 3037 Manual</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/xps-3037-owners-manual.pdf" target="_blank"><img src="/images/xps-3037-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h3>Quick Install Guides</h3>
+      <div class="col-md-2">
+        <h4>Load Controller</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/load-controll-install.pdf" target="_blank"><img src="/images/load-controller-install-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>Network Setup</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/network-install.pdf" target="_blank"><img src="/images/network-install-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>Switch Gear</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/switch-install.pdf" target="_blank"><img src="/images/switch-gear-install-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h3>Others</h3>
+      <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
+        <h4>Identifier Worksheet</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/identifier-code-worksheet.pdf" target="_blank"><img src="/images/identifier-code-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
+        <h4>Walk Through Worksheet</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/walk-through-worksheet.pdf" target="_blank"><img src="/images/walk-through-cover.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>PM Safety Handbook</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/pm-safety-handbook.pdf" target="_blank"><img src="/images/xeco-pm-safety-handbook.png" style="width:160px; height:210px;"/></a>
+        </div></div>
+      </div>
+      <div class="col-md-2">
+        <h4>Xeco Quick User Guide</h4>
+        <div><div class="well invoice-link">
+          <a href="/images/quick_user_guide.pdf" target="_blank"><img src="/images/quick_user_guide.jpg" style="width:160px; height:210px;"/></a>
+        </div></div>
       </div>
     </div>
   </div>
-   
-  <div *ngIf="viewOwnerManuals" class="col-md-12">
-      <div class="row">
-        <h3>Owner Manuals</h3>
-        <div class="col-md-2">
-          <h4>ES 40 Manual</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/es-40-owners-manual.pdf" target="_blank" #proposal><img src="/images/es-40-owners-manual.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-md-2">
-          <h4>ES 60 Manual</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/es-60-owners-manual.pdf" target="_blank" #proposal><img src="/images/es-60-owners-manual.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
 
-        <div class="col-md-2">
-          <h4>ES 90 Manual</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/es-90-owners-manual.pdf" target="_blank" #proposal><img src="/images/es-90-owners-manual.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <h4>LC 600 Manual</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/lc-600-owners-manual.pdf" target="_blank" #proposal><img src="/images/lc-600-owners-manual.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <h4>XPS 3037 Manual</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/xps-3037-owners-manual.pdf" target="_blank" #proposal><img src="/images/xps-3037-owners-manual.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="row">
-        <h3>Quick Install Guides</h3>
-        <div class="col-md-2">
-          <h4>Load Controller</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/load-controll-install.pdf" target="_blank" #proposal><img src="/images/load-controller-install-cover.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-        
-        <div class="col-md-2">
-          <h4>Network Setup</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/network-install.pdf" target="_blank" #proposal><img src="/images/network-install-cover.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <h4>Switch Gear</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/switch-install.pdf" target="_blank" #proposal><img src="/images/switch-gear-install-cover.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <h3>Others</h3>
-        <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
-          <h4>Identifier Worksheet</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/identifier-code-worksheet.pdf" target="_blank" #proposal><img src="/images/identifier-code-cover.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
-          <h4>Walk Through Worksheet</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/walk-through-worksheet.pdf" target="_blank" #proposal><img src="/images/walk-through-cover.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-2">
-          <h4>PM Safety Handbook</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/pm-safety-handbook.pdf" target="_blank" #proposal><img src="/images/xeco-pm-safety-handbook.png" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <h4>Xeco Quick User Guide</h4>
-          <div>
-            <div class="well invoice-link">
-              <a href="/images/quick_user_guide.pdf" target="_blank" #proposal><img src="/images/quick_user_guide.jpg" style="width:160px; height:210px;"/></a>
-            </div>
-          </div>
-        </div>
-      </div>
-  </div>
-  
 </div>
 
 <style>
@@ -337,9 +253,9 @@
   }
   div .modal {
     margin-top: auto;
-    margin-bottom: auto ;
+    margin-bottom: auto;
     margin-left: auto;
-    margin-right: auto ;
+    margin-right: auto;
     height: 510px;
   }
 </style>

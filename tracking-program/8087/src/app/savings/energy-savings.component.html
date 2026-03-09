@@ -5,7 +5,11 @@
 
   <div [hidden]="!selectedTest" class="container-fluid">
     <div *ngIf="!loaded ">&nbsp;&nbsp;Loading... </div>
-    <div [hidden]="!loaded" class="row content-box"> 
+    <div *ngIf="emvRequired" style="background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:1em 1.5em; margin:0.75em 0; color:#856404;">
+      <strong style="font-size:1.1em;">&#9888; EM&amp;V Analysis Required</strong>
+      <p style="margin:0.4em 0 0;">Energy savings tracking is not active yet. An EM&amp;V report must be completed and posted from the EM&amp;V Program before real-time savings can be displayed. Pre-installation Bill Analytic estimates are intentionally excluded from this dashboard.</p>
+    </div>
+    <div [hidden]="!loaded || emvRequired" class="row content-box"> 
       <div class="col-md-8"> 
         <button *ngIf="userService.user.role === 8" type="button" class="default-button green-button" (click)="calculateProjectSavings()">Calculate Project Savings</button>
         <button *ngIf="userService.user.role === 8" type="button" class="default-button green-button" (click)="calculateSavings()">Calculate Meter Savings</button>

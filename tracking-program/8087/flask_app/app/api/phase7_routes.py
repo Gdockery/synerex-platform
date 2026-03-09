@@ -442,6 +442,37 @@ def get_current_savings(project_id):
                 return float(v or 0)
         return 0.0
 
+    # Energy Dashboard must not display savings until the EM&V report has been
+    # submitted and pushed back. Without a verified analysis, kwhSavings and
+    # kwPeakSavings are only pre-installation estimates and must not be used.
+    if not getattr(p, "active_emv_analysis_id", None):
+        now = datetime.now()
+        return jsonify({"meta": {}, "response": {
+            "emvRequired": True,
+            "todayKwh": round(gv("today", "kwh") * (p.multiplier or 1), 2),
+            "hours": now.strftime("%H"),
+            "minutes": now.strftime("%M"),
+            "todayAvgKw": round(p.avg15MinuteKva or 0, 2),
+            "kwPeakPercentSaving": 0,
+            "billingRate": round(float(p.kwRate or 0), 2),
+            "avgRate": round(float(p.kwhRate or 0), 5),
+            "todayKwhSaving": 0,
+            "totalMonthSaving": 0,
+            "totalLastMonthSaving": 0,
+            "totalYearSaving": 0,
+            "totalAllTimeSaving": 0,
+            "currentMonthKwh": round(gv("month", "kwh") * (p.multiplier or 1), 2),
+            "daysOfMonthRecorded": now.day,
+            "monthPeakTime": "",
+            "projectMonths": 0,
+            "beforePf": round(p.initialPf or 100, 2),
+            "afterPf": round(p.lastTotalPf or 100, 2),
+            "balance": 0,
+            "remainingROI": 0,
+            "altEnergy": 0,
+            "hasAltEnergy": False,
+        }})
+
     now = datetime.now()
     billing_rate = float(p.kwRate or 0)
     avg_rate = float(p.kwhRate or 0)
@@ -455,6 +486,7 @@ def get_current_savings(project_id):
     kw_savings_pct = float(p.kwPeakSavings or 0)
 
     data = {
+        "emvRequired": False,
         "todayKwh": round(today_kwh, 2),
         "hours": now.strftime("%H"),
         "minutes": now.strftime("%M"),
@@ -500,13 +532,32 @@ def get_carbon_savings(project_id):
         return float(rd.get((pd, vt), 0) or 0)
 
     carbon_ratio = 0.0007054
-    kwh_saved_pct = float(p.kwhSavings or 0)
     today_kwh = gv("today", "kwh")
     week_kwh = gv("week", "kwh")
     month_kwh = gv("month", "kwh")
     carbon_rate = float(p.carbonCreditRate or 0)
 
+    # Do not apply savings multipliers until the EM&V report has been verified
+    if not getattr(p, "active_emv_analysis_id", None):
+        data = {
+            "emvRequired": True,
+            "co2Today": round(carbon_ratio * today_kwh, 2),
+            "co2TodayBefore": 0,
+            "co2TodayDiff": 0,
+            "carbonCreditRate": carbon_rate,
+            "ccValueToday": 0,
+            "ccValueWeek": 0,
+            "ccValueMonth": 0,
+            "ccValueYear": 0,
+            "ccValueProject": 0,
+            "passengerVehicles": 0,
+            "gallonsOfGasoline": 0,
+        }
+        return jsonify({"meta": {}, "response": data})
+
+    kwh_saved_pct = float(p.kwhSavings or 0)
     data = {
+        "emvRequired": False,
         "co2Today": round(carbon_ratio * today_kwh, 2),
         "co2TodayBefore": round(carbon_ratio * today_kwh / (1 - kwh_saved_pct) if kwh_saved_pct < 1 else 0, 2),
         "co2TodayDiff": round(carbon_ratio * today_kwh * kwh_saved_pct, 2),
@@ -541,6 +592,13 @@ def get_line_chart_data(project_id):
     project = Project.query.get(project_id)
     if not project:
         return jsonify({"error": "Not found"}), 404
+    # Chart data showing a "before" line requires verified EM&V savings percentages.
+    # Return an empty chart with the emvRequired flag until an analysis is pushed.
+    if not getattr(project, "active_emv_analysis_id", None):
+        return jsonify({"meta": {}, "response": {
+            "emvRequired": True,
+            "chartData": {"kwCurrent": [], "kwBefore": [], "chartLabel": []},
+        }})
     meter_ids = [m.strip() for m in meters_param.split(",") if m.strip()]
     if not meter_ids:
         return jsonify({"meta": {}, "response": {"chartData": {"kwCurrent": [], "kwBefore": [], "chartLabel": []}}})

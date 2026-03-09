@@ -237,3 +237,63 @@ def internal_or_cron(f):
         return jsonify({"error": "Forbidden"}), 403
 
     return decorated
+
+
+def feature_required(feature_name: str, program_id: str = "tracking"):
+    """
+    Require that the logged-in user's org has a specific feature in their active license.
+    Usage:
+        @feature_required('audit_export')
+        def my_route(): ...
+
+    Fails open if License Service is unreachable.
+    Admins (role 8) bypass all feature checks.
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            from flask_login import current_user
+            from app.services.license_service import has_feature
+            from app.db.request_session import get_session
+            from app.models.client import Client
+            from app.models.user import User as _User
+
+            if not current_user.is_authenticated:
+                return jsonify({"error": "Login required", "code": "LOGIN_REQUIRED"}), 403
+
+            role = getattr(current_user, "role", None)
+            if role == 8:
+                return f(*args, **kwargs)  # Synerex Admin bypass
+
+            # Resolve org_id
+            org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+            if not org_id:
+                try:
+                    sess = get_session()
+                    user = sess.query(_User).get(current_user.id)
+                    if user and user.client:
+                        client = sess.query(Client).get(user.client)
+                        if client:
+                            org_id = getattr(client, "org_id", None)
+                except Exception:
+                    pass
+
+            if not org_id:
+                return jsonify({
+                    "error": f"Feature '{feature_name}' requires an active license.",
+                    "code": "FEATURE_REQUIRED",
+                    "feature": feature_name,
+                    "program_id": program_id,
+                }), 403
+
+            if not has_feature(org_id, feature_name, program_id):
+                return jsonify({
+                    "error": f"Your current subscription does not include '{feature_name}'. Please upgrade.",
+                    "code": "FEATURE_REQUIRED",
+                    "feature": feature_name,
+                    "program_id": program_id,
+                }), 403
+
+            return f(*args, **kwargs)
+        return decorated
+    return decorator

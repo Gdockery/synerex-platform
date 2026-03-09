@@ -2,6 +2,11 @@
   Please run a test to display carbon emissions page.
 </div>
 <div *ngIf="hasRunTest" class="container-fluid">
+    <div *ngIf="emvRequired" style="background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:1em 1.5em; margin:0.75em 0; color:#856404;">
+      <strong style="font-size:1.1em;">&#9888; EM&amp;V Analysis Required</strong>
+      <p style="margin:0.4em 0 0;">Carbon credit savings tracking is not active yet. An EM&amp;V report must be completed and posted from the EM&amp;V Program before real-time CO&#8322; savings can be displayed. Pre-installation estimates are intentionally excluded from this dashboard.</p>
+    </div>
+    <div *ngIf="!emvRequired">
     <!--<div class="row">
       <div class="nav col-md-7">Carbon Emission (Live Meter)</div>
       <div class="col-md-5 text-right"><strong>

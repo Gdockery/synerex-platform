@@ -14,6 +14,7 @@ export class Co2SavingsComponent implements AfterViewInit {
   @ViewChild('savingsChart', {static: false}) savingsChart;
 
   private breakdown;
+  public emvRequired = false;
   public links;
   public hasData = true;
   private chartData;
@@ -68,6 +69,7 @@ export class Co2SavingsComponent implements AfterViewInit {
   refreshData() {
     this.co2SavingsService.getCarbonSavings().subscribe(data => {
       this.breakdown = data.response;
+      this.emvRequired = !!(data.response && data.response.emvRequired);
     });
   }
 

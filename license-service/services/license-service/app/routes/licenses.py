@@ -133,6 +133,64 @@ def check_license(
         "program_id": license.program_id
     }
 
+
+@router.get("/licenses/check-feature")
+def check_feature(
+    org_id: str = Query(..., description="Organization ID"),
+    program_id: str = Query(..., description="Program ID (emv or tracking)"),
+    feature: str = Query(None, description="Feature name to check (optional)"),
+    limit: str = Query(None, description="Limit name to retrieve (optional, e.g. seat_limit, meter_limit, project_limit)"),
+    db: Session = Depends(db_session)
+):
+    """
+    Check whether an org's active license for a program includes a specific feature or retrieve a limit.
+    - feature: returns { valid, has_feature, feature, entitlements }
+    - limit:   returns { valid, limit_name, limit_value, entitlements }
+    - neither: returns { valid, entitlements } (full entitlements dump)
+    Always returns valid=False if no active license exists.
+    """
+    if program_id not in ("emv", "tracking"):
+        raise HTTPException(400, "program_id must be emv or tracking")
+
+    license = db.query(License).filter(
+        License.org_id == org_id,
+        License.program_id == program_id,
+        License.revoked == False,
+        License.suspended == False,
+        License.expires_at > datetime.utcnow()
+    ).first()
+
+    if not license:
+        return {"valid": False, "reason": "No active license", "has_feature": False, "limit_value": None}
+
+    try:
+        payload = json.loads(license.payload_json)
+    except (ValueError, TypeError):
+        payload = {}
+
+    entitlements = payload.get("entitlements") or {}
+    features_list = entitlements.get("features") or []
+    limits_dict = entitlements.get("limits") or {}
+
+    result = {
+        "valid": True,
+        "license_id": license.license_id,
+        "program_id": license.program_id,
+        "expires_at": license.expires_at.isoformat() if license.expires_at else None,
+        "entitlements": entitlements,
+    }
+
+    if feature:
+        result["feature"] = feature
+        result["has_feature"] = feature in features_list
+
+    if limit:
+        result["limit_name"] = limit
+        result["limit_value"] = limits_dict.get(limit)
+
+    return result
+
+
 @router.post("/licenses/verify")
 def verify_license_endpoint(license_payload: dict, db: Session = Depends(db_session)):
     # 1) signature

@@ -64,13 +64,13 @@
       </a>
     </li>
 
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9)">
       <a [routerLink]="['/xeco-administrator/advanced']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-sliders"></span>
         <span class="text">Advanced Options</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9)">
       <a [routerLink]="['/xeco-administrator/branding']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-paint-brush"></span>
         <span class="text">Branding</span>

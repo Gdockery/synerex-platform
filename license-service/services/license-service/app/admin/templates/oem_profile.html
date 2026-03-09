@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Company Profile — OEM Admin - Synerex Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; line-height: 1.6; padding: 2rem; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem 2rem; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .header h1 { font-size: 1.5rem; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 2rem; margin-bottom: 2rem; }
+    .card h2 { margin-bottom: 1.5rem; color: #2c3e50; font-size: 1.2rem; padding-bottom: 0.75rem; border-bottom: 2px solid #e2e8f0; }
+    a { color: #667eea; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .btn { display: inline-block; padding: 0.6rem 1.25rem; background: #667eea; color: white; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; font-size: 0.95rem; text-decoration: none; }
+    .btn:hover { background: #5a67d8; text-decoration: none; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .logo-container { text-align: center; margin-bottom: 1.5rem; }
+    .logo-container img { height: 48px; max-width: 200px; }
+    .form-group { margin-bottom: 1.1rem; }
+    .form-group label { display: block; font-weight: 500; color: #4a5568; margin-bottom: 0.35rem; font-size: 0.9rem; }
+    .form-group input, .form-group textarea { width: 100%; padding: 0.55rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.95rem; font-family: inherit; transition: border-color 0.2s; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+    .form-group input:disabled { background: #edf2f7; cursor: not-allowed; color: #718096; }
+    .form-section { background: #f7fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .form-section h4 { margin: 0 0 1rem 0; color: #4a5568; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; }
+    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0; }
+    .message { padding: 1rem 1.25rem; border-radius: 6px; margin-bottom: 1.5rem; font-weight: 500; }
+    .message.ok { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .message.error { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+    .org-id-note { font-size: 0.82rem; color: #a0aec0; margin-top: 0.25rem; }
+    @media (max-width: 600px) { .form-row, .form-row-3 { grid-template-columns: 1fr; } body { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex"/>
+  </div>
+  <div class="header">
+    <h1>Company Profile — {{ oem_org.org_name }}</h1>
+    <div>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+  </div>
+
+  {% if message %}
+  <div class="message {% if message_type == 'error' %}error{% else %}ok{% endif %}">{{ message }}</div>
+  {% endif %}
+
+  <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/profile">
+    <div class="card">
+      <h2>Organization Information</h2>
+      <div class="form-section">
+        <h4>Basic Details</h4>
+        <div class="form-group">
+          <label>Organization ID</label>
+          <input type="text" value="{{ oem_org.org_id }}" disabled>
+          <div class="org-id-note">Organization ID cannot be changed.</div>
+        </div>
+        <div class="form-group">
+          <label for="org_name">Company Name *</label>
+          <input type="text" id="org_name" name="org_name" value="{{ oem_org.org_name or '' }}" required autocomplete="off">
+        </div>
+      </div>
+      <div class="form-section">
+        <h4>Primary Contact</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contact_name">Contact Name</label>
+            <input type="text" id="contact_name" name="contact_name" value="{{ oem_org.contact_name or '' }}" placeholder="Full name" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="email">Contact Email</label>
+            <input type="email" id="email" name="email" value="{{ oem_org.email or '' }}" placeholder="contact@company.com" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="{{ oem_org.phone or '' }}" placeholder="+1 (555) 123-4567" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="billing_email">Billing Email</label>
+            <input type="email" id="billing_email" name="billing_email" value="{{ oem_org.billing_email or '' }}" placeholder="billing@company.com" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Company / Billing Address</h2>
+      <div class="form-section">
+        <div class="form-group">
+          <label for="company_address">Street Address</label>
+          <input type="text" id="company_address" name="company_address" value="{{ oem_org.company_address or '' }}" placeholder="123 Main Street, Suite 100" autocomplete="off">
+        </div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="company_city">City</label>
+            <input type="text" id="company_city" name="company_city" value="{{ oem_org.company_city or '' }}" placeholder="City" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="company_state">State</label>
+            <input type="text" id="company_state" name="company_state" value="{{ oem_org.company_state or '' }}" placeholder="TX" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="company_zip">ZIP Code</label>
+            <input type="text" id="company_zip" name="company_zip" value="{{ oem_org.company_zip or '' }}" placeholder="75001" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="company_phone">Office Phone</label>
+            <input type="text" id="company_phone" name="company_phone" value="{{ oem_org.company_phone or '' }}" placeholder="+1 (555) 000-0000" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="company_cell">Mobile / Cell</label>
+            <input type="text" id="company_cell" name="company_cell" value="{{ oem_org.company_cell or '' }}" placeholder="+1 (555) 000-0001" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Physical Address <span style="font-size:0.85rem; color:#a0aec0; font-weight:400;">(if different from billing)</span></h2>
+      <div class="form-section">
+        <div class="form-group">
+          <label for="physical_address">Street Address</label>
+          <input type="text" id="physical_address" name="physical_address" value="{{ oem_org.physical_address or '' }}" placeholder="456 Warehouse Blvd" autocomplete="off">
+        </div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="physical_city">City</label>
+            <input type="text" id="physical_city" name="physical_city" value="{{ oem_org.physical_city or '' }}" placeholder="City" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="physical_state">State</label>
+            <input type="text" id="physical_state" name="physical_state" value="{{ oem_org.physical_state or '' }}" placeholder="TX" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="physical_zip">ZIP Code</label>
+            <input type="text" id="physical_zip" name="physical_zip" value="{{ oem_org.physical_zip or '' }}" placeholder="75001" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="physical_phone">Office Phone</label>
+            <input type="text" id="physical_phone" name="physical_phone" value="{{ oem_org.physical_phone or '' }}" placeholder="+1 (555) 000-0000" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="physical_cell">Mobile / Cell</label>
+            <input type="text" id="physical_cell" name="physical_cell" value="{{ oem_org.physical_cell or '' }}" placeholder="+1 (555) 000-0001" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn">Save Changes</button>
+    </div>
+  </form>
+</body>
+</html>

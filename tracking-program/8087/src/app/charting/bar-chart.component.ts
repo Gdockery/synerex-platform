@@ -33,7 +33,7 @@ export class BarChartComponent implements OnInit {
 
   public barChartOptions:any;
 
-  public data = [{data: [], backgroundColor: '#9ca5d7'}];
+  public data = [{data: [], backgroundColor: '#9ca5d7', barThickness: 15}];
 
   constructor() {}
 
@@ -55,8 +55,7 @@ export class BarChartComponent implements OnInit {
         xAxes: [{
           gridLines: {
             display:false
-          },
-          barThickness: 15
+          }
         }]
       }
     };

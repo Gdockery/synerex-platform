@@ -2,6 +2,7 @@ export class Project {
   public id: number;
   public name: String;
   public client: any;
+  public orgId: string;
   public timeZoneId: string;
   public savings;
   public documentShareToken:string;

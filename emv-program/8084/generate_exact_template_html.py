@@ -65,11 +65,23 @@ def remove_chart_section(html_content, chart_name):
 
 def get_logo_data_uri():
     """Get the Synerex logo as a data URI"""
-    # Try multiple logo files from 8082 static folder
+    here = Path(__file__).parent
     logo_files = [
-        Path(__file__).parent / ".." / "8082" / "static" / "synerex_logo_transparent.png",
-        Path(__file__).parent / ".." / "8082" / "static" / "synerex_logo.png",
-        Path(__file__).parent / ".." / "8082" / "static" / "synerex_logo_main.png"
+        # When copied into /app (8082 container root)
+        here / "static" / "synerex_logo_color.png",
+        here / "static" / "synerex_logo_transparent.png",
+        here / "static" / "synerex_logo.png",
+        here / "static" / "synerex_logo_main.png",
+        # When running from /app/8084 mount
+        here / ".." / "8082" / "static" / "synerex_logo_color.png",
+        here / ".." / "8082" / "static" / "synerex_logo_transparent.png",
+        here / ".." / "8082" / "static" / "synerex_logo.png",
+        here / ".." / "8082" / "static" / "synerex_logo_main.png",
+        # Logo files bundled in 8084 itself
+        here / "synerex_logo1.png",
+        here / "synerex_logo.png",
+        here / ".." / "8084" / "synerex_logo1.png",
+        here / ".." / "8084" / "synerex_logo.png",
     ]
     
     for logo_file in logo_files:
@@ -1438,11 +1450,17 @@ def generate_exact_template_html(r):
     if 'results' in r:
         r = r['results']
     
-    # Read template file - Direct GET approach uses 8082 template
-    # Use absolute path to ensure we find the template
-    template_file = Path(__file__).parent / ".." / "8082" / "report_template.html"
-    if not template_file.exists():
-        print(f"Template file not found at: {template_file.absolute()}")
+    # Read template file - try multiple locations to handle both
+    # local dev (8084/ sibling of 8082/) and Docker (8082/ mounted at /app/)
+    here = Path(__file__).parent
+    template_candidates = [
+        here / ".." / "8082" / "report_template.html",  # local: emv-program/8082/
+        here / ".." / "report_template.html",            # container: /app/ (8082 mounted here)
+        here / "report_template.html",                   # same dir fallback
+    ]
+    template_file = next((p for p in template_candidates if p.exists()), None)
+    if not template_file:
+        print(f"Template file not found, tried: {[str(p.absolute()) for p in template_candidates]}")
         return generate_fallback_html(r)
     
     with open(template_file, 'r', encoding='utf-8') as f:
@@ -7239,11 +7257,17 @@ def generate_layman_report_html(r):
             except (ValueError, TypeError):
                 return default
         
-        # Load the layman template
-        template_path = Path(__file__).parent.parent / "8082" / "templates" / "layman_report_template.html"
-        
-        if not template_path.exists():
-            logger.error(f"Layman template not found at {template_path}")
+        # Load the layman template - check multiple paths for container vs host
+        here = Path(__file__).parent
+        template_candidates = [
+            here / "templates" / "layman_report_template.html",           # copied into /app
+            here.parent / "8082" / "templates" / "layman_report_template.html",  # from /app/8084
+            here.parent / "templates" / "layman_report_template.html",    # sibling templates dir
+        ]
+        template_path = next((p for p in template_candidates if p.exists()), None)
+
+        if not template_path:
+            logger.error(f"Layman template not found in any candidate path: {template_candidates}")
             return generate_fallback_html(r)
         
         with open(template_path, 'r', encoding='utf-8') as f:
@@ -7501,7 +7525,11 @@ def generate_layman_report_html(r):
         
         # Get logo for header
         logo_data_uri = get_logo_data_uri()
-        
+
+        # Extract show_dollars from config
+        _sd = config.get("show_dollars", True)
+        show_dollars = _sd if isinstance(_sd, bool) else str(_sd).lower() not in ("false", "0", "off")
+
         # Format all values (hide dollar blocks when show_dollars unchecked - engineering-only)
         def format_currency(value):
             if not show_dollars:

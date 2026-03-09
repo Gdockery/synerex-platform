@@ -1341,7 +1341,50 @@ def license_required(fn):
     return _license_check
 
 
-class FileLock:
+def emv_feature_required(feature_name: str):
+    """
+    Decorator for EMV routes that require a specific feature in the org's active EMV license.
+    Usage:
+        @license_required
+        @emv_feature_required('utility_audit_export')
+        def my_route(): ...
+
+    Fails open if License Service is unreachable.
+    Admins bypass all feature checks.
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def _feature_check(*args, **kwargs):
+            try:
+                import requests as req_lib
+                org_id = get_current_org_id(request)
+                if not org_id:
+                    return fn(*args, **kwargs)  # no org_id — let license_required handle it
+
+                if not LICENSE_SERVICE_URL:
+                    return fn(*args, **kwargs)  # fail open if not configured
+
+                resp = req_lib.get(
+                    f"{LICENSE_SERVICE_URL}/api/licenses/check-feature",
+                    params={"org_id": org_id, "program_id": "emv", "feature": feature_name},
+                    timeout=5,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("valid") and not data.get("has_feature"):
+                        return jsonify({
+                            "error": f"Your current EMV subscription does not include '{feature_name}'. Please upgrade.",
+                            "code": "FEATURE_REQUIRED",
+                            "feature": feature_name,
+                            "program_id": "emv",
+                        }), 403
+            except Exception as e:
+                logger.warning(f"EMV feature check failed for '{feature_name}' (fail open): {e}")
+
+            return fn(*args, **kwargs)
+        _feature_check.__name__ = fn.__name__
+        return _feature_check
+    return decorator
     """Simple cross-platform advisory lock. On POSIX uses fcntl.flock; otherwise no-op."""
     def __init__(self, fileobj):
         self._file = fileobj
@@ -10938,6 +10981,7 @@ def serve_template_report():
 
 @app.route("/api/generate-esg-case-study-report", methods=["GET", "POST"])
 @license_required
+@emv_feature_required('compliance_reporting')
 @api_guard
 def generate_esg_case_study_report():
     """Generate comprehensive ESG Case Study Report that includes Client HTML Report + ESG sections"""
@@ -10969,6 +11013,8 @@ def generate_esg_case_study_report():
         # Import the ESG report generator
         import sys
         from pathlib import Path
+        # Add both the app directory and the sibling 8084 directory to the path
+        sys.path.insert(0, str(Path(__file__).parent))
         sys.path.insert(0, str(Path(__file__).parent.parent / "8084"))
         
         try:
@@ -12722,6 +12768,7 @@ def tracking_bill_analytic():
 
 @app.route("/api/tracking/push-baseline", methods=["POST"])
 @license_required
+@emv_feature_required('seal_sync_queue')
 def tracking_push_baseline():
     """Proxy to Tracking: POST /api/emv/push-baseline. Push analysis results and report HTML."""
     if not TRACKING_URL or not TRACKING_API_KEY:
@@ -20889,6 +20936,41 @@ def legacy_index():
         # Log rendered HTML size
         logger.info(f"Legacy route: Rendered HTML size: {len(rendered_html)} characters")
         
+        # Inject global JS config vars (OLLAMA_AI_URL so frontend can reach port 8090)
+        ollama_ai_url = os.environ.get("OLLAMA_AI_URL", "http://localhost:8090")
+        website_url = os.environ.get("SYNEREX_WEBSITE_URL", "http://localhost:8080")
+
+        # Collect prefill params passed from Tracking Savings Report "Send to EMV"
+        import json as _json
+        _prefill_fields = [
+            # Client Information
+            "company", "cp_address", "cp_location", "cp_city_state", "cp_zip",
+            "contact", "phone", "email",
+            # Project Information
+            "project_type", "facility_address", "location", "facility_state", "facility_zip",
+            # Billing Information
+            "project_cost", "utility", "utility_name", "utility_program", "account",
+            "energy_rate", "demand_rate", "capacity_rate", "billing_model",
+            "kva_demand_rate", "reactive_adder", "ncp_demand_rate", "cp_demand_rate",
+            "coincident_peak", "target_pf", "discount_rate", "escalation_rate",
+            "analysis_period", "tou_on_peak", "tou_off_peak", "summer_fraction_pct",
+            "summer_on_peak", "summer_off_peak", "winter_on_peak", "winter_off_peak",
+            "onpeak_fraction_pct", "ratchet_percent", "ratchet_ref_peak",
+        ]
+        _prefill = {k: request.args.get(k, "") for k in _prefill_fields if request.args.get(k)}
+        _prefill_json = _json.dumps(_prefill)
+
+        config_script = (
+            f"<script>"
+            f"window.OLLAMA_AI_URL = '{ollama_ai_url}';"
+            f"window.SYNEREX_WEBSITE_URL = '{website_url}';"
+            f"window.SYNEREX_EMV_BASE = '{_static_base()}';"
+            f"window.TRACKING_PREFILL = {_prefill_json};"
+            f"</script>"
+        )
+        if "</head>" in rendered_html:
+            rendered_html = rendered_html.replace("</head>", config_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -22064,9 +22146,290 @@ def _build_verified_files_list(conn, script_dir):
     return files
 
 
+@app.route("/api/current-user", methods=["GET"])
+def get_current_user_api():
+    """Return basic info about the currently authenticated user."""
+    try:
+        session_token = None
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            session_token = auth_header[7:]
+        if not session_token:
+            session_token = request.args.get("session_token") or request.cookies.get("session_token")
+        if not session_token:
+            return jsonify({"success": False, "error": "Not authenticated"}), 401
+
+        with get_db_connection(use_sessions_db=True) as conn:
+            if not conn:
+                return jsonify({"success": False, "error": "DB unavailable"}), 503
+            cur = conn.cursor()
+            cur.execute("SELECT user_id FROM user_sessions WHERE session_token = ?", (session_token,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"success": False, "error": "Invalid session"}), 401
+            user_id = row[0]
+
+        org_id = get_current_org_id(request) or "default"
+        with get_db_connection(org_id=org_id) as conn:
+            if not conn:
+                return jsonify({"success": False, "error": "DB unavailable"}), 503
+            cur = conn.cursor()
+            cur.execute("SELECT id, username, email, first_name, last_name, role FROM users WHERE id = ?", (user_id,))
+            u = cur.fetchone()
+            if not u:
+                return jsonify({"success": False, "error": "User not found"}), 404
+            uid, username, email, first_name, last_name, role = u
+            full_name = " ".join(filter(None, [first_name, last_name])) or username or "Unknown"
+            return jsonify({
+                "success": True,
+                "user_id": uid,
+                "username": username or "",
+                "email": email or "",
+                "full_name": full_name,
+                "role": role or "",
+            })
+    except Exception as e:
+        logger.error("get_current_user_api error: %s", e)
+        return jsonify({"success": False, "error": "Internal error"}), 500
+
+
+@app.route("/api/csv-cell-annotation", methods=["POST"])
+@license_required
+def save_csv_cell_annotation():
+    """Save a cell-level annotation on a CSV file row/column."""
+    try:
+        data = request.get_json() or {}
+        file_id = data.get("file_id")
+        row_index = data.get("row_index")
+        column_name = data.get("column_name") or data.get("column")
+        annotation_text = data.get("annotation") or data.get("text") or data.get("annotation_text") or ""
+        annotation_type = data.get("annotation_type") or data.get("type") or "note"
+        created_by = data.get("created_by") or "unknown"
+
+        if not file_id:
+            return jsonify({"success": False, "error": "file_id is required"}), 400
+
+        org_id = get_current_org_id(request) or "default"
+        with get_db_connection(org_id=org_id) as conn:
+            if not conn:
+                return jsonify({"success": False, "error": "DB unavailable"}), 503
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS csv_cell_annotations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_id INTEGER NOT NULL,
+                    row_index INTEGER,
+                    column_name TEXT,
+                    annotation_text TEXT,
+                    annotation_type TEXT DEFAULT 'note',
+                    created_by TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("""
+                INSERT INTO csv_cell_annotations
+                    (file_id, row_index, column_name, annotation_text, annotation_type, created_by)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (file_id, row_index, column_name, annotation_text, annotation_type, created_by))
+            conn.commit()
+            annotation_id = cur.lastrowid
+        return jsonify({"success": True, "annotation_id": annotation_id})
+    except Exception as e:
+        logger.error("save_csv_cell_annotation error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/csv-cell-annotations/<int:file_id>", methods=["GET"])
+@license_required
+def get_csv_cell_annotations(file_id):
+    """Return all cell annotations for a given CSV file."""
+    try:
+        org_id = get_current_org_id(request) or "default"
+        with get_db_connection(org_id=org_id) as conn:
+            if not conn:
+                return jsonify({"success": False, "error": "DB unavailable"}), 503
+            cur = conn.cursor()
+            try:
+                cur.execute("""
+                    SELECT id, file_id, row_index, column_name, annotation_text, annotation_type, created_by, created_at
+                    FROM csv_cell_annotations WHERE file_id = ? ORDER BY created_at DESC
+                """, (file_id,))
+                rows = cur.fetchall()
+            except Exception:
+                rows = []
+        annotations = [
+            {
+                "id": r[0], "file_id": r[1], "row_index": r[2], "column_name": r[3],
+                "annotation_text": r[4], "annotation_type": r[5],
+                "created_by": r[6], "created_at": str(r[7] or ""),
+            }
+            for r in rows
+        ]
+        return jsonify({"success": True, "annotations": annotations})
+    except Exception as e:
+        logger.error("get_csv_cell_annotations error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/csv/integrity/summary", methods=["GET"])
+@license_required
+def csv_integrity_summary():
+    """Return a summary of CSV file integrity status for the current org."""
+    try:
+        org_id = get_current_org_id(request) or "default"
+        total_files = verified_files = tampered_files = unverified_files = total_modifications = 0
+
+        with get_db_connection(org_id=org_id) as conn:
+            if conn:
+                cur = conn.cursor()
+                try:
+                    cur.execute("SELECT COUNT(*) FROM project_files")
+                    total_files += cur.fetchone()[0] or 0
+                    cur.execute("SELECT COUNT(*) FROM project_files WHERE fingerprint IS NOT NULL AND fingerprint != ''")
+                    verified_files += cur.fetchone()[0] or 0
+                except Exception: pass
+                try:
+                    cur.execute("SELECT COUNT(*) FROM raw_meter_data")
+                    total_files += cur.fetchone()[0] or 0
+                    cur.execute("SELECT COUNT(*) FROM raw_meter_data WHERE fingerprint IS NOT NULL AND fingerprint != ''")
+                    verified_files += cur.fetchone()[0] or 0
+                except Exception: pass
+                try:
+                    cur.execute("SELECT COUNT(*) FROM data_modifications")
+                    total_modifications = cur.fetchone()[0] or 0
+                except Exception: pass
+
+        unverified_files = max(0, total_files - verified_files)
+        integrity_pct = round((verified_files / max(total_files, 1)) * 100, 1)
+
+        return jsonify({
+            "success": True,
+            "total_files": total_files,
+            "verified_files": verified_files,
+            "tampered_files": tampered_files,
+            "unverified_files": unverified_files,
+            "total_modifications": total_modifications,
+            "integrity_percentage": integrity_pct,
+        })
+    except Exception as e:
+        logger.error("csv_integrity_summary error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/csv/integrity/modification-history", methods=["POST"])
+@license_required
+def csv_modification_history():
+    """Return modification history records for a given file or all files."""
+    try:
+        data = request.get_json() or {}
+        custody_record = data.get("custody_record") or {}
+        file_id = custody_record.get("id") or data.get("file_id")
+
+        org_id = get_current_org_id(request) or "default"
+        modifications = []
+
+        with get_db_connection(org_id=org_id) as conn:
+            if conn:
+                cur = conn.cursor()
+                try:
+                    if file_id:
+                        cur.execute("""
+                            SELECT dm.id, dm.modification_type, dm.reason, dm.rows_removed,
+                                   dm.rows_modified, dm.created_at, u.username, pf.filename
+                            FROM data_modifications dm
+                            LEFT JOIN users u ON u.id = dm.modifier_id
+                            LEFT JOIN project_files pf ON pf.id = dm.file_id
+                            WHERE dm.file_id = ?
+                            ORDER BY dm.created_at DESC LIMIT 200
+                        """, (file_id,))
+                    else:
+                        cur.execute("""
+                            SELECT dm.id, dm.modification_type, dm.reason, dm.rows_removed,
+                                   dm.rows_modified, dm.created_at, u.username, pf.filename
+                            FROM data_modifications dm
+                            LEFT JOIN users u ON u.id = dm.modifier_id
+                            LEFT JOIN project_files pf ON pf.id = dm.file_id
+                            ORDER BY dm.created_at DESC LIMIT 200
+                        """)
+                    for r in cur.fetchall():
+                        modifications.append({
+                            "id": r[0],
+                            "modification_type": r[1] or "edit",
+                            "modification_reason": r[2] or "",
+                            "reason": r[2] or "",
+                            "rows_removed": r[3] or 0,
+                            "rows_added": r[4] or 0,
+                            "modified_at": str(r[5] or ""),
+                            "timestamp": str(r[5] or ""),
+                            "modified_by": r[6] or "unknown",
+                            "user": r[6] or "unknown",
+                            "file_name": r[7] or "Unknown",
+                            "filename": r[7] or "Unknown",
+                        })
+                except Exception as qe:
+                    logger.warning("modification-history query error: %s", qe)
+
+        return jsonify({"success": True, "modifications": modifications, "total": len(modifications)})
+    except Exception as e:
+        logger.error("csv_modification_history error: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/csv-editor-guide", methods=["GET"])
+def csv_editor_guide():
+    """Help page for CSV editing best practices."""
+    html = """<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>CSV Editor Guide - Synerex EMV</title>
+<style>
+  body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#333}
+  h1{color:#1a3a5c;border-bottom:2px solid #1a3a5c;padding-bottom:10px}
+  h2{color:#2c5aa0;margin-top:30px}
+  code{background:#f4f4f4;padding:2px 6px;border-radius:3px;font-family:monospace}
+  .tip{background:#e8f5e9;border-left:4px solid #4caf50;padding:10px 15px;margin:15px 0;border-radius:0 4px 4px 0}
+  .warn{background:#fff3e0;border-left:4px solid #ff9800;padding:10px 15px;margin:15px 0;border-radius:0 4px 4px 0}
+  a.back{display:inline-block;margin-bottom:20px;color:#2c5aa0;text-decoration:none}
+</style></head>
+<body>
+<a class="back" href="javascript:history.back()">&#8592; Back</a>
+<h1>CSV Editor Guide</h1>
+<p>Best practices for editing raw meter data CSV files in the Synerex EM&amp;V Platform.</p>
+<h2>Recommended Editors</h2>
+<ul>
+  <li><strong>LibreOffice Calc</strong> (free) - preserves column types, handles large files</li>
+  <li><strong>Microsoft Excel</strong> - reliable for moderate sizes; watch date formatting</li>
+  <li><strong>VS Code + Rainbow CSV extension</strong> - best for inspecting raw structure</li>
+</ul>
+<h2>Before You Edit</h2>
+<div class="warn">Always download a copy of the original before making changes. All modifications are tracked with a full audit trail.</div>
+<ol>
+  <li>Download the file from the Raw Files list</li>
+  <li>Open in your editor - do not re-save as <code>.xlsx</code></li>
+  <li>Make changes with a clear reason noted</li>
+  <li>Save as <code>.csv</code> (UTF-8 encoding)</li>
+  <li>Re-upload via the Clipping Interface and enter the modification reason</li>
+</ol>
+<h2>Column Format Rules</h2>
+<ul>
+  <li><strong>Timestamps:</strong> <code>YYYY-MM-DD HH:MM:SS</code> format required</li>
+  <li><strong>Numeric values:</strong> use decimal point (<code>.</code>), not comma</li>
+  <li><strong>Do not add or remove columns</strong> - only edit existing values</li>
+  <li><strong>Empty cells:</strong> leave blank rather than filling with <code>0</code> or <code>N/A</code></li>
+</ul>
+<div class="tip">All edits are logged automatically with who made the change, when, and the reason. This audit trail is included in utility submissions.</div>
+<h2>Common Issues</h2>
+<ul>
+  <li><strong>Date columns reformatted:</strong> Excel may convert timestamps - use LibreOffice to avoid this</li>
+  <li><strong>Extra rows at end:</strong> Check for blank rows before uploading</li>
+  <li><strong>BOM characters:</strong> Save with UTF-8 without BOM</li>
+</ul>
+<p style="margin-top:40px;color:#888;font-size:0.9em">Synerex EM&amp;V Platform - CSV Editor Guide</p>
+</body></html>"""
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
 @app.route("/api/verified-files", methods=["GET"])
 def list_verified_files():
-    """List all verified CSV files from the file system. Uses org_id; if empty, falls back to admin."""
     try:
         org_id = get_current_org_id(request) or "default"
         logger.info("verified-files: org_id=%s", org_id)

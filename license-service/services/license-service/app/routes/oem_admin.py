@@ -114,6 +114,112 @@ def oem_customer_edit_page(org_id: str, request: Request, db: Session = Depends(
     )
 
 
+@router.get("/profile", response_class=HTMLResponse)
+def oem_profile_page(request: Request, db: Session = Depends(db_session)):
+    """OEM self-service profile page — view and edit their own company details."""
+    if not _is_user_logged_in(request):
+        login_url = f"{path_prefix}/auth/login" if path_prefix else "/auth/login"
+        return_url = f"{path_prefix}/oem-admin/profile" if path_prefix else "/oem-admin/profile"
+        return RedirectResponse(f"{login_url}?return_url={return_url}", status_code=303)
+
+    org_id = request.session.get("org_id")
+    if not org_id:
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse(
+        "oem_profile.html",
+        {
+            "request": request,
+            "oem_org": org,
+            "path_prefix": path_prefix,
+            "message": message,
+            "message_type": message_type,
+        },
+    )
+
+
+@router.post("/profile", response_class=RedirectResponse)
+def oem_profile_update(
+    request: Request,
+    org_name: str = Form(None),
+    email: str = Form(None),
+    contact_name: str = Form(None),
+    phone: str = Form(None),
+    billing_email: str = Form(None),
+    company_address: str = Form(None),
+    company_city: str = Form(None),
+    company_state: str = Form(None),
+    company_zip: str = Form(None),
+    company_phone: str = Form(None),
+    company_cell: str = Form(None),
+    physical_address: str = Form(None),
+    physical_city: str = Form(None),
+    physical_state: str = Form(None),
+    physical_zip: str = Form(None),
+    physical_phone: str = Form(None),
+    physical_cell: str = Form(None),
+    db: Session = Depends(db_session),
+):
+    """Save OEM's own company profile updates."""
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    org_id = request.session.get("org_id")
+    if not org_id:
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    if org_name:
+        org.org_name = org_name
+    if email is not None:
+        org.email = email or None
+    if contact_name is not None:
+        org.contact_name = contact_name or None
+    if phone is not None:
+        org.phone = phone or None
+    if billing_email is not None:
+        org.billing_email = billing_email or None
+    if company_address is not None:
+        org.company_address = company_address or None
+    if company_city is not None:
+        org.company_city = company_city or None
+    if company_state is not None:
+        org.company_state = company_state or None
+    if company_zip is not None:
+        org.company_zip = company_zip or None
+    if company_phone is not None:
+        org.company_phone = company_phone or None
+    if company_cell is not None:
+        org.company_cell = company_cell or None
+    if physical_address is not None:
+        org.physical_address = physical_address or None
+    if physical_city is not None:
+        org.physical_city = physical_city or None
+    if physical_state is not None:
+        org.physical_state = physical_state or None
+    if physical_zip is not None:
+        org.physical_zip = physical_zip or None
+    if physical_phone is not None:
+        org.physical_phone = physical_phone or None
+    if physical_cell is not None:
+        org.physical_cell = physical_cell or None
+
+    db.commit()
+
+    profile_url = f"{path_prefix}/oem-admin/profile" if path_prefix else "/oem-admin/profile"
+    return RedirectResponse(f"{profile_url}?message=Profile+updated+successfully&message_type=success", status_code=303)
+
+
 @router.post("/customers/{org_id}/edit", response_class=RedirectResponse)
 def oem_customer_update(
     org_id: str,

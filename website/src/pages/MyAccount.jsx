@@ -273,7 +273,13 @@ export default function MyAccount() {
             Welcome, {userInfo.username || userInfo.email}!
           </p>
         )}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center gap-3 mb-6">
+          <a
+            href={`${LICENSE_SERVICE_URL}/auth/change-password`}
+            className="px-4 py-2 text-sm font-semibold bg-gray-800/80 hover:bg-gray-700 text-gray-200 border border-gray-600 rounded-md transition-colors"
+          >
+            Change Password
+          </a>
           <button
             type="button"
             onClick={handleClientLogout}
@@ -459,7 +465,6 @@ export default function MyAccount() {
             <div className="grid md:grid-cols-2 gap-6">
               <a
                 href={getAccessUrl("emv")}
-                
                 rel="noopener noreferrer"
                 className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
               >
@@ -468,13 +473,31 @@ export default function MyAccount() {
               </a>
               <a
                 href={getAccessUrl("tracking")}
-                
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >
                 <div className="text-xl font-bold mb-2 text-white">Tracking Program</div>
                 <div className="text-sm text-green-200">Equipment & Meter Tracking</div>
               </a>
+            </div>
+            <div className="mt-6 pt-6 border-t border-purple-700/40">
+              <h3 className="text-lg font-semibold text-purple-300 mb-3">Account Management</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <a
+                  href={`${LICENSE_SERVICE_URL}/oem-admin/profile`}
+                  className="block p-4 bg-gray-800/70 hover:bg-gray-700/80 rounded-lg border border-gray-600 transition-colors"
+                >
+                  <div className="text-base font-bold mb-1 text-white">Company Profile</div>
+                  <div className="text-sm text-gray-400">Edit your company details, address, and contact information</div>
+                </a>
+                <a
+                  href={`${LICENSE_SERVICE_URL}/oem-admin`}
+                  className="block p-4 bg-gray-800/70 hover:bg-gray-700/80 rounded-lg border border-gray-600 transition-colors"
+                >
+                  <div className="text-base font-bold mb-1 text-white">Customer Management</div>
+                  <div className="text-sm text-gray-400">View and manage your sponsored customers</div>
+                </a>
+              </div>
             </div>
           </div>
         )}

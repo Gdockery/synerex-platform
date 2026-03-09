@@ -71,7 +71,7 @@ export default function Header(){
           
           {/* Authentication Links */}
           <a 
-            href={`${LICENSE_SERVICE_URL}/register`}
+            href={`${LICENSE_SERVICE_URL}/register/`}
             className="hover:text-purple-600 transition-colors"
           >
             Register
