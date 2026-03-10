@@ -21099,7 +21099,12 @@ def legacy_index():
             f"<script>"
             f"window.OLLAMA_AI_URL = '{ollama_ai_url}';"
             f"window.SYNEREX_WEBSITE_URL = '{website_url}';"
-            f"window.SYNEREX_EMV_BASE = '{_static_base()}';"
+            # Auto-detect base path from the current URL pathname so this works
+            # both behind Nginx (/emv/legacy) and accessed directly (:8082/legacy).
+            f"window.SYNEREX_EMV_BASE = (function(){{"
+            f"var p = window.location.pathname;"
+            f"return p.startsWith('/emv') ? '/emv' : '';"
+            f"}})();"
             f"window.TRACKING_PREFILL = {_prefill_json};"
             f"</script>"
         )
@@ -21712,7 +21717,12 @@ def main_dashboard():
         result = render_template("main_dashboard.html", **context)
         config_script = (
             f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';"
-            f"window.SYNEREX_EMV_BASE = '{base}';</script>"
+            # Auto-detect base path: if page URL starts with /emv use /emv prefix,
+            # otherwise empty (direct port access). This works behind Nginx and directly.
+            f"window.SYNEREX_EMV_BASE = (function(){{"
+            f"var p = window.location.pathname;"
+            f"return p.startsWith('/emv') ? '/emv' : '';"
+            f"}})();</script>"
         )
         if "</head>" in result:
             result = result.replace("</head>", config_script + "\n</head>", 1)
