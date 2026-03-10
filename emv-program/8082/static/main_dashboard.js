@@ -611,9 +611,25 @@ class MainDashboard {
     loadOrganizationsDropdown() {
         const select = document.getElementById('org-id');
         if (!select) return;
-        // Only Synerex (admin) until new organizations sign up; no API call so dropdown is always correct
-        select.innerHTML = '<option value="">Select organization...</option><option value="admin">Synerex (admin)</option>';
-        select.value = 'admin';
+        select.innerHTML = '<option value="">Loading organizations...</option>';
+        fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/organizations', { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(data => {
+                const orgs = (data && data.organizations) || [];
+                select.innerHTML = '<option value="">Select organization...</option>';
+                orgs.forEach(org => {
+                    const opt = document.createElement('option');
+                    opt.value = org.org_id;
+                    opt.textContent = org.company_name || org.org_id;
+                    select.appendChild(opt);
+                });
+                // Default to admin if present
+                if (orgs.some(o => o.org_id === 'admin')) select.value = 'admin';
+            })
+            .catch(() => {
+                select.innerHTML = '<option value="">Select organization...</option><option value="admin">Synerex (admin)</option>';
+                select.value = 'admin';
+            });
     }
 
     showLoginSection() {
