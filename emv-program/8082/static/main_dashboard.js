@@ -345,11 +345,7 @@ class MainDashboard {
         const username = (document.getElementById('username').value || '').trim();
         const password = (document.getElementById('password').value || '');
         const role = (document.getElementById('user-role').value || '').trim();
-        
-        // Get org_id from form; default to "admin" for first-time / Synerex admin login
-        const orgIdInput = document.getElementById('org-id');
-        const org_id = (orgIdInput && orgIdInput.value && orgIdInput.value.trim()) ? orgIdInput.value.trim() : 'admin';
-        
+
         if (!username || !password || !role) {
             this.showNotification('Please fill in all fields', 'error');
             return;
@@ -379,7 +375,7 @@ class MainDashboard {
                 const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, role, org_id }),
+                    body: JSON.stringify({ username, password, role }),
                     signal: controller.signal
                 });
                 

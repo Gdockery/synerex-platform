@@ -12365,8 +12365,37 @@ def login_user():
         username = (data.get("username") or "").strip()
         password = data.get("password") or ""
         role = (data.get("role") or "").strip()
-        # Normalize to lowercase so ADMIN and admin match DB (all data lives under org_id='admin')
-        org_id = ((data.get("org_id") or "").strip().lower() or "admin")
+
+        # Resolve org_id via License Service credential check — avoids trusting client-supplied org
+        org_id = "admin"  # default for built-in Synerex admin
+        ls_verified_early = False
+        ls_role_early = None
+        try:
+            import requests as req_lib
+            license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+            if license_service_url:
+                ls_resp = req_lib.post(
+                    f"{license_service_url.rstrip('/')}/auth/api/verify-credentials",
+                    json={"username": username, "password": password},
+                    timeout=5,
+                )
+                if ls_resp.status_code == 200:
+                    ls_data = ls_resp.json()
+                    if ls_data.get("valid"):
+                        resolved = (ls_data.get("org_id") or "").strip()
+                        if resolved:
+                            org_id = resolved
+                        ls_verified_early = True
+                        ls_roles = ls_data.get("roles") or []
+                        if "administrator" in ls_roles or "admin" in ls_roles or "oem_admin" in ls_roles:
+                            ls_role_early = "administrator"
+                        elif "engineer" in ls_roles or "oem_engineer" in ls_roles:
+                            ls_role_early = "engineer"
+                        else:
+                            ls_role_early = "user"
+                        logger.info("Resolved org_id='%s' for username='%s' via License Service", org_id, username)
+        except Exception as e:
+            logger.debug("Could not resolve org_id from License Service for '%s': %s", username, e)
 
         if not all([username, password, role]):
             return jsonify({"status": "error", "error": "Missing required fields (username, password, role)"}), 400
@@ -12441,12 +12470,36 @@ def login_user():
 
             user = cursor.fetchone()
             if not user:
-                logger.warning("Login failed: username=%r role=%r org_id=%r (no matching user)", username, role, org_id)
-                return jsonify({
-                    "status": "error",
-                    "error": "Invalid credentials",
-                    "hint": "First-time login: choose Organization 'Synerex (Admin)', Username 'admin', Password 'admin123', Role 'Administrator'."
-                }), 401
+                # If License Service already verified this user above, use that result
+                if ls_verified_early:
+                    # Auto-create user in local org DB so future logins work without LS call
+                    try:
+                        cursor.execute(
+                            """
+                            INSERT INTO users (username, email, full_name, password_hash, role, status)
+                            VALUES (?, ?, ?, ?, ?, 'active')
+                            """,
+                            (username, f"{username}@synerex.com", username, password_hash, ls_role_early or "user"),
+                        )
+                        org_conn.commit()
+                        logger.info("Auto-created EMV user '%s' for org '%s' via License Service fallback", username, org_id)
+                        # Re-fetch the newly created user
+                        cursor.execute(
+                            "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ?",
+                            (username,),
+                        )
+                        user = cursor.fetchone()
+                    except Exception as create_err:
+                        logger.warning("Could not auto-create user '%s': %s", username, create_err)
+                        org_conn.rollback()
+
+                if not user:
+                    logger.warning("Login failed: username=%r role=%r org_id=%r (no matching user)", username, role, org_id)
+                    return jsonify({
+                        "status": "error",
+                        "error": "Invalid credentials",
+                        "hint": "First-time login: choose Organization 'Synerex (Admin)', Username 'admin', Password 'admin123', Role 'Administrator'."
+                    }), 401
 
             # Normalize row access for SQLite (tuple) vs MySQL DictCursor.
             if isinstance(user, dict):
