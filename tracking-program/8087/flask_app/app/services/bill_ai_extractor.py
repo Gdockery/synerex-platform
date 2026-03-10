@@ -133,7 +133,7 @@ electricCompanyName: From utility logo/header – name of the electric company.
 electricCompanyState: From utility header – state of the electric company.
 electricCompanyZip: From utility header – zip of the electric company.
 kwRatePerTariff: $/kW rate. From "Demand Charge", "kW Charge", "$/kW", "Rate per kW". The $ per kW for demand. Number.
-kwhRate: $/kWh rate. From "Energy Charge", "kWh Charge", "$/kWh", "Rate per kWh". The $ per kWh for energy. Number.
+kwhRate: The PRIMARY base energy rate in $/kWh. From "Energy Charge", "Distribution Charge", "kWh Charge". Must be the LARGEST single $/kWh value — typically $0.03–$0.25/kWh. Do NOT use small riders or adders under $0.01/kWh.
 meterNumber: From "Meter Number", "Meter #", "Meter ID". The meter identifier.
 serviceAddress: From "Service Address", "Delivery Address", "Mailing Address" – where power is delivered. Street address only.
 serviceCity: From service address – city.
@@ -166,9 +166,9 @@ Return ONLY this JSON:
   "meterNumber": ""
 }'''
 
-DEFAULT_VISION_PROMPT = """You are a data extraction tool analyzing a scanned image of an electric bill. Your only task is to extract exact values visible in the image. Do not infer, assume, or invent any data—if a value is unclear, blurry, missing, or not explicitly shown, set the field to an empty string "". Do not use sample or placeholder data like "123.45" or "Anytown". Ignore any prior knowledge of bills; base everything on this image alone.
+DEFAULT_VISION_PROMPT = """You are a data extraction tool analyzing a scanned image of an electric bill. Extract only values explicitly visible in the image. Do not infer, assume, or invent data. If a value is not shown, use "". Do not use placeholder data. Base everything on this image alone.
 
-Return ONLY a valid JSON object with these exact fields. No additional text, explanations, or formatting outside the JSON.
+Return ONLY a valid JSON object with these exact fields — no extra text outside the JSON.
 
 {
   "accountNumber": "",
@@ -193,27 +193,42 @@ Return ONLY a valid JSON object with these exact fields. No additional text, exp
   "kwPeak": "",
   "voltage": "",
   "billReference": "",
-  "tariff": ""
+  "tariff": "",
+  "lineItems": []
 }
 
-accountNumber: Exact "Account Number", "Account #", or "Account No." value – customer account ID.
-billAmount: Exact "Total Amount Due", "Amount Due", "Pay This Amount", or "Balance Due" – numbers only, 2 decimals.
-billDate: Exact "Bill Date", "Service Date", or "Due Date" – convert to epoch milliseconds.
-customerCharge: Exact "Customer Charge", "Basic Charge", or "Service Charge".
-daysBilled: Exact "Days Billed" or "Billing Days".
-electricCompanyAddress/City/Name/State/Zip: From utility header.
-kwRatePerTariff: Exact $/kW from "Demand Charge".
-kwhRate: Exact $/kWh from "Energy Charge".
-meterNumber: Exact "Meter Number" or "Meter #" value.
-serviceAddress/City/State/Zip: Exact service/delivery address.
-taxAmount: Exact "Tax" or "Sales Tax".
-totalKwh: Exact "Total kWh", "Usage", or "Energy (kWh)".
-kwPeak: Exact "Peak Demand", "Demand (kW)", or "KW".
-voltage: Exact "Volts" value.
-billReference: Exact "Reference".
-tariff: Exact "Tariff".
+Field extraction rules:
+accountNumber: "Account Number", "Account #", or "Account No." — customer ID digits only.
+billAmount: "Total Amount Due", "Amount Due", "Pay This Amount", or "Balance Due" — the grand total the customer pays. Numbers only, 2 decimals, no $ sign.
+billDate: "Bill Date", "Statement Date", or "Due Date" — as YYYY-MM-DD.
+customerCharge: "Customer Charge", "Basic Charge", or "Service Charge" — the fixed monthly fee.
+daysBilled: "Days Billed" or "Billing Days" — integer.
+electricCompanyName/Address/City/State/Zip: From the utility company header at the top of the bill.
+kwhRate: The PRIMARY base energy rate in $/kWh. This is the LARGEST single $/kWh value on the bill — typically labeled "Energy Charge", "Distribution Charge", or "kWh Charge". It is usually between $0.03 and $0.25 per kWh. Do NOT use small adders, riders, or adjustments that are less than $0.01/kWh.
+kwRatePerTariff: The demand rate in $/kW — labeled "Demand Charge", "kW Charge", or "$/kW-month". Usually between $3 and $25 per kW.
+meterNumber: "Meter Number" or "Meter #" — the meter identifier (digits, possibly with a space).
+serviceAddress/City/State/Zip: The service delivery address where power is used.
+taxAmount: "Tax", "Sales Tax", or "Tax Amount" — numbers only, 2 decimals.
+totalKwh: "Total kWh", "Total Usage", or "Energy Used" — total kilowatt-hours consumed this period.
+kwPeak: "Peak Demand", "Billing Demand", or "kW" — peak demand in kilowatts this period.
+voltage: Service voltage if explicitly stated (e.g. 120, 208, 240, 277, 480).
+billReference: "Bill Number", "Invoice #", or "Reference Number".
+tariff: "Rate Schedule", "Rate", or "Tariff" code.
+lineItems: Array of ALL individual charge line items visible in the charges/detail section. Each item must have:
+  - "name": the exact label from the bill (e.g. "Energy Charge", "Demand Charge", "Customer Charge", "Fuel Adjustment", "Renewable Energy Charge")
+  - "type": one of "kwh", "kw", "fixed", or "tax"
+  - "cost": the dollar amount for this line item (number, 2 decimals)
+  - "billingRate": the per-unit rate if shown (number), otherwise 0
 
-If multiple values appear (e.g., multiple services), concatenate with commas. Output nothing but the JSON."""
+Example lineItems:
+[
+  {"name": "Energy Charge", "type": "kwh", "cost": 1234.56, "billingRate": 0.0821},
+  {"name": "Demand Charge", "type": "kw", "cost": 456.78, "billingRate": 15.23},
+  {"name": "Customer Charge", "type": "fixed", "cost": 11.13, "billingRate": 0},
+  {"name": "Sales Tax", "type": "tax", "cost": 315.30, "billingRate": 0}
+]
+
+If multiple values appear (e.g. multiple services on one bill), concatenate scalar fields with commas. Output nothing but the JSON."""
 
 
 def get_default_prompts() -> dict[str, str]:
@@ -393,6 +408,7 @@ def extract_bill_from_text(
             result[k] = v
 
     _sanity_check_bill_amount(result)
+    _rollup_rates_from_line_items(result)
     # Require at least one non-lineItems field so we don't return empty/lineItems-only
     meaningful = [k for k in result if k != "lineItems" and result[k] not in (None, "", [])]
     if meaningful:
@@ -565,7 +581,7 @@ def extract_bill_from_images(
             "AI vision extraction: scanning page %d/%d",
             page_idx + 1, len(image_b64_list)
         )
-        reply = _call_ollama_chat(prompt, images=[img], max_tokens=1500)
+        reply = _call_ollama_chat(prompt, images=[img], max_tokens=2500)
         if not reply:
             logger.warning("AI vision extraction: no reply for page %d", page_idx + 1)
             continue
@@ -595,6 +611,7 @@ def extract_bill_from_images(
         return None
 
     _sanity_check_bill_amount(merged)
+    _rollup_rates_from_line_items(merged)
     meaningful_total = [k for k in merged if k != "lineItems" and merged[k] not in (None, "", [])]
     logger.warning(
         "AI vision extraction: final merged result (%d fields): %s",
@@ -602,6 +619,142 @@ def extract_bill_from_images(
         json.dumps(merged, default=str)
     )
     return merged if meaningful_total else None
+
+
+def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
+    """
+    Post-process: read every line item, classify it, sum costs per class,
+    then derive one blended rate per classification.
+
+    Classifications:
+      kwh   — energy/consumption charges ($/kWh)
+      kw    — demand charges ($/kW)
+      tax   — taxes and fees
+      fixed — fixed monthly charges
+
+    Rolls up:
+      kwhRate        = total_kwh_cost / totalKwh   (overwrites if blank/zero)
+      kwRatePerTariff = total_kw_cost  / kwPeak    (overwrites if blank/zero)
+      taxAmount      = total_tax_cost              (overwrites if blank/zero)
+      customerCharge = total_fixed_cost            (overwrites if blank/zero)
+
+    Also stamps each lineItem with its resolved classification and billingRate.
+    """
+    line_items = result.get("lineItems")
+    if not line_items or not isinstance(line_items, list):
+        return
+
+    # Keywords that override AI classification
+    KWH_KEYWORDS = {
+        "energy", "kwh", "consumption", "usage", "power supply",
+        "electricity", "fuel", "generation", "renewable", "efficiency",
+        "nuclear", "ancillary", "transmission", "distribution",
+    }
+    KW_KEYWORDS  = {"demand", "kw", "capacity", "peak", "ratchet"}
+    TAX_KEYWORDS = {"tax", "surcharge", "assessment", "levy", "fee", "gross receipts", "franchise"}
+    FIXED_KEYWORDS = {"customer charge", "basic charge", "service charge", "meter", "metering",
+                      "account", "administrative", "minimum", "fixed"}
+
+    def _classify(item: dict[str, Any]) -> str:
+        """Return 'kwh', 'kw', 'tax', or 'fixed' for a line item."""
+        declared = (item.get("type") or "").lower().strip()
+        name_lc = (item.get("name") or "").lower()
+
+        # Explicit type from AI — trust unless name overrides it
+        if declared in ("kwh", "kw", "tax", "fixed"):
+            # Check if name strongly contradicts declared type
+            if declared == "fixed" and any(k in name_lc for k in KWH_KEYWORDS):
+                return "kwh"
+            if declared == "fixed" and any(k in name_lc for k in KW_KEYWORDS):
+                return "kw"
+            return declared
+
+        # Name-based classification
+        if any(k in name_lc for k in FIXED_KEYWORDS):
+            return "fixed"
+        if any(k in name_lc for k in TAX_KEYWORDS):
+            return "tax"
+        if any(k in name_lc for k in KW_KEYWORDS):
+            return "kw"
+        if any(k in name_lc for k in KWH_KEYWORDS):
+            return "kwh"
+        return "fixed"  # default for unrecognised
+
+    totals: dict[str, float] = {"kwh": 0.0, "kw": 0.0, "tax": 0.0, "fixed": 0.0}
+    classified_items = []
+
+    for item in line_items:
+        cls = _classify(item)
+        try:
+            cost = float(str(item.get("cost") or 0).replace(",", ""))
+        except (ValueError, TypeError):
+            cost = 0.0
+        totals[cls] += cost
+        stamped = dict(item)
+        stamped["type"] = cls
+        classified_items.append(stamped)
+        logger.warning(
+            "line item classify: '%s' → %s  cost=%.2f",
+            item.get("name", ""), cls, cost
+        )
+
+    # Write classified items back
+    result["lineItems"] = classified_items
+
+    logger.warning(
+        "line item rollup totals: kwh=$%.2f  kw=$%.2f  tax=$%.2f  fixed=$%.2f",
+        totals["kwh"], totals["kw"], totals["tax"], totals["fixed"]
+    )
+
+    # Derive kwhRate = total_kwh_cost / totalKwh
+    try:
+        total_kwh = float(str(result.get("totalKwh") or 0).replace(",", ""))
+    except (ValueError, TypeError):
+        total_kwh = 0.0
+
+    if totals["kwh"] > 0 and total_kwh > 0:
+        blended_kwh_rate = round(totals["kwh"] / total_kwh, 6)
+        existing_kwh_rate = float(str(result.get("kwhRate") or 0).replace(",", "") or 0)
+        if existing_kwh_rate <= 0.01 or existing_kwh_rate == 0:
+            result["kwhRate"] = str(blended_kwh_rate)
+            logger.warning(
+                "kwhRate computed from rollup: $%.2f / %.0f kWh = $%.6f/kWh",
+                totals["kwh"], total_kwh, blended_kwh_rate
+            )
+
+    # Derive kwRatePerTariff = total_kw_cost / kwPeak
+    try:
+        kw_peak = float(str(result.get("kwPeak") or 0).replace(",", ""))
+    except (ValueError, TypeError):
+        kw_peak = 0.0
+
+    if totals["kw"] > 0 and kw_peak > 0:
+        blended_kw_rate = round(totals["kw"] / kw_peak, 4)
+        existing_kw_rate = float(str(result.get("kwRatePerTariff") or 0).replace(",", "") or 0)
+        if existing_kw_rate <= 0 or existing_kw_rate < 1.0:
+            result["kwRatePerTariff"] = str(blended_kw_rate)
+            logger.warning(
+                "kwRatePerTariff computed from rollup: $%.2f / %.4f kW = $%.4f/kW",
+                totals["kw"], kw_peak, blended_kw_rate
+            )
+
+    # Fill taxAmount from rollup if blank
+    if totals["tax"] > 0 and not result.get("taxAmount"):
+        result["taxAmount"] = str(round(totals["tax"], 2))
+
+    # Fill customerCharge from rollup if blank
+    if totals["fixed"] > 0 and not result.get("customerCharge"):
+        result["customerCharge"] = str(round(totals["fixed"], 2))
+
+    # Store rollup summary for frontend use
+    result["lineItemRollup"] = {
+        "totalEnergyCost":  round(totals["kwh"], 2),
+        "totalDemandCost":  round(totals["kw"], 2),
+        "totalTaxCost":     round(totals["tax"], 2),
+        "totalFixedCost":   round(totals["fixed"], 2),
+        "blendedKwhRate":   round(totals["kwh"] / total_kwh, 6) if total_kwh > 0 and totals["kwh"] > 0 else 0,
+        "blendedKwRate":    round(totals["kw"] / kw_peak, 4)    if kw_peak > 0  and totals["kw"] > 0  else 0,
+    }
 
 
 def ask_ai_recommend_decode_tool(
