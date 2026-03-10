@@ -75,7 +75,7 @@
 
   <form id="analysisForm" method="POST" action="/api/analyze" enctype="multipart/form-data" novalidate>
     <!-- Saved Projects -->
-    <div class="form-group">
+    <div id="saved-projects-section" class="form-group">
       <h3>Saved Projects</h3>
       <div class="form-grid three-col">
         <div class="field">
@@ -2045,7 +2045,7 @@
         document.head.appendChild(style);
         
         // Use replace immediately - no delay needed, spinners already cleared above
-        window.location.replace('/main-dashboard');
+        window.location.replace((window.SYNEREX_EMV_BASE || '') + '/main-dashboard');
       });
     }
   });
@@ -2473,5 +2473,35 @@ What specific utility or cost question do you have?`;
 
 <!-- Enhanced SynerexAI Script -->
 <script src="/static/enhanced_synerex_ai.js"></script>
+
+
+<script>
+// Role-based UI: apply on every page load so sections are correct immediately.
+(function() {
+  var orgType = localStorage.getItem('org_type') || '';
+  var orgId   = localStorage.getItem('org_id')   || '';
+  var isOem   = (orgType === 'oem' || orgId.toUpperCase().indexOf('OEM-') === 0);
+  var isSynerex = (orgId === 'admin' || orgType === 'admin');
+
+  function applyVisibility() {
+    // Saved Projects — Synerex only
+    var sp = document.getElementById('saved-projects-section');
+    if (sp) sp.style.display = isSynerex ? '' : 'none';
+
+    // Tracking Integration — OEM only
+    var ti = document.getElementById('tracking-integration-container');
+    if (ti) ti.style.display = isOem ? '' : 'none';
+  }
+
+  // Apply immediately if DOM ready, otherwise wait
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyVisibility);
+  } else {
+    applyVisibility();
+  }
+  // Also re-apply after a short delay in case Tracking Integration renders later
+  setTimeout(applyVisibility, 1200);
+})();
+</script>
 
 </div> <!-- End container -->

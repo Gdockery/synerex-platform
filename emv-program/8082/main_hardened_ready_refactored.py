@@ -12472,26 +12472,52 @@ def login_user():
             if not user:
                 # If License Service already verified this user above, use that result
                 if ls_verified_early:
-                    # Auto-create user in local org DB so future logins work without LS call
+                    # Upsert user in local org DB — insert or update password hash/role.
+                    # org_id is included explicitly so _inject_org_id skips auto-injection
+                    # (which would break the ON DUPLICATE KEY UPDATE clause).
+                    _upsert_role = ls_role_early or "user"
                     try:
-                        cursor.execute(
-                            """
-                            INSERT INTO users (username, email, full_name, password_hash, role, status)
-                            VALUES (?, ?, ?, ?, ?, 'active')
-                            """,
-                            (username, f"{username}@synerex.com", username, password_hash, ls_role_early or "user"),
-                        )
+                        if USE_MYSQL:
+                            cursor.execute(
+                                """
+                                INSERT INTO users (username, email, full_name, password_hash, role, status, org_id)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), role=VALUES(role),
+                                    status='active', org_id=VALUES(org_id)
+                                """,
+                                (username, f"{username}@synerex.com", username, password_hash, _upsert_role, "active", org_id),
+                            )
+                        else:
+                            cursor.execute(
+                                """
+                                INSERT OR REPLACE INTO users (username, email, full_name, password_hash, role, status, org_id)
+                                VALUES (?, ?, ?, ?, ?, 'active', ?)
+                                """,
+                                (username, f"{username}@synerex.com", username, password_hash, _upsert_role, org_id),
+                            )
                         org_conn.commit()
-                        logger.info("Auto-created EMV user '%s' for org '%s' via License Service fallback", username, org_id)
-                        # Re-fetch the newly created user
+                        logger.info("Upserted EMV user '%s' for org '%s' via License Service", username, org_id)
+                    except Exception as create_err:
+                        logger.warning("Could not upsert user '%s': %s", username, create_err)
+                        try:
+                            org_conn.rollback()
+                        except Exception:
+                            pass
+                    # Always re-fetch after upsert attempt — also update password in existing row
+                    try:
+                        if USE_MYSQL:
+                            cursor.execute(
+                                "UPDATE users SET password_hash=%s, role=%s, org_id=%s WHERE username=%s",
+                                (password_hash, _upsert_role, org_id, username),
+                            )
+                            org_conn.commit()
                         cursor.execute(
                             "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ?",
                             (username,),
                         )
                         user = cursor.fetchone()
-                    except Exception as create_err:
-                        logger.warning("Could not auto-create user '%s': %s", username, create_err)
-                        org_conn.rollback()
+                    except Exception as refetch_err:
+                        logger.warning("Re-fetch after upsert failed for '%s': %s", username, refetch_err)
 
                 if not user:
                     logger.warning("Login failed: username=%r role=%r org_id=%r (no matching user)", username, role, org_id)
@@ -12568,11 +12594,29 @@ def login_user():
             else:
                 logger.info(f"Γ£à Session token saved and verified in database for user_id={verify_row[0]}, org_id={verify_row[1]}")
 
+            # Derive org_type from org_id for frontend role-based UI decisions
+            if org_id == "admin":
+                _org_type = "admin"
+            elif (org_id or "").upper().startswith("OEM-"):
+                _org_type = "oem"
+            else:
+                _org_type = "customer"
+            # Confirm via License Service if available (best-effort)
+            try:
+                _ls_org = req_lib.get(
+                    f"{LICENSE_SERVICE_URL}/api/orgs/{org_id}", timeout=2
+                )
+                if _ls_org.status_code == 200:
+                    _org_type = _ls_org.json().get("org_type") or _org_type
+            except Exception:
+                pass
+
             return jsonify(
                 {
                     "status": "success",
                     "session_token": session_token,
                     "org_id": org_id,
+                    "org_type": _org_type,
                     "is_admin": user_role in ("administrator", "oem_admin"),
                     "user": {
                         "id": user_id,

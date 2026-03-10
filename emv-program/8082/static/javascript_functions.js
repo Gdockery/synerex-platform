@@ -3752,6 +3752,16 @@ function setupTrackingIntegration() {
   const form = document.getElementById('analysisForm');
   if (!form) return;
 
+  // Only OEM users use Tracking Integration; Synerex admin uses "Load Projects" directly
+  const _orgType = localStorage.getItem('org_type') || '';
+  const _orgId   = localStorage.getItem('org_id') || '';
+  const _isOem   = (_orgType === 'oem' || _orgId.toUpperCase().startsWith('OEM-'));
+  const _isSynerex = (_orgId === 'admin' || _orgType === 'admin');
+  if (_isSynerex && !_isOem) {
+    // Synerex admin uses "Load Projects" — don't render Tracking Integration
+    return;
+  }
+
   let container = document.getElementById('tracking-integration-container');
   if (!container) {
     container = document.createElement('div');

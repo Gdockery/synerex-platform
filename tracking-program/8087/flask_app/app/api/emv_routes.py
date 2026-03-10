@@ -5,6 +5,7 @@ Supports X-EMV-API-Key for service-to-service calls from EMV backend.
 """
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from app.db.request_session import get_session
 from app.helpers.decorators import emv_api_key_or_login, license_required
@@ -13,6 +14,30 @@ from app.models.project import Project, project_user
 from app.models.user import User
 
 emv_bp = Blueprint("emv", __name__, url_prefix="")
+
+
+def _resolve_org_type(org_id: str) -> str | None:
+    """
+    Ask the License Service for the org_type of the given org_id.
+    Returns 'oem', 'customer', 'pe', or None on failure.
+    Cached per-request using Flask's g object.
+    """
+    try:
+        from flask import g
+        cache = g.get("_org_type_cache") or {}
+        if org_id in cache:
+            return cache[org_id]
+        import urllib.request as _urllib
+        import json as _json
+        base = current_app.config.get("LICENSE_SERVICE_URL", "http://localhost:8000").rstrip("/")
+        with _urllib.urlopen(f"{base}/api/orgs/{org_id}", timeout=3) as r:
+            data = _json.loads(r.read())
+        result = data.get("org_type")
+        cache[org_id] = result
+        g._org_type_cache = cache
+        return result
+    except Exception:
+        return None
 
 
 def _is_emv_api_key_request():
@@ -71,8 +96,13 @@ def emv_projects():
     """
     GET /api/emv/projects?orgId=X&clientId=Y
     Return list of projects for EMV program to use when setting up analysis.
-    orgId: required - filter by org
-    clientId: optional - filter by client
+    orgId: required - the caller's org_id (OEM, customer, or admin)
+    clientId: optional - further filter by client id
+
+    Access rules:
+    - Synerex Admin (org_id='admin'): all projects
+    - OEM org: only projects whose client.sponsor_org_id == org_id (their own clients)
+    - Customer org: only projects where project.org_id == org_id (their own)
     """
     sess = get_session()
     org_id = request.args.get("orgId", "").strip()
@@ -85,13 +115,39 @@ def emv_projects():
             client_id = int(client_id_arg)
         except (ValueError, TypeError):
             pass
+
     if _is_emv_api_key_request():
-        q = sess.query(Project).filter_by(isDeleted=False).filter(Project.org_id == org_id)
+        # Server-to-server (EMV backend calling Tracking via API key)
+        # Determine what kind of org is making the request and scope accordingly
+        if org_id == "admin":
+            # Synerex Admin — all projects
+            q = sess.query(Project).filter(Project.isDeleted == False)
+        else:
+            org_type = _resolve_org_type(org_id)
+            if org_type == "oem":
+                # OEM Admin — only projects whose client is sponsored by this OEM.
+                # Join through Client so OEM-A cannot see OEM-B's clients.
+                q = (
+                    sess.query(Project)
+                    .join(Client, Project.client == Client.id)
+                    .filter(
+                        Project.isDeleted == False,
+                        Client.isDeleted == False,
+                        Client.sponsor_org_id == org_id,
+                    )
+                )
+            else:
+                # Customer org or unknown — exact project.org_id match only
+                q = sess.query(Project).filter(
+                    Project.isDeleted == False,
+                    Project.org_id == org_id,
+                )
         if client_id is not None:
             q = q.filter(Project.client == client_id)
         projects = q.all()
     else:
         projects = _projects_for_user(sess, org_id=org_id, client_id=client_id)
+
     rows = []
     for p in projects:
         client_name = ""
@@ -138,9 +194,26 @@ def emv_project_bill_analytic():
         except (ValueError, TypeError):
             pass
     sess = get_session()
-    q = sess.query(Project).filter_by(id=project_id, isDeleted=False)
+    q = sess.query(Project).filter(Project.id == project_id, Project.isDeleted == False)
     if org_id:
-        q = q.filter(Project.org_id == org_id)
+        if _is_emv_api_key_request() and org_id != "admin":
+            org_type = _resolve_org_type(org_id)
+            if org_type == "oem":
+                # OEM: access only projects whose client is sponsored by this OEM
+                q = (
+                    sess.query(Project)
+                    .join(Client, Project.client == Client.id)
+                    .filter(
+                        Project.id == project_id,
+                        Project.isDeleted == False,
+                        Client.isDeleted == False,
+                        Client.sponsor_org_id == org_id,
+                    )
+                )
+            else:
+                q = q.filter(Project.org_id == org_id)
+        else:
+            q = q.filter(Project.org_id == org_id)
     if client_id is not None:
         q = q.filter(Project.client == client_id)
     p = q.first()
@@ -184,7 +257,24 @@ def emv_save_prefill():
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid projectId"}), 400
     sess = get_session()
-    q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
+    # Allow OEM users to save prefill for their sponsored clients' projects
+    if _is_emv_api_key_request() and org_id and org_id != "admin":
+        org_type = _resolve_org_type(org_id)
+        if org_type == "oem":
+            q = (
+                sess.query(Project)
+                .join(Client, Project.client == Client.id)
+                .filter(
+                    Project.id == project_id,
+                    Project.isDeleted == False,
+                    Client.isDeleted == False,
+                    Client.sponsor_org_id == org_id,
+                )
+            )
+        else:
+            q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
+    else:
+        q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
     p = q.first()
     if not p:
         return jsonify({"error": "Project not found"}), 404

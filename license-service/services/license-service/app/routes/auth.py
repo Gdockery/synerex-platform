@@ -379,13 +379,22 @@ def verify_credentials(body: dict, db: Session = Depends(db_session)):
         raise HTTPException(401, "Invalid credentials")
 
     org = db.get(Organization, user.org_id) if user.org_id else None
+    org_type = org.org_type if org else None
+    # Derive a role string suitable for downstream services (EMV, Tracking)
+    # OEM orgs and the Synerex admin org are treated as administrators
+    if org_type in ("oem", "admin") or user.org_id == "admin":
+        derived_role = "administrator"
+    else:
+        derived_role = "user"
     return {
         "valid": True,
         "username": user.username,
         "email": getattr(user, "email", None),
         "org_id": user.org_id,
-        "org_type": org.org_type if org else None,
+        "org_type": org_type,
         "org_name": org.org_name if org else None,
+        "role": derived_role,
+        "roles": [derived_role],
     }
 
 

@@ -355,7 +355,7 @@ class MainDashboard {
         this.clearAllSpinners();
         
         try {
-            console.log('🔐 Login attempt:', { username, role, org_id });
+            console.log('🔐 Login attempt:', { username, role });
             this.setLoading(true);
             
             // Add timeout controller to prevent infinite spinner
@@ -416,9 +416,12 @@ class MainDashboard {
                     this.currentUser = result.user;
                     this.sessionToken = result.session_token;
                     localStorage.setItem('session_token', this.sessionToken);
-                    // Store org_id for license checks
+                    // Store org_id and org_type for license checks and role-based UI
                     if (result.org_id) {
                         localStorage.setItem('org_id', result.org_id);
+                    }
+                    if (result.org_type) {
+                        localStorage.setItem('org_type', result.org_type);
                     }
                     this.showAuthenticatedDashboard();
                     this.loadDashboardStats().catch(err => {
@@ -581,6 +584,43 @@ class MainDashboard {
             if (adminBtn) {
                 adminBtn.style.display = 'none';
             }
+        }
+
+        // Role-based UI: OEM users open the analysis form (Tracking Integration);
+        // Synerex Admin uses the EMV's own saved project list.
+        const _storedOrgType = localStorage.getItem('org_type') || '';
+        const _storedOrgId   = localStorage.getItem('org_id') || '';
+        const _isSynerex = (_storedOrgId === 'admin' || _storedOrgType === 'admin');
+        const _isOem     = (_storedOrgType === 'oem' || _storedOrgId.toUpperCase().startsWith('OEM-'));
+
+        // "Access Projects" button — Synerex opens EMV project list modal;
+        // OEM users get it relabelled as "Open EM&V Analysis" which navigates to /legacy
+        const accessProjectBtn = document.getElementById('access-project');
+        if (accessProjectBtn) {
+            if (_isOem) {
+                accessProjectBtn.textContent = '📊 Open EM&V Analysis';
+                accessProjectBtn.title = 'Open the EM&V analysis form and use Tracking Integration to import your project';
+                accessProjectBtn.onclick = function(e) {
+                    e.preventDefault();
+                    window.location.href = (window.SYNEREX_EMV_BASE || '') + '/legacy';
+                };
+            } else {
+                // Restore default behaviour for Synerex
+                accessProjectBtn.textContent = '📂 Access Project';
+                accessProjectBtn.title = '';
+            }
+        }
+
+        // "Tracking Integration" container in the analysis form — OEM only
+        const trackingIntegrationContainer = document.getElementById('tracking-integration-container');
+        if (trackingIntegrationContainer) {
+            trackingIntegrationContainer.style.display = _isOem ? '' : 'none';
+        }
+
+        // "Saved Projects" section in analysis form — Synerex only
+        const savedProjectsSection = document.getElementById('saved-projects-section');
+        if (savedProjectsSection) {
+            savedProjectsSection.style.display = _isSynerex ? '' : 'none';
         }
 
         // Add "Back to My Account" button (website's central My Account) when WEBSITE_URL is set
