@@ -76,7 +76,7 @@ class UploadInterface {
         }
         
         try {
-            const response = await fetch('/api/auth/validate-session', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/validate-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_token: this.sessionToken })
@@ -181,7 +181,7 @@ class UploadInterface {
                 formData.append('file', file);
                 formData.append('uploaded_by', this.currentUser.id);
                 
-                const response = await fetch('/api/raw-meter-data/upload', {
+                const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/raw-meter-data/upload', {
                     method: 'POST',
                     body: formData
                 });
@@ -216,7 +216,7 @@ class UploadInterface {
         const recentUploadsDiv = document.getElementById('recent-uploads');
         
         try {
-            const response = await fetch('/api/original-files');
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files');
             const result = await response.json();
             
             if (result.status === 'success') {
@@ -321,7 +321,7 @@ class UploadInterface {
 
     async logout() {
         try {
-            await fetch('/api/auth/logout', {
+            await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/logout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_token: this.sessionToken })

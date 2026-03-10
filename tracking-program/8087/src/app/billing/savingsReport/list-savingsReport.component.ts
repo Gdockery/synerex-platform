@@ -1124,7 +1124,7 @@ export class ListSavingsReportComponent implements OnInit {
 
     const savePrefill = () => {
       if (!orgId || !projectId) { return Promise.resolve(null); }
-      return fetch('/api/emv/save-prefill', {
+      return fetch('/tracking/api/emv/save-prefill', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orgId, projectId, clientId, fields }),
@@ -1199,7 +1199,8 @@ export class ListSavingsReportComponent implements OnInit {
     // EM&V fields — billing rate and address info from the same scan
     if (d.electricCompanyName) { this.emvUtility = d.electricCompanyName; this.emvUtilityName = d.electricCompanyName; }
     if (d.accountNumber)       { this.emvAccountNumber = d.accountNumber; }
-    if (d.kwRatePerTariff)     { this.emvEnergyRate = String(d.kwRatePerTariff); }
+    if (d.kwhRate)             { this.emvEnergyRate = String(d.kwhRate); }
+    if (d.kwRatePerTariff)     { this.emvDemandRate = String(d.kwRatePerTariff); }
     if (d.serviceAddress)      { this.emvFacilityAddress = d.serviceAddress; }
     if (d.serviceCity)         { this.emvFacilityCity = d.serviceCity; }
     if (d.serviceState)        { this.emvFacilityState = d.serviceState; }

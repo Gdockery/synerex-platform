@@ -240,7 +240,7 @@ class ClippingInterface {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
             
-            const response = await fetch('/api/original-files', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                 signal: controller.signal
             });
             
@@ -1194,7 +1194,7 @@ class ClippingInterface {
                 headers['Authorization'] = `Bearer ${sessionToken}`;
             }
             
-            const response = await fetch('/api/current-user', { headers });
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/current-user', { headers });
             const data = await response.json();
             
             if (data.success) {
@@ -1236,7 +1236,7 @@ class ClippingInterface {
                 headers['Authorization'] = `Bearer ${sessionToken}`;
             }
             
-            const response = await fetch('/api/csv-cell-annotation', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv-cell-annotation', {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
@@ -1575,7 +1575,7 @@ class ClippingInterface {
     
     async logout() {
         try {
-            await fetch('/api/auth/logout', {
+            await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/logout', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.getSessionToken()}`

@@ -41,7 +41,7 @@ class FileSelection {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             
-            const response = await fetch('/api/verified-files', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/verified-files', {
                 signal: controller.signal
             });
             clearTimeout(timeoutId);

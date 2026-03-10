@@ -1,8 +1,7 @@
 // Main Dashboard JavaScript
+if (typeof emvUrl === 'undefined') { var emvUrl = function(p) { return ((typeof window !== 'undefined' && window.SYNEREX_EMV_BASE) || '') + p; }; }
 const LICENSE_SERVICE_URL = window.SYNEREX_LICENSE_SERVICE_URL;
 const WEBSITE_URL = window.SYNEREX_WEBSITE_URL;
-const EMV_BASE = (typeof window !== 'undefined' && window.SYNEREX_EMV_BASE) || '';
-function emvUrl(p) { return (EMV_BASE || '') + p; }
 class MainDashboard {
     constructor() {
 
@@ -267,7 +266,7 @@ class MainDashboard {
                         controller.abort();
                     }, 10000); // 10 seconds (increased for VPN latency)
                     
-                    const response = await fetch('/api/auth/validate-session', {
+                    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/validate-session', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ session_token: this.sessionToken }),
@@ -377,7 +376,7 @@ class MainDashboard {
             }, 5000);
             
             try {
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password, role, org_id }),
@@ -498,7 +497,7 @@ class MainDashboard {
         
         try {
             this.setLoading(true);
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -677,7 +676,7 @@ class MainDashboard {
             }, 5000);
             
             try {
-                const rawFilesResponse = await fetch('/api/dashboard/raw-files-stats', {
+                const rawFilesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/raw-files-stats', {
                     headers: this.getAuthHeaders(),
                     signal: rawFilesController.signal
                 });
@@ -753,7 +752,7 @@ class MainDashboard {
             }, 5000);
             
             try {
-                const clippingResponse = await fetch('/api/dashboard/clipping-stats', {
+                const clippingResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/clipping-stats', {
                     headers: this.getAuthHeaders(),
                     credentials: 'same-origin',
                     signal: clippingController.signal
@@ -845,7 +844,7 @@ class MainDashboard {
             }, 5000);
             
             try {
-                const projectResponse = await fetch('/api/dashboard/project-stats', {
+                const projectResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/project-stats', {
                     headers: this.getAuthHeaders(),
                     signal: projectController.signal
                 });
@@ -878,7 +877,7 @@ class MainDashboard {
                 }, 5000);
                 
                 try {
-                    const peResponse = await fetch('/api/dashboard/pe-stats', {
+                    const peResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/pe-stats', {
                         headers: this.getAuthHeaders(),
                         signal: peController.signal
                     });
@@ -1031,7 +1030,7 @@ class MainDashboard {
                     // Add user ID to form data (you might want to get this from session)
                     formData.append('uploaded_by', 'current_user');
                     
-                    const response = await fetch('/api/raw-meter-data/upload', {
+                    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/raw-meter-data/upload', {
                         method: 'POST',
                         body: formData
                     });
@@ -1071,7 +1070,7 @@ class MainDashboard {
         
         try {
             // Get files that have fingerprints (processed files)
-            const response = await fetch('/api/csv/fingerprints');
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/fingerprints');
             const data = await response.json();
             
             if (data.status === 'success' && data.fingerprints && data.fingerprints.length > 0) {
@@ -1115,7 +1114,7 @@ class MainDashboard {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
                 
-                const response = await fetch('/api/original-files', {
+                const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
@@ -1426,13 +1425,13 @@ class MainDashboard {
         this.showNotification('Loading raw files list...', 'info');
         
         try {
-            const response = await fetch('/api/dashboard/raw-files-stats', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/raw-files-stats', {
                 headers: this.getAuthHeaders()
             });
             const stats = await response.json();
             
             // Get list of raw files
-            const filesResponse = await fetch('/api/original-files', {
+            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                 headers: this.getAuthHeaders()
             });
             const filesData = await filesResponse.json();
@@ -1530,13 +1529,13 @@ class MainDashboard {
         this.showNotification('Loading storage breakdown...', 'info');
         
         try {
-            const response = await fetch('/api/dashboard/raw-files-stats', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/raw-files-stats', {
                 headers: this.getAuthHeaders()
             });
             const stats = await response.json();
             
             // Get files for size breakdown
-            const filesResponse = await fetch('/api/original-files', {
+            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                 headers: this.getAuthHeaders()
             });
             const filesData = await filesResponse.json();
@@ -1629,13 +1628,13 @@ class MainDashboard {
         this.showNotification('Loading recent uploads...', 'info');
         
         try {
-            const response = await fetch('/api/dashboard/raw-files-stats', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/raw-files-stats', {
                 headers: this.getAuthHeaders()
             });
             const stats = await response.json();
             
             // Get list of raw files
-            const filesResponse = await fetch('/api/original-files', {
+            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                 headers: this.getAuthHeaders()
             });
             const filesData = await filesResponse.json();
@@ -1767,7 +1766,7 @@ class MainDashboard {
         this.showNotification('Loading raw data statistics...', 'info');
         
         try {
-            const response = await fetch('/api/dashboard/raw-files-stats');
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/raw-files-stats');
             const data = await response.json();
             
             if (data.status === 'success') {
@@ -1896,7 +1895,7 @@ class MainDashboard {
         this.showNotification('Loading fingerprints viewer...', 'info');
         
         try {
-            const response = await fetch('/api/csv/fingerprints', { credentials: 'same-origin' });
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/fingerprints', { credentials: 'same-origin' });
             const data = await response.json();
             
             if (data.status === 'success') {
@@ -2085,7 +2084,7 @@ class MainDashboard {
         
         // First, get the list of files to show them in "Unverified" state
         try {
-            const filesResponse = await fetch('/api/csv/integrity/verify-all');
+            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/verify-all');
             const filesData = await filesResponse.json();
             
             if (filesData.status === 'success') {
@@ -2107,7 +2106,7 @@ class MainDashboard {
         this.showVerificationLoadingModal();
         
         try {
-            const response = await fetch('/api/csv/integrity/verify-all');
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/verify-all');
             const data = await response.json();
             
             // Remove loading modal
@@ -2549,7 +2548,7 @@ class MainDashboard {
         this.showNotification('Loading clipped files list...', 'info');
         
         try {
-            const response = await fetch('/api/dashboard/clipping-stats', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/dashboard/clipping-stats', {
                 headers: this.getAuthHeaders()
             });
             const stats = await response.json();
@@ -2561,7 +2560,7 @@ class MainDashboard {
             
             // Try to get files that might be clipped
             try {
-                const filesResponse = await fetch('/api/verified-files', {
+                const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/verified-files', {
                     headers: this.getAuthHeaders()
                 });
                 const filesData = await filesResponse.json();
@@ -2681,13 +2680,13 @@ class MainDashboard {
         
         try {
             // Get all files first to get their custody records
-            const filesResponse = await fetch('/api/verified-files', {
+            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/verified-files', {
                 headers: this.getAuthHeaders()
             });
             const filesData = await filesResponse.json();
             
             // Get modifications from database directly
-            const modsResponse = await fetch('/api/csv/integrity/summary', {
+            const modsResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/summary', {
                 headers: this.getAuthHeaders()
             });
             const summaryData = await modsResponse.json();
@@ -2698,7 +2697,7 @@ class MainDashboard {
                 // Get modification history for the first file as an example
                 // In a real implementation, we'd want to get all modifications
                 try {
-                    const modHistoryResponse = await fetch('/api/csv/integrity/modification-history', {
+                    const modHistoryResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/modification-history', {
                         method: 'POST',
                         headers: {
                             ...this.getAuthHeaders(),
@@ -2815,7 +2814,7 @@ class MainDashboard {
         this.showNotification('Loading integrity status details...', 'info');
         
         try {
-            const response = await fetch('/api/csv/integrity/summary', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/summary', {
                 headers: this.getAuthHeaders()
             });
             const data = await response.json();
@@ -3110,7 +3109,7 @@ class MainDashboard {
                 const formData = new FormData(e.target);
                 
                 try {
-                    const response = await fetch('/api/projects', {
+                    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
                         method: 'POST',
                         headers: this.getAuthHeaders(),
                         body: JSON.stringify({
@@ -3176,7 +3175,7 @@ class MainDashboard {
             const authHeaders = this.getAuthHeaders();
             console.log('📤 Request headers:', authHeaders);
             
-            const response = await fetch('/api/projects', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
                 headers: authHeaders,
                 signal: controller.signal
             });
@@ -3349,7 +3348,7 @@ class MainDashboard {
         try {
             console.log('📡 Calling /api/projects/load with project_id:', projectId);
             
-            const response = await fetch('/api/projects/load', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/load', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify({
@@ -3434,7 +3433,7 @@ class MainDashboard {
         
         try {
             // Load project data
-            const loadResponse = await fetch('/api/projects/load', {
+            const loadResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/load', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify({
@@ -3486,7 +3485,7 @@ class MainDashboard {
             }
             
             // Run analysis
-            const analyzeResponse = await fetch('/api/analyze', {
+            const analyzeResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze', {
                 method: 'POST',
                 body: formData
             });
@@ -3576,7 +3575,7 @@ class MainDashboard {
         
         // Create project with template data
         try {
-            const response = await fetch('/api/projects', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3606,7 +3605,7 @@ class MainDashboard {
     async refreshProjectList() {
         // This method can be called to refresh project lists in the UI
         try {
-            const response = await fetch('/api/projects');
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects');
             const data = await response.json();
             // Update any project lists in the UI if needed
 
@@ -4585,7 +4584,7 @@ function openAdminPanel() {
     console.log('Validating session before opening admin panel...');
     
     // Validate the session before opening
-    fetch('/api/auth/validate-session', {
+    fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/validate-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_token: sessionToken })

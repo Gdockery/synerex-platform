@@ -1302,6 +1302,19 @@ def license_required(fn):
                                         logger.info(f"Admin user bypassing license check for {fn.__name__}")
                                         return fn(*args, **kwargs)
             
+            # OEM org bypass — OEM organizations are the licensees of the software
+            # and should never be blocked by a license check
+            try:
+                org_resp = req_lib.get(
+                    f"{LICENSE_SERVICE_URL}/api/orgs/{org_id}",
+                    timeout=3
+                )
+                if org_resp.status_code == 200 and org_resp.json().get("org_type") == "oem":
+                    logger.info(f"OEM org '{org_id}' bypassing license check for {fn.__name__}")
+                    return fn(*args, **kwargs)
+            except Exception as e:
+                logger.debug(f"OEM org type check failed: {e}")
+
             # Check license with License Service
             try:
                 resp = req_lib.get(
@@ -12174,9 +12187,15 @@ def handle_license_token_login(token: str):
 
 @app.route("/api/auth/organizations", methods=["GET"])
 def list_organizations():
-    """Return list of org_id and company_name for login dropdown. Includes admin + orgs synced from License service."""
+    """Return list of org_id and company_name for login dropdown.
+    Merges local EMV organizations table with orgs from the License Service
+    so any org registered in the License Service appears automatically.
+    """
     try:
         orgs = [{"org_id": "admin", "company_name": "Synerex (admin)"}]
+        seen = {"admin"}
+
+        # 1. Local EMV organizations table
         try:
             with get_db_connection(use_sessions_db=True) as conn:
                 if conn:
@@ -12184,7 +12203,6 @@ def list_organizations():
                     cur = conn.cursor()
                     cur.execute("SELECT org_id, company_name FROM organizations ORDER BY org_id")
                     rows = cur.fetchall()
-                    seen = {"admin"}
                     for row in rows:
                         oid = row[0] if isinstance(row, (tuple, list)) else row.get("org_id")
                         cname = row[1] if isinstance(row, (tuple, list)) else row.get("company_name")
@@ -12192,7 +12210,27 @@ def list_organizations():
                             orgs.append({"org_id": str(oid), "company_name": cname or str(oid)})
                             seen.add(str(oid))
         except Exception as db_err:
-            logger.warning("Could not load orgs from DB for dropdown: %s", db_err)
+            logger.warning("Could not load orgs from local DB for dropdown: %s", db_err)
+
+        # 2. License Service fallback — adds any org not yet in the local table
+        try:
+            license_service_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL)
+            if license_service_url:
+                import requests as req_lib
+                ls_resp = req_lib.get(
+                    f"{license_service_url.rstrip('/')}/api/orgs",
+                    timeout=3,
+                )
+                if ls_resp.status_code == 200:
+                    for o in (ls_resp.json().get("orgs") or []):
+                        oid = o.get("org_id")
+                        cname = o.get("org_name") or oid
+                        if oid and oid not in seen:
+                            orgs.append({"org_id": str(oid), "company_name": cname})
+                            seen.add(str(oid))
+        except Exception as ls_err:
+            logger.debug("Could not fetch orgs from License Service for dropdown: %s", ls_err)
+
         resp = jsonify({"status": "success", "organizations": orgs})
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         resp.headers["Pragma"] = "no-cache"

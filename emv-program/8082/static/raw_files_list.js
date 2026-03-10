@@ -92,7 +92,7 @@ class RawFilesList {
         }
         
         try {
-            const response = await fetch('/api/auth/validate-session', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/validate-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_token: this.sessionToken })
@@ -123,7 +123,7 @@ class RawFilesList {
         tableBody.innerHTML = '<div class="loading">Loading files...</div>';
         
         try {
-            const response = await fetch('/api/original-files', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
                 headers: this.getAuthHeaders()
             });
             const result = await response.json();
@@ -424,7 +424,7 @@ class RawFilesList {
         }
         
         try {
-            const response = await fetch('/api/original-files/assign-to-project', {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/assign-to-project', {
                 method: 'POST',
                 headers: this.getAuthHeaders(),
                 body: JSON.stringify({
@@ -466,7 +466,7 @@ class RawFilesList {
     
     async logout() {
         try {
-            await fetch('/api/auth/logout', {
+            await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/logout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_token: this.sessionToken })

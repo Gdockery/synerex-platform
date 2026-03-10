@@ -595,7 +595,7 @@ response = requests.post('${EMV_BASE_URL}/api/generate-report', json=report_data
 const formData = new FormData();
 formData.append('file', fileInput.files[0]);
 
-fetch('/api/raw-meter-data/upload', {
+fetch((window.SYNEREX_EMV_BASE||'')+'/api/raw-meter-data/upload', {
     method: 'POST',
     body: formData
 })
@@ -609,7 +609,7 @@ const analysisData = {
     test_type: 'Power Quality'
 };
 
-fetch('/api/analyze', {
+fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: new URLSearchParams(analysisData)

@@ -561,7 +561,7 @@ function fetchWeatherData() {
   }, 10000); // Update every 10 seconds
 
   // Make API call - credentials needed for org_id/session (required by backend)
-  fetch('/api/fetch_weather', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/fetch_weather', {
       method: 'POST',
       body: formData,
       signal: controller.signal,
@@ -1206,7 +1206,7 @@ document.addEventListener("DOMContentLoaded", function() {
       controller.abort();
     }, 30000); // Increased to 30 seconds to match main dashboard
     
-    fetch('/api/projects', {
+    fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
       method: 'GET',
       headers: authHeaders,
       cache: 'no-cache',
@@ -1844,7 +1844,7 @@ function saveProject() {
     has_auth_header: !!headers['Authorization']
   });
   
-  fetch('/api/projects/save', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/save', {
       method: 'POST',
       headers: headers,
       body: formData
@@ -1966,7 +1966,7 @@ function reanalyzeProject() {
   }
   
   // Load project data first
-  fetch('/api/projects/load', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/load', {
     method: 'POST',
     headers: headers,
     body: JSON.stringify({
@@ -2029,7 +2029,7 @@ function reanalyzeProject() {
     showNotification(`Re-analyzing "${projectName}" with latest code...`, 'info');
     
     // Submit analysis
-    return fetch('/api/analyze', {
+    return fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze', {
       method: 'POST',
       body: formData
     });
@@ -2115,7 +2115,7 @@ function validateAndRestoreFile(fileId, fileType) {
       headers['Authorization'] = `Bearer ${sessionToken}`;
     }
     
-    fetch('/api/verified-files', { headers: headers })
+    fetch((window.SYNEREX_EMV_BASE||'')+'/api/verified-files', { headers: headers })
       .then(response => response.json())
       .then(data => {
         if (data.status === 'success' && data.files) {
@@ -2215,7 +2215,7 @@ function fetchFileInfoAndRestore(fileId, fileType) {
     headers['Authorization'] = `Bearer ${sessionToken}`;
   }
   
-  fetch('/api/verified-files', { headers: headers })
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/verified-files', { headers: headers })
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success' && data.files) {
@@ -2360,7 +2360,7 @@ function loadProject() {
     headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
   }
 
-  fetch('/api/projects/load', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/load', {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
@@ -2700,7 +2700,7 @@ function archiveProjectByName(projectName, onSuccess) {
   console.log('📤 Project name encoded:', encodeURIComponent(projectName));
   console.log('📤 Project name char codes:', Array.from(projectName).map(c => c.charCodeAt(0)));
 
-  fetch('/api/projects/archive', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/archive', {
       method: 'POST',
       body: formData
     })
@@ -3598,7 +3598,7 @@ function setupCPEventsAutoPopulation() {
     }
 
     try {
-      const response = await fetch('/api/cp_events', {
+      const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/cp_events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4606,7 +4606,7 @@ async function exportESGCaseStudyReport(r) {
 
     // Use GET request like regular report (uses stored results from /api/analyze)
     // This ensures the ESG report gets the complete stored data structure
-    const response = await fetch('/api/generate-esg-case-study-report', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/generate-esg-case-study-report', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -4669,7 +4669,7 @@ async function exportLaymanReport(r) {
     newWindow.document.close();
 
     // Make API call to get the layman report
-    const response = await fetch('/api/serve-layman-report', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/serve-layman-report', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -4738,7 +4738,7 @@ async function exportSelectedPDF(r) {
 
 
     // Send results to PDF generation endpoint
-    const response = await fetch('/api/generate_envelope_pdf', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/generate_envelope_pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4811,7 +4811,7 @@ async function exportEnvelopeReport(r) {
 
 
     // Send results to PDF generation endpoint
-    const response = await fetch('/api/generate_envelope_pdf', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/generate_envelope_pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -4899,7 +4899,7 @@ async function generateUtilitySubmissionPackage(r) {
     }
 
     // Send results to utility submission package generation endpoint
-    const response = await fetch('/api/generate-utility-submission-package', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/generate-utility-submission-package', {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(packageData)
@@ -4978,7 +4978,7 @@ async function viewEquipmentHealthReport(r) {
     // If not in results, try to fetch from API
     if (!equipmentHealth || equipmentHealth.length === 0) {
       try {
-        const response = await fetch('/api/equipment/health-report?limit=50');
+        const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/equipment/health-report?limit=50');
         if (response.ok) {
           const data = await response.json();
           // Check if response has the expected structure
@@ -5004,7 +5004,7 @@ async function viewEquipmentHealthReport(r) {
     if ((!equipmentHealth || equipmentHealth.length === 0) && r) {
       try {
         console.log("Attempting to generate equipment health from analysis results...");
-        const response = await fetch('/api/equipment/analyze-health', {
+        const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/equipment/analyze-health', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -6122,7 +6122,7 @@ async function viewEquipmentHealthReport(r) {
         btn.textContent = 'Generating PDF...';
 
         // Send equipment health data to generate PDF
-        const response = await fetch('/api/equipment/generate-health-pdf', {
+        const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/equipment/generate-health-pdf', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -6268,7 +6268,7 @@ async function generateAuditPackage(r) {
     }
 
     // Send results to audit package generation endpoint
-    const response = await fetch('/api/generate-audit-package', {
+    const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/generate-audit-package', {
       method: 'POST',
       headers,
       body: JSON.stringify(r)
@@ -11337,7 +11337,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     r.power_quality.calculated_normalized_kw_savings
   )) {
     // Send updated results to backend to update app._latest_analysis_results
-    fetch('/api/analysis/results', {
+    fetch((window.SYNEREX_EMV_BASE||'')+'/api/analysis/results', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -11777,7 +11777,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function listProfiles() {
-    const res = await fetch('/api/profiles');
+    const res = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/profiles');
     const arr = await res.json();
     if (!Array.isArray(arr)) return;
     q('#prof_list').innerHTML = arr.slice(1, 1).map(p => {
@@ -11801,7 +11801,7 @@ document.addEventListener("DOMContentLoaded", () => {
       client_id,
       profile: collectFormValues()
     };
-    const res = await fetch('/api/profiles', {
+    const res = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/profiles', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -11820,7 +11820,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showNotification('Enter Client ID');
       return;
     }
-    const res = await fetch('/api/profiles/' + encodeURIComponent(cid));
+    const res = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/profiles/' + encodeURIComponent(cid));
     const data = await res.json();
     if (!res.ok) {
       showNotification('Not found');
@@ -11835,7 +11835,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showNotification('Enter Client ID');
       return;
     }
-    const res = await fetch('/api/profiles/' + encodeURIComponent(cid) + '/clone', {
+    const res = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/profiles/' + encodeURIComponent(cid) + '/clone', {
       method: 'POST'
     });
     const data = await res.json();
@@ -12885,7 +12885,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load projects list
 function loadProjects() {
-  fetch('/api/projects')
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects')
     .then(response => response.json())
     .then(data => {
       const select = document.getElementById('project_select');
@@ -12926,7 +12926,7 @@ function createProject() {
     headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
   }
 
-  fetch('/api/projects', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
@@ -13044,7 +13044,7 @@ function uploadFeedersCSV() {
   formData.append('uploader_name', uploaderName);
   formData.append('csv_file', fileInput.files[0]);
 
-  fetch('/api/upload/feeders-csv', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/upload/feeders-csv', {
       method: 'POST',
       body: formData
     })
@@ -13093,7 +13093,7 @@ function uploadTransformersCSV() {
   formData.append('uploader_name', uploaderName);
   formData.append('csv_file', fileInput.files[0]);
 
-  fetch('/api/upload/transformers-csv', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/upload/transformers-csv', {
       method: 'POST',
       body: formData
     })
@@ -13331,7 +13331,7 @@ function findCloudKitchenWithData() {
   
   console.log('🔑 Using session token:', sessionToken.substring(0, 20) + '...');
   
-  fetch('/api/projects/find-cloud-kitchen', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/find-cloud-kitchen', {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${sessionToken}`,
@@ -13408,7 +13408,7 @@ function showFileSelectionModal(fileType) {
   // Fetch ALL files (both verified and unverified) from the API
   // This allows users to select files that need to be verified/clipped
   console.log('📡 Fetching files from /api/original-files...');
-  fetch('/api/original-files', {
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
     headers: headers
   })
     .then(response => {

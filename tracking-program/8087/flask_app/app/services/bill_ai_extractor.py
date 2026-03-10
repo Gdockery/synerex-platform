@@ -209,23 +209,33 @@ kwRatePerTariff: The demand rate in $/kW — labeled "Demand Charge", "kW Charge
 meterNumber: "Meter Number" or "Meter #" — the meter identifier (digits, possibly with a space).
 serviceAddress/City/State/Zip: The service delivery address where power is used.
 taxAmount: "Tax", "Sales Tax", or "Tax Amount" — numbers only, 2 decimals.
-totalKwh: "Total kWh", "Total Usage", or "Energy Used" — total kilowatt-hours consumed this period.
-kwPeak: "Peak Demand", "Billing Demand", or "kW" — peak demand in kilowatts this period.
+totalKwh: Total kilowatt-hours of energy consumed this billing period. Look for "Total kWh", "Total Usage", "Energy Used", or the quantity column on a line item whose Unit is "kWh". This value is typically in the thousands (e.g. 5000–500000 kWh for commercial). Do NOT use a kW demand quantity here.
+kwPeak: Peak demand in kilowatts. Look for "Peak Demand", "Billing Demand", "kW", or the quantity column on a line item whose Unit is "kW" or "Kw". This is typically tens to hundreds of kW (e.g. 50–5000 kW). Do NOT use a kWh energy quantity here.
 voltage: Service voltage if explicitly stated (e.g. 120, 208, 240, 277, 480).
 billReference: "Bill Number", "Invoice #", or "Reference Number".
 tariff: "Rate Schedule", "Rate", or "Tariff" code.
-lineItems: Array of ALL individual charge line items visible in the charges/detail section. Each item must have:
-  - "name": the exact label from the bill (e.g. "Energy Charge", "Demand Charge", "Customer Charge", "Fuel Adjustment", "Renewable Energy Charge")
-  - "type": one of "kwh", "kw", "fixed", or "tax"
+lineItems: Array of ALL individual charge line items from the charges/detail table. Each item must have:
+  - "name": the exact label/description from the bill
+  - "unit": the exact value from the "Unit" column for that row — typically "kWh", "kW", "Kw", "kwh", or "-" (dash means fixed/no unit)
+  - "type": classify using the "unit" column value as the PRIMARY source:
+      * unit is "kW" or "Kw" or "KW" (any case, no 'h') → type = "kw"   (demand charge)
+      * unit is "kWh" or "kwh" or "KWH" (any case, with 'h') → type = "kwh"  (energy charge)
+      * unit is "-" or blank or "1" → type = "fixed"  (fixed monthly charge)
+      * name contains "tax", "surcharge", "levy" → type = "tax"
+      CRITICAL: If the Unit column says "kW" the type MUST be "kw" regardless of the description name.
+      Do NOT classify by description name alone — always use the Unit column first.
   - "cost": the dollar amount for this line item (number, 2 decimals)
-  - "billingRate": the per-unit rate if shown (number), otherwise 0
+  - "billingRate": the per-unit rate shown in the Rate column (number), otherwise 0
+  - "quantity": the quantity/usage shown for this line (number), otherwise 0
 
-Example lineItems:
+Example — a bill with a Unit column showing kW, kWh, and - rows:
 [
-  {"name": "Energy Charge", "type": "kwh", "cost": 1234.56, "billingRate": 0.0821},
-  {"name": "Demand Charge", "type": "kw", "cost": 456.78, "billingRate": 15.23},
-  {"name": "Customer Charge", "type": "fixed", "cost": 11.13, "billingRate": 0},
-  {"name": "Sales Tax", "type": "tax", "cost": 315.30, "billingRate": 0}
+  {"name": "Transmission Cost Recovery", "unit": "Kw", "type": "kw", "cost": 501.27, "billingRate": 5.11497, "quantity": 98},
+  {"name": "Distribution System Charge", "unit": "Kw", "type": "kw", "cost": 701.58, "billingRate": 5.12104, "quantity": 137},
+  {"name": "Fixed Energy Charge",        "unit": "kWh","type": "kwh","cost": 1581.02,"billingRate": 0.06123,"quantity": 25821},
+  {"name": "Energy Efficiency",          "unit": "kWh","type": "kwh","cost": 5.76,   "billingRate": 0.00022,"quantity": 25821},
+  {"name": "Customer Charge",            "unit": "-",  "type": "fixed","cost": 11.13, "billingRate": 0,      "quantity": 1},
+  {"name": "Sales Tax",                  "unit": "-",  "type": "tax", "cost": 315.30, "billingRate": 0,      "quantity": 0}
 ]
 
 If multiple values appear (e.g. multiple services on one bill), concatenate scalar fields with commas. Output nothing but the JSON."""
@@ -444,6 +454,64 @@ def _sanity_check_bill_amount(result: dict[str, Any]) -> None:
             pass
 
 
+def _sanity_check_kwh_vs_kw(result: dict[str, Any]) -> None:
+    """
+    Detect when totalKwh and kwPeak got swapped.
+    Commercial kWh is typically >> kW demand (kwh in thousands, kw in tens/hundreds).
+    If totalKwh < kwPeak or totalKwh looks like a demand value, try to correct using
+    line item quantities before falling back to a swap.
+    """
+    try:
+        kwh = float(str(result.get("totalKwh") or 0).replace(",", ""))
+        kw  = float(str(result.get("kwPeak")   or 0).replace(",", ""))
+    except (ValueError, TypeError):
+        return
+
+    if kwh <= 0 and kw <= 0:
+        return
+
+    # Try to pull correct values from line item quantities first
+    line_items = result.get("lineItems") or []
+    kwh_from_items = 0.0
+    kw_from_items  = 0.0
+    for item in line_items:
+        try:
+            qty = float(str(item.get("quantity") or 0).replace(",", ""))
+        except (ValueError, TypeError):
+            qty = 0.0
+        if qty <= 0:
+            continue
+        item_type = (item.get("type") or "").lower()
+        if item_type == "kwh" and qty > kwh_from_items:
+            kwh_from_items = qty
+        elif item_type == "kw" and qty > kw_from_items:
+            kw_from_items = qty
+
+    if kwh_from_items > 0 and kwh_from_items != kwh:
+        logger.warning(
+            "Correcting totalKwh from %.0f to %.0f (from kWh line item quantity)",
+            kwh, kwh_from_items
+        )
+        result["totalKwh"] = str(int(kwh_from_items))
+        kwh = kwh_from_items
+
+    if kw_from_items > 0 and kw_from_items != kw:
+        logger.warning(
+            "Correcting kwPeak from %.0f to %.0f (from kW line item quantity)",
+            kw, kw_from_items
+        )
+        result["kwPeak"] = str(kw_from_items)
+        kw = kw_from_items
+
+    # Final swap check: if kWh is implausibly small compared to kW
+    if kwh > 0 and kw > 0 and kwh < kw:
+        logger.warning(
+            "totalKwh=%.0f looks smaller than kwPeak=%.0f — swapping", kwh, kw
+        )
+        result["totalKwh"] = str(kw)
+        result["kwPeak"]   = str(kwh)
+
+
 def _normalize_bill_date(val: Any) -> int | None:
     """Convert date to epoch milliseconds. Accepts epoch (int/float), ISO string, or YYYY-MM-DD."""
     if val is None:
@@ -611,6 +679,7 @@ def extract_bill_from_images(
         return None
 
     _sanity_check_bill_amount(merged)
+    _sanity_check_kwh_vs_kw(merged)
     _rollup_rates_from_line_items(merged)
     meaningful_total = [k for k in merged if k != "lineItems" and merged[k] not in (None, "", [])]
     logger.warning(
@@ -662,40 +731,60 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
                       "meter charge", "account charge", "administrative", "minimum charge", "fixed charge"]
 
     def _classify(item: dict[str, Any]) -> str:
-        """Return 'kwh', 'kw', 'tax', or 'fixed' for a line item."""
+        """Return 'kwh', 'kw', 'tax', or 'fixed' for a line item.
+
+        Priority order:
+          1. 'unit' column value (most reliable — directly from the bill table)
+          2. Name-based keyword matching (fallback when unit is absent)
+          3. AI-declared 'type' field (last resort)
+        """
+        unit_raw = (item.get("unit") or "").strip()
+        unit_lc = unit_raw.lower()
         declared = (item.get("type") or "").lower().strip()
         name_lc = (item.get("name") or "").lower()
 
-        # --- Name always wins when it clearly indicates a class ---
+        # 1. Unit column — authoritative when present
+        if unit_lc:
+            # kWh energy: unit contains 'h' (kwh, kWh, KWH)
+            if "kwh" in unit_lc or (unit_lc.startswith("kw") and "h" in unit_lc):
+                return "kwh"
+            # kW demand: unit is kw/Kw/KW without 'h'
+            if KW_PHRASE_RE.search(unit_raw) or unit_lc in ("kw", "kva", "kvar"):
+                return "kw"
+            # Fixed: dash, blank, "1", or numeric-only quantity unit
+            if unit_lc in ("-", "1", "ea", "each", "mo", "month", "unit"):
+                # But check name for tax first
+                if any(k in name_lc for k in TAX_KEYWORDS):
+                    return "tax"
+                return "fixed"
 
-        # 1. Tax — unambiguous
+        # 2. Name-based fallback (no unit column or unrecognised unit value)
+
+        # Tax — unambiguous
         if any(k in name_lc for k in TAX_KEYWORDS):
             return "tax"
 
-        # 2. Fixed/meter charges — unambiguous
+        # Fixed/meter charges — unambiguous
         if any(k in name_lc for k in FIXED_KEYWORDS):
             return "fixed"
 
-        # 3. Demand (kW) — standalone "kw" FIRST, before energy keywords.
-        #    \bkw\b(?!h) matches "kw" as a whole word not followed by "h",
-        #    so "KW Charge", "Billing kW", "kW-mo" → demand,
-        #    but "kWh" → NOT matched here (falls through to energy check).
-        #    Also catches explicit kW phrases ("demand", "capacity", etc.)
+        # Demand (kW) — standalone "kw" word boundary, checked BEFORE energy keywords
         if KW_PHRASE_RE.search(name_lc) or any(k in name_lc for k in KW_KEYWORDS):
             return "kw"
 
-        # 4. Energy (kWh) — checked AFTER kW so a name with "kw" (demand) never
-        #    falls into this bucket via broad keywords like "transmission".
+        # Energy (kWh)
         if any(k in name_lc for k in KWH_KEYWORDS):
             return "kwh"
 
-        # 5. Fall back to AI-declared type if name gave no signal
+        # 3. AI-declared type as last resort
         if declared in ("kwh", "kw", "tax", "fixed"):
             return declared
 
-        return "fixed"  # default for unrecognised
+        return "fixed"  # default
 
     totals: dict[str, float] = {"kwh": 0.0, "kw": 0.0, "tax": 0.0, "fixed": 0.0}
+    kw_rate_sum  = 0.0   # sum of per-kW billing rates across all kW line items
+    kwh_rate_sum = 0.0   # sum of per-kWh billing rates across all kWh line items
     classified_items = []
 
     for item in line_items:
@@ -704,13 +793,21 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
             cost = float(str(item.get("cost") or 0).replace(",", ""))
         except (ValueError, TypeError):
             cost = 0.0
+        try:
+            rate = float(str(item.get("billingRate") or 0))
+        except (ValueError, TypeError):
+            rate = 0.0
         totals[cls] += cost
+        if cls == "kw"  and rate > 0:
+            kw_rate_sum  += rate
+        if cls == "kwh" and rate > 0:
+            kwh_rate_sum += rate
         stamped = dict(item)
         stamped["type"] = cls
         classified_items.append(stamped)
         logger.warning(
-            "line item classify: '%s' → %s  cost=%.2f",
-            item.get("name", ""), cls, cost
+            "line item classify: '%s' → %s  cost=%.2f  rate=%.5f",
+            item.get("name", ""), cls, cost, rate
         )
 
     # Write classified items back
@@ -721,35 +818,43 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
         totals["kwh"], totals["kw"], totals["tax"], totals["fixed"]
     )
 
-    # Derive kwhRate = total_kwh_cost / totalKwh
-    try:
-        total_kwh = float(str(result.get("totalKwh") or 0).replace(",", ""))
-    except (ValueError, TypeError):
-        total_kwh = 0.0
+    # Derive kwhRate = sum of per-kWh billing rates across kWh line items
+    if kwh_rate_sum > 0:
+        blended_kwh_rate = round(kwh_rate_sum, 6)
+        result["kwhRate"] = str(blended_kwh_rate)
+        logger.warning("kwhRate from sum of kWh line rates: $%.6f/kWh", blended_kwh_rate)
+    else:
+        # Fallback: total_kwh_cost / totalKwh
+        try:
+            total_kwh = float(str(result.get("totalKwh") or 0).replace(",", ""))
+        except (ValueError, TypeError):
+            total_kwh = 0.0
+        if totals["kwh"] > 0 and total_kwh > 0:
+            blended_kwh_rate = round(totals["kwh"] / total_kwh, 6)
+            existing_kwh_rate = float(str(result.get("kwhRate") or 0).replace(",", "") or 0)
+            if existing_kwh_rate <= 0.01 or existing_kwh_rate == 0:
+                result["kwhRate"] = str(blended_kwh_rate)
+                logger.warning(
+                    "kwhRate computed from rollup: $%.2f / %.0f kWh = $%.6f/kWh",
+                    totals["kwh"], total_kwh, blended_kwh_rate
+                )
 
-    if totals["kwh"] > 0 and total_kwh > 0:
-        blended_kwh_rate = round(totals["kwh"] / total_kwh, 6)
-        existing_kwh_rate = float(str(result.get("kwhRate") or 0).replace(",", "") or 0)
-        if existing_kwh_rate <= 0.01 or existing_kwh_rate == 0:
-            result["kwhRate"] = str(blended_kwh_rate)
-            logger.warning(
-                "kwhRate computed from rollup: $%.2f / %.0f kWh = $%.6f/kWh",
-                totals["kwh"], total_kwh, blended_kwh_rate
-            )
-
-    # Derive kwRatePerTariff = total_kw_cost / kwPeak
-    try:
-        kw_peak = float(str(result.get("kwPeak") or 0).replace(",", ""))
-    except (ValueError, TypeError):
-        kw_peak = 0.0
-
-    if totals["kw"] > 0 and kw_peak > 0:
-        blended_kw_rate = round(totals["kw"] / kw_peak, 4)
-        existing_kw_rate = float(str(result.get("kwRatePerTariff") or 0).replace(",", "") or 0)
-        if existing_kw_rate <= 0 or existing_kw_rate < 1.0:
+    # Derive kwRatePerTariff = sum of per-kW billing rates across kW line items
+    if kw_rate_sum > 0:
+        blended_kw_rate = round(kw_rate_sum, 4)
+        result["kwRatePerTariff"] = str(blended_kw_rate)
+        logger.warning("kwRatePerTariff from sum of kW line rates: $%.4f/kW", blended_kw_rate)
+    else:
+        # Fallback: total_kw_cost / kwPeak
+        try:
+            kw_peak = float(str(result.get("kwPeak") or 0).replace(",", ""))
+        except (ValueError, TypeError):
+            kw_peak = 0.0
+        if totals["kw"] > 0 and kw_peak > 0:
+            blended_kw_rate = round(totals["kw"] / kw_peak, 4)
             result["kwRatePerTariff"] = str(blended_kw_rate)
             logger.warning(
-                "kwRatePerTariff computed from rollup: $%.2f / %.4f kW = $%.4f/kW",
+                "kwRatePerTariff fallback from rollup: $%.2f / %.4f kW = $%.4f/kW",
                 totals["kw"], kw_peak, blended_kw_rate
             )
 
@@ -761,14 +866,14 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
     if totals["fixed"] > 0 and not result.get("customerCharge"):
         result["customerCharge"] = str(round(totals["fixed"], 2))
 
-    # Store rollup summary for frontend use
+    # Store rollup summary — blended rates match kwRatePerTariff/kwhRate (sum of unit prices)
     result["lineItemRollup"] = {
         "totalEnergyCost":  round(totals["kwh"], 2),
         "totalDemandCost":  round(totals["kw"], 2),
         "totalTaxCost":     round(totals["tax"], 2),
         "totalFixedCost":   round(totals["fixed"], 2),
-        "blendedKwhRate":   round(totals["kwh"] / total_kwh, 6) if total_kwh > 0 and totals["kwh"] > 0 else 0,
-        "blendedKwRate":    round(totals["kw"] / kw_peak, 4)    if kw_peak > 0  and totals["kw"] > 0  else 0,
+        "blendedKwhRate":   round(kwh_rate_sum, 6) if kwh_rate_sum > 0 else 0,
+        "blendedKwRate":    round(kw_rate_sum, 4)  if kw_rate_sum  > 0 else 0,
     }
 
 
