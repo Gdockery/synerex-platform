@@ -668,21 +668,26 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
 
         # --- Name always wins when it clearly indicates a class ---
 
-        # 1. Tax check first (unambiguous)
+        # 1. Tax — unambiguous
         if any(k in name_lc for k in TAX_KEYWORDS):
             return "tax"
 
-        # 2. Fixed/meter charges (unambiguous)
+        # 2. Fixed/meter charges — unambiguous
         if any(k in name_lc for k in FIXED_KEYWORDS):
             return "fixed"
 
-        # 3. Energy (kWh) — must check before kW so "kwh" isn't caught by kW regex
-        if any(k in name_lc for k in KWH_KEYWORDS):
-            return "kwh"
-
-        # 4. Demand (kW) — standalone "kw" in name (word boundary, not followed by h)
+        # 3. Demand (kW) — standalone "kw" FIRST, before energy keywords.
+        #    \bkw\b(?!h) matches "kw" as a whole word not followed by "h",
+        #    so "KW Charge", "Billing kW", "kW-mo" → demand,
+        #    but "kWh" → NOT matched here (falls through to energy check).
+        #    Also catches explicit kW phrases ("demand", "capacity", etc.)
         if KW_PHRASE_RE.search(name_lc) or any(k in name_lc for k in KW_KEYWORDS):
             return "kw"
+
+        # 4. Energy (kWh) — checked AFTER kW so a name with "kw" (demand) never
+        #    falls into this bucket via broad keywords like "transmission".
+        if any(k in name_lc for k in KWH_KEYWORDS):
+            return "kwh"
 
         # 5. Fall back to AI-declared type if name gave no signal
         if declared in ("kwh", "kw", "tax", "fixed"):
