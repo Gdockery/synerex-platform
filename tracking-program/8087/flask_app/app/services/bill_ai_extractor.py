@@ -500,6 +500,46 @@ def _parse_ai_json_any(reply: str) -> dict[str, Any] | list | None:
         return None
 
 
+def _parse_page_result(obj: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a raw AI JSON object into a clean result dict."""
+    result: dict[str, Any] = {}
+    for k, v in obj.items():
+        if v is None:
+            continue
+        if k == "billDate":
+            epoch = _normalize_bill_date(v)
+            if epoch is not None:
+                result[k] = epoch
+        elif isinstance(v, (int, float)) and k not in ("voltage",):
+            result[k] = str(v)
+        else:
+            result[k] = v
+    return result
+
+
+def _merge_bill_results(base: dict[str, Any], supplement: dict[str, Any]) -> dict[str, Any]:
+    """
+    Merge supplement into base: fill any empty/missing fields from supplement.
+    lineItems are merged by appending unique entries from supplement.
+    """
+    merged = dict(base)
+    for k, v in supplement.items():
+        if v in (None, "", []):
+            continue
+        if k == "lineItems":
+            existing = merged.get("lineItems") or []
+            existing_names = {(i.get("name") or "").lower() for i in existing}
+            for item in (v if isinstance(v, list) else []):
+                name = (item.get("name") or "").lower()
+                if name and name not in existing_names:
+                    existing.append(item)
+                    existing_names.add(name)
+            merged["lineItems"] = existing
+        elif merged.get(k) in (None, ""):
+            merged[k] = v
+    return merged
+
+
 def extract_bill_from_images(
     image_b64_list: list[str],
     prompt_override: str | None = None,
@@ -507,8 +547,9 @@ def extract_bill_from_images(
 ) -> dict[str, Any] | None:
     """
     Extract bill data from PDF page images using AI vision model.
-    Use when text extraction fails (scanned PDFs, image-only).
-    prompt_override: if provided, used instead of default.
+    Scans ALL pages individually and merges results so fields spread
+    across multiple pages (e.g. usage/rates on page 2, header on page 1)
+    are all captured.
     """
     if not _is_ai_enabled() or not image_b64_list:
         return None
@@ -517,37 +558,50 @@ def extract_bill_from_images(
     prompt = _build_vision_prompt_with_meters(base.strip(), selected_meters)
     prompt = prompt + "\n\nReturn ONLY valid JSON, no other text."
 
-    last_reply = ""
-    for img_count in (1, 2, 4):
-        images = image_b64_list[:img_count]
-        reply = _call_ollama_chat(prompt, images=images, max_tokens=1500)
+    merged: dict[str, Any] = {}
+
+    for page_idx, img in enumerate(image_b64_list):
+        logger.warning(
+            "AI vision extraction: scanning page %d/%d",
+            page_idx + 1, len(image_b64_list)
+        )
+        reply = _call_ollama_chat(prompt, images=[img], max_tokens=1500)
         if not reply:
+            logger.warning("AI vision extraction: no reply for page %d", page_idx + 1)
             continue
-        last_reply = reply
+
         obj = _parse_ai_json_response(reply)
         if not obj:
+            logger.warning(
+                "AI vision extraction: page %d non-JSON reply snippet: %s",
+                page_idx + 1, reply[:300]
+            )
             continue
-        result: dict[str, Any] = {}
-        for k, v in obj.items():
-            if v is None:
-                continue
-            if k == "billDate":
-                epoch = _normalize_bill_date(v)
-                if epoch is not None:
-                    result[k] = epoch
-            elif isinstance(v, (int, float)) and k not in ("voltage",):
-                result[k] = str(v)
-            else:
-                result[k] = v
-        _sanity_check_bill_amount(result)
-        # Require at least one non-lineItems field
-        meaningful = [k for k in result if k != "lineItems" and result[k] not in (None, "", [])]
-        if meaningful:
-            logger.warning("AI vision extraction: full JSON returned: %s", json.dumps(result, default=str))
-            return result
-    if last_reply:
-        logger.warning("AI vision extraction: no valid data. Reply snippet: %s", last_reply[:500])
-    return None
+
+        page_result = _parse_page_result(obj)
+        _sanity_check_bill_amount(page_result)
+
+        meaningful = [k for k in page_result if k != "lineItems" and page_result[k] not in (None, "", [])]
+        logger.warning(
+            "AI vision extraction: page %d found %d meaningful fields: %s",
+            page_idx + 1, len(meaningful), meaningful
+        )
+
+        if meaningful or page_result.get("lineItems"):
+            merged = _merge_bill_results(merged, page_result)
+
+    if not merged:
+        logger.warning("AI vision extraction: no valid data extracted from any page")
+        return None
+
+    _sanity_check_bill_amount(merged)
+    meaningful_total = [k for k in merged if k != "lineItems" and merged[k] not in (None, "", [])]
+    logger.warning(
+        "AI vision extraction: final merged result (%d fields): %s",
+        len(meaningful_total),
+        json.dumps(merged, default=str)
+    )
+    return merged if meaningful_total else None
 
 
 def ask_ai_recommend_decode_tool(
