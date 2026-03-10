@@ -77,6 +77,8 @@ def create_app(config_class=Config):
         app,
         cors_allowed_origins=allowed_origins,
         async_mode="eventlet",
+        ping_timeout=620,
+        ping_interval=300,
     )
 
     # Register blueprints

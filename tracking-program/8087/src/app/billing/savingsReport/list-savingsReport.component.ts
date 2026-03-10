@@ -1160,7 +1160,7 @@ export class ListSavingsReportComponent implements OnInit {
     this.billScanning = true;
     this.billScanError = null;
     this.billScanSuccess = false;
-    this.createFromBillService.analyzeBill(this.billScanFile).subscribe(
+    this.createFromBillService.analyzeBill(this.billScanFile, (msg: string) => { this.billScanError = null; }).subscribe(
       (res: any) => {
         this.billScanning = false;
         const data = res.data || res;

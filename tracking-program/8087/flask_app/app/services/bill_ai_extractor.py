@@ -644,40 +644,50 @@ def _rollup_rates_from_line_items(result: dict[str, Any]) -> None:
     if not line_items or not isinstance(line_items, list):
         return
 
-    # Keywords that override AI classification
-    KWH_KEYWORDS = {
-        "energy", "kwh", "consumption", "usage", "power supply",
+    import re as _re
+
+    # Keywords for energy (kWh) lines — checked BEFORE demand to avoid kWh matching "kw"
+    KWH_KEYWORDS = [
+        "kwh", "kw-h", "kw h", "energy", "consumption", "usage", "power supply",
         "electricity", "fuel", "generation", "renewable", "efficiency",
         "nuclear", "ancillary", "transmission", "distribution",
-    }
-    KW_KEYWORDS  = {"demand", "kw", "capacity", "peak", "ratchet"}
-    TAX_KEYWORDS = {"tax", "surcharge", "assessment", "levy", "fee", "gross receipts", "franchise"}
-    FIXED_KEYWORDS = {"customer charge", "basic charge", "service charge", "meter", "metering",
-                      "account", "administrative", "minimum", "fixed"}
+    ]
+    # Demand (kW) — standalone kW, NOT kWh; word-boundary aware
+    # matches: "kw charge", "kw cost", "billing kw", "kw-mo", "kw/month", "/kw"
+    KW_PHRASE_RE = _re.compile(r'\bkw\b(?!h)', _re.IGNORECASE)
+    KW_KEYWORDS  = ["demand", "capacity", "peak demand", "billing demand", "ratchet",
+                    "kw charge", "kw cost", "kw-mo", "kw/mo", "/kw"]
+    TAX_KEYWORDS = ["tax", "surcharge", "assessment", "levy", "gross receipts", "franchise"]
+    FIXED_KEYWORDS = ["customer charge", "basic charge", "service charge", "metering charge",
+                      "meter charge", "account charge", "administrative", "minimum charge", "fixed charge"]
 
     def _classify(item: dict[str, Any]) -> str:
         """Return 'kwh', 'kw', 'tax', or 'fixed' for a line item."""
         declared = (item.get("type") or "").lower().strip()
         name_lc = (item.get("name") or "").lower()
 
-        # Explicit type from AI — trust unless name overrides it
-        if declared in ("kwh", "kw", "tax", "fixed"):
-            # Check if name strongly contradicts declared type
-            if declared == "fixed" and any(k in name_lc for k in KWH_KEYWORDS):
-                return "kwh"
-            if declared == "fixed" and any(k in name_lc for k in KW_KEYWORDS):
-                return "kw"
-            return declared
+        # --- Name always wins when it clearly indicates a class ---
 
-        # Name-based classification
-        if any(k in name_lc for k in FIXED_KEYWORDS):
-            return "fixed"
+        # 1. Tax check first (unambiguous)
         if any(k in name_lc for k in TAX_KEYWORDS):
             return "tax"
-        if any(k in name_lc for k in KW_KEYWORDS):
-            return "kw"
+
+        # 2. Fixed/meter charges (unambiguous)
+        if any(k in name_lc for k in FIXED_KEYWORDS):
+            return "fixed"
+
+        # 3. Energy (kWh) — must check before kW so "kwh" isn't caught by kW regex
         if any(k in name_lc for k in KWH_KEYWORDS):
             return "kwh"
+
+        # 4. Demand (kW) — standalone "kw" in name (word boundary, not followed by h)
+        if KW_PHRASE_RE.search(name_lc) or any(k in name_lc for k in KW_KEYWORDS):
+            return "kw"
+
+        # 5. Fall back to AI-declared type if name gave no signal
+        if declared in ("kwh", "kw", "tax", "fixed"):
+            return declared
+
         return "fixed"  # default for unrecognised
 
     totals: dict[str, float] = {"kwh": 0.0, "kw": 0.0, "tax": 0.0, "fixed": 0.0}

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subject, interval } from 'rxjs';
+import { switchMap, takeUntil, filter, take } from 'rxjs/operators';
 import { ApiRequestService } from '../../api/api-request.service';
 
 @Injectable()
@@ -8,12 +9,63 @@ export class CreateFromBillService {
   constructor(private apiRequestService: ApiRequestService) {}
 
   /**
-   * POST /api/bill/analyze - upload PDF and get extracted bill data.
+   * POST /api/bill/analyze — submit PDF, get job_id back immediately (HTTP 202).
+   * Then polls GET /api/bill/analyze/<job_id> every 5 seconds until done or error.
+   * Emits { status: 'pending' } updates while running, then final { success, data } or { success: false, error }.
+   * onProgress(msg) is called with human-readable status strings while polling.
    */
-  analyzeBill(file: File): Observable<any> {
-    const formData = new FormData();
-    formData.append('bill', file, file.name);
-    return this.apiRequestService.post('/api/bill/analyze', formData);
+  analyzeBill(file: File, onProgress?: (msg: string) => void): Observable<any> {
+    return new Observable(observer => {
+      const formData = new FormData();
+      formData.append('bill', file, file.name);
+
+      // Step 1 — submit
+      this.apiRequestService.post('/api/bill/analyze', formData).subscribe(
+        (submitRes: any) => {
+          const jobId = submitRes && submitRes.job_id;
+          if (!jobId) {
+            // Legacy synchronous response (direct data returned) — pass through
+            observer.next(submitRes);
+            observer.complete();
+            return;
+          }
+
+          if (onProgress) onProgress('Scanning bill pages...');
+
+          // Step 2 — poll every 5s
+          const stop$ = new Subject<void>();
+          let pollCount = 0;
+          const maxPolls = 120; // 10 minutes max
+
+          interval(5000).pipe(
+            takeUntil(stop$),
+            switchMap(() => this.apiRequestService.get(`/api/bill/analyze/${jobId}`))
+          ).subscribe(
+            (pollRes: any) => {
+              pollCount++;
+              if (pollRes.status === 'pending') {
+                const elapsed = pollCount * 5;
+                if (onProgress) onProgress(`Scanning bill pages... (${elapsed}s)`);
+                if (pollCount >= maxPolls) {
+                  stop$.next();
+                  observer.error({ error: { error: 'Scan timed out. Please try again.' } });
+                }
+                return;
+              }
+              // done or error — emit and complete
+              stop$.next();
+              observer.next(pollRes);
+              observer.complete();
+            },
+            (err: any) => {
+              stop$.next();
+              observer.error(err);
+            }
+          );
+        },
+        (err: any) => observer.error(err)
+      );
+    });
   }
 
   /**
