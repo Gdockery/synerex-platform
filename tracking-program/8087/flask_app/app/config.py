@@ -51,6 +51,12 @@ class Config:
     # Same value must be set in EMV .env. See flask_app/docs/EMV_INTEGRATION.md.
     EMV_API_KEY = os.environ.get("EMV_API_KEY", "")
 
+    # Tariff Rate Lookup — optional free API keys for higher-quality lookups
+    # Register at https://openei.org/services/API/signup/ (NREL URDB, US tariff detail)
+    # Register at https://www.eia.gov/opendata/register.php (EIA, US state averages)
+    NREL_API_KEY = os.environ.get("NREL_API_KEY", "")
+    EIA_API_KEY  = os.environ.get("EIA_API_KEY", "")
+
     # License Service
     LICENSE_SERVICE_URL = os.environ.get("LICENSE_SERVICE_URL", "http://localhost:8000")
     # Browser-accessible URL for links/redirects (e.g. http://localhost:8080/license). Uses internal URL if unset.

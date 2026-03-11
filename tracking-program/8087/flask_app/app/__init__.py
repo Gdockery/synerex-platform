@@ -19,6 +19,7 @@ from app.api.phase10_routes import phase10_bp
 from app.api.phase11_routes import phase11_bp
 from app.api.web_routes import web_bp
 from app.api.emv_routes import emv_bp
+from app.api.tariff_routes import tariff_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -93,6 +94,7 @@ def create_app(config_class=Config):
     app.register_blueprint(phase11_bp)
     app.register_blueprint(web_bp)
     app.register_blueprint(emv_bp)
+    app.register_blueprint(tariff_bp)
     # Register admin blueprint after db init to avoid import-order issues
     from app.api.admin_routes import admin_bp
     app.register_blueprint(admin_bp)

@@ -202,6 +202,12 @@ let moment = require('moment');
           </div>
           <div class="col-md-3">
             <div class="form-group">
+              <label>Tariff / Rate Schedule</label>
+              <input class="form-control" [(ngModel)]="emvTariff" placeholder="e.g. TOU-GS-3-B" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
               <label>Account #</label>
               <input class="form-control" [(ngModel)]="emvAccountNumber" placeholder="Account number" />
             </div>
@@ -419,12 +425,52 @@ let moment = require('moment');
         </div>
 
         <div class="row">
-          <div class="col-md-3">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>Tariff / Rate Schedule</label>
+              <input class="form-control" [(ngModel)]="baTariff" placeholder="e.g. TOU-GS-3-B" />
+            </div>
+          </div>
+          <div class="col-md-4">
             <div class="form-group">
               <label>Meter Number</label>
               <input class="form-control" [(ngModel)]="baMeterNumber" />
             </div>
           </div>
+        </div>
+
+        <!-- Tariff Lookup -->
+        <div class="row" style="margin-bottom:0.5em;">
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>Country</label>
+              <input class="form-control" [(ngModel)]="baCountry" placeholder="e.g. USA, UK, Australia" />
+            </div>
+          </div>
+          <div class="col-md-9" style="display:flex; align-items:flex-end; padding-bottom:15px;">
+            <button type="button" class="default-button blue-button"
+              (click)="lookupTariffRates()"
+              [disabled]="tariffLookupLoading || (!baElectricCompanyName && !baTariff)"
+              style="margin-right:0.75em;">
+              <span *ngIf="!tariffLookupLoading">🔍 Look Up Tariff Rates</span>
+              <span *ngIf="tariffLookupLoading">⏳ Looking up rates...</span>
+            </button>
+            <span *ngIf="tariffLookupStatus" [style.color]="tariffLookupError ? '#c00' : '#2a6e2a'" style="font-size:0.88em;">
+              {{ tariffLookupStatus }}
+            </span>
+          </div>
+        </div>
+        <div *ngIf="tariffLookupSource" style="background:#f0f7ff; border:1px solid #b8d4f0; border-radius:5px; padding:0.6em 1em; margin-bottom:1em; font-size:0.85em; color:#1a4a7a;">
+          <strong>Source:</strong> {{ tariffLookupSource }}
+          <span *ngIf="tariffLookupConfidence" style="margin-left:1em; padding:2px 7px; border-radius:10px; font-size:0.88em;"
+            [style.background]="tariffLookupConfidence === 'high' ? '#d4edda' : tariffLookupConfidence === 'medium' ? '#fff3cd' : '#f8d7da'"
+            [style.color]="tariffLookupConfidence === 'high' ? '#155724' : tariffLookupConfidence === 'medium' ? '#856404' : '#721c24'">
+            {{ tariffLookupConfidence === 'high' ? '✓ High confidence' : tariffLookupConfidence === 'medium' ? '~ Medium confidence' : '⚠ AI estimate — verify with utility' }}
+          </span>
+          <span *ngIf="tariffLookupNotes" style="display:block; margin-top:4px; color:#555;">{{ tariffLookupNotes }}</span>
+        </div>
+
+        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>Total KWH</label>
@@ -729,6 +775,7 @@ export class ListSavingsReportComponent implements OnInit {
   public emvUtility: string = '';
   public emvUtilityName: string = '';
   public emvUtilityProgram: string = '';
+  public emvTariff: string = '';
   public emvAccountNumber: string = '';
   public emvEnergyRate: string = '';
   public emvDemandRate: string = '';
@@ -768,6 +815,15 @@ export class ListSavingsReportComponent implements OnInit {
   public baElectricCompanyName: string = '';
   public baAccountNumber: string = '';
   public baMeterNumber: string = '';
+  public baTariff: string = '';
+  public baCountry: string = 'USA';
+  // Tariff lookup state
+  public tariffLookupLoading   = false;
+  public tariffLookupStatus    = '';
+  public tariffLookupError     = false;
+  public tariffLookupSource    = '';
+  public tariffLookupConfidence= '';
+  public tariffLookupNotes     = '';
   public baTotalKwh: string = '';
   public baKwPeak: string = '';
   public baBillAmount: string = '';
@@ -836,6 +892,26 @@ export class ListSavingsReportComponent implements OnInit {
     this.billAnalyticService.getAnalytic().subscribe((analytic: any) => {
       this.billAnalytic = analytic || false;
     });
+
+    // Restore last scanned bill data from the project so fields persist across page visits.
+    const proj: any = this.userService.user.selectedProject;
+    const eba = proj && proj.electricBillAnalysis;
+    if (eba && typeof eba === 'object' && Object.keys(eba).length > 0) {
+      const merged: any = Object.assign({}, eba);
+      const rf = proj.reportFields;
+      if (rf && typeof rf === 'object') {
+        if (rf['energy_rate']      && !merged.kwhRate)           { merged.kwhRate           = rf['energy_rate']; }
+        if (rf['demand_rate']      && !merged.kwRatePerTariff)   { merged.kwRatePerTariff   = rf['demand_rate']; }
+        if (rf['utility']          && !merged.electricCompanyName){ merged.electricCompanyName = rf['utility']; }
+        if (rf['account']          && !merged.accountNumber)     { merged.accountNumber     = rf['account']; }
+        if (rf['facility_address'] && !merged.serviceAddress)    { merged.serviceAddress    = rf['facility_address']; }
+        if (rf['location']         && !merged.serviceCity)       { merged.serviceCity       = rf['location']; }
+        if (rf['facility_state']   && !merged.serviceState)      { merged.serviceState      = rf['facility_state']; }
+        if (rf['facility_zip']     && !merged.serviceZip)        { merged.serviceZip        = rf['facility_zip']; }
+        if (rf['tariff']           && !merged.tariff)            { merged.tariff            = rf['tariff']; }
+      }
+      this.populateFromScan(merged);
+    }
   }
 
   refreshTable() {
@@ -912,6 +988,7 @@ export class ListSavingsReportComponent implements OnInit {
     this.emvUtility           = rd.utility || '';
     this.emvUtilityName       = rd.utility_name || '';
     this.emvUtilityProgram    = rd.utility_program || '';
+    this.emvTariff            = rd.tariff || '';
     this.emvAccountNumber     = rd.account_number || '';
     this.emvEnergyRate        = rd.energy_rate || '';
     this.emvDemandRate        = rd.demand_rate || '';
@@ -1030,6 +1107,7 @@ export class ListSavingsReportComponent implements OnInit {
     newData.utility             = this.emvUtility;
     newData.utility_name        = this.emvUtilityName;
     newData.utility_program     = this.emvUtilityProgram;
+    newData.tariff              = this.emvTariff;
     newData.account_number      = this.emvAccountNumber;
     newData.energy_rate         = this.emvEnergyRate;
     newData.demand_rate         = this.emvDemandRate;
@@ -1094,6 +1172,7 @@ export class ListSavingsReportComponent implements OnInit {
     if (this.emvUtility)            fields['utility']            = this.emvUtility;
     if (this.emvUtilityName)        fields['utility_name']       = this.emvUtilityName;
     if (this.emvUtilityProgram)     fields['utility_program']    = this.emvUtilityProgram;
+    if (this.emvTariff || this.baTariff) fields['tariff'] = this.emvTariff || this.baTariff;
     if (this.emvAccountNumber)      fields['account']            = this.emvAccountNumber;
     if (this.emvEnergyRate)         fields['energy_rate']        = this.emvEnergyRate;
     if (this.emvDemandRate)         fields['demand_rate']        = this.emvDemandRate;
@@ -1184,6 +1263,7 @@ export class ListSavingsReportComponent implements OnInit {
     this.baElectricCompanyName = d.electricCompanyName || '';
     this.baAccountNumber       = d.accountNumber || '';
     this.baMeterNumber         = d.meterNumber || '';
+    this.baTariff              = d.tariff || '';
     this.baTotalKwh            = d.totalKwh != null ? String(d.totalKwh) : '';
     this.baKwPeak              = d.kwPeak != null ? String(d.kwPeak) : '';
     this.baBillAmount          = d.billAmount != null ? String(d.billAmount) : '';
@@ -1199,12 +1279,144 @@ export class ListSavingsReportComponent implements OnInit {
     // EM&V fields — billing rate and address info from the same scan
     if (d.electricCompanyName) { this.emvUtility = d.electricCompanyName; this.emvUtilityName = d.electricCompanyName; }
     if (d.accountNumber)       { this.emvAccountNumber = d.accountNumber; }
+    if (d.tariff)              { this.emvTariff        = d.tariff; }
     if (d.kwhRate)             { this.emvEnergyRate = String(d.kwhRate); }
     if (d.kwRatePerTariff)     { this.emvDemandRate = String(d.kwRatePerTariff); }
     if (d.serviceAddress)      { this.emvFacilityAddress = d.serviceAddress; }
     if (d.serviceCity)         { this.emvFacilityCity = d.serviceCity; }
     if (d.serviceState)        { this.emvFacilityState = d.serviceState; }
     if (d.serviceZip)          { this.emvFacilityZip = d.serviceZip; }
+
+    // Persist the scanned data to the project so it survives page navigation.
+    // Only save when triggered by a live scan (billScanSuccess set by caller).
+    const proj: any = this.userService.user.selectedProject;
+    if (proj && proj.id && this.billScanSuccess !== undefined) {
+      const analyticData: any = {
+        billReference:       this.baBillReference,
+        electricCompanyName: this.baElectricCompanyName,
+        accountNumber:       this.baAccountNumber,
+        meterNumber:         this.baMeterNumber,
+        tariff:              this.baTariff,
+        totalKwh:            parseFloat(this.baTotalKwh)      || 0,
+        kwPeak:              parseFloat(this.baKwPeak)        || 0,
+        billAmount:          parseFloat(this.baBillAmount)    || 0,
+        daysBilled:          parseFloat(this.baDaysBilled)    || 30,
+        voltage:             this.baVoltage,
+        kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
+        kwhRate:             parseFloat(this.emvEnergyRate)   || 0,
+        lineItems:           this.baLineItems,
+      };
+      this.billAnalyticService.updateAnalytic(analyticData).subscribe(
+        () => {},
+        () => {}  // silent — best-effort persistence
+      );
+    }
+  }
+
+  lookupTariffRates() {
+    if (!this.baElectricCompanyName && !this.baTariff) {
+      this.tariffLookupStatus = 'Please provide a Utility name and/or Tariff code first.';
+      this.tariffLookupError  = true;
+      return;
+    }
+
+    this.tariffLookupLoading    = true;
+    this.tariffLookupStatus     = '';
+    this.tariffLookupError      = false;
+    this.tariffLookupSource     = '';
+    this.tariffLookupConfidence = '';
+    this.tariffLookupNotes      = '';
+
+    const body = {
+      utility: this.baElectricCompanyName || '',
+      tariff:  this.baTariff              || '',
+      state:   this.emvFacilityState      || '',
+      country: this.baCountry             || 'USA',
+      sector:  'Commercial',
+    };
+
+    fetch('/tracking/api/tariff-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      credentials: 'include',
+    })
+    .then(r => r.json())
+    .then((resp: any) => {
+      this.tariffLookupLoading = false;
+      if (resp && resp.error) {
+        this.tariffLookupStatus = 'Error: ' + resp.error;
+        this.tariffLookupError  = true;
+        return;
+      }
+      const d = (resp && resp.response) ? resp.response : resp;
+      if (!d || (!d.energy_rate && !d.demand_rate)) {
+        this.tariffLookupStatus = 'No rate data found. Try entering more details or fill manually.';
+        this.tariffLookupError  = true;
+        return;
+      }
+
+      // --- Populate EM&V billing fields from lookup result ---
+      let filled = 0;
+
+      const set = (current: string, val: any): string => {
+        if (val !== undefined && val !== null && val !== '') {
+          filled++;
+          return String(val);
+        }
+        return current;
+      };
+
+      // Core rates
+      if (d.energy_rate)    { this.emvEnergyRate    = set(this.emvEnergyRate,    d.energy_rate);    }
+      if (d.demand_rate)    { this.emvDemandRate    = set(this.emvDemandRate,    d.demand_rate);    }
+      if (d.capacity_rate)  { this.emvCapacityRate  = set(this.emvCapacityRate,  d.capacity_rate);  }
+      if (d.billing_model)  { this.emvBillingModel  = set(this.emvBillingModel,  d.billing_model);  }
+
+      // Demand variants
+      if (d.kva_demand_rate)  { this.emvKvaDemandRate    = set(this.emvKvaDemandRate,    d.kva_demand_rate);  }
+      if (d.reactive_adder)   { this.emvReactiveAdder    = set(this.emvReactiveAdder,    d.reactive_adder);   }
+      if (d.ncp_demand_rate)  { this.emvNcpDemandRate    = set(this.emvNcpDemandRate,    d.ncp_demand_rate);  }
+      if (d.cp_demand_rate)   { this.emvCpDemandRate     = set(this.emvCpDemandRate,     d.cp_demand_rate);   }
+      if (d.coincident_peak)  { this.emvCoincidentPeakRate = set(this.emvCoincidentPeakRate, d.coincident_peak); }
+
+      // Financial parameters
+      if (d.target_pf)         { this.emvTargetPF        = set(this.emvTargetPF,        d.target_pf);        }
+      if (d.discount_rate)     { this.emvDiscountRate    = set(this.emvDiscountRate,    d.discount_rate);    }
+      if (d.escalation_rate)   { this.emvEscalationRate  = set(this.emvEscalationRate,  d.escalation_rate);  }
+      if (d.analysis_period)   { this.emvAnalysisPeriod  = set(this.emvAnalysisPeriod,  d.analysis_period);  }
+
+      // TOU
+      if (d.tou_on_peak)      { this.emvTouOnPeak       = set(this.emvTouOnPeak,       d.tou_on_peak);       }
+      if (d.tou_off_peak)     { this.emvTouOffPeak      = set(this.emvTouOffPeak,      d.tou_off_peak);      }
+      if (d.onpeak_fraction_pct) { this.emvOnPeakShare  = set(this.emvOnPeakShare,     d.onpeak_fraction_pct); }
+
+      // Seasonal
+      if (d.summer_fraction_pct) { this.emvSummerFraction = set(this.emvSummerFraction, d.summer_fraction_pct); }
+      if (d.summer_on_peak)    { this.emvSummerOnPeak    = set(this.emvSummerOnPeak,    d.summer_on_peak);    }
+      if (d.summer_off_peak)   { this.emvSummerOffPeak   = set(this.emvSummerOffPeak,   d.summer_off_peak);   }
+      if (d.winter_on_peak)    { this.emvWinterOnPeak    = set(this.emvWinterOnPeak,    d.winter_on_peak);    }
+      if (d.winter_off_peak)   { this.emvWinterOffPeak   = set(this.emvWinterOffPeak,   d.winter_off_peak);   }
+
+      // Ratchet
+      if (d.ratchet_percent)   { this.emvRatchetPct      = set(this.emvRatchetPct,      d.ratchet_percent);  }
+      if (d.ratchet_ref_peak)  { this.emvRatchetRefPeak  = set(this.emvRatchetRefPeak,  d.ratchet_ref_peak); }
+
+      // Also update Bill Analytic demand rate field
+      if (d.demand_rate)       { this.baKwRatePerTariff  = set(this.baKwRatePerTariff,  d.demand_rate);      }
+
+      // Source badge
+      this.tariffLookupSource     = d.source_label || d.source || 'Unknown';
+      this.tariffLookupConfidence = d.confidence   || 'low';
+      this.tariffLookupNotes      = d.notes        || '';
+      this.tariffLookupStatus     = `✓ Populated ${filled} field${filled !== 1 ? 's' : ''} from tariff lookup.`;
+      this.tariffLookupError      = false;
+    })
+    .catch(() => {
+      this.tariffLookupLoading = false;
+      this.tariffLookupStatus  = 'Network error — could not reach tariff lookup service.';
+      this.tariffLookupError   = true;
+    });
   }
 
   generateBillAnalytic() {
@@ -1228,6 +1440,7 @@ export class ListSavingsReportComponent implements OnInit {
       electricCompanyName: this.baElectricCompanyName,
       accountNumber:       this.baAccountNumber,
       meterNumber:         this.baMeterNumber,
+      tariff:              this.baTariff,
       totalKwh:            totalKwh,
       kwPeak:              kwPeak,
       billAmount:          parseFloat(this.baBillAmount) || 0,
