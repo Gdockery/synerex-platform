@@ -8,6 +8,11 @@ module.exports = function (printer) {
   const MARGIN_RIGHT  = 36;
   const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;  // 526
 
+  // 1% of page width (~6pt) reserved as a safety inset on the right edge of
+  // the Detail Worksheet table, preventing the table border and any nested
+  // cell content from touching or overflowing the right page margin.
+  const RIGHT_SAFETY  = Math.ceil(PAGE_WIDTH * 0.01);  // 7pt
+
   // ─── Colour palette ────────────────────────────────────────────────────────
   const gray = '#868686',
     lightGrayBG = '#d9d9d9',
@@ -1666,7 +1671,7 @@ module.exports = function (printer) {
         //------------------ ' + brandName + ' Bill Analytics Detail Worksheet ------------------
         
         {
-          margin: [0, 0, 0, 0 ],
+          margin: [0, 0, RIGHT_SAFETY, 0 ],
           width: '*',
           text: brandName.toUpperCase() + ' Bill Analytics Detail Worksheet',
           style: {
@@ -1676,7 +1681,7 @@ module.exports = function (printer) {
           }
         },
         {
-          margin: [0, 10, 0, 0],
+          margin: [0, 10, RIGHT_SAFETY, 0],
           layout: 'noBorders',
           width: '100%',
           table: {
@@ -1739,6 +1744,7 @@ module.exports = function (printer) {
         },
         {
           pageBreak: 'after',
+          margin: [0, 0, RIGHT_SAFETY, 0],
           table: {
             widths: ['*', '*', '*', '*', '*', '*'],
             body: [
@@ -2906,7 +2912,7 @@ module.exports = function (printer) {
         //------------------ Tariff Billing Factors: ------------------
         {
           margin: [0, 20, 0, 0],
-          canvas: [{type: 'line', x1: 0, y1: 5, x2: CONTENT_WIDTH, y2: 5, lineWidth: 1}]
+          canvas: [{type: 'line', x1: 0, y1: 5, x2: CONTENT_WIDTH - RIGHT_SAFETY, y2: 5, lineWidth: 1}]
         },
         {
           border: [true, true, true, false],
@@ -2958,7 +2964,7 @@ module.exports = function (printer) {
         },
         //------------------ ADDITIONAL CHARGES: ------------------
         {
-          margin: [0, 20, 0, 0],
+          margin: [0, 20, RIGHT_SAFETY, 0],
           table: {
             widths: ['*', '*', '*', 125],
             body: [
@@ -3085,7 +3091,7 @@ module.exports = function (printer) {
           }
         },
         {
-          margin: [0, 20, 0, 0],
+          margin: [0, 20, RIGHT_SAFETY, 0],
           layout: 'noBorders',
           table: {
             widths: [75, 375],
