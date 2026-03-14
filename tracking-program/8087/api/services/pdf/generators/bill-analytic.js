@@ -1,5 +1,14 @@
 module.exports = function (printer) {
 
+  // ─── Layout constants ──────────────────────────────────────────────────────
+  // Single source of truth for page geometry.  Change these and all widths /
+  // canvas lines derived from them update automatically.
+  const PAGE_WIDTH    = 612;   // US Letter points
+  const MARGIN_LEFT   = 50;
+  const MARGIN_RIGHT  = 36;
+  const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;  // 526
+
+  // ─── Colour palette ────────────────────────────────────────────────────────
   const gray = '#868686',
     lightGrayBG = '#d9d9d9',
     darkGrayBg = '#808080',
@@ -7,6 +16,15 @@ module.exports = function (printer) {
     blueBG = '#00b0f0',
     xecoSavingsColor = '#333333',
     noBordersCell = [false, false, false, false];
+
+  // ─── spanCell helper ───────────────────────────────────────────────────────
+  // Returns an array of [content-cell, ...placeholder-cells] for pdfmake colSpan.
+  // Usage:  ...spanCell({ text: 'Hello', border: noBordersCell }, 3)
+  function spanCell(cell, span) {
+    const cells = [Object.assign({}, cell, { colSpan: span })];
+    for (let i = 1; i < span; i++) cells.push({ text: '', border: noBordersCell });
+    return cells;
+  }
 
   return {
     generate: generate
@@ -51,7 +69,46 @@ module.exports = function (printer) {
     let estimatedROI = _.round(((totalCost * 12) / parseFloat(billData.estimatedSavings.annualSavings.replace(/,/g, ''))));
     
     let docDefinition = {
-      pageMargins: [50, 100, 36, 50],
+      pageMargins: [MARGIN_LEFT, 100, MARGIN_RIGHT, 50],
+      defaultStyle: {
+        fontSize: 9
+      },
+      styles: {
+        // White-on-black header cell used throughout
+        headerCell: {
+          bold: true,
+          color: 'white',
+          fillColor: 'black'
+        },
+        // White-on-dark-gray section header
+        grayHeader: {
+          bold: true,
+          color: 'white',
+          fillColor: darkGrayBg
+        },
+        // Underlined bold label
+        underLabel: {
+          bold: true,
+          decoration: 'underline'
+        },
+        // Small annotation text
+        noteText: {
+          fontSize: 7
+        },
+        // Section title bar (light blue)
+        sectionBar: {
+          bold: true,
+          decoration: 'underline',
+          fillColor: '#c5d9f1'
+        },
+        // Savings highlight column
+        savingsCell: {
+          alignment: 'right',
+          fillColor: xecoSavingsColor,
+          color: 'white',
+          bold: true
+        }
+      },
       header: function (page) {
         if (page != 1) {
           return {
@@ -513,7 +570,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 70, 0, 0],
-          canvas: [{type: 'line', x1: 0, y1: 5, x2: 495, y2: 5, lineWidth: 1}]
+          canvas: [{type: 'line', x1: 0, y1: 5, x2: CONTENT_WIDTH, y2: 5, lineWidth: 1}]
         },
         {
           margin: [0, 15, 0, 0],
@@ -919,7 +976,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: [false, true, false, false],
-                  margin: [-5, -5, -25, 0],
+                  margin: [-5, -5, 0, 0],
                   //canvas: [{type: 'line', x1: 0, y1: 5, x2: 350, y2: 5, lineWidth: 1}],
                   colSpan: 2,
                   text: ''
@@ -1088,8 +1145,8 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -5, -50, 0],
-                  canvas: [{type: 'line', x1: 0, y1: 5, x2: 432, y2: 5, lineWidth: 1}],
+                  margin: [-5, -5, 0, 0],
+                  canvas: [{type: 'line', x1: 0, y1: 5, x2: Math.round(CONTENT_WIDTH * 4 / 6), y2: 5, lineWidth: 1}],
                   colSpan: 4
                   // text: ''
                 },
@@ -2692,7 +2749,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -4, -5, 0],
+                  margin: [-5, -4, 0, 0],
                   table: {
                     widths: [30, '*', '*', 35],
                     body: [
@@ -2745,7 +2802,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: [false, false, true, false],
-                  margin: [-5, -6, -5, -3],
+                  margin: [-5, -6, 0, -3],
                   table: {
                     widths: [30, '*', '*', 35],
                     body: [
@@ -2805,7 +2862,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: [false, false, true, true],
-                  margin: [-5, -8, -5, -3],
+                  margin: [-5, -8, 0, -3],
                   table: {
                     widths: [30, '*', '*', 35],
                     body: [
@@ -2849,7 +2906,7 @@ module.exports = function (printer) {
         //------------------ Tariff Billing Factors: ------------------
         {
           margin: [0, 20, 0, 0],
-          canvas: [{type: 'line', x1: 0, y1: 5, x2: 495, y2: 5, lineWidth: 1}]
+          canvas: [{type: 'line', x1: 0, y1: 5, x2: CONTENT_WIDTH, y2: 5, lineWidth: 1}]
         },
         {
           border: [true, true, true, false],
@@ -3740,28 +3797,20 @@ module.exports = function (printer) {
     let chargesRows = [];
     charges.forEach(function (charge) {
       let row = [
-        {
+        // colSpan 2: charge name
+        ...spanCell({
           border: [true, false, false, false],
           margin: [-3, -2, 0, -2],
           text: charge.name,
-          colSpan: 2
-        },
-        {
-          text: ''
-        },
+        }, 2),
         {
           border: noBordersCell,
           margin: [0, -2, 0, -2],
           text: charge.amount,
-          style: {
-            alignment: 'right'
-          }
+          style: { alignment: 'right' }
         },
-        {
-          border: [false, false, true, false],
-          text: '',
-          colSpan: 3
-        }
+        // colSpan 3: right gutter (keeps right border)
+        ...spanCell({ border: [false, false, true, false], text: '' }, 3),
       ];
       chargesRows.push(row);
     });
@@ -3781,15 +3830,10 @@ module.exports = function (printer) {
           border: noBordersCell,
           margin: [50, 0, 0, 0],
           text: charge.amount,
-          style: {
-            alignment: 'right'
-          }
+          style: { alignment: 'right' }
         },
-        {
-          border: [false, false, true, false],
-          text: '',
-          colSpan: 2
-        }
+        // colSpan 2: right gutter (keeps right border)
+        ...spanCell({ border: [false, false, true, false], text: '' }, 2),
       ];
       chargesRows.push(row);
     });
