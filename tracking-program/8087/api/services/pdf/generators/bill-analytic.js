@@ -12,7 +12,8 @@ module.exports = function (printer) {
     generate: generate
   };
 
-  function generate (billData, coverPath, logoPath, exclusivePath) { 
+  function generate (billData, coverPath, logoPath, exclusivePath, brandName) {
+    brandName = brandName || 'Synerex';
     function numberWithCommas(x) {
       let str = x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
@@ -50,27 +51,18 @@ module.exports = function (printer) {
     let estimatedROI = _.round(((totalCost * 12) / parseFloat(billData.estimatedSavings.annualSavings.replace(/,/g, ''))));
     
     let docDefinition = {
-      pageMargins: [50, 100, 50, 50],
+      pageMargins: [50, 100, 36, 50],
       header: function (page) {
         if (page != 1) {
           return {
-            margin: [50, 35, 50, 50], 
-            alignment: 'right',
+            margin: [50, 35, 50, 10],
+            alignment: 'center',
             columns: [
-              {
-                width: '*',
-                columns: [{
-                  margin: [-150, 0, 0, 0],
-
-                  image: logoPath,
-                  width: 100,
-                }]
-              },
-              {
-                width: '*',
-                margin: [0, 0, 0, 0],
-                text: ' ',
-              }
+              logoPath ? {
+                image: logoPath,
+                width: 120,
+                alignment: 'center',
+              } : { text: '' }
             ]
           }
         }
@@ -88,7 +80,7 @@ module.exports = function (printer) {
                     text: [
                       'Prepared by ',
                       {
-                        text: 'Xeco Energy Corporation',
+                        text: brandName + ' Energy Corporation',
                         style: {
                           bold: true
                         }
@@ -282,7 +274,7 @@ module.exports = function (printer) {
         {
           margin: [0, 10, 0, 0],
           text: 'Thank you for giving us the opportunity to provide a complete analysis of your current electrical ' +
-          'service and charges. Enclosed is a comprehensive XECO Analytics Report detailing both the billing methods ' +
+          'service and charges. Enclosed is a comprehensive ' + brandName.toUpperCase() + ' Analytics Report detailing both the billing methods ' +
           'and electricity consumption for your review.',
           style: {
             alignment: 'justify',
@@ -291,7 +283,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 10, 0, 0],
-          text: 'XECO is a full service independent testing, energy management company and provider of exclusive ' +
+          text: brandName.toUpperCase() + ' is a full service independent testing, energy management company and provider of exclusive ' +
           'technology hardware designed to improve the characteristics of your facility’s complete electrical network ' +
           'environment.',
           style: {
@@ -310,7 +302,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 10, 0, 0],
-          text: 'A XECO Analytic Report has been prepared based on your monthly Utility Bill. The results are as' +
+          text: 'A ' + brandName.toUpperCase() + ' Analytic Report has been prepared based on your monthly Utility Bill. The results are as' +
           ' follows:',
           style: {
             alignment: 'justify',
@@ -333,7 +325,7 @@ module.exports = function (printer) {
                   columns: [
                     {
                       width: '90%',
-                      text: 'Minimum XECO BASELINE SAVINGS:',
+                      text: 'Minimum ' + brandName.toUpperCase() + ' BASELINE SAVINGS:',
                     },
                     {
                       width: '*',
@@ -397,7 +389,7 @@ module.exports = function (printer) {
                   columns: [
                     {
                       width: '90%',
-                      text: 'Recommended number of XECO units to install in the facility:',
+                      text: 'Recommended number of ' + brandName.toUpperCase() + ' units to install in the facility:',
                     },
                     {
                       width: '*',
@@ -472,7 +464,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [false, true, false, false],
-                  text: 'Xeco Energy Corporation - 1393 North Bennett Circle - Farmington, Utah 84025 - U.S.A. -' +
+                  text: brandName + ' Energy Corporation - 1393 North Bennett Circle - Farmington, Utah 84025 - U.S.A. -' +
                   ' website: xecoenergy.com',
                   style: {
                     color: gray,
@@ -670,7 +662,7 @@ module.exports = function (printer) {
               [
                 {
                   border: noBordersCell,
-                  text: 'XECO UTILITY BILL ANALYTIC',
+                  text: brandName.toUpperCase() + ' UTILITY BILL ANALYTIC',
                   style: {
                     color: 'white',
                     fillColor: blueBG
@@ -688,7 +680,7 @@ module.exports = function (printer) {
                 {
                   stack: [
                     'The information contained in this Analytical Report is for general information purposes only.' +
-                    ' The information is provided by Xeco Energy Corporation. and while we endeavour to present' +
+                    ' The information is provided by ' + brandName + ' Energy Corporation. and while we endeavour to present' +
                     ' accurate and correct information, we make no representations or warranties ofany kind, express' +
                     ' or implied, about the completeness, accuracy, reliability, suitability or availability with' +
                     ' respect to this report or the information, products, services, or related information' +
@@ -713,7 +705,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 80, 0, 0],
-          text: '©Copyright 2019 to Present by Xeco Energy Corporation. All rights reserved. Federal copyright law' +
+          text: '©Copyright 2019 to Present by ' + brandName + ' Energy Corporation. All rights reserved. Federal copyright law' +
           ' prohibits unauthorized reproduction by any means and imposes fines up to $25,000 for violation. This' +
           ' material may not be duplicated for any profit-driven enterprise.',
           style: {
@@ -907,7 +899,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: [false, false, false, false],
-                  text: 'XECO Savings ' + billData.projectCurrency,
+                  text: brandName.toUpperCase() + ' Savings ' + billData.projectCurrency,
                   style: {
                     alignment: 'right',
                     fillColor: xecoSavingsColor,
@@ -1043,7 +1035,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: [false, false, true, false],
-                  text: 'Xeco Savings',
+                  text: brandName + ' Savings',
                   style: {
                     alignment: 'center',
                     bold: true,
@@ -1251,7 +1243,7 @@ module.exports = function (printer) {
                 {
                   margin: [0, 5, 0, 0],
                   border: noBordersCell,
-                  text: 'Estimated Cost for XECO Equipment & Parts:',
+                  text: 'Estimated Cost for ' + brandName.toUpperCase() + ' Equipment & Parts:',
                   style: {
                     alignment: 'right',
                     italics: true,
@@ -1412,7 +1404,7 @@ module.exports = function (printer) {
                 {
                   border: noBordersCell,
                   margin: [-5, 0, -5, 0],
-                  text: 'Estimated Xeco Units',
+                  text: 'Estimated ' + brandName + ' Units',
                   style: {
                     alignment: 'center',
                     bold: true,
@@ -1614,12 +1606,12 @@ module.exports = function (printer) {
           },
           pageBreak: 'after',
         },
-        //------------------ XECO Bill Analytics Detail Worksheet ------------------
+        //------------------ ' + brandName + ' Bill Analytics Detail Worksheet ------------------
         
         {
           margin: [0, 0, 0, 0 ],
           width: '*',
-          text: 'XECO Bill Analytics Detail Worksheet',
+          text: brandName.toUpperCase() + ' Bill Analytics Detail Worksheet',
           style: {
             alignment: 'center',
             bold: true,
@@ -1973,7 +1965,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  margin: [-3, 0, -30, 0],
+                  margin: [-3, 0, -3, 0],
                   text: 'Baseline kWh:(Supply)',
                   style: {
                     fontSize: 9
@@ -2012,7 +2004,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  margin: [-3, -5, -30, 0],
+                  margin: [-3, -5, -3, 0],
                   text: 'Demand',
                   style: {
                     fontSize: 9
@@ -2059,7 +2051,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, true, false, true],
-                  margin: [-3, -3, -30, 0],
+                  margin: [-3, -3, -3, 0],
                   text: 'Total Overage Cost:',
                   style: {
                     fontSize: 9,
@@ -2288,7 +2280,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [15, '*', '*', '*'],
                     body: [
@@ -2340,7 +2332,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   // layout: 'noBorders',
                   table: {
                     widths: ['*', '*'],
@@ -2393,7 +2385,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: ['*', '*'],
                     body: [
@@ -2444,7 +2436,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [15, '*', '*'],
                     body: [
@@ -2496,7 +2488,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [15, '*', '*'],
                     body: [
@@ -2549,7 +2541,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [130, '*'],
                     body: [
@@ -2600,7 +2592,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [130, '*'],
                     body: [
@@ -2654,7 +2646,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  margin: [-5, -3, -5, -3],
+                  margin: [-5, -3, 0, -3],
                   table: {
                     widths: [30, '*', '*', 35],
                     body: [
@@ -3081,7 +3073,7 @@ module.exports = function (printer) {
                       }
                     },
                     ' The building\'s additional reactive energy is increasing the cost of electricity' +
-                    ' and should be reduced.  The Xeco technology is designed to reduce a large portion of reactive energy in the building.']
+                    ' and should be reduced.  The ' + brandName + ' technology is designed to reduce a large portion of reactive energy in the building.']
                 }
               ],
               [
@@ -3152,7 +3144,7 @@ module.exports = function (printer) {
                 {
                   text: 'Additional savings will occur by reducing the EMF levels in the building which cause' +
                   ' resistive build-ups and inconsistent current flows on the RETURN LINE back to the MAIN METER.' +
-                  ' The Xeco technology is designed to BALANCE CURRENT FLOWS in the electrical circuit by up to' +
+                  ' The ' + brandName + ' technology is designed to BALANCE CURRENT FLOWS in the electrical circuit by up to' +
                   ' 88%, allowing more efficient transfer of energy and lower resistance levels.'
                 }
               ]
@@ -3175,7 +3167,7 @@ module.exports = function (printer) {
         {
           margin: [5, 0, 0, 0],
           text: 'The below calculations serve as an indicator for how a kVA meter will be affected based on the' +
-          ' Xeco Solution\'s ability to reduce electrical consumption in the Client\'s facility.',
+          ' ' + brandName + ' Solution\'s ability to reduce electrical consumption in the Client\'s facility.',
           style: {
             fontSize: 9
           }
@@ -3374,7 +3366,7 @@ module.exports = function (printer) {
                 {
                   border: noBordersCell,
                   margin: [0, 0, -5, 0],
-                  text: 'After Xeco-----',
+                  text: 'After ' + brandName + '-----',
                   style: {
                     alignment: 'right'
                   }
@@ -3662,7 +3654,7 @@ module.exports = function (printer) {
         {
           text: 'NOTE: Information contained in this report is an estimate based on calculated usage from the' +
           ' client\'s itemized electrical bill. An adjustment in calculations may be necessary once the \'Walk' +
-          ' Through\' process has been completed in the Facility by a Certified Xeco Project Manager.',
+          ' Through\' process has been completed in the Facility by a Certified ' + brandName + ' Project Manager.',
           style:{
             fontSize: 6
           }
