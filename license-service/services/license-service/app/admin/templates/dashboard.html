@@ -1,24 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h3>Dashboard Overview</h3>
-  <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
-    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin: 0; padding: 1.5rem;">
-      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Organizations</div>
-      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.orgs }}</div>
-    </div>
-    <div class="card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; margin: 0; padding: 1.5rem;">
-      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">API Keys</div>
-      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.api_keys }}</div>
-    </div>
-    <div class="card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; margin: 0; padding: 1.5rem;">
-      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Authorizations</div>
-      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.authorizations }}</div>
-    </div>
-    <div class="card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; margin: 0; padding: 1.5rem;">
-      <div style="font-size: 0.85rem; opacity: 0.9; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">Licenses</div>
-      <div style="font-size: 2.5rem; font-weight: 700; line-height: 1;">{{ counts.licenses }}</div>
-    </div>
-  </div>
+
+<div style="margin-bottom: 2rem;">
+  <h2 style="color: var(--purple-hi); font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">Platform Overview</h2>
+  <p style="color: var(--text-dim); font-size: 0.9rem;">Synerex License Service — Admin Dashboard</p>
 </div>
+
+<div class="row" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1.25rem;">
+
+  <div style="background: linear-gradient(135deg, #1e1b4b, #2e1065); border: 1px solid var(--purple-dark); border-radius: 10px; padding: 1.5rem;">
+    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--purple-hi); opacity: 0.8; margin-bottom: 0.5rem;">Organizations</div>
+    <div style="font-size: 2.75rem; font-weight: 800; color: var(--purple-hi); line-height: 1;">{{ counts.orgs }}</div>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #1e3a5f, #172554); border: 1px solid #1d4ed8; border-radius: 10px; padding: 1.5rem;">
+    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--blue-hi); opacity: 0.8; margin-bottom: 0.5rem;">API Keys</div>
+    <div style="font-size: 2.75rem; font-weight: 800; color: var(--blue-hi); line-height: 1;">{{ counts.api_keys }}</div>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #14532d, #052e16); border: 1px solid #15803d; border-radius: 10px; padding: 1.5rem;">
+    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #86efac; opacity: 0.8; margin-bottom: 0.5rem;">Authorizations</div>
+    <div style="font-size: 2.75rem; font-weight: 800; color: #86efac; line-height: 1;">{{ counts.authorizations }}</div>
+  </div>
+
+  <div style="background: linear-gradient(135deg, #1e1b4b, #1e3a5f); border: 1px solid #4b5563; border-radius: 10px; padding: 1.5rem;">
+    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); opacity: 0.8; margin-bottom: 0.5rem;">Licenses</div>
+    <div style="font-size: 2.75rem; font-weight: 800; color: var(--text-base); line-height: 1;">{{ counts.licenses }}</div>
+  </div>
+
+</div>
+
 {% endblock %}

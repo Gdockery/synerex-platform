@@ -29,7 +29,8 @@ export class NavbarComponent {
     this.logoUrl = this.whitelabelService.getNavbarLogoUrl(user);
     const role = Number(user?.role);
     const clientId = user?.client && (typeof user.client === 'object' ? user.client.id : user.client);
-    this.logoUseInvert = !(role === 7 || role === 9 || role === 10) || !clientId;
+    // Invert (white logo) only for Synerex/fallback. Client and OEM logos use original colors.
+    this.logoUseInvert = !((role >= 2 && role <= 7 && clientId) || role === 9 || role === 10);
     const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
     this.myAccountUrl = (bootstrap['myAccountUrl'] || '').replace(/\/$/, '');
     this.websiteHomeUrl = (bootstrap['websiteHomeUrl'] || '').replace(/\/$/, '');

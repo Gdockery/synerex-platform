@@ -38,7 +38,6 @@
       .nav-logo img {
         height: 48px;
         width: auto;
-        filter: brightness(0) invert(1);
       }
       .nav-links {
         display: flex;
@@ -154,7 +153,7 @@
     <nav class="nav-header">
       <div class="nav-container">
         <a href="{{ (website_url or 'http://localhost:5173') }}/" class="nav-logo">
-          <img src="/static/synerex_logo_color.png" alt="Synerex Laboratories, LLC" />
+          <img src="/license/static/synerex_logo_white.png" alt="Synerex Laboratories, LLC" />
         </a>
         <div class="nav-links">
           <a href="{{ (website_url or 'http://localhost:5173') }}/">Home</a>
@@ -167,7 +166,7 @@
     
     <div class="container">
       <div class="logo-container">
-        <img src="/static/synerex_logo_color.png" alt="Synerex" />
+        <img src="/license/static/synerex_logo_color.png" alt="Synerex" />
       </div>
       <h1>✓ License Receipt</h1>
       
@@ -189,6 +188,8 @@
           <div id="receipt-program"><strong>Program:</strong> {{ program|upper }}</div>
           <div id="receipt-plan"><strong>Plan:</strong> {{ plan|title }}</div>
           <div id="receipt-license-id" style="display: none;">{{ license_id }}</div>
+          {% if amount_total %}<div><strong>Amount Paid:</strong> ${{ amount_total }} {{ currency or 'USD' }}</div>{% endif %}
+          {% if term_start %}<div><strong>Term:</strong> {{ term_start }} to {{ term_end }}</div>{% endif %}
         </div>
       </div>
       
@@ -197,7 +198,7 @@
         <div style="background: #e3f2fd; border: 2px solid #1976d2; border-radius: 8px; padding: 24px; margin: 20px 0; text-align: center;">
           <div style="color: #666; font-size: 14px; margin-bottom: 8px; font-weight: 500;">SOFTWARE LICENSE SERIAL NUMBER</div>
           <div id="license-serial" style="font-size: 24px; font-weight: 700; color: #1976d2; font-family: 'Courier New', monospace; letter-spacing: 1px; margin: 12px 0;">{{ license_id }}</div>
-          <button class="btn" onclick="copySerialNumber()" style="margin-top: 16px;">📋 Copy Serial Number</button>
+          <button class="btn" onclick="copySerialNumber(this)" style="margin-top: 16px;">📋 Copy Serial Number</button>
         </div>
       </div>
       
@@ -236,9 +237,18 @@
           <strong>✓ Receipt Emailed</strong><br>
           <span style="font-size: 14px;">Your License Receipt has been sent to your email address. Please check your inbox.</span>
         </div>
+
+        {% if return_url %}
+        <a href="{{ return_url }}?order_id={{ order_id }}&payment=success"
+           class="btn"
+           style="display: block; width: 100%; box-sizing: border-box; font-size: 18px; padding: 16px; background: #1976d2; margin-bottom: 12px; text-decoration: none; text-align: center;">
+          ✓ Continue to My Account &rarr;
+        </a>
+        {% endif %}
+
         <div style="margin: 16px 0;">
           <p style="color: #666; font-size: 14px; margin-bottom: 8px;">Didn't receive the email?</p>
-          <form method="post" action="/register/resend-receipt" style="display: inline-block;">
+          <form method="post" action="/license/register/resend-receipt" style="display: inline-block;">
             <input type="hidden" name="order_id" value="{{ order_id }}">
             <button type="submit" class="btn" style="background: #757575;">📧 Resend Receipt</button>
           </form>
@@ -248,20 +258,42 @@
     </div>
     
     <script>
-      function copySerialNumber() {
+      function copySerialNumber(btn) {
         const serialNumber = document.getElementById('license-serial').textContent.trim();
-        navigator.clipboard.writeText(serialNumber).then(function() {
-          const btn = event.target;
-          const originalText = btn.textContent;
+        const originalText = btn.textContent;
+
+        function onSuccess() {
           btn.textContent = '✓ Copied!';
           btn.style.background = '#2e7d32';
           setTimeout(function() {
             btn.textContent = originalText;
             btn.style.background = '#1976d2';
           }, 2000);
-        }).catch(function(err) {
-          alert('Failed to copy. Please select and copy manually.');
-        });
+        }
+
+        function onFail() {
+          // Fallback: create a temporary textarea and use execCommand
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = serialNumber;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+            if (ok) { onSuccess(); } else { alert('Could not copy. Serial: ' + serialNumber); }
+          } catch(e) {
+            alert('Could not copy. Serial: ' + serialNumber);
+          }
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(serialNumber).then(onSuccess).catch(onFail);
+        } else {
+          onFail();
+        }
       }
       
     </script>

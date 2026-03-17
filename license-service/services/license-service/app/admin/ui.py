@@ -506,6 +506,21 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         "billing_orders_pending": len([o for o in billing_orders if o.status == "pending"]),
     }
     
+    # For OEM orgs: look up their admin user and build branded login URL
+    oem_admin_user = None
+    oem_login_url = ""
+    oem_setup_message = request.query_params.get("oem_message", "").replace("+", " ")
+    oem_setup_message_type = request.query_params.get("oem_message_type", "success")
+    if org.org_type == "oem":
+        from ..models.user import User as _User
+        oem_admin_user = db.query(_User).filter(
+            _User.org_id == org_id,
+            _User.role == "oem_admin",
+        ).first()
+        base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+        root_pfx = (settings.root_path or "").rstrip("/")
+        oem_login_url = f"{base_url}{root_pfx}/auth/login?oem={org_id}"
+
     return templates.TemplateResponse("org_detail.html", {
         "request": request,
         "org": org,
@@ -516,7 +531,98 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         "billing_orders": billing_orders,
         "audit_events": audit_events,
         "stats": stats,
+        "oem_admin_user": oem_admin_user,
+        "oem_login_url": oem_login_url,
+        "oem_setup_message": oem_setup_message,
+        "oem_setup_message_type": oem_setup_message_type,
     })
+
+@router.post("/orgs/{org_id}/setup-oem", response_class=RedirectResponse)
+def org_setup_oem(
+    org_id: str,
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Create or reset OEM admin login credentials."""
+    import bcrypt as _bcrypt
+    from ..models.user import User as _User
+
+    detail_url = _admin_url(f"orgs/{org_id}")
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "oem":
+        raise HTTPException(400, "Not an OEM organization")
+
+    if len(password) < 6:
+        return RedirectResponse(
+            f"{detail_url}?oem_message=Password+must+be+at+least+6+characters&oem_message_type=error",
+            status_code=303
+        )
+
+    hashed = _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+
+    existing = db.query(_User).filter(_User.org_id == org_id, _User.role == "oem_admin").first()
+    if existing:
+        existing.username = email
+        existing.email = email
+        existing.password_hash = hashed
+        existing.is_active = True
+        db.commit()
+        log_event(db, actor="admin", action="oem.credentials.reset", ref_id=org_id, detail={"email": email})
+        # Send credential reset email (best-effort)
+        try:
+            from ..services.email import send_oem_invitation_email as _send_oem_invite
+            from ..config import settings as _settings
+            base = (_settings.website_url or "http://localhost:8080").rstrip("/")
+            pfx = (_settings.root_path or "").rstrip("/")
+            _login_url = f"{base}{pfx}/auth/login?oem={org_id}"
+            _send_oem_invite(
+                to_email=email, org_name=org.org_name, org_id=org_id,
+                temp_password=password, login_url=_login_url, is_reset=True,
+            )
+        except Exception as _e:
+            print(f"[EMAIL] OEM reset email failed: {_e}")
+        return RedirectResponse(
+            f"{detail_url}?oem_message=OEM+login+updated+for+{email}+—+invitation+email+sent&oem_message_type=success",
+            status_code=303
+        )
+    else:
+        taken = db.query(_User).filter((_User.username == email) | (_User.email == email)).first()
+        if taken:
+            return RedirectResponse(
+                f"{detail_url}?oem_message=Email+already+in+use+by+another+account&oem_message_type=error",
+                status_code=303
+            )
+        new_user = _User(
+            username=email,
+            email=email,
+            password_hash=hashed,
+            org_id=org_id,
+            role="oem_admin",
+            is_active=True,
+        )
+        db.add(new_user)
+        db.commit()
+        log_event(db, actor="admin", action="oem.credentials.create", ref_id=org_id, detail={"email": email})
+        # Send invitation email (best-effort)
+        try:
+            from ..services.email import send_oem_invitation_email as _send_oem_invite
+            from ..config import settings as _settings
+            base = (_settings.website_url or "http://localhost:8080").rstrip("/")
+            pfx = (_settings.root_path or "").rstrip("/")
+            _login_url = f"{base}{pfx}/auth/login?oem={org_id}"
+            _send_oem_invite(
+                to_email=email, org_name=org.org_name, org_id=org_id,
+                temp_password=password, login_url=_login_url, is_reset=False,
+            )
+        except Exception as _e:
+            print(f"[EMAIL] OEM invitation email failed: {_e}")
+        return RedirectResponse(
+            f"{detail_url}?oem_message=OEM+login+created+for+{email}+—+invitation+email+sent&oem_message_type=success",
+            status_code=303
+        )
 
 @router.get("/orgs/{org_id}/edit", response_class=HTMLResponse)
 def org_edit_page(org_id: str, request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):

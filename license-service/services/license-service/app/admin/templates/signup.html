@@ -19,11 +19,14 @@
     .links { margin-top: 1.5rem; }
     .logo-container { text-align: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb; }
     .logo-container img { height: 56px; max-width: 220px; }
+    .back-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 1rem; background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; border-radius: 6px; text-decoration: none; font-size: 0.875rem; cursor: pointer; margin-bottom: 1rem; }
+    .back-btn:hover { background: #e5e7eb; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="logo-container"><img src="/license/static/synerex_logo_color.png" alt="Synerex" /></div>
+    <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
     <h1>Create an account</h1>
     {% if error %}
     <div class="error">{{ error }}</div>
@@ -57,6 +60,7 @@
       <button type="submit">Register</button>
     </form>
     <div class="links"><a href="{{ login_href or ((path_prefix + '/auth/login') if path_prefix else '/auth/login') }}">Already have an account? Log in</a></div>
+    <div style="margin-top: 1rem;"><a href="javascript:history.back()" class="back-btn">&#8592; Back</a></div>
   </div>
   <script>
   (function(){ var s=document.querySelector('select[name="org_type"]'); var pe=document.getElementById('pe-fields'); var st=document.getElementById('pe-state-row');

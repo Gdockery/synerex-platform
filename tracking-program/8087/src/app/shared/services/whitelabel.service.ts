@@ -104,14 +104,14 @@ export class WhitelabelService {
       if (clientId) return this.getClientLogoUrl(clientId);
     }
     // Client roles (2, 3, 4, 5, 6) and Account Manager (7):
-    // If the client is sponsored by an OEM, show the OEM's logo
+    // Show the client's own logo first; fall back to OEM's logo if no client logo is set.
     if (role <= 7 && role >= 2) {
+      if (clientId) {
+        return this.getClientLogoUrl(clientId);
+      }
       const sponsorOrgId = (user.sponsorOrgId || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
       if (sponsorOrgId) {
         return `/images/oem_logo/${sponsorOrgId}`;
-      }
-      if (role === 7 && clientId) {
-        return this.getClientLogoUrl(clientId);
       }
     }
     return this.getLogoUrl('small');

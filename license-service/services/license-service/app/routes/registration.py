@@ -205,7 +205,7 @@ def payment_page(
     
     if order.status == "paid":
         # Already paid, redirect to success
-        redirect_url = f"/register/success?order_id={order_id}"
+        redirect_url = f"/license/register/success?order_id={order_id}"
         if return_url:
             redirect_url += f"&return_url={return_url}"
         return RedirectResponse(redirect_url, status_code=303)
@@ -270,7 +270,7 @@ def process_payment(
             )
         
         if order.status == "paid":
-            redirect_url = f"/register/success?order_id={order_id}"
+            redirect_url = f"/license/register/success?order_id={order_id}"
             if return_url:
                 redirect_url += f"&return_url={return_url}"
             return RedirectResponse(redirect_url, status_code=303)
@@ -305,7 +305,7 @@ def process_payment(
             existing_eft_payment = db.query(Payment).filter(Payment.order_id == order_id, Payment.gateway == "eft").first()
             if existing_eft_payment:
                 # EFT payment already initiated, redirect to EFT instructions page
-                return RedirectResponse(f"/register/eft-instructions?order_id={order_id}", status_code=303)
+                return RedirectResponse(f"/license/register/eft-instructions?order_id={order_id}", status_code=303)
             
             # Create pending EFT payment record
             payment_id = f"PAY-EFT-{order_id}-{int(datetime.utcnow().timestamp())}"
@@ -328,7 +328,7 @@ def process_payment(
                      detail={"order_id": order_id, "amount": order.amount_total})
             
             # Redirect to EFT instructions page
-            return RedirectResponse(f"/register/eft-instructions?order_id={order_id}", status_code=303)
+            return RedirectResponse(f"/license/register/eft-instructions?order_id={order_id}", status_code=303)
         
         # Handle demo payments - immediately complete and issue license
         if payment_method == "demo":
@@ -336,7 +336,7 @@ def process_payment(
             existing_payment = db.query(Payment).filter(Payment.order_id == order_id, Payment.status == "completed").first()
             if existing_payment and order.license_id:
                 # Already processed, redirect to success
-                redirect_url = f"/register/success?order_id={order_id}"
+                redirect_url = f"/license/register/success?order_id={order_id}"
                 if return_url:
                     redirect_url += f"&return_url={return_url}"
                 return RedirectResponse(redirect_url, status_code=303)
@@ -366,7 +366,7 @@ def process_payment(
             if order.license_id:
                 existing_license = db.get(License, order.license_id)
                 if existing_license:
-                    redirect_url = f"/register/success?order_id={order_id}"
+                    redirect_url = f"/license/register/success?order_id={order_id}"
                     if return_url:
                         redirect_url += f"&return_url={return_url}"
                     return RedirectResponse(redirect_url, status_code=303)
@@ -438,7 +438,7 @@ def process_payment(
             log_event(db, actor="self_service", action="payment.completed", ref_id=payment_id,
                      detail={"order_id": order_id, "license_id": license_rec.license_id, "gateway": "demo"})
             
-            redirect_url = f"/register/success?order_id={order_id}"
+            redirect_url = f"/license/register/success?order_id={order_id}"
             if return_url:
                 redirect_url += f"&return_url={return_url}"
             return RedirectResponse(redirect_url, status_code=303)
@@ -451,13 +451,13 @@ def process_payment(
             # Payment already exists, redirect to appropriate page
             if existing_payment.status == "completed" and order.license_id:
                 # Payment completed and license issued, redirect to success
-                redirect_url = f"/register/success?order_id={order_id}"
+                redirect_url = f"/license/register/success?order_id={order_id}"
                 if return_url:
                     redirect_url += f"&return_url={return_url}"
                 return RedirectResponse(redirect_url, status_code=303)
             elif existing_payment.status == "pending":
                 # Payment pending, show pending status page
-                return RedirectResponse(f"/register/payment-pending?order_id={order_id}", status_code=303)
+                return RedirectResponse(f"/license/register/payment-pending?order_id={order_id}", status_code=303)
             payment_id = existing_payment.id
         else:
             # Create pending payment record (will be marked completed after gateway confirmation)
@@ -486,7 +486,7 @@ def process_payment(
         
         # In demo mode, simulate payment processing delay
         # In production, this would be handled by webhook callbacks
-        return RedirectResponse(f"/register/payment-pending?order_id={order_id}", status_code=303)
+        return RedirectResponse(f"/license/register/payment-pending?order_id={order_id}", status_code=303)
         
     except Exception as e:
         db.rollback()
@@ -553,18 +553,7 @@ def payment_success(
     return_url: Optional[str] = None,
     db: Session = Depends(db_session)
 ):
-    """Display success page after payment."""
-    # If return_url is provided, redirect to website with license info
-    if return_url:
-        if order_id:
-            redirect_url = f"{return_url}?order_id={order_id}"
-            if license_id:
-                redirect_url += f"&license_id={license_id}"
-            return RedirectResponse(url=redirect_url, status_code=302)
-        elif license_id:
-            redirect_url = f"{return_url}?license_id={license_id}"
-            return RedirectResponse(url=redirect_url, status_code=302)
-    
+    """Display success page after payment. Always shows receipt; return_url becomes a Continue button."""
     # If no order_id provided, return error
     if not order_id:
         return templates.TemplateResponse(
@@ -613,6 +602,11 @@ def payment_success(
             "program": order.program_id,
             "plan": order.plan,
             "website_url": settings.website_url,
+            "return_url": return_url,
+            "amount_total": order.amount_total,
+            "currency": order.currency,
+            "term_start": order.term_start,
+            "term_end": order.term_end,
         }
     )
 
@@ -995,10 +989,12 @@ def upgrade_plan_api(
     if not org:
         raise HTTPException(404, "Organization not found")
 
-    # Calculate price for new plan
+    # Calculate price for new plan — seat_count defaults to included_seats for the plan
+    from ..services.pricing import PRICING as _PRICING
+    included_seats = int(_PRICING.get(program_id, {}).get(new_plan, {}).get("included_seats", 0))
     try:
         pricing = calculate_price(program_id, new_plan, term_days=365,
-                                  seat_count=0, meter_count=meter_count)
+                                  seat_count=included_seats, meter_count=meter_count)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -1014,7 +1010,7 @@ def upgrade_plan_api(
         plan=new_plan,
         term_start=today.isoformat(),
         term_end=(today.replace(year=today.year + 1)).isoformat(),
-        seat_count=0,
+        seat_count=included_seats,
         meter_count=meter_count,
         unit_price=pricing["per_meter"] if meter_count else pricing["base_price"],
         amount_total=pricing["amount_total"],
@@ -1147,5 +1143,133 @@ def get_subscription(
         "license_id": lic.license_id if lic else None,
         "expires_at": lic.expires_at.isoformat() if lic and lic.expires_at else None,
         "upgrade_plans": upgrade_plans,
+    }
+
+
+@router.post("/api/add-seats", response_class=JSONResponse)
+def add_seats_api(
+    org_id: str = Form(...),
+    quantity: int = Form(...),
+    payment_method: str = Form(...),  # "demo", "eft", "stripe", "paypal"
+    program_id: str = Form("tracking"),
+    db: Session = Depends(db_session)
+):
+    """
+    Purchase additional seats for an existing org, billed prorated to the current
+    license expiry date. Updates the license payload immediately on demo/card payment.
+    Returns {ok, order_id, seats_added, new_seat_limit, amount_charged, receipt_ref}.
+    """
+    from decimal import Decimal as _D
+    from ..models.seats import SeatAssignment
+
+    if quantity < 1:
+        raise HTTPException(400, "quantity must be at least 1")
+
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    # Find active license
+    lic = db.query(License).filter_by(
+        org_id=org_id, program_id=program_id, revoked=False, suspended=False
+    ).order_by(License.issued_at.desc()).first()
+    if not lic:
+        raise HTTPException(404, "No active license found for this org and program")
+
+    # Parse current seat_limit from license payload
+    payload = json.loads(lic.payload_json or "{}")
+    current_seat_limit = int(
+        payload.get("entitlements", {}).get("limits", {}).get("seat_limit", 0) or 0
+    )
+
+    # Calculate prorated cost: $99/seat/year, prorated to days remaining
+    today = date.today()
+    expiry = lic.expires_at.date() if hasattr(lic.expires_at, "date") else lic.expires_at
+    days_remaining = max(1, (expiry - today).days)
+    per_seat_annual = _D("99.00")
+    prorate_factor = _D(str(days_remaining)) / _D("365")
+    amount_total = (per_seat_annual * quantity * prorate_factor).quantize(_D("0.01"))
+
+    # Create billing order
+    import uuid as _uuid
+    order_id = f"SEATS-{org_id}-{_uuid.uuid4().hex[:8].upper()}"
+    order = BillingOrder(
+        order_id=order_id,
+        org_id=org_id,
+        program_id=program_id,
+        plan="seat_addon",
+        term_start=today.isoformat(),
+        term_end=expiry.isoformat(),
+        seat_count=quantity,
+        meter_count=0,
+        unit_price=str(per_seat_annual),
+        amount_total=str(amount_total),
+        currency="USD",
+        status="pending",
+        notes=f"Additional {quantity} seat(s) prorated {days_remaining} days",
+    )
+    db.add(order)
+    db.commit()
+
+    log_event(db, actor=org_id, action="billing.add_seats.created", ref_id=order_id,
+              detail={"org_id": org_id, "quantity": quantity, "amount_total": str(amount_total),
+                      "days_remaining": days_remaining})
+
+    # Process payment
+    payment_id = f"PAY-SEATS-{order_id}-{int(datetime.utcnow().timestamp())}"
+    payment_status = "pending"
+
+    if payment_method == "demo":
+        payment_status = "completed"
+    elif payment_method == "eft":
+        payment_status = "pending"
+    else:
+        payment_status = "pending"
+
+    payment = Payment(
+        id=payment_id,
+        order_id=order_id,
+        org_id=org_id,
+        amount=str(amount_total),
+        currency="USD",
+        gateway=payment_method,
+        gateway_transaction_id=f"DEMO-{payment_id}" if payment_method == "demo" else None,
+        status=payment_status,
+        payment_method=payment_method,
+        completed_at=datetime.utcnow() if payment_method == "demo" else None,
+    )
+    db.add(payment)
+
+    receipt_ref = None
+
+    if payment_method == "demo":
+        # Immediately update license seat_limit
+        new_seat_limit = current_seat_limit + quantity
+        payload["entitlements"]["limits"]["seat_limit"] = new_seat_limit
+        lic.payload_json = json.dumps(payload)
+        order.status = "paid"
+        receipt_ref = payment_id
+        log_event(db, actor=org_id, action="billing.add_seats.completed", ref_id=order_id,
+                  detail={"org_id": org_id, "quantity": quantity, "new_seat_limit": new_seat_limit,
+                          "payment_id": payment_id})
+    else:
+        new_seat_limit = current_seat_limit  # unchanged until payment confirmed
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "seats_added": quantity if payment_method == "demo" else 0,
+        "new_seat_limit": new_seat_limit,
+        "previous_seat_limit": current_seat_limit,
+        "amount_charged": str(amount_total),
+        "currency": "USD",
+        "payment_status": payment_status,
+        "receipt_ref": receipt_ref,
+        "days_remaining": days_remaining,
+        "per_seat_prorated": str((per_seat_annual * prorate_factor).quantize(_D("0.01"))),
+        "payment_method": payment_method,
+        "pending_eft": payment_method == "eft",
     }
 

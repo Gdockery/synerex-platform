@@ -158,6 +158,7 @@ def _project_to_dict(p, include_meters=False, sess=None):
         "slug": p.slug,
         "client": p.client,
         "orgId": getattr(p, "org_id", None),
+        "documentShareToken": getattr(p, "documentShareToken", None),
         "xecoManager": p.xecoManager,
         "timeZoneId": getattr(p, "timeZoneId", None) or "America/Chicago",
         "selectedTest": getattr(p, "selectedTest", None),
@@ -167,6 +168,13 @@ def _project_to_dict(p, include_meters=False, sess=None):
         "kwhSavings": getattr(p, "kwhSavings", None),
         "pfSavings": getattr(p, "pfSavings", None),
         "reportFields": getattr(p, "reportFields", None) or {},
+        "electricBillAnalysis": getattr(p, "electricBillAnalysis", None) or {},
+        "electricBillAnalysisUpdatedAt": getattr(p, "electricBillAnalysisUpdatedAt", None),
+        "equipmentInfo": getattr(p, "equipmentInfo", None) or None,
+        "salesTax": getattr(p, "salesTax", None),
+        "discount": getattr(p, "discount", None),
+        "currencyCode": getattr(p, "currencyCode", None),
+        "currencyExchangeRate": getattr(p, "currencyExchangeRate", None),
         "activeEmvAnalysisId": getattr(p, "active_emv_analysis_id", None),
     }
     if include_meters:
@@ -453,27 +461,6 @@ def favicon():
     return Response(status=204)
 
 
-@web_bp.route("/<path:path>")
-def serve_spa_catchall(path):
-    """SPA catch-all: serve static assets without auth; protect SPA routes with login+license."""
-    from app.config import _8087_ROOT
-    # Serve real static files (JS, CSS, fonts, images) without requiring authentication
-    public_dir = _8087_ROOT / ".tmp" / "public"
-    candidate = public_dir / path
-    try:
-        candidate_resolved = candidate.resolve()
-        public_resolved = public_dir.resolve()
-        if candidate_resolved.is_file() and str(candidate_resolved).startswith(str(public_resolved)):
-            from flask import send_from_directory
-            return send_from_directory(str(public_resolved), path)
-    except Exception:
-        pass
-    # Not a static file — protect with login + license
-    if not current_user.is_authenticated:
-        return redirect(_login_url())
-    return _serve_spa_licensed()
-
-
 @web_bp.route("/api/account", methods=["GET"])
 @login_required
 def get_account():
@@ -633,8 +620,8 @@ def list_projects():
         q = q.join(Client, Project.client == Client.id).filter(
             or_(Client.org_id == oem_org_id, Client.sponsor_org_id == oem_org_id)
         )
-    # Client Admin, Client Manager: only projects under their client (their organization)
-    elif user and getattr(user, "role", None) in (2, 3) and user.client:
+    # Client User, Client Admin, Client Manager: only projects under their client (their organization)
+    elif user and getattr(user, "role", None) in (1, 2, 3) and user.client:
         q = q.filter(Project.client == user.client)
     # Account Manager: only projects for their assigned client
     elif user and getattr(user, "role", None) == 7 and user.client:
@@ -670,6 +657,28 @@ def list_projects():
         rows.append(row)
 
     return jsonify({"meta": {"page": page, "total": total}, "response": rows})
+
+
+@web_bp.route("/api/project/<int:pid>/ensure-document-token", methods=["POST", "OPTIONS"])
+@login_required
+@license_required
+def ensure_project_document_token(pid):
+    """Ensure project has documentShareToken; generate and save if missing. Returns { documentShareToken }."""
+    if request.method == "OPTIONS":
+        return "", 204
+    sess = get_session()
+    p = sess.query(Project).filter_by(id=pid, isDeleted=False).first()
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+    user = sess.query(User).get(current_user.id) if current_user.is_authenticated else None
+    if not user or not _user_can_access_project(sess, user, p):
+        return jsonify({"error": "Unauthorized"}), 403
+    token = getattr(p, "documentShareToken", None)
+    if not token or not str(token).strip():
+        token = secrets.token_urlsafe(32)
+        p.documentShareToken = token
+        sess.commit()
+    return jsonify({"meta": {}, "response": {"documentShareToken": token}})
 
 
 @web_bp.route("/api/project/<int:pid>", methods=["GET"])
@@ -759,6 +768,82 @@ def _get_oem_org_id(sess, user):
         if oem_client:
             org_id = getattr(oem_client, "org_id", None)
     return org_id
+
+
+_GLOBAL_NUM_PREFIX = "3421"
+_GLOBAL_NUM_START = 2843
+_OEM_NUM_START = 2843
+
+
+def _is_conforming_number(val):
+    """Return True if val looks like a number we issued (3421-NNNN or 8-digit zero-padded)."""
+    if not val:
+        return False
+    val = str(val).strip()
+    import re as _re
+    if _re.match(r"^\d{4}-\d{4,}$", val):
+        return True
+    if _re.match(r"^\d{8,}$", val):
+        return True
+    return False
+
+
+def _generate_project_number(sess, sponsor_org_id):
+    """
+    Assign the next sequential project number for the given sponsor_org_id.
+    - sponsor_org_id is None (Synerex/admin projects): global format '3421-NNNN'
+      starting at 3421-2843; when NNNN exceeds 9999 the prefix increments.
+    - sponsor_org_id set (OEM projects): per-OEM 8-digit zero-padded integer
+      starting at 00002843; each OEM has its own counter.
+    """
+    import re as _re
+
+    if sponsor_org_id:
+        # Per-OEM: find the highest existing number for this OEM
+        rows = (
+            sess.query(Project.proposalNumber)
+            .join(Client, Project.client == Client.id)
+            .filter(
+                Client.sponsor_org_id == sponsor_org_id,
+                Project.proposalNumber.isnot(None),
+                Project.proposalNumber != "",
+            )
+            .all()
+        )
+        max_seq = _OEM_NUM_START - 1
+        for (pn,) in rows:
+            if pn and _re.match(r"^\d{8,}$", str(pn).strip()):
+                try:
+                    max_seq = max(max_seq, int(pn))
+                except ValueError:
+                    pass
+        return f"{max_seq + 1:08d}"
+    else:
+        # Global (Synerex): find the highest existing 'PREFIX-NNNN' number
+        rows = (
+            sess.query(Project.proposalNumber)
+            .join(Client, Project.client == Client.id)
+            .filter(
+                Client.sponsor_org_id.is_(None),
+                Project.proposalNumber.isnot(None),
+                Project.proposalNumber != "",
+            )
+            .all()
+        )
+        max_prefix = int(_GLOBAL_NUM_PREFIX)
+        max_seq = _GLOBAL_NUM_START - 1
+        for (pn,) in rows:
+            if pn:
+                m = _re.match(r"^(\d{4})-(\d+)$", str(pn).strip())
+                if m:
+                    p, s = int(m.group(1)), int(m.group(2))
+                    if p > max_prefix or (p == max_prefix and s > max_seq):
+                        max_prefix, max_seq = p, s
+        next_seq = max_seq + 1
+        if next_seq > 9999:
+            max_prefix += 1
+            next_seq = 0
+        return f"{max_prefix}-{next_seq:04d}"
 
 
 def _oem_can_access_client(sess, user, client):
@@ -979,6 +1064,19 @@ def create_project_from_bill():
         for k in ("location", "proposalNumber", "startDate"):
             if k in project_vals and project_vals[k] is not None:
                 setattr(p, k, project_vals[k])
+        if "currencyExchangeRate" in project_vals and project_vals["currencyExchangeRate"] is not None:
+            try:
+                p.currencyExchangeRate = float(project_vals["currencyExchangeRate"])
+            except (TypeError, ValueError):
+                pass
+        if "reportFields" in project_vals and isinstance(project_vals["reportFields"], dict):
+            existing_rf = dict(getattr(p, "reportFields", None) or {})
+            existing_rf.update(project_vals["reportFields"])
+            p.reportFields = existing_rf
+        # Auto-assign sequential project number if not already set
+        if not _is_conforming_number(getattr(p, "proposalNumber", None)):
+            sponsor = getattr(c, "sponsor_org_id", None)
+            p.proposalNumber = _generate_project_number(sess, sponsor)
         sess.add(p)
         sess.flush()
 
@@ -1108,6 +1206,13 @@ def create_project():
 
     sess.add(p)
     sess.flush()
+
+    # Auto-assign sequential project number if not already set
+    if not _is_conforming_number(getattr(p, "proposalNumber", None)):
+        sponsor = getattr(client, "sponsor_org_id", None)
+        p.proposalNumber = _generate_project_number(sess, sponsor)
+        sess.add(p)
+        sess.flush()
 
     _create_report_data_for_project(p.id)
 
@@ -1521,10 +1626,12 @@ def get_oem_branding():
         from app.models.oem_branding import OemBranding
         b = get_session().query(OemBranding).filter_by(org_id=org_id).first()
         if b:
+            safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
             return jsonify({"response": {
                 "org_id": b.org_id,
                 "brand_name": b.brand_name,
-                "logo_url": f"/images/oem_logo/{org_id}" if b.logo_path else None,
+                "logo_url": f"/images/oem_logo/{safe_org}" if b.logo_path else None,
+                "white_logo_url": f"/images/oem_logo/{safe_org}_white" if b.white_logo_path else None,
                 "primary_color": b.primary_color,
                 "secondary_color": b.secondary_color,
                 "support_email": b.support_email,
@@ -1583,7 +1690,9 @@ def save_oem_branding():
 @web_bp.route("/api/whitelabel/oem-logo", methods=["POST"])
 @login_required
 def upload_oem_logo():
-    """POST /api/whitelabel/oem-logo - upload OEM logo image."""
+    """POST /api/whitelabel/oem-logo - upload OEM logo image.
+    Optional form field: logo_type = 'color' (default) | 'white'
+    """
     role = getattr(current_user, "role", None)
     if role not in (8, 9, 10):
         return jsonify({"error": "Forbidden"}), 403
@@ -1601,11 +1710,15 @@ def upload_oem_logo():
     logo = request.files.get("logo")
     if not logo or not logo.filename:
         return jsonify({"error": "logo file required"}), 400
+    logo_type = request.form.get("logo_type", "color").strip().lower()
+    if logo_type not in ("color", "white"):
+        logo_type = "color"
     storage = Path(current_app.config.get("STORAGE_PATH", current_app.root_path)).parent
     upload_dir = storage / "images" / "oem_logo"
     upload_dir.mkdir(parents=True, exist_ok=True)
     safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
-    dest = upload_dir / safe_org
+    filename = safe_org if logo_type == "color" else f"{safe_org}_white"
+    dest = upload_dir / filename
     logo.save(str(dest))
     try:
         from app.models.oem_branding import OemBranding
@@ -1614,11 +1727,15 @@ def upload_oem_logo():
         if not b:
             b = OemBranding(org_id=org_id)
             sess.add(b)
-        b.logo_path = str(dest)
+        if logo_type == "white":
+            b.white_logo_path = str(dest)
+        else:
+            b.logo_path = str(dest)
         sess.commit()
     except Exception:
         pass
-    return jsonify({"response": f"/images/oem_logo/{safe_org}", "logo_url": f"/images/oem_logo/{safe_org}"})
+    serve_url = f"/images/oem_logo/{filename}"
+    return jsonify({"response": serve_url, "logo_url": serve_url, "logo_type": logo_type})
 
 
 
@@ -1665,6 +1782,67 @@ def get_oem_branding_by_org():
     return jsonify({}), 200
 
 
+@web_bp.route("/api/whitelabel/client-logo-by-org-info", methods=["GET"])
+def get_client_logo_by_org_info():
+    """
+    Internal GET endpoint: returns current client logo URL for a given org_id.
+    No auth required (internal Docker network use only).
+    """
+    org_id = request.args.get("org_id", "").strip()
+    if not org_id:
+        return jsonify({}), 200
+    try:
+        from app.models.client import Client
+        sess = get_session()
+        client = sess.query(Client).filter(
+            Client.org_id == org_id, Client.isDeleted == False
+        ).first()
+        if not client or not getattr(client, "logoImgSrc", None):
+            return jsonify({"logo_url": ""}), 200
+        logo_url = f"/images/client_company_logo/{client.logoImgSrc}"
+        return jsonify({"logo_url": logo_url}), 200
+    except Exception as e:
+        return jsonify({}), 200
+
+@web_bp.route("/api/whitelabel/client-logo-by-org", methods=["POST"])
+def upload_client_logo_by_org():
+    """
+    Internal (no auth) endpoint for service-to-service use.
+    Accepts org_id + logo file and saves it as the client's logo.
+    Only accessible from within the Docker network (not exposed publicly via Nginx).
+    """
+    org_id = request.form.get("org_id", "").strip()
+    if not org_id:
+        return jsonify({"error": "org_id required"}), 400
+
+    logo = request.files.get("logo")
+    if not logo or not logo.filename:
+        return jsonify({"error": "logo file required"}), 400
+
+    try:
+        from app.models.client import Client
+        sess = get_session()
+        client = sess.query(Client).filter(
+            Client.org_id == org_id, Client.isDeleted == False
+        ).first()
+        if not client:
+            return jsonify({"error": "Client not found for org_id"}), 404
+
+        storage = Path(current_app.config.get("STORAGE_LOCAL_PATH", current_app.root_path))
+        upload_dir = storage / "images" / "client_company_logo"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        basename = f"{client.id}-client-logo"
+        dest = upload_dir / basename
+        logo.save(str(dest))
+        client.logoImgSrc = basename
+        sess.commit()
+
+        logo_url = f"/images/client_company_logo/{basename}"
+        return jsonify({"message": "Logo uploaded successfully", "logo_url": logo_url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @web_bp.route("/js/<path:path>")
 @web_bp.route("/css/<path:path>")
 @web_bp.route("/images/<path:path>")
@@ -1692,6 +1870,13 @@ def serve_static(path):
             oem_file = oem_dir / path[len("oem_logo/"):]
             if oem_file.exists() and oem_file.is_file():
                 return send_from_directory(str(oem_dir), path[len("oem_logo/")])
+        # Client logo: /images/client_company_logo/{id}-client-logo
+        if path.startswith("client_company_logo/"):
+            storage = Path(current_app.config.get("STORAGE_LOCAL_PATH", current_app.root_path))
+            client_dir = storage / "images" / "client_company_logo"
+            client_file = client_dir / path[len("client_company_logo/"):]
+            if client_file.exists() and client_file.is_file():
+                return send_from_directory(str(client_dir), path[len("client_company_logo/")])
         hostname = (request.host or "").split(":")[0]
         mappings = current_app.config.get("WHITELABEL_DOMAIN_MAPPINGS") or {}
         branding = mappings.get(hostname) or _get_branding_from_hostname(hostname)
@@ -1862,3 +2047,25 @@ def upgrade_subscription():
         return jsonify({"error": body}), e.code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@web_bp.route("/<path:path>")
+def serve_spa_catchall(path):
+    """SPA catch-all: serve static assets without auth; protect SPA routes with login+license.
+    Must be registered last so API routes (POST, PUT, etc.) match first."""
+    from app.config import _8087_ROOT
+    # Serve real static files (JS, CSS, fonts, images) without requiring authentication
+    public_dir = _8087_ROOT / ".tmp" / "public"
+    candidate = public_dir / path
+    try:
+        candidate_resolved = candidate.resolve()
+        public_resolved = public_dir.resolve()
+        if candidate_resolved.is_file() and str(candidate_resolved).startswith(str(public_resolved)):
+            from flask import send_from_directory
+            return send_from_directory(str(public_resolved), path)
+    except Exception:
+        pass
+    # Not a static file — protect with login + license
+    if not current_user.is_authenticated:
+        return redirect(_login_url())
+    return _serve_spa_licensed()

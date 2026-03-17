@@ -165,7 +165,7 @@
         Please ensure all information is correct before proceeding.
       </div>
 
-      <form method="post" action="/register/payment/process" id="paymentForm">
+      <form method="post" action="/license/register/payment/process" id="paymentForm">
         <input type="hidden" name="order_id" value="{{ order.order_id }}">
         {% if return_url %}
         <input type="hidden" name="return_url" value="{{ return_url }}">

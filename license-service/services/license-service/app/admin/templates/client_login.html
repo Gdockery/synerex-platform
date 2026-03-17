@@ -3,178 +3,80 @@
   <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Client Login - Synerex Platform</title>
+    <title>{{ brand_name }} — {{ brand_subtitle }}</title>
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 24px;
-        background: #4c1d95;
-        min-height: 100vh;
-      }
-      .container {
-        max-width: 420px;
-        margin: 40px auto;
-        background: white;
-        padding: 32px;
-        border-radius: 8px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-      }
-      .logo-container {
-        margin-bottom: 24px;
-        text-align: center;
-        padding-bottom: 20px;
-        border-bottom: 1px solid #eee;
-      }
-      .logo-container img {
-        height: 60px;
-        max-width: 250px;
-      }
-      h2 {
-        text-align: center;
-        margin-top: 1rem;
-        color: #1976d2;
-        font-size: 1.5rem;
-      }
-      form {
-        margin-top: 24px;
-      }
-      label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 500;
-        color: #333;
-      }
-      input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-        box-sizing: border-box;
-        margin-bottom: 16px;
-      }
-      input:focus {
-        outline: none;
-        border-color: #1976d2;
-      }
-      button {
-        width: 100%;
-        padding: 12px;
-        background: #1976d2;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 16px;
-        cursor: pointer;
-        font-weight: 500;
-        margin-top: 8px;
-      }
-      button:hover {
-        background: #1565c0;
-      }
-      button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
-      .error {
-        color: #b00020;
-        background: #ffebee;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 16px;
-      }
-      .info {
-        font-size: 12px;
-        color: #666;
-        margin-top: 20px;
-        text-align: center;
-      }
-      .link {
-        margin-top: 20px;
-        text-align: center;
-      }
-      .link a {
-        color: #1976d2;
-        text-decoration: none;
-        font-weight: 500;
-      }
-      .link a:hover {
-        text-decoration: underline;
-      }
-      .back-button {
-        margin-bottom: 20px;
-        text-align: left;
-      }
-      .back-button a {
-        color: #1976d2;
-        text-decoration: none;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .back-button a:hover {
-        text-decoration: underline;
-      }
+      body { font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #1e1b4b; min-height: 100vh; }
+      .container { max-width: 420px; margin: 40px auto; background: white; padding: 36px 32px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+      .brand-header { text-align: center; margin-bottom: 28px; padding-bottom: 24px; border-bottom: 3px solid {{ brand_color }}; }
+      .brand-name { font-size: 1.5rem; font-weight: 700; color: {{ brand_color }}; margin: 0 0 4px 0; }
+      .brand-subtitle { font-size: 0.8rem; color: #6b7280; margin: 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+      .synerex-logo { display: block; margin: 0 auto 12px; height: 48px; max-width: 200px; }
+      h2 { text-align: center; margin: 0 0 24px 0; color: #111827; font-size: 1.1rem; font-weight: 600; }
+      label { display: block; margin-bottom: 5px; font-weight: 500; color: #374151; font-size: 0.9rem; }
+      input { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-bottom: 16px; }
+      input:focus { outline: none; border-color: {{ brand_color }}; box-shadow: 0 0 0 3px rgba(0,0,0,0.06); }
+      button { width: 100%; padding: 12px; background: {{ brand_color }}; color: white; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; font-weight: 600; margin-top: 4px; }
+      button:hover { opacity: 0.9; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .error { color: #b91c1c; background: #fef2f2; border: 1px solid #fecaca; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+      .footer-links { margin-top: 24px; text-align: center; font-size: 0.85rem; color: #6b7280; }
+      .footer-links a { color: {{ brand_color }}; text-decoration: none; font-weight: 500; }
+      .footer-links a:hover { text-decoration: underline; }
+      .powered-by { margin-top: 20px; text-align: center; font-size: 0.75rem; color: #9ca3af; }
+      .powered-by img { height: 18px; vertical-align: middle; opacity: 0.45; margin-left: 4px; }
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="logo-container">
-        <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex" />
+      <div class="brand-header">
+        {% if brand_type == 'default' %}
+        <img class="synerex-logo" src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex"/>
+        {% endif %}
+        <p class="brand-name">{{ brand_name }}</p>
+        <p class="brand-subtitle">{{ brand_subtitle }}</p>
       </div>
-      <div class="back-button">
-        <a href="http://localhost:5173/">← Back to Home</a>
-      </div>
-      <h2>Client Login</h2>
+
+      <h2>Sign In</h2>
+
       {% if error %}
       <div class="error">{{ error }}</div>
       {% endif %}
-      <form method="post" action="{{ login_action }}{% if return_url %}?return_url={{ return_url|urlencode }}{% endif %}" id="loginForm">
-        <label for="username">Username</label>
-        <input type="text" name="username" id="username" required autocomplete="username" />
-        
+
+      <form method="post" action="{{ login_action }}{% if return_url %}{% if '?' in login_action %}&{% else %}?{% endif %}return_url={{ return_url|urlencode }}{% endif %}" id="loginForm" autocomplete="off">
+        <label for="username">Email Address</label>
+        <input type="text" name="username" id="username" placeholder="you@example.com" required autocomplete="off" />
         <label for="password">Password</label>
-        <input type="password" name="password" id="password" required autocomplete="current-password" />
-        
-        <button type="submit" id="submitBtn">Login</button>
+        <input type="password" name="password" id="password" placeholder="••••••••" required autocomplete="off" />
+        <button type="submit" id="submitBtn">Sign In</button>
       </form>
-      
-      <div class="link">
-        <a href="{{ register_href }}">Don't have an account? Register here</a>
+
+      {% if brand_type == 'oem' %}
+      <div class="footer-links">
+        <a href="{{ path_prefix }}/auth/change-password">Change Password</a>
       </div>
-      
-      <div class="info">
-        <p>Need help? <a href="/contact">Contact Support</a></p>
+      {% elif brand_type == 'client' %}
+      <div class="footer-links">Need help? Contact your administrator.</div>
+      {% else %}
+      <div class="footer-links">
+        <a href="{{ path_prefix }}/auth/change-password">Change Password</a> &nbsp;·&nbsp;
+        <a href="{{ register_href }}">Register a new license</a>
       </div>
+      {% endif %}
+
+      {% if brand_type != 'default' %}
+      <div class="powered-by">Powered by <img src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex"/></div>
+      {% endif %}
     </div>
-    
     <script>
       (function() {
-        'use strict';
         var form = document.getElementById('loginForm');
-        var submitBtn = document.getElementById('submitBtn');
-        var isSubmitting = false;
-        
-        if (form && submitBtn) {
+        var btn = document.getElementById('submitBtn');
+        var busy = false;
+        if (form && btn) {
           form.addEventListener('submit', function(e) {
-            if (isSubmitting) {
-              e.preventDefault();
-              return false;
-            }
-            
-            isSubmitting = true;
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Logging in...';
-            
-            setTimeout(function() {
-              if (isSubmitting) {
-                isSubmitting = false;
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Login';
-              }
-            }, 5000);
+            if (busy) { e.preventDefault(); return; }
+            busy = true; btn.disabled = true; btn.textContent = 'Signing in…';
+            setTimeout(function() { if (busy) { busy = false; btn.disabled = false; btn.textContent = 'Sign In'; } }, 5000);
           });
         }
       })();

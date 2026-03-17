@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{{ org.org_name }} — Manage Users</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 2rem; }
+    .header { background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%); color: white; padding: 1.25rem 2rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .header h1 { font-size: 1.3rem; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 2rem; margin-bottom: 1.5rem; }
+    .card h2 { margin-bottom: 1.25rem; color: #2c3e50; font-size: 1.05rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f7fafc; font-weight: 600; color: #4a5568; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    tr:hover { background: #f7fafc; }
+    .btn { display: inline-block; padding: 0.4rem 0.85rem; background: #0369a1; color: white !important; border-radius: 5px; font-weight: 500; font-size: 0.85rem; border: none; cursor: pointer; text-decoration: none !important; }
+    .btn:hover { background: #075985; }
+    .btn-red { background: #dc2626; }
+    .btn-red:hover { background: #b91c1c; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568 !important; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .alert { padding: 0.85rem 1.1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.9rem; font-weight: 500; }
+    .alert-success { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .alert-error { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+    .login-link-box { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+    .login-link-box label { font-size: 0.82rem; font-weight: 600; color: #075985; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 0.4rem; }
+    .link-row { display: flex; gap: 0.5rem; align-items: center; }
+    .link-row input { flex: 1; padding: 0.45rem 0.75rem; border: 1px solid #bae6fd; border-radius: 5px; font-size: 0.85rem; background: white; }
+    .add-form { display: grid; gap: 0.75rem; }
+    .add-form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; }
+    .add-form-row input { flex: 1; min-width: 180px; padding: 0.55rem 0.85rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; }
+    .seat-info { font-size: 0.85rem; color: #6b7280; padding: 0.5rem 0; }
+    .seat-info strong { color: #374151; }
+    .empty { color: #718096; text-align: center; padding: 2rem; }
+    .logo-container { text-align: center; margin-bottom: 1.5rem; }
+    .logo-container img { height: 36px; opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>{{ org.org_name }} — User Management</h1>
+      <div style="font-size:0.85rem;opacity:0.85;margin-top:0.2rem;">Client Admin Portal</div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <a href="/my-account" class="btn btn-secondary">My Account</a>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/auth/change-password" class="btn btn-secondary">Change Password</a>
+    </div>
+  </div>
+
+  {% if message %}
+  <div class="alert {% if message_type == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ message }}</div>
+  {% endif %}
+
+  <!-- Client User Login Link -->
+  <div class="login-link-box">
+    <label>Client User Login Link — share this with your users</label>
+    <div class="link-row">
+      <input type="text" id="clientLoginUrl" value="{{ client_login_url }}" readonly/>
+      <button class="btn" onclick="copyLink()">Copy Link</button>
+    </div>
+    <p style="font-size:0.78rem;color:#0369a1;margin-top:0.5rem;">
+      Users who log in with this link will see <strong>{{ org.org_name }}</strong> branding.
+    </p>
+  </div>
+
+  <!-- Add New User -->
+  <div class="card">
+    <h2>Add a Client User</h2>
+    <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/auth/client-portal/create-user" class="add-form">
+      <div class="add-form-row">
+        <div style="flex:1;min-width:200px;">
+          <label style="font-size:0.85rem;font-weight:500;color:#374151;display:block;margin-bottom:0.3rem;">Email Address</label>
+          <input type="email" name="email" placeholder="user@theirdomain.com" required/>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:0.85rem;font-weight:500;color:#374151;display:block;margin-bottom:0.3rem;">Temporary Password</label>
+          <input type="text" name="password" placeholder="Min 6 characters" required/>
+        </div>
+        <button type="submit" class="btn" style="margin-bottom:0;white-space:nowrap;">+ Add User</button>
+      </div>
+      <div class="seat-info">
+        <strong>{{ client_users|length }}</strong> user{{ 's' if client_users|length != 1 else '' }} active out of your licensed seats.
+      </div>
+    </form>
+  </div>
+
+  <!-- User List -->
+  <div class="card">
+    <h2>Active Client Users ({{ client_users|length }})</h2>
+    {% if client_users %}
+    <table>
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in client_users %}
+        <tr>
+          <td>{{ u.email or '—' }}</td>
+          <td><code style="font-size:0.82rem;color:#6b7280;">{{ u.username }}</code></td>
+          <td>
+            <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/auth/client-portal/delete-user" style="display:inline;">
+              <input type="hidden" name="target_username" value="{{ u.username }}"/>
+              <button type="submit" class="btn btn-red" onclick="return confirm('Remove {{ u.email or u.username }}?')">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">No client users yet. Add one above and share the login link with them.</div>
+    {% endif %}
+  </div>
+
+  <div class="logo-container">
+    <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Powered by Synerex"/>
+  </div>
+
+  <script>
+    function copyLink() {
+      var el = document.getElementById('clientLoginUrl');
+      el.select();
+      try {
+        navigator.clipboard.writeText(el.value).then(function() { alert('Login link copied!'); });
+      } catch(e) {
+        document.execCommand('copy');
+        alert('Login link copied!');
+      }
+    }
+  </script>
+</body>
+</html>

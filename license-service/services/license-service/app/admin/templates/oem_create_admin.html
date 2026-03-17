@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Set Up Client Admin — {{ customer.org_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 2rem; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.25rem 2rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 1.2rem; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 2rem; max-width: 560px; margin: 0 auto; }
+    .card h2 { margin-bottom: 0.5rem; color: #2c3e50; }
+    .card p { color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    label { display: block; font-weight: 500; color: #374151; font-size: 0.9rem; margin-bottom: 0.35rem; margin-top: 1rem; }
+    input { width: 100%; padding: 0.6rem 0.85rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; }
+    input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12); }
+    .hint { font-size: 0.78rem; color: #9ca3af; margin-top: 0.2rem; }
+    .btn { display: inline-block; padding: 0.6rem 1.25rem; background: #38a169; color: white; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; font-weight: 600; margin-top: 1.5rem; }
+    .btn:hover { background: #2f855a; }
+    .btn-back { background: #e2e8f0; color: #4a5568; margin-right: 0.5rem; }
+    .btn-back:hover { background: #cbd5e0; }
+    .alert { padding: 0.85rem 1.1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.9rem; font-weight: 500; }
+    .alert-success { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .alert-error { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+    .existing-box { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; font-size: 0.9rem; }
+    .existing-box strong { color: #92400e; }
+    .login-link-box { background: #f0f4ff; border: 1px solid #c3d0f7; border-radius: 6px; padding: 1rem; margin-top: 1.5rem; }
+    .login-link-box label { margin-top: 0; color: #4a5568; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .link-row { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+    .link-row input { flex: 1; font-size: 0.82rem; background: white; }
+    .link-row button { padding: 0.45rem 0.85rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ oem_org.org_name }} — Set Up Client Admin</h1>
+    <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" style="color:white;font-size:0.9rem;">← Back to Customers</a>
+  </div>
+
+  <div class="card">
+    <h2>{{ customer.org_name }}</h2>
+    <p>Create or reset the Client Admin account for this customer. The admin will use this account to log in and manage their Client Users.</p>
+
+    {% if message %}
+    <div class="alert {% if message_type == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ message }}</div>
+    {% endif %}
+
+    {% if existing_admin %}
+    <div class="existing-box">
+      <strong>Existing Admin:</strong> {{ existing_admin.email or existing_admin.username }}<br/>
+      <span style="color:#92400e;">Submitting this form will update their email and reset their password.</span>
+    </div>
+    {% endif %}
+
+    <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ customer.org_id }}/create-admin">
+      <label for="email">Admin Email Address</label>
+      <input type="email" id="email" name="email" placeholder="admin@theircomain.com" value="{{ existing_admin.email if existing_admin else '' }}" required/>
+
+      <label for="password">{{ 'New ' if existing_admin else '' }}Password</label>
+      <input type="text" id="password" name="password" placeholder="Set a temporary password" required/>
+      <div class="hint">Minimum 6 characters. Share this with the admin so they can log in and change it.</div>
+
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-back">Cancel</a>
+        <button type="submit" class="btn">{{ 'Update Admin' if existing_admin else 'Create Admin' }}</button>
+      </div>
+    </form>
+
+    <div class="login-link-box">
+      <label>Client Admin Login Link ({{ oem_org.org_name }}-branded)</label>
+      <div class="link-row">
+        <input type="text" id="loginLink" value="{{ oem_login_url }}" readonly/>
+        <button onclick="copyLink()">Copy</button>
+      </div>
+      <p style="font-size:0.78rem;color:#6b7280;margin-top:0.5rem;">Share this link with the admin — they'll see <strong>{{ oem_org.org_name }}</strong> branding when they sign in.</p>
+    </div>
+  </div>
+
+  <script>
+    function copyLink() {
+      var el = document.getElementById('loginLink');
+      el.select();
+      try {
+        navigator.clipboard.writeText(el.value).then(function() { alert('Copied!'); });
+      } catch(e) {
+        document.execCommand('copy');
+        alert('Copied!');
+      }
+    }
+  </script>
+</body>
+</html>

@@ -305,3 +305,254 @@ This is your official receipt. Please save for your records.
         notification_type="license_receipt"
     )
 
+
+def send_oem_invitation_email(
+    to_email: str,
+    org_name: str,
+    org_id: str,
+    temp_password: str,
+    login_url: str,
+    is_reset: bool = False,
+) -> bool:
+    """Send OEM partner invitation (or credential reset) email."""
+    action = "reset" if is_reset else "invitation"
+    subject = f"{'Your Synerex OEM Login Has Been Updated' if is_reset else 'Welcome to Synerex — OEM Partner Access'}"
+
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    root_pfx = getattr(settings, "root_path", "") or ""
+    root_pfx = root_pfx.rstrip("/")
+    change_pw_url = f"{base_url}{root_pfx}/auth/change-password"
+    oem_admin_url = f"{base_url}{root_pfx}/oem-admin"
+
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/>
+<style>
+  body{{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;background:#f3f4f6;}}
+  .wrap{{max-width:580px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);}}
+  .hdr{{background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 36px;text-align:center;}}
+  .hdr h1{{color:#fff;margin:0;font-size:22px;font-weight:700;}}
+  .hdr p{{color:#ddd6fe;margin:6px 0 0;font-size:14px;}}
+  .body{{padding:32px 36px;}}
+  .creds-box{{background:#f5f3ff;border:2px solid #7c3aed;border-radius:8px;padding:20px;margin:20px 0;}}
+  .creds-box .title{{font-weight:700;color:#5b21b6;font-size:14px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:12px;}}
+  .cred-row{{margin:8px 0;font-size:14px;}}
+  .cred-lbl{{font-weight:600;color:#6b7280;display:inline-block;min-width:130px;}}
+  .cred-val{{font-family:'Courier New',monospace;background:#ede9fe;padding:2px 8px;border-radius:4px;color:#4c1d95;font-size:13px;}}
+  .steps-box{{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:20px;margin:20px 0;}}
+  .steps-box .title{{font-weight:700;color:#166534;font-size:14px;margin-bottom:12px;}}
+  .step{{margin:8px 0;font-size:14px;color:#374151;display:flex;gap:10px;}}
+  .step-num{{background:#16a34a;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}}
+  .warn{{background:#fffbeb;border-left:4px solid #f59e0b;padding:14px 16px;margin:20px 0;color:#92400e;font-size:13px;border-radius:0 6px 6px 0;}}
+  .btn-wrap{{text-align:center;margin:24px 0;}}
+  .btn{{display:inline-block;background:#7c3aed;color:#fff;padding:13px 32px;text-decoration:none;border-radius:7px;font-weight:700;font-size:15px;}}
+  .ftr{{background:#f9fafb;padding:20px 36px;text-align:center;border-top:1px solid #e5e7eb;}}
+  .powered{{font-size:12px;color:#9ca3af;margin:0;}}
+  .powered strong{{color:#7c3aed;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>{'&#128274; Credentials Updated' if is_reset else '&#127881; Welcome, OEM Partner!'}</h1>
+    <p>{'Your Synerex partner login has been reset.' if is_reset else 'Your Synerex OEM partner account is ready.'}</p>
+  </div>
+  <div class="body">
+    <p>Hello,</p>
+    <p>{'Your OEM partner credentials for <strong>' + org_name + '</strong> have been updated by Synerex.' if is_reset else 'You have been set up as an OEM partner on the Synerex platform for <strong>' + org_name + '</strong>. As a partner, you can manage your customer organizations and distribute access to the Tracking Program.'}</p>
+
+    <div class="creds-box">
+      <div class="title">&#128272; Your Login Credentials</div>
+      <div class="cred-row"><span class="cred-lbl">Email:</span> <span class="cred-val">{to_email}</span></div>
+      <div class="cred-row"><span class="cred-lbl">Temp Password:</span> <span class="cred-val">{temp_password}</span></div>
+      <div class="cred-row"><span class="cred-lbl">Login URL:</span> <a href="{login_url}" style="color:#5b21b6;">{login_url}</a></div>
+    </div>
+
+    <div class="warn">
+      <strong>Security:</strong> This is a temporary password. Please change it immediately after logging in.
+      <br/><a href="{change_pw_url}" style="color:#92400e;">Change your password &rarr;</a>
+    </div>
+
+    <div class="steps-box">
+      <div class="title">&#128204; Getting Started</div>
+      <div class="step"><span class="step-num">1</span><span>Click the login link above and sign in with your credentials.</span></div>
+      <div class="step"><span class="step-num">2</span><span>Change your password from the temporary one provided.</span></div>
+      <div class="step"><span class="step-num">3</span><span>Go to the <a href="{oem_admin_url}" style="color:#166534;">OEM Admin Panel</a> to view and manage your customer organizations.</span></div>
+      <div class="step"><span class="step-num">4</span><span>For each customer, click <strong>"Set Up Admin"</strong> to create their Client Admin account and share their branded login link.</span></div>
+    </div>
+
+    <div class="btn-wrap">
+      <a href="{login_url}" class="btn">Sign In as OEM Partner &rarr;</a>
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;">If you have any questions, contact Synerex support. Do not share your credentials with anyone.</p>
+  </div>
+  <div class="ftr">
+    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
+  </div>
+</div>
+</body>
+</html>"""
+
+    body_text = f"""{'CREDENTIALS UPDATED — SYNEREX OEM PARTNER' if is_reset else 'WELCOME TO SYNEREX — OEM PARTNER ACCESS'}
+{'=' * 55}
+
+Hello,
+
+{'Your OEM partner credentials for ' + org_name + ' have been updated.' if is_reset else 'You have been set up as an OEM partner on the Synerex platform for ' + org_name + '.'}
+
+YOUR LOGIN CREDENTIALS:
+  Email:          {to_email}
+  Temp Password:  {temp_password}
+  Login URL:      {login_url}
+
+SECURITY: This is a temporary password. Change it immediately:
+  {change_pw_url}
+
+GETTING STARTED:
+  1. Visit the login link above and sign in.
+  2. Change your password immediately.
+  3. Go to the OEM Admin Panel: {oem_admin_url}
+  4. For each customer, click "Set Up Admin" and share their branded login link.
+
+{'=' * 55}
+Synerex Laboratories, LLC — Do not share your credentials.
+"""
+
+    return send_email(
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html,
+        body_text=body_text,
+        org_id=org_id,
+        notification_type="oem_invitation" if not is_reset else "oem_credentials_reset",
+    )
+
+
+def send_client_admin_invitation_email(
+    to_email: str,
+    client_org_name: str,
+    client_org_id: str,
+    oem_org_name: str,
+    temp_password: str,
+    oem_login_url: str,
+    client_portal_url: str,
+    is_reset: bool = False,
+) -> bool:
+    """Send Client Admin invitation (or credential reset) from OEM setup."""
+    subject = (
+        f"Your {oem_org_name} Partner Portal Access Has Been Updated"
+        if is_reset
+        else f"Welcome — You\'ve Been Set Up as Admin for {client_org_name}"
+    )
+
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    root_pfx = getattr(settings, "root_path", "") or ""
+    root_pfx = root_pfx.rstrip("/")
+    change_pw_url = f"{base_url}{root_pfx}/auth/change-password"
+
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/>
+<style>
+  body{{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;background:#f3f4f6;}}
+  .wrap{{max-width:580px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);}}
+  .hdr{{background:linear-gradient(135deg,#0369a1,#075985);padding:28px 36px;text-align:center;}}
+  .hdr h1{{color:#fff;margin:0;font-size:21px;font-weight:700;}}
+  .hdr p{{color:#bae6fd;margin:6px 0 0;font-size:14px;}}
+  .body{{padding:32px 36px;}}
+  .creds-box{{background:#f0f9ff;border:2px solid #0369a1;border-radius:8px;padding:20px;margin:20px 0;}}
+  .creds-box .title{{font-weight:700;color:#0c4a6e;font-size:14px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}}
+  .cred-row{{margin:8px 0;font-size:14px;}}
+  .cred-lbl{{font-weight:600;color:#6b7280;display:inline-block;min-width:130px;}}
+  .cred-val{{font-family:\'Courier New\',monospace;background:#e0f2fe;padding:2px 8px;border-radius:4px;color:#0c4a6e;font-size:13px;}}
+  .steps-box{{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:20px;margin:20px 0;}}
+  .steps-box .title{{font-weight:700;color:#166534;font-size:14px;margin-bottom:12px;}}
+  .step{{margin:8px 0;font-size:14px;color:#374151;display:flex;gap:10px;}}
+  .step-num{{background:#16a34a;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}}
+  .warn{{background:#fffbeb;border-left:4px solid #f59e0b;padding:14px 16px;margin:20px 0;color:#92400e;font-size:13px;border-radius:0 6px 6px 0;}}
+  .btn-wrap{{text-align:center;margin:24px 0;}}
+  .btn{{display:inline-block;background:#0369a1;color:#fff;padding:13px 32px;text-decoration:none;border-radius:7px;font-weight:700;font-size:15px;}}
+  .ftr{{background:#f9fafb;padding:20px 36px;text-align:center;border-top:1px solid #e5e7eb;}}
+  .powered{{font-size:12px;color:#9ca3af;margin:0;}}
+  .powered strong{{color:#7c3aed;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>{'&#128272; Access Updated' if is_reset else '&#127881; Welcome, Client Admin!'}</h1>
+    <p>{'Your admin access for ' + client_org_name + ' has been reset.' if is_reset else 'You have been set up as admin for ' + client_org_name + ' via ' + oem_org_name + '.'}</p>
+  </div>
+  <div class="body">
+    <p>Hello,</p>
+    <p>{'Your admin credentials for <strong>' + client_org_name + '</strong> have been updated by <strong>' + oem_org_name + '</strong>.' if is_reset else '<strong>' + oem_org_name + '</strong> has set you up as the Client Admin for <strong>' + client_org_name + '</strong>. As Client Admin, you can add and manage the users in your organization.'}</p>
+
+    <div class="creds-box">
+      <div class="title">&#128272; Your Login Credentials</div>
+      <div class="cred-row"><span class="cred-lbl">Email:</span> <span class="cred-val">{to_email}</span></div>
+      <div class="cred-row"><span class="cred-lbl">Temp Password:</span> <span class="cred-val">{temp_password}</span></div>
+      <div class="cred-row"><span class="cred-lbl">Login URL:</span> <a href="{oem_login_url}" style="color:#0369a1;">{oem_login_url}</a></div>
+    </div>
+
+    <div class="warn">
+      <strong>Security:</strong> This is a temporary password. Please change it immediately after logging in.
+      <br/><a href="{change_pw_url}" style="color:#92400e;">Change your password &rarr;</a>
+    </div>
+
+    <div class="steps-box">
+      <div class="title">&#128204; Getting Started</div>
+      <div class="step"><span class="step-num">1</span><span>Click the login link above and sign in with your credentials.</span></div>
+      <div class="step"><span class="step-num">2</span><span>Change your password from the temporary one provided.</span></div>
+      <div class="step"><span class="step-num">3</span><span>Go to <strong>My Account &rarr; User Management</strong> to add your team members.</span></div>
+      <div class="step"><span class="step-num">4</span><span>Share your organization\'s branded login link with your users so they can access their portal: <a href="{client_portal_url}" style="color:#166534;">{client_portal_url}</a></span></div>
+    </div>
+
+    <div class="btn-wrap">
+      <a href="{oem_login_url}" class="btn">Sign In as Client Admin &rarr;</a>
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;">This email was sent on behalf of <strong>{oem_org_name}</strong> via the Synerex platform. Do not share your credentials with anyone.</p>
+  </div>
+  <div class="ftr">
+    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
+  </div>
+</div>
+</body>
+</html>"""
+
+    body_text = f"""{'ACCESS UPDATED — ' + oem_org_name.upper() if is_reset else 'WELCOME — CLIENT ADMIN ACCESS'}
+{'=' * 55}
+
+Hello,
+
+{'Your admin credentials for ' + client_org_name + ' have been updated by ' + oem_org_name + '.' if is_reset else oem_org_name + ' has set you up as the Client Admin for ' + client_org_name + '.'}
+
+YOUR LOGIN CREDENTIALS:
+  Email:          {to_email}
+  Temp Password:  {temp_password}
+  Login URL:      {oem_login_url}
+
+SECURITY: This is a temporary password. Change it immediately:
+  {change_pw_url}
+
+GETTING STARTED:
+  1. Visit the login link above and sign in.
+  2. Change your password immediately.
+  3. Go to My Account -> User Management to add your team members.
+  4. Share your client portal link with users: {client_portal_url}
+
+{'=' * 55}
+Powered by Synerex Laboratories, LLC
+"""
+
+    return send_email(
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html,
+        body_text=body_text,
+        org_id=client_org_id,
+        notification_type="client_admin_invitation" if not is_reset else "client_admin_credentials_reset",
+    )

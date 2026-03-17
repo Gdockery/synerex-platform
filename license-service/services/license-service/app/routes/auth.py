@@ -11,7 +11,7 @@ from pathlib import Path
 from ..db import SessionLocal
 from ..models.user import User
 from ..models.org import Organization
-from ..services.jwt_tokens import generate_user_token, validate_user_token
+from ..services.jwt_tokens import generate_user_token, validate_user_token, is_token_expired
 from ..config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,18 +35,66 @@ def _is_user_logged_in(request: Request) -> bool:
     except (AttributeError, KeyError, RuntimeError):
         return False
 
+def _resolve_login_branding(request: Request, db: Session) -> dict:
+    """Resolve branding from ?oem= or ?client= query params. Returns brand context dict."""
+    oem_param = request.query_params.get("oem", "")
+    client_param = request.query_params.get("client", "")
+    brand_name = "Synerex"
+    brand_type = "default"
+    brand_org_id = ""
+    brand_subtitle = "Account Portal"
+    brand_color = "#1976d2"
+
+    if oem_param:
+        org = db.get(Organization, oem_param)
+        if org and org.org_type == "oem":
+            brand_name = org.org_name
+            brand_type = "oem"
+            brand_org_id = oem_param
+            brand_subtitle = "Partner Portal"
+            brand_color = "#7c3aed"
+    elif client_param:
+        org = db.get(Organization, client_param)
+        if org and org.org_type == "customer":
+            brand_name = org.org_name
+            brand_type = "client"
+            brand_org_id = client_param
+            brand_subtitle = "User Portal"
+            brand_color = "#0369a1"
+
+    return {
+        "brand_name": brand_name,
+        "brand_type": brand_type,
+        "brand_org_id": brand_org_id,
+        "brand_subtitle": brand_subtitle,
+        "brand_color": brand_color,
+    }
+
+
 @router.get("/login", response_class=HTMLResponse)
-def client_login_page(request: Request):
+def client_login_page(request: Request, db: Session = Depends(db_session)):
     """Display client login page."""
     return_url = request.query_params.get("return_url", "")
     error = request.query_params.get("error", "")
+    branding = _resolve_login_branding(request, db)
+
+    # Build login action URL preserving oem/client params
+    action_params = []
+    if branding["brand_type"] == "oem":
+        action_params.append(f"oem={branding['brand_org_id']}")
+    elif branding["brand_type"] == "client":
+        action_params.append(f"client={branding['brand_org_id']}")
+    action_qs = ("?" + "&".join(action_params)) if action_params else ""
+    login_action = _path(f"/auth/login{action_qs}")
+
     ctx = {
         "request": request,
         "error": error if error else None,
         "return_url": return_url,
-        "login_action": _path("/auth/login"),
+        "login_action": login_action,
         "register_href": _path("/register"),
         "path_prefix": settings.root_path.rstrip("/") if settings.root_path else "",
+        **branding,
     }
     try:
         return templates.TemplateResponse("client_login.html", ctx)
@@ -92,19 +140,24 @@ def client_login_submit(
 ):
     """Handle client login."""
     return_url = request.query_params.get("return_url", "")
+    branding = _resolve_login_branding(request, db)
+
+    # Build branded error redirect URL
+    def _error_redirect(msg):
+        params = [f"error={msg}"]
+        if branding["brand_type"] == "oem":
+            params.append(f"oem={branding['brand_org_id']}")
+        elif branding["brand_type"] == "client":
+            params.append(f"client={branding['brand_org_id']}")
+        if return_url:
+            params.append(f"return_url={return_url}")
+        return RedirectResponse(_path(f"/auth/login?{'&'.join(params)}"), status_code=303)
     
     try:
         user = db.get(User, username)
         if not user or not user.is_active:
-            error_msg = "Invalid username or password"
-            if return_url:
-                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
-            return templates.TemplateResponse(
-                "client_login.html",
-                {"request": request, "error": error_msg, "return_url": return_url},
-                status_code=401
-            )
-        
+            return _error_redirect("Invalid username or password")
+
         # Verify password
         try:
             password_valid = bcrypt.checkpw(
@@ -113,16 +166,9 @@ def client_login_submit(
             )
         except Exception:
             password_valid = False
-        
+
         if not password_valid:
-            error_msg = "Invalid username or password"
-            if return_url:
-                return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
-            return templates.TemplateResponse(
-                "client_login.html",
-                {"request": request, "error": error_msg, "return_url": return_url},
-                status_code=401
-            )
+            return _error_redirect("Invalid username or password")
         
         # Set session
         request.session["user_logged_in"] = True
@@ -175,14 +221,164 @@ def client_login_submit(
         default_url = f"{base}/my-account" if base else "/my-account"
         return RedirectResponse(default_url, status_code=303)
     except Exception as e:
-        error_msg = f"Login failed: {str(e)}"
-        if return_url:
-            return RedirectResponse(_path(f"/auth/login?error={error_msg}&return_url={return_url}"), status_code=303)
-        return templates.TemplateResponse(
-            "client_login.html",
-            {"request": request, "error": error_msg, "return_url": return_url},
-            status_code=500
+        return _error_redirect(f"Login failed: {str(e)}")
+
+@router.get("/client-portal", response_class=HTMLResponse)
+def client_admin_portal(request: Request, db: Session = Depends(db_session)):
+    """Client Admin portal — manage Client Users and show their branded login link."""
+    if not _is_user_logged_in(request):
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    org_id = request.session.get("org_id")
+    if not org_id:
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    # Verify this is a customer_admin user
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    if not user or user.role != "customer_admin":
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "customer":
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    # Get all client users for this org
+    client_users = db.query(User).filter(
+        User.org_id == org_id,
+        User.role == "customer_viewer",
+        User.is_active == True,
+    ).all()
+
+    # Build the branded login link for client users
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    path_pfx = (settings.root_path or "").rstrip("/")
+    client_login_url = f"{base_url}{path_pfx}/auth/login?client={org_id}"
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+    path_prefix = (settings.root_path or "").rstrip("/")
+
+    return templates.TemplateResponse("client_admin_portal.html", {
+        "request": request,
+        "org": org,
+        "client_users": client_users,
+        "client_login_url": client_login_url,
+        "path_prefix": path_prefix,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/client-portal/create-user", response_class=RedirectResponse)
+def client_admin_create_user(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Create a Client User (customer_viewer) for the logged-in Client Admin's org."""
+    portal_url = _path("/auth/client-portal")
+    if not _is_user_logged_in(request):
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    if not user or user.role != "customer_admin":
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "customer":
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    # Check seat limit from license service
+    try:
+        from ..services.license_check import get_seat_limit
+        seat_limit = get_seat_limit(org_id)
+    except Exception:
+        seat_limit = None
+
+    if seat_limit is not None:
+        current_count = db.query(User).filter(
+            User.org_id == org_id,
+            User.role == "customer_viewer",
+            User.is_active == True,
+        ).count()
+        if current_count >= seat_limit:
+            return RedirectResponse(
+                f"{portal_url}?message=Seat+limit+reached+({seat_limit}+seats)&message_type=error",
+                status_code=303
+            )
+
+    # Check if user already exists
+    existing = db.query(User).filter(
+        (User.username == email) | (User.email == email)
+    ).first()
+    if existing:
+        return RedirectResponse(
+            f"{portal_url}?message=User+already+exists+with+that+email&message_type=error",
+            status_code=303
         )
+
+    if len(password) < 6:
+        return RedirectResponse(
+            f"{portal_url}?message=Password+must+be+at+least+6+characters&message_type=error",
+            status_code=303
+        )
+
+    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    new_user = User(
+        username=email,
+        email=email,
+        password_hash=hashed,
+        org_id=org_id,
+        role="customer_viewer",
+        is_active=True,
+    )
+    db.add(new_user)
+    db.commit()
+
+    return RedirectResponse(
+        f"{portal_url}?message=User+{email}+created+successfully&message_type=success",
+        status_code=303
+    )
+
+
+@router.post("/client-portal/delete-user", response_class=RedirectResponse)
+def client_admin_delete_user(
+    request: Request,
+    target_username: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Deactivate a Client User."""
+    portal_url = _path("/auth/client-portal")
+    if not _is_user_logged_in(request):
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    if not user or user.role != "customer_admin":
+        return RedirectResponse(_path("/auth/login"), status_code=303)
+
+    target = db.query(User).filter(
+        User.username == target_username,
+        User.org_id == org_id,
+        User.role == "customer_viewer",
+    ).first()
+    if not target:
+        return RedirectResponse(
+            f"{portal_url}?message=User+not+found&message_type=error", status_code=303
+        )
+
+    target.is_active = False
+    db.commit()
+    return RedirectResponse(
+        f"{portal_url}?message=User+{target_username}+removed&message_type=success",
+        status_code=303
+    )
+
 
 @router.post("/logout")
 def client_logout(request: Request):
@@ -346,13 +542,30 @@ def client_logout_all(request: Request):
 
 
 @router.get("/api/jwt")
-def get_user_jwt(request: Request):
-    """Return the current user's JWT if logged in."""
+def get_user_jwt(request: Request, db: Session = Depends(db_session)):
+    """Return the current user's JWT if logged in. Refreshes token if expired."""
     if not _is_user_logged_in(request):
         raise HTTPException(401, "Not authenticated")
     token = request.session.get("user_token")
-    if not token:
-        raise HTTPException(404, "JWT not available")
+    # Refresh token if missing or expired so program links (EM&V, Tracking) always work
+    if not token or is_token_expired(token):
+        username = request.session.get("username")
+        org_id = request.session.get("org_id")
+        if not username or not org_id:
+            raise HTTPException(404, "JWT not available")
+        user = db.get(User, username)
+        if not user or not user.is_active:
+            raise HTTPException(401, "User invalid")
+        org = db.get(Organization, org_id)
+        org_type = org.org_type if org else None
+        user_roles = [org_type] if org_type else []
+        token = generate_user_token(
+            username=username,
+            org_id=org_id,
+            roles=user_roles,
+            email=getattr(user, "email", None),
+        )
+        request.session["user_token"] = token
     return {"token": token}
 
 

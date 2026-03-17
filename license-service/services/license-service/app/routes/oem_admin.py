@@ -1,6 +1,7 @@
 """OEM Admin Panel - OEM users can view their sponsored customers."""
 from pathlib import Path
 
+import bcrypt
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import SessionLocal
 from ..models.org import Organization
+from ..models.user import User
 
 router = APIRouter(prefix="/oem-admin", tags=["oem_admin"])
 TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "admin" / "templates"
@@ -59,13 +61,23 @@ def oem_admin_page(request: Request, db: Session = Depends(db_session)):
         .all()
     )
 
+    # Build the branded login link for Client Admins of this OEM's customers
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    oem_login_url = f"{base_url}{path_prefix}/auth/login?oem={org_id}"
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
     return templates.TemplateResponse(
         "oem_admin.html",
         {
             "request": request,
             "oem_org": org,
             "customers": customers,
+            "oem_login_url": oem_login_url,
             "path_prefix": path_prefix,
+            "message": message,
+            "message_type": message_type,
         },
     )
 
@@ -267,3 +279,119 @@ def oem_customer_update(
 
     edit_url = f"{path_prefix}/oem-admin/customers/{org_id}/edit" if path_prefix else f"/oem-admin/customers/{org_id}/edit"
     return RedirectResponse(f"{edit_url}?message=Customer+updated+successfully&message_type=success", status_code=303)
+
+
+@router.get("/customers/{org_id}/create-admin", response_class=HTMLResponse)
+def oem_create_admin_page(org_id: str, request: Request, db: Session = Depends(db_session)):
+    """Show form to create/reset the Client Admin for a customer org."""
+    if not _is_user_logged_in(request):
+        login_url = f"{path_prefix}/auth/login" if path_prefix else "/auth/login"
+        return RedirectResponse(login_url, status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    if not oem_org_id:
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    oem_org = db.get(Organization, oem_org_id)
+    if not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin" if path_prefix else "/oem-admin", status_code=303)
+
+    customer = _get_customer_for_oem(db, oem_org_id, org_id)
+    if not customer:
+        raise HTTPException(404, "Customer not found")
+
+    existing_admin = db.query(User).filter(
+        User.org_id == org_id,
+        User.role == "customer_admin",
+    ).first()
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    oem_login_url = f"{base_url}{path_prefix}/auth/login?oem={oem_org_id}"
+
+    return templates.TemplateResponse("oem_create_admin.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "customer": customer,
+        "existing_admin": existing_admin,
+        "oem_login_url": oem_login_url,
+        "path_prefix": path_prefix,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/customers/{org_id}/create-admin", response_class=RedirectResponse)
+def oem_create_admin_submit(
+    org_id: str,
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Create or reset Client Admin for a customer org."""
+    create_url = f"{path_prefix}/oem-admin/customers/{org_id}/create-admin" if path_prefix else f"/oem-admin/customers/{org_id}/create-admin"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login" if path_prefix else "/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin" if path_prefix else "/oem-admin", status_code=303)
+
+    customer = _get_customer_for_oem(db, oem_org_id, org_id)
+    if not customer:
+        raise HTTPException(404, "Customer not found")
+
+    if len(password) < 6:
+        return RedirectResponse(
+            f"{create_url}?message=Password+must+be+at+least+6+characters&message_type=error",
+            status_code=303
+        )
+
+    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    # Check if admin already exists for this org
+    existing = db.query(User).filter(
+        User.org_id == org_id,
+        User.role == "customer_admin",
+    ).first()
+
+    if existing:
+        # Reset credentials
+        existing.username = email
+        existing.email = email
+        existing.password_hash = hashed
+        existing.is_active = True
+        db.commit()
+        return RedirectResponse(
+            f"{create_url}?message=Client+Admin+credentials+updated&message_type=success",
+            status_code=303
+        )
+    else:
+        # Check if username already taken by another org
+        taken = db.query(User).filter(
+            (User.username == email) | (User.email == email)
+        ).first()
+        if taken:
+            return RedirectResponse(
+                f"{create_url}?message=Email+already+in+use+by+another+account&message_type=error",
+                status_code=303
+            )
+        new_admin = User(
+            username=email,
+            email=email,
+            password_hash=hashed,
+            org_id=org_id,
+            role="customer_admin",
+            is_active=True,
+        )
+        db.add(new_admin)
+        db.commit()
+        return RedirectResponse(
+            f"{create_url}?message=Client+Admin+{email}+created+successfully&message_type=success",
+            status_code=303
+        )
