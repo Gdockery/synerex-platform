@@ -25,7 +25,13 @@
 </head>
 <body>
   <div class="container">
-    <div class="logo-container"><img src="/license/static/synerex_logo_color.png" alt="Synerex" /></div>
+    <div class="logo-container">
+      {% if brand_logo_url %}
+      <img src="{{ brand_logo_url }}" alt="{{ brand_name or 'Partner' }}" />
+      {% else %}
+      <img src="/license/static/synerex_logo_color.png" alt="Synerex" />
+      {% endif %}
+    </div>
     <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
     <h1>Create an account</h1>
     {% if error %}

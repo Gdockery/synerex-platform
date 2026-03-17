@@ -33,8 +33,11 @@ export class CurrentUserService {
 
   logout(expired: boolean = false) {
     this.deselectProject();
+    // Clear all browser storage so the next user does not see previous user data
+    try { localStorage.clear(); } catch(e) {}
+    try { sessionStorage.clear(); } catch(e) {}
     // Use full-page navigation to avoid CORS when server redirects to different origin (e.g. 5173)
-    this.window.getNativeWindow().location.href = '/logout' + (expired ? '?expired=1' : '');
+    this.window.getNativeWindow().location.href = '/tracking/logout' + (expired ? '?expired=1' : '');
   }
 
   selectProject(projectId) {

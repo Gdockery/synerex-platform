@@ -406,10 +406,18 @@ def get_subscription_info(org_id: str, program_id: str = "tracking", db: Session
         limits = entitlements.get("limits", {})
         seat_limit = int(limits.get("seat_limit", 0) or 0)
         meter_limit = int(limits.get("meter_limit", 0) or 0)
-        seats_used = db.query(SeatAssignment).filter(
+        assigned = db.query(SeatAssignment).filter(
             SeatAssignment.license_id == lic.license_id,
             SeatAssignment.is_active == True
         ).count()
+        if assigned > 0:
+            seats_used = assigned
+        else:
+            from ..models.user import User as _User
+            seats_used = db.query(_User).filter(
+                _User.org_id == org_id,
+                _User.is_active == True,
+            ).count()
 
     current_plan = order.plan if order else None
 

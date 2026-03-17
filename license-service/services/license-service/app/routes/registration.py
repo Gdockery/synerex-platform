@@ -166,9 +166,27 @@ def registration_page(
     request: Request,
     program: Optional[str] = None,
     plan: Optional[str] = None,
-    return_url: Optional[str] = None
+    return_url: Optional[str] = None,
+    sponsor_org_id: Optional[str] = None,
+    oem: Optional[str] = None,
 ):
     """Display the registration form."""
+    # Resolve OEM org_id from either param
+    oem_logo_org_id = sponsor_org_id or oem or None
+    brand_logo_url = None
+    brand_name = None
+    if oem_logo_org_id:
+        try:
+            import urllib.request as _ur
+            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}"
+            with _ur.urlopen(_branding_url, timeout=3) as _resp:
+                import json as _json
+                _data = _json.loads(_resp.read().decode())
+                brand_logo_url = _data.get("logo_url") or None
+                brand_name = _data.get("brand_name") or None
+        except Exception:
+            brand_logo_url = None
     return templates.TemplateResponse(
         "signup.html",
         {
@@ -178,7 +196,10 @@ def registration_page(
             "program": program,
             "plan": plan,
             "return_url": return_url,
-            "website_url": settings.website_url
+            "website_url": settings.website_url,
+            "sponsor_org_id": sponsor_org_id,
+            "brand_logo_url": brand_logo_url,
+            "brand_name": brand_name,
         }
     )
 
@@ -1082,10 +1103,20 @@ def get_subscription(
 
     seats_used = 0
     if lic:
-        seats_used = db.query(SeatAssignment).filter(
+        # Count explicit seat assignments first
+        assigned = db.query(SeatAssignment).filter(
             SeatAssignment.license_id == lic.license_id,
             SeatAssignment.is_active == True,
         ).count()
+        # Fall back to counting actual active users in the org when no seat assignments exist.
+        # This covers the common case where users are created directly without explicit assignment.
+        if assigned > 0:
+            seats_used = assigned
+        else:
+            seats_used = db.query(User).filter(
+                User.org_id == org_id,
+                User.is_active == True,
+            ).count()
 
     # Find latest paid billing order for current plan
     order = db.query(BillingOrder).filter(

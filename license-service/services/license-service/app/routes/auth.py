@@ -45,6 +45,9 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
     brand_subtitle = "Account Portal"
     brand_color = "#1976d2"
 
+    # Determine which OEM org_id to use for logo lookup
+    oem_logo_org_id = None
+
     if oem_param:
         org = db.get(Organization, oem_param)
         if org and org.org_type == "oem":
@@ -53,6 +56,7 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
             brand_org_id = oem_param
             brand_subtitle = "Partner Portal"
             brand_color = "#7c3aed"
+            oem_logo_org_id = oem_param
     elif client_param:
         org = db.get(Organization, client_param)
         if org and org.org_type == "customer":
@@ -61,6 +65,22 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
             brand_org_id = client_param
             brand_subtitle = "User Portal"
             brand_color = "#0369a1"
+            # Use the sponsor OEM org_id for logo lookup
+            oem_logo_org_id = getattr(org, "sponsor_org_id", None) or None
+
+    # Fetch OEM logo URL from Tracking Program
+    brand_logo_url = None
+    if oem_logo_org_id:
+        try:
+            import urllib.request as _ur
+            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}"
+            with _ur.urlopen(_branding_url, timeout=3) as _resp:
+                import json as _json
+                _data = _json.loads(_resp.read().decode())
+                brand_logo_url = _data.get("logo_url") or None
+        except Exception:
+            brand_logo_url = None
 
     return {
         "brand_name": brand_name,
@@ -68,6 +88,7 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
         "brand_org_id": brand_org_id,
         "brand_subtitle": brand_subtitle,
         "brand_color": brand_color,
+        "brand_logo_url": brand_logo_url,
     }
 
 
@@ -92,7 +113,7 @@ def client_login_page(request: Request, db: Session = Depends(db_session)):
         "error": error if error else None,
         "return_url": return_url,
         "login_action": login_action,
-        "register_href": _path("/register"),
+        "register_href": _path("/register/"),
         "path_prefix": settings.root_path.rstrip("/") if settings.root_path else "",
         **branding,
     }
@@ -216,10 +237,19 @@ def client_login_submit(
             token_to_use = request.session.get("user_token") or session_token
             return RedirectResponse(f"{return_url}{separator}token={token_to_use}", status_code=303)
         
-        # Default redirect to my-account (use website_url so port is included; request.url can omit port)
+        # Default redirect based on role
         base = (settings.website_url or "").rstrip("/")
-        default_url = f"{base}/my-account" if base else "/my-account"
-        return RedirectResponse(default_url, status_code=303)
+        user_role = getattr(user, "role", None)
+        token_to_use = request.session.get("user_token") or session_token
+
+        if user_role == "customer_viewer":
+            # Client User → go directly to Tracking Program
+            tracking_url = (f"{base}/tracking" if base else "/tracking")
+            return RedirectResponse(f"{tracking_url}/?token={token_to_use}", status_code=303)
+        else:
+            # Client Admin, OEM, Synerex Admin → go to My Account
+            default_url = f"{base}/my-account" if base else "/my-account"
+            return RedirectResponse(default_url, status_code=303)
     except Exception as e:
         return _error_redirect(f"Login failed: {str(e)}")
 
@@ -424,6 +454,20 @@ def change_password_page(request: Request):
     message_type = request.query_params.get("message_type", "success")
     username = request.session.get("username", "")
     path_prefix = (settings.root_path or "").rstrip("/")
+    # Look up user role to conditionally show Back to My Account
+    _db = SessionLocal()
+    try:
+        from ..models.user import User as _UserModel
+        _u = _db.get(_UserModel, username)
+        _user_role = getattr(_u, "role", None) if _u else None
+    finally:
+        _db.close()
+    _website_home = (settings.website_url or "").rstrip("/")
+    back_link_html = (
+        f'<a href="{_website_home}/my-account" class="back-link">← Back to My Account</a>'
+        if _user_role != "customer_viewer"
+        else '<a href="javascript:history.back()" class="back-link">← Back</a>'
+    )
     return HTMLResponse(f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -477,7 +521,7 @@ def change_password_page(request: Request):
       </div>
       <button type="submit" class="btn">Update Password</button>
     </form>
-    <a href="{(settings.website_url or "").rstrip("/")}/my-account" class="back-link">← Back to My Account</a>
+    {back_link_html}
   </div>
 </body>
 </html>""")

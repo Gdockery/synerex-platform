@@ -331,13 +331,23 @@ def check_session(request: Request, db: Session = Depends(db_session)):
             content={"authenticated": False, "message": "Organization not found"}
         )
     
+    # Look up the individual user's role from the session username
+    username = request.session.get("username")
+    user_role = None
+    if username:
+        from ..models.user import User as _User
+        user = db.get(_User, username)
+        if user:
+            user_role = getattr(user, "role", None)
+
     # Build response based on org_type
     response = {
         "authenticated": True,
         "org_id": org.org_id,
         "org_name": org.org_name,
         "org_type": org.org_type,
-        "email": org.email
+        "email": org.email,
+        "role": user_role,
     }
     
     # Add PE-specific fields if org_type is 'pe'

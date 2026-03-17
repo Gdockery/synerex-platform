@@ -16,6 +16,7 @@ from flask import (
     Response,
     current_app,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
@@ -317,7 +318,7 @@ def _serve_spa():
         vendor_path = f"{prefix}/vendor.bundle.js"
     main_path = f"{prefix}/main.bundle.js"
     script_paths = [p for p in [vendor_path, main_path] if p]
-    return render_template(
+    resp = make_response(render_template(
         "web/app.html",
         BOOTSTRAP_DATA=json.dumps(locals_data),
         app_version=locals_data["appVersion"],
@@ -326,7 +327,10 @@ def _serve_spa():
         script_paths=script_paths,
         script_path=main_path,
         vendor_path=vendor_path,
-    )
+    ))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 # License-protected wrapper for SPA shell (used by / and /<path>)

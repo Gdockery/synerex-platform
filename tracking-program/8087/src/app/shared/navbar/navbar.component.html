@@ -178,7 +178,7 @@
       </a>
     </li>
 
-    <li *ngIf="userService.user.selectedProject" class="communications">
+    <li *ngIf="userService.user.selectedProject && userService.user.role !== 1" class="communications">
       <a>
         <span class="icon ss-transfer"></span>
         <span class="text">Communications</span>
@@ -223,7 +223,7 @@
         <span class="text">Tests</span>
       </a>
     </li>
-    <li *ngIf="userService.user.selectedProject">
+    <li *ngIf="userService.user.selectedProject && userService.user.role !== 1">
       <a [routerLink]="['/billing/savings-report/list']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-line-chart"></span>
         <span class="text">Bill Analytic</span>
@@ -252,7 +252,7 @@
   ╚═╝ ╚╝ ╚═╝╩╚═   ╩  ╩╚═╚═╝╚═╝╚═╝╝╚╝ ╩  -->
   <div class="bottom-alinger"></div>
   <ul class="navbar-bottom">
-    <li *ngIf="myAccountUrl">
+    <li *ngIf="myAccountUrl && userService.user.role !== 1">
       <a [href]="myAccountPageUrl" target="_self" rel="noopener">
         <span class="icon ss-navigateleft"></span>
         <span class="text">Back to My Account</span>

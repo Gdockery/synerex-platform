@@ -226,12 +226,24 @@ def _set_org_id_in_session(user):
 
 @auth_bp.route("/logout")
 def logout():
+    # Capture role BEFORE clearing session
+    from flask_login import current_user as _cu
+    user_role = getattr(_cu, "role", None) if _cu.is_authenticated else None
+
     logout_user()
     session.clear()
-    # Session expired: redirect to login with message (avoid cross-origin redirect to 5173)
+
+    # Session expired: redirect to tracking login with message
     if request.args.get("expired"):
         return redirect(_login_url("?expired=1"))
-    # Redirect to Synerex home (5173 or proxy) - use public URL when config has Docker hostnames
+
+    # Client-level users (roles 1-4) -> redirect to License Service client portal login
+    if user_role in (1, 2, 3, 4):
+        license_public_url = current_app.config.get("LICENSE_SERVICE_PUBLIC_URL", "").rstrip("/")
+        if license_public_url:
+            return redirect(license_public_url + "/auth/login")
+
+    # All others -> redirect to Synerex homepage
     website_url = current_app.config.get("WEBSITE_URL") or current_app.config.get("MY_ACCOUNT_URL", "")
     public_url = current_app.config.get("TRACKING_PUBLIC_WEBSITE_URL", "").rstrip("/").replace("/my-account", "")
     if public_url:

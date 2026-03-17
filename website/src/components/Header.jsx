@@ -7,6 +7,7 @@ export default function Header(){
   const [jwtToken, setJwtToken] = useState(null);
   const jwtFetchedRef = useRef(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState(null);
   const location = useLocation();
   const isAdminPage = location.pathname.startsWith('/admin');
 
@@ -16,17 +17,26 @@ export default function Header(){
 
   useEffect(() => {
     if (isAdminPage) return;
-    fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: "include" })
-      .then((resp) => {
-        if (resp.ok) {
+    // Fetch session (role) and JWT in parallel
+    Promise.all([
+      fetch(`${LICENSE_SERVICE_URL}/auth/api/check-session`, { credentials: "include" }),
+      fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: "include" }),
+    ])
+      .then(([sessionResp, jwtResp]) => {
+        if (sessionResp.ok) {
           setIsLoggedIn(true);
-          return resp.json();
+          sessionResp.json().then((data) => {
+            if (data?.role) setUserRole(data.role);
+          }).catch(() => {});
+        } else {
+          setIsLoggedIn(false);
+          setUserRole(null);
         }
-        setIsLoggedIn(false);
-        return null;
+        if (jwtResp.ok) {
+          jwtResp.json().then((data) => data?.token && setJwtToken(data.token)).catch(() => {});
+        }
       })
-      .then((data) => data?.token && setJwtToken(data.token))
-      .catch(() => setIsLoggedIn(false));
+      .catch(() => { setIsLoggedIn(false); setUserRole(null); });
   }, [LICENSE_SERVICE_URL]);
 
   const withJwt = (url) => {
@@ -60,34 +70,34 @@ export default function Header(){
           <div style={{display: 'none'}} className="text-xl font-bold text-white">SYNEREX</div>
         </Link>
         <div className="hidden md:flex gap-6 text-sm text-white">
-          <Link to="/" className="hover:text-purple-600 transition-colors">Home</Link>
-          <Link to="/about" className="hover:text-purple-600 transition-colors">About Us</Link>
-          <Link to="/hardware" className="hover:text-purple-600 transition-colors">Hardware</Link>
-          <Link to="/software" className="hover:text-purple-600 transition-colors">Software</Link>
-          <Link to="/licensing" className="hover:text-purple-600 transition-colors">Licensing</Link>
-          <Link to="/oem" className="hover:text-purple-600 transition-colors">OEM/ODM</Link>
-          <Link to="/custom-engineering" className="hover:text-purple-600 transition-colors">Custom Eng.</Link>
-          <Link to="/downloads" className="hover:text-purple-600 transition-colors">Downloads</Link>
+          <Link to="/" className="hover:text-purple-300 transition-colors">Home</Link>
+          <Link to="/about" className="hover:text-purple-300 transition-colors">About Us</Link>
+          <Link to="/hardware" className="hover:text-purple-300 transition-colors">Hardware</Link>
+          <Link to="/software" className="hover:text-purple-300 transition-colors">Software</Link>
+          <Link to="/licensing" className="hover:text-purple-300 transition-colors">Licensing</Link>
+          <Link to="/oem" className="hover:text-purple-300 transition-colors">OEM/ODM</Link>
+          <Link to="/custom-engineering" className="hover:text-purple-300 transition-colors">Custom Eng.</Link>
+          <Link to="/downloads" className="hover:text-purple-300 transition-colors">Downloads</Link>
           
           {/* Authentication Links */}
           <a 
             href={`${LICENSE_SERVICE_URL}/register/`}
-            className="hover:text-purple-600 transition-colors"
+            className="hover:text-purple-300 transition-colors"
           >
             Register
           </a>
-          {isLoggedIn ? (
-            <Link to="/my-account" className="hover:text-purple-600 transition-colors">
+          {isLoggedIn && userRole !== "customer_viewer" ? (
+            <Link to="/my-account" className="hover:text-purple-300 transition-colors">
               My Account
             </Link>
-          ) : (
+          ) : !isLoggedIn ? (
             <a
               href={`${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.origin + '/my-account')}`}
-              className="hover:text-purple-600 transition-colors"
+              className="hover:text-purple-300 transition-colors"
             >
               Login
             </a>
-          )}
+          ) : null}
           
           {/* Admin Dropdown */}
           <div 
@@ -108,7 +118,7 @@ export default function Header(){
               }, 200); // 200ms delay
             }}
           >
-            <button className="hover:text-purple-600 transition-colors flex items-center gap-1">
+            <button className="hover:text-purple-300 transition-colors flex items-center gap-1">
               Admin
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -137,7 +147,7 @@ export default function Header(){
                 <a
                   href="/license/admin"
                   target="_self"
-                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-b border-gray-700 cursor-pointer no-underline"
+                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-300 transition-colors border-b border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Admin Dashboard</div>
                   <div className="text-xs text-gray-500 mt-1">Platform management & service controls</div>
@@ -145,21 +155,21 @@ export default function Header(){
                 <a
                   href="/license/admin"
                   target="_self"
-                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors cursor-pointer no-underline"
+                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-300 transition-colors cursor-pointer no-underline"
                 >
                   <div className="font-semibold">License Management</div>
                   <div className="text-xs text-gray-500 mt-1">Manage licenses, organizations, billing</div>
                 </a>
                 <a
                   href={withJwt(`${EMV_URL}/sso`)}
-                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
+                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-300 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">EM&V Admin Panel</div>
                   <div className="text-xs text-gray-500 mt-1">Manage EM&V program settings</div>
                 </a>
                 <a
                   href="http://localhost:8080/tracking/login"
-                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-600 transition-colors border-t border-gray-700 cursor-pointer no-underline"
+                  className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-300 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Tracking Admin Portal</div>
                   <div className="text-xs text-gray-500 mt-1">Admin access to Tracking program</div>
@@ -168,7 +178,7 @@ export default function Header(){
             )}
           </div>
           
-          <Link to="/contact" className="hover:text-purple-600 transition-colors">Contact</Link>
+          <Link to="/contact" className="hover:text-purple-300 transition-colors">Contact</Link>
         </div>
       </nav>
     </header>
