@@ -556,6 +556,16 @@ app = Flask(__name__)
 def emv_static_alias(filename):
     return app.send_static_file(filename)
 
+# Mirror Nginx's `rewrite ^/emv/(.*) /$1` for direct port-8082 access.
+# API routes with explicit /emv/ prefixes are matched first by Flask before this catch-all.
+@app.route('/emv/<path:subpath>', methods=['GET', 'POST'])
+def emv_prefix_redirect(subpath):
+    from flask import redirect, request as _req
+    target = f"/{subpath}"
+    if _req.query_string:
+        target += f"?{_req.query_string.decode('utf-8')}"
+    return redirect(target, code=302)
+
 # Configuration
 class Config:
     """Application configuration"""
@@ -739,7 +749,7 @@ class MySQLCursor:
         # Use table-qualified org_id to avoid "Column 'org_id' is ambiguous" in JOINs
         insertion = f"{table}.org_id = %s" if table else "org_id = %s"
         sql_lower = sql.lower()
-        # Find the first clause that should stay at the end.
+        # Find the first trailing clause (ORDER BY / GROUP BY / LIMIT) that must stay at end.
         end_idx = -1
         for keyword in [" order by ", " group by ", " limit "]:
             idx = sql_lower.find(keyword)
@@ -757,7 +767,17 @@ class MySQLCursor:
                 sql = sql[:end_idx] + f" WHERE {insertion}" + sql[end_idx:]
             else:
                 sql += f" WHERE {insertion}"
-        params.append(self._org_id)
+
+        # Insert the org_id param at the correct position so it aligns with its %s
+        # placeholder, which was injected BEFORE end_idx (i.e. before ORDER BY/LIMIT).
+        # Any existing %s placeholders that appear after end_idx in the original SQL
+        # correspond to params that must stay at the end (e.g. LIMIT %s).
+        if end_idx != -1:
+            trailing_placeholders = sql_lower[end_idx:].count("%s")
+            insert_pos = len(params) - trailing_placeholders
+            params.insert(max(0, insert_pos), self._org_id)
+        else:
+            params.append(self._org_id)
         return sql, params
 
     def execute(self, sql, params=None):
@@ -1886,6 +1906,7 @@ def complete_pe_review(workflow_id: str, approval_status: str, review_comments: 
                     SET review_comments = ?,
                         approval_status = ?,
                         pe_signature = ?,
+                        review_date = datetime('now'),
                         updated_at = datetime('now')
                     WHERE workflow_id = ?
                 """, (
@@ -2312,7 +2333,14 @@ class WeatherServiceClient:
                     "after_period": f"{after_start} to {after_end}",
                     "data_points_before": data.get("before_days", 0),
                     "data_points_after": data.get("after_days", 0),
-                    "hourly_data": data.get("hourly_data"),  # Include hourly data if available for timestamp matching
+                    "hourly_data": data.get("hourly_data"),
+                    # Weather source metadata (NOAA ASOS or Open-Meteo fallback)
+                    "weather_source": data.get("weather_source", "Open-Meteo (ERA5 Reanalysis)"),
+                    "asos_station_id": data.get("asos_station_id"),
+                    "asos_station_name": data.get("asos_station_name"),
+                    "asos_station_distance_km": data.get("asos_station_distance_km"),
+                    "obs_count_5min_before": data.get("obs_count_5min_before"),
+                    "obs_count_5min_after": data.get("obs_count_5min_after"),
                 }
                 
                 logger.info("Weather data fetched successfully from service")
@@ -2356,35 +2384,21 @@ class WeatherServiceClient:
 
 def match_weather_to_csv_timestamps(csv_timestamps, hourly_weather_data, meter_interval_minutes=15):
     """
-    Match hourly weather data to CSV meter timestamps with interpolation.
-    
+    Match hourly weather data to CSV meter timestamps with linear interpolation.
+
+    Uses pandas.merge_asof (O(n log n)) instead of a per-row loop (O(n*m)).
+
     Args:
         csv_timestamps: List of datetime objects from CSV file
         hourly_weather_data: List of dicts with 'timestamp' (ISO string) and weather values
         meter_interval_minutes: Interval of meter data in minutes (default 15)
-    
+
     Returns:
         List of dicts with matched weather data for each CSV timestamp
     """
-    def _convert_numpy_types(value):
-        """Convert numpy types to native Python types for JSON serialization"""
-        import numpy as np
-        if value is None:
-            return None
-        if isinstance(value, (np.integer, np.int64, np.int32, np.int16, np.int8)):
-            return int(value)
-        elif isinstance(value, (np.floating, np.float64, np.float32, np.float16)):
-            return float(value) if not np.isnan(value) else None
-        elif isinstance(value, np.ndarray):
-            return value.tolist()
-        elif isinstance(value, (np.bool_, bool)):
-            return bool(value)
-        return value
-    
     try:
         import pandas as pd
-        from datetime import datetime
-        
+
         logger.info(f"=== TIMESTAMP MATCHING STARTED ===")
         logger.info(f"CSV timestamps count: {len(csv_timestamps) if csv_timestamps else 0}")
         logger.info(f"Weather data points count: {len(hourly_weather_data) if hourly_weather_data else 0}")
@@ -2486,116 +2500,101 @@ def match_weather_to_csv_timestamps(csv_timestamps, hourly_weather_data, meter_i
             else:
                 logger.warning(f"[WARNING] NO TIMESTAMP OVERLAP! CSV: {csv_min} to {csv_max}, Weather: {weather_min} to {weather_max}")
         
+        # ---------------------------------------------------------------
+        # Fast O(n log n) merge using pandas.merge_asof
+        # ---------------------------------------------------------------
+        # Build a meter DataFrame with a stable sort key
+        meter_df = pd.DataFrame({'timestamp': csv_dt}).sort_values('timestamp').reset_index(drop=True)
+        # Save original order so we can restore it at the end
+        meter_df['_orig_idx'] = meter_df.index
+
+        weather_cols = ['temp', 'dewpoint', 'humidity', 'wind_speed', 'solar_radiation']
+
+        # --- backward merge: last weather obs at or before each meter reading ---
+        back = pd.merge_asof(
+            meter_df,
+            weather_df[['timestamp'] + weather_cols].rename(
+                columns={c: c + '_b' for c in weather_cols}
+            ),
+            on='timestamp',
+            direction='backward',
+        )
+        # --- forward merge: next weather obs after each meter reading -----------
+        fwd = pd.merge_asof(
+            meter_df,
+            weather_df[['timestamp'] + weather_cols].rename(
+                columns={c: c + '_f' for c in weather_cols}
+            ).rename(columns={'timestamp': 'ts_f'}),
+            left_on='timestamp',
+            right_on='ts_f',
+            direction='forward',
+        )
+
+        # --- Merge both sides together and interpolate -------------------------
+        combined = back.copy()
+        combined['ts_f'] = fwd['ts_f']
+        for c in weather_cols:
+            combined[c + '_f'] = fwd[c + '_f']
+
+        # Compute linear interpolation factor (0..1) between surrounding hourly points
+        t_diff_total = (combined['ts_f'] - combined['timestamp']).dt.total_seconds() + \
+                       (combined['timestamp'] - combined['timestamp']).dt.total_seconds()
+        # Denominator: gap between backward and forward weather timestamps
+        back_ts_col = 'timestamp'  # after merge_asof this is the meter ts; we need weather ts
+        # Recompute: hours elapsed since last weather obs
+        # Use backward-merge's "timestamp" (meter) vs the weather_df timestamp column
+        # We need the actual backward-weather timestamp; merge_asof doesn't retain it directly.
+        # Fastest: set weather_df as the index and use searchsorted.
+
+        wts = weather_df['timestamp'].values  # sorted numpy array of Timestamps
+        mts = combined['timestamp'].values    # sorted numpy array of Timestamps
+
+        # searchsorted gives us the index of the FIRST wts >= mts[i]
+        fwd_pos = pd.Series(wts).searchsorted(mts, side='left')
+        bwd_pos = (fwd_pos - 1).clip(0, len(wts) - 1)
+        fwd_pos_clipped = fwd_pos.clip(0, len(wts) - 1)
+
+        # Interpolation factor: how far between bwd and fwd weather timestamps
+        bwd_ts = wts[bwd_pos]
+        fwd_ts = wts[fwd_pos_clipped]
+        gap_ns = (fwd_ts - bwd_ts).astype('int64')      # nanoseconds
+        elapsed_ns = (mts - bwd_ts).astype('int64')
+
+        # factor = 0 when bwd==fwd (exact match or boundary) or when gap==0
+        safe_gap = np.where(gap_ns > 0, gap_ns, 1).astype('float64')
+        factor = np.clip(elapsed_ns.astype('float64') / safe_gap, 0.0, 1.0)
+
+        # Fully vectorized interpolation — no Python loop
+        f_series = pd.Series(factor, index=combined.index)
+        out = pd.DataFrame({'timestamp': combined['timestamp']})
+        for c in weather_cols:
+            bv = combined[c + '_b'].astype('float64')
+            fv = combined[c + '_f'].astype('float64')
+            # Where both are present: linear interpolation
+            both = bv.notna() & fv.notna()
+            interp = bv + f_series * (fv - bv)
+            out[c] = np.where(both, interp,
+                     np.where(bv.notna(), bv,
+                     np.where(fv.notna(), fv, np.nan)))
+            # Round to 4 decimal places
+            out[c] = out[c].round(4)
+
+        # Convert NaN → None for JSON serialisation
+        out_records = out.to_dict('records')
         matched_data = []
-        matched_count = 0
-        interpolated_count = 0
-        nearest_count = 0
-        missing_count = 0
-        
-        for csv_ts in csv_dt:
-            # Find nearest weather timestamp or interpolate
-            # Use linear interpolation for sub-hourly intervals
-            if meter_interval_minutes < 60:
-                # Interpolate between hourly points
-                # Find surrounding hourly points
-                before_idx = weather_df[weather_df['timestamp'] <= csv_ts].index
-                after_idx = weather_df[weather_df['timestamp'] > csv_ts].index
-                
-                if len(before_idx) > 0 and len(after_idx) > 0:
-                    # Linear interpolation
-                    before_ts = weather_df.loc[before_idx[-1], 'timestamp']
-                    after_ts = weather_df.loc[after_idx[0], 'timestamp']
-                    
-                    # Calculate interpolation factor
-                    total_diff = (after_ts - before_ts).total_seconds()
-                    csv_diff = (csv_ts - before_ts).total_seconds()
-                    
-                    if total_diff > 0:
-                        factor = csv_diff / total_diff
-                        
-                        # Interpolate all weather values and convert numpy types
-                        before_temp = _convert_numpy_types(weather_df.loc[before_idx[-1], 'temp'])
-                        after_temp = _convert_numpy_types(weather_df.loc[after_idx[0], 'temp'])
-                        before_dewpoint = _convert_numpy_types(weather_df.loc[before_idx[-1], 'dewpoint'])
-                        after_dewpoint = _convert_numpy_types(weather_df.loc[after_idx[0], 'dewpoint'])
-                        before_humidity = _convert_numpy_types(weather_df.loc[before_idx[-1], 'humidity'])
-                        after_humidity = _convert_numpy_types(weather_df.loc[after_idx[0], 'humidity'])
-                        before_wind = _convert_numpy_types(weather_df.loc[before_idx[-1], 'wind_speed'])
-                        after_wind = _convert_numpy_types(weather_df.loc[after_idx[0], 'wind_speed'])
-                        before_solar = _convert_numpy_types(weather_df.loc[before_idx[-1], 'solar_radiation'])
-                        after_solar = _convert_numpy_types(weather_df.loc[after_idx[0], 'solar_radiation'])
-                        
-                        matched = {
-                            'timestamp': csv_ts.isoformat(),
-                            'temp': _convert_numpy_types(before_temp + factor * (after_temp - before_temp)) if before_temp is not None and after_temp is not None else None,
-                            'dewpoint': _convert_numpy_types(before_dewpoint + factor * (after_dewpoint - before_dewpoint)) if before_dewpoint is not None and after_dewpoint is not None else None,
-                            'humidity': _convert_numpy_types(before_humidity + factor * (after_humidity - before_humidity)) if before_humidity is not None and after_humidity is not None else None,
-                            'wind_speed': _convert_numpy_types(before_wind + factor * (after_wind - before_wind)) if before_wind is not None and after_wind is not None else None,
-                            'solar_radiation': _convert_numpy_types(before_solar + factor * (after_solar - before_solar)) if before_solar is not None and after_solar is not None else None
-                        }
-                        interpolated_count += 1
-                    else:
-                        # Use exact match - convert numpy types
-                        matched = {
-                            'timestamp': csv_ts.isoformat(),
-                            'temp': _convert_numpy_types(weather_df.loc[before_idx[-1], 'temp']),
-                            'dewpoint': _convert_numpy_types(weather_df.loc[before_idx[-1], 'dewpoint']),
-                            'humidity': _convert_numpy_types(weather_df.loc[before_idx[-1], 'humidity']),
-                            'wind_speed': _convert_numpy_types(weather_df.loc[before_idx[-1], 'wind_speed']),
-                            'solar_radiation': _convert_numpy_types(weather_df.loc[before_idx[-1], 'solar_radiation'])
-                        }
-                        matched_count += 1
-                elif len(before_idx) > 0:
-                    # Use last available point - convert numpy types
-                    matched = {
-                        'timestamp': csv_ts.isoformat(),
-                        'temp': _convert_numpy_types(weather_df.loc[before_idx[-1], 'temp']),
-                        'dewpoint': _convert_numpy_types(weather_df.loc[before_idx[-1], 'dewpoint']),
-                        'humidity': _convert_numpy_types(weather_df.loc[before_idx[-1], 'humidity']),
-                        'wind_speed': _convert_numpy_types(weather_df.loc[before_idx[-1], 'wind_speed']),
-                        'solar_radiation': _convert_numpy_types(weather_df.loc[before_idx[-1], 'solar_radiation'])
-                    }
-                    matched_count += 1
-                elif len(after_idx) > 0:
-                    # Use first available point - convert numpy types
-                    matched = {
-                        'timestamp': csv_ts.isoformat(),
-                        'temp': _convert_numpy_types(weather_df.loc[after_idx[0], 'temp']),
-                        'dewpoint': _convert_numpy_types(weather_df.loc[after_idx[0], 'dewpoint']),
-                        'humidity': _convert_numpy_types(weather_df.loc[after_idx[0], 'humidity']),
-                        'wind_speed': _convert_numpy_types(weather_df.loc[after_idx[0], 'wind_speed']),
-                        'solar_radiation': _convert_numpy_types(weather_df.loc[after_idx[0], 'solar_radiation'])
-                    }
-                    matched_count += 1
-                else:
-                    missing_count += 1
-                    if missing_count <= 5:  # Log first 5 missing timestamps
-                        logger.warning(f"No weather data available for CSV timestamp: {csv_ts}")
-                    continue
-            else:
-                # For hourly or longer intervals, use nearest neighbor - convert numpy types
-                nearest_idx = (weather_df['timestamp'] - csv_ts).abs().idxmin()
-                matched = {
-                    'timestamp': csv_ts.isoformat(),
-                    'temp': _convert_numpy_types(weather_df.loc[nearest_idx, 'temp']),
-                    'dewpoint': _convert_numpy_types(weather_df.loc[nearest_idx, 'dewpoint']),
-                    'humidity': _convert_numpy_types(weather_df.loc[nearest_idx, 'humidity']),
-                    'wind_speed': _convert_numpy_types(weather_df.loc[nearest_idx, 'wind_speed']),
-                    'solar_radiation': _convert_numpy_types(weather_df.loc[nearest_idx, 'solar_radiation'])
-                }
-                nearest_count += 1
-            
-            matched_data.append(matched)
-        
-        logger.info(f"=== TIMESTAMP MATCHING COMPLETE ===")
+        for rec in out_records:
+            clean = {'timestamp': rec['timestamp'].isoformat()}
+            for c in weather_cols:
+                v = rec[c]
+                clean[c] = None if (v is None or (isinstance(v, float) and pd.isna(v))) else v
+            matched_data.append(clean)
+
+        logger.info(f"=== TIMESTAMP MATCHING COMPLETE (merge_asof vectorised) ===")
         logger.info(f"Total matched: {len(matched_data)} out of {len(csv_dt)} CSV timestamps")
-        logger.info(f"  - Interpolated: {interpolated_count}")
-        logger.info(f"  - Exact/Nearest match: {matched_count + nearest_count}")
-        logger.info(f"  - Missing (no weather data): {missing_count}")
-        if len(matched_data) > 0:
-            logger.info(f"First matched timestamp: {matched_data[0]['timestamp']}, temp: {matched_data[0].get('temp', 'N/A')}")
-            logger.info(f"Last matched timestamp: {matched_data[-1]['timestamp']}, temp: {matched_data[-1].get('temp', 'N/A')}")
-        
+        if matched_data:
+            logger.info(f"First matched: {matched_data[0]['timestamp']}, temp: {matched_data[0].get('temp')}")
+            logger.info(f"Last matched: {matched_data[-1]['timestamp']}, temp: {matched_data[-1].get('temp')}")
+
         return matched_data
         
     except Exception as e:
@@ -2775,7 +2774,16 @@ class WeatherNormalizationML:
         self.regression_temp_sensitivity = None
         self.regression_dewpoint_sensitivity = None
         self.regression_r2 = None
+        self.regression_cvrmse = None   # CV-RMSE from actual regression residuals
+        self.regression_nmbe = None     # NMBE from actual regression residuals
+        self.regression_n_points = None # Sample size used in regression
+        self.regression_model_name = None  # ASHRAE model selected (e.g. 3P_cooling)
         self.regression_valid = False
+        self.regression_p_value = None  # F-test p-value for overall regression (H₀: no temp-energy relationship)
+        self.scatter_temp_baseline = None   # Baseline (before) period temperature points for scatter plot
+        self.scatter_energy_baseline = None # Baseline (before) period energy points for scatter plot
+        self.regression_line_temp = None    # Temperature x-axis for regression line overlay
+        self.regression_line_energy = None  # Predicted energy values for regression line overlay
         
         # ASHRAE regression coefficients for additive normalization (will be set if regression is performed)
         self.regression_beta_0 = None  # Intercept (╬▓ΓéÇ)
@@ -2992,21 +3000,23 @@ class WeatherNormalizationML:
         baseline_energy: List[float],
         baseline_temp: List[float],
         baseline_dewpoint: List[float] = None,
-        min_r2: float = 0.7,
+        min_r2: float = 0.75,
         optimize_base_temp: bool = True
     ) -> Dict:
         """
         Calculate sensitivity factors from regression analysis of baseline period data.
-        This method fully complies with ASHRAE Guideline 14-2014 requirements.
+        Complies with ASHRAE Guideline 14-2023 Section 5.3 requirements.
         
-        If optimize_base_temp is True, first optimizes the base temperature from baseline data
-        to find the actual balance point for this specific building/equipment.
+        Weather normalization is only applied when a statistically significant
+        relationship between energy use and weather is demonstrated (R² ≥ 0.75).
+        If regression fails this threshold, normalization is not applied and
+        savings are reported on raw measured values.
         
         Args:
             baseline_energy: List of energy/kW values from baseline period (time series)
             baseline_temp: List of temperature values (°C) corresponding to energy data
             baseline_dewpoint: Optional list of dewpoint values (°C) corresponding to energy data
-            min_r2: Minimum R² value for validation (default 0.7 per ASHRAE)
+            min_r2: Minimum R² value for normalization to be applied (0.75 per ASHRAE Guideline 14-2023)
             optimize_base_temp: Whether to optimize base temperature from baseline data (default True)
             
         Returns:
@@ -3205,11 +3215,15 @@ class WeatherNormalizationML:
                     beta_2 = None
                     dewpoint_sensitivity = temp_sensitivity * 0.6
                 
-                # Validate R² (must be >= 0.7 per ASHRAE)
+                # Validate R² (must be >= 0.75 per ASHRAE 14-2023)
                 if r2 >= min_r2:
                     self.regression_temp_sensitivity = temp_sensitivity
                     self.regression_dewpoint_sensitivity = dewpoint_sensitivity
                     self.regression_r2 = r2
+                    self.regression_cvrmse = model_result.get("cvrmse")
+                    self.regression_nmbe = model_result.get("nmbe")
+                    self.regression_n_points = model_result.get("n", len(energy))
+                    self.regression_model_name = model_name
                     self.regression_valid = True
                     
                     logger.info(f"ASHRAE change-point model regression completed:")
@@ -3222,18 +3236,41 @@ class WeatherNormalizationML:
                     else:
                         logger.info(f"  Model: Energy = {beta_0:.2f} + {beta_1:.4f}×CDD")
                     
+                    # F-test p-value for overall regression (H₀: no relationship between temp and energy)
+                    # F = (R²/k) / ((1-R²)/(n-k-1)), where k=number of predictors, n=sample size
+                    _n_pts = len(energy)
+                    _k = 1 if beta_2 is None else 2
+                    _f_stat = (r2 / _k) / ((1 - r2) / (_n_pts - _k - 1)) if (r2 < 1.0 and _n_pts > _k + 1) else float('inf')
+                    try:
+                        from scipy import stats as _stats
+                        _p_value = float(1.0 - _stats.f.cdf(_f_stat, _k, _n_pts - _k - 1))
+                    except Exception:
+                        _p_value = None
+
+                    # Subsample scatter data for report (max 100 points to keep JSON size manageable)
+                    _scatter_idx = np.linspace(0, _n_pts - 1, min(100, _n_pts), dtype=int)
+                    _cdd_full = np.maximum(0, temp - self.base_temp)
+                    _t_line = np.linspace(float(temp.min()), float(temp.max()), 50)
+                    _cdd_line = np.maximum(0, _t_line - self.base_temp)
+                    _e_line = beta_0 + beta_1 * _cdd_line
+
                     result = {
                         "success": True,
                         "temp_sensitivity": temp_sensitivity,
                         "dewpoint_sensitivity": dewpoint_sensitivity,
                         "r2": r2,
+                        "p_value": _p_value,
                         "beta_0": beta_0,
                         "beta_1": beta_1,
                         "beta_2": beta_2,
                         "mean_energy": mean_energy,
-                        "n_points": len(energy),
+                        "n_points": _n_pts,
                         "model_name": model_name,
-                        "method": f"ASHRAE {model_name} change-point model (R²={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/°C)"
+                        "method": f"ASHRAE {model_name} change-point model (R²={r2:.3f}, Temp={temp_sensitivity*100:.2f}%/°C)",
+                        "scatter_temp_baseline": temp[_scatter_idx].tolist(),
+                        "scatter_energy_baseline": energy[_scatter_idx].tolist(),
+                        "regression_line_temp": _t_line.tolist(),
+                        "regression_line_energy": _e_line.tolist(),
                     }
                     # Include optimized base temperature if optimization was performed
                     if base_opt_result and base_opt_result.get("success", False):
@@ -3308,26 +3345,63 @@ class WeatherNormalizationML:
                     dewpoint_sensitivity = temp_sensitivity * 0.6
                     
                     if r2 >= min_r2:
+                        # Compute CV-RMSE and NMBE from actual residuals per ASHRAE Guideline 14
+                        residuals = energy - y_pred
+                        n = len(energy)
+                        n_params = 2 if beta_2 is None else 3
+                        fallback_cvrmse = (
+                            100 * np.sqrt(np.sum(residuals**2) / (n - n_params)) / np.mean(energy)
+                            if np.mean(energy) > 0 else None
+                        )
+                        fallback_nmbe = (
+                            100 * np.sum(residuals) / (n - n_params) / np.mean(energy)
+                            if np.mean(energy) > 0 else None
+                        )
+
                         self.regression_temp_sensitivity = temp_sensitivity
                         self.regression_dewpoint_sensitivity = dewpoint_sensitivity
                         self.regression_r2 = r2
+                        self.regression_cvrmse = fallback_cvrmse
+                        self.regression_nmbe = fallback_nmbe
+                        self.regression_n_points = n
+                        self.regression_model_name = "2P_linear (fallback)"
                         self.regression_valid = True
                         
                         logger.info(f"Simple linear regression (fallback) completed:")
                         logger.info(f"  R² = {r2:.4f} (>= {min_r2:.2f} ✓)")
                         logger.info(f"  Temperature sensitivity: {temp_sensitivity:.6f} ({temp_sensitivity*100:.2f}% per °C)")
                         
+                        # p-value from scipy linregress (slope test)
+                        try:
+                            from scipy import stats as _stats
+                            _, _, _, _p_val_fb, _ = _stats.linregress(cdd.flatten(), energy)
+                            _p_value_fb = float(_p_val_fb)
+                        except Exception:
+                            _p_value_fb = None
+
+                        # Scatter + regression line for report
+                        _n_fb = len(energy)
+                        _scatter_idx_fb = np.linspace(0, _n_fb - 1, min(100, _n_fb), dtype=int)
+                        _t_line_fb = np.linspace(float(temp.min()), float(temp.max()), 50)
+                        _cdd_line_fb = np.maximum(0, _t_line_fb - self.base_temp)
+                        _e_line_fb = beta_0 + beta_1 * _cdd_line_fb
+
                         result = {
                             "success": True,
                             "temp_sensitivity": temp_sensitivity,
                             "dewpoint_sensitivity": dewpoint_sensitivity,
                             "r2": r2,
+                            "p_value": _p_value_fb,
                             "beta_0": beta_0,
                             "beta_1": beta_1,
                             "beta_2": beta_2,
                             "mean_energy": mean_energy,
-                            "n_points": len(energy),
-                            "method": f"Simple linear regression (fallback, R²={r2:.3f}, {temp_sensitivity*100:.2f}%/°C)"
+                            "n_points": _n_fb,
+                            "method": f"Simple linear regression (fallback, R²={r2:.3f}, {temp_sensitivity*100:.2f}%/°C)",
+                            "scatter_temp_baseline": temp[_scatter_idx_fb].tolist(),
+                            "scatter_energy_baseline": energy[_scatter_idx_fb].tolist(),
+                            "regression_line_temp": _t_line_fb.tolist(),
+                            "regression_line_energy": _e_line_fb.tolist(),
                         }
                         if base_opt_result and base_opt_result.get("success", False):
                             result["optimized_base_temp"] = base_opt_result["optimized_base_temp"]
@@ -3354,7 +3428,40 @@ class WeatherNormalizationML:
                 "error": str(e),
                 "method": f"Regression failed - {str(e)}"
             }
-    
+
+    def _predict_baseline_at_conditions(self, temp: float, dewpoint: float = None) -> float:
+        """ASHRAE Guideline 14-2023 Section 5.3 — predict what the baseline equipment
+        would consume at the given temperature conditions using the fitted regression model.
+
+        Formula applied (by model type):
+          3P/4P cooling:  E = β₀ + β₁·max(0, T − T_base)
+          3P/4P heating:  E = β₀ + β₁·max(0, T_base − T)
+          5P/6P combined: E = β₀ + β₁·CDD + β₂·HDD
+          2P linear:      E = β₀ + β₁·T  (via CDD = T, HDD = 0)
+
+        Returns None if regression coefficients are not available (normalization
+        will fall through to the proportional fallback).
+        """
+        if self.regression_beta_0 is None or self.regression_beta_1 is None:
+            return None
+        CDD = max(0.0, temp - self.base_temp)
+        HDD = max(0.0, self.base_temp - temp)
+        model_nm = (self.regression_model_name or "").lower()
+        if "heating" in model_nm and "cooling" not in model_nm:
+            # 3P/4P heating: β₀ + β₁·HDD (optionally + β₂·CDD for 4P)
+            prediction = self.regression_beta_0 + self.regression_beta_1 * HDD
+            if self.regression_beta_2 is not None:
+                prediction += self.regression_beta_2 * CDD
+        elif "combined" in model_nm or "5p" in model_nm or "6p" in model_nm:
+            # 5P/6P combined: β₀ + β₁·CDD + β₂·HDD
+            prediction = (self.regression_beta_0
+                          + self.regression_beta_1 * CDD
+                          + (self.regression_beta_2 or 0.0) * HDD)
+        else:
+            # 3P cooling, 2P linear: β₀ + β₁·CDD
+            prediction = self.regression_beta_0 + self.regression_beta_1 * CDD
+        return max(0.0, float(prediction))
+
     def normalize_consumption(
         self,
         temp_before: float,
@@ -3417,7 +3524,14 @@ class WeatherNormalizationML:
                     self.temp_sensitivity = regression_result["temp_sensitivity"]
                     self.dewpoint_sensitivity = regression_result.get("dewpoint_sensitivity", self.temp_sensitivity * 0.6)
                     logger.info(f"Using ASHRAE-compliant regression-calculated sensitivity factors (R²={regression_result['r2']:.3f})")
-                    
+
+                    # Store scatter plot data and p-value for ASHRAE 14-2023 reporting
+                    self.regression_p_value = regression_result.get("p_value")
+                    self.scatter_temp_baseline = regression_result.get("scatter_temp_baseline")
+                    self.scatter_energy_baseline = regression_result.get("scatter_energy_baseline")
+                    self.regression_line_temp = regression_result.get("regression_line_temp")
+                    self.regression_line_energy = regression_result.get("regression_line_energy")
+
                     # Store ASHRAE regression coefficients for additive normalization
                     if "beta_0" in regression_result:
                         self.regression_beta_0 = regression_result["beta_0"]
@@ -3609,28 +3723,25 @@ class WeatherNormalizationML:
                     # Set base_temp to allow efficiency gains to show through in normalized results
                     # Use smaller offset when weather differences are small to keep base_temp closer to average
                     # This produces a factor that reflects both weather differences AND efficiency improvements
-                    if temp_range < 3.0:
-                        # Very small range: Use 1.5°C offset (closer to average) to allow efficiency gains to show
-                        offset = 1.5
-                    elif temp_range < 5.0:
-                        # Small range: Use 2-3°C offset
-                        offset = 2.0 + (temp_range - 3.0) * 0.5  # 2.0 to 3.0
-                    else:
-                        # Large range: Use 4°C offset (slightly less than 5°C to allow efficiency gains)
-                        offset = 4.0
-                    
-                    base_temp_from_avg = avg_temp - offset
-                    
-                    # CRITICAL: Always set base_temp to at least 5°C below the minimum temperature between 'before' and 'after'
-                    # This ensures ASHRAE Guideline 14-2014 compliance AND ensures weather effects are non-zero
-                    # Increased from 0.1°C to 5.0°C to guarantee normalization is applied
+                    # ASHRAE Guideline 14-2023 standard base temperature: 18.3°C (65°F)
+                    # Use this as the default when no regression-optimized value is available.
+                    # IMPORTANT: Do NOT manipulate base_temp to guarantee non-zero weather effects.
+                    # If the measured data shows negligible weather dependence, R² will be < 0.75
+                    # and the normalization gate will correctly block adjustment. Forcing a
+                    # non-zero offset undermines M&V integrity and ASHRAE audit defensibility.
+                    ASHRAE_STANDARD_BASE_TEMP = 18.3  # 65°F per ASHRAE Guideline 14-2023
                     min_temp = min(temp_before, temp_after) if (temp_before and temp_after) else overall_min
-                    # Always set base_temp to at least 5°C below minimum to ensure weather effects are meaningful
-                    adjusted_base_temp = min_temp - 5.0
-                    # Clamp to reasonable range for cooling systems (10-28°C) - lowered floor from 12°C to 10°C
-                    adjusted_base_temp = max(10.0, min(28.0, adjusted_base_temp))
-                    logger.info(f"[FIX] Using enhanced base_temp calculation: min_temp={min_temp:.1f}°C (min of before={temp_before:.1f}°C and after={temp_after:.1f}°C), base_temp={adjusted_base_temp:.1f}°C (min_temp - 5.0°C)")
-                    logger.info(f"   This ensures base_temp is always below all temperatures, guaranteeing non-zero weather effects")
+                    if ASHRAE_STANDARD_BASE_TEMP < min_temp:
+                        # All measurement period temps are above ASHRAE standard — use 18.3°C
+                        adjusted_base_temp = ASHRAE_STANDARD_BASE_TEMP
+                    else:
+                        # Some temps are at or below ASHRAE standard — place base 1°C below minimum
+                        adjusted_base_temp = max(5.0, min_temp - 1.0)
+                    # Clamp within physically defensible range (5–22°C)
+                    adjusted_base_temp = max(5.0, min(22.0, adjusted_base_temp))
+                    logger.info(f"[BASE_TEMP] Using ASHRAE-standard base_temp: {adjusted_base_temp:.1f}°C "
+                                f"(ASHRAE 14-2023 default 18.3°C; min_temp={min_temp:.1f}°C)")
+                    logger.info(f"   R\u00b2 \u2265 0.75 gate remains the primary guard against spurious normalization.")
                 else:
                     # Fallback: Use moderate offset from overall_min
                     if has_time_series_both:
@@ -4441,85 +4552,60 @@ class WeatherNormalizationML:
                             logger.warning(f"   Capping to {max_normalized_kw_after:.2f} to preserve at least 80% of raw savings")
                             normalized_kw_after = max_normalized_kw_after
                     
-                    # CRITICAL FIX: Recalculate kw_after from time series to ensure consistency
-                    # The kw_after parameter might be from a different calculation, so we need to use
-                    # the same time series data for both numerator and denominator
-                    # This ensures project-specific factors are calculated correctly
-                    kw_after_from_series = sum(after_energy_series) / len(after_energy_series) if after_energy_series and len(after_energy_series) > 0 else kw_after
-                    
-                    # CRITICAL FIX: Calculate weather_adjustment_factor from average weather effects, not from ratio
-                    # The ratio method (normalized/raw) can produce incorrect factors when timestamp-by-timestamp
-                    # normalization uses varying per-timestamp weather effects. The factor should be calculated
-                    # from the average weather effects to match the theoretical calculation.
-                    # 
-                    # IMPORTANT: Use the simple average weather effects (temp_before/after, dewpoint_before/after)
-                    # NOT the per-timestamp averages, to match the frontend calculation
-                    # Get average weather effects from the simple averages (matches frontend calculation)
-                    # CRITICAL FIX: Always recalculate from simple averages (temp_before, dewpoint_before)
-                    # NOT from time series data, to match frontend calculation
-                    if 'temp_before' in locals() and temp_before is not None:
-                        temp_effect_before = max(0, (temp_before - self.base_temp) * self.temp_sensitivity)
-                        dewpoint_effect_before = 0.0
-                        if dewpoint_available and 'dewpoint_before' in locals() and dewpoint_before is not None:
-                            dewpoint_effect_before = max(0, (dewpoint_before - self.base_temp) * self.dewpoint_sensitivity)
-                        avg_weather_effect_before = temp_effect_before + dewpoint_effect_before
+                    # ── ASHRAE GL14-2023: per-timestamp regression-based normalization ──────────────────
+                    # Predict what the BASELINE equipment would have consumed at each post-period timestamp.
+                    # normalized_kw_before = mean(β₀ + β₁·CDD(T_post_i))  across all after-period intervals
+                    # normalized_kw_after  = mean(kW_actual_post)           unchanged
+                    kw_after_from_series = (sum(after_energy_series) / len(after_energy_series)
+                                            if after_energy_series and len(after_energy_series) > 0
+                                            else kw_after)
+
+                    _ashrae_baseline_preds = []
+                    if (self.regression_beta_0 is not None and self.regression_beta_1 is not None
+                            and after_temp_series is not None):
+                        for _T_i in after_temp_series:
+                            if _T_i is not None and not (isinstance(_T_i, float) and _T_i != _T_i):
+                                _p = self._predict_baseline_at_conditions(_T_i)
+                                if _p is not None:
+                                    _ashrae_baseline_preds.append(_p)
+
+                    if _ashrae_baseline_preds:
+                        normalized_kw_before = sum(_ashrae_baseline_preds) / len(_ashrae_baseline_preds)
+                        normalized_kw_after  = kw_after_from_series        # actual, not adjusted
+                        weather_adjusted_savings = normalized_kw_before - normalized_kw_after
+                        weather_adjustment_factor = normalized_kw_before / kw_before if kw_before > 0 else 1.0
+                        raw_savings_pct = (kw_before - kw_after_from_series) / kw_before * 100 if kw_before > 0 else 0
+                        norm_savings_pct = weather_adjusted_savings / kw_before * 100 if kw_before > 0 else 0
+                        logger.info(f"[ASHRAE GL14-2023] Per-timestamp regression normalization:")
+                        logger.info(f"  Model: {self.regression_model_name}, base_temp={self.base_temp:.1f}\u00b0C")
+                        logger.info(f"  Predicted baseline at post conditions: {normalized_kw_before:.2f} kW "
+                                    f"(avg of {len(_ashrae_baseline_preds)} timestamps)")
+                        logger.info(f"  Actual post-installation measurement:  {normalized_kw_after:.2f} kW")
+                        logger.info(f"  Raw savings: {raw_savings_pct:.2f}%, Weather-normalized savings: {norm_savings_pct:.2f}%")
+                        logger.info(f"  Normalization factor: {weather_adjustment_factor:.4f}")
                     else:
-                        avg_weather_effect_before = 0.0
-                    
-                    # Use the simple average weather_effect_after (from temp_after, dewpoint_after)
-                    # NOT the per-timestamp average, to match frontend calculation
-                    if 'weather_effect_after' in locals() and weather_effect_after is not None:
-                        avg_weather_effect_after = weather_effect_after
-                    else:
-                        # Fallback: calculate from temp_after and dewpoint_after if available
-                        if 'temp_after' in locals() and temp_after is not None:
-                            temp_effect_after = max(0, (temp_after - self.base_temp) * self.temp_sensitivity)
-                            dewpoint_effect_after = 0.0
-                            if dewpoint_available and 'dewpoint_after' in locals() and dewpoint_after is not None:
-                                dewpoint_effect_after = max(0, (dewpoint_after - self.base_temp) * self.dewpoint_sensitivity)
-                            avg_weather_effect_after = temp_effect_after + dewpoint_effect_after
+                        # No per-timestamp betas — fall back to average ASHRAE prediction
+                        _dp_post = dewpoint_after if dewpoint_available else None
+                        _ashrae_avg = self._predict_baseline_at_conditions(temp_after, _dp_post)
+                        if _ashrae_avg is not None:
+                            normalized_kw_before = _ashrae_avg
+                            normalized_kw_after  = kw_after_from_series
+                            weather_adjusted_savings = normalized_kw_before - normalized_kw_after
+                            weather_adjustment_factor = normalized_kw_before / kw_before if kw_before > 0 else 1.0
+                            logger.info(f"[ASHRAE GL14-2023] Average regression normalization (fallback):")
+                            logger.info(f"  Predicted baseline: {normalized_kw_before:.2f} kW, Actual: {normalized_kw_after:.2f} kW")
                         else:
-                            avg_weather_effect_after = 0.0
-                    
-                    # Calculate factor from average weather effects (correct method - matches frontend calculation)
-                    if avg_weather_effect_before > 0 or avg_weather_effect_after > 0:
-                        weather_adjustment_factor = (1.0 + avg_weather_effect_before) / (1.0 + avg_weather_effect_after) if (1.0 + avg_weather_effect_after) > 0 else 1.0
-                        logger.info(f"[FIX] Weather adjustment factor calculated from average weather effects:")
-                        logger.info(f"   Using simple averages (matches frontend):")
-                        logger.info(f"   weather_effect_before (from temp_before/dewpoint_before): {avg_weather_effect_before:.6f}")
-                        logger.info(f"   weather_effect_after (from temp_after/dewpoint_after): {avg_weather_effect_after:.6f}")
-                        logger.info(f"   factor = (1.0 + {avg_weather_effect_before:.6f}) / (1.0 + {avg_weather_effect_after:.6f}) = {weather_adjustment_factor:.6f}")
-                        logger.info(f"   This matches the theoretical calculation used by the frontend (should be ~1.0486)")
-                        
-                        # CRITICAL FIX: Recalculate normalized_kw_after using the correct factor to ensure consistency
-                        # The timestamp-by-timestamp normalization may produce a slightly different result due to
-                        # per-timestamp weather variations. We recalculate using the correct factor to ensure
-                        # normalized_kw_after matches the factor calculation.
-                        old_normalized_kw_after = normalized_kw_after
-                        normalized_kw_after = kw_after_from_series * weather_adjustment_factor
-                        logger.info(f"[FIX] Recalculated normalized_kw_after for consistency:")
-                        logger.info(f"   Old value (from timestamp normalization): {old_normalized_kw_after:.2f}")
-                        logger.info(f"   New value (from correct factor): {normalized_kw_after:.2f} = {kw_after_from_series:.2f} × {weather_adjustment_factor:.6f}")
-                        logger.info(f"   This ensures normalized_kw_after matches the weather_adjustment_factor")
-                    else:
-                        # Fallback to ratio method if weather effects not available
-                        weather_adjustment_factor = normalized_kw_after / kw_after_from_series if kw_after_from_series > 0 else 1.0
-                        logger.warning(f"[WARNING] Weather effects not available, using ratio method: {normalized_kw_after:.2f} / {kw_after_from_series:.2f} = {weather_adjustment_factor:.6f}")
-                    
-                    # AUDIT COMPLIANCE: Use calculated weather adjustment factor without artificial capping
-                    # Weather normalization must use actual calculated values for audit compliance
-                    # Log the calculated factor for transparency
-                    raw_savings_pct = (kw_before - kw_after_from_series) / kw_before if kw_before > 0 else 0
-                    normalized_savings_pct = (kw_before - normalized_kw_after) / kw_before * 100 if kw_before > 0 else 0
-                    
-                    logger.info(f"[INFO] Weather normalization (timestamp-by-timestamp):")
-                    logger.info(f"   Raw savings: {raw_savings_pct*100:.2f}%")
-                    logger.info(f"   Weather adjustment factor: {weather_adjustment_factor:.4f}")
-                    logger.info(f"   Normalized savings: {normalized_savings_pct:.2f}%")
-                    logger.info(f"   Using calculated weather effects without capping (audit compliance)")
-                    
-                    # NOTE: Capping logic removed for audit compliance - weather normalization uses actual calculated values
-                    
+                            # No betas at all — keep per-timestamp multiplicative result + log warning
+                            weather_adjustment_factor = (normalized_kw_after / kw_after_from_series
+                                                          if kw_after_from_series > 0 else 1.0)
+                            logger.warning("[ASHRAE WARNING] No regression betas available for per-timestamp normalization "
+                                           "— result is proportional estimate only, not ASHRAE GL14-2023 compliant")
+
+                    logger.info(f"Timestamp-by-timestamp normalization: {len(normalized_after_values)} timestamps processed")
+                    logger.info(f"  kw_after from series: {kw_after_from_series:.6f}")
+                    logger.info(f"  Final normalized_kw_before: {normalized_kw_before:.6f}")
+                    logger.info(f"  Final normalized_kw_after:  {normalized_kw_after:.6f}")
+
                     logger.info(f"Timestamp-by-timestamp normalization: {len(normalized_after_values)} timestamps normalized")
                     logger.info(f"  kw_after from series: {kw_after_from_series:.6f} (from {len(after_energy_series)} data points)")
                     logger.info(f"  Average normalized_kw_after: {normalized_kw_after:.6f}")
@@ -4550,52 +4636,36 @@ class WeatherNormalizationML:
             # CRITICAL: Weather normalization should NEVER be skipped because of timestamp comparison issues
             # This ensures normalization is always applied, even if timestamp matching fails
             if not use_timestamp_normalization or timestamp_normalization_failed:
-                # Fallback to average-based normalization (original method)
-                # Normalize "after" to "before" weather conditions
-                # If "after" had hotter weather, we adjust it down (less cooling needed)
-                # If "after" had cooler weather, we adjust it up (more cooling needed)
-                
-                # REVERTED: Use multiplicative formula for average-based normalization (original method)
-                # Formula: normalized_after = after_kw * (1 + weather_effect_before) / (1 + weather_effect_after)
-                # This adjusts "after" to what it would be with "before" weather
-                # Uses calculated weather effects (not fixed values)
-                
-                # CRITICAL DEBUG: Log weather effects before calculating factor
-                logger.info(f"[DEBUG] Weather effects calculation:")
-                logger.info(f"   temp_before={temp_before:.1f}°C, temp_after={temp_after:.1f}°C")
-                logger.info(f"   base_temp={self.base_temp:.1f}°C")
-                logger.info(f"   temp_sensitivity={self.temp_sensitivity:.6f} ({self.temp_sensitivity*100:.2f}% per °C)")
-                logger.info(f"   temp_effect_before={temp_effect_before:.6f}, temp_effect_after={temp_effect_after:.6f}")
-                if dewpoint_available:
-                    logger.info(f"   dewpoint_before={dewpoint_before:.1f}°C, dewpoint_after={dewpoint_after:.1f}°C")
-                    logger.info(f"   dewpoint_sensitivity={self.dewpoint_sensitivity:.6f} ({self.dewpoint_sensitivity*100:.2f}% per °C)")
-                    logger.info(f"   dewpoint_effect_before={dewpoint_effect_before:.6f}, dewpoint_effect_after={dewpoint_effect_after:.6f}")
+                # ── ASHRAE Guideline 14-2023 Section 5.3 — average-based regression normalization ──
+                # Predict what the BASELINE equipment would have consumed at post-period conditions.
+                # normalized_savings = predicted_baseline(T_post) − actual_post_measurement
+                # This is the standard "Retrofit Isolation" approach accepted by utility M&V reviewers.
+                _dp_post = dewpoint_after if dewpoint_available else None
+                _ashrae_avg_pred = self._predict_baseline_at_conditions(temp_after, _dp_post)
+                if _ashrae_avg_pred is not None:
+                    normalized_kw_before = _ashrae_avg_pred   # Baseline model evaluated at post conditions
+                    normalized_kw_after  = kw_after            # Actual post measurement — not adjusted
+                    weather_adjusted_savings = normalized_kw_before - normalized_kw_after
+                    weather_adjustment_factor = normalized_kw_before / kw_before if kw_before > 0 else 1.0
+                    logger.info(f"ASHRAE GL14-2023 regression normalization (average-based):")
+                    logger.info(f"  Model: {self.regression_model_name}, base_temp={self.base_temp:.1f}\u00b0C")
+                    logger.info(f"  \u03b2\u2080={self.regression_beta_0:.3f}, \u03b2\u2081={self.regression_beta_1:.4f}")
+                    logger.info(f"  Predicted baseline at post conditions: {normalized_kw_before:.2f} kW")
+                    logger.info(f"  Actual post-installation measurement:  {normalized_kw_after:.2f} kW")
+                    logger.info(f"  Weather-normalized savings: {weather_adjusted_savings:.2f} kW")
+                    logger.info(f"  Normalization factor: {weather_adjustment_factor:.4f}")
                 else:
-                    logger.warning(f"   Dewpoint NOT available - dewpoint effects = 0.0")
-                    logger.warning(f"   dewpoint_before={dewpoint_before if 'dewpoint_before' in locals() else 'N/A'}, dewpoint_after={dewpoint_after if 'dewpoint_after' in locals() else 'N/A'}")
-                logger.info(f"   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
-                
-                weather_adjustment_factor = (1.0 + weather_effect_before) / (1.0 + weather_effect_after) if weather_effect_before is not None and weather_effect_after is not None else 1.0
-                normalized_kw_after = kw_after * weather_adjustment_factor
-                
-                logger.info(f"   Calculated weather_adjustment_factor={weather_adjustment_factor:.6f}")
-                logger.info(f"   kw_after={kw_after:.2f} -> normalized_kw_after={normalized_kw_after:.2f}")
-                
-                # Log when weather effects are very similar (for debugging)
-                if weather_effect_before is not None and weather_effect_after is not None:
-                    if abs(weather_effect_after - weather_effect_before) < 0.001:
-                        logger.info(f"Weather normalization (average-based, multiplicative): Weather effects are very similar (before={weather_effect_before:.6f}, after={weather_effect_after:.6f}), but still applying normalization formula")
-                else:
-                    # Log the adjustment factor for audit trail (no arbitrary limits - use calculated value)
-                    logger.warning(f"Weather normalization (average-based): Weather effects not available, using raw value")
-                
-                # CRITICAL VALIDATION: Ensure normalized_kw_after is different from raw_kw_after
-                # If they're the same, it means normalization wasn't applied correctly
-                if abs(normalized_kw_after - kw_after) < 0.01:
-                    logger.warning(f"[WARNING] WARNING: normalized_kw_after ({normalized_kw_after:.2f}) is essentially equal to raw_kw_after ({kw_after:.2f})")
-                    logger.warning(f"[WARNING] This may indicate weather effects are identical or normalization threshold issue")
-                    logger.warning(f"[WARNING] weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}, factor={weather_adjustment_factor:.6f}")
-                    # Still use the calculated value (even if it's the same) - don't force a different value
+                    # Betas not available — proportional fallback (not ASHRAE GL14 standard)
+                    logger.warning("ASHRAE regression betas not available — using proportional fallback "
+                                   "(not GL14-2023 standard)")
+                    weather_adjustment_factor = (
+                        (1.0 + weather_effect_before) / (1.0 + weather_effect_after)
+                        if (weather_effect_before is not None and weather_effect_after is not None)
+                        else 1.0
+                    )
+                    normalized_kw_after = kw_after * weather_adjustment_factor
+                    logger.info(f"  Proportional fallback factor={weather_adjustment_factor:.6f}, "
+                                f"kw_after={kw_after:.2f} -> normalized_kw_after={normalized_kw_after:.2f}")
             
             # Safety check: don't allow extreme values
             if normalized_kw_before <= 0 or normalized_kw_after <= 0:
@@ -4758,17 +4828,9 @@ class WeatherNormalizationML:
                 logger.warning(f"[WARNING]   weather_effect_before={weather_effect_before:.6f}, weather_effect_after={weather_effect_after:.6f}")
                 logger.warning(f"[WARNING]   weather_adjustment_factor={weather_adjustment_factor:.6f}")
                 logger.warning(f"[WARNING]   timestamp_normalization_used={use_timestamp_normalization}")
-                
-                # FALLBACK FIX: Apply minimum normalization (0.5%) to ensure normalization is always applied
-                # This reflects that even identical weather conditions should show some normalization
-                # due to equipment efficiency improvements (PF, harmonics, heat reduction)
-                min_normalization_factor = 0.995  # 0.5% normalization (shows efficiency improvement)
-                normalized_kw_after = kw_after * min_normalization_factor
-                weather_adjustment_factor = min_normalization_factor
-                
-                logger.info(f"[INFO] FALLBACK: Applied minimum normalization factor={min_normalization_factor:.4f}")
-                logger.info(f"   Normalized_kw_after adjusted from {kw_after:.2f} to {normalized_kw_after:.2f}")
-                logger.info(f"   This ensures normalization is always applied, reflecting equipment efficiency improvements")
+                logger.warning(f"[INFO] Weather effects are negligible — normalization factor will be 1.0 (no adjustment applied)")
+                normalized_kw_after = kw_after
+                weather_adjustment_factor = 1.0
             
             result = {
                 "method": normalization_method,
@@ -4814,15 +4876,68 @@ class WeatherNormalizationML:
                 result["regression_r2"] = self.regression_r2
                 result["regression_temp_sensitivity"] = self.regression_temp_sensitivity
                 result["regression_dewpoint_sensitivity"] = self.regression_dewpoint_sensitivity
-            
+                # Emit real CV-RMSE and NMBE from regression residuals
+                # These are computed per ASHRAE Guideline 14-2023 from actual model residuals,
+                # not approximated from data variability statistics.
+                result["regression_cvrmse"] = self.regression_cvrmse
+                result["regression_nmbe"] = self.regression_nmbe
+                result["regression_n_points"] = self.regression_n_points
+                result["regression_model_name"] = self.regression_model_name
+                # ASHRAE GL14-2023 regression coefficients — required for independent
+                # reproduction of the normalized savings calculation (IPMVP §7.2).
+                result["regression_beta_0"] = self.regression_beta_0
+                result["regression_beta_1"] = self.regression_beta_1
+                result["regression_beta_2"] = self.regression_beta_2
+                result["regression_base_temp"] = self.base_temp
+                # p-value and scatter data for ASHRAE 14-2023 transparency reporting
+                result["regression_p_value"] = self.regression_p_value
+                result["scatter_temp_baseline"] = self.scatter_temp_baseline
+                result["scatter_energy_baseline"] = self.scatter_energy_baseline
+                result["regression_line_temp"] = self.regression_line_temp
+                result["regression_line_energy"] = self.regression_line_energy
+                # After-period scatter for comparison overlay (subsampled)
+                if after_temp_series is not None and after_energy_series is not None:
+                    _n_after = len(after_temp_series)
+                    if _n_after > 0:
+                        import numpy as _np_scatter
+                        _after_t = [t for t in after_temp_series if t is not None]
+                        _after_e = [e for e in after_energy_series if e is not None]
+                        _n_a = min(len(_after_t), len(_after_e))
+                        if _n_a > 0:
+                            _ai = _np_scatter.linspace(0, _n_a - 1, min(100, _n_a), dtype=int).tolist()
+                            result["scatter_temp_after"] = [_after_t[i] for i in _ai]
+                            result["scatter_energy_after"] = [_after_e[i] for i in _ai]
+
             if self.regression_valid:
+                # R² ≥ 0.75 demonstrated — normalization is statistically justified
                 result["ashrae_compliant"] = True
-                # FIX: Check if optimized_base_temp is not None before formatting to prevent "unsupported format string passed to NoneType.__format__" error
+                result["normalization_applied"] = True
                 base_temp_info = f" (Base temp optimized to {self.optimized_base_temp:.1f}°C)" if (self.base_temp_optimized and self.optimized_base_temp is not None) else ""
-                result["standards_validation"] = f"PASSED - ASHRAE-compliant regression-based normalization (R²={self.regression_r2:.3f}){base_temp_info}" + (" with temperature and dewpoint" if dewpoint_available else " (temperature only)")
+                result["standards_validation"] = (
+                    f"PASSED — Weather-energy correlation demonstrated (R²={self.regression_r2:.3f} ≥ 0.75). "
+                    f"Normalization applied per ASHRAE Guideline 14-2023 Section 5.3.{base_temp_info}"
+                    + (" (Temp + Dewpoint)" if dewpoint_available else " (Temperature only)")
+                )
             else:
-                result["ashrae_compliant"] = True  # Changed to True - methodology is compliant
-                result["standards_validation"] = f"PASSED - ASHRAE-compliant weather normalization using validated equipment-specific sensitivity factors" + (" with temperature and dewpoint normalization" if dewpoint_available else " (temperature normalization)") + ". Methodology exceeds ASHRAE requirements through equipment-specific calibration and dual-factor normalization."
+                # R² < 0.75 — correlation not demonstrated; normalization not applied per ASHRAE 14-2023
+                r2_str = f"R²={self.regression_r2:.3f}" if self.regression_r2 is not None else "R² not available"
+                result["ashrae_compliant"] = False
+                result["normalization_applied"] = False
+                # Return raw (unadjusted) values as the savings basis
+                result["normalized_kw_before"] = kw_before
+                result["normalized_kw_after"] = kw_after
+                result["weather_adjusted_savings"] = kw_before - kw_after
+                result["weather_adjustment_factor"] = 1.0
+                result["standards_validation"] = (
+                    f"NOT APPLIED — Insufficient weather-energy correlation ({r2_str} < 0.75 required). "
+                    f"Per ASHRAE Guideline 14-2023 Section 5.3, weather normalization shall only be applied "
+                    f"when a statistically significant relationship is demonstrated from baseline data. "
+                    f"Savings reported on unadjusted measured values."
+                )
+                logger.info(
+                    f"Weather normalization NOT applied: {r2_str} below ASHRAE 14-2023 threshold (0.75). "
+                    f"Savings based on raw measured values."
+                )
             
             # WEATHER NORMALIZATION DIAGNOSTIC: Log what's being returned from normalize_consumption
             logger.info(f"≡ƒöì WEATHER NORMALIZATION CHECK (normalize_consumption return):")
@@ -6494,7 +6609,8 @@ def analyze():
                                "summer_fraction_pct", "ratchet_percent", "line_R_ref_ohm",
                                "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w",
                                "confidence_level", "relative_precision", "data_quality_threshold",
-                               "discount_rate", "analysis_period", "escalation_rate"]:
+                               "discount_rate", "analysis_period", "escalation_rate",
+                               "thermal_settling_exclusion_hours"]:
                         try:
                             if isinstance(value, str) and value.strip():
                                 cfg_raw[key] = float(value)
@@ -6517,6 +6633,7 @@ def analyze():
                     "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w",
                     "confidence_level", "relative_precision", "data_quality_threshold",
                     "discount_rate", "analysis_period", "escalation_rate",
+                    "thermal_settling_exclusion_hours",
                 ]
                 if key in numeric_fields:
                     try:
@@ -8522,83 +8639,125 @@ def analyze():
                         if motor_power_kw is None or motor_power_kw <= 0:
                             motor_power_kw = avg_power_kw
                         
-                        # Calculate efficiency
-                        # If we have voltage, current, and power factor, calculate apparent power and efficiency
+                        # NOTE: IEC 60034-30-1:2014 requires shaft output power measurement
+                        # (per IEC 60034-2-1:2014) to certify motor efficiency class.
+                        # Utility meter CSV data provides only electrical input (kW, V, I, PF).
+                        # The efficiency value below is an ESTIMATE only — not a certified measurement.
+                        # Full compliance determination requires mechanical shaft power measurement.
+
                         efficiency_percent = None
+                        efficiency_is_estimated = True
+
+                        # Attempt input-side efficiency estimation from available meter data.
+                        # If voltage, current, and power factor are all present, use:
+                        #   Input power (kW) = √3 × V_LL × I × PF / 1000  (3-phase)
+                        # Estimated output ≈ input × assumed_losses factor.
+                        # This is an approximation only.
                         if voltage_col and current_col and pf_col:
                             voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
                             current_data = pd.to_numeric(df[current_col], errors='coerce').dropna()
                             pf_data = pd.to_numeric(df[pf_col], errors='coerce').dropna()
-                            
+
                             if len(voltage_data) > 0 and len(current_data) > 0 and len(pf_data) > 0:
-                                # Calculate apparent power (VA) and real power (W)
-                                # For 3-phase: P = √3 × V × I × PF
-                                # For single-phase: P = V × I × PF
-                                # Efficiency = (Output Power / Input Power) × 100%
-                                # For motors, efficiency is typically 85-95% for standard motors
                                 avg_voltage = float(voltage_data.mean())
                                 avg_current = float(current_data.mean())
                                 avg_pf = float(pf_data.mean())
-                                
-                                # Estimate efficiency from power factor (typical relationship)
-                                # Higher PF generally indicates better efficiency
-                                # This is an approximation - actual efficiency requires motor specs
-                                if avg_pf >= 0.95:
-                                    efficiency_percent = 92.0  # High efficiency estimate
-                                elif avg_pf >= 0.90:
-                                    efficiency_percent = 88.0  # Standard efficiency estimate
-                                elif avg_pf >= 0.85:
-                                    efficiency_percent = 85.0  # Lower efficiency estimate
+
+                                # Input power from meter data (3-phase line-to-neutral voltage assumed)
+                                input_power_kw = (avg_voltage * avg_current * avg_pf * 3) / 1000.0
+                                if input_power_kw <= 0:
+                                    input_power_kw = avg_power_kw
+
+                                # Typical motor losses as fraction of input power vary by size.
+                                # Using IEC 60034-30-1:2014 midpoint IE2/IE3 efficiency as loss estimate.
+                                if input_power_kw >= 75:
+                                    assumed_efficiency = 0.945
+                                elif input_power_kw >= 37:
+                                    assumed_efficiency = 0.935
+                                elif input_power_kw >= 7.5:
+                                    assumed_efficiency = 0.915
+                                elif input_power_kw >= 0.75:
+                                    assumed_efficiency = 0.885
                                 else:
-                                    efficiency_percent = 80.0  # Poor efficiency estimate
-                        
-                        # If efficiency not calculated, use default based on power level
+                                    assumed_efficiency = 0.840
+
+                                efficiency_percent = assumed_efficiency * 100.0
+
+                        # Fallback: size-based estimate when meter columns are unavailable
                         if efficiency_percent is None:
-                            # Default efficiency estimates based on motor size
                             if motor_power_kw >= 75:
-                                efficiency_percent = 94.5  # Large motors typically more efficient
+                                efficiency_percent = 94.5
+                            elif motor_power_kw >= 37:
+                                efficiency_percent = 93.5
                             elif motor_power_kw >= 7.5:
-                                efficiency_percent = 91.0  # Medium motors
+                                efficiency_percent = 91.5
+                            elif motor_power_kw >= 0.75:
+                                efficiency_percent = 88.5
                             else:
-                                efficiency_percent = 87.0  # Small motors
-                        
-                        # IEC 60034-30-1 efficiency class thresholds (for 4-pole motors, 50Hz)
-                        # These are approximate minimums - actual thresholds vary by power and poles
+                                efficiency_percent = 84.0
+
+                        # IEC 60034-30-1:2014 Table 1 — minimum efficiency thresholds (4-pole, 50Hz).
+                        # Thresholds are representative values interpolated from the standard's
+                        # discrete power rating table. Full certification requires the exact rated
+                        # power point from Table 1 and shaft power measurement per IEC 60034-2-1:2014.
                         def get_efficiency_class(power_kw, efficiency, poles=4):
-                            """Determine IEC efficiency class based on power and efficiency"""
-                            # Simplified thresholds (actual standard has detailed tables)
-                            if power_kw >= 0.12 and power_kw < 0.75:
-                                # Small motors (0.12-0.75 kW)
-                                if efficiency >= 80.7:
-                                    return "IE4" if efficiency >= 85.5 else ("IE3" if efficiency >= 82.5 else ("IE2" if efficiency >= 80.7 else "IE1"))
-                                return "Below IE1"
-                            elif power_kw >= 0.75 and power_kw < 7.5:
-                                # Medium motors (0.75-7.5 kW)
-                                if efficiency >= 85.5:
-                                    return "IE4" if efficiency >= 89.5 else ("IE3" if efficiency >= 87.5 else ("IE2" if efficiency >= 85.5 else "IE1"))
-                                return "Below IE1"
-                            elif power_kw >= 7.5 and power_kw < 37:
-                                # Large motors (7.5-37 kW)
-                                if efficiency >= 90.2:
-                                    return "IE4" if efficiency >= 93.6 else ("IE3" if efficiency >= 91.0 else ("IE2" if efficiency >= 90.2 else "IE1"))
-                                return "Below IE1"
+                            """Estimate IEC efficiency class per IEC 60034-30-1:2014 Table 1 (4-pole, 50Hz)."""
+                            if power_kw < 0.75:
+                                # 0.12–0.74 kW range (Table 1, interpolated)
+                                ie1_min = 50.0 + (power_kw - 0.12) / (0.75 - 0.12) * (72.1 - 50.0)
+                                ie2_min = 59.1 + (power_kw - 0.12) / (0.75 - 0.12) * (79.6 - 59.1)
+                                ie3_min = 64.8 + (power_kw - 0.12) / (0.75 - 0.12) * (82.5 - 64.8)
+                                ie4_min = 69.8 + (power_kw - 0.12) / (0.75 - 0.12) * (85.7 - 69.8)
+                            elif power_kw < 7.5:
+                                # 0.75–7.49 kW range (Table 1, interpolated)
+                                ie1_min = 72.1 + (power_kw - 0.75) / (7.5 - 0.75) * (85.7 - 72.1)
+                                ie2_min = 79.6 + (power_kw - 0.75) / (7.5 - 0.75) * (87.5 - 79.6)
+                                ie3_min = 82.5 + (power_kw - 0.75) / (7.5 - 0.75) * (89.5 - 82.5)
+                                ie4_min = 85.7 + (power_kw - 0.75) / (7.5 - 0.75) * (91.7 - 85.7)
+                            elif power_kw < 37:
+                                # 7.5–36.9 kW range (Table 1, interpolated)
+                                ie1_min = 85.7 + (power_kw - 7.5) / (37 - 7.5) * (89.5 - 85.7)
+                                ie2_min = 87.5 + (power_kw - 7.5) / (37 - 7.5) * (91.0 - 87.5)
+                                ie3_min = 89.5 + (power_kw - 7.5) / (37 - 7.5) * (92.5 - 89.5)
+                                ie4_min = 91.7 + (power_kw - 7.5) / (37 - 7.5) * (94.0 - 91.7)
+                            elif power_kw < 375:
+                                # 37–374 kW range (Table 1, interpolated)
+                                ie1_min = 89.5 + (power_kw - 37) / (375 - 37) * (93.0 - 89.5)
+                                ie2_min = 91.0 + (power_kw - 37) / (375 - 37) * (94.0 - 91.0)
+                                ie3_min = 92.5 + (power_kw - 37) / (375 - 37) * (95.0 - 92.5)
+                                ie4_min = 94.0 + (power_kw - 37) / (375 - 37) * (96.0 - 94.0)
                             else:
-                                # Very large motors (ΓëÑ37 kW)
-                                if efficiency >= 93.0:
-                                    return "IE4" if efficiency >= 95.4 else ("IE3" if efficiency >= 93.6 else ("IE2" if efficiency >= 93.0 else "IE1"))
+                                # 375–1000 kW range (Table 1, interpolated)
+                                ie1_min = 93.0
+                                ie2_min = 94.0
+                                ie3_min = 95.0
+                                ie4_min = 96.0
+
+                            if efficiency >= ie4_min:
+                                return "IE4"
+                            elif efficiency >= ie3_min:
+                                return "IE3"
+                            elif efficiency >= ie2_min:
+                                return "IE2"
+                            elif efficiency >= ie1_min:
+                                return "IE1"
+                            else:
                                 return "Below IE1"
-                        
+
                         efficiency_class = get_efficiency_class(motor_power_kw, efficiency_percent, motor_poles)
-                        
-                        # Compliance: IE2 is minimum for most applications, IE3 is premium
-                        # Consider IE2 or higher as compliant for general use
-                        is_compliant = efficiency_class in ["IE2", "IE3", "IE4"]
-                        
+
+                        # Per EU Regulation 2019/1781 (in force July 2023):
+                        # IE3 is the minimum required class for motors 0.75–1000 kW.
+                        # IE2 is acceptable only with variable speed drive (VSD) control.
+                        # Using IE3 as the compliance threshold here.
+                        is_compliant = efficiency_class in ["IE3", "IE4"]
+
                         result = {
-                            'standard': 'IEC 60034-30-1',
+                            'standard': 'IEC 60034-30-1:2014',
                             'period': period,
                             'efficiency_percent': round(efficiency_percent, 2),
                             'efficiency_class': efficiency_class,
+                            'efficiency_is_estimated': efficiency_is_estimated,
                             'motor_power_kw': round(motor_power_kw, 2),
                             'motor_poles': motor_poles,
                             'is_compliant': is_compliant,
@@ -8652,50 +8811,52 @@ def analyze():
                     before_iec_60034_30_1_result = calculate_iec_60034_30_1_from_csv(before_file_path, 'before', motor_power_kw, motor_poles)
                     if before_iec_60034_30_1_result:
                         # Update compliance status
-                        if 'IEC 60034-30-1' not in results['compliance_status']:
-                            results['compliance_status']['IEC 60034-30-1'] = {
-                                'standard': 'IEC 60034-30-1',
-                                'description': 'Electric motor efficiency classifications (IE1, IE2, IE3, IE4)',
+                        if 'IEC 60034-30-1:2014' not in results['compliance_status']:
+                            results['compliance_status']['IEC 60034-30-1:2014'] = {
+                                'standard': 'IEC 60034-30-1:2014',
+                                'description': 'Estimated motor efficiency class (IE1–IE4) per IEC 60034-30-1:2014 Table 1. NOTE: Estimated from input power data only — certified classification requires shaft power measurement per IEC 60034-2-1:2014.',
                                 'before': {},
                                 'after': {},
                                 'improved': False
                             }
                         
-                        results['compliance_status']['IEC 60034-30-1']['before'] = {
+                        results['compliance_status']['IEC 60034-30-1:2014']['before'] = {
                             'efficiency_percent': before_iec_60034_30_1_result['efficiency_percent'],
                             'efficiency_class': before_iec_60034_30_1_result['efficiency_class'],
+                            'efficiency_is_estimated': before_iec_60034_30_1_result.get('efficiency_is_estimated', True),
                             'is_compliant': before_iec_60034_30_1_result['is_compliant'],
                             'motor_power_kw': before_iec_60034_30_1_result['motor_power_kw']
                         }
                         
                         # Update before_compliance
-                        if 'IEC 60034-30-1' not in results['before_compliance']:
-                            results['before_compliance']['IEC 60034-30-1'] = before_iec_60034_30_1_result['is_compliant']
+                        if 'IEC 60034-30-1:2014' not in results['before_compliance']:
+                            results['before_compliance']['IEC 60034-30-1:2014'] = before_iec_60034_30_1_result['is_compliant']
                 
                 # Calculate IEC 60034-30-1 for after period
                 if after_file_path:
                     after_iec_60034_30_1_result = calculate_iec_60034_30_1_from_csv(after_file_path, 'after', motor_power_kw, motor_poles)
                     if after_iec_60034_30_1_result:
                         # Update compliance status
-                        if 'IEC 60034-30-1' not in results['compliance_status']:
-                            results['compliance_status']['IEC 60034-30-1'] = {
-                                'standard': 'IEC 60034-30-1',
-                                'description': 'Electric motor efficiency classifications (IE1, IE2, IE3, IE4)',
+                        if 'IEC 60034-30-1:2014' not in results['compliance_status']:
+                            results['compliance_status']['IEC 60034-30-1:2014'] = {
+                                'standard': 'IEC 60034-30-1:2014',
+                                'description': 'Estimated motor efficiency class (IE1–IE4) per IEC 60034-30-1:2014 Table 1. NOTE: Estimated from input power data only — certified classification requires shaft power measurement per IEC 60034-2-1:2014.',
                                 'before': {},
                                 'after': {},
                                 'improved': False
                             }
                         
-                        results['compliance_status']['IEC 60034-30-1']['after'] = {
+                        results['compliance_status']['IEC 60034-30-1:2014']['after'] = {
                             'efficiency_percent': after_iec_60034_30_1_result['efficiency_percent'],
                             'efficiency_class': after_iec_60034_30_1_result['efficiency_class'],
+                            'efficiency_is_estimated': after_iec_60034_30_1_result.get('efficiency_is_estimated', True),
                             'is_compliant': after_iec_60034_30_1_result['is_compliant'],
                             'motor_power_kw': after_iec_60034_30_1_result['motor_power_kw']
                         }
                         
                         # Update after_compliance
-                        if 'IEC 60034-30-1' not in results['after_compliance']:
-                            results['after_compliance']['IEC 60034-30-1'] = after_iec_60034_30_1_result['is_compliant']
+                        if 'IEC 60034-30-1:2014' not in results['after_compliance']:
+                            results['after_compliance']['IEC 60034-30-1:2014'] = after_iec_60034_30_1_result['is_compliant']
                         
                         # Check if improved (higher efficiency class or higher efficiency percentage)
                         if before_iec_60034_30_1_result:
@@ -8708,29 +8869,31 @@ def analyze():
                             after_class_num = class_hierarchy.get(after_iec_60034_30_1_result['efficiency_class'], 0)
                             
                             improved = (after_class_num > before_class_num) or (after_eff > before_eff)
-                            results['compliance_status']['IEC 60034-30-1']['improved'] = improved
+                            results['compliance_status']['IEC 60034-30-1:2014']['improved'] = improved
                             
                             if improved:
-                                logger.info(f"IEC 60034-30-1: Improved from {before_iec_60034_30_1_result['efficiency_class']} ({before_eff:.2f}%) to {after_iec_60034_30_1_result['efficiency_class']} ({after_eff:.2f}%)")
+                                logger.info(f"IEC 60034-30-1:2014: Improved from {before_iec_60034_30_1_result['efficiency_class']} ({before_eff:.2f}%) to {after_iec_60034_30_1_result['efficiency_class']} ({after_eff:.2f}%)")
                         
                         # Log compliance verification
                         try:
                             log_compliance_verification(
                                 user_id=current_user.id if current_user.is_authenticated else None,
-                                standard='IEC 60034-30-1',
+                                standard='IEC 60034-30-1:2014',
                                 period='after',
                                 is_compliant=after_iec_60034_30_1_result['is_compliant'],
                                 details={
                                     'efficiency_percent': after_iec_60034_30_1_result['efficiency_percent'],
                                     'efficiency_class': after_iec_60034_30_1_result['efficiency_class'],
-                                    'motor_power_kw': after_iec_60034_30_1_result['motor_power_kw']
+                                    'efficiency_is_estimated': after_iec_60034_30_1_result.get('efficiency_is_estimated', True),
+                                    'motor_power_kw': after_iec_60034_30_1_result['motor_power_kw'],
+                                    'note': 'Estimated from input power data. Certified classification requires shaft power measurement per IEC 60034-2-1:2014.'
                                 }
                             )
                         except Exception as e:
-                            logger.warning(f"Could not log IEC 60034-30-1 compliance: {e}")
+                            logger.warning(f"Could not log IEC 60034-30-1:2014 compliance: {e}")
                                 
         except Exception as e:
-            logger.warning(f"Could not calculate IEC 60034-30-1 from CSV: {e}")
+            logger.warning(f"Could not calculate IEC 60034-30-1:2014 from CSV: {e}")
             import traceback
             logger.warning(traceback.format_exc())
         
@@ -8979,273 +9142,6 @@ def analyze():
                                 
         except Exception as e:
             logger.warning(f"Could not calculate AHRI 550/590 from CSV: {e}")
-            import traceback
-            logger.warning(traceback.format_exc())
-        
-        # Calculate ANSI C57.12.00: Power transformer efficiency and design compliance from CSV data
-        try:
-            if before_file_id and after_file_id:
-                def calculate_ansi_c57_12_00_from_csv(file_path, period='unknown', transformer_rating_kva=None):
-                    """Calculate ANSI C57.12.00 transformer efficiency compliance from CSV file"""
-                    if not file_path or not os.path.exists(file_path):
-                        logger.warning(f"CSV file not found for {period} ANSI C57.12.00 calculation: {file_path}")
-                        return None
-                    
-                    try:
-                        import pandas as pd
-                        df = pd.read_csv(file_path, encoding='utf-8', encoding_errors='ignore', low_memory=False)
-                        
-                        # Find power, voltage, current, and power factor columns
-                        power_col = None
-                        voltage_col = None
-                        current_col = None
-                        pf_col = None
-                        
-                        for col in df.columns:
-                            col_lower = col.lower().strip()
-                            if power_col is None and col_lower in ['kw', 'power', 'energy', 'demand', 'watts', 'w']:
-                                power_col = col
-                            if voltage_col is None and col_lower in ['l1volt', 'l1_volt', 'phase1volt', 'v1', 'va', 'voltage_l1', 'voltage_phase1', 'voltage', 'secondary_voltage']:
-                                voltage_col = col
-                            if current_col is None and col_lower in ['l1amp', 'l1_amp', 'phase1amp', 'i1', 'ia', 'current_l1', 'current_phase1', 'current', 'amps', 'secondary_current']:
-                                current_col = col
-                            if pf_col is None and col_lower in ['pf', 'powerfactor', 'power_factor', 'cos_phi']:
-                                pf_col = col
-                        
-                        if power_col is None:
-                            logger.warning(f"Could not find power column in CSV for {period} ANSI C57.12.00")
-                            return None
-                        
-                        # Get power data
-                        power_data = pd.to_numeric(df[power_col], errors='coerce').dropna()
-                        if len(power_data) == 0:
-                            logger.warning(f"No valid power data found in CSV for {period}")
-                            return None
-                        
-                        avg_power_kw = float(power_data.mean())
-                        max_power_kw = float(power_data.max())
-                        
-                        # Calculate apparent power (kVA) if voltage and current available
-                        apparent_power_kva = None
-                        if voltage_col and current_col:
-                            voltage_data = pd.to_numeric(df[voltage_col], errors='coerce').dropna()
-                            current_data = pd.to_numeric(df[current_col], errors='coerce').dropna()
-                            
-                            if len(voltage_data) > 0 and len(current_data) > 0:
-                                avg_voltage = float(voltage_data.mean())
-                                avg_current = float(current_data.mean())
-                                
-                                # For 3-phase: kVA = √3 × V × I / 1000
-                                # For single-phase: kVA = V × I / 1000
-                                # Assume 3-phase if voltage > 200V, otherwise single-phase
-                                if avg_voltage > 200:
-                                    apparent_power_kva = (1.732 * avg_voltage * avg_current) / 1000.0
-                                else:
-                                    apparent_power_kva = (avg_voltage * avg_current) / 1000.0
-                        
-                        # Use provided transformer rating or estimate from data
-                        if transformer_rating_kva is None or transformer_rating_kva <= 0:
-                            if apparent_power_kva:
-                                transformer_rating_kva = apparent_power_kva * 1.2  # Add 20% margin
-                            else:
-                                # Estimate from power (assume 0.85 power factor)
-                                transformer_rating_kva = (avg_power_kw / 0.85) * 1.2
-                        
-                        # Calculate transformer efficiency
-                        # Efficiency = (Output Power / Input Power) × 100%
-                        # For transformers, losses include:
-                        # - No-load losses (core losses)
-                        # - Load losses (copper losses)
-                        
-                        # Estimate efficiency based on load factor
-                        load_factor = avg_power_kw / (transformer_rating_kva * 0.85) if transformer_rating_kva > 0 else 0.5
-                        load_factor = min(load_factor, 1.0)  # Cap at 100%
-                        
-                        # Typical transformer efficiency:
-                        # - No-load: ~99.5% efficiency
-                        # - 50% load: ~98.5-99.0% efficiency
-                        # - 100% load: ~97.5-98.5% efficiency
-                        # Efficiency decreases with load due to losses
-                        
-                        if load_factor <= 0.25:
-                            efficiency_percent = 99.3  # Very light load
-                        elif load_factor <= 0.50:
-                            efficiency_percent = 98.8  # Light load
-                        elif load_factor <= 0.75:
-                            efficiency_percent = 98.2  # Medium load
-                        else:
-                            efficiency_percent = 97.8  # Heavy load
-                        
-                        # ANSI C57.12.00 efficiency requirements
-                        # Minimum efficiency varies by transformer size and type
-                        # Typical minimums:
-                        # - Small transformers (< 500 kVA): ΓëÑ 97.0%
-                        # - Medium transformers (500-2500 kVA): ΓëÑ 98.0%
-                        # - Large transformers (> 2500 kVA): ΓëÑ 98.5%
-                        
-                        if transformer_rating_kva < 500:
-                            min_efficiency = 97.0
-                        elif transformer_rating_kva < 2500:
-                            min_efficiency = 98.0
-                        else:
-                            min_efficiency = 98.5
-                        
-                        is_compliant = efficiency_percent >= min_efficiency
-                        
-                        # Performance rating
-                        if efficiency_percent >= 99.0:
-                            performance_rating = "Excellent"
-                        elif efficiency_percent >= 98.5:
-                            performance_rating = "Very Good"
-                        elif efficiency_percent >= 98.0:
-                            performance_rating = "Good"
-                        elif efficiency_percent >= 97.5:
-                            performance_rating = "Fair"
-                        else:
-                            performance_rating = "Below Standard"
-                        
-                        # Calculate losses
-                        input_power_kw = avg_power_kw / (efficiency_percent / 100.0) if efficiency_percent > 0 else avg_power_kw
-                        losses_kw = input_power_kw - avg_power_kw
-                        loss_percent = (losses_kw / input_power_kw * 100.0) if input_power_kw > 0 else 0.0
-                        
-                        result = {
-                            'standard': 'ANSI C57.12.00',
-                            'period': period,
-                            'efficiency_percent': round(efficiency_percent, 2),
-                            'transformer_rating_kva': round(transformer_rating_kva, 2),
-                            'load_factor': round(load_factor, 3),
-                            'avg_power_kw': round(avg_power_kw, 2),
-                            'max_power_kw': round(max_power_kw, 2),
-                            'losses_kw': round(losses_kw, 2),
-                            'loss_percent': round(loss_percent, 3),
-                            'is_compliant': is_compliant,
-                            'performance_rating': performance_rating,
-                            'min_efficiency_threshold': min_efficiency,
-                            'data_points': len(power_data)
-                        }
-                        
-                        logger.info(f"ANSI C57.12.00 {period}: Efficiency={efficiency_percent:.2f}%, Load={load_factor:.1%}, Rating={performance_rating}, Compliant={is_compliant}")
-                        return result
-                        
-                    except Exception as e:
-                        logger.warning(f"Error calculating ANSI C57.12.00 from CSV for {period}: {e}")
-                        import traceback
-                        logger.warning(traceback.format_exc())
-                        return None
-                
-                # Get nominal values and file paths
-                nominal_voltage = form_data.get('nominal_voltage', 120.0)
-                try:
-                    nominal_voltage = float(nominal_voltage)
-                except (ValueError, TypeError):
-                    nominal_voltage = 120.0
-                
-                # Get transformer specifications if available (optional)
-                transformer_rating_kva = form_data.get('transformer_rating_kva', None)
-                try:
-                    if transformer_rating_kva:
-                        transformer_rating_kva = float(transformer_rating_kva)
-                except (ValueError, TypeError):
-                    transformer_rating_kva = None
-                
-                before_file_path = None
-                after_file_path = None
-                
-                if before_file_id:
-                    before_file = File.query.get(before_file_id)
-                    if before_file:
-                        before_file_path = before_file.file_path
-                
-                if after_file_id:
-                    after_file = File.query.get(after_file_id)
-                    if after_file:
-                        after_file_path = after_file.file_path
-                
-                # Calculate ANSI C57.12.00 for before period
-                if before_file_path:
-                    before_ansi_c57_result = calculate_ansi_c57_12_00_from_csv(before_file_path, 'before', transformer_rating_kva)
-                    if before_ansi_c57_result:
-                        # Update compliance status
-                        if 'ANSI C57.12.00' not in results['compliance_status']:
-                            results['compliance_status']['ANSI C57.12.00'] = {
-                                'standard': 'ANSI C57.12.00',
-                                'description': 'Power transformer efficiency and design standard',
-                                'before': {},
-                                'after': {},
-                                'improved': False
-                            }
-                        
-                        results['compliance_status']['ANSI C57.12.00']['before'] = {
-                            'efficiency_percent': before_ansi_c57_result['efficiency_percent'],
-                            'performance_rating': before_ansi_c57_result['performance_rating'],
-                            'load_factor': before_ansi_c57_result['load_factor'],
-                            'is_compliant': before_ansi_c57_result['is_compliant'],
-                            'transformer_rating_kva': before_ansi_c57_result['transformer_rating_kva']
-                        }
-                        
-                        # Update before_compliance
-                        if 'ANSI C57.12.00' not in results['before_compliance']:
-                            results['before_compliance']['ANSI C57.12.00'] = before_ansi_c57_result['is_compliant']
-                
-                # Calculate ANSI C57.12.00 for after period
-                if after_file_path:
-                    after_ansi_c57_result = calculate_ansi_c57_12_00_from_csv(after_file_path, 'after', transformer_rating_kva)
-                    if after_ansi_c57_result:
-                        # Update compliance status
-                        if 'ANSI C57.12.00' not in results['compliance_status']:
-                            results['compliance_status']['ANSI C57.12.00'] = {
-                                'standard': 'ANSI C57.12.00',
-                                'description': 'Power transformer efficiency and design standard',
-                                'before': {},
-                                'after': {},
-                                'improved': False
-                            }
-                        
-                        results['compliance_status']['ANSI C57.12.00']['after'] = {
-                            'efficiency_percent': after_ansi_c57_result['efficiency_percent'],
-                            'performance_rating': after_ansi_c57_result['performance_rating'],
-                            'load_factor': after_ansi_c57_result['load_factor'],
-                            'is_compliant': after_ansi_c57_result['is_compliant'],
-                            'transformer_rating_kva': after_ansi_c57_result['transformer_rating_kva']
-                        }
-                        
-                        # Update after_compliance
-                        if 'ANSI C57.12.00' not in results['after_compliance']:
-                            results['after_compliance']['ANSI C57.12.00'] = after_ansi_c57_result['is_compliant']
-                        
-                        # Check if improved (higher efficiency or lower losses)
-                        if before_ansi_c57_result:
-                            before_eff = before_ansi_c57_result['efficiency_percent']
-                            after_eff = after_ansi_c57_result['efficiency_percent']
-                            before_losses = before_ansi_c57_result['losses_kw']
-                            after_losses = after_ansi_c57_result['losses_kw']
-                            
-                            improved = (after_eff > before_eff) or (after_losses < before_losses)
-                            results['compliance_status']['ANSI C57.12.00']['improved'] = improved
-                            
-                            if improved:
-                                logger.info(f"ANSI C57.12.00: Improved from {before_eff:.2f}% efficiency ({before_losses:.2f} kW losses) to {after_eff:.2f}% efficiency ({after_losses:.2f} kW losses)")
-                        
-                        # Log compliance verification
-                        try:
-                            log_compliance_verification(
-                                user_id=current_user.id if current_user.is_authenticated else None,
-                                standard='ANSI C57.12.00',
-                                period='after',
-                                is_compliant=after_ansi_c57_result['is_compliant'],
-                                details={
-                                    'efficiency_percent': after_ansi_c57_result['efficiency_percent'],
-                                    'performance_rating': after_ansi_c57_result['performance_rating'],
-                                    'load_factor': after_ansi_c57_result['load_factor'],
-                                    'transformer_rating_kva': after_ansi_c57_result['transformer_rating_kva']
-                                }
-                            )
-                        except Exception as e:
-                            logger.warning(f"Could not log ANSI C57.12.00 compliance: {e}")
-                                
-        except Exception as e:
-            logger.warning(f"Could not calculate ANSI C57.12.00 from CSV: {e}")
             import traceback
             logger.warning(traceback.format_exc())
         
@@ -10570,7 +10466,13 @@ def serve_template_report():
                 session.mount("https://", adapter)
                 # Forward show_dollars so 8084 hides dollar amounts when "Show Dollar Savings" is unchecked
                 show_dollars_param = request.args.get("show_dollars", "true")
-                gen_url = f"{HTML_REPORT_URL}/generate?show_dollars={show_dollars_param}"
+                # Forward submission_mode so the report generator applies the correct period threshold
+                submission_mode_param = request.args.get("submission_mode", "pe_review")
+                gen_url = (
+                    f"{HTML_REPORT_URL}/generate"
+                    f"?show_dollars={show_dollars_param}"
+                    f"&submission_mode={submission_mode_param}"
+                )
                 response = session.get(gen_url, timeout=30)
                 if response.status_code == 200:
                     html_content = response.text
@@ -10653,6 +10555,12 @@ def serve_template_report():
                         import traceback
                         logger.warning(traceback.format_exc())
                     
+                    # Inject live PE review badge before serving
+                    _sid = analysis_session_id if 'analysis_session_id' in dir() else None
+                    _rid = report_id if 'report_id' in dir() else None
+                    html_content = _inject_pe_badge(html_content, report_id=_rid,
+                                                    analysis_session_id=_sid)
+
                     return Response(
                         html_content,
                         mimetype="text/html",
@@ -10663,8 +10571,6 @@ def serve_template_report():
                             "Expires": "0",
                         },
                     )
-                else:
-                    return jsonify({"error": f"HTML report service returned status {response.status_code}"}), response.status_code
             except requests.exceptions.ConnectionError as conn_e:
                 logger.warning(f"8084 HTML service unreachable: {conn_e}. Trying inline fallback...")
                 # Inline fallback: generate report using 8084 module (available at /app/8084 when mounted)
@@ -10703,6 +10609,9 @@ def serve_template_report():
                             cfg["show_dollars"] = show_dollars
                             stored["config"] = cfg
                             html_content = generate_exact_template_html(stored)
+                            _fallback_sid = stored.get('analysis_session_id') if isinstance(stored, dict) else None
+                            html_content = _inject_pe_badge(html_content,
+                                                            analysis_session_id=_fallback_sid)
                             return Response(
                                 html_content,
                                 mimetype="text/html",
@@ -11981,6 +11890,47 @@ def validate_data():
             "error": str(e)
         }), 500
 
+
+# ---------------------------------------------------------------------------
+# Tariff Rate Lookup API
+# ---------------------------------------------------------------------------
+@app.route("/api/tariff-lookup", methods=["POST"])
+@license_required
+def emv_tariff_lookup():
+    """
+    POST /api/tariff-lookup
+    Looks up utility rate structure from NREL URDB (US), EIA API, Ollama AI, or static fallback.
+    Body: { utility, tariff, state, country, sector }
+    """
+    import json as _json
+    try:
+        from tariff_lookup_service import lookup_tariff_rates
+    except ImportError:
+        import sys, os
+        sys.path.insert(0, os.path.dirname(__file__))
+        from tariff_lookup_service import lookup_tariff_rates
+
+    data    = request.get_json() or {}
+    utility = (data.get("utility") or "").strip()
+    tariff  = (data.get("tariff")  or "").strip()
+    state   = (data.get("state")   or "").strip()
+    country = (data.get("country") or "USA").strip()
+    sector  = (data.get("sector")  or "Commercial").strip()
+
+    if not utility and not tariff and not state:
+        return jsonify({"error": "At least one of utility, tariff, or state is required"}), 400
+
+    try:
+        result = lookup_tariff_rates(
+            utility=utility, tariff=tariff,
+            state=state, country=country, sector=sector,
+        )
+        return jsonify({"meta": {}, "response": result})
+    except Exception as exc:
+        logger.exception("EMV tariff lookup failed")
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint for service manager"""
@@ -12901,20 +12851,24 @@ def tracking_bill_analytic():
         return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
-@app.route("/api/tracking/push-baseline", methods=["POST"])
+@app.route("/api/tracking/push-baseline", methods=["POST"], strict_slashes=False)
+@app.route("/emv/api/tracking/push-baseline", methods=["POST"], strict_slashes=False)
 @license_required
-@emv_feature_required('seal_sync_queue')
 def tracking_push_baseline():
     """Proxy to Tracking: POST /api/emv/push-baseline. Push analysis results and report HTML."""
     if not TRACKING_URL or not TRACKING_API_KEY:
         return jsonify({"error": "Tracking integration not configured (TRACKING_URL, EMV_API_KEY)"}), 503
-    org_id = get_current_org_id(request)
-    if not org_id:
+    session_org = get_current_org_id(request)
+    if not session_org:
         return jsonify({"error": "Authentication required"}), 401
     data = request.get_json() or {}
     if not data.get("projectId"):
         return jsonify({"error": "projectId is required"}), 400
-    data["orgId"] = org_id
+    # Use orgId from payload (selected Tracking project) - project org is the project's org_id,
+    # not the session org. OEMs see projects for org CUSTOMER-XXX; overwriting with session org
+    # caused "Project not found". Only fall back to session org when payload has no orgId.
+    payload_org = (data.get("orgId") or "").strip()
+    data["orgId"] = payload_org if payload_org else session_org
     try:
         resp = requests.post(
             f"{TRACKING_URL.rstrip('/')}/api/emv/push-baseline",
@@ -15109,6 +15063,7 @@ def get_csv_fingerprints():
                     {
                         "id": file_id,
                         "file_name": file_name,
+                        "file_path": file_path or "",
                         "file_size": file_size or 0,
                         "fingerprint": fingerprint,
                         "created_at": created_at,
@@ -15171,8 +15126,8 @@ def get_csv_fingerprints():
             _debug_fingerprints_log(
                 f"  -> org_id={org_id!r} raw={len(raw_files)} project={len(project_files)} csv_fp={len(csv_fingerprint_rows)} total_returned={len(fingerprints)}"
             )
-            # If no data for this org, retry with 'admin' (e.g. when session has default but data is under admin) (e.g. when session has default but data is under admin)
-            if len(fingerprints) == 0 and org_id == "default":
+            # If no data for this org, retry with 'admin' (covers 'default', empty orgs, and SSO orgs with no local data)
+            if len(fingerprints) == 0:
                 fallback_org = "admin"
                 logger.info(f"Retrying /api/csv/fingerprints with org_id={fallback_org!r}")
                 with get_db_connection(org_id=fallback_org) as fallback_conn:
@@ -15188,7 +15143,7 @@ def get_csv_fingerprints():
                                         file_size = path_abs.stat().st_size
                                 except Exception:
                                     pass
-                                fingerprints.append({"id": file_id, "file_name": file_name, "file_size": file_size or 0, "fingerprint": fingerprint, "created_at": created_at, "type": "raw_meter_data", "source_id": uploaded_by})
+                                fingerprints.append({"id": file_id, "file_name": file_name, "file_path": file_path or "", "file_size": file_size or 0, "fingerprint": fingerprint, "created_at": created_at, "type": "raw_meter_data", "source_id": uploaded_by})
                         except Exception as e:
                             logger.debug(f"Fallback raw_meter_data: {e}")
                         try:
@@ -15841,12 +15796,85 @@ def complete_pe_review_endpoint():
         data = request.get_json()
         if not data:
             return jsonify({"error": "No data provided"}), 400
-        
+
         required_fields = ["workflow_id", "approval_status", "review_comments", "pe_signature"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
-        
+
+        # ── Blocking-flag gate ──────────────────────────────────────────────
+        # When a PE tries to APPROVE, check if the saved report HTML contains
+        # any SYNEREX_BLOCKING_FLAGS.  If it does, require a written waiver per
+        # flag in the request body field "blocking_flag_waivers" (dict).
+        if data["approval_status"] == "approved":
+            try:
+                import json as _json
+                import re as _re
+                _blocking_flag_codes = []
+                # Retrieve report path from workflow
+                with get_db_connection() as _gc:
+                    if _gc:
+                        _cur = _gc.cursor()
+                        _cur.execute(
+                            "SELECT report_id FROM pe_review_workflow WHERE workflow_id = ?",
+                            (data["workflow_id"],)
+                        )
+                        _wrow = _cur.fetchone()
+                        if _wrow and _wrow[0]:
+                            _cur.execute(
+                                "SELECT file_path FROM html_reports WHERE id = ?",
+                                (_wrow[0],)
+                            )
+                            _rrow = _cur.fetchone()
+                            if _rrow and _rrow[0]:
+                                try:
+                                    import pathlib as _pl
+                                    _rpath = _pl.Path(_rrow[0])
+                                    if not _rpath.is_absolute():
+                                        _rpath = _pl.Path("/app") / _rpath
+                                    if _rpath.exists():
+                                        _html_snippet = _rpath.read_text(
+                                            encoding="utf-8", errors="replace"
+                                        )[:2000]  # meta comment is at top
+                                        _m = _re.search(
+                                            r'<!-- SYNEREX_BLOCKING_FLAGS:(.*?) -->',
+                                            _html_snippet
+                                        )
+                                        if _m:
+                                            _blocking_flag_codes = _json.loads(_m.group(1))
+                                except Exception as _rpe:
+                                    logger.warning(f"Could not read report for flag check: {_rpe}")
+
+                if _blocking_flag_codes:
+                    _waivers = data.get("blocking_flag_waivers") or {}
+                    _missing_waivers = []
+                    for _code in _blocking_flag_codes:
+                        _waiver_text = (_waivers.get(_code) or "").strip()
+                        if len(_waiver_text) < 20:
+                            _missing_waivers.append(_code)
+                    if _missing_waivers:
+                        return jsonify({
+                            "error": "PE approval blocked — blocking flags require explicit written waivers",
+                            "blocking_flags": _blocking_flag_codes,
+                            "missing_waivers": _missing_waivers,
+                            "instructions": (
+                                "Provide 'blocking_flag_waivers' as a JSON object mapping each "
+                                "flag code to a written justification of >= 20 characters explaining "
+                                "why the flag does not invalidate the savings claim (e.g., PE-signed "
+                                "bias analysis reference, re-measurement confirmation, etc.). "
+                                "This waiver text will be recorded in the audit trail."
+                            )
+                        }), 422
+                    # Store waivers in review_comments for audit trail
+                    _waiver_appendix = "\n\n--- PE BLOCKING FLAG WAIVERS ---\n"
+                    for _code, _text in _waivers.items():
+                        if _code in _blocking_flag_codes:
+                            _waiver_appendix += f"[{_code}]: {_text}\n"
+                    data["review_comments"] = (data["review_comments"] or "") + _waiver_appendix
+            except Exception as _gate_exc:
+                logger.warning(f"Blocking flag gate check failed (non-fatal): {_gate_exc}")
+        # ── end blocking-flag gate ─────────────────────────────────────────
+
         result = complete_pe_review(
             workflow_id=data["workflow_id"],
             approval_status=data["approval_status"],
@@ -15855,9 +15883,9 @@ def complete_pe_review_endpoint():
             user_id=user_id,
             analysis_session_id=data.get("analysis_session_id")
         )
-        
+
         return jsonify(result), 200
-        
+
     except Exception as e:
         logger.error(f"PE review completion failed: {e}")
         return jsonify({"error": str(e)}), 500
@@ -15905,25 +15933,43 @@ def list_pe_review_workflows():
                 return jsonify({"error": "Database not available"}), 500
             
             cursor = conn.cursor()
-            query = "SELECT * FROM pe_review_workflow WHERE 1=1"
+
+            # Join pe_certifications so the UI gets PE name + license without a second call
+            query = """
+                SELECT w.*,
+                       COALESCE(pc.name, u.full_name, u.username) AS assigned_pe_name,
+                       COALESCE(pc.license_number, u.pe_license_number)  AS assigned_pe_license,
+                       COALESCE(pc.state, u.state)                       AS assigned_pe_state
+                FROM pe_review_workflow w
+                LEFT JOIN pe_certifications pc ON pc.id = w.assigned_pe_id
+                LEFT JOIN users u             ON u.id  = w.assigned_pe_id
+                WHERE 1=1
+            """
             params = []
             
             if project_name:
-                query += " AND project_name = ?"
+                query += " AND w.project_name = ?"
                 params.append(project_name)
             
             if state:
-                query += " AND current_state = ?"
+                query += " AND w.current_state = ?"
                 params.append(state)
             
             if assigned_pe_id:
-                query += " AND assigned_pe_id = ?"
+                query += " AND w.assigned_pe_id = ?"
                 params.append(assigned_pe_id)
             
-            query += " ORDER BY created_at DESC LIMIT ?"
+            query += " ORDER BY w.created_at DESC LIMIT ?"
             params.append(limit)
             
-            cursor.execute(query, params)
+            try:
+                cursor.execute(query, params)
+            except Exception:
+                # Fallback if pe_certifications or users table schema differs
+                cursor.execute(
+                    "SELECT * FROM pe_review_workflow WHERE 1=1 ORDER BY created_at DESC LIMIT ?",
+                    [limit]
+                )
             rows = cursor.fetchall()
             
             workflows = []
@@ -15931,7 +15977,10 @@ def list_pe_review_workflows():
             for row in rows:
                 workflow = dict(zip(columns, row))
                 if workflow.get('state_transition_history'):
-                    workflow['state_transition_history'] = json.loads(workflow['state_transition_history'])
+                    try:
+                        workflow['state_transition_history'] = json.loads(workflow['state_transition_history'])
+                    except Exception:
+                        workflow['state_transition_history'] = []
                 else:
                     workflow['state_transition_history'] = []
                 workflows.append(workflow)
@@ -18865,8 +18914,17 @@ def raw_files_list():
         logger.info(f"Rendering raw files list with cache_bust: {context['cache_bust']}")
         result = render_template("raw_files_list.html", **context)
         website_url = WEBSITE_URL or ""
+        emv_base_script = (
+            "<script>"
+            "window.SYNEREX_EMV_BASE = (function(){"
+            "var p = window.location.pathname;"
+            "return p.startsWith('/emv') ? '/emv' : '';"
+            "})();"
+            f"window.SYNEREX_WEBSITE_URL = '{website_url}';"
+            "</script>"
+        )
         if "</head>" in result:
-            result = result.replace("</head>", f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>\n</head>", 1)
+            result = result.replace("</head>", emv_base_script + "\n</head>", 1)
         logger.info(
             f"Raw files list template rendered successfully, length: {len(result)}"
         )
@@ -18895,8 +18953,17 @@ def clipping_interface():
         )
         result = render_template("clipping_interface.html", **context)
         website_url = WEBSITE_URL or ""
+        emv_base_script = (
+            "<script>"
+            "window.SYNEREX_EMV_BASE = (function(){"
+            "var p = window.location.pathname;"
+            "return p.startsWith('/emv') ? '/emv' : '';"
+            "})();"
+            f"window.SYNEREX_WEBSITE_URL = '{website_url}';"
+            "</script>"
+        )
         if "</head>" in result:
-            result = result.replace("</head>", f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';</script>\n</head>", 1)
+            result = result.replace("</head>", emv_base_script + "\n</head>", 1)
         logger.info(
             f"Clipping interface template rendered successfully, length: {len(result)}"
         )
@@ -19006,18 +19073,15 @@ def upload_raw_meter_data():
         if not org_id:
             return jsonify({"status": "error", "error": "Organization ID required. Please log in again."}), 401
 
-        # OEM: target_org_id required - must assign to a sponsored customer (not OEM org itself)
+        # Files upload to the logged-in org by default.
+        # target_org_id is optional — OEM users may supply it to assign a file to a
+        # specific sponsored customer, but it is never required.
         target_org_id = (request.form.get("target_org_id") or "").strip()
-        org_ids = _get_oem_visible_org_ids(org_id)
-        is_oem = len(org_ids) > 1
-        if target_org_id:
-            if target_org_id == org_id:
-                return jsonify({"status": "error", "error": "Please select a customer to assign these files to."}), 400
+        if target_org_id and target_org_id != org_id:
+            org_ids = _get_oem_visible_org_ids(org_id)
             if target_org_id not in org_ids:
                 return jsonify({"status": "error", "error": "Invalid customer. You can only assign files to your sponsored customers."}), 403
             org_id = target_org_id
-        elif is_oem:
-            return jsonify({"status": "error", "error": "Please select a customer to assign these files to."}), 400
 
         # Import CSVIntegrityProtection from fixed file
         from main_hardened_ready_fixed import CSVIntegrityProtection
@@ -19969,9 +20033,9 @@ def pe_dashboard():
             </div>
             
             <div class="card">
-                <h3>Pending Reviews</h3>
+                <h3>Review Workflows</h3>
                 <div id="pending-reviews">
-                    <div class="loading">Loading pending reviews...</div>
+                    <div class="loading">Loading review workflows...</div>
                 </div>
             </div>
         </div>
@@ -20196,6 +20260,73 @@ def pe_dashboard():
         <div id="messages"></div>
     </div>
 
+    <!-- PE Stamp / Complete Review Panel -->
+    <div id="pe-stamp-panel" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; overflow-y:auto;">
+      <div style="max-width:620px; margin:40px auto; background:white; border-radius:10px; box-shadow:0 8px 32px rgba(0,0,0,0.3); padding:30px;">
+        <h2 style="margin-top:0; color:#1a237e; border-bottom:2px solid #3949ab; padding-bottom:10px;">&#9997;&#65039; PE Stamp — Complete Review</h2>
+        <p style="color:#555; font-size:0.93em; margin-bottom:18px;">
+          By submitting this form, the signing Professional Engineer attests under professional responsibility
+          that they have independently reviewed the M&amp;V analysis, confirm the methodology is sound and
+          the results are defensible per IPMVP Option B / ASHRAE Guideline 14-2023, and accept liability
+          for the findings under their state PE license.
+        </p>
+        <form id="pe-stamp-form">
+          <input type="hidden" id="stamp-workflow-id" />
+          <input type="hidden" id="stamp-session-id" />
+
+          <div class="form-group">
+            <label>Workflow / Project</label>
+            <div id="stamp-project-label" style="padding:7px 10px; background:#f0f0f0; border-radius:4px; font-weight:bold; color:#333;">—</div>
+          </div>
+
+          <div class="form-group">
+            <label>PE Full Name *</label>
+            <input type="text" id="stamp-pe-name" placeholder="e.g., Jane Doe, P.E." required />
+          </div>
+
+          <div class="form-group">
+            <label>PE License Number *</label>
+            <input type="text" id="stamp-license" placeholder="e.g., PE-12345 (TX)" required />
+            <small style="color:#666;">Include state abbreviation if not shown in name.</small>
+          </div>
+
+          <div class="form-group">
+            <label>Review Comments *</label>
+            <textarea id="stamp-comments" rows="5" placeholder="Document your review findings, any conditions on approval, or reasons for rejection..." required></textarea>
+          </div>
+
+          <div class="form-group" style="background:#fff3cd; padding:12px; border-radius:4px; border:1px solid #ffc107;">
+            <label style="font-weight:normal; display:flex; gap:10px; align-items:flex-start; cursor:pointer;">
+              <input type="checkbox" id="stamp-attest" style="margin-top:3px; width:auto;" required />
+              <span>
+                <strong>Professional Attestation:</strong> I, the undersigned licensed Professional Engineer,
+                confirm that I have independently reviewed this M&amp;V report, verify the analysis methodology
+                and calculations are technically sound, and submit this stamp under my professional license
+                and seal. I understand this constitutes a professional engineering endorsement.
+              </span>
+            </label>
+          </div>
+
+          <div id="stamp-status" style="margin: 12px 0;"></div>
+
+          <div id="stamp-blocking-waivers-section" style="display:none;"></div>
+
+          <div style="display:flex; gap:10px; margin-top:16px;">
+            <button type="button" id="stamp-approve-btn" class="btn btn-success"
+              onclick="submitStamp('approved')" style="flex:1; font-size:1em; padding:12px;">
+              &#10003; Approve — Issue Verified Savings Stamp
+            </button>
+            <button type="button" id="stamp-reject-btn" class="btn btn-danger"
+              onclick="submitStamp('rejected')" style="flex:1; font-size:1em; padding:12px;">
+              &#10007; Reject — Return for Revision
+            </button>
+          </div>
+          <button type="button" class="btn" onclick="closePEStampPanel()"
+            style="width:100%; margin-top:10px; background:#6c757d;">Cancel</button>
+        </form>
+      </div>
+    </div>
+
     <script>
         // PE Dashboard JavaScript
         function goBack() {
@@ -20206,10 +20337,8 @@ def pe_dashboard():
             const form = document.getElementById('register-pe-form');
             if (form) {
                 form.style.display = 'block';
-                // Scroll to form
                 form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
-                console.error('Register PE form not found');
                 showMessage('Error: Registration form not found', 'error');
             }
         }
@@ -20219,6 +20348,182 @@ def pe_dashboard():
             const form = document.getElementById('pe-registration-form');
             if (form) form.reset();
         }
+
+        // ── PE Stamp Panel ───────────────────────────────────────────────
+        function openPEStampPanel(workflowId, sessionId, projectLabel, peName, licenseNo) {
+            document.getElementById('stamp-workflow-id').value = workflowId || '';
+            document.getElementById('stamp-session-id').value  = sessionId  || '';
+            document.getElementById('stamp-project-label').textContent = projectLabel || workflowId || '—';
+            if (peName)    document.getElementById('stamp-pe-name').value = peName;
+            if (licenseNo) document.getElementById('stamp-license').value = licenseNo;
+            document.getElementById('stamp-comments').value = '';
+            document.getElementById('stamp-attest').checked = false;
+            document.getElementById('stamp-status').innerHTML = '';
+            document.getElementById('stamp-blocking-waivers-section').innerHTML = '';
+            document.getElementById('stamp-blocking-waivers-section').style.display = 'none';
+            document.getElementById('pe-stamp-panel').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            // Eagerly fetch blocking flags for this workflow so waivers are ready before approve click
+            _loadBlockingFlagsForWorkflow(workflowId);
+        }
+
+        function closePEStampPanel() {
+            document.getElementById('pe-stamp-panel').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        // Fetch blocking flag codes from the workflow's saved report HTML (via a HEAD+read of the report view endpoint)
+        async function _loadBlockingFlagsForWorkflow(workflowId) {
+            if (!workflowId) return;
+            try {
+                // Ask the backend for the report_id via workflow lookup
+                const res = await fetch(`/api/pe/review/workflow?workflow_id=${encodeURIComponent(workflowId)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const reportId = data.workflow && data.workflow.report_id;
+                if (!reportId) return;
+                // Fetch just the first 3KB of the report to find the blocking flags meta comment
+                const rRes = await fetch(`/api/reports/${reportId}/view`, {
+                    headers: { 'Range': 'bytes=0-3071' }
+                });
+                const html = await rRes.text();
+                const m = html.match(/<!-- SYNEREX_BLOCKING_FLAGS:(.*?) -->/);
+                if (!m) return;
+                let flags = [];
+                try { flags = JSON.parse(m[1]); } catch(e) { return; }
+                if (!flags.length) return;
+                _renderBlockingWaiverFields(flags);
+            } catch(e) { /* non-fatal */ }
+        }
+
+        const BLOCKING_FLAG_LABELS = {
+            TEMP_BIAS_UNADDRESSED: 'Unaddressed Inter-Period Temperature Bias',
+            SHORT_PERIOD_BASELINE: 'Baseline Measurement Period Below Minimum',
+            SHORT_PERIOD_REPORTING: 'Reporting Measurement Period Below Minimum',
+            NEGATIVE_SAVINGS: 'Consumption Increased — No Verified Savings',
+            LOW_COMPLETENESS_BASELINE: 'Baseline Data Completeness < 95%',
+            LOW_COMPLETENESS_REPORTING: 'Reporting Data Completeness < 95%',
+            SAVINGS_PLAUSIBILITY: 'Savings Magnitude Implausible for Technology Class',
+            IEEE519_TDD_LIMIT_UNKNOWN: 'IEEE 519 TDD Compliance Limit Could Not Be Determined',
+            MV_PLAN_MISSING: 'M&V Plan Not on File — Required for Utility Submission (IPMVP §3.1)',
+        };
+
+        function _renderBlockingWaiverFields(flagCodes) {
+            const sec = document.getElementById('stamp-blocking-waivers-section');
+            if (!flagCodes || !flagCodes.length) { sec.style.display='none'; return; }
+            let html = `<div style="margin:16px 0;padding:14px;background:#ffebee;border:2px solid #c62828;border-radius:6px;">
+                <div style="font-weight:bold;color:#c62828;font-size:1em;">&#10060; BLOCKING FLAGS DETECTED — Written Waiver Required Per Flag</div>
+                <p style="font-size:0.88em;color:#555;margin:6px 0 10px;">
+                  This report has unresolved issues that disqualify it from utility incentive submission.
+                  As the signing PE, you must provide a written justification for each flag below explaining
+                  why the issue does not invalidate the savings claim (min. 20 characters per waiver).
+                  Waivers are permanently recorded in the audit trail.
+                </p>`;
+            for (const code of flagCodes) {
+                const label = BLOCKING_FLAG_LABELS[code] || code;
+                html += `<div style="margin-bottom:10px;">
+                    <label style="font-weight:bold;color:#b71c1c;font-size:0.9em;">&#9888; ${label}</label>
+                    <textarea id="waiver-${code}" rows="3" style="width:100%;margin-top:4px;border:1.5px solid #ef9a9a;border-radius:4px;padding:6px;font-size:0.88em;"
+                        placeholder="PE written justification for waiving this flag... (e.g., 'Re-measurement confirmed under matched conditions. See attached data.' or 'Facility load is process-controlled and weather-independent per attached load curve analysis signed by [PE name].')"></textarea>
+                </div>`;
+            }
+            html += '</div>';
+            sec.innerHTML = html;
+            sec.style.display = 'block';
+            sec.dataset.flagCodes = JSON.stringify(flagCodes);
+        }
+
+        async function submitStamp(approvalStatus) {
+            const workflowId  = document.getElementById('stamp-workflow-id').value.trim();
+            const sessionId   = document.getElementById('stamp-session-id').value.trim();
+            const peName      = document.getElementById('stamp-pe-name').value.trim();
+            const licenseNo   = document.getElementById('stamp-license').value.trim();
+            const comments    = document.getElementById('stamp-comments').value.trim();
+            const attested    = document.getElementById('stamp-attest').checked;
+            const statusDiv   = document.getElementById('stamp-status');
+
+            if (!peName || !licenseNo || !comments) {
+                statusDiv.innerHTML = '<div class="error">Please fill in all required fields.</div>';
+                return;
+            }
+            if (!attested) {
+                statusDiv.innerHTML = '<div class="error">You must check the Professional Attestation box to submit.</div>';
+                return;
+            }
+            if (!workflowId) {
+                statusDiv.innerHTML = '<div class="error">No workflow selected. Please try again.</div>';
+                return;
+            }
+
+            // Collect blocking-flag waivers (only for approvals)
+            let blockingFlagWaivers = {};
+            if (approvalStatus === 'approved') {
+                const sec = document.getElementById('stamp-blocking-waivers-section');
+                let flagCodes = [];
+                try { flagCodes = JSON.parse(sec.dataset.flagCodes || '[]'); } catch(e) {}
+                for (const code of flagCodes) {
+                    const ta = document.getElementById(`waiver-${code}`);
+                    blockingFlagWaivers[code] = ta ? ta.value.trim() : '';
+                }
+                // Validate all waivers are filled
+                const missingWaivers = flagCodes.filter(c => (blockingFlagWaivers[c] || '').length < 20);
+                if (missingWaivers.length) {
+                    statusDiv.innerHTML = `<div class="error"><strong>Approval blocked.</strong> Each blocking flag requires a written waiver of at least 20 characters. Missing or insufficient: ${missingWaivers.join(', ')}</div>`;
+                    return;
+                }
+            }
+
+            const btnApprove = document.getElementById('stamp-approve-btn');
+            const btnReject  = document.getElementById('stamp-reject-btn');
+            btnApprove.disabled = btnReject.disabled = true;
+            statusDiv.innerHTML = '<div class="info">Submitting PE review...</div>';
+
+            const peSignature = `${peName} | ${licenseNo} | ${new Date().toISOString()} | ${approvalStatus.toUpperCase()}`;
+
+            try {
+                const payload = {
+                    workflow_id:           workflowId,
+                    approval_status:       approvalStatus,
+                    review_comments:       comments,
+                    pe_signature:          peSignature,
+                    analysis_session_id:   sessionId || null
+                };
+                if (Object.keys(blockingFlagWaivers).length) {
+                    payload.blocking_flag_waivers = blockingFlagWaivers;
+                }
+
+                const response = await fetch('/api/pe/review/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    const verb = approvalStatus === 'approved' ? 'APPROVED ✓' : 'REJECTED ✗';
+                    statusDiv.innerHTML = `<div class="success"><strong>PE Review ${verb}</strong> — the report badge will update immediately on next view.</div>`;
+                    showMessage(`PE Review ${verb} for workflow ${workflowId}`, approvalStatus === 'approved' ? 'success' : 'error');
+                    setTimeout(() => {
+                        closePEStampPanel();
+                        loadOversightSummary();
+                        loadPendingReviews();
+                    }, 2000);
+                } else if (response.status === 422 && result.missing_waivers) {
+                    // Render waiver fields if not already shown
+                    _renderBlockingWaiverFields(result.blocking_flags || result.missing_waivers);
+                    statusDiv.innerHTML = `<div class="error"><strong>Approval blocked — blocking flags require written waivers.</strong><br/>${result.instructions || 'Please fill in the waiver fields above.'}</div>`;
+                    btnApprove.disabled = btnReject.disabled = false;
+                } else {
+                    statusDiv.innerHTML = '<div class="error">Error: ' + (result.error || result.message || 'Submission failed') + '</div>';
+                    btnApprove.disabled = btnReject.disabled = false;
+                }
+            } catch (err) {
+                statusDiv.innerHTML = '<div class="error">Network error: ' + err.message + '</div>';
+                btnApprove.disabled = btnReject.disabled = false;
+            }
+        }
+        // ── End PE Stamp Panel ───────────────────────────────────────────
 
         async function showVerifyLicense() {
             const peId = prompt('Enter PE ID to verify:');
@@ -20301,39 +20606,66 @@ def pe_dashboard():
             try {
                 document.getElementById('pending-reviews').innerHTML = '<div class="loading">Loading...</div>';
                 
-                // Try to fetch from API, fallback to default display
                 try {
                     const response = await fetch('/api/pe/review/list');
                     const data = await response.json();
-                    
-                    if (data.reviews && Array.isArray(data.reviews) && data.reviews.length > 0) {
-                        const pendingHtml = data.reviews.map(review => `
-                            <div class="review-item">
-                                <h4>Analysis #${review.analysis_id || review.id}</h4>
-                                <p><strong>Status:</strong> <span class="status-pending">${review.status || 'Pending'}</span></p>
-                                <p><strong>Created:</strong> ${review.created_at || 'N/A'}</p>
-                                <button class="btn btn-warning" onclick="viewReview('${review.id}')">View Review</button>
-                            </div>
-                        `).join('');
-                        
+                    const workflows = data.workflows || data.reviews || [];
+
+                    if (Array.isArray(workflows) && workflows.length > 0) {
+                        const pendingHtml = workflows.map(w => {
+                            const wid      = w.workflow_id || w.id || '';
+                            const sid      = w.analysis_session_id || '';
+                            const proj     = w.project_name || sid || 'Unnamed Project';
+                            const state    = w.current_state || w.approval_status || 'pending';
+                            const peName   = w.assigned_pe_name || w.pe_reviewer_name || '';
+                            const licNo    = w.assigned_pe_license || w.pe_license_number || '';
+                            const created  = w.created_at ? w.created_at.substring(0,10) : 'N/A';
+                            const stateColor = state === 'approved' ? '#155724' :
+                                               state === 'rejected' ? '#721c24' :
+                                               state === 'in_review' ? '#004085' : '#856404';
+                            const stateBg   = state === 'approved' ? '#d4edda' :
+                                              state === 'rejected' ? '#f8d7da' :
+                                              state === 'in_review' ? '#cce5ff' : '#fff3cd';
+                            const canStamp  = (state === 'pending' || state === 'in_review');
+                            const stampBtn  = canStamp
+                                ? `<button class="btn btn-success" style="font-size:0.85em; padding:6px 12px; margin-top:6px;"
+                                     onclick="openPEStampPanel('${wid}','${sid}','${proj.replace(/'/g,"\\'")}','${peName.replace(/'/g,"\\'")}','${licNo.replace(/'/g,"\\'")}')">
+                                     &#9997;&#65039; Stamp / Complete Review
+                                   </button>`
+                                : `<span style="font-size:0.85em; color:${stateColor}; font-weight:bold; margin-top:6px; display:inline-block;">
+                                     ${state === 'approved' ? '&#10003; Approved' : '&#10007; Rejected'}
+                                   </span>`;
+                            return `
+                                <div class="review-item" style="border-left:4px solid ${stateColor};">
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                        <div>
+                                            <h4 style="margin:0 0 4px 0;">${proj}</h4>
+                                            <small style="color:#666;">Workflow: ${wid} &nbsp;|&nbsp; Created: ${created}</small>
+                                        </div>
+                                        <span class="status-badge" style="background:${stateBg}; color:${stateColor};">${state}</span>
+                                    </div>
+                                    ${peName ? `<p style="margin:6px 0 0 0; font-size:0.9em;">Assigned PE: <strong>${peName}</strong>${licNo ? ' — ' + licNo : ''}</p>` : ''}
+                                    <div>${stampBtn}</div>
+                                </div>
+                            `;
+                        }).join('');
                         document.getElementById('pending-reviews').innerHTML = pendingHtml;
                     } else {
-                        document.getElementById('pending-reviews').innerHTML = 
-                            '<p>No pending reviews at this time.</p>';
+                        document.getElementById('pending-reviews').innerHTML =
+                            '<p style="color:#666;">No review workflows yet. Use "Assign PE Reviewer" to create one.</p>';
                     }
                 } catch (apiError) {
-                    document.getElementById('pending-reviews').innerHTML = 
-                        '<p>No pending reviews at this time. Use the review workflow to initiate reviews.</p>';
+                    document.getElementById('pending-reviews').innerHTML =
+                        '<p>No review workflows at this time.</p>';
                 }
             } catch (error) {
-                document.getElementById('pending-reviews').innerHTML = 
+                document.getElementById('pending-reviews').innerHTML =
                     '<div class="error">Error loading reviews: ' + error.message + '</div>';
             }
         }
 
         function viewReview(reviewId) {
             showMessage('Viewing review ' + reviewId + '...', 'info');
-            // This would open the review interface
         }
 
         async function registerPE(event) {
@@ -21079,10 +21411,10 @@ def legacy_index():
         import json as _json
         _prefill_fields = [
             # Client Information
-            "company", "cp_address", "cp_location", "cp_city_state", "cp_zip",
+            "company", "cp_address", "cp_city", "cp_state", "cp_zip",
             "contact", "phone", "email",
             # Project Information
-            "project_type", "facility_address", "location", "facility_state", "facility_zip",
+            "project_type", "facility_address", "facility_city", "facility_state", "facility_zip",
             # Billing Information
             "project_cost", "utility", "utility_name", "utility_program", "account",
             "energy_rate", "demand_rate", "capacity_rate", "billing_model",
@@ -21216,7 +21548,14 @@ def cold_storage_analysis():
         from jinja2 import Template
         template = Template(full_html)
         rendered_html = template.render(**ctx)
-        
+
+        # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+        _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                            "var p=window.location.pathname;"
+                            "return p.startsWith('/emv')?'/emv':'';"
+                            "})();</script>")
+        rendered_html = rendered_html.replace("</head>", _emv_base_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -21328,7 +21667,14 @@ def data_center_analysis():
         from jinja2 import Template
         template = Template(full_html)
         rendered_html = template.render(**ctx)
-        
+
+        # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+        _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                            "var p=window.location.pathname;"
+                            "return p.startsWith('/emv')?'/emv':'';"
+                            "})();</script>")
+        rendered_html = rendered_html.replace("</head>", _emv_base_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -21439,8 +21785,16 @@ def healthcare_analysis():
         # Render with template variables
         from jinja2 import Template
         template = Template(full_html)
+        template = Template(full_html)
         rendered_html = template.render(**ctx)
-        
+
+        # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+        _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                            "var p=window.location.pathname;"
+                            "return p.startsWith('/emv')?'/emv':'';"
+                            "})();</script>")
+        rendered_html = rendered_html.replace("</head>", _emv_base_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -21552,7 +21906,14 @@ def hospitality_analysis():
         from jinja2 import Template
         template = Template(full_html)
         rendered_html = template.render(**ctx)
-        
+
+        # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+        _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                            "var p=window.location.pathname;"
+                            "return p.startsWith('/emv')?'/emv':'';"
+                            "})();</script>")
+        rendered_html = rendered_html.replace("</head>", _emv_base_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -21664,7 +22025,14 @@ def manufacturing_analysis():
         from jinja2 import Template
         template = Template(full_html)
         rendered_html = template.render(**ctx)
-        
+
+        # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+        _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                            "var p=window.location.pathname;"
+                            "return p.startsWith('/emv')?'/emv':'';"
+                            "})();</script>")
+        rendered_html = rendered_html.replace("</head>", _emv_base_script + "\n</head>", 1)
+
         # Add cache busting headers
         response = make_response(rendered_html)
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -23149,13 +23517,6 @@ def _add_technical_report_content(story, results_data, heading_style, subheading
             
             value = f"Class {accuracy_class}" if isinstance(accuracy_class, (int, float)) else str(accuracy_class)
             report_data.append(['ANSI C12.1 & C12.20', class_description, status, str(value)])
-        
-        # IEEE C57.110
-        ieee_c57 = after_compliance.get('ieee_c57_110', {}) if isinstance(after_compliance, dict) else {}
-        if ieee_c57 and isinstance(ieee_c57, dict):
-            status = 'PASS' if ieee_c57.get('pass', False) else 'FAIL'
-            value = 'Verified' if ieee_c57.get('pass', False) else 'N/A'
-            report_data.append(['IEEE C57.110', 'Transformer Loss Calculation', status, value])
         
         if len(report_data) > 1:
             report_table = Table(report_data, colWidths=[1.5*inch, 2*inch, 1*inch, 1.5*inch])
@@ -24959,7 +25320,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                     p_value = safe_float(ipmvp.get('p_value'), 'N/A')
             
             if p_value != 'N/A' and isinstance(p_value, (int, float)):
-                ipmvp_compliant = p_value < 0.05
+                ipmvp_compliant = p_value < 0.10  # ASHRAE Guideline 14 §4.1.3: 90% confidence (α=0.10)
             
             if p_value != 'N/A':
                 compliance_data.append([
@@ -25429,9 +25790,10 @@ def generate_cover_letter(results_data, client_profile, timestamp):
     ) or financial.get('annual_kwh_savings') or financial_debug.get('annual_kwh_savings') or 0)
     
     # Use comprehensive extraction logic matching Financial Analysis Report
-    # PRIORITIZE: Use UI-calculated fully normalized kW savings (weather + power factor normalized)
-    # This is calculated in the UI Analysis and stored in power_quality.calculated_normalized_kw_savings
-    # It represents the true utility billing impact (both weather and power factor normalized)
+    # PRIORITIZE: Use weather-normalized kW savings (Verified Energy Savings — IPMVP Option B, ASHRAE 14-2023)
+    # NOTE: normalized_kw_savings here is the weather+PF blended figure used for billing demand display only.
+    # For energy savings reporting, use weather_normalized_kw_savings (weather-only, no PF tariff adjustment).
+    # The PF tariff adjustment (Billing Demand Relief) is reported separately and must NOT be added to energy savings.
     power_quality = results_data.get('power_quality', {})
     if isinstance(power_quality, list):
         power_quality = {}
@@ -25862,26 +26224,12 @@ def generate_html_report_for_package(results_data, output_dir):
         except Exception as service_e:
             logger.warning(f"PACKAGE HTML REPORT - Could not call HTML service: {service_e}, trying fallback")
         
-        # FALLBACK METHOD 1: Try to get from database if available (may be outdated)
-        analysis_session_id = results_data.get('analysis_session_id')
-        if analysis_session_id:
-            with get_db_connection() as conn:
-                if conn:
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        SELECT report_path FROM html_reports
-                        WHERE analysis_session_id = ?
-                        ORDER BY created_at DESC
-                        LIMIT 1
-                    """, (analysis_session_id,))
-                    row = cursor.fetchone()
-                    if row and row[0]:
-                        report_path = Path(row[0])
-                        if report_path.exists():
-                            html_file = os.path.join(output_dir, "Complete_HTML_Report.html")
-                            shutil.copy2(str(report_path), html_file)
-                            logger.warning(f"PACKAGE HTML REPORT - Used database report as fallback (may be outdated): {html_file}")
-                            return html_file
+        # FALLBACK METHOD 1: Database cache INTENTIONALLY SKIPPED
+        # Reason: cached reports pre-date the separation of Verified Energy Savings from Billing Demand Relief.
+        # Serving a cached report could present a blended "Total Utility Billing Impact %" figure that
+        # mixes metered energy savings with the utility tariff PF adjustment — creating risk with utilities,
+        # incentive review boards, and PE stamp liability. Always regenerate fresh from generate_exact_template_html.py.
+        logger.info("PACKAGE HTML REPORT - Database cache skipped intentionally; always regenerating fresh report to ensure correct three-claim structure (Verified Energy Savings / Power Quality / Billing Demand Relief)")
         
         # FALLBACK METHOD 2: Try to generate using template processor (last resort, may not have all corrections)
         if hasattr(app, '_latest_analysis_results'):
@@ -27823,6 +28171,17 @@ def generate_submission_checklist_pdf(results_data, client_profile, timestamp):
             ]
         },
         {
+            'section': 'Section 9.1: Thermal Settling & Measurement Protocol',
+            'items': [
+                'Thermal settling exclusion window is configured in project settings',
+                'First N hours of post-installation data excluded (default 48 h; see config)',
+                'Facility HVAC type is documented (cooling-dominated / heating-dominated / process-only)',
+                'Measurement season matches facility HVAC dominance (ASHRAE 14-2023 §4.1.3)',
+                'Number of rows excluded by settling window is logged in analysis audit trail',
+                'Seasonal representativeness advisory reviewed and addressed'
+            ]
+        },
+        {
             'section': 'Section 10: Equipment Health',
             'items': [
                 'Equipment Health Report is included (if applicable)',
@@ -27969,6 +28328,13 @@ def generate_submission_checklist_text(results_data, client_profile, timestamp):
         ("Section 9: Weather Normalization", [
             "Weather Normalization Report is included",
             "Weather data audit trail is present"
+        ]),
+        ("Section 9.1: Thermal Settling & Measurement Protocol", [
+            "Thermal settling exclusion window configured (default 48 h)",
+            "First N hours of post-install data excluded from analysis",
+            "Facility HVAC type documented (cooling / heating / process)",
+            "Measurement season matches HVAC dominance (ASHRAE 14-2023 §4.1.3)",
+            "Seasonal representativeness advisory reviewed"
         ]),
         ("Section 10: Equipment Health", [
             "Equipment Health Report is included (if applicable)"
@@ -28895,9 +29261,10 @@ ANNUAL SAVINGS BREAKDOWN:
     ) or financial.get('annual_kwh_savings') or financial_debug.get('annual_kwh_savings') or 0)
     
     # Use comprehensive extraction logic matching executive summary
-    # PRIORITIZE: Use UI-calculated fully normalized kW savings (weather + power factor normalized)
-    # This is calculated in the UI Analysis and stored in power_quality.calculated_normalized_kw_savings
-    # It represents the true utility billing impact (both weather and power factor normalized)
+    # PRIORITIZE: Use weather-normalized kW savings (Verified Energy Savings — IPMVP Option B, ASHRAE 14-2023)
+    # NOTE: normalized_kw_savings here is the weather+PF blended figure used for billing demand display only.
+    # For energy savings reporting, use weather_normalized_kw_savings (weather-only, no PF tariff adjustment).
+    # The PF tariff adjustment (Billing Demand Relief) is reported separately and must NOT be added to energy savings.
     power_quality = results_data.get('power_quality', {})
     if isinstance(power_quality, list):
         power_quality = {}
@@ -29084,55 +29451,68 @@ def generate_weather_normalization_report(results_data):
 WEATHER NORMALIZATION REPORT
 ============================
 
-METHODOLOGY:
------------
-ASHRAE Guideline 14-2014 Compliant Weather Normalization
-(Enhanced Methodology Exceeding ASHRAE Requirements)
+ASHRAE GUIDELINE 14-2023 APPLICABILITY:
+----------------------------------------
+Per ASHRAE Guideline 14-2023 Section 5.3, weather normalization shall ONLY be
+applied when a statistically significant relationship between facility energy use
+and weather variables has been demonstrated from the baseline period data. It is
+not a default step. The burden of proof is on the analyst to show the correlation
+before normalization is applied.
 
-Weather normalization adjusts energy consumption for weather variations 
-to provide accurate before/after comparisons. This ensures that energy 
-savings are measured independently of weather-related consumption changes.
+For industrial and process-dominated facilities (manufacturing, food processing,
+cold storage), whole-facility energy use is frequently driven by process loads
+rather than weather-sensitive HVAC loads. In such cases, the weather-energy
+correlation is typically weak (R² < 0.75) and normalization shall not be applied.
 
-This robust methodology implements and exceeds ASHRAE Guideline 14-2014 requirements:
+For facilities with significant conditioned space (commercial HVAC, light
+industrial with climate-controlled production areas), weather normalization is
+appropriate when the R² ≥ 0.75 threshold is demonstrated.
 
-1. Base Temperature Optimization: Base temperature is optimized from baseline 
-   data using grid search to find the temperature that maximizes R² (when time series 
-   data available). When not available, uses ASHRAE standard 18.3°C with equipment-specific 
-   adjustments.
+METHODOLOGY (when normalization is applied):
+---------------------------------------------
+1. Correlation Demonstration: A regression model is fitted to baseline period
+   time-series data. Normalization proceeds only if R² ≥ 0.75 (ASHRAE Guideline
+   14-2023 minimum), CV-RMSE < 15%, and NMBE < 5%.
 
-2. Sensitivity Factor Calculation: 
-   - PRIMARY: Regression-based sensitivity factors calculated from baseline time series 
-     data (ASHRAE-compliant, R² > 0.7 validation)
-   - FALLBACK: Equipment-specific sensitivity factors based on industry standards and 
-     validated research data (exceeds ASHRAE minimum requirements)
+2. Base Temperature Optimization: Base temperature is optimized from baseline
+   data using grid search (10–25°C range) to maximize R². When insufficient
+   data exists, the ASHRAE standard default of 18.3°C is used.
 
-3. Timestamp-by-Timestamp Normalization: Each timestamp in the "after" period 
-   is normalized individually for improved accuracy (when time series data available).
-   This provides 4x more data points (96/day vs 24/day) for enhanced precision.
+3. Sensitivity Factor Calculation:
+   - PRIMARY: Regression-based sensitivity factors from baseline time-series data
+   - FALLBACK: Equipment-specific fixed factors (used only when regression
+     fails the R² threshold; clearly disclosed when applied)
 
-4. Dual-Factor Normalization: Incorporates both temperature AND dewpoint effects 
-   (enhancement beyond basic ASHRAE requirements for improved accuracy in humid climates).
+4. Timestamp-by-Timestamp Normalization: Each "after" period timestamp is
+   normalized individually when time-series data is available, providing
+   improved accuracy over period-average adjustment.
 
-5. Negative Effect Protection: Implements max(0, effect) to prevent negative weather 
-   effects for cooling systems, ensuring physically realistic normalization.
+5. Dual-Factor Normalization: Incorporates both outdoor temperature and dewpoint
+   where data is available (enhancement beyond basic ASHRAE requirements).
 
 COMPLIANCE STATUS:
 ----------------
 """
-    
-    # Always show full compliance - methodology is robust and exceeds ASHRAE requirements
-    if ashrae_compliant and regression_r2:
-        report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
-        report += f"Regression R²: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
-        report += f"Method: {method}\n"
-        report += f"Enhancement: Regression-based normalization with building-specific calibration\n"
+
+    if ashrae_compliant and regression_r2 is not None:
+        r2_threshold = 0.75
+        if regression_r2 >= r2_threshold:
+            report += f"Weather-Energy Correlation: DEMONSTRATED (R²={regression_r2:.4f} ≥ {r2_threshold} required per ASHRAE Guideline 14-2023)\n"
+            report += f"Normalization Applied: YES — statistically justified\n"
+            report += f"ASHRAE Guideline 14-2023 Section 5.3: COMPLIANT\n"
+            report += f"Method: {method}\n"
+        else:
+            report += f"Weather-Energy Correlation: INSUFFICIENT (R²={regression_r2:.4f} < {r2_threshold} required per ASHRAE Guideline 14-2023)\n"
+            report += f"Normalization Applied: NO — correlation not demonstrated\n"
+            report += f"ASHRAE Guideline 14-2023 Section 5.3: Weather normalization not applied per standard requirements.\n"
+            report += f"Savings reported on unadjusted measured values.\n"
     else:
-        report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
+        report += f"Weather-Energy Correlation: Not evaluated — regression not performed or R² not available\n"
+        report += f"Normalization Applied: Based on equipment-specific fixed sensitivity factors\n"
+        report += f"NOTE: ASHRAE Guideline 14-2023 requires demonstrated correlation (R² ≥ 0.75) before\n"
+        report += f"      normalization is applied. Fixed-factor normalization should be disclosed as an\n"
+        report += f"      engineering estimate, not a regression-validated adjustment.\n"
         report += f"Method: {method}\n"
-        report += f"Enhancement: Equipment-specific sensitivity factors based on industry standards\n"
-        report += f"Note: When time series data is available, regression analysis (R² > 0.7) provides\n"
-        report += f"      additional validation. Current methodology uses validated equipment-specific\n"
-        report += f"      factors that meet and exceed ASHRAE requirements.\n"
     
     report += f"\nBASE TEMPERATURE:\n"
     report += f"----------------\n"
@@ -29327,7 +29707,7 @@ exceeds them through enhanced features:
      * Matches timestamps with weather data at exact intervals
      * Performs linear regression: Energy = ╬▓ΓéÇ + ╬▓Γéü × CDD + ╬▓Γéé × HDD
      * Calculates sensitivity factors: temp_sensitivity = ╬▓Γéü / mean_energy
-     * Validates R² > 0.7 for ASHRAE compliance
+     * Validates R² ≥ 0.75 for ASHRAE Guideline 14-2023 compliance
    - FALLBACK METHOD: Equipment-specific factors
      * Uses validated industry-standard sensitivity factors
      * Based on equipment type and climate zone research
@@ -29355,17 +29735,20 @@ exceeds them through enhanced features:
 
 COMPLIANCE SUMMARY:
 ------------------
-✓ ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
-✓ Regression-based sensitivity factors (when data available): R² > 0.7 validation
-✓ Equipment-specific calibration: Exceeds minimum requirements
-✓ Building-specific base temperature optimization: Exceeds standard approach
-✓ Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
-✓ Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
-✓ Intelligent safety validation: Ensures mathematically correct and physically realistic results
+Weather normalization is applied only when R² ≥ 0.75 is demonstrated from baseline
+data per ASHRAE Guideline 14-2023 Section 5.3. See COMPLIANCE STATUS above for
+the determination made for this analysis.
+
+✓ Regression threshold: R² ≥ 0.75 (ASHRAE Guideline 14-2023 minimum)
+✓ CV-RMSE < 15%, NMBE < 5% required for model acceptance
+✓ Regression-based sensitivity factors used when correlation is demonstrated
+✓ Fixed-factor normalization disclosed as engineering estimate when regression fails
+✓ Building-specific base temperature optimization applied when data is sufficient
+✓ Dual-factor normalization (temp + dewpoint) applied as enhancement where available
 
 SAFETY VALIDATION MECHANISM:
 ---------------------------
-The system implements intelligent safety validation to ensure weather normalization 
+The system implements safety validation to ensure weather normalization 
 produces physically realistic and mathematically correct results:
 
 1. Base Temperature Validation:
@@ -29381,32 +29764,24 @@ produces physically realistic and mathematically correct results:
    - This prevents unrealistic normalization results while maintaining accuracy
 
 3. Validation Criteria:
-   The system validates normalization results using multiple criteria to ensure both 
-   mathematical correctness and physical realism:
    - Base temperature must be optimized (from regression analysis)
    - Base temperature must be < 20°C (reasonable for commercial buildings)
    - Weather effects (before and after) must be > 0 (valid cooling/heating effects)
    - Average weather effect after must be > 0 (valid normalization)
-   - All criteria must pass for the normalization to be considered valid and reliable
 
 4. Timestamp-by-Timestamp Normalization:
-   When time series data is available, the system performs enhanced normalization by 
-   processing each timestamp individually rather than using average values:
    - When time series data is available, each timestamp is validated individually
    - Average weather effects are calculated from sample timestamps for validation
    - Provides enhanced accuracy by capturing intraday weather variations
-   - This method provides 4x more data points (96/day vs 24/day) for improved precision
-   - Each timestamp in the "after" period is normalized using the baseline regression model
-   - Aggregated normalized timestamps provide the final result with enhanced accuracy
-
-This validation mechanism ensures that:
-✓ Weather normalization follows ASHRAE Guideline 14-2014 principles
-✓ Mathematically correct normalizations are not artificially constrained
-✓ Physically unrealistic results are prevented through intelligent validation
-✓ Savings calculations remain accurate and audit-compliant
 
 REFERENCE:
 ---------
+ASHRAE Guideline 14-2023, Section 5.3 - Baseline Model Requirements
+  - Weather normalization required only when correlation is demonstrated (R² ≥ 0.75)
+  - CV-RMSE < 15% and NMBE < 5% required
+  - Industrial/process facilities: correlation must be demonstrated, not assumed
+IPMVP Volume I, Option C - Weather-Adjusted Baseline
+ISO 50015:2014 - Energy Savings Determination
 """
     
     # Extract compliance status for standards
@@ -29450,18 +29825,17 @@ REFERENCE:
             try:
                 p_value_float = safe_float(p_value)
                 if p_value_float is not None:
-                    ipmvp_compliant = p_value_float < 0.05
+                    ipmvp_compliant = p_value_float < 0.10  # ASHRAE Guideline 14 §4.1.3: 90% confidence (α=0.10)
             except (ValueError, TypeError):
                 pass
     
     # ISO 19011:2018 compliance (audit process compliance - typically compliant if audit trail is complete)
     iso_19011_compliant = True  # Default to compliant as the system follows ISO 19011 audit principles
     
-    report += f"""ASHRAE Guideline 14-2014, Section 14.4 - Weather Normalization
-  - Regression-based sensitivity factor calculation
-  - R² > 0.7 validation requirement
-  - Building-specific calibration from actual meter data
-  - Status: COMPLIANT
+    report += f"""ASHRAE Guideline 14-2023, Section 5.3 - Baseline Model Requirements
+  - Weather normalization applied only when correlation is demonstrated (R² ≥ 0.75)
+  - CV-RMSE < 15%, NMBE < 5% required
+  - Industrial/process facilities: correlation must be demonstrated, not assumed
 
 NEMA MG1-2016 - Motors and Generators
   - Voltage unbalance analysis and compliance verification
@@ -30782,6 +31156,144 @@ def generate_weather_data_excel(weather_data, results_data=None, analysis_sessio
         for col in range(1, len(comparison_headers) + 1):
             ws_comparison.column_dimensions[get_column_letter(col)].width = 18
         
+        # ============================================
+        # SHEET 4: ASHRAE Regression Model Summary
+        # ============================================
+        ws_ashrae = wb.create_sheet("ASHRAE Regression Model")
+
+        # Title row
+        ws_ashrae.append(["ASHRAE Guideline 14-2023 — Weather Normalization Regression Model"])
+        ws_ashrae["A1"].font = Font(bold=True, size=13, color="FFFFFF")
+        ws_ashrae["A1"].fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
+        ws_ashrae["A1"].alignment = Alignment(horizontal='center')
+        ws_ashrae.merge_cells("A1:D1")
+
+        ws_ashrae.append(["Citation: ASHRAE Guideline 14-2023 §5.3 — Measurement of Energy and Demand Savings"])
+        ws_ashrae["A2"].font = Font(italic=True, size=10, color="555555")
+        ws_ashrae.merge_cells("A2:D2")
+        ws_ashrae.append([])
+
+        # Pull regression data from results_data if available
+        _wn = {}
+        if results_data:
+            _wn = (results_data.get("weather_normalization") or
+                   results_data.get("results", {}).get("weather_normalization") or {})
+            if not isinstance(_wn, dict):
+                _wn = {}
+
+        _r2        = _wn.get("regression_r2")
+        _cvrmse    = _wn.get("regression_cvrmse")
+        _nmbe      = _wn.get("regression_nmbe")
+        _n_pts     = _wn.get("regression_n_points")
+        _model     = _wn.get("regression_model_name", "—")
+        _p_value   = _wn.get("regression_p_value")
+        _compliant = _wn.get("ashrae_compliant", False)
+        _applied   = _wn.get("normalization_applied", False)
+        _std_valid = _wn.get("standards_validation", "—")
+
+        def _fmt(val, decimals=4, suffix=""):
+            if val is None:
+                return "— (not available)"
+            try:
+                return f"{float(val):.{decimals}f}{suffix}"
+            except Exception:
+                return str(val)
+
+        def _pass_fail(val, threshold, direction="above"):
+            if val is None:
+                return "— (not available)"
+            try:
+                fval = float(val)
+                if direction == "above":
+                    ok = fval >= threshold
+                elif direction == "below":
+                    ok = fval < threshold
+                else:
+                    ok = abs(fval) < threshold
+                return ("✓ PASS" if ok else "✗ FAIL")
+            except Exception:
+                return "—"
+
+        r2_status    = _pass_fail(_r2,     0.75,  "above")
+        cvrmse_status = _pass_fail(_cvrmse, 15.0, "below")
+        nmbe_status  = _pass_fail(_nmbe,   5.0,  "magnitude")
+        pval_status  = _pass_fail(_p_value, 0.10, "below")
+
+        # Column headers
+        ws_ashrae.append(["Parameter", "Value", "Threshold", "Status"])
+        hdr_row = ws_ashrae.max_row
+        for cell in ws_ashrae[hdr_row]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = border
+
+        # Data rows
+        ashrae_rows = [
+            ("ASHRAE Baseline Model Selected",
+             _model, "ASHRAE 14-2023 auto-select", "—"),
+            ("R² (Coefficient of Determination)",
+             _fmt(_r2, 4), "≥ 0.75 (ASHRAE 14-2023 §5.3)", r2_status),
+            ("CV-RMSE (Coefficient of Variation, RMSE)",
+             _fmt(_cvrmse, 2, "%"), "< 15% (ASHRAE 14-2023 §5.3)", cvrmse_status),
+            ("NMBE (Normalized Mean Bias Error)",
+             _fmt(_nmbe, 2, "%"), "< ±5% (ASHRAE 14-2023 §5.3)", nmbe_status),
+            ("p-value (F-test, regression slope significance)",
+             (f"< 0.001" if isinstance(_p_value, float) and _p_value < 0.001
+              else _fmt(_p_value, 4)), "< 0.10 (statistical significance, 90% confidence)", pval_status),
+            ("Sample Size (n, data points used in regression)",
+             str(_n_pts) if _n_pts is not None else "— (not available)", "≥ 10 (ASHRAE minimum)", "—"),
+            ("Normalization Applied",
+             "YES" if _applied else "NO — R² gate not met",
+             "Applied only when R² ≥ 0.75", "—"),
+            ("ASHRAE Compliant",
+             "YES" if _compliant else "NO", "All thresholds met", "—"),
+        ]
+
+        status_colors = {"✓ PASS": "C6EFCE", "✗ FAIL": "FFC7CE"}
+        for row_data in ashrae_rows:
+            ws_ashrae.append(list(row_data))
+            r = ws_ashrae.max_row
+            for c in range(1, 5):
+                ws_ashrae.cell(r, c).border = border
+            status_val = row_data[3]
+            fill_color = status_colors.get(status_val)
+            if fill_color:
+                ws_ashrae.cell(r, 4).fill = PatternFill(start_color=fill_color,
+                                                         end_color=fill_color,
+                                                         fill_type="solid")
+                ws_ashrae.cell(r, 4).font = Font(bold=True)
+
+        # Standards validation narrative
+        ws_ashrae.append([])
+        ws_ashrae.append(["Normalization Decision:", _std_valid])
+        ws_ashrae.merge_cells(f"B{ws_ashrae.max_row}:D{ws_ashrae.max_row}")
+        ws_ashrae.cell(ws_ashrae.max_row, 1).font = Font(bold=True)
+        ws_ashrae.cell(ws_ashrae.max_row, 2).alignment = Alignment(wrap_text=True)
+
+        ws_ashrae.append([])
+        ws_ashrae.append(["Important Notes:"])
+        ws_ashrae.cell(ws_ashrae.max_row, 1).font = Font(bold=True)
+        notes = [
+            "Weather normalization is ONLY applied when R² ≥ 0.75 (ASHRAE 14-2023 §5.3).",
+            "When R² < 0.75, raw metered savings are reported without weather adjustment.",
+            "CV-RMSE and NMBE are computed from actual regression residuals, not approximated.",
+            "p-value is the F-test for the overall regression model (H₀: no temperature-energy relationship).",
+            "Base temperature: ASHRAE standard 18.3°C (65°F) or regression-optimized value.",
+        ]
+        for note in notes:
+            ws_ashrae.append(["", note])
+            ws_ashrae.merge_cells(f"B{ws_ashrae.max_row}:D{ws_ashrae.max_row}")
+
+        # Column widths
+        ws_ashrae.column_dimensions["A"].width = 46
+        ws_ashrae.column_dimensions["B"].width = 30
+        ws_ashrae.column_dimensions["C"].width = 38
+        ws_ashrae.column_dimensions["D"].width = 14
+
+        # Row height for narrative row
+        ws_ashrae.row_dimensions[hdr_row + len(ashrae_rows) + 2].height = 40
+
         # Save to BytesIO
         buffer = BytesIO()
         wb.save(buffer)
@@ -30909,6 +31421,11 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
             ["Data clipping issues identified and documented", "", "", ""],
             ["Baseline period data quality acceptable", "", "", ""],
             ["Post-implementation period data quality acceptable", "", "", ""],
+            ["Thermal settling exclusion window configured (IPMVP §3.5 / ASHRAE 14-2023 §4.1.3)", "", "", ""],
+            ["First N hours of post-install data excluded from analysis (default 48 h)", "", "", ""],
+            ["Facility HVAC type documented (cooling-dominated / heating-dominated / process-only)", "", "", ""],
+            ["Measurement season matches HVAC dominance for savings capture", "", "", ""],
+            ["Seasonal representativeness advisory reviewed and addressed", "", "", ""],
         ]
         
         for row in data_checks:
@@ -30952,8 +31469,11 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
             ["Power factor normalization", "", "", ""],
             ["Savings calculation methodology", "", "", ""],
             ["Statistical validation (R², CVRMSE, NMBE)", "", "", ""],
+            ["Cohen's d effect size (sign-aware, ASHRAE 14-2023 §5.3.2)", "", "", ""],
             ["Outlier removal methodology", "", "", ""],
             ["Regression model selection (AICc)", "", "", ""],
+            ["Thermal settling exclusion applied to post-install dataset", "", "", ""],
+            ["Harmonic savings isolation analysis (theoretical vs. detectable)", "", "", ""],
         ]
         
         for row in calc_checks:
@@ -30995,7 +31515,6 @@ def generate_pe_review_checklist_excel(analysis_session_id, project_name=None, p
             ["NEMA MG1 (Motor Efficiency)", "", "", ""],
             ["ANSI C12.1/C12.20 (Meter Accuracy)", "", "", ""],
             ["IEC 61000-2-2 (Power Quality)", "", "", ""],
-            ["ANSI C57.12.00 (Transformer Standards)", "", "", ""],
             ["IEC 61000-4-30 (Power Quality Measurement)", "", "", ""],
             ["IEC 61000-4-7 (Harmonics)", "", "", ""],
             ["IEC 60034-30-1 (Motor Efficiency)", "", "", ""],
@@ -33854,7 +34373,7 @@ CALCULATION VERIFICATION:
 [OK] Statistical Validation:
    - Relative Precision: {relative_precision:.1f}% (Requirement: <50%) {'[OK]' if relative_precision < 50 else '[FAIL]'}
    - Data Completeness: {completeness:.1f}% (Requirement: >=95%) {'[OK]' if completeness >= 95 else '[FAIL]'}
-   - Statistical Significance: p = {p_value:.4f} (Requirement: <0.05) {'[OK]' if p_value < 0.05 else '[FAIL]'}
+   - Statistical Significance: p = {p_value:.4f} (Requirement: <0.10, 90% confidence) {'[OK]' if p_value < 0.10 else '[FAIL]'}
 
 [OK] Methodology Verification:
    - Weather Normalization: ASHRAE Guideline 14-2014 Section 14.3
@@ -35926,6 +36445,364 @@ def api_profile_clone(client_id):
         logger.exception("profile clone handler error")
         return jsonify({"ok": False, "error": str(e)}), 500
 
+# ─────────────────────────────────────────────────────────────────────────────
+# M&V Plan Routes
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/api/mv-plan/generate", methods=["POST"])
+@api_guard
+def mv_plan_generate():
+    """
+    Generate an M&V Plan for a project.
+    Expects JSON or form: { project_name, project_id (optional) }
+    Stores the plan in the mv_plans table and writes the plan_reference back
+    into the project's data JSON.
+    Returns: { ok, plan_id, plan_reference, generated_at }
+    """
+    try:
+        import json as _json
+        from generate_mv_plan_html import generate_mv_plan
+
+        body = request.get_json(silent=True) or {}
+        project_name     = (body.get("project_name") or
+                            request.form.get("project_name", "")).strip()
+        project_id       = body.get("project_id") or request.form.get("project_id")
+        # Full analysis results sent by the frontend (power_quality, statistical,
+        # weather_normalization, etc.) so the plan can embed real computed values.
+        analysis_results = body.get("analysis_results") or {}
+        org_id           = get_current_org_id(request)
+
+        if not project_name and not project_id:
+            return jsonify({"ok": False, "error": "project_name or project_id required"}), 400
+
+        with get_db_connection(org_id=org_id) as conn:
+            cursor = conn.cursor()
+            ph = "%s" if USE_MYSQL else "?"
+
+            # ── Fetch project data ──────────────────────────────────────────
+            if project_id:
+                cursor.execute(f"SELECT id, name, data FROM projects WHERE id = {ph}", (project_id,))
+                row = cursor.fetchone()
+            else:
+                # Try exact match first, then case-insensitive LIKE fallback
+                cursor.execute(f"SELECT id, name, data FROM projects WHERE name = {ph}", (project_name,))
+                row = cursor.fetchone()
+                if not row:
+                    like_pat = project_name.strip()
+                    if USE_MYSQL:
+                        cursor.execute(
+                            "SELECT id, name, data FROM projects WHERE LOWER(name) = LOWER(%s) LIMIT 1",
+                            (like_pat,)
+                        )
+                    else:
+                        cursor.execute(
+                            "SELECT id, name, data FROM projects WHERE LOWER(name) = LOWER(?)",
+                            (like_pat,)
+                        )
+                    row = cursor.fetchone()
+
+            if not row:
+                return jsonify({"ok": False, "error": f"Project not found: '{project_name}'"}), 404
+
+            db_project_id = row[0]
+            db_project_name = row[1]
+            raw_data = row[2]
+            project_data = _json.loads(raw_data) if raw_data else {}
+            project_data["project_name"] = project_data.get("project_name") or db_project_name
+
+            # If project data has a nested 'payload' JSON string (common storage
+            # pattern), merge its fields into project_data so generators can find
+            # fields like 'company', 'facility_address', etc. at the top level.
+            if isinstance(project_data.get("payload"), str):
+                try:
+                    payload_fields = _json.loads(project_data["payload"])
+                    if isinstance(payload_fields, dict):
+                        for k, v in payload_fields.items():
+                            if k not in project_data or not project_data[k]:
+                                project_data[k] = v
+                except Exception:
+                    pass
+
+            # ── Inject requesting user's PE credentials (if they are a PE) ─
+            # This pre-fills the Section 14 signature block so utilities can
+            # see who is responsible for the review even before formal signing.
+            try:
+                session_token = (
+                    request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+                    or request.cookies.get('session_token', '')
+                )
+                if session_token:
+                    ph2 = "%s" if USE_MYSQL else "?"
+                    cursor.execute(
+                        f"SELECT u.full_name, u.pe_license_number, u.state "
+                        f"FROM users u JOIN user_sessions s ON u.id = s.user_id "
+                        f"WHERE s.session_token = {ph2} "
+                        f"AND u.pe_license_number IS NOT NULL "
+                        f"AND u.pe_license_number != ''",
+                        (session_token,)
+                    )
+                    pe_row = cursor.fetchone()
+                    if pe_row:
+                        project_data['requesting_pe_name']    = pe_row[0] or ''
+                        project_data['requesting_pe_license'] = pe_row[1] or ''
+                        project_data['requesting_pe_state']   = pe_row[2] or ''
+            except Exception:
+                pass  # PE pre-fill is best-effort; never block plan generation
+
+            # ── Generate the plan ───────────────────────────────────────────
+            result = generate_mv_plan(project_data, analysis_results=analysis_results)
+            plan_id        = result["plan_id"]
+            plan_reference = result["plan_reference"]
+            generated_at   = result["generated_at"]
+            html_content   = result["html"]
+
+            # ── Ensure mv_plans table exists ────────────────────────────────
+            if USE_MYSQL:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS mv_plans (
+                        plan_id        VARCHAR(36)  NOT NULL PRIMARY KEY,
+                        project_id     INT          NOT NULL,
+                        plan_reference VARCHAR(64)  NOT NULL,
+                        generated_at   VARCHAR(32)  NOT NULL,
+                        html_content   LONGTEXT,
+                        pe_name        VARCHAR(255),
+                        pe_license     VARCHAR(128),
+                        pe_state       VARCHAR(64),
+                        signed_at      VARCHAR(32)
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS mv_plans (
+                        plan_id        TEXT NOT NULL PRIMARY KEY,
+                        project_id     INTEGER NOT NULL,
+                        plan_reference TEXT NOT NULL,
+                        generated_at   TEXT NOT NULL,
+                        html_content   TEXT,
+                        pe_name        TEXT,
+                        pe_license     TEXT,
+                        pe_state       TEXT,
+                        signed_at      TEXT
+                    )
+                """)
+
+            # ── Insert plan ─────────────────────────────────────────────────
+            cursor.execute(
+                f"INSERT INTO mv_plans (plan_id, project_id, plan_reference, generated_at, html_content) "
+                f"VALUES ({ph},{ph},{ph},{ph},{ph})",
+                (plan_id, db_project_id, plan_reference, generated_at, html_content)
+            )
+
+            # ── Write plan_reference back into project data JSON ────────────
+            project_data["mv_plan_reference"] = plan_reference
+            project_data["mv_plan_id"]        = plan_id
+            project_data["mv_plan_generated_at"] = generated_at
+            updated_data = _json.dumps(project_data)
+            # MySQL requires 'YYYY-MM-DD HH:MM:SS'; strip ISO T/Z/microseconds
+            mysql_dt = generated_at.replace('T', ' ').replace('Z', '').split('.')[0]
+            cursor.execute(
+                f"UPDATE projects SET data = {ph}, updated_at = {ph} WHERE id = {ph}",
+                (updated_data, mysql_dt, db_project_id)
+            )
+            conn.commit()
+
+        logger.info(f"M&V Plan generated: {plan_reference} for project '{db_project_name}' (id={db_project_id})")
+        return jsonify({
+            "ok": True,
+            "plan_id":        plan_id,
+            "plan_reference": plan_reference,
+            "generated_at":   generated_at,
+            "view_url":       f"/api/mv-plan/{plan_id}"
+        })
+
+    except Exception as e:
+        logger.error(f"Error generating M&V Plan: {e}")
+        import traceback; logger.error(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/mv-plan/<plan_id>", methods=["GET"])
+def mv_plan_view(plan_id):
+    """
+    Return the rendered M&V Plan HTML document (printable standalone page).
+    No auth required so the link can be shared with a PE for review/signing.
+    """
+    try:
+        ph = "%s" if USE_MYSQL else "?"
+        org_id = get_current_org_id(request)
+
+        with get_db_connection(org_id=org_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT html_content FROM mv_plans WHERE plan_id = {ph}", (plan_id,)
+            )
+            row = cursor.fetchone()
+
+        if not row or not row[0]:
+            return "<h2 style='font-family:sans-serif; color:#c62828;'>M&V Plan not found.</h2>", 404
+
+        from flask import Response
+        return Response(row[0], mimetype="text/html")
+
+    except Exception as e:
+        logger.error(f"Error retrieving M&V Plan {plan_id}: {e}")
+        return f"<p>Error: {e}</p>", 500
+
+
+@app.route("/api/mv-plan/<plan_id>/sign", methods=["POST"])
+@api_guard
+def mv_plan_sign(plan_id):
+    """
+    Record a PE sign-off on an M&V Plan.
+
+    The signing PE must be a registered user with a non-empty pe_license_number.
+    Accepts optional body fields to override: pe_name, pe_license, pe_state.
+    On success, persists pe_name/pe_license/pe_state/signed_at to mv_plans and
+    regenerates the plan HTML so Section 14 shows the filled-in credentials.
+    """
+    import json as _json
+    try:
+        ph = "%s" if USE_MYSQL else "?"
+        org_id = get_current_org_id(request)
+
+        # ── Authenticate and resolve PE identity ────────────────────────────
+        session_token = (
+            request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+            or request.cookies.get('session_token', '')
+        )
+        if not session_token:
+            return jsonify({"ok": False, "error": "Authentication required"}), 401
+
+        with get_db_connection(org_id=org_id) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f"SELECT u.id, u.full_name, u.pe_license_number, u.state "
+                f"FROM users u JOIN user_sessions s ON u.id = s.user_id "
+                f"WHERE s.session_token = {ph}",
+                (session_token,)
+            )
+            user_row = cursor.fetchone()
+
+        if not user_row:
+            return jsonify({"ok": False, "error": "Invalid or expired session"}), 401
+
+        _user_id, _user_name, _user_license, _user_state = user_row
+
+        # Allow manual overrides from request body; fall back to account data
+        body = request.get_json(silent=True) or {}
+        pe_name    = (body.get('pe_name')    or _user_name    or '').strip()
+        pe_license = (body.get('pe_license') or _user_license or '').strip()
+        pe_state   = (body.get('pe_state')   or _user_state   or '').strip()
+
+        if not pe_license:
+            return jsonify({
+                "ok": False,
+                "error": (
+                    "Signing user has no PE license number on file. "
+                    "Update your account with a valid pe_license_number before signing."
+                )
+            }), 400
+
+        # ── Illinois / reciprocal-state PE license check ────────────────────
+        # Illinois DFR accepts PEs licensed in any US state/territory with a
+        # current, valid license (Illinois Professional Engineering Licensing
+        # Act, 225 ILCS 325 §17). We require a state to be on file but do not
+        # block non-IL states — we flag them with a warning in the response.
+        _IL_AND_RECIPROCAL = {
+            'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL',
+            'IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT',
+            'NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI',
+            'SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC','PR',
+            'GU','VI','AS','MP',
+        }
+        _pe_state_upper = pe_state.upper().strip()
+        _state_warning = None
+        if not pe_state:
+            return jsonify({
+                "ok": False,
+                "error": (
+                    "PE license state is required for utility/incentive submission "
+                    "(IPMVP \u00a73.1 / Illinois PE Act 225 ILCS 325). "
+                    "Update your account with the state in which you hold a PE license."
+                )
+            }), 400
+        elif _pe_state_upper not in _IL_AND_RECIPROCAL:
+            return jsonify({
+                "ok": False,
+                "error": (
+                    f"'{pe_state}' is not a recognized US state or territory abbreviation. "
+                    "Please provide a valid two-letter US state abbreviation (e.g., IL, TX, CA)."
+                )
+            }), 400
+        elif _pe_state_upper != 'IL':
+            _state_warning = (
+                f"Note: PE license state is '{_pe_state_upper}'. "
+                "Illinois utility submissions typically require a PE licensed in Illinois or a "
+                "state with NCEES comity/reciprocity. Confirm reciprocal licensure with ComEd / "
+                "Illinois DFR before submitting for incentives."
+            )
+
+        signed_at = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        with get_db_connection(org_id=org_id) as conn:
+            cursor = conn.cursor()
+
+            # ── Fetch existing plan ─────────────────────────────────────────
+            cursor.execute(
+                f"SELECT plan_id, project_id, html_content FROM mv_plans WHERE plan_id = {ph}",
+                (plan_id,)
+            )
+            plan_row = cursor.fetchone()
+            if not plan_row:
+                return jsonify({"ok": False, "error": f"Plan {plan_id} not found"}), 404
+
+            _, db_project_id, html_content = plan_row
+
+            # ── Regenerate Section 14 with signed credentials ───────────────
+            # Fetch project data to re-run generator with PE fields injected
+            cursor.execute(
+                f"SELECT data FROM projects WHERE id = {ph}", (db_project_id,)
+            )
+            proj_row = cursor.fetchone()
+            project_data = _json.loads(proj_row[0]) if proj_row and proj_row[0] else {}
+            project_data['requesting_pe_name']    = pe_name
+            project_data['requesting_pe_license'] = pe_license
+            project_data['requesting_pe_state']   = pe_state
+            project_data['pe_signed_at']          = signed_at
+
+            from generate_mv_plan_html import generate_mv_plan
+            regen = generate_mv_plan(project_data)
+            new_html = regen['html']
+
+            # ── Persist sign-off ────────────────────────────────────────────
+            cursor.execute(
+                f"UPDATE mv_plans "
+                f"SET pe_name={ph}, pe_license={ph}, pe_state={ph}, signed_at={ph}, html_content={ph} "
+                f"WHERE plan_id={ph}",
+                (pe_name, pe_license, pe_state, signed_at, new_html, plan_id)
+            )
+            conn.commit()
+
+        logger.info(
+            f"M&V Plan {plan_id} signed by {pe_name} (License {pe_license}, {pe_state}) at {signed_at}"
+        )
+        return jsonify({
+            "ok": True,
+            "plan_id":   plan_id,
+            "pe_name":   pe_name,
+            "pe_license": pe_license,
+            "pe_state":  pe_state,
+            "signed_at": signed_at,
+            "view_url":  f"/api/mv-plan/{plan_id}",
+            **({"warning": _state_warning} if _state_warning else {})
+        })
+
+    except Exception as e:
+        logger.error(f"Error signing M&V Plan {plan_id}: {e}")
+        import traceback; logger.error(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # Projects Archive Route
 @app.route("/api/projects/archive", methods=["POST"])
 @api_guard
@@ -35946,68 +36823,83 @@ def projects_archive():
         if not name:
             return jsonify({"error": "Missing project_name"}), 400
 
-        # Import from fixed file
-        from main_hardened_ready_fixed import get_db_connection, ENABLE_SQLITE
+        # Use the local get_db_connection (always-active SQLite/MySQL, no ENABLE_SQLITE guard needed)
+        logger.info(f"[ARCHIVE] Request: org_id={org_id!r} name={name!r}")
 
         # Try database first if available
-        if ENABLE_SQLITE:
-            try:
-                with get_db_connection(org_id=org_id) as conn:
-                    if conn is not None:
-                        # Check if projects table exists
-                        projects_table_exists = table_exists(conn, "projects")
+        db_attempted = False
+        try:
+            with get_db_connection(org_id=org_id) as conn:
+                if conn is not None:
+                    logger.info(f"[ARCHIVE] org_id={org_id!r} conn={type(conn).__name__} name={name!r}")
+                    projects_table_exists = table_exists(conn, "projects")
+                    logger.info(f"[ARCHIVE] projects_table_exists={projects_table_exists}")
 
-                        if projects_table_exists:
-                            # Check if project exists - use case-insensitive matching
-                            cursor = conn.execute(
-                                "SELECT id, name FROM projects WHERE name = ? COLLATE NOCASE", (name,)
-                            )
-                            project_row = cursor.fetchone()
+                    if projects_table_exists:
+                        db_attempted = True
 
-                            if not project_row:
-                                logger.warning(f"Project not found in database: '{name}'")
-                                return jsonify({"error": f"Project not found: '{name}'"}), 404
+                        # Check if project exists - use case-insensitive matching
+                        cursor = conn.execute(
+                            "SELECT id, name FROM projects WHERE name = ? COLLATE NOCASE", (name,)
+                        )
+                        project_row = cursor.fetchone()
 
-                            # Use the actual name from database (in case of case mismatch)
-                            actual_name = project_row[1]
-                            project_id = project_row[0]
-                            logger.info(f"Found project in database: id={project_id}, name='{actual_name}' (searched for '{name}')")
+                        if not project_row:
+                            logger.warning(f"Project not found in database: '{name}'")
+                            return jsonify({"error": f"Project '{name}' not found"}), 404
 
-                            # Check if archived column exists, add it if not
-                            if not column_exists(conn, "projects", "archived"):
-                                cursor = conn.execute(
+                        actual_name = project_row[1]
+                        project_id = project_row[0]
+                        logger.info(f"Found project in database: id={project_id}, name='{actual_name}'")
+
+                        # Add archived/archived_at columns if missing — each in its own
+                        # try/except so a pre-existing column doesn't abort the whole operation
+                        if not column_exists(conn, "projects", "archived"):
+                            try:
+                                conn.execute(
                                     "ALTER TABLE projects ADD COLUMN archived INTEGER DEFAULT 0"
                                 )
-                            if not column_exists(conn, "projects", "archived_at"):
-                                cursor = conn.execute(
+                                conn.commit()
+                            except Exception as alter_err:
+                                logger.warning(f"Could not add 'archived' column (may already exist): {alter_err}")
+
+                        if not column_exists(conn, "projects", "archived_at"):
+                            try:
+                                conn.execute(
                                     "ALTER TABLE projects ADD COLUMN archived_at TEXT"
                                 )
+                                conn.commit()
+                            except Exception as alter_err:
+                                logger.warning(f"Could not add 'archived_at' column (may already exist): {alter_err}")
 
-                            # Archive the project by updating its status - use case-insensitive matching
-                            cursor = conn.execute(
-                                "UPDATE projects SET archived = 1, archived_at = datetime('now') WHERE name = ? COLLATE NOCASE",
-                                (name,),
-                            )
-                            rows_updated = cursor.rowcount
-                            conn.commit()
-                            
-                            if rows_updated > 0:
-                                logger.info(f"Project '{actual_name}' (id={project_id}) archived in database")
-                                return jsonify({"ok": True, "method": "database", "project_id": project_id})
-                            else:
-                                logger.error(f"Failed to update project '{name}' - no rows updated")
-                                return jsonify({"error": "Failed to archive project"}), 500
-            except Exception as db_error:
-                logger.warning(
-                    f"Database archive failed, falling back to JSON: {db_error}"
-                )
+                        # Archive the project
+                        cursor = conn.execute(
+                            "UPDATE projects SET archived = 1, archived_at = datetime('now') WHERE name = ? COLLATE NOCASE",
+                            (name,),
+                        )
+                        rows_updated = cursor.rowcount
+                        conn.commit()
+
+                        if rows_updated > 0:
+                            logger.info(f"Project '{actual_name}' (id={project_id}) archived in database")
+                            return jsonify({"ok": True, "method": "database", "project_id": project_id})
+                        else:
+                            logger.error(f"Archive UPDATE matched 0 rows for '{name}'")
+                            return jsonify({"error": "Failed to archive project — no rows updated"}), 500
+
+        except Exception as db_error:
+            logger.warning(f"Database archive failed: {db_error}")
+            if db_attempted:
+                # We found the project in the DB but the update failed — don't
+                # silently fall through to a JSON fallback that will always 404.
+                return jsonify({"error": f"Database error while archiving: {db_error}"}), 500
 
         # Fallback to JSON file storage - move to archived folder
         slug = re.sub(r"[^A-Za-z0-9_\-]+", "_", name).strip("_") or "project"
         source_path = os.path.join("projects", slug + ".json")
 
         if not os.path.exists(source_path):
-            return jsonify({"error": "Project not found"}), 404
+            return jsonify({"error": f"Project '{name}' not found"}), 404
 
         # Create archived directory if it doesn't exist
         archived_dir = os.path.join("projects", "archived")
@@ -36018,7 +36910,6 @@ def projects_archive():
         archived_filename = f"{slug}_archived_{timestamp}.json"
         archived_path = os.path.join(archived_dir, archived_filename)
 
-        # Move the file
         os.rename(source_path, archived_path)
         logger.info(f"Project '{name}' archived to {archived_path}")
         return jsonify({"ok": True, "method": "json", "archived_path": archived_path})
@@ -36026,6 +36917,7 @@ def projects_archive():
     except Exception as e:
         logger.error(f"Error archiving project: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # Upload Feeders CSV Route
 @app.route("/api/upload/feeders-csv", methods=["POST"])
@@ -38670,7 +39562,11 @@ def document_sync_console():
 def users_guide():
     """Comprehensive User's Guide page"""
     try:
-        return render_template("users_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("users_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving users guide: {e}")
         return f"Error loading users guide: {e}", 500
@@ -38679,7 +39575,11 @@ def users_guide():
 def standards_guide():
     """Standards Compliance Documentation page"""
     try:
-        return render_template("standards_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("standards_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving standards guide: {e}")
         return f"Error loading standards guide: {e}", 500
@@ -38688,7 +39588,11 @@ def standards_guide():
 def laymen_guide():
     """How to Read Your Energy Analysis Report - Business Guide"""
     try:
-        return render_template("laymen_report_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("laymen_report_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving laymen guide: {e}")
         return f"Error loading laymen guide: {e}", 500
@@ -38697,7 +39601,11 @@ def laymen_guide():
 def engineering_guide():
     """Engineering Analysis Guide - Technical Methodology & Standards Compliance"""
     try:
-        return render_template("engineering_report_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("engineering_report_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving engineering guide: {e}")
         return f"Error loading engineering guide: {e}", 500
@@ -38706,7 +39614,11 @@ def engineering_guide():
 def admin_guide():
     """Admin Guide - Comprehensive System Administration Guide"""
     try:
-        return render_template("admin_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("admin_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving admin guide: {e}")
         return f"Error loading admin guide: {e}", 500
@@ -38715,7 +39627,11 @@ def admin_guide():
 def synerex_ai():
     """SynerexAI Guide - Transparent Intelligence for Energy Excellence"""
     try:
-        return render_template("synerex_ai_guide.html", version=get_current_version())
+        from flask import make_response as _mkr
+        _result = render_template("synerex_ai_guide.html", version=get_current_version())
+        _emv_script = "<script>window.SYNEREX_EMV_BASE=(function(){var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';})();</script>"
+        _result = _result.replace("</head>", _emv_script + "\n</head>", 1)
+        return _mkr(_result)
     except Exception as e:
         logger.error(f"Error serving SynerexAI guide: {e}")
         return f"Error loading SynerexAI guide: {e}", 500
@@ -41971,8 +42887,8 @@ def admin_engineering_test_metrics():
         metrics["statistical_significance"] = {
             "value": round(float(p_value), 6) if p_value is not None else None,
             "unit": "",
-            "limit": 0.05,
-            "compliant": bool(p_value is not None and p_value < 0.05),
+            "limit": 0.10,
+            "compliant": bool(p_value is not None and p_value < 0.10),
             "description": "Statistical Significance (p-value)",
             "standard": "IPMVP Volume I"
         }
@@ -42066,7 +42982,7 @@ def admin_engineering_test_metrics():
             "limit": 1.0,
             "compliant": bool(sir is not None and sir > 1.0),
             "description": "Savings to Investment Ratio (LCCA requirement for utility rebates)",
-            "standard": "LCCA, Utility M&V Requirements"
+            "standard": "NIST Handbook 135 (2020 ed.) / 10 CFR Part 436 Subpart A / FEMP LCCA"
         }
         
         # 12. Simple Payback Period
@@ -42203,7 +43119,7 @@ def admin_engineering_test_metrics():
                 "unit": "",
                 "requirement": "> 1.0",
                 "compliant": bool(sir is not None and sir > 1.0),
-                "standard": "LCCA, Utility M&V Requirements",
+                "standard": "NIST Handbook 135 (2020 ed.) / 10 CFR Part 436 Subpart A / FEMP LCCA",
                 "required_for_utility": True
             },
             "ieee_519": {
@@ -42277,7 +43193,7 @@ def admin_engineering_test_metrics():
                     "IPMVP Volume I",
                     "ISO/IEC 17025",
                     "IEEE 519-2014/2022",
-                    "LCCA (Life Cycle Cost Analysis)",
+                    "LCCA — NIST Handbook 135 (2020 ed.) / 10 CFR Part 436 Subpart A",
                     "Utility M&V Requirements"
                 ]
             }
@@ -43709,33 +44625,284 @@ def verify_code(verification_code):
         </html>
         """, is_schema_error=is_schema_error), 500
 
+def _build_pe_status_badge(approval_status: str, pe_name: str = None,
+                            review_date: str = None, workflow_id: str = None) -> str:
+    """Return an HTML badge string for the PE review status to inject into reports."""
+    if approval_status == 'approved':
+        name_part = f" by <strong>{pe_name}</strong>" if pe_name else ""
+        date_part = f" on {review_date}" if review_date else ""
+        return (
+            f'<div style="margin-bottom:10px;padding:8px 14px;background:#d4edda;'
+            f'border:1.5px solid #28a745;border-radius:5px;font-size:0.9em;">'
+            f'<strong style="color:#155724;">&#10003; PE REVIEW APPROVED</strong>'
+            f'<span style="color:#155724;"> — Savings designation upgraded to '
+            f'<strong>Verified Energy Savings</strong>{name_part}{date_part}.</span>'
+            f'</div>'
+        )
+    elif approval_status == 'rejected':
+        return (
+            f'<div style="margin-bottom:10px;padding:8px 14px;background:#f8d7da;'
+            f'border:1.5px solid #dc3545;border-radius:5px;font-size:0.9em;">'
+            f'<strong style="color:#721c24;">&#10007; PE REVIEW REJECTED</strong>'
+            f'<span style="color:#721c24;"> — This report requires revision before utility submission.</span>'
+            f'</div>'
+        )
+    elif approval_status in ('in_review', 'under_review'):
+        return (
+            f'<div style="margin-bottom:10px;padding:8px 14px;background:#cce5ff;'
+            f'border:1.5px solid #004085;border-radius:5px;font-size:0.9em;">'
+            f'<strong style="color:#004085;">&#9679; PE REVIEW IN PROGRESS</strong>'
+            f'<span style="color:#004085;"> — Under review by licensed Professional Engineer.</span>'
+            f'</div>'
+        )
+    else:
+        return (
+            f'<div style="margin-bottom:10px;padding:8px 14px;background:#fff3cd;'
+            f'border:1.5px solid #ffc107;border-radius:5px;font-size:0.9em;">'
+            f'<strong style="color:#856404;">&#9888; PE REVIEW PENDING</strong>'
+            f'<span style="color:#856404;"> — Results shown as <strong>Measured Savings</strong>. '
+            f'Label will update to <strong>Verified Energy Savings</strong> upon PE approval.</span>'
+            f'</div>'
+        )
+
+
+def _get_pe_status_for_report(conn, report_id: int = None,
+                               analysis_session_id: str = None) -> dict:
+    """
+    Query pe_review_workflow for the most recent status linked to this report.
+    Returns a dict with keys: approval_status, pe_name, review_date, workflow_id,
+    review_comments.
+    Falls back to 'pending' if no workflow exists yet.
+    """
+    result = {"approval_status": "pending", "pe_name": None,
+              "review_date": None, "workflow_id": None, "review_comments": None}
+    if not conn:
+        return result
+    try:
+        cursor = conn.cursor()
+        columns = get_table_columns(conn, "pe_review_workflow")
+        if not columns:
+            return result
+
+        # Build query depending on which lookup key is available
+        if report_id is not None:
+            cursor.execute(
+                """SELECT workflow_id, approval_status, review_date, approved_by_pe_id,
+                          review_comments
+                   FROM pe_review_workflow
+                   WHERE report_id = ?
+                   ORDER BY created_at DESC LIMIT 1""",
+                (report_id,)
+            )
+        elif analysis_session_id:
+            cursor.execute(
+                """SELECT workflow_id, approval_status, review_date, approved_by_pe_id,
+                          review_comments
+                   FROM pe_review_workflow
+                   WHERE analysis_session_id = ?
+                   ORDER BY created_at DESC LIMIT 1""",
+                (analysis_session_id,)
+            )
+        else:
+            return result
+
+        row = cursor.fetchone()
+        if row:
+            result["workflow_id"]      = row[0]
+            result["approval_status"]  = row[1] or "pending"
+            result["review_date"]      = str(row[2])[:10] if row[2] else None
+            result["review_comments"]  = row[4] if len(row) > 4 else None
+            pe_id = row[3]
+            if pe_id:
+                # Try to resolve PE name from users table if it exists
+                try:
+                    cursor.execute("SELECT username FROM users WHERE id = ? LIMIT 1", (pe_id,))
+                    name_row = cursor.fetchone()
+                    if name_row:
+                        result["pe_name"] = name_row[0]
+                except Exception:
+                    pass
+    except Exception as _e:
+        logger.debug(f"PE status lookup failed: {_e}")
+    return result
+
+
+def _inject_pe_badge(html_content: str, report_id: int = None,
+                     analysis_session_id: str = None) -> str:
+    """
+    Replace {{PE_REVIEW_BADGE}} placeholder in html_content with a live badge
+    resolved from the database.  Also swaps 'Measured Savings' ↔ 'Verified Energy Savings'
+    labels in the content if PE is approved.
+    When the PE has approved a report that had blocking flags, the red
+    'NOT FOR UTILITY SUBMISSION' banner is replaced with a green resolved banner
+    that shows each flag's PE waiver justification for full audit transparency.
+    """
+    import re as _re, json as _json
+    try:
+        with get_db_connection() as conn:
+            pe = _get_pe_status_for_report(conn, report_id=report_id,
+                                           analysis_session_id=analysis_session_id)
+        badge = _build_pe_status_badge(
+            pe["approval_status"], pe["pe_name"],
+            pe["review_date"], pe["workflow_id"]
+        )
+        html_content = html_content.replace('{{PE_REVIEW_BADGE}}', badge)
+
+        # If approved, also promote label text wherever it appears
+        if pe["approval_status"] == "approved":
+            html_content = html_content.replace(
+                'Measured Savings</strong>', 'Verified Energy Savings</strong>'
+            ).replace(
+                '>Measured Savings<', '>Verified Energy Savings<'
+            ).replace(
+                'PE Review Pending</span>', 'PE Approved</span>'
+            ).replace(
+                'background:#fff3cd;color:#856404', 'background:#d4edda;color:#155724'
+            )
+
+            # ── Replace blocking banner with PE-resolved banner ───────────────
+            # Read blocking flags from the meta comment embedded in the HTML
+            _flags_match = _re.search(
+                r'<!-- SYNEREX_BLOCKING_FLAGS:(.*?) -->', html_content
+            )
+            if _flags_match:
+                try:
+                    _flag_codes = _json.loads(_flags_match.group(1).strip())
+                except Exception:
+                    _flag_codes = []
+
+                if _flag_codes:
+                    # Parse waivers out of review_comments
+                    # Waivers are stored as "[CODE]: justification text" (one per line)
+                    _comments = pe.get("review_comments") or ""
+                    _waiver_map = {}
+                    for _line in _comments.split("\n"):
+                        _wm = _re.match(r'\[([^\]]+)\]:\s*(.*)', _line.strip())
+                        if _wm:
+                            _waiver_map[_wm.group(1).strip()] = _wm.group(2).strip()
+
+                    _pe_label = pe.get("pe_name") or "Licensed PE"
+                    _review_dt = pe.get("review_date") or "on file"
+
+                    # Build waiver rows
+                    _waiver_rows = ""
+                    for _code in _flag_codes:
+                        _justification = _waiver_map.get(_code, "(waiver on file — see PE certification record)")
+                        _waiver_rows += (
+                            f'<div style="margin-bottom:10px;padding:10px 14px;'
+                            f'background:#f1f8e9;border-left:4px solid #81c784;border-radius:4px;">'
+                            f'<div style="font-weight:bold;color:#2e7d32;font-size:0.95em;">'
+                            f'&#10003; {_code.replace("_", " ").title()}</div>'
+                            f'<div style="color:#333;font-size:0.88em;margin-top:4px;">'
+                            f'<strong>PE Waiver:</strong> {_justification}</div>'
+                            f'</div>'
+                        )
+
+                    _resolved_banner = (
+                        f'<div style="page-break-after:avoid;margin:0 0 24px 0;padding:16px 20px;'
+                        f'background:#e8f5e9;border:2.5px solid #2e7d32;border-radius:6px;'
+                        f'font-family:Arial,sans-serif;">'
+                        f'<div style="font-size:1.15em;font-weight:bold;color:#1b5e20;">'
+                        f'&#10003; BLOCKING ISSUES RESOLVED BY PE REVIEW</div>'
+                        f'<div style="font-size:0.9em;color:#2e7d32;margin-top:6px;">'
+                        f'Approved by <strong>{_pe_label}</strong> on {_review_dt}. '
+                        f'{len(_flag_codes)} issue(s) were identified and individually waived. '
+                        f'Waiver justifications are recorded in the PE certification file and reproduced below.</div>'
+                        f'<div style="margin-top:12px;">{_waiver_rows}</div>'
+                        f'<div style="font-size:0.82em;color:#555;margin-top:10px;'
+                        f'border-top:1px solid #a5d6a7;padding-top:8px;">'
+                        f'This report may now be submitted to the utility program. '
+                        f'The PE of record accepts professional responsibility for the waivers above '
+                        f'under applicable state engineering practice acts.</div>'
+                        f'</div>'
+                    )
+
+                    # Replace the red blocking banner div — identified by its distinctive header text.
+                    # Use a regex that matches from the outer opening <div to its </div> close.
+                    # The banner always starts with the page-break-after style and ends after the
+                    # "This banner cannot be removed" footer line.
+                    _banner_pattern = _re.compile(
+                        r'<div[^>]*page-break-after:avoid[^>]*>.*?This banner cannot be removed.*?</div>\s*</div>',
+                        _re.DOTALL
+                    )
+                    html_content, _nsubs = _banner_pattern.subn(_resolved_banner, html_content, count=1)
+                    if _nsubs == 0:
+                        # Fallback: insert resolved banner right after the flags meta comment
+                        html_content = html_content.replace(
+                            _flags_match.group(0),
+                            _flags_match.group(0) + '\n' + _resolved_banner
+                        )
+    except Exception as _e:
+        logger.warning(f"PE badge injection failed: {_e}")
+        html_content = html_content.replace('{{PE_REVIEW_BADGE}}', '')
+
+    # ── FIX D2: Legacy report remediation notice ─────────────────────────────
+    # Reports generated before the THD aggregate-mode and TDD default fixes were
+    # applied do NOT have the SYNEREX_BLOCKING_FLAGS meta comment.  Inject a
+    # visible amber notice at the top of those reports so reviewers know the
+    # compliance data may not reflect the corrected logic.
+    import re as _re
+    _has_flags_meta = bool(_re.search(r'<!-- SYNEREX_BLOCKING_FLAGS:', html_content[:3000]))
+    _has_legacy_marker = '{{PE_REVIEW_BADGE}}' not in html_content  # placeholder was already resolved
+    if not _has_flags_meta and _has_legacy_marker:
+        _legacy_notice = (
+            '\n<!-- SYNEREX_LEGACY_REPORT_NOTICE -->\n'
+            '<div style="margin:0 0 16px 0;padding:12px 16px;background:#fff3cd;'
+            'border:1.5px solid #ffc107;border-radius:5px;font-family:Arial,sans-serif;'
+            'font-size:0.88em;color:#856404;">'
+            '<strong>&#9888; Legacy Report \u2014 Compliance Display Limitations:</strong> '
+            'This report was generated before platform updates that corrected '
+            '(a) THD = 0.0% aggregate-meter-mode labelling, '
+            '(b) IEEE 519 TDD compliance when transformer data is missing, '
+            '(c) headline savings sourcing (raw metered vs. PF-tariff-adjusted), and '
+            '(d) ASHRAE/IPMVP cross-reference explanations. '
+            'Re-run the analysis to generate an updated report with all corrections applied.'
+            '</div>'
+        )
+        # Inject after opening <body> tag
+        if '<body' in html_content:
+            _body_end = html_content.find('>', html_content.find('<body')) + 1
+            html_content = html_content[:_body_end] + _legacy_notice + html_content[_body_end:]
+        else:
+            html_content = _legacy_notice + html_content
+
+    return html_content
+
+
 @app.route("/api/reports/<int:report_id>/view", methods=["GET"])
 def view_html_report(report_id):
-    """View HTML report in browser"""
+    """View HTML report in browser — injects live PE review status badge"""
     try:
         base_dir = Path(__file__).parent
         with get_db_connection() as conn:
             if conn is None:
                 return "Database not available", 500
             cursor = conn.cursor()
-            # Check which column exists (file_path or report_path)
             columns = get_table_columns(conn, "html_reports")
             path_column = 'file_path' if 'file_path' in columns else 'report_path' if 'report_path' in columns else None
-            
+
             if not path_column:
                 return "Database schema error: no path column found", 500
-            
+
+            session_col = 'analysis_session_id' if 'analysis_session_id' in columns else None
+            select_cols = path_column if not session_col else f"{path_column}, {session_col}"
             cursor.execute(f"""
-                SELECT {path_column} FROM html_reports WHERE id = ?
+                SELECT {select_cols} FROM html_reports WHERE id = ?
             """, (report_id,))
             row = cursor.fetchone()
             if not row:
                 return "Report not found", 404
             report_path = row[0]
+            analysis_session_id = row[1] if session_col and len(row) > 1 else None
             full_path = (base_dir / report_path).resolve()
             if not full_path.exists():
                 return "Report file not found", 404
-            return send_file(str(full_path), mimetype='text/html')
+            html_content = full_path.read_text(encoding='utf-8', errors='replace')
+
+        html_content = _inject_pe_badge(html_content, report_id=report_id,
+                                         analysis_session_id=analysis_session_id)
+        return html_content, 200, {"Content-Type": "text/html; charset=utf-8",
+                                    "Cache-Control": "no-store"}
     except Exception as e:
         logger.error(f"Error viewing report: {e}")
         return jsonify({"error": str(e)}), 500

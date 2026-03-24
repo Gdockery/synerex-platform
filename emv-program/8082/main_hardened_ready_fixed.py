@@ -2537,6 +2537,15 @@ def init_database():
             """
             )
 
+            # Migrate pe_review_workflow: add review_date and approved_by_pe_id if missing
+            for _col, _def in [("review_date", "TIMESTAMP"),
+                                ("approved_by_pe_id", "INTEGER")]:
+                if not column_exists(conn, "pe_review_workflow", _col):
+                    try:
+                        conn.execute(f"ALTER TABLE pe_review_workflow ADD COLUMN {_col} {_def}")
+                    except Exception:
+                        pass
+
             # Create indexes for new audit tables
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_calc_audit_session ON calculation_audit(analysis_session_id)"
@@ -2970,6 +2979,9 @@ CONFIG_DEFAULTS = {
     "ratchet_ref_kw": 0.0,
     "ratchet_applies_to": "ncp",
     "last_month_bill_cost": 0.0,
+    # Thermal settling / HVAC classification
+    "thermal_settling_exclusion_hours": 48.0,
+    "facility_hvac_type": "unknown",
 }
 # ---- Currency formatting ----
 CURRENCY_FORMAT = {
@@ -3285,6 +3297,13 @@ class EnhancedDataProcessor:
             "l3Volt": ["l3Volt", "l3_volt", "L3 Voltage"],
             "avgVolt": ["avgVolt", "avg_volt", "voltage"],
             "peakKw": ["peakKw", "peak_kw", "max_kw"],
+            # ── Per-order harmonic spectrum columns (upgraded meter firmware) ──
+            # Canonical key: "h{n}_pct"  (e.g. "h3_pct", "h5_pct" … "h49_pct")
+            # Each entry lists the column name variants the meter might export.
+            **{f"h{n}_pct": [f"h{n}_pct", f"h{n}pct", f"H{n}_pct", f"H{n}",
+                              f"h{n}", f"harmonic_{n}_pct", f"harmonic_{n}",
+                              f"H{n:02d}", f"h{n:02d}_pct"]
+               for n in list(range(3, 50, 2)) + [2, 4, 6]},  # odd + a few even
             # ASHRAE Guideline 14-2014 Weather Normalization - Temperature data extraction
             "temperature": [
                 "temperature",
@@ -3542,6 +3561,36 @@ class EnhancedDataProcessor:
                         "average_peak": float(peak_values.mean()),
                         "95th_percentile": float(peak_values.quantile(0.95)),
                     }
+
+            # ── Per-order harmonic spectrum extraction (upgraded meter) ────────
+            # Auto-detect whether the CSV contains individual harmonic columns.
+            # Canonical key format: h{n}_pct for odd orders 3–49 and even 2,4,6.
+            _harmonic_orders = list(range(3, 50, 2)) + [2, 4, 6]
+            _spectrum_data: dict = {}
+            for _ho in _harmonic_orders:
+                _hkey = f"h{_ho}_pct"
+                if _hkey in column_mapping:
+                    _hvals = pd.to_numeric(
+                        df[column_mapping[_hkey]], errors="coerce"
+                    ).dropna()
+                    if len(_hvals) > 0:
+                        _spectrum_data[_ho] = {
+                            "mean": float(_hvals.mean()),
+                            "max": float(_hvals.max()),
+                            "p95": float(_hvals.quantile(0.95)),
+                            "values": _hvals.tolist(),
+                        }
+            if _spectrum_data:
+                results["harmonic_spectrum"] = _spectrum_data
+                results["harmonic_mode_detected"] = "per_order_spectrum"
+                logger.info(
+                    f"Per-order harmonic spectrum detected: {sorted(_spectrum_data.keys())} orders extracted"
+                )
+            else:
+                results["harmonic_mode_detected"] = "thd_aggregate"
+                logger.info(
+                    "No per-order harmonic columns found — THD-aggregate mode"
+                )
 
             # Apply occupancy normalization to improve data quality
             if (
@@ -3863,7 +3912,14 @@ class WeatherNormalization:
     def _basic_normalization(
         self, temp_before: float, temp_after: float, kw_before: float, kw_after: float
     ) -> Dict:
-        """ASHRAE Guideline 14-2014 Section 14.3.1 - Basic Degree Day Normalization"""
+        """Proportional degree-day adjustment — FALLBACK ONLY.
+
+        NOTE: This method is NOT ASHRAE Guideline 14-2023 compliant. It is used
+        as a last resort when baseline interval data is unavailable and the ML
+        regression path (WeatherNormalizationML) cannot be executed.  A PE or
+        utility M&V reviewer should treat results from this path as indicative
+        only.  The report labels this result accordingly via normalization_applied=False.
+        """
 
         # ASHRAE Guideline 14-2014 Section 14.3.1 - Cooling Degree Days (CDD)
         # CDD = max(0, T_outdoor - T_base) per ASHRAE Guideline 14
@@ -3986,88 +4042,45 @@ class WeatherNormalization:
             # Calculate weather adjustment factor based on heating load difference
             # Use actual degree day ratio, but cap at reasonable limits to prevent over-adjustment
             if hdd_before > hdd_after:
-                # Before period was colder - normalize to show true savings
+                # Before period was colder — normalize after up to baseline weather
                 weather_factor = hdd_before / hdd_after
-                
-                # MORE CONSERVATIVE: Cap at 1.1 (10% max adjustment) to prevent unrealistic savings
-                # If ratio is very large (>1.5), something may be wrong with the data
-                if weather_factor > 1.5:
-                    logger.warning(f"🔧 WEATHER WARNING: Extreme HDD ratio {weather_factor:.2f} - using very conservative adjustment")
-                    weather_factor = 1.05  # Very conservative 5% adjustment
-                else:
-                    weather_factor = min(weather_factor, 1.1)  # Cap at 10% instead of 20%
-                
-                # Apply weather normalization based on actual degree day difference
                 normalized_kw_before = kw_before
                 normalized_kw_after = kw_after * (1.0 / weather_factor)
                 logger.info(
-                    f"🔧 WEATHER DEBUG: HDD weather factor = {weather_factor:.3f} (before HDD={hdd_before:.1f}, after HDD={hdd_after:.1f})"
+                    f"🔧 WEATHER FALLBACK (proportional HDD): factor={weather_factor:.3f} "
+                    f"(before HDD={hdd_before:.1f}, after HDD={hdd_after:.1f})"
                 )
             else:
-                # After period was colder - adjust before period upward
+                # After period was colder — normalize before up
                 weather_factor = hdd_after / hdd_before
-                
-                # MORE CONSERVATIVE: Cap at 1.1 (10% max adjustment) to prevent unrealistic savings
-                if weather_factor > 1.5:
-                    logger.warning(f"🔧 WEATHER WARNING: Extreme HDD ratio {weather_factor:.2f} - using very conservative adjustment")
-                    weather_factor = 1.05  # Very conservative 5% adjustment
-                else:
-                    weather_factor = min(weather_factor, 1.1)  # Cap at 10% instead of 20%
-                
                 normalized_kw_before = kw_before * weather_factor
                 normalized_kw_after = kw_after
                 logger.info(
-                    f"🔧 WEATHER DEBUG: HDD weather factor = {weather_factor:.3f} (before HDD={hdd_before:.1f}, after HDD={hdd_after:.1f})"
+                    f"🔧 WEATHER FALLBACK (proportional HDD): factor={weather_factor:.3f} "
+                    f"(before HDD={hdd_before:.1f}, after HDD={hdd_after:.1f})"
                 )
 
         elif total_cdd > total_hdd:
-            # COOLING SEASON: Use Cooling Degree Days (CDD) for normalization
-            # ASHRAE Guideline 14-2014 Section 14.3.1: Cooling Degree Days (CDD) for cooling load normalization
-            logger.error(
-                f"🔧 WEATHER DEBUG: COOLING SEASON - Using CDD for normalization"
-            )
-            logger.error(
-                f"🔧 STANDARDS COMPLIANCE: ASHRAE Guideline 14-2014 Section 14.3.1 - Cooling Degree Days (CDD)"
-            )
-            logger.info(
-                f"🔧 STANDARDS COMPLIANCE: CDD = max(0, T_outdoor - T_base) where T_base = {self.base_temp}°C"
-            )
+            logger.info(f"🔧 WEATHER FALLBACK: COOLING SEASON — proportional CDD adjustment "
+                        f"(not ASHRAE GL14-2023 regression method)")
 
-            # Calculate weather adjustment factor based on cooling load difference
-            # Use actual degree day ratio, but cap at reasonable limits to prevent over-adjustment
             if cdd_before > cdd_after:
-                # Before period was hotter - normalize to show true savings
+                # Before period was hotter — normalize after up
                 weather_factor = cdd_before / cdd_after
-                
-                # MORE CONSERVATIVE: Cap at 1.1 (10% max adjustment) to prevent unrealistic savings
-                # If ratio is very large (>1.5), something may be wrong with the data
-                if weather_factor > 1.5:
-                    logger.warning(f"🔧 WEATHER WARNING: Extreme CDD ratio {weather_factor:.2f} - using very conservative adjustment")
-                    weather_factor = 1.05  # Very conservative 5% adjustment
-                else:
-                    weather_factor = min(weather_factor, 1.1)  # Cap at 10% instead of 20%
-                
-                # Apply weather normalization based on actual degree day difference
                 normalized_kw_before = kw_before
                 normalized_kw_after = kw_after * (1.0 / weather_factor)
                 logger.info(
-                    f"🔧 WEATHER DEBUG: CDD weather factor = {weather_factor:.3f} (before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
+                    f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
+                    f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
                 )
             else:
-                # After period was hotter - adjust before period upward
+                # After period was hotter — normalize before up
                 weather_factor = cdd_after / cdd_before
-                
-                # MORE CONSERVATIVE: Cap at 1.1 (10% max adjustment) to prevent unrealistic savings
-                if weather_factor > 1.5:
-                    logger.warning(f"🔧 WEATHER WARNING: Extreme CDD ratio {weather_factor:.2f} - using very conservative adjustment")
-                    weather_factor = 1.05  # Very conservative 5% adjustment
-                else:
-                    weather_factor = min(weather_factor, 1.1)  # Cap at 10% instead of 20%
-                
                 normalized_kw_before = kw_before * weather_factor
                 normalized_kw_after = kw_after
                 logger.info(
-                    f"🔧 WEATHER DEBUG: CDD weather factor = {weather_factor:.3f} (before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
+                    f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
+                    f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
                 )
         else:
             # NEUTRAL SEASON: Minimal temperature difference - no significant weather adjustment needed
@@ -4208,11 +4221,11 @@ class WeatherNormalization:
         dewpoint_sensitivity_used = temp_sensitivity_used * 0.6
         
         return {
-            "method": "ASHRAE Guideline 14-2014 Section 14.3 - Basic Degree Day",
-            "standards_compliance": "ASHRAE Guideline 14-2014 Section 14.3",
+            "method": "Proportional Degree-Day Adjustment (fallback — not ASHRAE GL14-2023 regression)",
+            "standards_compliance": "Proportional fallback only — no regression model available",
             "base_temperature_celsius": self.base_temp,
-            "base_temp_celsius": self.base_temp,  # Frontend expects this key
-            "optimized_base_temp": self.base_temp,  # Frontend also expects this key
+            "base_temp_celsius": self.base_temp,
+            "optimized_base_temp": self.base_temp,
             "raw_kw_before": kw_before,
             "raw_kw_after": kw_after,
             "normalized_kw_before": normalized_kw_before,
@@ -4224,9 +4237,15 @@ class WeatherNormalization:
             "cdd_after": cdd_after,
             "temp_before": temp_before,
             "temp_after": temp_after,
-            "temp_sensitivity_used": temp_sensitivity_used,  # Per °C (converted from config)
-            "dewpoint_sensitivity_used": dewpoint_sensitivity_used,  # Per °C (60% of temp sensitivity)
-            "standards_validation": "PASSED - ASHRAE Guideline 14-2014 Section 14.3 compliant",
+            "temp_sensitivity_used": temp_sensitivity_used,
+            "dewpoint_sensitivity_used": dewpoint_sensitivity_used,
+            # Mark as NOT applied so the report labels this result as a proportional estimate
+            "normalization_applied": False,
+            "standards_validation": (
+                "NOT APPLIED — Proportional degree-day fallback used (baseline interval data unavailable). "
+                "For ASHRAE GL14-2023 compliant normalization, baseline interval temperature and energy "
+                "data are required to fit a regression model."
+            ),
         }
 
     def _enhanced_normalization(
@@ -5780,6 +5799,7 @@ class AuditTrail:
         )
 
         # Sheet 9: Utility Submission Checklist
+        _amber_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
         ws_checklist = wb.create_sheet("Utility Submission Checklist")
         self._create_utility_checklist_sheet(
             ws_checklist,
@@ -5789,12 +5809,23 @@ class AuditTrail:
             header_fill,
             subheader_fill,
             border,
+            results_data=results_data,
+            compliant_fill=compliant_fill,
+            non_compliant_fill=non_compliant_fill,
+            amber_fill=_amber_fill,
         )
 
         # Sheet 10: Technical Appendices
         ws_appendices = wb.create_sheet("Technical Appendices")
         self._create_technical_appendices_sheet(
             ws_appendices, audit_summary, header_font, data_font, header_fill, border
+        )
+
+        # Sheet 11: ASHRAE Guideline 14-2023 Regression Model Summary
+        ws_ashrae = wb.create_sheet("ASHRAE Regression Model")
+        self._create_ashrae_regression_sheet(
+            ws_ashrae, results_data, header_font, data_font, title_font,
+            header_fill, title_fill, compliant_fill, non_compliant_fill, border, thick_border
         )
 
         # Save workbook
@@ -7398,9 +7429,242 @@ class AuditTrail:
         header_fill,
         subheader_fill,
         border,
+        results_data=None,
+        compliant_fill=None,
+        non_compliant_fill=None,
+        amber_fill=None,
     ):
         """Create utility submission checklist sheet"""
         ws.title = "Utility Submission Checklist"
+
+        # ── Derive dynamic status values from results_data ─────────────────
+        _rd  = results_data if isinstance(results_data, dict) else {}
+        _cfg = _rd.get('config', {}) or {}
+        _pq  = _rd.get('power_quality', {}) or {}
+        _bc  = _rd.get('before_compliance', {}) or {}
+        _ac  = _rd.get('after_compliance',  {}) or {}
+        _stat_xl = _rd.get('statistical', {}) or {}
+
+        # PE sign-off
+        _pe_name   = (_rd.get('pe_name')    or '').strip()
+        _pe_lic    = (_rd.get('pe_license') or _rd.get('pe_license_number') or '').strip()
+        _pe_state  = (_rd.get('pe_state')   or '').strip()
+        _pe_signed = (_rd.get('pe_signed_at') or _rd.get('signed_at') or '').strip()
+        _pe_done   = bool(_pe_name and _pe_lic and _pe_signed)
+        _pe_status = (f"\u2713 Signed — {_pe_name}, PE, Lic. {_pe_lic}"
+                      + (f", {_pe_state}" if _pe_state else "")
+                      + f" ({_pe_signed[:10]})"
+                      if _pe_done else "\u26d4 PENDING — required before submission")
+        _pe_signed_date = _pe_signed[:10] if _pe_done else "TBD"
+
+        # Independent third-party reviewer (CMVP or independent PE not affiliated with vendor)
+        _ind_reviewer      = (_cfg.get('independent_reviewer_name') or '').strip()
+        _ind_reviewer_cred = (_cfg.get('independent_reviewer_credential') or '').strip()
+        _ind_reviewer_org  = (_cfg.get('independent_reviewer_org') or '').strip()
+        _ind_reviewer_date = (_cfg.get('independent_reviewer_date') or '').strip()
+        _ind_done = bool(_ind_reviewer)
+        if _ind_done:
+            _ind_status = (f"\u2713 {_ind_reviewer}"
+                           + (f", {_ind_reviewer_cred}" if _ind_reviewer_cred else "")
+                           + (f" ({_ind_reviewer_org})" if _ind_reviewer_org else "")
+                           + (f" — {_ind_reviewer_date[:10]}" if _ind_reviewer_date else ""))
+        else:
+            _ind_status = ("\u26a0 Not recorded — recommended for utility custom incentive programs. "
+                           "Enter reviewer name/credential in Project Configuration.")
+
+        # Measurement period
+        _pb = (_bc.get('measurement_period_days') if isinstance(_bc, dict) else None)
+        _pa = (_ac.get('measurement_period_days') if isinstance(_ac, dict) else None)
+        _min_days = min((d for d in [_pb, _pa] if d is not None), default=None)
+        if _min_days is None:
+            _period_status = "\u2753 Unknown — upload CSV data to determine"
+        elif _min_days >= 30:
+            _period_status = f"\u2713 {_min_days:.0f} days — meets 30-day minimum"
+        else:
+            _period_status = f"\u26d4 {_min_days:.0f} days — minimum 30 days required (IPMVP \u00a75.3)"
+
+        # Statistical practical significance — ASHRAE 14-2023 §5.3.2
+        _stat = _rd.get('statistical', {}) or {}
+        _cd   = float(_stat.get('cohens_d', 0)) if isinstance(_stat.get('cohens_d'), (int, float)) else 0.0
+        _p    = float(_stat.get('p_value', 1.0)) if isinstance(_stat.get('p_value'), (int, float)) else 1.0
+        _nb   = int(_stat.get('sample_size_before', 0)) if isinstance(_stat.get('sample_size_before'), (int, float)) else 0
+        _na   = int(_stat.get('sample_size_after',  0)) if isinstance(_stat.get('sample_size_after'),  (int, float)) else 0
+        _stat_dir_ok  = _cd > 0
+        _stat_prac_ok = _cd >= 0.2
+        _stat_large_n = max(_nb, _na) > 5000 and abs(_cd) < 0.2 and _p < 0.05
+        if not _stat_dir_ok and _p < 0.05:
+            _prac_sig_status = (f"\u26a0 ADVISORY — p={_p:.4f} (technically passes p<0.05) BUT "
+                                f"Cohen\u2019s d={_cd:.3f}: consumption increased (wrong direction). "
+                                f"Statistical significance driven by sample size (n={max(_nb,_na):,}), not effect magnitude. "
+                                f"A utility reviewer would not accept this as validated savings.")
+        elif not _stat_dir_ok:
+            _prac_sig_status = (f"\u26d4 FAIL — p={_p:.4f}, Cohen\u2019s d={_cd:.3f}: "
+                                f"consumption increased. No savings validated.")
+        elif not _stat_prac_ok:
+            _prac_sig_status = (f"\u26a0 MARGINAL — p={_p:.4f}, Cohen\u2019s d={_cd:.3f} "
+                                f"(direction correct but |d|<0.2 \u2014 negligible effect size). "
+                                + ("\u26a0 Large-N inflation likely (n={:,}).".format(max(_nb, _na)) if _stat_large_n else "")
+                                + " Extend measurement period to \u226530 days.")
+        else:
+            _prac_sig_status = (f"\u2713 Validated \u2014 p={_p:.4f}, Cohen\u2019s d={_cd:.3f} "
+                                f"\u22650.2 (practical significance confirmed, correct direction)")
+
+        # Harmonic analysis mode
+        # NOTE: Per-order spectrum is an ENHANCEMENT for harmonic compliance certification.
+        # It is NOT a blocker for standard energy efficiency rebate (kWh/kW M&V) submissions,
+        # which require ANSI C12.20 Class 0.2 revenue-grade metering (IPMVP §5.2) — not
+        # IEC 61000-4-30 Class A power quality analyzers. Per-order data is only required
+        # when the rebate claim specifically includes IEEE 519/C57.110 harmonic compliance.
+        _harm_mode = _pq.get('harmonic_analysis_mode', 'thd_aggregate') if isinstance(_pq, dict) else 'thd_aggregate'
+        _k_factor  = _pq.get('k_factor') if isinstance(_pq, dict) else None
+        if _harm_mode == 'per_order_spectrum':
+            _harm_status = ("\u2713 Per-order spectrum (H3\u2013H49) recorded"
+                            + (f" | K-factor = {_k_factor:.3f}" if _k_factor is not None else "")
+                            + " — full IEEE 519-2022 / C57.110-2018 harmonic compliance available")
+        else:
+            _harm_status = ("\u26a0 Aggregate THD (ANSI C12.20) — sufficient for energy rebate M&V "
+                            "(IPMVP \u00a75.2); per-order spectrum optional for IEEE 519 harmonic "
+                            "compliance certification if required by specific rebate program")
+
+        # Sub-metering
+        _vl = (str(_cfg.get('has_variable_production_loads', '')).lower() in ('on', 'true', '1', 'yes'))
+        _submeter_status = ("\u26d4 Variable/mixed loads on meter — load-specific sub-metering required (IPMVP Option B \u00a73.3)"
+                            if _vl else "\u2713 No variable production loads flagged")
+
+        # Thermal settling / seasonal appropriateness (IPMVP §3.5 / ASHRAE 14-2023 §4.1.3)
+        _settle_h    = float(_cfg.get('thermal_settling_exclusion_hours', 48))
+        _hvac_type   = str(_cfg.get('facility_hvac_type', 'unknown')).lower()
+        _settle_status = f"\u2713 {_settle_h:.0f}h exclusion window configured"
+
+        # Detect post-install season from analysis results
+        def _month_to_season(mo):
+            if mo in (12, 1, 2): return 'Winter'
+            if mo in (3, 4, 5):  return 'Spring'
+            if mo in (6, 7, 8):  return 'Summer'
+            return 'Fall'
+        _after_season = None
+        try:
+            import pandas as _pdchk
+            _pq_ts = (_rd.get('power_quality') or {}).get('timestamps_after', []) or []
+            if not _pq_ts:
+                # Try after_compliance timestamps
+                _pq_ts = (_rd.get('after_compliance') or {}).get('timestamps', []) or []
+            if _pq_ts:
+                _ts0 = _pdchk.to_datetime(_pq_ts[0], errors='coerce')
+                if _pdchk.notna(_ts0):
+                    _after_season = _month_to_season(_ts0.month)
+        except Exception:
+            pass
+
+        # Flag unsuitable season combinations
+        _season_warn = None
+        if _hvac_type in ('cooling', 'cooling-dominated') and _after_season == 'Winter':
+            _season_warn = (
+                "\u26a0 ADVISORY — Cooling-dominated facility measured in Winter. "
+                "HVAC cascade savings from harmonic heat reduction are suppressed in winter; "
+                "savings may be understated. Summer re-measurement recommended "
+                "(IPMVP \u00a73.5 / ASHRAE 14-2023 \u00a74.1.3)."
+            )
+        elif _hvac_type in ('heating', 'heating-dominated') and _after_season == 'Summer':
+            _season_warn = (
+                "\u26a0 ADVISORY — Heating-dominated facility measured in Summer. "
+                "Reduced harmonic heat may increase heating demand in winter; "
+                "summer-only measurement may overstate year-round net savings. "
+                "Shoulder-season or annual re-measurement recommended."
+            )
+
+        if _season_warn:
+            _settle_status = _season_warn
+        elif _after_season:
+            _settle_status = (
+                f"\u2713 {_settle_h:.0f}h exclusion window applied | "
+                f"Season: {_after_season} | HVAC type: {_hvac_type or 'not set'}"
+            )
+        else:
+            _settle_status = (
+                f"\u2713 {_settle_h:.0f}h exclusion window configured | "
+                f"HVAC type: {_hvac_type or 'not set'}"
+            )
+
+        # Device certification
+        _cert = (_cfg.get('device_certification') or '').strip()
+        _cert_lab  = (_cfg.get('device_cert_lab')  or '').strip()
+        _cert_date = (_cfg.get('device_cert_date') or '').strip()
+        if _cert:
+            _cert_status = f"\u2713 {_cert}" + (f" ({_cert_lab})" if _cert_lab else "") + (f", {_cert_date}" if _cert_date else "")
+        else:
+            _cert_status = "Not on file (optional; recommended for utility incentive programs)"
+
+        # ── Statistical practical-significance status for checklist row ──────
+        _xl_p       = float(_stat_xl.get('p_value', 1.0)) if isinstance(_stat_xl.get('p_value'), (int, float)) else 1.0
+        _xl_cd      = float(_stat_xl.get('cohens_d', 0.0)) if isinstance(_stat_xl.get('cohens_d'), (int, float)) else 0.0
+        _xl_n_b     = int(_stat_xl.get('sample_size_before', 0))
+        _xl_n_a     = int(_stat_xl.get('sample_size_after',  0))
+        _xl_dir_ok  = _xl_cd > 0
+        _xl_prac    = abs(_xl_cd) >= 0.2
+        _xl_large_n = max(_xl_n_b, _xl_n_a) > 5000 and abs(_xl_cd) < 0.2 and _xl_p < 0.05
+        if not _xl_dir_ok and _xl_p < 0.05:
+            # Statistically significant but wrong direction — most serious case
+            _stat_xl_status = (
+                f"\u26d4 NOT VALIDATED — p={_xl_p:.4f} (significant) but d={_xl_cd:.3f} "
+                f"(consumption increased; wrong direction for savings claim)"
+            )
+            _stat_xl_desc   = (
+                "Statistical significance (p<0.05) is technically met but the savings direction "
+                "is wrong — consumption INCREASED post-installation. A utility reviewer would "
+                "reject this as not constituting validated energy savings (ASHRAE 14-2023 \u00a75.3.2)."
+            )
+            _stat_xl_note   = "BLOCKER — re-measure over longer period"
+        elif _xl_large_n and not _xl_prac:
+            # Large-N inflation — statistically significant but practically negligible
+            _stat_xl_status = (
+                f"\u26a0 ADVISORY — p={_xl_p:.4f} (significant, large-N driven) | "
+                f"d={_xl_cd:.3f} (negligible effect, < 0.2 threshold)"
+            )
+            _stat_xl_desc   = (
+                f"Statistical significance is driven by large sample size (n={max(_xl_n_b,_xl_n_a):,}), "
+                "not effect magnitude. Cohen's d < 0.2 is below the 'small effect' threshold — "
+                "practically negligible per ASHRAE 14-2023 \u00a75.3.2. "
+                "Extend measurement to \u226530 days to increase detection power relative to noise."
+            )
+            _stat_xl_note   = "Advisory — extend measurement period"
+        elif _xl_p < 0.05 and _xl_prac and _xl_dir_ok:
+            _stat_xl_status = (
+                f"\u2713 VALIDATED — p={_xl_p:.4f}, d={_xl_cd:.3f} "
+                f"(\u2265\u00a00.2 practical threshold, correct direction)"
+            )
+            _stat_xl_desc   = "Both statistical and practical significance confirmed per ASHRAE 14-2023 \u00a75.3.2."
+            _stat_xl_note   = ""
+        elif _xl_p < 0.05 and _xl_dir_ok:
+            _stat_xl_status = (
+                f"\u26a0 MARGINAL — p={_xl_p:.4f} (significant), d={_xl_cd:.3f} "
+                f"(small but correct direction)"
+            )
+            _stat_xl_desc   = (
+                "Statistically significant and correct direction, but effect size is below 0.2 "
+                "practical significance threshold. Acceptable for preliminary submission; "
+                "30-day measurement recommended for robust audit."
+            )
+            _stat_xl_note   = "Extend measurement for stronger effect size"
+        else:
+            _stat_xl_status = f"\u26a0 NOT SIGNIFICANT — p={_xl_p:.4f} (> 0.05 threshold)"
+            _stat_xl_desc   = "Statistical significance not demonstrated. Extend measurement period."
+            _stat_xl_note   = "Extend measurement period"
+
+        # Overall audit readiness — hard blockers are energy M&V requirements only.
+        # Per-order harmonic spectrum is an advisory enhancement, not a rebate blocker
+        # (ANSI C12.20 Class 0.2 revenue metering satisfies IPMVP §5.2 for kWh/kW claims).
+        _blockers = [not _pe_done,
+                     (_min_days is None or _min_days < 30),
+                     _vl]
+        _n_blockers = sum(_blockers)
+        if _n_blockers == 0:
+            _overall_status = "\u2713 SUBMISSION READY — all energy M&V criteria met (IPMVP / ASHRAE 14-2023 / ANSI C12.20)"
+        elif _n_blockers == 1:
+            _overall_status = f"\u26a0 NOT READY — {_n_blockers} item outstanding (see checklist below)"
+        else:
+            _overall_status = f"\u26d4 PRELIMINARY DATA — {_n_blockers} critical items outstanding — not for utility submission"
+        # ──────────────────────────────────────────────────────────────────
 
         # Title
         ws["A1"] = "UTILITY SUBMISSION CHECKLIST & REQUIREMENTS"
@@ -7419,56 +7683,102 @@ class AuditTrail:
         general_reqs = [
             ["Requirement", "Status", "Description", "Reference", "Notes"],
             [
-                "Professional Engineer Review",
-                "□ Complete",
-                "PE review and certification required",
-                "State PE Board",
+                "Overall Audit Readiness",
+                _overall_status,
+                "All critical M&V criteria assessed",
+                "IPMVP / ASHRAE 14-2023",
                 "",
             ],
             [
-                "Standards Compliance",
-                "□ Complete",
-                "IEEE 519, ASHRAE 14, NEMA MG1 compliance",
-                "Industry Standards",
+                "Professional Engineer Sign-Off",
+                _pe_status,
+                "Independent PE review, stamp & signature required before submission",
+                "IPMVP \u00a73.1 / Illinois PE Act 225 ILCS 325",
                 "",
+            ],
+            [
+                "Measurement Period Duration",
+                _period_status,
+                "Minimum 30-day pre & post-install metering required",
+                "IPMVP \u00a75.3 / ASHRAE 14-2023 \u00a74.1.3",
+                "",
+            ],
+            [
+                "Harmonic Analysis (Advisory)",
+                _harm_status,
+                "Aggregate THD (ANSI C12.20) is sufficient for energy rebate M&V. "
+                "Per-order spectrum (H3-H49) / K-factor required only if rebate program "
+                "specifically mandates IEEE 519 harmonic compliance certification.",
+                "IPMVP \u00a75.2 / ANSI C12.20 (energy M&V); "
+                "IEEE 519-2022 / C57.110-2018 (harmonic compliance only)",
+                "Enhancement — not a rebate blocker",
+            ],
+            [
+                "Sub-Metering / Load Isolation",
+                _submeter_status,
+                "Load-specific sub-metering required if meter serves mixed production loads",
+                "IPMVP Option B \u00a73.3",
+                "",
+            ],
+            [
+                "Thermal Settling & Seasonal Appropriateness",
+                _settle_status,
+                f"First {_settle_h:.0f}h of post-install data excluded (thermal transient). "
+                "Cooling-dominated facilities must be measured in summer to capture HVAC "
+                "cascade savings; winter-only measurements may understate annual savings.",
+                "IPMVP \u00a73.5 / ASHRAE 14-2023 \u00a74.1.3",
+                "Review season if cooling-dominated" if _season_warn else "",
+            ],
+            [
+                "Device Lab Certification",
+                _cert_status,
+                "Independent lab certification of installed device (UL, ETL, CSA, etc.)",
+                "Optional; utility program dependent",
+                "",
+            ],
+            [
+                "Independent Third-Party Reviewer",
+                _ind_status,
+                "CMVP or independent PE (not affiliated with vendor) to independently "
+                "verify key calculations from raw data. Required by most utility custom "
+                "incentive programs for vendor-generated M&V packages.",
+                "IPMVP §3.1 / DOE Uniform Methods / ComEd Custom Incentives",
+                "Recommended" if not _ind_done else "",
             ],
             [
                 "Data Quality Documentation",
-                "□ Complete",
-                "Measurement uncertainty and data quality",
-                "ASHRAE 14",
+                "\u2713 Included in package",
+                "Measurement uncertainty and data quality assessment",
+                "ASHRAE 14-2023",
                 "",
             ],
             [
-                "Statistical Analysis",
-                "□ Complete",
-                "Statistical significance testing",
-                "IPMVP",
-                "",
-            ],
-            [
-                "Calculation Methodology",
-                "□ Complete",
-                "Detailed calculation procedures",
-                "Engineering Standards",
-                "",
-            ],
-            [
-                "Regulatory Compliance",
-                "□ Complete",
-                "All applicable regulations met",
-                "State/Federal",
-                "",
+                "Statistical Analysis — Practical Significance",
+                _stat_xl_status,
+                _stat_xl_desc,
+                "ASHRAE 14-2023 \u00a75.3.2 (Cohen 1988 effect-size thresholds)",
+                _stat_xl_note,
             ],
         ]
 
         row = 4
         for req_row in general_reqs:
+            # Status value is column index 1 (0-based) for data rows
+            _status_val = req_row[1] if len(req_row) > 1 else ''
             for col_idx, value in enumerate(req_row):
                 cell = ws.cell(row=row, column=col_idx + 1, value=value)
                 if row == 4:  # Header row
                     cell.font = header_font
                     cell.fill = header_fill
+                elif col_idx == 1 and compliant_fill and non_compliant_fill:
+                    # Colour-code the Status column
+                    _sv = str(_status_val)
+                    if '\u2713' in _sv:
+                        cell.fill = compliant_fill
+                    elif '\u26d4' in _sv:
+                        cell.fill = non_compliant_fill
+                    elif '\u26a0' in _sv and amber_fill:
+                        cell.fill = amber_fill
                 cell.border = border
             row += 1
 
@@ -7537,20 +7847,76 @@ class AuditTrail:
 
         timeline_data = [
             ["Milestone", "Target Date", "Status", "Responsible Party", "Notes"],
-            ["PE Review Complete", "TBD", "□ Pending", "Professional Engineer", ""],
-            ["Final Report Ready", "TBD", "□ Pending", "SYNEREX Team", ""],
-            ["Utility Submission", "TBD", "□ Pending", "Client", ""],
-            ["Utility Review", "TBD", "□ Pending", "Utility Company", ""],
-            ["Approval Received", "TBD", "□ Pending", "Utility Company", ""],
+            [
+                "PE Review Complete",
+                _pe_signed_date,
+                ("\u2713 Complete" if _pe_done else "\u26d4 Pending"),
+                "Professional Engineer",
+                (_pe_status if _pe_done else "Must be completed before utility submission"),
+            ],
+            [
+                "30-Day Metering Complete",
+                "TBD",
+                ("\u2713 Complete" if (_min_days is not None and _min_days >= 30) else "\u26d4 Pending"),
+                "SYNEREX / Client",
+                _period_status,
+            ],
+            [
+                "Per-Order Harmonic Data Captured",
+                "TBD",
+                ("\u2713 Complete" if _harm_mode == 'per_order_spectrum' else "\u26d4 Pending"),
+                "SYNEREX / Meter Vendor",
+                _harm_status,
+            ],
+            [
+                "Final Report Ready",
+                "TBD",
+                ("\u2713 Ready" if _n_blockers == 0 else "\u26d4 Pending"),
+                "SYNEREX Team",
+                _overall_status,
+            ],
+            [
+                "Utility Submission",
+                "TBD",
+                ("\u2713 Ready" if _n_blockers == 0 else "\u26d4 Blocked"),
+                "Client",
+                "All checklist items above must be resolved first",
+            ],
+            [
+                "Utility Review",
+                "TBD",
+                "\u2753 Awaiting submission",
+                "Utility Company",
+                "",
+            ],
+            [
+                "Approval Received",
+                "TBD",
+                "\u2753 Awaiting review",
+                "Utility Company",
+                "",
+            ],
         ]
 
         row += 2
+        _timeline_header_row = row
         for timeline_row in timeline_data:
+            # Status value is column index 2 (0-based) for timeline rows
+            _ts_val = timeline_row[2] if len(timeline_row) > 2 else ''
             for col_idx, value in enumerate(timeline_row):
                 cell = ws.cell(row=row, column=col_idx + 1, value=value)
-                if row == row:  # Header row
+                if row == _timeline_header_row:  # Header row
                     cell.font = header_font
                     cell.fill = header_fill
+                elif col_idx == 2 and compliant_fill and non_compliant_fill:
+                    # Colour-code the Status column
+                    _sv = str(_ts_val)
+                    if '\u2713' in _sv:
+                        cell.fill = compliant_fill
+                    elif '\u26d4' in _sv:
+                        cell.fill = non_compliant_fill
+                    elif '\u26a0' in _sv and amber_fill:
+                        cell.fill = amber_fill
                 cell.border = border
             row += 1
 
@@ -7799,6 +8165,186 @@ class AuditTrail:
                 ws.column_dimensions[column_letter].width = adjusted_width
             except:
                 pass
+
+
+    def _create_ashrae_regression_sheet(
+        self,
+        ws,
+        results_data,
+        header_font,
+        data_font,
+        title_font,
+        header_fill,
+        title_fill,
+        compliant_fill,
+        non_compliant_fill,
+        border,
+        thick_border,
+    ):
+        """Create ASHRAE Guideline 14-2023 Regression Model summary sheet for utility submission"""
+        from openpyxl.styles import Alignment, Font, PatternFill
+        ws.title = "ASHRAE Regression Model"
+
+        # Title
+        ws["A1"] = "ASHRAE Guideline 14-2023 — Weather Normalization Regression Model"
+        ws["A1"].font = Font(bold=True, size=14, color="FFFFFF")
+        ws["A1"].fill = title_fill
+        ws["A1"].border = thick_border
+        ws.merge_cells("A1:E1")
+
+        ws["A2"] = "Citation: ASHRAE Guideline 14-2023 §5.3 — Measurement of Energy and Demand Savings"
+        ws["A2"].font = Font(italic=True, size=10)
+        ws.merge_cells("A2:E2")
+        ws["A3"] = ""
+
+        # Pull regression data from results_data
+        _wn = {}
+        if isinstance(results_data, dict):
+            _wn = (results_data.get("weather_normalization") or
+                   results_data.get("results", {}).get("weather_normalization") or {})
+            if not isinstance(_wn, dict):
+                _wn = {}
+
+        _r2       = _wn.get("regression_r2")
+        _cvrmse   = _wn.get("regression_cvrmse")
+        _nmbe     = _wn.get("regression_nmbe")
+        _n_pts    = _wn.get("regression_n_points")
+        _model    = _wn.get("regression_model_name", "—")
+        _p_value  = _wn.get("regression_p_value")
+        _compliant = _wn.get("ashrae_compliant", False)
+        _applied  = _wn.get("normalization_applied", False)
+        _std_val  = _wn.get("standards_validation", "—")
+
+        def _fmt(val, decimals=4, suffix=""):
+            if val is None:
+                return "— (not available)"
+            try:
+                return f"{float(val):.{decimals}f}{suffix}"
+            except Exception:
+                return str(val)
+
+        def _pass_fail_fill(val, threshold, direction="above"):
+            if val is None:
+                return ("— (not available)", None)
+            try:
+                fval = float(val)
+                if direction == "above":
+                    ok = fval >= threshold
+                elif direction == "below":
+                    ok = fval < threshold
+                else:
+                    ok = abs(fval) < threshold
+                label = "✓ PASS" if ok else "✗ FAIL"
+                fill = compliant_fill if ok else non_compliant_fill
+                return (label, fill)
+            except Exception:
+                return ("—", None)
+
+        r2_status,    r2_fill    = _pass_fail_fill(_r2,     0.75,  "above")
+        cv_status,    cv_fill    = _pass_fail_fill(_cvrmse, 15.0,  "below")
+        nmbe_status,  nmbe_fill  = _pass_fail_fill(_nmbe,   5.0,   "magnitude")
+        pval_status,  pval_fill  = _pass_fail_fill(_p_value, 0.05, "below")
+
+        if isinstance(_p_value, float) and _p_value < 0.001:
+            pval_display = "< 0.001"
+        else:
+            pval_display = _fmt(_p_value, 4)
+
+        # Section header
+        row = 4
+        headers = ["Parameter", "Value", "Threshold", "Status", "Standard Reference"]
+        for col_idx, hdr in enumerate(headers, 1):
+            cell = ws.cell(row=row, column=col_idx, value=hdr)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = thick_border
+        row += 1
+
+        # Data rows: (param, value, threshold, status, status_fill, reference)
+        regression_rows = [
+            ("ASHRAE Baseline Model Selected", _model,
+             "Auto-selected per ASHRAE 14-2023", "—", None,
+             "ASHRAE Guideline 14-2023 §5.3"),
+            ("R² (Coefficient of Determination)", _fmt(_r2, 4),
+             "≥ 0.75", r2_status, r2_fill,
+             "ASHRAE Guideline 14-2023 §5.3.2"),
+            ("CV-RMSE (Coefficient of Variation, RMSE)", _fmt(_cvrmse, 2, "%"),
+             "< 15%", cv_status, cv_fill,
+             "ASHRAE Guideline 14-2023 §5.3.2"),
+            ("NMBE (Normalized Mean Bias Error)", _fmt(_nmbe, 2, "%"),
+             "< ±5%", nmbe_status, nmbe_fill,
+             "ASHRAE Guideline 14-2023 §5.3.2"),
+            ("p-value (F-test, slope significance)", pval_display,
+             "< 0.05 (statistical significance)", pval_status, pval_fill,
+             "IPMVP Vol. I; ASHRAE 14-2023"),
+            ("Sample Size (n, regression data points)",
+             str(_n_pts) if _n_pts is not None else "— (not available)",
+             "≥ 10 (minimum)", "—", None,
+             "ASHRAE Guideline 14-2023 §5.3"),
+            ("Normalization Applied",
+             "YES" if _applied else "NO — R² gate not met",
+             "Applied only when R² ≥ 0.75",
+             ("✓ Applied" if _applied else "✗ Not Applied"),
+             compliant_fill if _applied else non_compliant_fill,
+             "ASHRAE Guideline 14-2023 §5.3"),
+            ("ASHRAE Overall Compliant",
+             "YES" if _compliant else "NO",
+             "All thresholds must be met",
+             ("✓ PASS" if _compliant else "✗ FAIL"),
+             compliant_fill if _compliant else non_compliant_fill,
+             "ASHRAE Guideline 14-2023"),
+        ]
+
+        for param, value, threshold, status, status_fill, reference in regression_rows:
+            ws.cell(row=row, column=1, value=param).border = border
+            ws.cell(row=row, column=2, value=value).border = border
+            ws.cell(row=row, column=3, value=threshold).border = border
+            status_cell = ws.cell(row=row, column=4, value=status)
+            status_cell.border = border
+            if status_fill is not None:
+                status_cell.fill = status_fill
+            status_cell.font = Font(bold=True)
+            ws.cell(row=row, column=5, value=reference).border = border
+            row += 1
+
+        # Normalization decision narrative
+        row += 1
+        ws.cell(row=row, column=1, value="Normalization Decision:").font = Font(bold=True)
+        ws.cell(row=row, column=1).border = border
+        narrative_cell = ws.cell(row=row, column=2, value=_std_val)
+        narrative_cell.alignment = Alignment(wrap_text=True)
+        narrative_cell.border = border
+        ws.merge_cells(f"B{row}:E{row}")
+        ws.row_dimensions[row].height = 50
+        row += 2
+
+        # Important notes section
+        ws.cell(row=row, column=1, value="Important Notes:").font = Font(bold=True, size=11)
+        ws.merge_cells(f"A{row}:E{row}")
+        row += 1
+        notes = [
+            "Weather normalization is ONLY applied when R² ≥ 0.75 (ASHRAE Guideline 14-2023 §5.3).",
+            "When R² < 0.75, raw metered savings are reported without weather adjustment; no normalization bias is introduced.",
+            "CV-RMSE and NMBE are computed from actual regression residuals — not approximated or estimated.",
+            "p-value is the F-test for the overall regression model significance (H₀: slope = 0, no temperature-energy relationship).",
+            "Base temperature defaults to ASHRAE standard 18.3°C (65°F); adjusts to 1°C below min measured temp if below threshold.",
+            "Per IPMVP Vol. I: savings = baseline energy − reporting period energy (weather-normalized where statistically justified).",
+        ]
+        for note in notes:
+            ws.cell(row=row, column=1, value="•")
+            note_cell = ws.cell(row=row, column=2, value=note)
+            note_cell.font = data_font
+            note_cell.alignment = Alignment(wrap_text=True)
+            ws.merge_cells(f"B{row}:E{row}")
+            ws.row_dimensions[row].height = 25
+            row += 1
+
+        # Column widths
+        ws.column_dimensions["A"].width = 44
+        ws.column_dimensions["B"].width = 28
+        ws.column_dimensions["C"].width = 36
+        ws.column_dimensions["D"].width = 16
+        ws.column_dimensions["E"].width = 38
 
 
 class MethodologyVerification:
@@ -8771,6 +9317,18 @@ class ProfessionalOversight:
         }
 
 
+# Module-level singleton — persists PE registrations for the process lifetime.
+# All route handlers should use this instance rather than creating new ones.
+_pe_oversight_singleton = None
+
+def _get_pe_oversight():
+    """Return the module-level ProfessionalOversight singleton, creating it if needed."""
+    global _pe_oversight_singleton
+    if _pe_oversight_singleton is None:
+        _pe_oversight_singleton = ProfessionalOversight()
+    return _pe_oversight_singleton
+
+
 class CSVIntegrityProtection:
     """
     Tamper-proof CSV data protection with cryptographic fingerprints
@@ -9666,12 +10224,51 @@ class StatisticalValidation:
     """Statistical validation per IPMVP"""
 
     @staticmethod
+    def _effective_n(values: np.ndarray) -> int:
+        """Compute effective sample size corrected for lag-1 autocorrelation.
+
+        ASHRAE Guideline 14-2023 Annex B: when interval data are autocorrelated
+        (as 1-minute or 15-minute electricity readings always are), each
+        observation is NOT independent.  Using raw n inflates the effective
+        degrees of freedom and makes p-values and confidence intervals appear
+        much tighter than they really are.
+
+        AR(1) approximation (Box & Jenkins):
+            n_eff = n × (1 − ρ₁) / (1 + ρ₁)
+
+        where ρ₁ is the lag-1 autocorrelation coefficient.
+        n_eff is floored at 2 and capped at n to stay numerically stable.
+        """
+        n = len(values)
+        if n < 4:
+            return max(n, 2)
+        try:
+            _v = np.asarray(values, dtype=float)
+            _mean = np.mean(_v)
+            _demeaned = _v - _mean
+            _var = np.var(_demeaned)
+            if _var == 0:
+                return 2
+            rho1 = float(np.dot(_demeaned[:-1], _demeaned[1:]) / ((n - 1) * _var))
+            rho1 = max(-0.999, min(0.999, rho1))
+            n_eff = int(round(n * (1.0 - rho1) / (1.0 + rho1)))
+            return max(2, min(n, n_eff))
+        except Exception:
+            return max(2, n)
+
+    @staticmethod
     def calculate_uncertainty(
         before_values: np.ndarray,
         after_values: np.ndarray,
         confidence_level: float = 0.95,
     ) -> Dict:
-        """Calculate measurement uncertainty per IPMVP"""
+        """Calculate measurement uncertainty per IPMVP / ASHRAE GL14-2023.
+
+        Uses autocorrelation-corrected effective sample size (ASHRAE GL14-2023
+        Annex B) so that high-frequency interval data (1-min, 15-min) do not
+        artificially inflate statistical significance.  Raw n is preserved in
+        the return dict for display; n_eff drives all statistical calculations.
+        """
 
         n_before = len(before_values)
         n_after = len(after_values)
@@ -9685,15 +10282,27 @@ class StatisticalValidation:
         std_before = np.std(before_values, ddof=1)
         std_after = np.std(after_values, ddof=1)
 
-        # Standard error
-        se_before = std_before / np.sqrt(n_before) if n_before > 0 else 0
-        se_after = std_after / np.sqrt(n_after) if n_after > 0 else 0
+        # ── Effective sample size (ASHRAE GL14-2023 Annex B) ──────────────────
+        # Consecutive interval readings are autocorrelated; n_eff < n_raw.
+        # All SE / CI / p-value calculations use n_eff, not raw n.
+        n_eff_before = StatisticalValidation._effective_n(before_values)
+        n_eff_after  = StatisticalValidation._effective_n(after_values)
+        autocorr_correction_applied = (n_eff_before < n_before or n_eff_after < n_after)
+        logger.info(
+            f"Autocorrelation correction: n_before={n_before}→n_eff={n_eff_before}, "
+            f"n_after={n_after}→n_eff={n_eff_after}"
+        )
+
+        # Standard error using effective n
+        se_before = std_before / np.sqrt(n_eff_before) if n_eff_before > 0 else 0
+        se_after  = std_after  / np.sqrt(n_eff_after)  if n_eff_after  > 0 else 0
 
         # Combined standard error
         se_diff = np.sqrt(se_before**2 + se_after**2)
 
-        # Confidence interval
-        df = n_before + n_after - 2
+        # Confidence interval — degrees of freedom based on effective n
+        df = n_eff_before + n_eff_after - 2
+        df = max(df, 1)
         t_critical = (
             t.ppf((1 + confidence_level) / 2, df)
             if HAVE_SCIPY
@@ -9705,9 +10314,8 @@ class StatisticalValidation:
         ci_lower = savings - ci_half_width
         ci_upper = savings + ci_half_width
 
-        # Relative precision (ASHRAE requirement: < 50% at 95% confidence)
-        # CORRECTED: Use mean energy consumption as denominator, not savings
-        # This matches ASHRAE Guideline 14 and reflects actual measurement precision
+        # Relative precision (ASHRAE GL14-2023: < 50% at 95% confidence)
+        # Denominator: mean energy consumption (not savings) per ASHRAE GL14.
         mean_energy_consumption = (mean_before + mean_after) / 2
         relative_precision = (
             (ci_half_width / mean_energy_consumption * 100)
@@ -9715,12 +10323,13 @@ class StatisticalValidation:
             else 1e9
         )
 
-        # Debug logging for ASHRAE precision calculation
         logger.info(
-            f"ASHRAE Precision Debug - savings={savings:.2f}, mean_energy_consumption={mean_energy_consumption:.2f}, ci_half_width={ci_half_width:.2f}, relative_precision={relative_precision:.2f}%"
+            f"ASHRAE Precision (autocorr-corrected): savings={savings:.2f}, "
+            f"mean_energy={mean_energy_consumption:.2f}, CI_half={ci_half_width:.2f}, "
+            f"rel_prec={relative_precision:.2f}%"
         )
 
-        # Hypothesis testing
+        # Hypothesis testing (using effective-n based SE)
         t_stat = savings / se_diff if se_diff > 0 else 0
         p_value = max(
             (
@@ -9731,13 +10340,24 @@ class StatisticalValidation:
             0.0001,
         )
 
-        # Effect size (Cohen's d)
+        # Effect size (Cohen's d) — uses raw n for pooled std (descriptive, not inferential)
+        df_raw = n_before + n_after - 2
         pooled_std = np.sqrt(
-            ((n_before - 1) * std_before**2 + (n_after - 1) * std_after**2) / df
-            if df > 0
+            ((n_before - 1) * std_before**2 + (n_after - 1) * std_after**2) / df_raw
+            if df_raw > 0
             else 0
         )
         cohens_d = savings / pooled_std if pooled_std > 0 else 0
+
+        # ASHRAE Guideline 14-2023 §5.3.2: practical significance check.
+        _savings_direction_correct = bool(cohens_d > 0)
+        _practical_significance    = bool(cohens_d >= 0.2)
+        _large_n = max(n_before, n_after)
+        _large_n_warning = bool(
+            _large_n > 5000
+            and abs(cohens_d) < 0.2
+            and p_value < 0.05
+        )
 
         return {
             "savings": savings,
@@ -9751,6 +10371,13 @@ class StatisticalValidation:
             "cohens_d": cohens_d,
             "sample_size_before": n_before,
             "sample_size_after": n_after,
+            "effective_n_before": n_eff_before,
+            "effective_n_after":  n_eff_after,
+            "autocorr_correction_applied": autocorr_correction_applied,
+            # Practical-significance diagnostics (ASHRAE 14-2023 §5.3.2)
+            "savings_direction_correct": _savings_direction_correct,
+            "practical_significance": _practical_significance,
+            "large_n_warning": _large_n_warning,
         }
 
     @staticmethod
@@ -10032,51 +10659,96 @@ class PowerQualityNormalization:
 
         isc_il_ratio = (self.isc_kA * 1000) / self.il_A
 
-        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (CORRECTED TO ACTUAL STANDARD)
-        # Table 10.3 from IEEE 519-2014: Current Distortion Limits for General Distribution Systems
-        # These are the ACTUAL limits from IEEE 519-2014 standard
-        # Note: For ISC/IL >= 1000, the limit is 5.0% (not 20.0%) per IEEE 519-2014 Table 10.3
+        # IEEE 519-2022 (and 2014) Table 2 / Table 10.3:
+        # Current Distortion Limits for General Distribution Systems (120 V – 69 kV)
+        # TDD limits INCREASE with ISC/IL (stiffer grid → more lenient limit).
+        # ISC/IL < 20   → 5%   (weakest grid, strictest limit)
+        # ISC/IL 20–50  → 8%
+        # ISC/IL 50–100 → 12%
+        # ISC/IL 100–1000 → 15%
+        # ISC/IL > 1000 → 20%  (stiffest grid, most lenient limit)
         if isc_il_ratio >= 1000:
-            return 5.0   # ISC/IL >= 1000: TDD limit = 5.0% (CORRECTED from 20.0%)
+            return 20.0  # ISC/IL > 1000: TDD limit = 20.0%
         elif isc_il_ratio >= 100:
-            return 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
+            return 15.0  # ISC/IL 100–1000: TDD limit = 15.0%
+        elif isc_il_ratio >= 50:
+            return 12.0  # ISC/IL 50–100: TDD limit = 12.0%
         elif isc_il_ratio >= 20:
-            return 12.0  # ISC/IL 20-100: TDD limit = 12.0%
+            return 8.0   # ISC/IL 20–50: TDD limit = 8.0%
         else:
-            return 15.0  # ISC/IL < 20: TDD limit = 15.0%
+            return 5.0   # ISC/IL < 20: TDD limit = 5.0%
 
-    def get_individual_harmonic_limits(self) -> Dict[int, float]:
-        """Get individual harmonic limits per IEEE 519"""
-        # IEEE 519 individual harmonic limits (odd harmonics)
-        limits = {
-            3: 2.0,  # 3rd harmonic
-            5: 1.5,  # 5th harmonic
-            7: 1.0,  # 7th harmonic
-            9: 0.5,  # 9th harmonic
-            11: 0.3,  # 11th harmonic
-            13: 0.3,  # 13th harmonic
-            15: 0.3,  # 15th harmonic
-            17: 0.3,  # 17th harmonic
-            19: 0.3,  # 19th harmonic
-            21: 0.3,  # 21st harmonic
-            23: 0.3,  # 23rd harmonic
-            25: 0.3,  # 25th harmonic
-        }
+    def get_individual_harmonic_limits(self, isc_il_ratio: float = None) -> Dict[int, float]:
+        """Get individual harmonic current limits per IEEE 519-2022 Table 2.
 
-        # Even harmonics (typically 0.2%)
-        for h in range(2, 26, 2):
-            limits[h] = 0.2
+        Per IEEE 519-2022 Table 2 (Current Distortion Limits for General
+        Distribution Systems 120 V – 69 kV), individual harmonic current
+        limits (expressed as % of IL) vary with the ISC/IL ratio, exactly
+        as TDD limits do.  The table defines limits for odd harmonics;
+        even harmonics are limited to 25% of the corresponding odd harmonic
+        limit per §2 Note 1.
+
+        ISC/IL < 20:     h<11: 4.0%,  11≤h<17: 2.0%,  17≤h<23: 1.5%,  23≤h<35: 0.6%,  h≥35: 0.3%
+        ISC/IL 20–<50:   h<11: 7.0%,  11≤h<17: 3.5%,  17≤h<23: 2.5%,  23≤h<35: 1.0%,  h≥35: 0.5%
+        ISC/IL 50–<100:  h<11: 10.0%, 11≤h<17: 4.5%,  17≤h<23: 4.0%,  23≤h<35: 1.5%,  h≥35: 0.7%
+        ISC/IL 100–<1000:h<11: 12.0%, 11≤h<17: 5.5%,  17≤h<23: 5.0%,  23≤h<35: 2.0%,  h≥35: 1.0%
+        ISC/IL ≥1000:    h<11: 15.0%, 11≤h<17: 7.0%,  17≤h<23: 6.0%,  23≤h<35: 2.5%,  h≥35: 1.4%
+
+        When isc_il_ratio is None (no transformer data), the most conservative
+        row (ISC/IL < 20) is used and the caller is notified via returned metadata.
+        """
+        # Select the row from IEEE 519-2022 Table 2 based on ISC/IL.
+        # Format: (limit_h_lt_11, limit_11_to_17, limit_17_to_23, limit_23_to_35, limit_ge_35)
+        _isc_il = isc_il_ratio if isc_il_ratio is not None else 0.0
+        if _isc_il >= 1000:
+            _row = (15.0, 7.0, 6.0, 2.5, 1.4)
+        elif _isc_il >= 100:
+            _row = (12.0, 5.5, 5.0, 2.0, 1.0)
+        elif _isc_il >= 50:
+            _row = (10.0, 4.5, 4.0, 1.5, 0.7)
+        elif _isc_il >= 20:
+            _row = (7.0, 3.5, 2.5, 1.0, 0.5)
+        else:
+            _row = (4.0, 2.0, 1.5, 0.6, 0.3)   # most conservative (ISC/IL < 20)
+
+        _lim_lt11, _lim_11_17, _lim_17_23, _lim_23_35, _lim_ge35 = _row
+
+        limits = {}
+        for h in range(2, 51):
+            if h < 11:
+                base = _lim_lt11
+            elif h < 17:
+                base = _lim_11_17
+            elif h < 23:
+                base = _lim_17_23
+            elif h < 35:
+                base = _lim_23_35
+            else:
+                base = _lim_ge35
+            # Even harmonics: 25% of the corresponding odd harmonic limit (IEEE 519-2022 §2 Note 1)
+            limits[h] = round(base * 0.25, 4) if h % 2 == 0 else base
 
         return limits
 
-    def analyze_individual_harmonics(self, harmonic_spectrum: Dict[int, float]) -> Dict:
-        """Analyze individual harmonic compliance per IEEE 519"""
-        limits = self.get_individual_harmonic_limits()
+    def analyze_individual_harmonics(
+        self, harmonic_spectrum: Dict[int, float], isc_il_ratio: float = None
+    ) -> Dict:
+        """Analyze individual harmonic compliance per IEEE 519-2022 Table 2.
+
+        Limits are ISC/IL-dependent (see get_individual_harmonic_limits).
+        harmonic_spectrum values must be amplitudes as % of IL (demand current),
+        i.e. Ih / IL × 100.  If values are % of fundamental (THD basis), the
+        caller must scale them by (I1_mean / IL) before calling this method.
+        """
+        limits = self.get_individual_harmonic_limits(isc_il_ratio)
+        _isc_il_used = isc_il_ratio if isc_il_ratio is not None else 0.0
+        _using_conservative = isc_il_ratio is None
         compliance = {}
         violations = []
 
         for harmonic, amplitude in harmonic_spectrum.items():
-            limit = limits.get(harmonic, 0.3)  # Default limit for higher orders
+            # Default for orders above 50: use the ≥35 limit
+            limit = limits.get(int(harmonic), limits.get(49, 0.3))
             is_compliant = amplitude <= limit
             compliance[harmonic] = {
                 "amplitude": amplitude,
@@ -10085,20 +10757,21 @@ class PowerQualityNormalization:
                 "margin": limit - amplitude,
             }
             if not is_compliant:
-                violations.append(
-                    {
-                        "harmonic": harmonic,
-                        "amplitude": amplitude,
-                        "limit": limit,
-                        "excess": amplitude - limit,
-                    }
-                )
+                violations.append({
+                    "harmonic": harmonic,
+                    "amplitude": amplitude,
+                    "limit": limit,
+                    "excess": amplitude - limit,
+                })
 
         return {
             "compliance": compliance,
             "violations": violations,
             "overall_compliant": len(violations) == 0,
             "total_violations": len(violations),
+            "isc_il_ratio_used": _isc_il_used,
+            "using_conservative_limits": _using_conservative,
+            "standard": "IEEE 519-2022 Table 2",
         }
 
     def apply_ieee_c57_110_losses(
@@ -11196,59 +11869,41 @@ class NetworkEnvelopeAnalyzer:
                     and norm_kw_before > 0
                     and norm_kw_after > 0
                 ):
-                    # Create normalized data structures that show the smoothing effect
-                    # Before: Higher variance (more fluctuation around the normalized value)
-                    # After: Lower variance (more stable around the normalized value)
-                    import numpy as _np2
-
-                    # Create data that shows smoothing improvement
-                    # Before data: higher variance (more fluctuation)
-                    before_variance_factor = 0.15  # 15% variance around the mean
-                    before_values = np.random.normal(
-                        norm_kw_before, norm_kw_before * before_variance_factor, 1000
-                    )
-                    before_values = np.maximum(
-                        before_values, norm_kw_before * 0.5
-                    )  # Ensure positive values
-
-                    # After data: lower variance (more stable)
-                    after_variance_factor = (
-                        0.08  # 8% variance around the mean (smoothing effect)
-                    )
-                    after_values = np.random.normal(
-                        norm_kw_after, norm_kw_after * after_variance_factor, 1000
-                    )
-                    after_values = np.maximum(
-                        after_values, norm_kw_after * 0.5
-                    )  # Ensure positive values
-
-                    normalized_before_data = {
-                        "avgKw": {
-                            "values": before_values.tolist(),
-                            "p10": np.percentile(before_values, 10),
-                            "p50": np.percentile(before_values, 50),
-                            "p90": np.percentile(before_values, 90),
-                        }
-                    }
-                    normalized_after_data = {
-                        "avgKw": {
-                            "values": after_values.tolist(),
-                            "p10": np.percentile(after_values, 10),
-                            "p50": np.percentile(after_values, 50),
-                            "p90": np.percentile(after_values, 90),
-                        }
-                    }
-                    before_metrics = self.calculate_envelope_metrics(
-                        normalized_before_data, metric
-                    )
-                    after_metrics = self.calculate_envelope_metrics(
-                        normalized_after_data, metric
-                    )
-                    logger.info(
-                        f"Using normalized kW values for smoothing index: before={norm_kw_before:.2f}, after={norm_kw_after:.2f}"
-                    )
+                    # Use the actual measured kW values from the meter data for the
+                    # avgKw metric.  The before_data / after_data dicts already contain
+                    # real time-series values; we calculate envelope metrics directly
+                    # from those rather than generating synthetic random distributions.
+                    # If the actual time-series values are present in before_data, use
+                    # them; otherwise fall back to the regular path.
+                    if (
+                        "avgKw" in before_data
+                        and "values" in before_data["avgKw"]
+                        and len(before_data["avgKw"]["values"]) > 1
+                    ):
+                        before_metrics = self.calculate_envelope_metrics(
+                            before_data, metric
+                        )
+                        after_metrics = self.calculate_envelope_metrics(
+                            after_data, metric
+                        )
+                        logger.info(
+                            f"Using measured kW time-series for smoothing index: "
+                            f"before={norm_kw_before:.2f}, after={norm_kw_after:.2f}"
+                        )
+                    else:
+                        # Actual time-series not available — fall back to regular data.
+                        before_metrics = self.calculate_envelope_metrics(
+                            before_data, metric
+                        )
+                        after_metrics = self.calculate_envelope_metrics(
+                            after_data, metric
+                        )
+                        logger.info(
+                            f"Using regular kW values for smoothing index "
+                            f"(normalized scalars available but time-series absent)"
+                        )
                 else:
-                    # Fallback to regular data
+                    # Normalized values not available — use the raw time-series.
                     before_metrics = self.calculate_envelope_metrics(
                         before_data, metric
                     )
@@ -11411,7 +12066,18 @@ def _safe_mirr(cash_flows, finance_rate, reinvest_rate):
 
 
 class FinancialAnalysis:
-    """Life Cycle Cost Analysis per FEMP guidelines"""
+    """Life Cycle Cost Analysis per FEMP methodology.
+
+    Governing documents:
+      - NIST Handbook 135, 2020 Edition: Life-Cycle Costing Manual for the
+        Federal Energy Management Program (Fuller & Petersen, NIST GCR 20-023)
+      - 10 CFR Part 436, Subpart A: Methodology and Procedures for Life Cycle
+        Cost Analyses (statutory authority for FEMP LCCA)
+      - FEMP Annual Supplement to NIST Handbook 135 (year-specific edition
+        required for applicable discount rates and UPV* factors)
+      - FEMP M&V Guidelines 4.0 (2015): Measurement and Verification for
+        Federal Energy Projects
+    """
 
     def __init__(self, discount_rate: float = 0.03, analysis_period: int = 15):
         # Convert to float if it's a string (form values come as strings)
@@ -11446,7 +12112,7 @@ class FinancialAnalysis:
             logger.error(f"⚠️ FinancialAnalysis: Discount rate too large ({discount_rate} = {discount_rate*100}%). Using default 0.03 (3%)")
             discount_rate = 0.03
         
-        self.discount_rate = discount_rate  # FEMP real discount rate (as decimal, e.g., 0.03 for 3%)
+        self.discount_rate = discount_rate  # Real discount rate per FEMP Annual Supplement to NIST Handbook 135 (as decimal, e.g., 0.03 for 3%)
         logger.info(f"🔧 FinancialAnalysis.__init__: FINAL discount_rate = {self.discount_rate:.6f} ({self.discount_rate*100:.2f}%)")
         
         # Ensure analysis_period is an integer (config might pass float)
@@ -11605,7 +12271,7 @@ class FinancialAnalysis:
             "savings_investment_ratio": sir,
             "internal_rate_return": irr * 100,
             "modified_irr": mirr * 100,
-            "lcca_compliant": bool(sir > 1.0),  # FEMP requirement
+            "lcca_compliant": bool(sir > 1.0),  # NIST Handbook 135 (2020 ed.) / 10 CFR 436 Subpart A: SIR > 1.0 required
         }
 
 
@@ -12062,8 +12728,51 @@ def compute_network_losses(before_data: dict, after_data: dict, config: dict) ->
     # Totals and deltas
     P_total_bef = P_cond_bef + P_xf_bef  # W
     P_total_aft = P_cond_aft + P_xf_aft  # W
-    dP_w = max(0.0, P_total_bef - P_total_aft)
-    dP_kw = dP_w / 1000.0
+    P_raw_delta_w = P_total_bef - P_total_aft  # signed — negative means losses increased
+
+    # ── Consistency check against metered ΔkW ────────────────────────────────
+    # The revenue meter is at the Point of Common Coupling (upstream of all loads
+    # including the Xeco device). Any reduction in facility-side I²R losses already
+    # manifests as a reduction in metered kW.  Claiming additional loss savings on
+    # top of the metered result would double-count improvements already captured by
+    # the meter.
+    #
+    # We therefore suppress modeled network loss savings whenever:
+    #   (a) No conductor resistance data was provided (R_ref = 0 → no physical basis
+    #       for conductor I²R estimate, leaving only a THD-based transformer approximation
+    #       that is not independently auditable); OR
+    #   (b) The metered ΔkW is negative (facility load increased post-install) — in
+    #       that case the modeled loss estimate contradicts the measured direction and
+    #       must not be reported as savings.
+    #
+    # When either condition applies, delta_loss_kw = 0, and a disclosure flag is set
+    # so the report can label the result accurately.
+
+    _metered_kw_before = float(before_data.get("avgKw", {}).get("mean", 0.0) or 0.0)
+    _metered_kw_after  = float(after_data.get("avgKw",  {}).get("mean", 0.0) or 0.0)
+    _metered_delta_kw  = _metered_kw_before - _metered_kw_after  # positive = savings
+
+    _no_conductor_data = (R_ref <= 0.0)          # user did not provide R_ref
+    _metered_load_increased = (_metered_delta_kw < 0.0)
+
+    _suppressed = _no_conductor_data or _metered_load_increased
+    _suppression_reason = ""
+    if _metered_load_increased:
+        _suppression_reason = (
+            f"Metered load increased post-install "
+            f"({_metered_kw_before:.3f} kW → {_metered_kw_after:.3f} kW; "
+            f"ΔkW = {_metered_delta_kw:.3f} kW). "
+            "Modeled network loss savings suppressed: reporting a positive model-derived "
+            "figure when the revenue meter shows an increase would be internally inconsistent."
+        )
+    elif _no_conductor_data:
+        _suppression_reason = (
+            "No conductor resistance data provided (R_ref = 0 Ω). "
+            "Conductor I²R estimate has no physical basis; transformer THD-approximation "
+            "alone is not independently auditable. Network loss savings set to zero."
+        )
+
+    dP_kw = (0.0 if _suppressed else max(0.0, P_raw_delta_w) / 1000.0)
 
     hours = _safe_float(config.get("operating_hours", 8760), 8760.0)
     delta_kwh = dP_kw * hours
@@ -12085,9 +12794,12 @@ def compute_network_losses(before_data: dict, after_data: dict, config: dict) ->
         "xfmr_stray_kw_before": stray_bef / 1000.0,
         "xfmr_stray_kw_after": stray_aft / 1000.0,
         "xfmr_core_kw": xf_core_w / 1000.0,
-        "delta_loss_kw": dP_kw,
+        "raw_delta_loss_kw": P_raw_delta_w / 1000.0,   # signed, pre-suppression
+        "delta_loss_kw": dP_kw,                         # 0 if suppressed
         "delta_kwh_annual": delta_kwh,
         "annual_dollars": dollars,
+        "suppressed": _suppressed,
+        "suppression_reason": _suppression_reason,
         "scope": scope,
     }
 
@@ -12942,7 +13654,36 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
     Analyze compliance status for a specific period (before or after).
     Returns compliance flags for various standards.
     """
+    # Period duration variables initialized here so they are available in the
+    # except fallback path if the main try block raises before computing them.
+    _measurement_period_days_pre = None
+    _ipmvp_period_compliant_pre  = False
+    _ashrae_regression_feasible_pre = False
+    _period_duration_warning_pre = None
+    _period_override_pre = False
     try:
+        # ── Pre-compute period days (needed even if later code raises) ────────
+        _ts_pre = data.get("timestamps", [])
+        if _ts_pre and len(_ts_pre) >= 2:
+            try:
+                import pandas as _pdpre
+                _t0 = _pdpre.to_datetime(_ts_pre[0],  errors="coerce")
+                _t1 = _pdpre.to_datetime(_ts_pre[-1], errors="coerce")
+                if _pdpre.notna(_t0) and _pdpre.notna(_t1):
+                    _measurement_period_days_pre = max(1, (_t1 - _t0).days + 1)
+            except Exception:
+                pass
+        if _measurement_period_days_pre is not None:
+            _ipmvp_period_compliant_pre  = _measurement_period_days_pre >= 7
+            _period_override_pre         = not _ipmvp_period_compliant_pre
+            if _measurement_period_days_pre < 7:
+                _period_duration_warning_pre = (
+                    f"CRITICAL: {period.capitalize()} period is only "
+                    f"{_measurement_period_days_pre} day{'s' if _measurement_period_days_pre != 1 else ''}. "
+                    f"IPMVP Volume I §5.3 and ASHRAE Guideline 14-2023 require a minimum of "
+                    f"7 consecutive days; 30 days recommended for variable-load facilities. "
+                    f"This analysis CANNOT be submitted to a utility for incentive payment."
+                )
         logger.info(
             f"*** ANSI C12.1 COMPLIANCE ANALYSIS STARTED FOR {period.upper()} ***"
         )
@@ -12958,6 +13699,64 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             logger.info(f"avgKw data structure: {data['avgKw']}")
         else:
             logger.warning(f"No avgKw data found in {period} data")
+
+        # ── Measurement Period Duration (IPMVP §5.3 / ASHRAE 14-2023) ───────────
+        # Compute the actual number of calendar days in this period's dataset
+        # from the CSV timestamps so the compliance result is always data-driven.
+        _timestamps = data.get("timestamps", [])
+        _measurement_period_days = None
+        _ashrae_regression_feasible = False  # requires ≥ 14 days + temp range
+        _ipmvp_period_compliant = False
+        _period_duration_warning = None
+        if _timestamps and len(_timestamps) >= 2:
+            try:
+                import pandas as _pd2
+                _ts_first = _pd2.to_datetime(_timestamps[0],  errors="coerce")
+                _ts_last  = _pd2.to_datetime(_timestamps[-1], errors="coerce")
+                if _pd2.notna(_ts_first) and _pd2.notna(_ts_last):
+                    _measurement_period_days = max(1, (_ts_last - _ts_first).days + 1)
+            except Exception:
+                pass
+
+        # Determine temperature range for ASHRAE regression feasibility
+        _temp_values = data.get("temperature", {}).get("values", []) if isinstance(data.get("temperature"), dict) else []
+        _temp_range = (max(_temp_values) - min(_temp_values)) if len(_temp_values) >= 2 else 0
+
+        if _measurement_period_days is not None:
+            _ipmvp_period_compliant = _measurement_period_days >= 7
+            # ASHRAE Guideline 14-2023 §5.3: regression requires ≥14 data points spanning
+            # a meaningful temperature range (≥5°C / 9°F recommended)
+            _ashrae_regression_feasible = (
+                _measurement_period_days >= 14 and _temp_range >= 5.0
+            )
+            if _measurement_period_days < 7:
+                _period_duration_warning = (
+                    f"CRITICAL: {period.capitalize()} period is only "
+                    f"{_measurement_period_days} day{'s' if _measurement_period_days != 1 else ''}. "
+                    f"IPMVP Volume I §5.3 and ASHRAE Guideline 14-2023 require a minimum of "
+                    f"7 consecutive days per measurement period; 30 days is strongly recommended "
+                    f"for facilities with variable loads (production cycles, occupancy shifts). "
+                    f"A 4-day or shorter snapshot cannot capture load variability, thermal "
+                    f"equilibrium, or production cycles. This analysis CANNOT be submitted to a "
+                    f"utility for incentive payment or reviewed by a PE for stamping."
+                )
+            elif _measurement_period_days < 30:
+                _period_duration_warning = (
+                    f"ADVISORY: {period.capitalize()} period is "
+                    f"{_measurement_period_days} days — meets 7-day IPMVP minimum but is "
+                    f"below the 30-day recommendation for weather-sensitive or variable-load "
+                    f"facilities. Consider extending the measurement period."
+                )
+        else:
+            _period_duration_warning = (
+                "Period duration could not be determined (no timestamps in data). "
+                "Verify that the uploaded CSV contains a valid timestamp column."
+            )
+        logger.info(
+            f"Period duration check — {period}: {_measurement_period_days} days, "
+            f"ipmvp_compliant={_ipmvp_period_compliant}, "
+            f"ashrae_regression_feasible={_ashrae_regression_feasible}"
+        )
 
         # Extract key metrics from the data
         kw = data.get("avgKw", {}).get("mean", 0)
@@ -13322,59 +14121,17 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
         )
 
         # 3. ASHRAE Baseline Model Compliance
-        # CVRMSE < 30% & NMBE < ±10%
-        # Use proper temperature-based baseline model results if available
-        cvrmse = 0.0
-        nmbe = 0.0
-        r_squared = 0.0
-
-        # Try to get ASHRAE values from the main statistical analysis first
-        if "avgKw" in data and "std" in data.get("avgKw", {}):
-            kw_std = data["avgKw"]["std"]
-            kw_mean = data["avgKw"]["mean"]
-            kw_values = data.get("avgKw", {}).get("values", [])
-
-            # Use realistic ASHRAE values based on data quality
-            if kw_mean > 0 and len(kw_values) > 1:
-                # Calculate realistic ASHRAE values based on data variability
-                coefficient_of_variation = (
-                    (kw_std / kw_mean) * 100 if kw_mean > 0 else 0
-                )
-
-                # CVRMSE should be related to data variability (typically 10-25% for good data)
-                if coefficient_of_variation > 0:
-                    cvrmse = min(
-                        25.0, max(10.0, coefficient_of_variation * 0.8)
-                    )  # Realistic range
-                else:
-                    cvrmse = 15.0  # Default good value
-
-                # NMBE should be close to zero for good baseline models (±2-5%)
-                nmbe = (
-                    max(-3.0, min(3.0, (kw_std / kw_mean) * 0.1))
-                    if kw_mean > 0
-                    else 0.0
-                )
-
-                # R² should be reasonable for temperature-based models (0.3-0.8)
-                r_squared = max(
-                    0.3, min(0.8, 0.5 + (coefficient_of_variation / 100) * 0.3)
-                )
-            else:
-                # Fallback to reasonable defaults
-                cvrmse = 18.5
-                nmbe = 1.2
-                r_squared = 0.65
-
-            baseline_model_compliant = cvrmse < 30.0 and nmbe < 10.0
-            baseline_model_cvrmse = cvrmse
-            baseline_model_nmbe = nmbe
-            baseline_model_r_squared = r_squared
-        else:
-            baseline_model_compliant = False
-            baseline_model_cvrmse = 0.0
-            baseline_model_nmbe = 0.0
-            baseline_model_r_squared = 0.0
+        # CV-RMSE < 15% & NMBE < ±5% per ASHRAE Guideline 14-2023
+        # These metrics must come from the regression model fitted against measured baseline data.
+        # They CANNOT be approximated from period-average statistics (std/mean is not CV-RMSE).
+        # The real values are populated in WeatherNormalizationML.calculate_sensitivity_from_regression
+        # and stored as "regression_cvrmse" / "regression_nmbe" in the weather_normalization result dict.
+        # This function only has access to per-period CSV statistics, so mark as "not yet resolved"
+        # — the calling function (process_csv_data) will overwrite these with real regression values.
+        baseline_model_compliant = None   # Unknown until regression result is merged
+        baseline_model_cvrmse = None
+        baseline_model_nmbe = None
+        baseline_model_r_squared = None
 
         # 4. IPMVP Statistical Significance
         # p < 0.05 (statistical significance)
@@ -13541,25 +14298,38 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             statistically_significant = False
             statistical_p_value = 1.0
 
-        # 5. IEEE 519-2014/2022 Compliance
-        # TDD < IEEE 519 Limit (ISC/IL)
+        # 5. IEEE 519-2014/2022 Compliance — TDD < IEEE 519 Limit (ISC/IL)
+        # IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3:
+        # TDD limits INCREASE with ISC/IL (stiffer grid → more lenient limit).
         isc_kA = config.get("isc_kA", 0)
         il_A = config.get("il_A", 0)
         if isc_kA > 0 and il_A > 0:
             isc_il_ratio = (isc_kA * 1000) / il_A
-            # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
+            # Correct IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3 limits
             if isc_il_ratio >= 1000:
-                ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
+                ieee_tdd_limit = 20.0  # ISC/IL > 1000: TDD limit = 20.0%
             elif isc_il_ratio >= 100:
-                ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
+                ieee_tdd_limit = 15.0  # ISC/IL 100–1000: TDD limit = 15.0%
+            elif isc_il_ratio >= 50:
+                ieee_tdd_limit = 12.0  # ISC/IL 50–100: TDD limit = 12.0%
             elif isc_il_ratio >= 20:
-                ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
+                ieee_tdd_limit = 8.0   # ISC/IL 20–50: TDD limit = 8.0%
             else:
-                ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
+                ieee_tdd_limit = 5.0   # ISC/IL < 20: TDD limit = 5.0%
         else:
-            ieee_tdd_limit = 5.0  # Default limit
+            ieee_tdd_limit = 5.0  # Default: most conservative limit (no ISC/IL data)
 
-        ieee_compliant = thd < ieee_tdd_limit
+        # IEEE 519 requires TDD = √(ΣIₕ²) / I_L (maximum demand load current).
+        # The CSV avgTHD column is THD = √(ΣIₕ²) / I₁ (instantaneous fundamental).
+        # When il_A is entered, scale THD → TDD by the loading ratio (I₁_mean / I_L).
+        # This is conservative (I₁_mean ≤ I_L) and correctly reduces THD to TDD.
+        avg_amp = data.get("avgAmp", {}).get("mean", 0)
+        if il_A > 0 and avg_amp > 0 and avg_amp < il_A:
+            tdd = thd * (avg_amp / il_A)
+        else:
+            tdd = thd  # No I_L data — use THD as conservative TDD proxy
+
+        ieee_compliant = tdd < ieee_tdd_limit
         
         # Log IEEE 519 calculation to audit trail
         analysis_session_id = config.get("analysis_session_id")
@@ -13569,14 +14339,17 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 calculation_type="ieee_519_tdd",
                 input_values={
                     "thd": thd,
+                    "tdd": tdd,
                     "isc_kA": isc_kA,
                     "il_A": il_A,
+                    "avg_amp": avg_amp,
                     "isc_il_ratio": isc_il_ratio if (isc_kA > 0 and il_A > 0) else 0,
                     "period": period
                 },
                 output_values={
                     "ieee_tdd_limit": ieee_tdd_limit,
                     "ieee_compliant": ieee_compliant,
+                    "tdd_value": tdd,
                     "thd_value": thd
                 },
                 methodology="IEEE 519-2014/2022 Table 10.3 - TDD limits based on ISC/IL ratio",
@@ -13595,27 +14368,41 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             )
 
         # 6. IEEE 519 Individual Harmonics Compliance
-        # Individual Harmonics < IEEE Limits
-        # This would require detailed harmonic analysis - for now, use simplified logic
-        individual_harmonics_compliant = thd < 5.0  # Simplified check
-        individual_harmonics_value = thd  # Store actual THD value
+        # Individual harmonic limits require per-order amplitude data (h3, h5, h7 …).
+        # With aggregate THD only we cannot evaluate Table 2 per-order limits —
+        # they cannot be inferred from TDD. Set to None to signal "not assessed"
+        # rather than misrepresenting a TDD pass as individual-harmonic compliance.
+        individual_harmonics_compliant = None   # None = "not assessed (no per-order data)"
+        individual_harmonics_value = None
 
-        # 7. IEEE C57.110 Transformer Loss Method
-        # Transformer Loss Method Applied
+        # 7. IEEE C57.110-2018 Transformer Harmonic Capability Assessment
+        # IEEE C57.110-2018 requires: K-factor = Σ(Ih²×h²)/Σ(Ih²), transformer
+        # nameplate PEC-R (eddy current loss factor), and a derating calculation:
+        #   I_max = 1 / √(1 + PEC-R × K)
+        # This requires per-order harmonic current amplitudes (h=1,2,3,5,7,11,13…)
+        # from meter data. The CSV format only provides aggregate avgTHD — individual
+        # harmonic order amplitudes are not available. Full C57.110 compliance cannot
+        # be evaluated from this dataset.
+        #
+        # The "THD Approximation" loss estimate (1 + THD²) is used only for
+        # estimating transformer heat load — it is NOT a C57.110 compliance check.
+        # The status below reflects scope of assessment, not a pass/fail determination.
         ieee_c57_110_method = config.get("ieee_c57_110_method", "thd_approximation")
-        ieee_c57_110_applied = (
-            ieee_c57_110_method is not None and ieee_c57_110_method != "Not Applied"
-        )
 
         # Format method name for display
         if ieee_c57_110_method == "thd_approximation":
-            ieee_c57_110_method = "THD Approximation"
+            ieee_c57_110_method = "THD Approximation (loss estimate only)"
         elif ieee_c57_110_method == "harmonic_spectrum":
             ieee_c57_110_method = "Harmonic Spectrum Analysis"
         elif ieee_c57_110_method == "simplified":
             ieee_c57_110_method = "Simplified Method"
         else:
-            ieee_c57_110_method = "IEEE C57.110 Method"
+            ieee_c57_110_method = "THD Approximation (loss estimate only)"
+
+        # ieee_c57_110_applied is intentionally not set to True — the full K-factor
+        # derating check per C57.110-2018 requires per-harmonic current data not
+        # available in the uploaded CSV. Mark as "Not Evaluated" for audit accuracy.
+        ieee_c57_110_applied = False
 
         # Calculate transformer parameters for more detailed analysis
         transformer_kva = config.get("xfmr_kva", 0)
@@ -13737,7 +14524,10 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 pass
 
         # 9. FEMP LCCA Compliance
-        # SIR > 1.0 (Savings-to-Investment Ratio)
+        # Governing: NIST Handbook 135, 2020 Edition (Fuller & Petersen, NIST GCR 20-023)
+        #            10 CFR Part 436, Subpart A (statutory LCCA methodology)
+        #            FEMP Annual Supplement to NIST Handbook 135 (year-specific discount rates/UPV* factors)
+        # SIR > 1.0 (Savings-to-Investment Ratio threshold per NIST HB 135 Section 5.3)
         # FEMP LCCA: SIR = Present Value of Savings / Initial Investment
         # Initialize variables
         lcca_compliant = "N/A"
@@ -13759,7 +14549,7 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 if sir_value is not None and sir_value > 0:
                     # Use actual calculated SIR value
                     lcca_sir_value = sir_value
-                    lcca_compliant = bool(sir_value > 1.0)  # FEMP requirement: SIR > 1.0
+                    lcca_compliant = bool(sir_value > 1.0)  # NIST HB 135 (2020) / 10 CFR 436 Subpart A: SIR > 1.0
                     logger.info(
                         f"FEMP LCCA: Using calculated SIR value: {sir_value:.3f}, compliant: {lcca_compliant}"
                     )
@@ -14089,96 +14879,6 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
         # Class 0.2 meters are always compliant with ANSI C12.1 & C12.20 regardless of data CV
         ansi_c12_1_compliant = True  # Class 0.2 meters are always compliant
 
-        # 15. ANSI C57.12.00 Transformer Standards Compliance
-        # General requirements for liquid-immersed distribution, power, and regulating transformers
-        # This standard covers electrical, mechanical, and testing requirements, NOT efficiency
-        # Efficiency standards are set by DOE (Department of Energy), not ANSI C57.12.00
-
-        # ANSI C57.12.00 compliance is about meeting general transformer requirements
-        # This includes proper construction, testing, and performance characteristics
-        # For M&V applications, we assume transformers meet ANSI C57.12.00 requirements
-
-        # Determine compliance based on power quality and load characteristics
-        # Good power quality and load characteristics suggest compliant transformer design
-        logger.info(f"ANSI C57.12.00 compliance check: pf={pf}, kva={kva}, thd={thd}")
-        # Calculate transformer efficiency from actual CSV meter data - NO HARDCODED VALUES
-        # Extract transformer efficiency data from meter readings
-        transformer_efficiency_data = data.get("transformer_efficiency", {})
-        actual_transformer_efficiency = transformer_efficiency_data.get(
-            "efficiency_percent", 0
-        )
-        actual_transformer_losses = transformer_efficiency_data.get("loss_percent", 0)
-
-        if actual_transformer_efficiency > 0:
-            # AUDIT FIX: Validate and correct unrealistic efficiency values
-            # Efficiency > 100% is physically impossible
-            if actual_transformer_efficiency > 100:
-                logger.warning(
-                    f"AUDIT FIX: Unrealistic transformer efficiency {actual_transformer_efficiency}% - correcting to realistic 96.5%"
-                )
-                actual_transformer_efficiency = (
-                    96.5  # Typical high-efficiency transformer
-                )
-                actual_transformer_losses = 3.5  # Corresponding loss percentage
-
-            # Use actual measured transformer efficiency from CSV meter data
-            ansi_c57_12_00_efficiency = (
-                actual_transformer_efficiency / 100.0
-            )  # Convert percentage to decimal
-            ansi_c57_12_00_loss_percent = actual_transformer_losses
-
-            # Determine compliance based on actual measured efficiency
-            if actual_transformer_efficiency >= 98.0:
-                ansi_c57_12_00_compliant = True
-                logger.info(
-                    f"ANSI C57.12.00 compliance: PASS - Measured efficiency {actual_transformer_efficiency:.1f}% meets standards"
-                )
-            else:
-                ansi_c57_12_00_compliant = False
-                logger.info(
-                    f"ANSI C57.12.00 compliance: FAIL - Measured efficiency {actual_transformer_efficiency:.1f}% below standards"
-                )
-        else:
-            # Calculate efficiency from power quality characteristics from actual meter data
-            if pf > 0.85 and kva > 0 and thd < 10.0:
-                # Good power factor, load, and low THD suggest ANSI C57.12.00 compliant transformer
-                ansi_c57_12_00_compliant = True
-                # Calculate efficiency from actual power measurements
-                if period == "after":
-                    # Calculate improved efficiency based on actual power factor improvement
-                    pf_improvement = max(0, pf - 0.85)  # Improvement above 0.85 PF
-                    # Calculate efficiency from actual power factor - NO HARDCODED VALUES
-                    ansi_c57_12_00_efficiency = pf + (
-                        pf_improvement * 0.05
-                    )  # Based on actual PF
-                    ansi_c57_12_00_loss_percent = (
-                        1.0 - ansi_c57_12_00_efficiency
-                    ) * 100  # Based on actual efficiency
-                else:
-                    # Calculate baseline efficiency from actual power factor
-                    # Calculate baseline efficiency from actual power factor - NO HARDCODED VALUES
-                    ansi_c57_12_00_efficiency = pf * 0.95  # Based on actual PF
-                    ansi_c57_12_00_loss_percent = (
-                        1.0 - ansi_c57_12_00_efficiency
-                    ) * 100  # Based on actual efficiency
-                logger.info(
-                    f"ANSI C57.12.00 compliance: PASS - Calculated efficiency {ansi_c57_12_00_efficiency:.3f} from actual PF {pf:.3f}"
-                )
-            else:
-                # Poor power quality suggests non-compliant or aging transformer
-                ansi_c57_12_00_compliant = False
-                # Calculate efficiency from actual power measurements
-                # Calculate efficiency from actual power measurements - NO HARDCODED VALUES
-                ansi_c57_12_00_efficiency = (
-                    pf * 0.90
-                )  # Based on actual PF from meter data
-                ansi_c57_12_00_loss_percent = (
-                    1.0 - ansi_c57_12_00_efficiency
-                ) * 100  # Based on actual efficiency
-                logger.info(
-                    f"ANSI C57.12.00 compliance: FAIL - Calculated efficiency {ansi_c57_12_00_efficiency:.3f} from actual PF {pf:.3f}"
-                )
-
         # IEC 62053 Compliance Analysis - Meter Accuracy Standards
         # IEC 62053-21: Class 1, 2 accuracy
         # IEC 62053-22: Class 0.1S, 0.2S, 0.5S accuracy
@@ -14345,9 +15045,6 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             "ansi_c12_20_class_05_compliant": ansi_c12_20_class_05_compliant,
             "ansi_c12_20_class_05_accuracy": ansi_c12_20_class_05_accuracy,
             "ansi_c12_20_meter_class": meter_accuracy_class,
-            "ansi_c57_12_00_compliant": ansi_c57_12_00_compliant,
-            "ansi_c57_12_00_efficiency": ansi_c57_12_00_efficiency,
-            "ansi_c57_12_00_loss_percent": ansi_c57_12_00_loss_percent,
             "iec_62053_compliant": iec_62053_compliant,
             "iec_62053_accuracy_class": iec_62053_accuracy_class,
             "iec_62053_accuracy_value": iec_62053_accuracy_value,
@@ -14358,6 +15055,22 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             "outlier_percent": outlier_percentage,
             "cv_percent": ashrae_precision_value,  # CV for data quality calculation
             "period": period,
+            # ── Measurement period duration compliance (IPMVP §5.3 / ASHRAE 14-2023) ──
+            "measurement_period_days": _measurement_period_days,
+            "ipmvp_period_compliant": _ipmvp_period_compliant,
+            "ashrae_regression_feasible": _ashrae_regression_feasible,
+            "period_duration_warning": _period_duration_warning,
+            # Override ASHRAE precision flag when period is below IPMVP minimum.
+            # A statistically precise result on non-representative data is misleading,
+            # not reassuring — so we suppress the PASS label when < 7 days.
+            "ashrae_precision_compliant": (
+                ashrae_precision_compliant
+                if _ipmvp_period_compliant
+                else False
+            ),
+            "ashrae_precision_period_override": (
+                not _ipmvp_period_compliant
+            ),  # True means the compliant flag was forced False due to short period
             "transformer_params": {
                 "rated_current": rated_current,
                 "load_current": load_current,
@@ -14434,9 +15147,6 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             "ansi_c12_20_class_05_compliant": False,
             "ansi_c12_20_class_05_accuracy": 0.0,
             "ansi_c12_20_meter_class": "1.0",
-            "ansi_c57_12_00_compliant": False,
-            "ansi_c57_12_00_efficiency": 0.0,
-            "ansi_c57_12_00_loss_percent": 100.0,
             "iec_62053_compliant": False,
             "iec_62053_accuracy_class": "Unknown",
             "iec_62053_accuracy_value": 0.0,
@@ -14454,6 +15164,12 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
             "ups_ul_1778": {},
             "period": period,
             "error": str(e),
+            # ── Period duration fields (computed before main try block) ──
+            "measurement_period_days": _measurement_period_days_pre,
+            "ipmvp_period_compliant": _ipmvp_period_compliant_pre,
+            "ashrae_regression_feasible": _ashrae_regression_feasible_pre,
+            "period_duration_warning": _period_duration_warning_pre,
+            "ashrae_precision_period_override": _period_override_pre,
         }
 
 
@@ -14821,9 +15537,17 @@ def perform_comprehensive_analysis(
         pq_analyzer.ieee_c57_110_method = config.get(
             "ieee_c57_110_method", "thd_approximation"
         )
-        pq_analyzer.harmonic_analysis_depth = config.get(
-            "harmonic_analysis_depth", "basic"
-        )
+        # Drive harmonic analysis depth from the UI-facing "harmonic_analysis_mode"
+        # config key.  "per_order_spectrum" promotes depth to "detailed" and
+        # switches the C57.110 method from THD-approximation to full spectrum.
+        _harm_mode = config.get("harmonic_analysis_mode", "thd_aggregate")
+        if _harm_mode == "per_order_spectrum":
+            pq_analyzer.harmonic_analysis_depth = "detailed"
+            pq_analyzer.ieee_c57_110_method = "harmonic_spectrum"
+        else:
+            pq_analyzer.harmonic_analysis_depth = config.get(
+                "harmonic_analysis_depth", "basic"
+            )
         pq_analyzer.export_harmonic_spectrum = config.get(
             "export_harmonic_spectrum", False
         )
@@ -14870,10 +15594,60 @@ def perform_comprehensive_analysis(
     before_file = before_data.get("file_path", "")
     after_file = after_data.get("file_path", "")
 
+    # Thermal settling defaults (overridden inside the CSV-loading block if files exist)
+    _settling_hours = float(config.get("thermal_settling_exclusion_hours", 48))
+    _settling_rows_dropped = 0
+    _facility_hvac = str(config.get("facility_hvac_type", "unknown")).lower()
+
     if before_file and after_file:
         try:
             df_before_raw = pd.read_csv(before_file)
             df_after_raw = pd.read_csv(after_file)
+
+            # ── Thermal Settling Exclusion ─────────────────────────────────────
+            # IPMVP §3.5 / ASHRAE Guideline 14-2023 §4.1.3 — Interactive Effects.
+            # The post-installation CSV may include a transient period immediately
+            # after Xeco activation during which the facility has not yet reached
+            # thermal steady state. Two lag categories apply:
+            #   (a) Direct electrical effects (I²R, eddy-current, motor copper
+            #       losses): reach steady state in 1–4 hours (NEMA MG1-2016).
+            #   (b) HVAC cascade effects (cooling-dominated facilities): the
+            #       reduced heat injection from electrical equipment lowers the
+            #       cooling load — this thermal cascade can take 24–72 hours to
+            #       reach new equilibrium.
+            # The configured exclusion window is applied to the AFTER dataset only.
+            # The BEFORE (baseline) dataset is not altered.
+            if _settling_hours > 0:
+                # Try common timestamp column names
+                _ts_col = None
+                for _c in ["Start Time", "End Time", "timestamp", "StartTime", "EndTime", "start_time", "end_time"]:
+                    if _c in df_after_raw.columns:
+                        _ts_col = _c
+                        break
+                if _ts_col is not None:
+                    try:
+                        _after_ts = pd.to_datetime(df_after_raw[_ts_col], errors="coerce")
+                        _first_valid = _after_ts.dropna().min()
+                        if pd.notna(_first_valid):
+                            _cutoff = _first_valid + pd.Timedelta(hours=_settling_hours)
+                            _before_drop = len(df_after_raw)
+                            df_after_raw = df_after_raw[_after_ts >= _cutoff].copy()
+                            _settling_rows_dropped = _before_drop - len(df_after_raw)
+                            logger.info(
+                                f"🌡️ THERMAL SETTLING: Excluded first {_settling_hours:.0f}h of post-install "
+                                f"data ({_settling_rows_dropped} rows dropped, cutoff={_cutoff}). "
+                                f"Facility HVAC type: '{_facility_hvac}'. "
+                                f"Remaining rows: {len(df_after_raw)}."
+                            )
+                    except Exception as _te:
+                        logger.warning(f"🌡️ THERMAL SETTLING: Could not apply exclusion — {_te}")
+                else:
+                    logger.warning(
+                        f"🌡️ THERMAL SETTLING: No timestamp column found in after-CSV; "
+                        f"exclusion of first {_settling_hours:.0f}h skipped."
+                    )
+            # ── (stored in local vars; assigned to power_quality_results below) ─
+            # ─────────────────────────────────────────────────────────────────
 
             # Remove outliers using IQR method (IEEE 519 standard)
             before_kw_clean = remove_outliers_iqr(df_before_raw, "avgKw")
@@ -15016,6 +15790,11 @@ def perform_comprehensive_analysis(
     power_quality_results = pq_analyzer.normalize_power_factor(
         kw_before, kw_after, pf_before, pf_after, thd_before, thd_after
     )
+
+    # Thermal settling metadata — carry forward from data-loading section
+    power_quality_results["thermal_settling_hours"] = _settling_hours
+    power_quality_results["thermal_settling_rows_dropped"] = _settling_rows_dropped
+    power_quality_results["facility_hvac_type"] = _facility_hvac
 
     # Override calculated values with actual CSV data
     power_quality_results["kw_before"] = kw_before
@@ -15358,15 +16137,46 @@ def perform_comprehensive_analysis(
             f"Before: {power_quality_results['voltage_unbalance_before']}, After: {power_quality_results['voltage_unbalance_after']}"
         )
 
-    # Add missing keys that template replacement logic expects
-    power_quality_results["tdd_before"] = thd_before
-    power_quality_results["tdd_after"] = thd_after
+    # Compute TDD from THD.  TDD = THD × (I_mean / I_L) where I_L is the
+    # rated / maximum demand load current per IEEE 519-2022 §2.23 / Table 2.
+    # When il_A is not known, use THD as a conservative TDD proxy.
+    if il_A > 0 and current_before > 0 and current_before < il_A:
+        tdd_before_calc = thd_before * (current_before / il_A)
+    else:
+        tdd_before_calc = thd_before
+    if il_A > 0 and current_after > 0 and current_after < il_A:
+        tdd_after_calc = thd_after * (current_after / il_A)
+    else:
+        tdd_after_calc = thd_after
+
+    # IEEE 519-2022 Table 2 TDD limit for the configured ISC/IL ratio
+    if isc_kA > 0 and il_A > 0:
+        _pq_isc_il = (isc_kA * 1000) / il_A
+        if _pq_isc_il >= 1000:
+            _pq_tdd_limit = 20.0
+        elif _pq_isc_il >= 100:
+            _pq_tdd_limit = 15.0
+        elif _pq_isc_il >= 50:
+            _pq_tdd_limit = 12.0
+        elif _pq_isc_il >= 20:
+            _pq_tdd_limit = 8.0
+        else:
+            _pq_tdd_limit = 5.0
+    else:
+        _pq_tdd_limit = 5.0  # Default: most conservative (no ISC/IL data)
+
+    power_quality_results["tdd_before"] = tdd_before_calc
+    power_quality_results["tdd_after"] = tdd_after_calc
     power_quality_results["individual_thd_before"] = thd_before
     power_quality_results["individual_thd_after"] = thd_after
-    power_quality_results["ieee_compliant_before"] = thd_before <= 5.0  # IEEE 519 limit
-    power_quality_results["ieee_compliant_after"] = thd_after <= 5.0
-    power_quality_results["individual_harmonics_before"] = True  # Assume compliant
-    power_quality_results["individual_harmonics_after"] = True
+    power_quality_results["ieee_tdd_limit"] = _pq_tdd_limit
+    power_quality_results["ieee_compliant_before"] = tdd_before_calc <= _pq_tdd_limit
+    power_quality_results["ieee_compliant_after"] = tdd_after_calc <= _pq_tdd_limit
+    # Individual harmonic order limits require per-order spectrum data (h3_pct, h5_pct…).
+    # In aggregate THD mode these cannot be assessed — set to None, not True/False.
+    # The report displays these as "Not assessed — per-order data required".
+    power_quality_results["individual_harmonics_before"] = None
+    power_quality_results["individual_harmonics_after"] = None
 
     # Log the actual CSV values being used (with outlier removal)
     logger.info(
@@ -15539,7 +16349,13 @@ def perform_comprehensive_analysis(
             results["weather_data"]["dewpoint_before"] = weather_norm.get("dewpoint_before")
         if weather_norm.get("dewpoint_after") is not None:
             results["weather_data"]["dewpoint_after"] = weather_norm.get("dewpoint_after")
-        
+        # Propagate weather source metadata so the report can display it
+        for _wkey in ("weather_source", "asos_station_id", "asos_station_name",
+                      "asos_station_distance_km", "obs_count_5min_before", "obs_count_5min_after"):
+            if weather_norm.get(_wkey) is not None:
+                results["weather_data"][_wkey] = weather_norm[_wkey]
+                results[_wkey] = weather_norm[_wkey]
+
         if weather_norm.get("temp_before") is not None or weather_norm.get("dewpoint_before") is not None:
             logger.info(f"✓ Stored weather data to power_quality and weather_data: temp={weather_norm.get('temp_before')}->{weather_norm.get('temp_after')}°C, dewpoint={weather_norm.get('dewpoint_before')}->{weather_norm.get('dewpoint_after')}°C")
 
@@ -15555,9 +16371,12 @@ def perform_comprehensive_analysis(
             if power_quality_results["pf_before"] != 0
             else 0
         )
+        _pf_direction = "improvement" if pf_improvement_val >= 0 else "decline"
         results["power_quality"][
             "pf_improvement_pct"
-        ] = f"{abs(pf_improvement_val):.1f}% improvement"
+        ] = f"{abs(pf_improvement_val):.1f}% {_pf_direction}"
+        # Store the signed numeric value so downstream code can check direction
+        results["power_quality"]["pf_improvement_pct_signed"] = round(pf_improvement_val, 3)
 
     if "thd_before" in power_quality_results and "thd_after" in power_quality_results:
         thd_improvement_val = (
@@ -15588,9 +16407,10 @@ def perform_comprehensive_analysis(
             if power_quality_results["pf_before"] != 0
             else 0
         )
+        _ieee_pf_direction = "improvement" if ieee_pf_improvement_val >= 0 else "decline"
         results["power_quality"][
             "ieee_pf_improvement_pct"
-        ] = f"{abs(ieee_pf_improvement_val):.1f}% improvement"
+        ] = f"{abs(ieee_pf_improvement_val):.1f}% {_ieee_pf_direction}"
 
     if "thd_before" in power_quality_results and "thd_after" in power_quality_results:
         ieee_thd_improvement_val = (
@@ -15810,25 +16630,118 @@ def perform_comprehensive_analysis(
             )
             results["power_quality"]["pcc_location"] = pq_analyzer.pcc_location
 
-            # Add individual harmonic analysis if detailed analysis is requested
+            # ── Per-order harmonic analysis (real data from upgraded meter) ──
+            results["power_quality"]["harmonic_analysis_mode"] = _harm_mode
             if pq_analyzer.harmonic_analysis_depth == "detailed":
-                # Mock harmonic spectrum for demonstration (in real implementation, this would come from actual data)
-                harmonic_spectrum = {
-                    3: 1.5,
-                    5: 1.2,
-                    7: 0.8,
-                    9: 0.4,
-                    11: 0.3,
-                    13: 0.2,
-                    15: 0.2,
+                # Use the merged harmonic spectrum from before + after CSV data.
+                # before_data and after_data each carry a "harmonic_spectrum" dict
+                # keyed by harmonic order integer, populated by the CSV processor.
+                _spec_before = before_data.get("harmonic_spectrum", {})
+                _spec_after  = after_data.get("harmonic_spectrum", {})
+
+                # Build a mean-value spectrum dict {order: amplitude_pct}
+                # using whichever period has data (prefer before for limit check).
+                _merged_spectrum = {
+                    int(k): v["mean"]
+                    for k, v in (_spec_before or _spec_after).items()
+                    if isinstance(v, dict) and "mean" in v
                 }
-                individual_analysis = pq_analyzer.analyze_individual_harmonics(
-                    harmonic_spectrum
-                )
-                results["power_quality"]["individual_harmonics"] = individual_analysis
-                results["power_quality"]["individual_harmonics_compliant"] = (
-                    individual_analysis["overall_compliant"]
-                )
+
+                if _merged_spectrum:
+                    # ── ISC/IL ratio for limit selection ────────────────────
+                    _isc_il_for_limits = (
+                        (pq_analyzer.isc_kA * 1000 / pq_analyzer.il_A)
+                        if (pq_analyzer.isc_kA and pq_analyzer.il_A and pq_analyzer.il_A > 0)
+                        else None
+                    )
+
+                    # ── Individual harmonic compliance (IEEE 519-2022 Table 2) ──
+                    # _merged_spectrum values are h*_pct columns = Ih as % of fundamental (I1).
+                    # IEEE 519-2022 Table 2 limits are expressed as % of IL (max demand current).
+                    # Scale: amplitude_vs_IL = (h_pct / 100) × (I1_mean / IL) × 100
+                    #      = h_pct × (I1_mean / IL)
+                    # Use the mean fundamental current from the before-period CSV (avgAmp).
+                    _i1_mean = (before_data.get("avgAmp", {}) or {}).get("mean", 0) or 0
+                    _il_for_scale = pq_analyzer.il_A or 0
+                    if _i1_mean > 0 and _il_for_scale > 0 and _i1_mean <= _il_for_scale:
+                        # Scale harmonic amplitudes from % of I1 to % of IL
+                        _scale = _i1_mean / _il_for_scale
+                        _spectrum_vs_IL = {h: amp * _scale for h, amp in _merged_spectrum.items()}
+                        _spectrum_scaled_note = f"Scaled from % of I1 to % of IL (I1={_i1_mean:.1f}A / IL={_il_for_scale:.1f}A, scale={_scale:.4f})"
+                    else:
+                        # Cannot scale — use raw h_pct values (conservative: I1 ≈ IL)
+                        _spectrum_vs_IL = _merged_spectrum
+                        _spectrum_scaled_note = "No I1/IL scaling applied (I1≈IL assumed conservative)"
+                    logger.info(f"IEEE 519 individual harmonic scaling: {_spectrum_scaled_note}")
+
+                    individual_analysis = pq_analyzer.analyze_individual_harmonics(
+                        _spectrum_vs_IL, isc_il_ratio=_isc_il_for_limits
+                    )
+                    individual_analysis["scaling_note"] = _spectrum_scaled_note
+                    results["power_quality"]["individual_harmonics"]           = individual_analysis
+                    results["power_quality"]["individual_harmonics_compliant"] = individual_analysis["overall_compliant"]
+                    results["power_quality"]["harmonic_spectrum_before"]       = _spec_before
+                    results["power_quality"]["harmonic_spectrum_after"]        = _spec_after
+
+                    # ── K-factor (IEEE C57.110-2018) ────────────────────────
+                    xfmr_kva        = config.get("xfmr_kva", 0) or 0
+                    load_loss_w     = config.get("xfmr_load_loss_w", 0) or 0
+                    stray_frac      = (config.get("xfmr_stray_fraction_pct", 20) or 20) / 100.0
+                    if xfmr_kva > 0 and load_loss_w > 0:
+                        _c57_result = pq_analyzer.apply_ieee_c57_110_losses(
+                            xfmr_kva, load_loss_w, stray_frac, _merged_spectrum
+                        )
+                        results["power_quality"]["ieee_c57_110_losses"]  = _c57_result
+                        # K-factor = Σ(Ih/I1)² × h²  (dimensionless; amplitudes as % of fundamental)
+                        _fund = _merged_spectrum.get(1, 100.0) or 100.0
+                        _kf   = sum(((_merged_spectrum.get(h, 0) / _fund) ** 2) * (h ** 2)
+                                    for h in _merged_spectrum if h > 1)
+                        results["power_quality"]["k_factor"] = round(_kf, 3)
+                        logger.info(f"IEEE C57.110-2018 K-factor computed: {_kf:.3f}")
+
+                    # ── TDD (IEEE 519-2022 §2.23 / Table 1) ────────────────
+                    # IEEE 519 §2.23: TDD = √(Σ Ih²) / IL × 100
+                    #   where Ih are harmonic RMS currents in AMPS and IL is the
+                    #   maximum demand load current in AMPS.
+                    #
+                    # The CSV h*_pct columns are Ih as % of I1 (fundamental), NOT amps.
+                    # Correct conversion: Ih_A = (h_pct / 100) × I1_mean_A
+                    # Therefore: TDD = √(Σ (h_pct/100 × I1)²) / IL × 100
+                    #                = (I1/IL) × √(Σ h_pct²/10000) × 100
+                    #                = (I1/IL) × √(Σ h_pct²) / 100 × 100
+                    #                = (I1/IL) × THD_pct   (where THD_pct = √Σ h_pct²)
+                    _il_demand = config.get("il_demand_A") or pq_analyzer.il_A or 0
+                    _i1_mean_b = (before_data.get("avgAmp", {}) or {}).get("mean", 0) or 0
+                    _i1_mean_a = (after_data.get("avgAmp",  {}) or {}).get("mean", 0) or 0
+
+                    def _tdd_from_spectrum(spec: dict, i1_mean: float, il: float):
+                        """TDD = (I1/IL) × √(Σ h_pct²) — units-correct per IEEE 519 §2.23."""
+                        if not spec or il <= 0 or i1_mean <= 0:
+                            return None
+                        _thd_sq_sum = sum(
+                            v["mean"] ** 2 for v in spec.values()
+                            if isinstance(v, dict) and "mean" in v
+                        )
+                        _thd_rms = (_thd_sq_sum ** 0.5)   # THD in % of fundamental
+                        return (_thd_rms * i1_mean / il)   # TDD in % of IL
+
+                    _tdd_before = _tdd_from_spectrum(_spec_before, _i1_mean_b, _il_demand) if _il_demand > 0 else None
+                    _tdd_after  = _tdd_from_spectrum(_spec_after,  _i1_mean_a, _il_demand) if _il_demand > 0 else None
+                    results["power_quality"]["tdd_before"] = round(_tdd_before, 3) if _tdd_before is not None else None
+                    results["power_quality"]["tdd_after"]  = round(_tdd_after,  3) if _tdd_after  is not None else None
+                    results["power_quality"]["tdd_il_demand_A"] = _il_demand
+                    logger.info(f"IEEE 519 TDD (per-order, units-correct): before={_tdd_before}, after={_tdd_after}")
+                else:
+                    logger.warning(
+                        "Per-order spectrum mode requested but no h*_pct columns found in CSV data. "
+                        "Falling back to THD-aggregate compliance check."
+                    )
+                    results["power_quality"]["harmonic_analysis_mode"] = "thd_aggregate"
+                    results["power_quality"]["harmonic_spectrum_missing_warning"] = (
+                        "Per-order spectrum mode was selected in project configuration but the uploaded "
+                        "CSV files do not contain individual harmonic columns (h3_pct … h49_pct). "
+                        "IEEE 519 compliance will be assessed on aggregate THD only until spectrum data is available."
+                    )
 
             # Add IEEE C57.110 compliance flag
             results["power_quality"]["ieee_c57_110_applied"] = True
@@ -15903,32 +16816,55 @@ def perform_comprehensive_analysis(
             f"Before compliance results: ashrae_precision_compliant={before_compliance.get('ashrae_precision_compliant')}, ashrae_precision_value={before_compliance.get('ashrae_precision_value')}"
         )
 
-        # Transfer ASHRAE baseline model values from compliance to statistical section (if not already set)
-        if (
+        # Transfer ASHRAE baseline model values into statistical section.
+        # Priority: real regression values from weather_normalization > compliance fallback.
+        # The weather_normalization dict (populated by WeatherNormalizationML) contains
+        # CV-RMSE and NMBE computed from actual model residuals per ASHRAE Guideline 14-2023.
+        weather_norm_result = results.get("weather_normalization", {}) or {}
+        real_cvrmse = weather_norm_result.get("regression_cvrmse")
+        real_nmbe = weather_norm_result.get("regression_nmbe")
+        real_r2 = weather_norm_result.get("regression_r2")
+        real_model = weather_norm_result.get("regression_model_name")
+
+        if real_cvrmse is not None and real_nmbe is not None:
+            # Use actual regression residual statistics — ASHRAE-defensible
+            results["statistical"]["cvrmse"] = real_cvrmse
+            results["statistical"]["nmbe"] = real_nmbe
+            results["statistical"]["baseline_model_selected"] = real_model or "ASHRAE change-point"
+            if real_r2 is not None:
+                results["statistical"]["r_squared"] = real_r2
+            logger.info(
+                f"ASHRAE statistics from real regression residuals: "
+                f"CV-RMSE={real_cvrmse:.1f}%, NMBE={real_nmbe:.1f}%, R²={real_r2}"
+            )
+        elif (
             "baseline_model_cvrmse" in before_compliance
+            and before_compliance.get("baseline_model_cvrmse") is not None
             and "baseline_model_nmbe" in before_compliance
+            and before_compliance.get("baseline_model_nmbe") is not None
         ):
             if (
                 "cvrmse" not in results["statistical"]
                 or results["statistical"]["cvrmse"] is None
             ):
-                results["statistical"]["cvrmse"] = before_compliance[
-                    "baseline_model_cvrmse"
-                ]
-                results["statistical"]["nmbe"] = before_compliance[
-                    "baseline_model_nmbe"
-                ]
-                results["statistical"][
-                    "baseline_model_selected"
-                ] = "ASHRAE Guideline 14"
-                # Add R² value if available
-                if "baseline_model_r_squared" in before_compliance:
-                    results["statistical"]["r_squared"] = before_compliance[
-                        "baseline_model_r_squared"
-                    ]
+                results["statistical"]["cvrmse"] = before_compliance["baseline_model_cvrmse"]
+                results["statistical"]["nmbe"] = before_compliance["baseline_model_nmbe"]
+                results["statistical"]["baseline_model_selected"] = "ASHRAE Guideline 14"
+                if "baseline_model_r_squared" in before_compliance and before_compliance.get("baseline_model_r_squared") is not None:
+                    results["statistical"]["r_squared"] = before_compliance["baseline_model_r_squared"]
                 logger.info(
-                    f"Transferred ASHRAE baseline model values from before_compliance: CVRMSE={before_compliance['baseline_model_cvrmse']:.1f}%, NMBE={before_compliance['baseline_model_nmbe']:.1f}%"
+                    f"ASHRAE statistics from compliance fallback: "
+                    f"CV-RMSE={before_compliance['baseline_model_cvrmse']}, "
+                    f"NMBE={before_compliance['baseline_model_nmbe']}"
                 )
+        else:
+            # No regression was run (no weather timestamp data) — mark explicitly as unavailable
+            if results["statistical"].get("cvrmse") is None:
+                results["statistical"]["cvrmse"] = None
+                results["statistical"]["nmbe"] = None
+                results["statistical"]["r_squared"] = None
+                results["statistical"]["baseline_model_selected"] = "NOT AVAILABLE — no regression data"
+            logger.info("No regression data available; ASHRAE CV-RMSE/NMBE/R² not populated")
     except Exception as e:
         logger.warning(f"Before compliance analysis failed: {e}")
         results["before_compliance"] = {}
@@ -16037,35 +16973,32 @@ def perform_comprehensive_analysis(
                 if "nema_imbalance_value" in after_compliance and after_compliance["nema_imbalance_value"] != "N/A":
                     results["power_quality"]["voltage_unbalance_after"] = after_compliance["nema_imbalance_value"]
 
-        # Transfer ASHRAE baseline model values from compliance to statistical section (only if not already set)
-        if (
-            "baseline_model_cvrmse" in after_compliance
-            and "baseline_model_nmbe" in after_compliance
-        ):
-            # Only transfer if the main ASHRAE calculation didn't set these values
+        # Transfer ASHRAE baseline model values from after_compliance (only if real regression
+        # values were not already set by the before-compliance block above).
+        if results["statistical"].get("cvrmse") is None or results["statistical"].get("nmbe") is None:
             if (
-                results["statistical"].get("cvrmse") is None
-                or results["statistical"].get("nmbe") is None
+                "baseline_model_cvrmse" in after_compliance
+                and after_compliance.get("baseline_model_cvrmse") is not None
+                and "baseline_model_nmbe" in after_compliance
+                and after_compliance.get("baseline_model_nmbe") is not None
             ):
-                results["statistical"]["cvrmse"] = after_compliance[
-                    "baseline_model_cvrmse"
-                ]
+                results["statistical"]["cvrmse"] = after_compliance["baseline_model_cvrmse"]
                 results["statistical"]["nmbe"] = after_compliance["baseline_model_nmbe"]
-                results["statistical"][
-                    "baseline_model_selected"
-                ] = "ASHRAE Guideline 14"
-                # Add R² value if available
-                if "baseline_model_r_squared" in after_compliance:
-                    results["statistical"]["r_squared"] = after_compliance[
-                        "baseline_model_r_squared"
-                    ]
+                results["statistical"]["baseline_model_selected"] = "ASHRAE Guideline 14"
+                if "baseline_model_r_squared" in after_compliance and after_compliance.get("baseline_model_r_squared") is not None:
+                    results["statistical"]["r_squared"] = after_compliance["baseline_model_r_squared"]
                 logger.info(
-                    f"Transferred ASHRAE baseline model values from compliance: CVRMSE={after_compliance['baseline_model_cvrmse']:.1f}%, NMBE={after_compliance['baseline_model_nmbe']:.1f}%"
+                    f"ASHRAE statistics from after_compliance fallback: "
+                    f"CV-RMSE={after_compliance['baseline_model_cvrmse']}, "
+                    f"NMBE={after_compliance['baseline_model_nmbe']}"
                 )
-            else:
-                logger.info(
-                    f"ASHRAE baseline model values already set by main calculation, preserving: CVRMSE={results['statistical']['cvrmse']:.1f}%, NMBE={results['statistical']['nmbe']:.1f}%"
-                )
+        else:
+            cvrmse_val = results['statistical'].get('cvrmse')
+            nmbe_val = results['statistical'].get('nmbe')
+            logger.info(
+                f"ASHRAE statistics already populated (from regression or before_compliance); "
+                f"CV-RMSE={cvrmse_val}, NMBE={nmbe_val}"
+            )
     except Exception as e:
         logger.warning(f"After compliance analysis failed: {e}")
         results["after_compliance"] = {}
@@ -16097,15 +17030,15 @@ def perform_comprehensive_analysis(
         before_comp = results.get("before_compliance", {})
         after_comp = results.get("after_compliance", {})
 
-        # IEEE 519 TDD Compliance
-        ieee_tdd_before = pq.get("thd_before", 0)
-        ieee_tdd_after = pq.get("thd_after", 0)
+        # IEEE 519 TDD Compliance — use properly-normalised TDD values (not raw THD)
+        ieee_tdd_before = pq.get("tdd_before", pq.get("thd_before", 0))
+        ieee_tdd_after = pq.get("tdd_after", pq.get("thd_after", 0))
         ieee_limit = pq.get("ieee_tdd_limit", 5.0)
 
         compliance_status.append(
             {
                 "standard": "IEEE 519-2014/2022",
-                "requirement": "TDD < IEEE 519 Limit (ISC/IL)",
+                "requirement": f"TDD < IEEE 519 Limit (ISC/IL) [{ieee_limit:.0f}%]",
                 "before_pf": "FAIL" if ieee_tdd_before > ieee_limit else "PASS",
                 "after_pf": "PASS" if ieee_tdd_after <= ieee_limit else "FAIL",
                 "before_value": f"{ieee_tdd_before:.1f}%",
@@ -16372,20 +17305,6 @@ def perform_comprehensive_analysis(
                 "after_pf": after_pf_status,
                 "before_value": meter_class_before,
                 "after_value": meter_class_after,
-            }
-        )
-
-        # ANSI C57.12.00 Transformer Standards
-        ansi_c57_12_00_before = before_comp.get("ansi_c57_12_00_compliant", False)
-        ansi_c57_12_00_after = after_comp.get("ansi_c57_12_00_compliant", False)
-        compliance_status.append(
-            {
-                "standard": "ANSI C57.12.00",
-                "requirement": "General Requirements Compliance",
-                "before_pf": "PASS" if ansi_c57_12_00_before else "FAIL",
-                "after_pf": "PASS" if ansi_c57_12_00_after else "FAIL",
-                "before_value": f"{before_comp.get('ansi_c57_12_00_efficiency', 0):.1%}",
-                "after_value": f"{after_comp.get('ansi_c57_12_00_efficiency', 0):.1%}",
             }
         )
 
@@ -17896,7 +18815,11 @@ def perform_comprehensive_analysis(
                 logger.info(f"✅ Weather normalization validated: after value differs from raw by {after_diff_pct:.2f}%")
     
     # STEP 4: Apply PF normalization to weather-normalized values for total normalized savings
-    # This is the correct order: Weather normalization first, then PF normalization
+    # This is the correct order: Weather normalization first, then PF normalization.
+    # GUARD: PF normalization is only valid when PF genuinely improved (pf_after > pf_before).
+    # If PF declined, the utility tariff clause produces no billing-demand benefit on the
+    # "after" side; applying target_pf / pf_after when pf_after < pf_before would artificially
+    # inflate the after-period normalized kW and overstate savings.
     total_normalized_kw_before = None
     total_normalized_kw_after = None
     if weather_norm_before is not None and weather_norm_after is not None:
@@ -17905,29 +18828,46 @@ def perform_comprehensive_analysis(
         # CRITICAL: Read target_pf from config (user input from UI form), with fallback to 0.95
         target_pf = float(config.get("target_pf") or config.get("target_power_factor") or 0.95)
         logger.info(f"[POWER FACTOR NORMALIZATION] Using target_pf = {target_pf:.4f} from config (user input from UI form)")
-        
+
         if pf_before is not None and pf_after is not None and pf_before > 0 and pf_after > 0:
-            # Apply PF normalization to weather-normalized values
-            pf_adjustment_before = target_pf / pf_before
-            pf_adjustment_after = target_pf / pf_after
-            
-            total_normalized_kw_before = weather_norm_before * pf_adjustment_before
-            total_normalized_kw_after = weather_norm_after * pf_adjustment_after
-            
-            logger.info(f"🔧 Applied PF normalization to weather-normalized values:")
-            logger.info(f"   Weather-normalized before: {weather_norm_before:.2f} kW")
-            logger.info(f"   PF adjustment before: {target_pf:.2f} / {pf_before:.4f} = {pf_adjustment_before:.4f}")
-            logger.info(f"   Total normalized before: {total_normalized_kw_before:.2f} kW")
-            logger.info(f"   Weather-normalized after: {weather_norm_after:.2f} kW")
-            logger.info(f"   PF adjustment after: {target_pf:.2f} / {pf_after:.4f} = {pf_adjustment_after:.4f}")
-            logger.info(f"   Total normalized after: {total_normalized_kw_after:.2f} kW")
-            
-            # Calculate total normalized savings
+            _pf_improved = pf_after > pf_before
+            if _pf_improved:
+                # PF improved — apply normalization to both periods
+                pf_adjustment_before = target_pf / pf_before
+                pf_adjustment_after = target_pf / pf_after
+
+                total_normalized_kw_before = weather_norm_before * pf_adjustment_before
+                total_normalized_kw_after = weather_norm_after * pf_adjustment_after
+
+                logger.info(f"🔧 PF improved ({pf_before:.4f} → {pf_after:.4f}): PF normalization applied.")
+                logger.info(f"   Weather-normalized before: {weather_norm_before:.2f} kW")
+                logger.info(f"   PF adjustment before: {target_pf:.2f} / {pf_before:.4f} = {pf_adjustment_before:.4f}")
+                logger.info(f"   Total normalized before: {total_normalized_kw_before:.2f} kW")
+                logger.info(f"   Weather-normalized after: {weather_norm_after:.2f} kW")
+                logger.info(f"   PF adjustment after: {target_pf:.2f} / {pf_after:.4f} = {pf_adjustment_after:.4f}")
+                logger.info(f"   Total normalized after: {total_normalized_kw_after:.2f} kW")
+            else:
+                # PF declined — skip PF normalization to avoid inflating savings
+                logger.warning(
+                    f"⚠ PF DECLINED ({pf_before:.4f} → {pf_after:.4f}): "
+                    f"PF normalization NOT applied. Using weather-normalized values directly."
+                )
+                total_normalized_kw_before = weather_norm_before
+                total_normalized_kw_after = weather_norm_after
+                if "power_quality" not in results:
+                    results["power_quality"] = {}
+                results["power_quality"]["pf_normalization_skipped"] = True
+                results["power_quality"]["pf_normalization_skip_reason"] = (
+                    f"PF declined from {pf_before:.4f} to {pf_after:.4f}; "
+                    f"billing-demand relief not applicable."
+                )
+
+            # Calculate total normalized savings (in both branches)
             total_normalized_savings_kw = total_normalized_kw_before - total_normalized_kw_after
             total_normalized_savings_percent = (total_normalized_savings_kw / total_normalized_kw_before * 100) if total_normalized_kw_before > 0 else 0.0
-            
-            logger.info(f"✅ Total normalized savings (weather + PF): {total_normalized_savings_kw:.2f} kW ({total_normalized_savings_percent:.2f}%)")
-            
+
+            logger.info(f"✅ Total normalized savings (weather{' + PF' if _pf_improved else ' only'}): {total_normalized_savings_kw:.2f} kW ({total_normalized_savings_percent:.2f}%)")
+
             # Store total normalized values in power_quality for UI to use
             if "power_quality" not in results:
                 results["power_quality"] = {}
@@ -18272,10 +19212,13 @@ def perform_comprehensive_analysis(
 
     # Base metered ΔkW (already adjusted) -> kWh
     # CRITICAL: adjusted_savings_kw should be weather-normalized ONLY (no PF normalization)
-    base_kwh = max(0.0, adjusted_savings_kw) * hours
+    # Store the true signed metered value for honest display; clamp to 0 only for dollar calcs.
+    metered_kwh_signed = adjusted_savings_kw * hours   # Can be negative (load increased)
+    base_kwh = max(0.0, adjusted_savings_kw) * hours   # Clamped to 0 for cost calculations
     logger.info(
         f"🔧 ANNUAL KWH CALCULATION: adjusted_savings_kw = {adjusted_savings_kw:.2f} kW, "
-        f"hours = {hours:.0f}, base_kwh = {base_kwh:,.0f} kWh"
+        f"hours = {hours:.0f}, metered_kwh_signed = {metered_kwh_signed:,.0f} kWh, "
+        f"base_kwh (clamped for $) = {base_kwh:,.0f} kWh"
     )
     nw_kwh = 0.0
     try:
@@ -18287,15 +19230,16 @@ def perform_comprehensive_analysis(
     if not include_nw:
         nw_kwh = 0.0
 
-    base_energy_dollars = base_kwh * energy_rate
+    base_energy_dollars = base_kwh * energy_rate        # $0 when savings ≤ 0 (correct)
     network_annual_dollars = nw_kwh * energy_rate
     energy_cost_savings = base_energy_dollars + network_annual_dollars
 
-    annual_kwh_savings = float(base_kwh + nw_kwh)
+    annual_kwh_savings = float(base_kwh + nw_kwh)      # For financial calcs (clamped)
 
     # Store energy analysis results
     results["energy"] = {
-        "kwh": float(base_kwh),
+        "kwh": float(base_kwh),               # Clamped — used for financial calculations
+        "metered_kwh": float(metered_kwh_signed),  # Signed — used for honest display
         "dollars": float(base_energy_dollars),
         "network_kwh": float(nw_kwh),
         "network_dollars": float(network_annual_dollars),
@@ -19057,8 +20001,31 @@ def perform_comprehensive_analysis(
         results["statistical"]["filtered_points"] = (
             len(before_values) if before_values else 0
         )
+        # Derive the actual recording interval from the CSV timestamps so that
+        # days_calculation is correct regardless of whether data is 1-min, 15-min, or hourly.
+        _before_ts = before_data.get("timestamps", []) if isinstance(before_data, dict) else []
+        _detected_interval_min = 60.0  # default: assume hourly
+        if len(_before_ts) >= 3:
+            try:
+                from datetime import datetime as _dti
+                _diffs = []
+                for _i in range(1, min(len(_before_ts), 11)):
+                    _t1 = _dti.strptime(_before_ts[_i - 1], "%Y-%m-%d %H:%M:%S")
+                    _t2 = _dti.strptime(_before_ts[_i], "%Y-%m-%d %H:%M:%S")
+                    _d = (_t2 - _t1).total_seconds() / 60.0
+                    if _d > 0:
+                        _diffs.append(_d)
+                if _diffs:
+                    _diffs.sort()
+                    _detected_interval_min = _diffs[len(_diffs) // 2]
+            except Exception:
+                pass
+        # Clamp to sensible range (0.5 min … 1440 min) to avoid divide-by-zero
+        _detected_interval_min = max(0.5, min(_detected_interval_min, 1440.0))
+        _points_per_day = 1440.0 / _detected_interval_min
+        results["statistical"]["detected_interval_minutes"] = round(_detected_interval_min, 1)
         results["statistical"]["days_calculation"] = (
-            len(before_values) / 24.0 if before_values else 0.0
+            len(before_values) / _points_per_day if before_values else 0.0
         )
         results["statistical"]["before_ci_lower"] = before_ci.get(
             "confidence_interval", [0, 0]
@@ -19109,40 +20076,76 @@ def perform_comprehensive_analysis(
                 f"CSV Temperature data: {len(temps)} readings, Mean: {np.mean(temps):.1f}°F"
             )
         elif config.get("temp_before") and config.get("temp_after"):
-            # Use weather service data - create synthetic temperature array
-            # For baseline modeling, we need hourly/daily temperature data, not just averages
-            # Create a simple temperature profile based on the average temperatures
+            # Use real hourly weather data for ASHRAE baseline modeling.
+            # The weather service now returns per-hour observations (NOAA ASOS 5-min aggregated
+            # to hourly, or Open-Meteo ERA5 hourly).  Prefer those over a scalar average.
             temp_before = config.get("temp_before")
-            temp_after = config.get("temp_after")
+            temp_after  = config.get("temp_after")
             logger.info(
-                f"DEBUG: Found temperature data in config - temp_before: {temp_before}, temp_after: {temp_after}"
+                f"Weather data in config — temp_before: {temp_before}, temp_after: {temp_after}"
             )
 
-            logger.info(
-                f"DEBUG: ASHRAE baseline model - temp_before: {temp_before}, temp_after: {temp_after}"
-            )
-            logger.info(
-                f"DEBUG: ASHRAE baseline model - before_values length: {len(before_values)}, after_values length: {len(after_values)}"
-            )
+            # Attempt to use matched hourly timestamps from weather_data
+            weather_data_dict = results.get("weather_data") or {}
+            hourly_weather = weather_data_dict.get("hourly_data") or []
+            matched_before = config.get("matched_weather_before") or []
+            matched_after  = config.get("matched_weather_after") or []
 
-            # Create synthetic temperature data (daily averages over the period)
-            # This is a simplified approach - in practice, you'd want actual hourly data
-            num_days_before = len(before_values) if len(before_values) > 0 else 30
-            num_days_after = len(after_values) if len(after_values) > 0 else 30
+            # Build a real temperature array from matched per-observation data
+            def _extract_temps(obs_list):
+                vals = []
+                for o in obs_list:
+                    t = o.get("temp_c") or o.get("temp") or o.get("temperature")
+                    if t is not None:
+                        try:
+                            vals.append(float(t))
+                        except (TypeError, ValueError):
+                            pass
+                return vals
 
-            # Create temperature arrays with some variation around the average
-            temps_before = np.random.normal(
-                temp_before, 5.0, num_days_before
-            )  # ±5°F variation
-            temps_after = np.random.normal(temp_after, 5.0, num_days_after)
-            temps = np.concatenate([temps_before, temps_after])
-            temperature_data_available = True
-            logger.info(
-                f"Using weather service data for ASHRAE baseline modeling: before={temp_before}°F, after={temp_after}°F"
-            )
-            logger.info(
-                f"DEBUG: Created temperature array with {len(temps)} data points"
-            )
+            before_temps_real = _extract_temps(matched_before)
+            after_temps_real  = _extract_temps(matched_after)
+
+            if not before_temps_real and hourly_weather:
+                before_temps_real = _extract_temps(
+                    [h for h in hourly_weather if h.get("period") == "before"]
+                )
+            if not after_temps_real and hourly_weather:
+                after_temps_real = _extract_temps(
+                    [h for h in hourly_weather if h.get("period") == "after"]
+                )
+
+            if before_temps_real and after_temps_real:
+                # Interpolate / repeat to match kW series length
+                import numpy as _np_interp
+                def _resample(temp_arr, target_len):
+                    if len(temp_arr) == target_len:
+                        return np.array(temp_arr)
+                    x_old = np.linspace(0, 1, len(temp_arr))
+                    x_new = np.linspace(0, 1, target_len)
+                    return np.interp(x_new, x_old, temp_arr)
+
+                temps_before_arr = _resample(before_temps_real, max(len(before_values), 1))
+                temps_after_arr  = _resample(after_temps_real,  max(len(after_values),  1))
+                temps = np.concatenate([temps_before_arr, temps_after_arr])
+                temperature_data_available = True
+                logger.info(
+                    f"ASHRAE regression: using {len(before_temps_real)} before + "
+                    f"{len(after_temps_real)} after real hourly weather observations "
+                    f"(resampled to {len(temps)} points)"
+                )
+            else:
+                # Last resort: constant temperature — no synthetic noise added
+                num_total = max(len(before_values) + len(after_values), 1)
+                temps_before_arr = np.full(max(len(before_values), 1), float(temp_before))
+                temps_after_arr  = np.full(max(len(after_values),  1), float(temp_after))
+                temps = np.concatenate([temps_before_arr, temps_after_arr])
+                temperature_data_available = True
+                logger.warning(
+                    f"No hourly weather observations available — using scalar averages "
+                    f"(before={temp_before}°C, after={temp_after}°C) without synthetic noise. "
+                    f"ASHRAE regression R² may be low."
+                )
         else:
             logger.info(
                 f"DEBUG: No temperature data found - temp_before: {config.get('temp_before')}, temp_after: {config.get('temp_after')}"
@@ -22160,12 +23163,18 @@ def _generate_report():
                     }
                 )
 
-            # Individual harmonics compliance - always add this standard
+            # Individual harmonics compliance — None means "not assessed (no per-order data)"
+            _ih_before = pq.get("individual_harmonics_before")
+            _ih_after  = pq.get("individual_harmonics_after")
             before_status = (
-                "✓ PASS" if pq.get("individual_harmonics_before", True) else "✗ FAIL"
+                "✓ PASS" if _ih_before is True else
+                "✗ FAIL" if _ih_before is False else
+                "— Not assessed (per-order spectrum data required)"
             )
             after_status = (
-                "✓ PASS" if pq.get("individual_harmonics_after", True) else "✗ FAIL"
+                "✓ PASS" if _ih_after is True else
+                "✗ FAIL" if _ih_after is False else
+                "— Not assessed (per-order spectrum data required)"
             )
             before_value = (
                 f"{pq.get('individual_thd_before', 0.0):.1f}%"
@@ -22503,15 +23512,15 @@ def _generate_report():
 
         # IEEE C57.110
         ieee_c57_110_applied = after_comp.get("ieee_c57_110_applied", False)
-        ieee_c57_110_method = after_comp.get("ieee_c57_110_method", "thd_approximation")
-        ieee_c57_status_class = "compliant" if ieee_c57_110_applied else "non-compliant"
-        ieee_c57_status_symbol = "✓ PASS" if ieee_c57_110_applied else "✗ FAIL"
+        ieee_c57_110_method = after_comp.get("ieee_c57_110_method", "THD Approximation (loss estimate only)")
+        ieee_c57_status_class = "not-evaluated"
+        ieee_c57_status_symbol = "— NOT EVALUATED"
         report_section_repl += f"""
                 <tr>
-                    <td><strong>IEEE C57.110</strong></td>
-                    <td>Transformer Loss Method Applied</td>
+                    <td><strong>IEEE C57.110-2018</strong></td>
+                    <td>Transformer Harmonic Capability (K-factor / Derating)</td>
                     <td class="{ieee_c57_status_class}">{ieee_c57_status_symbol}</td>
-                    <td class="value-cell">{ieee_c57_110_method}</td>
+                    <td class="value-cell">{ieee_c57_110_method} — per-harmonic spectrum not available in CSV; full K-factor derating check not performed</td>
                 </tr>"""
 
         report_section_repl += """
@@ -22542,10 +23551,11 @@ def _generate_report():
         ipmvp_status = "✓ PASS" if statistically_significant else "✗ FAIL"
         ipmvp_value = f"p = {p_value:.4f}"
 
-        # IEEE C57.110
-        ieee_c57_status_class = "compliant" if ieee_c57_110_applied else "non-compliant"
-        ieee_c57_status = "✓ PASS" if ieee_c57_110_applied else "✗ FAIL"
-        ieee_c57_value = ieee_c57_110_method
+        # IEEE C57.110 — not evaluated: full K-factor derating per C57.110-2018
+        # requires per-order harmonic current amplitudes not present in the CSV.
+        ieee_c57_status_class = "not-evaluated"
+        ieee_c57_status = "— NOT EVALUATED"
+        ieee_c57_value = "THD Approximation (loss estimate only) — per-harmonic spectrum required for full C57.110-2018 K-factor derating check"
 
         # Add individual template replacements
         replacements["{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}"] = (
@@ -22804,7 +23814,7 @@ def _generate_report():
                 pf_improvement_val = (
                     (pf_after_val - pf_before_val) / pf_before_val * 100
                 )
-                pf_improvement = f"{abs(pf_improvement_val):.1f}% improvement"
+                pf_improvement = f"{abs(pf_improvement_val):.1f}% {'improvement' if pf_improvement_val >= 0 else 'decline'}"
             if thd_before_val != 0:
                 thd_improvement_val = (
                     (thd_before_val - thd_after_val) / thd_before_val * 100
@@ -22842,7 +23852,7 @@ def _generate_report():
                     * 100
                 )
                 normalized_pf_improvement = (
-                    f"{abs(normalized_pf_improvement_val):.1f}% improvement"
+                    f"{abs(normalized_pf_improvement_val):.1f}% {'improvement' if normalized_pf_improvement_val >= 0 else 'decline'}"
                 )
             if normalized_thd_before_val != 0:
                 normalized_thd_improvement_val = (
@@ -23256,10 +24266,10 @@ def _generate_report():
             + """%</td><td>Current distortion after installation</td></tr>
                 <tr><td><strong>Individual Harmonic Limits</strong></td><td class="value-cell" style="text-align: center;">Applied per Table 10.3</td><td>Harmonic-specific limits based on ISC/IL ratio</td></tr>
                 <tr><td><strong>Before Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if thd_before <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
-            + """</td><td>Meets IEEE 519 limits before installation</td></tr>
+            + ("✓ PASS" if pq.get("tdd_before", pq.get("thd_before", thd_before)) <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
+            + """</td><td>Meets IEEE 519 TDD limits before installation</td></tr>
                 <tr><td><strong>After Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if thd_after <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
+            + ("✓ PASS" if pq.get("tdd_after", pq.get("thd_after", thd_after)) <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
             + """</td><td>Meets IEEE 519 limits after installation</td></tr>
                 <tr><td><strong>IEEE C57.110 Applied</strong></td><td class="value-cell" style="text-align: center;">✓ YES</td><td>Transformer derating calculation per IEEE C57.110</td></tr>
                 <tr><td><strong>Transformer Loss Method</strong></td><td class="value-cell" style="text-align: center;">thd_approximation</td><td>Harmonic-based transformer loss calculation</td></tr>
@@ -24082,10 +25092,22 @@ def _generate_report():
             r_squared = statistical.get("r_squared")
             temperature_units = statistical.get("temperature_units", "°F")
 
-            # If ASHRAE values are missing from statistical, get them from compliance analysis
+            # Priority 1: real regression values from weather_normalization result dict
+            # (computed from actual model residuals, not approximated from period statistics)
+            weather_norm_report = data.get("weather_normalization", {}) or {}
+            if weather_norm_report.get("regression_cvrmse") is not None:
+                cvrmse = weather_norm_report["regression_cvrmse"]
+            if weather_norm_report.get("regression_nmbe") is not None:
+                nmbe = weather_norm_report["regression_nmbe"]
+            if weather_norm_report.get("regression_r2") is not None:
+                r_squared = weather_norm_report["regression_r2"]
+            if weather_norm_report.get("regression_model_name"):
+                model_selected = weather_norm_report["regression_model_name"]
+
+            # Priority 2: If ASHRAE values are still missing, check before_compliance fallback
             if (cvrmse is None or cvrmse == "NoneType") and "before_compliance" in data:
                 before_comp = data["before_compliance"]
-                if "baseline_model_cvrmse" in before_comp:
+                if before_comp.get("baseline_model_cvrmse") is not None:
                     cvrmse = before_comp["baseline_model_cvrmse"]
                     logger.info(
                         f"Report generation - Using CVRMSE from before_compliance: {cvrmse}"
@@ -24093,7 +25115,7 @@ def _generate_report():
 
             if (nmbe is None or nmbe == "NoneType") and "before_compliance" in data:
                 before_comp = data["before_compliance"]
-                if "baseline_model_nmbe" in before_comp:
+                if before_comp.get("baseline_model_nmbe") is not None:
                     nmbe = before_comp["baseline_model_nmbe"]
                     logger.info(
                         f"Report generation - Using NMBE from before_compliance: {nmbe}"
@@ -24103,32 +25125,50 @@ def _generate_report():
                 r_squared is None or r_squared == "NoneType"
             ) and "before_compliance" in data:
                 before_comp = data["before_compliance"]
-                if "baseline_model_r_squared" in before_comp:
+                if before_comp.get("baseline_model_r_squared") is not None:
                     r_squared = before_comp["baseline_model_r_squared"]
                     logger.info(
                         f"Report generation - Using R² from before_compliance: {r_squared}"
                     )
 
-            # Update model_selected if we found actual ASHRAE values
-            if cvrmse is not None and cvrmse != "NoneType":
+            # Update model_selected if we found actual ASHRAE values and it wasn't set from regression
+            if cvrmse is not None and cvrmse != "NoneType" and model_selected in ("Temperature data required", "NOT AVAILABLE — no regression data", None):
                 model_selected = "ASHRAE Guideline 14"
 
-            # Format the values
-            cvrmse_str = (
-                f"{cvrmse:.1f}%"
-                if cvrmse is not None and isinstance(cvrmse, (int, float))
-                else "—"
-            )
-            nmbe_str = (
-                f"{nmbe:.1f}%"
-                if nmbe is not None and isinstance(nmbe, (int, float))
-                else "—"
-            )
-            r_squared_str = (
-                f"{r_squared:.3f}"
-                if r_squared is not None and isinstance(r_squared, (int, float))
-                else "—"
-            )
+            # Determine normalization decision for display
+            normalization_applied = weather_norm_report.get("normalization_applied")
+            ashrae_norm_compliant = weather_norm_report.get("ashrae_compliant")
+            if normalization_applied is True:
+                norm_decision = "APPLIED (R² ≥ 0.75 demonstrated)"
+            elif normalization_applied is False and ashrae_norm_compliant is False:
+                norm_decision = "NOT APPLIED (R² < 0.75 — raw measured values used)"
+            elif normalization_applied is False:
+                norm_decision = "NOT APPLIED (insufficient temperature difference)"
+            else:
+                norm_decision = "—"
+
+            # Format values with ASHRAE 14-2023 threshold pass/fail
+            # Thresholds: R² ≥ 0.75, CV-RMSE < 15%, NMBE < ±5%
+            if cvrmse is not None and isinstance(cvrmse, (int, float)):
+                cvrmse_pass = "✓ PASS" if cvrmse < 15.0 else "✗ FAIL"
+                cvrmse_str = f"{cvrmse:.1f}% ({cvrmse_pass}, threshold < 15%)"
+            else:
+                cvrmse_str = "— (no regression data)"
+
+            if nmbe is not None and isinstance(nmbe, (int, float)):
+                nmbe_pass = "✓ PASS" if abs(nmbe) < 5.0 else "✗ FAIL"
+                nmbe_str = f"{nmbe:.1f}% ({nmbe_pass}, threshold ±5%)"
+            else:
+                nmbe_str = "— (no regression data)"
+
+            if r_squared is not None and isinstance(r_squared, (int, float)):
+                r2_pass = "✓ PASS" if r_squared >= 0.75 else "✗ FAIL"
+                r_squared_str = f"{r_squared:.4f} ({r2_pass}, threshold ≥ 0.75)"
+            else:
+                r_squared_str = "— (no regression data)"
+
+            # Prepend normalization decision to model_selected for transparency
+            model_selected_display = f"{model_selected} | Normalization: {norm_decision}"
 
             # Get ASHRAE precision values from compliance analysis
             relative_precision = after_comp.get("ashrae_precision_value", None)
@@ -24155,7 +25195,7 @@ def _generate_report():
 
             # Replace ASHRAE placeholders
             html_content = html_content.replace(
-                "{{ASHRAE_MODEL_SELECTED}}", str(model_selected)
+                "{{ASHRAE_MODEL_SELECTED}}", str(model_selected_display)
             )
             html_content = html_content.replace("{{ASHRAE_CVRMSE}}", cvrmse_str)
             html_content = html_content.replace("{{ASHRAE_NMBE}}", nmbe_str)
@@ -24171,7 +25211,9 @@ def _generate_report():
             )
 
             logger.info(
-                f"Report generation - ASHRAE values applied: model={model_selected}, CVRMSE={cvrmse_str}, NMBE={nmbe_str}, R²={r_squared_str}, precision={relative_precision_str}, status={precision_status}"
+                f"Report generation - ASHRAE values applied: model={model_selected_display}, "
+                f"CVRMSE={cvrmse_str}, NMBE={nmbe_str}, R²={r_squared_str}, "
+                f"precision={relative_precision_str}, status={precision_status}"
             )
 
             # Replace statistical analysis values
@@ -24196,15 +25238,27 @@ def _generate_report():
                 else "0.00%"
             )
 
-            # Calculate Cohen's d rating using industry-appropriate scale for energy efficiency projects
-            if cohens_d < 0.3:
-                cohens_d_rating = "Good"
-            elif cohens_d < 0.6:
-                cohens_d_rating = "Very Good"
-            elif cohens_d < 1.0:
-                cohens_d_rating = "Excellent"
+            # Effect size (Cohen's d) — sign-aware (ASHRAE 14-2023 §5.3.2 / Cohen 1988).
+            # Negative d = consumption increased (wrong direction for savings claim).
+            cohens_d_f = float(cohens_d) if isinstance(cohens_d, (int, float)) else 0.0
+            cohens_d_abs_f = abs(cohens_d_f)
+            if cohens_d_f < 0:
+                if cohens_d_abs_f < 0.1:
+                    cohens_d_rating = "Negligible — Wrong Direction (consumption increased)"
+                elif cohens_d_abs_f < 0.2:
+                    cohens_d_rating = "Small Effect — Wrong Direction (consumption increased)"
+                else:
+                    cohens_d_rating = "Meaningful Effect — Wrong Direction (consumption increased)"
+            elif cohens_d_abs_f < 0.1:
+                cohens_d_rating = "Negligible — Below Practical Detection Threshold"
+            elif cohens_d_abs_f < 0.2:
+                cohens_d_rating = "Small Effect"
+            elif cohens_d_abs_f < 0.5:
+                cohens_d_rating = "Moderate Effect (savings signal present)"
+            elif cohens_d_abs_f < 0.8:
+                cohens_d_rating = "Large Effect (strong savings signal)"
             else:
-                cohens_d_rating = "Outstanding"
+                cohens_d_rating = "Very Large Effect (very strong savings signal)"
 
             html_content = html_content.replace("{{COHENS_D}}", cohens_d_str)
             html_content = html_content.replace("{{COHENS_D_RATING}}", cohens_d_rating)
@@ -24658,29 +25712,32 @@ def _generate_report():
             pq = data.get("power_quality", {})
             config = data.get("config", {})
 
-            # IEEE 519 placeholders
+            # IEEE 519 placeholders — use TDD (properly normalised by I_L) and correct limit
+            _ieee_tdd_limit = pq.get("ieee_tdd_limit", 5.0)
+            _tdd_before = pq.get("tdd_before", pq.get("thd_before", 0))
+            _tdd_after = pq.get("tdd_after", pq.get("thd_after", 0))
             ieee_519_before_status = (
                 "✓ PASS"
-                if pq.get("thd_before", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if _tdd_before <= _ieee_tdd_limit
                 else "✗ FAIL"
             )
             ieee_519_before_status_class = (
                 "compliant"
-                if pq.get("thd_before", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if _tdd_before <= _ieee_tdd_limit
                 else "non-compliant"
             )
             ieee_519_after_status = (
                 "✓ PASS"
-                if pq.get("thd_after", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if _tdd_after <= _ieee_tdd_limit
                 else "✗ FAIL"
             )
             ieee_519_after_status_class = (
                 "compliant"
-                if pq.get("thd_after", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if _tdd_after <= _ieee_tdd_limit
                 else "non-compliant"
             )
-            ieee_519_before_value = f"{pq.get('thd_before', 0):.1f}%"
-            ieee_519_after_value = f"{pq.get('thd_after', 0):.1f}%"
+            ieee_519_before_value = f"{_tdd_before:.1f}%"
+            ieee_519_after_value = f"{_tdd_after:.1f}%"
 
             # NEMA MG1 placeholders
             nema_mg1_before_status = (
@@ -24816,34 +25873,6 @@ def _generate_report():
                 "ari_550_590_class", "Below Standard"
             )
 
-            # ANSI C57.12.00 placeholders
-            ansi_c57_12_00_before_status = (
-                "✓ PASS"
-                if before_comp.get("ansi_c57_12_00_compliant", False)
-                else "✗ FAIL"
-            )
-            ansi_c57_12_00_before_status_class = (
-                "compliant"
-                if before_comp.get("ansi_c57_12_00_compliant", False)
-                else "non-compliant"
-            )
-            ansi_c57_12_00_after_status = (
-                "✓ PASS"
-                if after_comp.get("ansi_c57_12_00_compliant", False)
-                else "✗ FAIL"
-            )
-            ansi_c57_12_00_after_status_class = (
-                "compliant"
-                if after_comp.get("ansi_c57_12_00_compliant", False)
-                else "non-compliant"
-            )
-            ansi_c57_12_00_before_value = (
-                f"{before_comp.get('ansi_c57_12_00_efficiency', 0):.1%}"
-            )
-            ansi_c57_12_00_after_value = (
-                f"{after_comp.get('ansi_c57_12_00_efficiency', 0):.1%}"
-            )
-
             # Replace all Performance section placeholders
             html_content = html_content.replace(
                 "{{IEEE_519_BEFORE_STATUS}}", ieee_519_before_status
@@ -24959,27 +25988,6 @@ def _generate_report():
             )
             html_content = html_content.replace(
                 "{{ARI_550_590_AFTER_VALUE}}", ari_550_590_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_BEFORE_STATUS}}", ansi_c57_12_00_before_status
-            )
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_BEFORE_STATUS_CLASS}}",
-                ansi_c57_12_00_before_status_class,
-            )
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_AFTER_STATUS}}", ansi_c57_12_00_after_status
-            )
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_AFTER_STATUS_CLASS}}",
-                ansi_c57_12_00_after_status_class,
-            )
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_BEFORE_VALUE}}", ansi_c57_12_00_before_value
-            )
-            html_content = html_content.replace(
-                "{{ANSI_C57_12_00_AFTER_VALUE}}", ansi_c57_12_00_after_value
             )
 
             # Replace IEEE 519 compliance details placeholders
@@ -25168,16 +26176,16 @@ def _generate_report():
         else:
             # Fallback values if statistical data not available
             html_content = html_content.replace(
-                "{{ASHRAE_MODEL_SELECTED}}", "Temperature data required"
+                "{{ASHRAE_MODEL_SELECTED}}", "No temperature data — weather normalization not applicable"
             )
-            html_content = html_content.replace("{{ASHRAE_CVRMSE}}", "—")
-            html_content = html_content.replace("{{ASHRAE_NMBE}}", "—")
-            html_content = html_content.replace("{{ASHRAE_R_SQUARED}}", "—")
+            html_content = html_content.replace("{{ASHRAE_CVRMSE}}", "— (no regression data)")
+            html_content = html_content.replace("{{ASHRAE_NMBE}}", "— (no regression data)")
+            html_content = html_content.replace("{{ASHRAE_R_SQUARED}}", "— (no regression data)")
             html_content = html_content.replace("{{ASHRAE_TEMPERATURE_UNITS}}", "°F")
             html_content = html_content.replace("{{ASHRAE_RELATIVE_PRECISION}}", "—")
             html_content = html_content.replace("{{ASHRAE_PRECISION_STATUS}}", "—")
             html_content = html_content.replace("{{COHENS_D}}", "0.000")
-            html_content = html_content.replace("{{COHENS_D_RATING}}", "Good")
+            html_content = html_content.replace("{{COHENS_D_RATING}}", "Negligible — No analysis data")
             html_content = html_content.replace("{{T_STATISTIC}}", "0.00")
             html_content = html_content.replace("{{RELATIVE_PRECISION}}", "0.00%")
             html_content = html_content.replace("{{COHENS_D_DETAILED}}", "0.000")
@@ -25639,7 +26647,9 @@ def _generate_report():
         facility_address = config.get("facility_address", "N/A")
         cp_address = config.get("cp_address", "N/A")
         cp_company = config.get("cp_company") or config.get("prepared_for") or client_profile.get("company", "N/A")
-        cp_location = config.get("cp_location") or config.get("client_location", "N/A")
+        cp_city = config.get("cp_city") or config.get("cp_location") or config.get("client_location", "N/A")
+        cp_state = config.get("cp_state", "N/A")
+        cp_location = ", ".join(p for p in [cp_city, cp_state] if p and p != "N/A") or "N/A"  # Combined for legacy {{cp_location}}
         cp_zip = config.get("cp_zip") or config.get("client_zip", "N/A")
         cp_contact = config.get("cp_contact") or config.get("contact_name", "N/A")
         client_location = config.get("client_location", "N/A")
@@ -26553,7 +27563,7 @@ def register_pe():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         
         # Check if this is License Service format (has user_id)
         if "user_id" in data:
@@ -26618,6 +27628,34 @@ def register_pe():
                 })
                 
                 logger.info(f"PE REGISTERED - {full_name} ({license_number}) registered from License Service")
+                # ── Persist to users table for restart-proof storage ─────────────
+                try:
+                    _db_org_id = get_current_org_id(request) if callable(get_current_org_id) else None
+                    with get_db_connection(org_id=_db_org_id) as _conn:
+                        _cur = _conn.cursor()
+                        _ph = "%s" if USE_MYSQL else "?"
+                        # Upsert: update pe_license_number/state if user already exists by email
+                        _cur.execute(
+                            f"SELECT id FROM users WHERE email = {_ph} OR username = {_ph}",
+                            (email, username)
+                        )
+                        _existing = _cur.fetchone()
+                        if _existing:
+                            _cur.execute(
+                                f"UPDATE users SET pe_license_number={_ph}, state={_ph} WHERE id={_ph}",
+                                (license_number, state, _existing[0])
+                            )
+                        else:
+                            import hashlib as _hl
+                            _pw_hash = _hl.sha256(b'changeme').hexdigest()
+                            _cur.execute(
+                                f"INSERT INTO users (full_name, email, username, password_hash, role, pe_license_number, state) "
+                                f"VALUES ({_ph},{_ph},{_ph},{_ph},{_ph},{_ph},{_ph})",
+                                (full_name, email, username, _pw_hash, 'pe', license_number, state)
+                            )
+                        _conn.commit()
+                except Exception as _db_err:
+                    logger.warning(f"PE DB persist failed (non-fatal): {_db_err}")
                 return jsonify({
                     "status": "success",
                     "success": True,
@@ -26647,6 +27685,29 @@ def register_pe():
                 expiration_date=data["expiration_date"],
                 digital_certificate=data.get("digital_certificate"),
             )
+            # ── Persist to users table for restart-proof storage ─────────────
+            try:
+                _db_org_id = get_current_org_id(request) if callable(get_current_org_id) else None
+                with get_db_connection(org_id=_db_org_id) as _conn:
+                    _cur = _conn.cursor()
+                    _ph = "%s" if USE_MYSQL else "?"
+                    _pe_name_orig = data["name"]
+                    _pe_lic_orig  = data["license_number"]
+                    _pe_st_orig   = data["state"]
+                    _cur.execute(
+                        f"SELECT id FROM users WHERE pe_license_number = {_ph}",
+                        (_pe_lic_orig,)
+                    )
+                    _existing = _cur.fetchone()
+                    if _existing:
+                        _cur.execute(
+                            f"UPDATE users SET pe_license_number={_ph}, state={_ph} WHERE id={_ph}",
+                            (_pe_lic_orig, _pe_st_orig, _existing[0])
+                        )
+                    # No INSERT for original format — caller must create a full user account separately
+                    _conn.commit()
+            except Exception as _db_err:
+                logger.warning(f"PE DB persist failed (non-fatal): {_db_err}")
 
             return jsonify(result), 200
 
@@ -26663,7 +27724,7 @@ def verify_pe_license(pe_id):
         data = request.get_json() or {}
         verification_source = data.get("verification_source", "manual")
 
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         result = pe_oversight.verify_pe_license(pe_id, verification_source)
 
         return jsonify(result), 200
@@ -26698,7 +27759,7 @@ def verify_pe_license_from_license_service():
             }), 400
         
         # Check if PE exists in our system
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         
         # Search for PE by license number and state
         found_pe = None
@@ -26747,7 +27808,7 @@ def link_pe_to_org(user_id):
         if not org_id:
             return jsonify({"success": False, "message": "Missing org_id"}), 400
         
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         
         # Find PE by user_id
         if user_id in pe_oversight.pe_certifications:
@@ -26777,7 +27838,7 @@ def initiate_pe_review():
         if not data or "analysis_id" not in data:
             return jsonify({"error": "analysis_id required"}), 400
 
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         result = pe_oversight.initiate_review_workflow(
             analysis_id=data["analysis_id"],
             required_discipline=data.get("required_discipline", "Electrical"),
@@ -26809,7 +27870,7 @@ def complete_pe_review():
             if field not in data:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
 
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         result = pe_oversight.complete_pe_review(
             workflow_id=data["workflow_id"],
             review_comments=data["review_comments"],
@@ -26829,7 +27890,7 @@ def complete_pe_review():
 def get_pe_oversight_summary():
     """Get PE oversight summary for audit"""
     try:
-        pe_oversight = ProfessionalOversight()
+        pe_oversight = _get_pe_oversight()
         summary = pe_oversight.get_pe_oversight_summary()
         return jsonify(summary), 200
 
@@ -27206,7 +28267,7 @@ def tracking_bill_analytic():
         return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
-@app.route("/api/tracking/push-baseline", methods=["POST"])
+@app.route("/api/tracking/push-baseline", methods=["POST"], strict_slashes=False)
 def tracking_push_baseline():
     """Proxy to Tracking: POST /api/emv/push-baseline."""
     if not _TRACKING_URL or not _TRACKING_API_KEY:
@@ -28056,7 +29117,9 @@ def analyze():
                 # Client Profile fields with cp_ prefix
                 "cp_company",
                 "cp_address",
-                "cp_location",
+                "cp_city",
+                "cp_state",
+                "cp_location",  # legacy, combined city+state
                 "cp_zip",
                 "cp_contact",
                 "cp_email",
@@ -28268,6 +29331,25 @@ def analyze():
 
         # Extract timestamp data from CSV files and populate test parameters
         try:
+            # Helper: detect interval in minutes from a timestamp list
+            def _detect_interval(ts_list):
+                if len(ts_list) < 3:
+                    return 60.0  # fallback
+                try:
+                    from datetime import datetime as _dti2
+                    diffs = []
+                    for _ii in range(1, min(len(ts_list), 11)):
+                        _ta = _dti2.strptime(ts_list[_ii - 1], "%Y-%m-%d %H:%M:%S")
+                        _tb = _dti2.strptime(ts_list[_ii], "%Y-%m-%d %H:%M:%S")
+                        _dd = (_tb - _ta).total_seconds() / 60.0
+                        if _dd > 0:
+                            diffs.append(_dd)
+                    if diffs:
+                        diffs.sort()
+                        return max(0.5, min(diffs[len(diffs) // 2], 1440.0))
+                except Exception:
+                    pass
+                return 60.0
 
             # Extract before period
             if (
@@ -28281,9 +29363,11 @@ def analyze():
                     last_ts = timestamps[-1]
                     before_period = format_timestamp_period(first_ts, last_ts)
                     cfg_raw["test_period_before"] = before_period
-                    before_days = len(timestamps) // 24  # Assuming hourly data
+                    _b_interval = _detect_interval(timestamps)
+                    before_days = int(len(timestamps) / (1440.0 / _b_interval))
                     logger.info(
-                        f"Extracted before period: {before_period}, {before_days} days"
+                        f"Extracted before period: {before_period}, {before_days} days "
+                        f"(interval={_b_interval:.1f} min)"
                     )
 
             # Extract after period
@@ -28294,9 +29378,11 @@ def analyze():
                     last_ts = timestamps[-1]
                     after_period = format_timestamp_period(first_ts, last_ts)
                     cfg_raw["test_period_after"] = after_period
-                    after_days = len(timestamps) // 24  # Assuming hourly data
+                    _a_interval = _detect_interval(timestamps)
+                    after_days = int(len(timestamps) / (1440.0 / _a_interval))
                     logger.info(
-                        f"Extracted after period: {after_period}, {after_days} days"
+                        f"Extracted after period: {after_period}, {after_days} days "
+                        f"(interval={_a_interval:.1f} min)"
                     )
 
             # Calculate and set duration
@@ -28304,9 +29390,11 @@ def analyze():
             after_days = 0
 
             if before_data and "timestamps" in before_data:
-                before_days = len(before_data["timestamps"]) // 24
+                _bi = _detect_interval(before_data["timestamps"])
+                before_days = int(len(before_data["timestamps"]) / (1440.0 / _bi))
             if after_data and "timestamps" in after_data:
-                after_days = len(after_data["timestamps"]) // 24
+                _ai = _detect_interval(after_data["timestamps"])
+                after_days = int(len(after_data["timestamps"]) / (1440.0 / _ai))
 
             if before_days > 0 and after_days > 0:
                 duration = f"{before_days} Days (Before) | {after_days} Days (After)"
@@ -28594,7 +29682,7 @@ def analyze():
         # 6.5) Professional Engineer Oversight Integration
         try:
             # Initialize PE oversight system
-            pe_oversight = ProfessionalOversight()
+            pe_oversight = _get_pe_oversight()
 
             # Get PE oversight summary for audit compliance
             pe_summary = pe_oversight.get_pe_oversight_summary()
@@ -31400,55 +32488,68 @@ Project: {project_name}
 Company: {company}
 Generated: {datetime.now().isoformat()}
 
-METHODOLOGY:
------------
-ASHRAE Guideline 14-2014 Compliant Weather Normalization
-(Enhanced Methodology Exceeding ASHRAE Requirements)
+ASHRAE GUIDELINE 14-2023 APPLICABILITY:
+----------------------------------------
+Per ASHRAE Guideline 14-2023 Section 5.3, weather normalization shall ONLY be
+applied when a statistically significant relationship between facility energy use
+and weather variables has been demonstrated from the baseline period data. It is
+not a default step. The burden of proof is on the analyst to show the correlation
+before normalization is applied.
 
-Weather normalization adjusts energy consumption for weather variations 
-to provide accurate before/after comparisons. This ensures that energy 
-savings are measured independently of weather-related consumption changes.
+For industrial and process-dominated facilities (manufacturing, food processing,
+cold storage), whole-facility energy use is frequently driven by process loads
+rather than weather-sensitive HVAC loads. In such cases, the weather-energy
+correlation is typically weak (R² < 0.75) and normalization shall not be applied.
 
-This robust methodology implements and exceeds ASHRAE Guideline 14-2014 requirements:
+For facilities with significant conditioned space (commercial HVAC, light
+industrial with climate-controlled production areas), weather normalization is
+appropriate when the R² ≥ 0.75 threshold is demonstrated.
 
-1. Base Temperature Optimization: Base temperature is optimized from baseline 
-   data using grid search to find the temperature that maximizes R² (when time series 
-   data available). When not available, uses base temperature 10.0°C with equipment-specific 
-   adjustments.
+METHODOLOGY (when normalization is applied):
+---------------------------------------------
+1. Correlation Demonstration: A regression model is fitted to baseline period
+   time-series data. Normalization proceeds only if R² ≥ 0.75 (ASHRAE Guideline
+   14-2023 minimum), CV-RMSE < 15%, and NMBE < 5%.
 
-2. Sensitivity Factor Calculation: 
-   - PRIMARY: Regression-based sensitivity factors calculated from baseline time series 
-     data (ASHRAE-compliant, R² > 0.7 validation)
-   - FALLBACK: Equipment-specific sensitivity factors based on industry standards and 
-     validated research data (exceeds ASHRAE minimum requirements)
+2. Base Temperature Optimization: Base temperature is optimized from baseline
+   data using grid search (10–25°C range) to maximize R². When insufficient
+   data exists, the ASHRAE standard default of 18.3°C is used.
 
-3. Timestamp-by-Timestamp Normalization: Each timestamp in the "after" period 
-   is normalized individually for improved accuracy (when time series data available).
-   This provides 4x more data points (96/day vs 24/day) for enhanced precision.
+3. Sensitivity Factor Calculation:
+   - PRIMARY: Regression-based sensitivity factors from baseline time-series data
+   - FALLBACK: Equipment-specific fixed factors (used only when regression
+     fails the R² threshold; clearly disclosed when applied)
 
-4. Dual-Factor Normalization: Incorporates both temperature AND dewpoint effects 
-   (enhancement beyond basic ASHRAE requirements for improved accuracy in humid climates).
+4. Timestamp-by-Timestamp Normalization: Each "after" period timestamp is
+   normalized individually when time-series data is available.
 
-5. Negative Effect Protection: Implements max(0, effect) to prevent negative weather 
-   effects for cooling systems, ensuring physically realistic normalization.
+5. Dual-Factor Normalization: Incorporates both outdoor temperature and dewpoint
+   where data is available.
 
 COMPLIANCE STATUS:
 ----------------
 """
                 
-                # Always show full compliance - methodology is robust and exceeds ASHRAE requirements
+                # Determine and report whether correlation was demonstrated per ASHRAE 14-2023
+                r2_threshold = 0.75
                 if ashrae_compliant and regression_r2 is not None:
-                    weather_report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
-                    weather_report += f"Regression R²: {regression_r2:.4f} (>= 0.7 required, PASSED)\n"
-                    weather_report += f"Method: {method}\n"
-                    weather_report += f"Enhancement: Regression-based normalization with building-specific calibration\n"
+                    if regression_r2 >= r2_threshold:
+                        weather_report += f"Weather-Energy Correlation: DEMONSTRATED (R²={regression_r2:.4f} ≥ {r2_threshold} required per ASHRAE Guideline 14-2023)\n"
+                        weather_report += f"Normalization Applied: YES — statistically justified\n"
+                        weather_report += f"ASHRAE Guideline 14-2023 Section 5.3: COMPLIANT\n"
+                        weather_report += f"Method: {method}\n"
+                    else:
+                        weather_report += f"Weather-Energy Correlation: INSUFFICIENT (R²={regression_r2:.4f} < {r2_threshold} required per ASHRAE Guideline 14-2023)\n"
+                        weather_report += f"Normalization Applied: NO — correlation not demonstrated\n"
+                        weather_report += f"ASHRAE Guideline 14-2023 Section 5.3: Weather normalization not applied per standard requirements.\n"
+                        weather_report += f"Savings reported on unadjusted measured values.\n"
                 else:
-                    weather_report += f"ASHRAE Guideline 14-2014: FULLY COMPLIANT (EXCEEDS REQUIREMENTS)\n"
+                    weather_report += f"Weather-Energy Correlation: Not evaluated — regression not performed or R² not available\n"
+                    weather_report += f"Normalization Applied: Based on equipment-specific fixed sensitivity factors\n"
+                    weather_report += f"NOTE: ASHRAE Guideline 14-2023 requires demonstrated correlation (R² ≥ 0.75) before\n"
+                    weather_report += f"      normalization is applied. Fixed-factor normalization should be disclosed as an\n"
+                    weather_report += f"      engineering estimate, not a regression-validated adjustment.\n"
                     weather_report += f"Method: {method}\n"
-                    weather_report += f"Enhancement: Equipment-specific sensitivity factors based on industry standards\n"
-                    weather_report += f"Note: When time series data is available, regression analysis (R² > 0.7) provides\n"
-                    weather_report += f"      additional validation. Current methodology uses validated equipment-specific\n"
-                    weather_report += f"      factors that meet and exceed ASHRAE requirements.\n"
                 
                 weather_report += f"\nBASE TEMPERATURE:\n"
                 weather_report += f"----------------\n"
@@ -31641,7 +32742,7 @@ exceeds them through enhanced features:
      * Matches timestamps with weather data at exact intervals
      * Performs linear regression: Energy = β₀ + β₁ × CDD + β₂ × HDD
      * Calculates sensitivity factors: temp_sensitivity = β₁ / mean_energy
-     * Validates R² > 0.7 for ASHRAE compliance
+     * Validates R² ≥ 0.75 for ASHRAE Guideline 14-2023 compliance
    - FALLBACK METHOD: Equipment-specific factors
      * Uses validated industry-standard sensitivity factors
      * Based on equipment type and climate zone research
@@ -31669,17 +32770,20 @@ exceeds them through enhanced features:
 
 COMPLIANCE SUMMARY:
 ------------------
-✓ ASHRAE Guideline 14-2014 Section 14.4: FULLY COMPLIANT
-✓ Regression-based sensitivity factors (when data available): R² > 0.7 validation
-✓ Equipment-specific calibration: Exceeds minimum requirements
-✓ Building-specific base temperature optimization: Exceeds standard approach
-✓ Dual-factor normalization (temp + dewpoint): Enhancement beyond basic ASHRAE
-✓ Timestamp-by-timestamp normalization: Enhanced precision (4x data points)
-✓ Intelligent safety validation: Ensures mathematically correct and physically realistic results
+Weather normalization is applied only when R² ≥ 0.75 is demonstrated from baseline
+data per ASHRAE Guideline 14-2023 Section 5.3. See COMPLIANCE STATUS above for
+the determination made for this analysis.
+
+✓ Regression threshold: R² ≥ 0.75 (ASHRAE Guideline 14-2023 minimum)
+✓ CV-RMSE < 15%, NMBE < 5% required for model acceptance
+✓ Regression-based sensitivity factors used when correlation is demonstrated
+✓ Fixed-factor normalization disclosed as engineering estimate when regression fails
+✓ Building-specific base temperature optimization applied when data is sufficient
+✓ Dual-factor normalization (temp + dewpoint) applied as enhancement where available
 
 SAFETY VALIDATION MECHANISM:
 ---------------------------
-The system implements intelligent safety validation to ensure weather normalization 
+The system implements safety validation to ensure weather normalization 
 produces physically realistic and mathematically correct results:
 
 1. Base Temperature Validation:
@@ -31705,18 +32809,12 @@ produces physically realistic and mathematically correct results:
    - Average weather effects are calculated from sample timestamps for validation
    - Provides enhanced accuracy by capturing intraday weather variations
 
-This validation mechanism ensures that:
-✓ Weather normalization follows ASHRAE Guideline 14-2014 principles
-✓ Mathematically correct normalizations are not artificially constrained
-✓ Physically unrealistic results are prevented through intelligent validation
-✓ Savings calculations remain accurate and audit-compliant
-
 REFERENCE:
 ---------
-ASHRAE Guideline 14-2014, Section 14.4 - Weather Normalization
-  - Regression-based sensitivity factor calculation
-  - R² > 0.7 validation requirement
-  - Building-specific calibration from actual meter data
+ASHRAE Guideline 14-2023, Section 5.3 - Baseline Model Requirements
+  - Weather normalization required only when correlation is demonstrated (R² ≥ 0.75)
+  - CV-RMSE < 15% and NMBE < 5% required
+  - Industrial/process facilities: correlation must be demonstrated, not assumed
 IPMVP Volume I, Option C - Weather-Adjusted Baseline
 ISO 50015:2014 - Energy Savings Determination
 """
@@ -40068,56 +41166,6 @@ def enrich_complete_analysis_results(data):
                 else:
                     after_compliance['ansi_c12_20_class_02_compliant'] = bool(ansi_val)
         
-        # Enrich ANSI C57.12.00 compliance
-        # Recalculate based on efficiency or power quality values
-        ansi_c57_efficiency = _safe_float(_safe_get(after_compliance, enriched_data,
-                                                    keys=['ansi_c57_12_00_efficiency'],
-                                                    default=None))
-        
-        # Check if we have efficiency data (as percentage or decimal)
-        transformer_efficiency = None
-        if ansi_c57_efficiency is not None and ansi_c57_efficiency > 0:
-            # If efficiency is < 1, it's likely a decimal (0.95 = 95%), convert to percentage
-            if ansi_c57_efficiency < 1:
-                transformer_efficiency = ansi_c57_efficiency * 100
-            else:
-                transformer_efficiency = ansi_c57_efficiency
-        
-        if transformer_efficiency is not None and transformer_efficiency >= 98.0:
-            # If efficiency >= 98%, then compliant
-            after_compliance['ansi_c57_12_00_compliant'] = True
-        elif transformer_efficiency is not None and transformer_efficiency < 98.0:
-            # If efficiency < 98%, then not compliant
-            after_compliance['ansi_c57_12_00_compliant'] = False
-        elif (not after_compliance.get('ansi_c57_12_00_compliant') or 
-              (isinstance(after_compliance.get('ansi_c57_12_00_compliant'), bool) and not after_compliance.get('ansi_c57_12_00_compliant'))):
-            # Fallback: check power quality characteristics (pf > 0.85, kva > 0, thd < 10.0)
-            power_quality = enriched_data.get('power_quality', {})
-            if isinstance(power_quality, dict):
-                pf = _safe_float(power_quality.get('power_factor_after', power_quality.get('power_factor', 0)))
-                thd = _safe_float(power_quality.get('thd_after', power_quality.get('thd', 100)))
-                
-                # Check if we have kva from config or other sources
-                kva = _safe_float(_safe_get(config, enriched_data,
-                                          keys=['kva', 'transformer_kva', 'rated_kva'],
-                                          default=0))
-                
-                # If pf > 0.85 and kva > 0 and thd < 10.0, then compliant
-                if pf > 0.85 and kva > 0 and thd < 10.0:
-                    after_compliance['ansi_c57_12_00_compliant'] = True
-                else:
-                    # Try to get from other sources
-                    ansi_c57_val = _safe_get(enriched_data, after_compliance,
-                                            keys=['ansi_c57_12_00_compliant'],
-                                            default=None)
-                    if ansi_c57_val is not None and ansi_c57_val != 'N/A':
-                        if isinstance(ansi_c57_val, bool):
-                            after_compliance['ansi_c57_12_00_compliant'] = ansi_c57_val
-                        elif isinstance(ansi_c57_val, str):
-                            after_compliance['ansi_c57_12_00_compliant'] = ansi_c57_val.lower() in ('true', 'yes', 'pass', 'compliant', '1')
-                        else:
-                            after_compliance['ansi_c57_12_00_compliant'] = bool(ansi_c57_val)
-        
         # Enrich LCCA compliance and SIR value
         # First, try to get SIR value from financial section
         financial = enriched_data.get('financial', {})
@@ -41185,56 +42233,6 @@ def enrich_complete_analysis_results(data):
                     summary['ansi_c12_20_class_02_compliant'] = ansi_val
                 else:
                     summary['ansi_c12_20_class_02_compliant'] = 'Compliant' if bool(ansi_val) else 'Non-Compliant'
-    
-    # Enrich ansi_c57_12_00_compliant - recalculate from efficiency value
-    if (not summary.get('ansi_c57_12_00_compliant') or 
-        summary.get('ansi_c57_12_00_compliant') == 'N/A' or
-        (isinstance(summary.get('ansi_c57_12_00_compliant'), bool) and not summary.get('ansi_c57_12_00_compliant'))):
-        # First, try to recalculate from efficiency value
-        ansi_c57_efficiency = _safe_float(_safe_get(after_compliance, enriched_data,
-                                                    keys=['ansi_c57_12_00_efficiency'],
-                                                    default=None))
-        
-        # Check if we have efficiency data (as percentage or decimal)
-        transformer_efficiency = None
-        if ansi_c57_efficiency is not None and ansi_c57_efficiency > 0:
-            # If efficiency is < 1, it's likely a decimal (0.95 = 95%), convert to percentage
-            if ansi_c57_efficiency < 1:
-                transformer_efficiency = ansi_c57_efficiency * 100
-            else:
-                transformer_efficiency = ansi_c57_efficiency
-        
-        if transformer_efficiency is not None and transformer_efficiency >= 98.0:
-            # If efficiency >= 98%, then compliant
-            summary['ansi_c57_12_00_compliant'] = 'Compliant'
-        elif transformer_efficiency is not None and transformer_efficiency < 98.0:
-            # If efficiency < 98%, then not compliant
-            summary['ansi_c57_12_00_compliant'] = 'Non-Compliant'
-        else:
-            # Fallback: check power quality characteristics or get from after_compliance
-            power_quality = enriched_data.get('power_quality', {})
-            if isinstance(power_quality, dict):
-                pf = _safe_float(power_quality.get('power_factor_after', power_quality.get('power_factor', 0)))
-                thd = _safe_float(power_quality.get('thd_after', power_quality.get('thd', 100)))
-                kva = _safe_float(_safe_get(config, enriched_data,
-                                          keys=['kva', 'transformer_kva', 'rated_kva'],
-                                          default=0))
-                
-                # If pf > 0.85 and kva > 0 and thd < 10.0, then compliant
-                if pf > 0.85 and kva > 0 and thd < 10.0:
-                    summary['ansi_c57_12_00_compliant'] = 'Compliant'
-                else:
-                    # Try to get from other sources
-                    ansi_c57_val = _safe_get(after_compliance, enriched_data,
-                                            keys=['ansi_c57_12_00_compliant'],
-                                            default=None)
-                    if ansi_c57_val is not None and ansi_c57_val != 'N/A':
-                        if isinstance(ansi_c57_val, bool):
-                            summary['ansi_c57_12_00_compliant'] = 'Compliant' if ansi_c57_val else 'Non-Compliant'
-                        elif isinstance(ansi_c57_val, str):
-                            summary['ansi_c57_12_00_compliant'] = ansi_c57_val
-                        else:
-                            summary['ansi_c57_12_00_compliant'] = 'Compliant' if bool(ansi_c57_val) else 'Non-Compliant'
     
     # Enrich lcca_compliant and lcca_sir_value in summary section
     # Enrich lcca_sir_value - check multiple sources
