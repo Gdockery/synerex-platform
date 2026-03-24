@@ -45,7 +45,7 @@
           style="padding: 8px 16px; font-size: 14px; border-radius: 4px; background-color: #28a745; color: white; border: none; cursor: pointer; transition: background-color 0.2s;"
           onmouseover="this.style.backgroundColor='#218838'" 
           onmouseout="this.style.backgroundColor='#28a745'"
-          onclick="window.open('/field-forms/general_field_form.pdf', '_blank')">
+          onclick="window.open('/emv/field-forms/general_field_form.pdf', '_blank')">
           Download Field Form
         </button>
       </div>
@@ -107,6 +107,25 @@
           </div>
           <div class="help">Saves all inputs for this project. Delete archives projects with double confirmation.</div>
         </div>
+      </div>
+      <!-- M&V Plan — Pre-Installation -->
+      <div style="margin-top:12px; padding:12px 14px; background:#e8eaf6; border-left:4px solid #1a237e; border-radius:4px;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong style="color:#1a237e;">&#128203; M&amp;V Plan</strong>
+            <span style="font-size:0.85em; color:#555; margin-left:8px;">Generate before installation for PE review &amp; sign-off (IPMVP §3.1)</span>
+          </div>
+          <button type="button" id="btnGenerateMVPlanEarly" class="btn"
+            style="background-color:#1a237e; color:white; border-color:#1a237e;"
+            onclick="generateMVPlanPreAnalysis()">Generate M&amp;V Plan (Pre-Installation)</button>
+          <span id="mvPlanEarlyStatus" style="font-size:0.82em; color:#555;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report Options (visible to all roles) -->
+    <div class="form-group">
+      <div class="form-grid">
         <div class="field">
           <label>Report Options</label>
           <div class="toggle-row">
@@ -154,9 +173,14 @@
           <div class="help">Street address</div>
         </div>
         <div class="field">
-          <label>Location</label>
-          <input type="text" id="cp_location" name="cp_location" placeholder="City, State" />
-          <div class="help">City and state</div>
+          <label>City</label>
+          <input type="text" id="cp_city" name="cp_city" placeholder="Dallas" />
+          <div class="help">City</div>
+        </div>
+        <div class="field">
+          <label>State</label>
+          <input type="text" id="cp_state" name="cp_state" placeholder="TX" />
+          <div class="help">State</div>
         </div>
         <div class="field">
           <label>ZIP / Postal Code</label>
@@ -501,6 +525,36 @@
           <div class="help">Meter serial number (required for engineering reports)</div>
         </div>
         <div class="field">
+          <label>Meter Installed By <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="text" name="meter_installer" placeholder="e.g., John Smith, PE — ABC Engineering" />
+          <div class="help">Name and credentials of the person who installed the meter. Required for utility submission chain of custody.</div>
+        </div>
+        <div class="field">
+          <label>Meter Installation Date <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="date" name="meter_install_date" />
+          <div class="help">Date the revenue-grade meter was installed. Documents chain of custody for utility submission.</div>
+        </div>
+        <div class="field">
+          <label>Meter Verification Protocol <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="text" name="meter_verification_protocol" placeholder="e.g., IPMVP Option B / ANSI C12.20 Class 0.2" value="IPMVP Option B / ANSI C12.20 Class 0.2" />
+          <div class="help">Standard under which the meter was verified. Shown in Data Integrity section of the report.</div>
+        </div>
+        <div class="field">
+          <label>Device Certification No. <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="text" name="device_certification" placeholder="e.g., UL 508A #E123456, ETL 61010" />
+          <div class="help">Independent lab certification number for the installed device (UL, ETL, CSA, etc.). Recommended for utility incentive submissions.</div>
+        </div>
+        <div class="field">
+          <label>Certifying Lab <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="text" name="device_cert_lab" placeholder="e.g., UL, ETL, CSA" />
+          <div class="help">Name of the independent laboratory that issued the certification</div>
+        </div>
+        <div class="field">
+          <label>Cert. Date <span style="font-weight:normal; color:#6b7280;">(optional)</span></label>
+          <input type="text" name="device_cert_date" placeholder="e.g., 2024-11-15" />
+          <div class="help">Date the device certification was issued</div>
+        </div>
+        <div class="field">
           <div id="equipment_type_other_desc_container" style="display:none">
             <label>Other Description</label>
             <input type="text" name="equipment_type_other_desc" id="equipment_type_other_desc"
@@ -511,7 +565,15 @@
         <div>
           <label>Operating Hours/Year</label>
           <input type="number" name="operating_hours" value="8760" min="0" max="8760" />
-          <div class="help">Example: 8760 (hours/year). Range 0–8760.</div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+            <input type="checkbox" name="operating_hours_confirmed" id="operating_hours_confirmed" value="1"
+              style="width:auto; margin:0;" />
+            <label for="operating_hours_confirmed"
+              style="font-size:0.82em; color:#555; font-weight:normal; margin:0; cursor:pointer;">
+              I confirm these operating hours are correct for this facility
+            </label>
+          </div>
+          <div class="help">Example: 8760 (hours/year). Range 0–8760. Restaurants ≈3,000–5,000 h/yr; Retail ≈3,500–6,000 h/yr; Manufacturing ≈6,000–8,760 h/yr.</div>
         </div>
         <div>
           <label>Confidence Level (%)</label>
@@ -551,6 +613,19 @@
           <input type="text" id="test_duration" name="test_duration" placeholder="Auto-populated from CSV data"
             readonly />
           <div class="help">Automatically calculated from CSV data points</div>
+        </div>
+        <div class="field" style="grid-column: 1 / -1;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="hidden" name="has_variable_production_loads_hidden" value="off" />
+            <input type="checkbox" name="has_variable_production_loads" value="on" id="has_variable_production_loads"
+              onchange="toggleVariableLoadsWarning(this.checked)" />
+            <span><strong>Consolidated meter includes variable / mixed production loads</strong></span>
+          </label>
+          <div class="help" style="color:#92400e; background:#fffbeb; border-left:3px solid #f59e0b; padding:6px 10px; margin-top:4px; border-radius:0 4px 4px 0;">
+            &#9888; Check this box if the metered circuit also serves variable-output equipment (e.g., variable-speed drives,
+            ovens, HVAC, or other loads that change independently of the device under test). IPMVP Option B requires
+            load-specific sub-metering to isolate device savings — checking this box will add a compliance caveat to the report.
+          </div>
         </div>
       </div>
     </div>
@@ -598,6 +673,20 @@
           <label>Tariff / Rate Schedule</label>
           <input type="text" id="cp_tariff" name="tariff" placeholder="e.g., TOU-GS-3-B" />
           <div class="help">Utility rate schedule or tariff code from your bill</div>
+        </div>
+        <!-- Tariff Rate Lookup -->
+        <div class="field" style="padding: 10px 0;">
+          <button type="button" id="emvTariffLookupBtn"
+                  onclick="emvLookupTariffRates()"
+                  style="background:#2563eb;color:#fff;border:none;border-radius:6px;padding:9px 18px;cursor:pointer;font-size:0.95rem;font-weight:600;display:flex;align-items:center;gap:8px;">
+            <span>&#128269;</span> Look Up Tariff Rates
+          </button>
+          <div id="emvTariffLookupStatus" style="margin-top:8px;font-size:0.85rem;display:none;">
+            <span id="emvTariffLookupMsg" style="color:#374151;"></span>
+            <span id="emvTariffLookupBadge"
+                  style="margin-left:8px;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:700;"></span>
+          </div>
+          <div id="emvTariffLookupNotes" style="margin-top:4px;font-size:0.78rem;color:#6b7280;display:none;"></div>
         </div>
         <div class="field">
           <label>Account #</label>
@@ -1247,13 +1336,13 @@
           </div>
           <div>
             <label>Short Circuit Current (Isc) - kA</label>
-            <input type="number" name="isc_kA" step="0.1" min="0.1" placeholder="Auto-calculated" readonly />
-            <div class="help">Calculated from Transformer kVA Rating and Nominal Voltage</div>
+            <input type="number" name="isc_kA" step="0.01" min="0" placeholder="Auto-calculated from transformer" readonly />
+            <div class="help">Auto-calculated: transformer rated current &divide; (%Z/100). Represents utility fault current at facility PCC (IEEE 519-2022 &sect;1.4). Verify against utility interconnection data.</div>
           </div>
           <div>
             <label>Load Current (IL) - A</label>
-            <input type="number" name="il_A" step="1" min="1" placeholder="Auto-calculated" readonly />
-            <div class="help">Calculated from Transformer kVA Rating and Nominal Voltage</div>
+            <input type="number" name="il_A" step="1" min="0" placeholder="Auto-filled or enter meter peak" />
+            <div class="help"><strong>Required for IEEE 519 TDD limit.</strong> Auto-filled with transformer rated current. Override with the actual maximum demand current (15/30-min peak from meter data or utility demand bill) for an accurate ISC/IL ratio.</div>
           </div>
           <div>
             <label>IEEE 519 Edition</label>
@@ -1267,6 +1356,21 @@
             <label>Point of Common Coupling (PCC)</label>
             <input type="text" name="pcc_location" placeholder="e.g., Main Service Panel, Utility Meter" />
             <div class="help">Measurement location for IEEE 519 harmonic compliance evaluation</div>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <label>Harmonic Analysis Mode</label>
+            <select name="harmonic_analysis_mode" id="harmonic_analysis_mode_select" onchange="updateHarmonicModeUI(this.value)">
+              <option value="thd_aggregate" selected>Aggregate THD Only &mdash; meter records 1-min avgTHD (current capability)</option>
+              <option value="per_order_spectrum">Per-Order Harmonic Spectrum &mdash; meter records H3&hellip;H49 per interval (upgraded meter)</option>
+            </select>
+            <div class="help" id="harmonic_mode_help" style="margin-top:6px; padding:8px 12px; border-radius:4px; background:#fff3cd; border-left:4px solid #ffc107; color:#856404;">
+              <strong>THD-Aggregate Mode:</strong> IEEE 519 compliance is assessed on aggregate THD only. Per-order limits (IEEE 519 Table 2), K-factor derating (IEEE C57.110-2018), and TDD cannot be verified. The compliance badge will reflect this limitation. Switch to Per-Order Spectrum mode once the meter firmware upgrade is installed.
+            </div>
+          </div>
+          <div id="harmonic_spectrum_fields" style="display:none; grid-column: 1 / -1;">
+            <label>Maximum Demand Load Current I<sub>L</sub> (A) &mdash; for TDD calculation</label>
+            <input type="number" name="il_demand_A" step="0.1" min="0" placeholder="15 or 30-min peak demand current (prior 12 months)" />
+            <div class="help">Required for IEEE 519 TDD = &radic;(&Sigma;I&shy;&sub;h&shy;&sup2;) / I<sub>L</sub>. Enter the maximum 15- or 30-minute demand current over the prior 12 months. If unknown, leave blank and TDD will be estimated from the metered peak current.</div>
           </div>
           <div>
             <label>ASHRAE Baseline Model</label>
@@ -1366,6 +1470,28 @@
             <label>Harmonic Spectrum Export</label>
             <input type="checkbox" name="export_harmonic_spectrum" checked />
             <div class="help">Export detailed harmonic spectrum data for audit purposes</div>
+          </div>
+          <div>
+            <label>Facility HVAC Type</label>
+            <select name="facility_hvac_type">
+              <option value="unknown" selected>Not configured (use default 48 h exclusion)</option>
+              <option value="cooling">Cooling-dominated (chillers / refrigeration / A/C)</option>
+              <option value="heating">Heating-dominated (electric heat / heat pumps)</option>
+              <option value="process">Process / 24-7 constant load (minimal HVAC cascade)</option>
+            </select>
+            <div class="help">Determines the correct thermal settling exclusion window
+              (IPMVP §3.5 / ASHRAE Guideline 14-2023 §4.1.3).
+              Cooling-dominated: 24–72 h cascade lag. Process-only: 1–4 h.
+              Used in M&amp;V Plan Section 10.1 and seasonal appropriateness checks.</div>
+          </div>
+          <div>
+            <label>Thermal Settling Exclusion Hours</label>
+            <input type="number" name="thermal_settling_exclusion_hours"
+                   value="48" min="0" max="168" step="1" />
+            <div class="help">Hours of post-installation data to <strong>exclude</strong> before
+              computing savings statistics. Default 48 h covers direct electrical settling
+              (1–4 h) and HVAC cascade effects (24–72 h). Set to 0 to disable.
+              Max 168 h (7 days). Ref: IPMVP §3.5 / ASHRAE 14-2023 §4.1.3.</div>
           </div>
         </div>
       </div>
@@ -1560,8 +1686,16 @@
           <button id="btnDownloadFieldKit" type="button" class="btn">Download Field Kit (Light)</button>
         </div>
 
-        <button type="button" id="btnExportPDF" class="btn" disabled
-          style="background-color: #00b894; color: white; border-color: #00b894;">Export HTML Report</button>
+        <div style="display:inline-flex;align-items:center;gap:8px;margin-right:4px;">
+          <select id="reportSubmissionMode" class="btn"
+            style="background:white;color:#333;border:1px solid #ccc;padding:6px 10px;border-radius:4px;font-size:0.9em;"
+            title="Set to Utility Submission to apply 30-day minimum period requirement">
+            <option value="pe_review">PE Review (7-day min)</option>
+            <option value="utility_submission">Utility Submission (30-day min)</option>
+          </select>
+          <button type="button" id="btnExportPDF" class="btn" disabled
+            style="background-color: #00b894; color: white; border-color: #00b894;">Export HTML Report</button>
+        </div>
         <button type="button" id="btnExportESGCaseStudy" class="btn" disabled
           style="background-color: #667eea; color: white; border-color: #667eea; margin-left: 8px;">Generate ESG Case Study Report</button>
         <button type="button" id="btnExportLaymanReport" class="btn" disabled
@@ -1583,6 +1717,9 @@
           style="background-color: #007bff; color: white; border-color: #007bff;">Generate Utility Submission Package</button>
         <button type="button" id="btnViewEquipmentHealth" class="btn" disabled
           style="background-color: #ff6b35; color: white; border-color: #ff6b35;">View Equipment Health Report</button>
+        <button type="button" id="btnGenerateMVPlan" class="btn" disabled
+          style="background-color: #1a237e; color: white; border-color: #1a237e; margin-left: 8px;">Generate M&amp;V Plan</button>
+        <span id="mvPlanStatus" style="font-size:0.82em; color:#555; margin-left:8px;"></span>
       </div>
 
 
@@ -2076,6 +2213,15 @@
     document.body.classList.remove('loading', 'modal-open');
   });
 
+  // Variable production loads warning toggle
+  function toggleVariableLoadsWarning(checked) {
+    // Visual feedback only; the checkbox value is sent with the form
+    const lbl = document.querySelector('label[for="has_variable_production_loads"], label:has(#has_variable_production_loads)');
+    if (checked) {
+      console.warn('Variable production loads flag set — IPMVP sub-metering caveat will appear in report');
+    }
+  }
+
   // SynerexAI Chat Widget Functions
   function toggleSynerexAIChat() {
     const chatWidget = document.getElementById('synerex-ai-chat-widget');
@@ -2471,13 +2617,13 @@ What specific utility or cost question do you have?`;
 </script>
 
 <!-- Ollama AI Service Script (must load before enhanced_synerex_ai.js) -->
-<script src="/static/ollama_ai_service.js"></script>
+<script src="static/ollama_ai_service.js"></script>
 
 <!-- SynerexAI Knowledge Base Script -->
-<script src="/static/synerex_ai_knowledge_base.js"></script>
+<script src="static/synerex_ai_knowledge_base.js"></script>
 
 <!-- Enhanced SynerexAI Script -->
-<script src="/static/enhanced_synerex_ai.js"></script>
+<script src="static/enhanced_synerex_ai.js"></script>
 
 
 <script>
@@ -2489,7 +2635,7 @@ What specific utility or cost question do you have?`;
   var isSynerex = (orgId === 'admin' || orgType === 'admin');
 
   function applyVisibility() {
-    // Saved Projects — Synerex only
+    // Saved Projects — Synerex admin only
     var sp = document.getElementById('saved-projects-section');
     if (sp) sp.style.display = isSynerex ? '' : 'none';
 
