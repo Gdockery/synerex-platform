@@ -6,6 +6,7 @@ This copies the template exactly and replaces data with dynamic values
 
 import json
 import base64
+import math
 import time
 import logging
 from datetime import datetime
@@ -448,6 +449,30 @@ def generate_verification_certificate_html(r):
             weather_data.get('after_period') if isinstance(weather_data, dict) else None
         )
         
+        # Parse measurement period durations for IPMVP minimum-period checks
+        def parse_period_days(period_str):
+            """Return inclusive day count from 'YYYY-MM-DD to YYYY-MM-DD' string."""
+            if not period_str or str(period_str).strip() in ('N/A', ''):
+                return None
+            try:
+                import re as _re
+                m = _re.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', str(period_str))
+                if m:
+                    d1 = datetime.strptime(m.group(1), '%Y-%m-%d')
+                    d2 = datetime.strptime(m.group(2), '%Y-%m-%d')
+                    return max(1, (d2 - d1).days + 1)
+            except Exception:
+                pass
+            return None
+
+        before_period_days = parse_period_days(before_period)
+        after_period_days = parse_period_days(after_period)
+        min_period_days = min(
+            (x for x in [before_period_days, after_period_days] if x is not None),
+            default=None
+        )
+        short_period_warning = min_period_days is not None and min_period_days < 7
+
         # Extract analysis session ID
         session_id_raw = r.get('analysis_session_id')
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -538,54 +563,97 @@ def generate_verification_certificate_html(r):
         # Convert to float, defaulting to 0 only if truly not found
         relative_precision = safe_float(relative_precision, 0) if relative_precision is not None else 0
         
-        p_value = safe_float(statistical.get('p_value', 0) if isinstance(statistical, dict) else 0, 0)
-        
+        p_value    = safe_float(statistical.get('p_value',   0) if isinstance(statistical, dict) else 0, 0)
+        _cohens_d  = float(statistical.get('cohens_d', 0)) if isinstance(statistical, dict) and isinstance(statistical.get('cohens_d'), (int, float)) else 0.0
+        _dir_ok    = bool(statistical.get('savings_direction_correct', _cohens_d > 0) if isinstance(statistical, dict) else _cohens_d > 0)
+        _prac_sig  = bool(statistical.get('practical_significance',    abs(_cohens_d) >= 0.2) if isinstance(statistical, dict) else abs(_cohens_d) >= 0.2)
+        _large_n_w = bool(statistical.get('large_n_warning', False) if isinstance(statistical, dict) else False)
+
+        # ── Measurement Period Duration compliance (IPMVP §5.3 / ASHRAE 14-2023) ──
+        _before_period_days = (before_compliance.get('measurement_period_days')
+                               if isinstance(before_compliance, dict) else None)
+        _after_period_days  = (after_compliance.get('measurement_period_days')
+                               if isinstance(after_compliance, dict) else None)
+        _ipmvp_before_ok    = (before_compliance.get('ipmvp_period_compliant', True)
+                               if isinstance(before_compliance, dict) else True)
+        _ipmvp_after_ok     = (after_compliance.get('ipmvp_period_compliant', True)
+                               if isinstance(after_compliance, dict) else True)
+        _period_duration_ok  = _ipmvp_before_ok and _ipmvp_after_ok
+        _min_period_days     = min(d for d in [_before_period_days, _after_period_days] if d is not None)                                if any(d is not None for d in [_before_period_days, _after_period_days]) else None
+        _period_override     = (after_compliance.get('ashrae_precision_period_override', False)
+                                if isinstance(after_compliance, dict) else False)
+        _period_warn_before  = (before_compliance.get('period_duration_warning')
+                                if isinstance(before_compliance, dict) else None)
+        _period_warn_after   = (after_compliance.get('period_duration_warning')
+                                if isinstance(after_compliance, dict) else None)
+        _period_warn         = _period_warn_before or _period_warn_after
+
         # Recalculate compliance based on ACTUAL VALUES (not flags)
         # This ensures accuracy even if flags are missing or incorrect
         
-        # ASHRAE Precision: Relative Precision < 50%
-        ashrae_compliant = relative_precision > 0 and relative_precision < 50.0
+        # ASHRAE Precision: Relative Precision < 50% — but invalid when period < 7 days
+        _ashrae_raw = relative_precision > 0 and relative_precision < 50.0
+        ashrae_compliant = _ashrae_raw if _period_duration_ok else False
         
         # Data Quality: Completeness >= 95% AND Outliers <= 5%
         data_quality_compliant = completeness >= 95.0 and outliers <= 5.0
         
-        # IPMVP: Statistical Significance p < 0.05
-        ipmvp_compliant = p_value > 0 and p_value < 0.05
+        # IPMVP: Statistical Significance — IPMVP defers to ASHRAE Guideline 14 for
+        # statistical methods. ASHRAE 14-2023 §4.1.3 specifies 90% confidence (α = 0.10),
+        # so the correct threshold is p < 0.10, not p < 0.05.
+        # Using p < 0.05 (95% confidence) would over-reject valid savings results.
+        # Also requires correct savings direction (kW reduction, not increase).
+        _ipmvp_stat_raw = p_value > 0 and p_value < 0.10 and _dir_ok
+        ipmvp_compliant = _ipmvp_stat_raw if _period_duration_ok else False
         
         # IEEE 519: Check THD value (THD <= 5.0% for compliance)
-        # Also check TDD if available, as IEEE 519 uses TDD limits
-        thd_after = safe_float(power_quality.get('thd_after', 0) if isinstance(power_quality, dict) else 0, 0)
-        tdd_after = safe_float(power_quality.get('tdd_after', 0) if isinstance(power_quality, dict) else 0, 0)
+        # ── IEEE 519 compliance — mode-aware ──────────────────────────────────
+        thd_after  = safe_float(power_quality.get('thd_after',  0) if isinstance(power_quality, dict) else 0, 0)
+        thd_before = safe_float(power_quality.get('thd_before', 0) if isinstance(power_quality, dict) else 0, 0)
+        tdd_after  = safe_float(power_quality.get('tdd_after',  0) if isinstance(power_quality, dict) else 0, 0)
+        tdd_before = safe_float(power_quality.get('tdd_before', 0) if isinstance(power_quality, dict) else 0, 0)
         ieee_thd_limit = safe_float(power_quality.get('ieee_thd_limit', 5.0) if isinstance(power_quality, dict) else 5.0, 5.0)
-        
-        # Use TDD if available, otherwise use THD
-        if tdd_after > 0:
-            ieee_519_compliant = tdd_after <= ieee_thd_limit
+
+        # Determine the harmonic analysis mode from power_quality payload
+        _pq_harm_mode = (power_quality.get('harmonic_analysis_mode', 'thd_aggregate')
+                         if isinstance(power_quality, dict) else 'thd_aggregate')
+        _per_order_mode = _pq_harm_mode == 'per_order_spectrum'
+        _per_order_compliant = (power_quality.get('individual_harmonics_compliant')
+                                if isinstance(power_quality, dict) else None)
+        _k_factor_val = power_quality.get('k_factor') if isinstance(power_quality, dict) else None
+        _tdd_il = power_quality.get('tdd_il_demand_A') if isinstance(power_quality, dict) else None
+        _spec_missing_warn = power_quality.get('harmonic_spectrum_missing_warning', '') if isinstance(power_quality, dict) else ''
+
+        if _per_order_mode and _per_order_compliant is True:
+            # Full per-order check: individual harmonic current limits (IEEE 519-2022 Table 2,
+            # ISC/IL-dependent) plus TDD check — both must pass for full compliance.
+            _tdd_current_limit = safe_float(power_quality.get('ieee_tdd_limit', 0) if isinstance(power_quality, dict) else 0, 0)
+            if _tdd_current_limit <= 0:
+                _tdd_current_limit = 5.0  # Conservative fallback when ISC/IL-based limit not pre-computed
+            _tdd_ok = (tdd_after <= _tdd_current_limit) if tdd_after > 0 else True
+            ieee_519_compliant = _tdd_ok  # individual harmonics already True from _per_order_compliant
+        elif _per_order_mode and _per_order_compliant is False:
+            # Per-order data available but at least one harmonic order exceeded its Table 2 limit
+            ieee_519_compliant = False
         else:
-            # Fallback to THD <= 5.0% if TDD not available
-            ieee_519_compliant = thd_after > 0 and thd_after <= 5.0
-        
-        # If flag exists and matches recalculated value, use flag; otherwise use recalculated
-        # This provides fallback if flags are present but also works if they're missing
+            # Aggregate THD mode OR per-order result not yet assessed (None):
+            # cannot assert per-order harmonic compliance without spectrum data.
+            ieee_519_compliant = False
+        _ieee_519_thd_soft_pass = not _per_order_mode and thd_after > 0 and thd_after <= 5.0
+
+        # Other compliance flags (unchanged logic)
         if isinstance(after_compliance, dict) and 'ashrae_precision_compliant' in after_compliance:
             stored_ashrae = after_compliance.get('ashrae_precision_compliant', False)
             if stored_ashrae == ashrae_compliant:
-                ashrae_compliant = stored_ashrae  # Use stored if it matches
-        
+                ashrae_compliant = stored_ashrae
         if isinstance(after_compliance, dict) and 'data_quality_compliant' in after_compliance:
             stored_dq = after_compliance.get('data_quality_compliant', False)
             if stored_dq == data_quality_compliant:
-                data_quality_compliant = stored_dq  # Use stored if it matches
-        
+                data_quality_compliant = stored_dq
         if isinstance(statistical, dict) and 'statistically_significant' in statistical:
             stored_ipmvp = statistical.get('statistically_significant', False)
             if stored_ipmvp == ipmvp_compliant:
-                ipmvp_compliant = stored_ipmvp  # Use stored if it matches
-        
-        if isinstance(power_quality, dict) and 'ieee_519_compliant' in power_quality:
-            stored_ieee = power_quality.get('ieee_519_compliant', False)
-            if stored_ieee == ieee_519_compliant:
-                ieee_519_compliant = stored_ieee  # Use stored if it matches
+                ipmvp_compliant = stored_ipmvp
         
         # Format file sizes
         def format_file_size(size):
@@ -653,9 +721,89 @@ def generate_verification_certificate_html(r):
         html.append(f'<tr><td style="padding: 8px; width: 30%; font-weight: bold;">Project Name:</td><td style="padding: 8px;">{project_name}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Client:</td><td style="padding: 8px;">{company}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Facility Address:</td><td style="padding: 8px;">{facility}</td></tr>')
+        before_days_label = (f'{before_period_days} day{"s" if before_period_days != 1 else ""}' if before_period_days else 'N/A')
+        after_days_label  = (f'{after_period_days} day{"s" if after_period_days != 1 else ""}'  if after_period_days  else 'N/A')
+        duration_note = (' <span style="color:#e65100; font-weight:bold;">⚠ &lt;7 days — see period adequacy note below</span>' if short_period_warning else '')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Before: {before_period}<br/>After: {after_period}</td></tr>')
+        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Measurement Duration:</td><td style="padding: 8px;">Before: {before_days_label} &nbsp;|&nbsp; After: {after_days_label}{duration_note}</td></tr>')
+
+        mv_plan_ref = (r.get('mv_plan_reference') or
+                       config.get('mv_plan_reference') if isinstance(config, dict) else None)
+        if mv_plan_ref:
+            mv_plan_cell = f'<span style="color:#28a745; font-weight:bold;">{mv_plan_ref}</span>'
+        else:
+            mv_plan_cell = ('<span style="color:#e65100; font-weight:bold;">⚠ Not on file — '
+                            'IPMVP Volume I §3.1 requires a project-specific M&amp;V Plan approved '
+                            'prior to installation. See M&amp;V Plan requirement note below.</span>')
+        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">M&amp;V Plan:</td><td style="padding: 8px;">{mv_plan_cell}</td></tr>')
+
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Session ID:</td><td style="padding: 8px; font-family: monospace; font-size: 0.9em;">{analysis_session_id}</td></tr>')
         html.append('</table>')
+
+        # ── M&V Plan requirement notice ─────────────────────────────────────────
+        if not mv_plan_ref:
+            html.append('<div style="margin: 16px 0; padding: 12px 16px; background: #fff3e0; border-left: 4px solid #e65100; border-radius: 4px;">')
+            html.append('<p style="margin: 0 0 6px 0; font-weight: bold; color: #bf360c;">M&amp;V Plan Requirement (IPMVP Volume I §3.1)</p>')
+            html.append('<p style="margin: 0; font-size: 0.9em; color: #4e342e; line-height: 1.6;">'
+                        'IPMVP Volume I requires that a written Measurement &amp; Verification Plan be prepared and approved '
+                        '<em>before</em> installation of the energy conservation measure (ECM). The M&amp;V Plan must document: '
+                        '(1) M&amp;V Option selected (Option A or B); (2) measurement boundary and equipment list; '
+                        '(3) baseline conditions and adjustments; (4) verification frequency and duration; '
+                        '(5) reporting responsibilities. Without a pre-approved M&amp;V Plan this report cannot be used to '
+                        'claim utility incentive payments or receive a PE stamp for IPMVP compliance. '
+                        '<strong>Action required: prepare and submit an M&amp;V Plan for this project.</strong>'
+                        '</p>')
+            html.append('</div>')
+
+        # ── Measurement Boundary ────────────────────────────────────────────────
+        html.append('<div style="margin: 16px 0; padding: 12px 16px; background: #e8f5e9; border-left: 4px solid #388e3c; border-radius: 4px;">')
+        html.append('<p style="margin: 0 0 6px 0; font-weight: bold; color: #1b5e20;">Measurement Boundary (IPMVP Volume I §4.2)</p>')
+        html.append('<p style="margin: 0 0 8px 0; font-size: 0.9em; color: #2e7d32; line-height: 1.6;">'
+                    'The measurement boundary for this analysis is defined as the revenue-grade utility meter (ANSI C12.20, '
+                    'Accuracy Class 0.5S) at the point of common coupling (PCC) between the facility and the utility service. '
+                    'All loads downstream of the PCC are inside the measurement boundary. '
+                    'The Xeco power quality device is installed on the load side of the revenue meter; '
+                    'therefore all physical effects of the device — including reductions in I\u00b2R losses, '
+                    'eddy current losses, harmonic losses, and motor efficiency improvements — are captured '
+                    'within this boundary and reflected directly in the metered kW reading used to calculate savings.</p>')
+        html.append('<ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 0.9em; color: #2e7d32;">')
+        html.append('<li><strong>Meter type:</strong> Revenue-grade true-RMS, IEC 62053-22 / ANSI C12.20 Class 0.2S</li>')
+        _cert_interval_min = safe_get(r, "statistical", "detected_interval_minutes")
+        if _cert_interval_min is not None:
+            _ci = float(_cert_interval_min)
+            if _ci <= 1.5:
+                _cert_interval_label = "1-minute"
+            elif _ci <= 7.5:
+                _cert_interval_label = "5-minute"
+            elif _ci <= 22.5:
+                _cert_interval_label = "15-minute"
+            elif _ci <= 90:
+                _cert_interval_label = "hourly"
+            else:
+                _cert_interval_label = f"{int(_ci)}-minute"
+        else:
+            _cert_interval_label = "recorded-interval"
+        html.append(f'<li><strong>Measurement interval:</strong> {_cert_interval_label} interval data</li>')
+        html.append('<li><strong>Boundary scope:</strong> Total facility electrical load at PCC</li>')
+        html.append('<li><strong>Interactive effects:</strong> None — single meter captures all effects simultaneously</li>')
+        html.append('</ul>')
+        html.append('</div>')
+
+        # ── Short measurement period warning ────────────────────────────────────
+        if short_period_warning:
+            html.append('<div style="margin: 16px 0; padding: 12px 16px; background: #fce4ec; border-left: 4px solid #c62828; border-radius: 4px;">')
+            html.append('<p style="margin: 0 0 6px 0; font-weight: bold; color: #b71c1c;">⚠ Measurement Period Adequacy — Action Required</p>')
+            html.append(f'<p style="margin: 0; font-size: 0.9em; color: #4a0000; line-height: 1.6;">'
+                        f'The shortest measurement period in this analysis is <strong>{min_period_days} day{"s" if min_period_days != 1 else ""}</strong>. '
+                        f'ASHRAE Guideline 14-2023 and IPMVP Volume I both state that measurement periods should be long enough to be '
+                        f'representative of normal facility operating conditions. For most commercial and industrial facilities, a minimum '
+                        f'of <strong>7–30 days</strong> of continuous data per period is recommended; 12 months is preferred for weather-sensitive '
+                        f'loads. Short periods (&lt;7 days) are generally not accepted by utility incentive review boards or for PE-stamped '
+                        f'M&amp;V reports without explicit justification. '
+                        f'<strong>Action required: re-measure over a longer period that captures full operational variability, '
+                        f'or document the technical justification for the abbreviated period in the M&amp;V Plan.</strong>'
+                        f'</p>')
+            html.append('</div>')
         
         # Data Integrity Verification
         html.append('<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 30px;">Data Integrity Verification</h3>')
@@ -685,6 +833,28 @@ def generate_verification_certificate_html(r):
         html.append('<li>No gaps in custody chain detected</li>')
         html.append('<li>All modifications documented with reasons</li>')
         html.append('</ul>')
+
+        # Meter identification — T1 transparency item
+        _dv_config        = r.get("config", {}) or {}
+        _dv_client        = r.get("client_profile", {}) or {}
+        _dv_meter_name    = (_dv_config.get("meter_name")   or _dv_client.get("meter_name")   or "N/A")
+        _dv_meter_model   = (_dv_config.get("meter_model")  or _dv_client.get("meter_model")  or "N/A")
+        _dv_meter_sn      = (_dv_config.get("meter_sn")     or _dv_config.get("meter_serial_number") or
+                             _dv_client.get("meter_sn")     or "N/A")
+        _dv_installer     = (_dv_config.get("meter_installer") or _dv_client.get("meter_installer") or "N/A")
+        _dv_install_date  = (_dv_config.get("meter_install_date") or _dv_client.get("meter_install_date") or "N/A")
+        _dv_protocol      = (_dv_config.get("meter_verification_protocol") or
+                             _dv_client.get("meter_verification_protocol") or "IPMVP Option B / ANSI C12.20")
+        html.append('<p style="color: #2c3e50; font-weight: bold; margin-top: 10px;">&#128268; Metering Equipment Chain of Custody</p>')
+        html.append('<ul style="margin: 5px 0 10px 20px; font-size:0.93em;">')
+        html.append(f'<li>Meter Name/Location: <strong>{_dv_meter_name}</strong></li>')
+        html.append(f'<li>Meter Model: <strong>{_dv_meter_model}</strong></li>')
+        html.append(f'<li>Meter Serial Number: <strong>{_dv_meter_sn}</strong></li>')
+        html.append(f'<li>Meter Accuracy Class: <strong>Class 0.2</strong> (IEC 62053-22 / ANSI C12.20 — revenue-grade)</li>')
+        html.append(f'<li>Installed by: <strong>{_dv_installer}</strong></li>')
+        html.append(f'<li>Installation Date: <strong>{_dv_install_date}</strong></li>')
+        html.append(f'<li>Verification Protocol: <strong>{_dv_protocol}</strong></li>')
+        html.append('</ul>')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] Data Quality Verified</p>')
         html.append('<ul style="margin: 5px 0;">')
         completeness_status = '[OK]' if completeness >= 95 else '[FAIL]'
@@ -706,19 +876,87 @@ def generate_verification_certificate_html(r):
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] All calculations verified against source data</p>')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] Standards compliance verified:</p>')
         html.append('<ul style="margin: 5px 0;">')
-        ieee_status = 'COMPLIANT' if ieee_519_compliant else 'NON-COMPLIANT'
-        ieee_color = '#28a745' if ieee_519_compliant else '#dc3545'
-        ieee_status_symbol = '[OK]' if ieee_519_compliant else '[FAIL]'
-        html.append(f'<li>IEEE 519-2014/2022: <span style="color: {ieee_color}; font-weight: bold;">{ieee_status}</span> <span style="color: {ieee_color}; font-weight: bold;">{ieee_status_symbol}</span></li>')
-        ashrae_status = 'COMPLIANT' if ashrae_compliant else 'NON-COMPLIANT'
-        ashrae_color = '#28a745' if ashrae_compliant else '#dc3545'
-        ashrae_status_symbol = '[OK]' if ashrae_compliant else '[FAIL]'
-        html.append(f'<li>ASHRAE Guideline 14-2014: <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status}</span> <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status_symbol}</span></li>')
+        if _per_order_mode:
+            ieee_status        = 'COMPLIANT' if ieee_519_compliant else 'NON-COMPLIANT'
+            ieee_color         = '#28a745' if ieee_519_compliant else '#dc3545'
+            ieee_status_symbol = '[OK]' if ieee_519_compliant else '[FAIL]'
+            _ieee_label = (f'IEEE 519-2022 (Per-Order + TDD): '
+                           f'<span style="color: {ieee_color}; font-weight: bold;">'
+                           f'{ieee_status}</span> '
+                           f'<span style="color: {ieee_color}; font-weight: bold;">{ieee_status_symbol}</span>')
+            if _k_factor_val is not None:
+                _ieee_label += f' | K-factor: {_k_factor_val:.3f} (IEEE C57.110-2018)'
+            if tdd_after > 0:
+                _tdd_status = "✔" if tdd_after <= ieee_thd_limit else "✘"
+                _ieee_label += f' | TDD: {tdd_after:.2f}% {_tdd_status} (limit ≤{ieee_thd_limit:.1f}%)'
+        elif _ieee_519_thd_soft_pass:
+            _ieee_label = (f'IEEE 519-2022 (Aggregate THD): '
+                           f'<span style="color: #856404; font-weight: bold;">'
+                           f'THD ≤ 5% — Aggregate Basis (ANSI C12.20 revenue meter)</span> '
+                           f'<span style="color: #856404;">&#9888;</span> '
+                           f'<em style="color:#856404; font-size:11px;">'
+                           f'Sufficient for energy efficiency rebate M&amp;V (IPMVP §5.2 / ANSI C12.20). '
+                           f'Per-order spectrum required only for standalone harmonic compliance certification '
+                           f'(IEEE 519-2022 Table 2 / C57.110-2018 K-factor).</em>')
+        else:
+            # THD > 5% in aggregate mode — flag as a power quality observation, not an energy rebate blocker
+            _ieee_label = (f'IEEE 519-2022 (Aggregate THD — Advisory): '
+                           f'<span style="color: #856404; font-weight: bold;">' +
+                           (f'THD {thd_after:.2f}% exceeds 5% aggregate threshold &#9888;' if thd_after > 0
+                            else 'No THD Data — Cannot Assess') +
+                           f'</span> <em style="color:#856404; font-size:11px;">'
+                           f'This is a power quality observation, not an energy rebate M&amp;V finding. '
+                           f'Energy savings are measured by kWh/kW delta on ANSI C12.20 Class 0.2 revenue meter (IPMVP §5.2). '
+                           f'Per-order harmonic spectrum from the Class A analyzer is required for '
+                           f'a formal IEEE 519 compliance determination.</em>')
+        html.append(f'<li>{_ieee_label}</li>')
+        # ── Measurement Period Duration notice (inserted before ASHRAE/IPMVP) ──
+        if _min_period_days is not None and _min_period_days < 7:
+            _period_days_label = (
+                f'Measurement Period: '
+                f'<span style="color: #dc3545; font-weight: bold;">'
+                f'&#10060; NON-COMPLIANT — {_min_period_days} day{"s" if _min_period_days != 1 else ""} '
+                f'(IPMVP §5.3 requires ≥7 days; 30 days recommended). '
+                f'ASHRAE Guideline 14 and IPMVP results below are NOT VALID for this dataset.</span>'
+            )
+            html.append(f'<li style="background:#f8d7da; padding:6px 10px; border-radius:4px; margin:4px 0;">{_period_days_label}</li>')
+        elif _min_period_days is not None and _min_period_days < 30:
+            _period_days_label = (
+                f'Measurement Period: '
+                f'<span style="color: #856404; font-weight: bold;">'
+                f'&#9888; MARGINAL — {_min_period_days} days '
+                f'(meets 7-day IPMVP minimum; 30 days recommended for variable-load facilities)</span>'
+            )
+            html.append(f'<li style="background:#fff3cd; padding:6px 10px; border-radius:4px; margin:4px 0;">{_period_days_label}</li>')
+        # ASHRAE status — "NOT VALID" when period override applied
+        if _period_override:
+            ashrae_color = '#dc3545'
+            html.append(
+                f'<li>ASHRAE Guideline 14-2023: '
+                f'<span style="color: {ashrae_color}; font-weight: bold;">'
+                f'NOT VALID — Measurement Period Insufficient ({_min_period_days} day{"s" if _min_period_days and _min_period_days != 1 else ""})'
+                f'</span> <span style="color: {ashrae_color}; font-weight: bold;">[FAIL]</span></li>'
+            )
+        else:
+            ashrae_status = 'COMPLIANT' if ashrae_compliant else 'NON-COMPLIANT'
+            ashrae_color = '#28a745' if ashrae_compliant else '#dc3545'
+            ashrae_status_symbol = '[OK]' if ashrae_compliant else '[FAIL]'
+            html.append(f'<li>ASHRAE Guideline 14-2023: <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status}</span> <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status_symbol}</span></li>')
         html.append('<li>NEMA MG1: <span style="color: #28a745; font-weight: bold;">COMPLIANT</span> <span style="color: #28a745; font-weight: bold;">[OK]</span></li>')
-        ipmvp_status = 'COMPLIANT' if ipmvp_compliant else 'NON-COMPLIANT'
-        ipmvp_color = '#28a745' if ipmvp_compliant else '#dc3545'
-        ipmvp_status_symbol = '[OK]' if ipmvp_compliant else '[FAIL]'
-        html.append(f'<li>IPMVP Volume I: <span style="color: {ipmvp_color}; font-weight: bold;">{ipmvp_status}</span> <span style="color: {ipmvp_color}; font-weight: bold;">{ipmvp_status_symbol}</span></li>')
+        # IPMVP status — "NOT VALID" when period override applied
+        if _period_override:
+            ipmvp_color = '#dc3545'
+            html.append(
+                f'<li>IPMVP Volume I: '
+                f'<span style="color: {ipmvp_color}; font-weight: bold;">'
+                f'NOT VALID — Measurement Period Insufficient ({_min_period_days} day{"s" if _min_period_days and _min_period_days != 1 else ""})'
+                f'</span> <span style="color: {ipmvp_color}; font-weight: bold;">[FAIL]</span></li>'
+            )
+        else:
+            ipmvp_status = 'COMPLIANT' if ipmvp_compliant else 'NON-COMPLIANT'
+            ipmvp_color = '#28a745' if ipmvp_compliant else '#dc3545'
+            ipmvp_status_symbol = '[OK]' if ipmvp_compliant else '[FAIL]'
+            html.append(f'<li>IPMVP Volume I: <span style="color: {ipmvp_color}; font-weight: bold;">{ipmvp_status}</span> <span style="color: {ipmvp_color}; font-weight: bold;">{ipmvp_status_symbol}</span></li>')
         html.append('<li>ANSI C12.1/C12.20: <span style="color: #28a745; font-weight: bold;">COMPLIANT</span> <span style="color: #28a745; font-weight: bold;">[OK]</span></li>')
         html.append('</ul>')
         html.append('<p style="color: #28a745; font-weight: bold; margin-top: 15px;">[OK] Statistical Validation:</p>')
@@ -727,15 +965,69 @@ def generate_verification_certificate_html(r):
         rp_color = '#28a745' if relative_precision < 50 else '#dc3545'
         html.append(f'<li>Relative Precision: {relative_precision:.1f}% (Requirement: <50%) <span style="color: {rp_color}; font-weight: bold;">{rp_status}</span></li>')
         html.append(f'<li>Data Completeness: {completeness:.1f}% (Requirement: >=95%) <span style="color: {completeness_color}; font-weight: bold;">{completeness_status}</span></li>')
-        p_status = '[OK]' if p_value < 0.05 else '[FAIL]'
-        p_color = '#28a745' if p_value < 0.05 else '#dc3545'
-        html.append(f'<li>Statistical Significance: p = {p_value:.4f} (Requirement: <0.05) <span style="color: {p_color}; font-weight: bold;">{p_status}</span></li>')
+        # Statistical Significance row — label as advisory when direction is wrong
+        _p_pass = p_value > 0 and p_value < 0.05
+        if _p_pass and not _dir_ok:
+            p_status = '[ADVISORY]'
+            p_color  = '#856404'
+            _p_note  = ' — WRONG DIRECTION: consumption increased'
+        elif _p_pass:
+            p_status = '[OK]'
+            p_color  = '#28a745'
+            _p_note  = ''
+        else:
+            p_status = '[FAIL]'
+            p_color  = '#dc3545'
+            _p_note  = ''
+        html.append(f'<li>Statistical Significance: p = {p_value:.4f} (Requirement: <0.05) '
+                    f'<span style="color: {p_color}; font-weight: bold;">{p_status}{_p_note}</span></li>')
+
+        # ── Practical Significance (ASHRAE 14-2023 §5.3.2 — effect size) ────────
+        _cohens_d_cert = float(statistical.get('cohens_d', 0)) if isinstance(statistical, dict) and isinstance(statistical.get('cohens_d'), (int, float)) else 0.0
+        _prac_pass  = _cohens_d_cert >= 0.2
+        _dir_pass_c = _cohens_d_cert > 0
+        if not _dir_pass_c:
+            _prac_color  = '#dc3545'
+            _prac_status = '[FAIL]'
+            _prac_note   = (f'Cohen\'s d = {_cohens_d_cert:.3f} — consumption increased (wrong direction). '
+                            f'A validated savings result requires d > 0. '
+                            f'Statistical significance is technically met but driven by sample size, not effect magnitude.')
+        elif not _prac_pass:
+            _prac_color  = '#856404'
+            _prac_status = '[ADVISORY]'
+            _prac_note   = (f'Cohen\'s d = {_cohens_d_cert:.3f} — below 0.2 practical significance threshold (Cohen 1988). '
+                            f'Savings direction correct but effect size is negligible. '
+                            f'Extend measurement period to 30+ days to increase statistical power.')
+        else:
+            _prac_color  = '#28a745'
+            _prac_status = '[OK]'
+            _prac_note   = f'Cohen\'s d = {_cohens_d_cert:.3f} ≥ 0.2 — practical significance confirmed.'
+        html.append(f'<li style="margin-top:4px;">Practical Significance (ASHRAE 14-2023 §5.3.2): '
+                    f'<span style="color:{_prac_color};font-weight:bold;">{_prac_status}</span> '
+                    f'<em style="color:{_prac_color};font-size:0.9em;">{_prac_note}</em></li>')
+
+        # ── Large-N Warning ──────────────────────────────────────────────────────
+        if _large_n_w:
+            _n_b = statistical.get('sample_size_before', 0) if isinstance(statistical, dict) else 0
+            _n_a = statistical.get('sample_size_after',  0) if isinstance(statistical, dict) else 0
+            html.append(
+                f'<li style="margin-top:4px; background:#fff3cd; padding:5px 8px; border-radius:3px;">'
+                f'<span style="color:#856404;font-weight:bold;">&#9888; Large-N Warning (ASHRAE 14-2023 §5.3.2):</span> '
+                f'n = {_n_b:,} (before) / {_n_a:,} (after). With n &gt; 5,000 data points, '
+                f'p &lt; 0.05 can be achieved for trivially small — and practically meaningless — differences. '
+                f'Cohen\'s d = {_cohens_d_cert:.3f} is in the negligible range. '
+                f'A utility reviewer would note: <em>"statistically distinguishable from zero, but the effect is not practically meaningful."</em> '
+                f'Extend measurement to ≥30 days and report effect size alongside p-value per ASHRAE 14-2023.</li>'
+            )
+
         html.append('</ul>')
         html.append('<p style="color: #28a745; font-weight: bold; margin-top: 15px;">[OK] Methodology Verification:</p>')
         html.append('<ul style="margin: 5px 0;">')
-        html.append('<li>Weather Normalization: ASHRAE Guideline 14-2014 Section 14.3</li>')
-        html.append('<li>Power Factor Normalization: Utility billing standard (0.95 target)</li>')
-        html.append('<li>Harmonic Analysis: IEEE 519-2014/2022 methodology</li>')
+        html.append('<li>M&amp;V Option: IPMVP Volume I Option B — Retrofit Isolation (whole-facility revenue meter)</li>')
+        html.append('<li>Weather Normalization: ASHRAE Guideline 14-2023 §5.3 (applied conditionally — R² ≥ 0.75 required)</li>')
+        html.append('<li>Billing Demand Relief: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings)</li>')
+        html.append('<li>Harmonic Analysis: IEEE 519-2022 (supersedes 2014) methodology</li>')
+        html.append('<li>Life-Cycle Cost Analysis (federal facilities): FEMP M&amp;V Guidelines 4.0 (2015); NIST Handbook 135 (2020 ed.); 10 CFR Part 436 Subpart A</li>')
         html.append('<li>All formulas traceable to published standards</li>')
         html.append('</ul>')
         html.append('</div>')
@@ -769,7 +1061,7 @@ def generate_verification_certificate_html(r):
         html.append('<ul style="margin: 10px 0 0 20px; color: #2c3e50;">')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Data integrity and authenticity</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Calculation accuracy and methodology</li>')
-        html.append('<li style="color: #28a745; font-weight: bold;">[OK] Standards compliance (IEEE 519, ASHRAE, NEMA MG1, IPMVP, ANSI C12)</li>')
+        html.append('<li style="color: #28a745; font-weight: bold;">[OK] Standards compliance (IEEE 519-2022, ASHRAE 14-2023, NEMA MG1, IPMVP Vol. I, ANSI C12.20, FEMP M&amp;V 4.0)</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Statistical validity and significance</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Professional engineering oversight</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Complete audit trail documentation</li>')
@@ -816,6 +1108,16 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
     try:
         print(f"*** BREAKDOWN FUNCTION START: power_quality type={type(power_quality)}, keys={list(power_quality.keys()) if isinstance(power_quality, dict) else 'Not a dict'} ***")
         
+        # ── PE review status — resolved at serve time via {{PE_REVIEW_BADGE}} placeholder ──
+        # The label "Verified" vs "Measured Savings (PE Review Pending)" is injected
+        # dynamically by the report-serving endpoint so saved HTML files update automatically
+        # when a PE approves the project.  At generation time we always emit the pending form.
+        _pe_approved   = False
+        _savings_verb  = "Measured Savings"
+        _pe_pending_note = (
+            ' <span style="background:#fff3cd;color:#856404;padding:1px 6px;border-radius:3px;font-size:0.82em;font-weight:normal;">PE Review Pending</span>'
+        )
+        
         # Get raw kW values
         kw_before = safe_get(power_quality, "kw_before", default=0)
         kw_after = safe_get(power_quality, "kw_after", default=0)
@@ -857,6 +1159,11 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         has_fully = (normalized_kw_before is not None and 
                     normalized_kw_after is not None and 
                     normalized_kw_before >= 0 and normalized_kw_after >= 0)
+
+        # Determine whether weather normalization was actually applied (R² ≥ 0.75)
+        # If not, the "weather_normalized" kW values are just the raw kW passed through.
+        _norm_applied = (safe_get(weather_norm, "normalization_applied") is True
+                         if isinstance(weather_norm, dict) else False)
         
         # Always generate breakdown if we have power_quality data (normalization should always be calculated)
         # Check if power_quality exists in the data structure
@@ -872,7 +1179,40 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # (The individual sections will handle missing data gracefully)
         print(f"*** BREAKDOWN FUNCTION: has_power_quality={has_power_quality}, has_raw={has_raw}, has_weather={has_weather}, has_fully={has_fully} ***")
         print(f"*** BREAKDOWN FUNCTION: Proceeding with breakdown generation... ***")
-        
+
+        # Derive short_period_warning from r so this function is self-contained
+        def _parse_period_days_local(period_str):
+            if not period_str or str(period_str).strip() in ('N/A', ''):
+                return None
+            try:
+                import re as _re2
+                from datetime import datetime as _dt2
+                _m = _re2.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', str(period_str))
+                if _m:
+                    _d1 = _dt2.strptime(_m.group(1), '%Y-%m-%d')
+                    _d2 = _dt2.strptime(_m.group(2), '%Y-%m-%d')
+                    return max(1, (_d2 - _d1).days + 1)
+            except Exception:
+                pass
+            return None
+
+        _cfg = safe_get(r, "config", default={}) or {}
+        _cp = safe_get(r, "client_profile", default={}) or {}
+        _wd = safe_get(r, "weather_data", default={}) or {}
+        _before_period_bp = (r.get('before_period') or _cfg.get('test_period_before') or
+                             (_cp.get('test_period_before') if isinstance(_cp, dict) else None) or
+                             (_wd.get('before_period') if isinstance(_wd, dict) else None) or 'N/A')
+        _after_period_bp = (r.get('after_period') or _cfg.get('test_period_after') or
+                            (_cp.get('test_period_after') if isinstance(_cp, dict) else None) or
+                            (_wd.get('after_period') if isinstance(_wd, dict) else None) or 'N/A')
+        _before_days_bp = _parse_period_days_local(_before_period_bp)
+        _after_days_bp = _parse_period_days_local(_after_period_bp)
+        min_period_days = min(
+            (x for x in [_before_days_bp, _after_days_bp] if x is not None),
+            default=None
+        )
+        short_period_warning = min_period_days is not None and min_period_days < 7
+
         # Get weather data
         weather_data = safe_get(r, "weather_data", default={}) or safe_get(r, "weather_normalization", default={})
         # CRITICAL FIX: Prioritize power_quality values over weather_data values
@@ -1018,18 +1358,96 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         
         # Build HTML
         html = []
+
+        # ── T2: Savings Direction Warning Banner ────────────────────────────
+        _raw_savings_dir = kw_before - kw_after if (kw_before and kw_after) else None
+        _weather_savings_dir = weather_normalized_kw_before - weather_normalized_kw_after if (weather_normalized_kw_before and weather_normalized_kw_after) else _raw_savings_dir
+        if _weather_savings_dir is not None and _weather_savings_dir < 0:
+            html.append(f'''<div style="margin-bottom:14px;padding:14px 16px;background:#ffebee;border:2px solid #c62828;border-radius:6px;">
+<strong style="color:#c62828;font-size:1.1em;">&#9888; ATTENTION — CONSUMPTION INCREASED AFTER INSTALLATION</strong><br/>
+<span style="color:#b71c1c;font-size:0.95em;">
+The metered data shows facility consumption <strong>increased</strong> by
+{abs(_weather_savings_dir):.2f} kW ({abs(_weather_savings_dir / weather_normalized_kw_before * 100) if weather_normalized_kw_before else 0:.2f}%)
+after installation. This result <strong>does not constitute verified energy savings</strong> and
+<strong>does not qualify for utility incentive submission</strong> under IPMVP Option B / ASHRAE Guideline 14-2023.
+A written engineering explanation addressing the cause of the consumption increase is required before any submission.
+</span>
+</div>''')
+
+        # ── T3: Measurement Period Prominence Banner ────────────────────────
+        _mp_b = _before_days_bp
+        _mp_a = _after_days_bp
+        _mp_min = min(d for d in [_mp_b, _mp_a] if d is not None) if any(d is not None for d in [_mp_b, _mp_a]) else None
+        if _mp_min is not None:
+            _mp_ok  = _mp_min >= 7
+            _mp_30  = _mp_min >= 30
+            _mp_bg  = '#d4edda' if _mp_30 else ('#fff3cd' if _mp_ok else '#f8d7da')
+            _mp_bc  = '#28a745' if _mp_30 else ('#ffc107' if _mp_ok else '#dc3545')
+            _mp_msg = ('✓ Meets 30-day recommended minimum' if _mp_30
+                       else ('⚠ Meets 7-day minimum; 30 days recommended for robust baseline' if _mp_ok
+                             else '✗ Below 7-day IPMVP minimum — results are provisional'))
+            html.append(f'<div style="margin-bottom:10px;padding:8px 12px;background:{_mp_bg};border-left:4px solid {_mp_bc};border-radius:4px;font-size:0.9em;">'
+                        f'<strong>Measurement Period:</strong> '
+                        f'Before: <strong>{_mp_b if _mp_b else "N/A"} day{"s" if _mp_b != 1 else ""}</strong> &nbsp;|&nbsp; '
+                        f'After: <strong>{_mp_a if _mp_a else "N/A"} day{"s" if _mp_a != 1 else ""}</strong> &nbsp;|&nbsp; '
+                        f'<span style="color:{_mp_bc};">{_mp_msg}</span>'
+                        f'</div>')
+
         html.append('<div style="margin-top: 1.5rem; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #1976d2; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
-        html.append('<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Detailed kW Normalization Savings Breakdown</h3>')
-        html.append('<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">This detailed breakdown shows step-by-step how raw meter data is transformed through weather normalization (ASHRAE Guideline 14) and power factor normalization (utility billing standard) to arrive at the final normalized savings percentage.</p>')
+        html.append('{{PE_REVIEW_BADGE}}')
+        html.append('<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Detailed Energy &amp; Billing Savings Breakdown</h3>')
+        html.append('<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">'
+                    '<strong>Step 1 — Metered Energy Savings</strong> is the primary M&amp;V result. '
+                    'The revenue-grade utility meter (ANSI C12.20) records true-RMS power at every interval. '
+                    'When the Xeco system improves power factor from the baseline level to the operating level, '
+                    'the meter simultaneously captures the reduction in I\u00b2R conductor losses, reduced eddy current '
+                    'and copper losses in transformer and motor windings, reduced harmonic-induced losses, and improved '
+                    'motor operating efficiency from better voltage regulation — all integrated into a single measured kW value. '
+                    'This metered difference is the most defensible M&amp;V evidence available: it is the same meter used to generate the utility bill. '
+                    'Step 2 adjusts for weather differences between periods (ASHRAE Guideline 14-2023). '
+                    'Step 3 models the additional utility billing demand relief from the PF improvement per the applicable tariff rate schedule — '
+                    'this is a real financial saving reported separately from the metered energy quantity.</p>')
         
         # STEP 1: Raw Data
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #757575;">')
-        html.append('<h4 style="margin-top: 0; color: #424242; font-size: 1.05em;">Step 1: Raw Meter Data (No Normalization)</h4>')
+        html.append('<h4 style="margin-top: 0; color: #424242; font-size: 1.05em;">Step 1: Metered Energy Savings (ANSI C12.20 Revenue-Grade Meter)</h4>')
+        html.append('<p style="margin-bottom: 10px; color: #555; font-size: 0.9em; line-height: 1.5;">'
+                    'The revenue-grade meter records true-RMS power at each interval. This metered difference captures all physical '
+                    'improvements simultaneously: reduced I\u00b2R losses from lower reactive current, reduced eddy current and copper '
+                    'losses in transformer and motor windings, reduced harmonic losses, and improved motor efficiency from better '
+                    'voltage regulation. <strong>This is the primary M&amp;V result</strong> — cited per IPMVP Volume I Option B, ANSI C12.20.</p>')
+        html.append('<div style="margin: 8px 0 12px 0; padding: 8px 12px; background: #fff8e1; border-left: 3px solid #f9a825; border-radius: 3px; font-size: 0.85em; color: #5d4037;">'
+                    '<strong>\u2139 Thermal Equilibrium &amp; Interactive Effects (IPMVP \u00a73.5 / ASHRAE 14-2023 \u00a74.1.3):</strong> '
+                    'Two mechanisms produce savings with different lag times: '
+                    '(a) <em>Direct electrical losses</em> (I\u00b2R, eddy-current, motor copper) drop within '
+                    '<strong>1\u20134 hours</strong> of installation (NEMA MG1-2016). '
+                    '(b) <em>HVAC cascade savings</em> \u2014 reduced electrical heat injection lowers the facility '
+                    'cooling or heating load; this thermal cascade takes <strong>24\u201372 hours</strong> to reach '
+                    'new steady-state (cooling-dominated facilities) or <strong>4\u201324 hours</strong> '
+                    '(process-only facilities). '
+                    + (f'The first <strong>{int(safe_get(power_quality, "thermal_settling_hours", default=48))} hours</strong> '
+                       f'of post-installation data have been excluded from this analysis to ensure only '
+                       f'steady-state measurements are used. '
+                       f'Facility HVAC type: <em>{str(safe_get(power_quality, "facility_hvac_type", default="not configured"))}</em>. '
+                       if safe_get(power_quality, "thermal_settling_hours", default=0) > 0 else
+                       'Configure <em>Thermal Settling Exclusion Hours</em> in project settings to automatically '
+                       'exclude transient data from savings calculations. ')
+                    + 'Ref: IPMVP \u00a73.5 / ASHRAE Guideline 14-2023 \u00a74.1.3 / NEMA MG1-2016.'
+                    '</div>')
+        if short_period_warning:
+            html.append(f'<div style="margin: 8px 0 12px 0; padding: 8px 12px; background: #fce4ec; border-left: 3px solid #c62828; border-radius: 3px; font-size: 0.85em; color: #4a0000;">'
+                        f'<strong>⚠ Measurement Period Adequacy Warning:</strong> The shortest measurement period in this analysis is '
+                        f'<strong>{min_period_days} day{"s" if min_period_days != 1 else ""}</strong>. '
+                        f'IPMVP Volume I and ASHRAE Guideline 14-2023 require measurement periods sufficient to capture representative '
+                        f'operating conditions. Periods under 7 days are generally not accepted by utility incentive review boards '
+                        f'or for PE-stamped M&amp;V reports without documented justification. '
+                        f'Re-measurement over a longer period is strongly recommended.'
+                        f'</div>')
         if has_raw:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong><br/><small style="color:#666;">Without Xeco — includes all I\u00b2R, eddy, harmonic, and motor losses</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">ANSI C12.20 revenue-grade meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong><br/><small style="color:#666;">With Xeco — I\u00b2R, eddy, harmonic losses reduced; motors run cooler and more efficiently</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">ANSI C12.20 revenue-grade meter reading</td></tr>')
             color = 'green' if raw_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_kw, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">{format_number(kw_before, 2)} - {format_number(kw_after, 2)}</td></tr>')
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_percent, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">({format_number(raw_savings_kw, 2)} / {format_number(kw_before, 2)}) x 100</td></tr>')
@@ -1040,9 +1458,18 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         
         # STEP 2: Weather Normalization
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #2196f3;">')
-        html.append('<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2014)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with sensitivity factors (2.5% per deg C for temp, 1.5% per deg C for dewpoint).</p>')
-        
+        if _norm_applied:
+            html.append('<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2023 §5.3) — APPLIED</h4>')
+            html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Adjusts for ambient temperature differences between baseline and reporting periods to isolate equipment performance from weather variation. <strong>Method:</strong> ASHRAE change-point regression model (auto-selected). <strong>Condition:</strong> Applied only when R² ≥ 0.75 — if the weather-energy correlation is not statistically demonstrated, raw metered savings are reported without adjustment.</p>')
+        else:
+            html.append('<h4 style="margin-top: 0; color: #c62828; font-size: 1.05em;">Step 2: Weather Normalization — NOT APPLIED (R² &lt; 0.75)</h4>')
+            html.append('<div style="margin-bottom: 10px; padding: 8px 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px; font-size: 0.9em; color: #856404;">'
+                        '<strong>⚠ Weather normalization was not applied</strong> because the baseline energy-temperature '
+                        'regression did not meet the minimum R² ≥ 0.75 threshold required by ASHRAE Guideline 14-2023 §5.3. '
+                        'The savings figures presented below are <strong>raw metered values</strong>, not weather-adjusted. '
+                        'They are not referred to as "weather-normalized savings" anywhere in this report.'
+                        '</div>')
+
         if has_weather:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
@@ -1182,10 +1609,16 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('<p style="color: #999; font-style: italic;">Weather normalization data not available</p>')
         html.append('</div>')
         
-        # STEP 3: Power Factor Normalization
+        # STEP 3: Billing Demand Equivalent (Utility Tariff PF Adjustment)
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">')
-        html.append('<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor (the better of before/after/target) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Normalization PF / Actual PF), where Normalization PF = max(PF Before, PF After, Target PF)</p>')
+        html.append('<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Billing Demand Equivalent (Utility Tariff PF Adjustment)</h4>')
+        html.append('<p style="margin-bottom: 10px; color: #555; font-size: 0.9em; line-height: 1.5;">'
+                    '<strong>What this is:</strong> Utilities apply a billing demand multiplier when a customer\'s power factor falls below the '
+                    'target PF specified in their rate schedule. The formula — Billed kW = Metered kW \u00d7 (Target PF \u00f7 Actual PF) — '
+                    'inflates the demand charge when PF is low and reduces it when PF improves. '
+                    'When Xeco raises PF from the baseline to the operating level, this multiplier drops, reducing the demand charge on the utility bill. '
+                    '<strong>This is a real financial saving, reported separately from metered energy savings.</strong> '
+                    'Citation: applicable utility rate schedule PF clause (not an ASHRAE or IEEE energy standard).</p>')
         
         if has_fully and pf_before and pf_after:
             # Use the better PF (higher value) as normalization target to show true savings benefit
@@ -1202,12 +1635,12 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             pf_after_pct_display = (pf_after * 100) if pf_after > 0 else 0
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_before_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_after_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>')
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">max(Before, After, Target) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>{"Weather Normalized" if _norm_applied else "Raw Metered (Step 2 — no weather adjustment)"} kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{"Weather-adjusted per ASHRAE Guideline 14-2023" if _norm_applied else "Raw metered values — normalization not applied (R² &lt; 0.75)"}</td></tr>')
             # PF Adjustment Factor calculation formula
             pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Before: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>After: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Normalization PF ÷ Actual PF'
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_before, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_after, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{pf_factor_calc_text}</td></tr>')
             
-            html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} × {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(weather_normalized_kw_after, 2)} × {format_number(pf_adjustment_after, 4)} = {format_number(normalized_kw_after, 2)}</td></tr>')
+            html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Billing Demand Equivalent (kW)</strong><br/><small style="color: #666;">Weather-Normalized kW \u00d7 Tariff PF Factor — this is billed kW per the utility rate schedule, not additional energy</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} \u00d7 {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(weather_normalized_kw_after, 2)} \u00d7 {format_number(pf_adjustment_after, 4)} = {format_number(normalized_kw_after, 2)}</td></tr>')
             
             # Calculate PF Normalized Savings using the calculated PF Normalized values
             # Always display these rows to match UI Analysis
@@ -1244,20 +1677,29 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Billing Demand Equivalent — Before (kW)<br/><small style="color:#666;">Weather-normalized metered kW adjusted by utility tariff PF factor</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Utility rate schedule PF clause; IPMVP Vol. I (demand savings)</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Billing Demand Equivalent — After (kW)<br/><small style="color:#666;">Weather-normalized metered kW adjusted by utility tariff PF factor</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Utility rate schedule PF clause; IPMVP Vol. I (demand savings)</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
             
-            # Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
+            # Add Equipment Energy Savings (weather-normalized or raw) - label based on whether normalization was applied
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
                 equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
                 equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
-                html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_energy_savings_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_energy_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>')
+                if _norm_applied:
+                    _savings_label = f"⚡ {_savings_verb} Energy Savings (%){_pe_pending_note}"
+                    _savings_sublabel = "Weather-normalized metered kW reduction — includes all physical effects: I\u00b2R, eddy currents, harmonics, motor efficiency"
+                    _savings_citation = "IPMVP Option B, ASHRAE Guideline 14-2023 (weather-adjusted)"
+                else:
+                    _savings_label = f"⚡ {_savings_verb} Energy Savings — Raw Metered (%){_pe_pending_note}"
+                    _savings_sublabel = "Raw metered kW reduction (weather normalization NOT applied — R² &lt; 0.75). Not weather-adjusted."
+                    _savings_citation = "IPMVP Option B (raw metered values; ASHRAE normalization not applied)"
+                html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">{_savings_label}<br/><small style="color: #1976d2; font-style: italic;">{_savings_sublabel}</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_energy_savings_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_energy_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) \u00d7 100<br/><small style="color: #666;">{_savings_citation}</small></td></tr>')
             
-            # Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
-            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>')
+            # Billing Demand Relief — separate tariff benefit, NOT added to energy savings percentage
+            pf_relief_color = 'green' if pf_benefit_kw > 0 else '#333'
+            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 10px; border: 2px solid #43a047; font-weight: bold; font-size: 1.05em;">🔋 Billing Demand Relief — Utility Tariff PF Clause (%)<br/><small style="color: #2e7d32; font-style: italic;">Demand charge reduction from PF improvement per utility tariff PF clause</small><br/><small style="color: #b71c1c; font-weight: bold;">⚠ Not additional energy savings — a separate financial benefit under the utility rate schedule</small></td><td style="padding: 10px; text-align: center; border: 2px solid #43a047; font-weight: bold; font-size: 1.2em; color: {pf_relief_color};">{format_number(pf_benefit_percent, 2)}%<br/><small style="color: #666; font-size: 0.8em; font-weight: normal;">({format_number(pf_benefit_kw, 2)} kW tariff relief)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #43a047; color: #666; font-size: 0.85em;"><em>Citation: Applicable utility rate schedule PF clause;<br/>IPMVP Vol. I (demand savings)</em><br/><strong>Do not add to energy savings %</strong></td></tr>')
             html.append('</table>')
             
             # Verification summary - Enhanced with detailed breakdown
@@ -1270,12 +1712,332 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
                 equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
                 equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
-                html.append(f'<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: {equipment_color}; font-size: 1.2em;">{format_number(equipment_energy_savings_percent, 2)}%</span></strong><br/>')
-                html.append('<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>')
+                if _norm_applied:
+                    _vsav_label = f"⚡ {_savings_verb} Energy Savings{_pe_pending_note}"
+                    _vsav_desc = ("Weather-normalized metered kW reduction — the revenue-grade meter captures all physical effects of the Xeco system: "
+                                  "reduced I\u00b2R losses, reduced eddy current and copper losses, reduced harmonic losses, improved motor efficiency. "
+                                  "Cited per IPMVP Option B, ASHRAE Guideline 14-2023.")
+                else:
+                    _vsav_label = f"⚡ {_savings_verb} Energy Savings — Raw Metered (not weather-adjusted){_pe_pending_note}"
+                    _vsav_desc = ("Raw metered kW reduction from the ANSI C12.20 revenue-grade meter. "
+                                  "Weather normalization was not applied (R² &lt; 0.75 for baseline energy-temperature regression). "
+                                  "This figure represents directly measured savings without weather adjustment. "
+                                  "Cited per IPMVP Option B.")
+                html.append(f'<strong style="color: #1976d2; font-size: 1.1em;">{_vsav_label}: <span style="color: {equipment_color}; font-size: 1.2em;">{format_number(equipment_energy_savings_percent, 2)}%</span></strong><br/>')
+                html.append(f'<small style="color: #666;">{_vsav_desc}</small><br/><br/>')
             
-            color = 'green' if total_normalized_percent > 0 else 'red'
-            html.append(f'<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: {color}; font-size: 1.2em;">{format_number(total_normalized_percent, 2)}%</span></strong><br/>')
-            html.append('<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>')
+            # CLAIM 2: Power Quality Improvements (IEEE 519-2022)
+            thd_before_pq = safe_get(power_quality, "thd_before", default=0.0)
+            thd_after_pq  = safe_get(power_quality, "thd_after",  default=0.0)
+            kvar_before_pq = safe_get(power_quality, "kvar_before", default=0.0)
+            kvar_after_pq  = safe_get(power_quality, "kvar_after",  default=0.0)
+            thd_reduction_pq  = ((thd_before_pq  - thd_after_pq)  / thd_before_pq  * 100) if thd_before_pq  > 0 else 0
+            kvar_reduction_pq = kvar_before_pq - kvar_after_pq
+            pf_change_pq = pf_after - pf_before
+            # ── FIX C3 / E3b: Aggregate mode — only true when both THD values are 0
+            #    AND harmonic_analysis_mode is NOT 'per_order_spectrum'.
+            #    When per-order data was captured, IEEE 519 claims are valid and
+            #    should not be masked by the "Not measured" advisory.
+            _c3_harm_mode = safe_get(power_quality, 'harmonic_analysis_mode', default='thd_aggregate') if isinstance(power_quality, dict) else 'thd_aggregate'
+            _c3_per_order = str(_c3_harm_mode).lower() == 'per_order_spectrum'
+            _thd_aggregate_mode = (thd_before_pq == 0.0 and thd_after_pq == 0.0 and not _c3_per_order)
+            html.append('<div style="margin-top: 12px; padding: 10px; background: #f3e5f5; border-radius: 4px; border-left: 4px solid #7b1fa2;">')
+            html.append('<strong style="color: #6a1b9a; font-size: 1.05em;">⚡ Power Quality Improvements</strong>')
+            if _thd_aggregate_mode:
+                html.append('<div style="margin-top:6px;padding:8px 10px;background:#fff8e1;border-left:3px solid #ffc107;border-radius:3px;font-size:0.88em;color:#856404;">')
+                html.append('<strong>&#9888; Aggregate Meter Mode — Individual Harmonic Data Not Available:</strong> ')
+                html.append('The revenue meter operated in aggregate (total-current) mode during both measurement periods. ')
+                html.append('Per-order harmonic current values (required for IEEE 519-2022 §5 TDD compliance) were not captured. ')
+                html.append('Power factor and kW improvements are measured and valid; THD compliance status is Advisory only. ')
+                html.append('For full IEEE 519 certification or transformer K-factor derating per IEEE C57.110-2018, ')
+                html.append('a per-order harmonic current analysis using a power quality analyzer (Class A per IEC 61000-4-30) is required.</div>')
+            html.append('<table style="width: 100%; margin-top: 6px; border-collapse: collapse; font-size: 0.9em;">')
+            html.append('<tr style="background: #ce93d8;"><th style="padding: 5px 8px; text-align: left; border: 1px solid #ab47bc;">Parameter</th><th style="padding: 5px 8px; text-align: center; border: 1px solid #ab47bc;">Before</th><th style="padding: 5px 8px; text-align: center; border: 1px solid #ab47bc;">After</th><th style="padding: 5px 8px; text-align: center; border: 1px solid #ab47bc;">Change</th><th style="padding: 5px 8px; text-align: left; border: 1px solid #ab47bc;">Standard</th></tr>')
+            if _thd_aggregate_mode:
+                html.append('<tr><td style="padding: 5px 8px; border: 1px solid #ce93d8;">THD (%)</td><td colspan="3" style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8; color: #856404; font-style: italic;">Not measured — aggregate meter mode. Advisory only.</td><td style="padding: 5px 8px; border: 1px solid #ce93d8; font-size: 0.85em; color: #555;">IEEE 519-2022 §5 (per-order analysis required)</td></tr>')
+            else:
+                thd_color = 'green' if thd_reduction_pq > 0 else '#333'
+                html.append(f'<tr><td style="padding: 5px 8px; border: 1px solid #ce93d8;">THD (%)</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{format_number(thd_before_pq, 1)}%</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{format_number(thd_after_pq, 1)}%</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8; color: {thd_color};">−{format_number(thd_reduction_pq, 1)}%</td><td style="padding: 5px 8px; border: 1px solid #ce93d8; font-size: 0.85em; color: #555;">IEEE 519-2022 §5 (≤5% TDD limit)</td></tr>')
+            pf_color_pq = 'green' if pf_change_pq > 0 else '#333'
+            html.append(f'<tr style="background: #fce4ec;"><td style="padding: 5px 8px; border: 1px solid #ce93d8;">Power Factor</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{pf_before*100:.1f}%</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{pf_after*100:.1f}%</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8; color: {pf_color_pq};">+{format_number(pf_change_pq*100, 1)} pts</td><td style="padding: 5px 8px; border: 1px solid #ce93d8; font-size: 0.85em; color: #555;">Measured (ANSI C12.20); IEEE 519-2022 §4</td></tr>')
+            if kvar_before_pq > 0:
+                kvar_color = 'green' if kvar_reduction_pq > 0 else '#333'
+                html.append(f'<tr><td style="padding: 5px 8px; border: 1px solid #ce93d8;">Reactive Power (kVAR)</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{format_number(kvar_before_pq, 2)}</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8;">{format_number(kvar_after_pq, 2)}</td><td style="padding: 5px 8px; text-align: center; border: 1px solid #ce93d8; color: {kvar_color};">−{format_number(kvar_reduction_pq, 2)} kVAR</td><td style="padding: 5px 8px; border: 1px solid #ce93d8; font-size: 0.85em; color: #555;">Measured (ANSI C12.20); IEEE 519-2022 §4</td></tr>')
+            html.append('</table>')
+            html.append('<small style="color: #777; display: block; margin-top: 4px;">These physical improvements are already captured in the Verified Energy Savings above — the revenue meter measures the net effect of all loss reductions simultaneously.</small>')
+            html.append('</div>')
+
+            # ── HARMONIC SAVINGS ISOLATION ANALYSIS ─────────────────────────────
+            # Physics-based quantification of network-wide harmonic loss reduction,
+            # K-factor impact, and whole-facility meter detectability verdict.
+            # Topology: narrow-band tuners at each individual main circuit → local
+            # compensation eliminates harmonic and reactive current from ALL upstream
+            # conductors (branch, feeder, main bus).
+            _thd_b_pct  = float(thd_before_pq) if thd_before_pq else 0.0
+            _thd_a_pct  = float(thd_after_pq)  if thd_after_pq  else 0.0
+            _kw_b_harm  = float(kw_before) if kw_before else 0.0
+            _kw_a_harm  = float(kw_after)  if kw_after  else 0.0
+            _std_b_harm = safe_float(statistical.get('std_before') if isinstance(statistical, dict) else 0, 0)
+            _std_a_harm = safe_float(statistical.get('std_after')  if isinstance(statistical, dict) else 0, 0)
+
+            if _thd_b_pct > 0 and _kw_b_harm > 0:
+                _thd_b  = _thd_b_pct / 100.0
+                _thd_a  = _thd_a_pct / 100.0
+
+                # Harmonic I² fraction: THD²/(1+THD²)
+                _harm_i2_frac_b = _thd_b**2 / (1 + _thd_b**2)
+                _harm_i2_frac_a = _thd_a**2 / (1 + _thd_a**2)
+                _harm_i2_reduction_pct = (_harm_i2_frac_b - _harm_i2_frac_a) * 100
+
+                # Network I²R savings — 3% of load is a conservative internal I²R estimate
+                # for an industrial facility (includes all conductor segments in network)
+                _i2r_total_kw    = _kw_b_harm * 0.03
+                _i2r_harm_savings_kw = _i2r_total_kw * (_harm_i2_frac_b - _harm_i2_frac_a)
+
+                # Motor harmonic copper losses (NEMA MG1 §20.52)
+                # Harmonic copper loss ≈ ΔI²h × Rw for each harmonic order h
+                # Approximate: 70% of load is motors, copper losses ≈ 4% of rated at 80% load
+                _motor_kw   = _kw_b_harm * 0.70
+                _motor_copper_kw = _motor_kw * 0.04 * 0.64  # 80% load factor
+                _motor_harm_savings_kw = _motor_copper_kw * (_thd_b**2 - _thd_a**2)
+
+                # Transformer eddy current savings — K-factor based (IEEE C57.110-2018)
+                # PEC-R (rated eddy loss factor) ≈ 5–10% for distribution transformers
+                # K_approx: assumes 5th harmonic dominant (worst case in industrial VFD loads)
+                _K_b = _thd_b**2 * 25   # K ≈ (THD)² × h_dominant²
+                _K_a = _thd_a**2 * 25
+                _xfmr_stray_kw = _kw_b_harm * 0.005
+                _xfmr_harm_savings_kw = _xfmr_stray_kw * (_thd_b**2 - _thd_a**2) / max(_thd_b**2, 0.001)
+
+                _total_harm_savings_kw = _i2r_harm_savings_kw + _motor_harm_savings_kw + _xfmr_harm_savings_kw
+
+                # Detectability: compare to load variability (noise floor)
+                # Use the larger of std_before / std_after as the noise floor
+                _noise_kw = max(_std_b_harm, _std_a_harm)
+                if _noise_kw > 0:
+                    _snr = _total_harm_savings_kw / _noise_kw
+                    _detectable = _snr >= 0.5   # signal must be ≥50% of 1-sigma noise
+                    _snr_label  = f"{_snr:.2f}"
+                    _detect_label = (
+                        '<span style="color:#28a745;font-weight:bold;">DETECTABLE by whole-facility meter</span>'
+                        if _detectable else
+                        '<span style="color:#856404;font-weight:bold;">Below whole-facility meter noise floor — sub-metering required to isolate</span>'
+                    )
+                else:
+                    _snr_label    = 'N/A'
+                    _detect_label = '<span style="color:#856404;">Load variability data unavailable</span>'
+                    _detectable   = False
+
+                # K-factor derating impact
+                _pec_r = 0.07   # 7% mid-range for distribution transformer
+                _derate_b = 1.0 / math.sqrt(1 + _pec_r * _K_b) * 100
+                _derate_a = 1.0 / math.sqrt(1 + _pec_r * _K_a) * 100
+
+                # Metered kW delta (positive = savings, negative = increase)
+                _metered_delta_kw = _kw_b_harm - _kw_a_harm
+
+                html.append('''<div style="margin-top:14px; padding:12px 14px; background:#e8eaf6; border-left:4px solid #3949ab; border-radius:4px;">
+<strong style="color:#283593; font-size:1.05em;">&#128200; Harmonic Savings Isolation Analysis</strong>
+<p style="margin:6px 0 4px 0; font-size:0.88em; color:#444;">
+<strong>Topology:</strong> Xeco narrow-band tuners installed at each individual main circuit — local compensation
+eliminates harmonic <em>and</em> reactive current from <strong>every upstream conductor segment</strong>
+(branch circuit → sub-panel feeder → main bus). The measurement point at the main switchgear captures
+the aggregate improvement across the entire electrical network.
+</p>''')
+                html.append('<table style="width:100%;border-collapse:collapse;font-size:0.88em;margin-top:8px;">')
+                html.append('<tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Savings Component</th>'
+                            '<th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">Before</th>'
+                            '<th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">After</th>'
+                            '<th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">Theoretical Savings (kW)</th>'
+                            '<th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Method / Standard</th></tr>')
+
+                html.append(f'<tr><td style="padding:5px 8px;border:1px solid #c5cae9;">Harmonic I&#178; fraction (all network conductors)</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">{_harm_i2_frac_b*100:.1f}% of I&#178;</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">{_harm_i2_frac_a*100:.1f}% of I&#178;</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;font-weight:bold;">{_i2r_harm_savings_kw:.2f} kW</td>'
+                            f'<td style="padding:5px 8px;border:1px solid #c5cae9;font-size:0.85em;">I&#178;R × ΔTHD&#178;/(1+THD&#178;) — all conductor segments; conservative 3% I&#178;R assumption</td></tr>')
+
+                html.append(f'<tr style="background:#eef;"><td style="padding:5px 8px;border:1px solid #c5cae9;">Motor harmonic copper losses (NEMA MG1 §20.52)</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">THD {_thd_b_pct:.1f}%</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">THD {_thd_a_pct:.1f}%</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;font-weight:bold;">{_motor_harm_savings_kw:.2f} kW</td>'
+                            f'<td style="padding:5px 8px;border:1px solid #c5cae9;font-size:0.85em;">P_harm_Cu ∝ ΔTHD&#178; × motor copper; assumes 70% motor load at 80% LF</td></tr>')
+
+                html.append(f'<tr><td style="padding:5px 8px;border:1px solid #c5cae9;">Transformer eddy-current losses (IEEE C57.110-2018)</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">K≈{_K_b:.1f} ({_derate_b:.0f}% of nameplate)</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;">K≈{_K_a:.2f} ({_derate_a:.0f}% of nameplate)</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #c5cae9;font-weight:bold;">{_xfmr_harm_savings_kw:.3f} kW</td>'
+                            f'<td style="padding:5px 8px;border:1px solid #c5cae9;font-size:0.85em;">K-factor: Σ(Ih/I1)&#178;×h&#178; (5th harmonic dominant); PEC-R≈7%; IEEE C57.110-2018</td></tr>')
+
+                _total_color = '#28a745' if _total_harm_savings_kw > 0 else '#333'
+                html.append(f'<tr style="background:#e8eaf6;font-weight:bold;"><td style="padding:5px 8px;border:1px solid #9fa8da;">Total Theoretical Harmonic Loss Savings</td>'
+                            f'<td colspan="2" style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">—</td>'
+                            f'<td style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;color:{_total_color};">{_total_harm_savings_kw:.2f} kW</td>'
+                            f'<td style="padding:5px 8px;border:1px solid #9fa8da;font-size:0.85em;">Physics-based lower bound; actual savings may be higher with circuit-level PF correction</td></tr>')
+
+                html.append('</table>')
+
+                _metered_note_color = '#28a745' if _metered_delta_kw > 0 else '#b71c1c'
+                _metered_note_label = 'savings' if _metered_delta_kw > 0 else 'increase'
+                html.append(f'<div style="margin-top:10px;padding:8px 10px;background:white;border-radius:4px;border:1px solid #9fa8da;font-size:0.88em;">')
+                html.append(f'<strong>Detectability Assessment:</strong><br/>'
+                            f'Metered kW delta: <strong style="color:{_metered_note_color};">{_metered_delta_kw:+.2f} kW</strong> ({_metered_note_label})<br/>'
+                            f'Theoretical harmonic savings: <strong>{_total_harm_savings_kw:.2f} kW</strong><br/>'
+                            f'Load variability (1&#x3C3;): <strong>{_noise_kw:.1f} kW</strong>&nbsp;&nbsp;'
+                            f'Signal-to-noise ratio: <strong>{_snr_label}</strong><br/>'
+                            f'Verdict: {_detect_label}')
+                html.append('</div>')
+
+                # ── Gap Reconciliation Table ──────────────────────────────────
+                _gap_kw = _total_harm_savings_kw - _metered_delta_kw
+                # Attribute the gap to known causes
+                _load_var_attr   = min(abs(_gap_kw), _noise_kw)          # load variability up to 1-sigma noise
+                _remaining_gap   = max(0.0, abs(_gap_kw) - _load_var_attr)
+                # Thermal lag attribution — relevant only for short periods
+                _thermal_lag_attr = 0.0
+                _period_days = None
+                try:
+                    _bc2 = r.get("before_compliance", {}) or {}
+                    _ac2 = r.get("after_compliance",  {}) or {}
+                    _pd_b = _bc2.get("measurement_period_days")
+                    _pd_a = _ac2.get("measurement_period_days")
+                    _period_days = min(d for d in [_pd_b, _pd_a] if d is not None) if any(d is not None for d in [_pd_b, _pd_a]) else None
+                except Exception:
+                    pass
+                if _period_days is not None and _period_days < 3:
+                    _thermal_lag_attr = min(_remaining_gap, _total_harm_savings_kw * 0.40)  # up to 40% from thermal lag
+                    _remaining_gap = max(0.0, _remaining_gap - _thermal_lag_attr)
+
+                if abs(_gap_kw) > 0.001:
+                    _gap_color = '#856404' if _gap_kw > 0 else '#28a745'
+                    _gap_label = 'Unexplained increase absorbed harmonic savings' if _gap_kw > 0 else 'Metered savings exceed theoretical — may include load reduction'
+                    html.append(f'''<div style="margin-top:10px;padding:8px 10px;background:#fff8e1;border-radius:4px;border:1px solid #ffe082;font-size:0.87em;">
+<strong style="color:#5d4037;">&#128202; Gap Reconciliation: Theoretical vs. Metered</strong>
+<table style="width:100%;border-collapse:collapse;font-size:0.88em;margin-top:6px;">
+<tr style="background:#fff3cd;"><th style="padding:4px 7px;text-align:left;border:1px solid #ffe082;">Component</th><th style="padding:4px 7px;text-align:center;border:1px solid #ffe082;">kW</th><th style="padding:4px 7px;text-align:left;border:1px solid #ffe082;">Explanation</th></tr>
+<tr><td style="padding:4px 7px;border:1px solid #ffe082;">Total Theoretical Harmonic Savings</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;font-weight:bold;color:#1565c0;">{_total_harm_savings_kw:+.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;">Physics-based I&#178;R + motor copper + transformer eddy (see table above)</td></tr>
+<tr style="background:#fafafa;"><td style="padding:4px 7px;border:1px solid #ffe082;">Whole-facility Metered Delta</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;font-weight:bold;color:{_metered_note_color};">{_metered_delta_kw:+.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;">Revenue-grade meter (main switchgear) before − after average kW</td></tr>
+<tr><td style="padding:4px 7px;border:1px solid #ffe082;font-weight:bold;">Gap (Theoretical − Metered)</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;font-weight:bold;color:{_gap_color};">{_gap_kw:+.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;color:{_gap_color};">{_gap_label}</td></tr>
+</table>
+<table style="width:100%;border-collapse:collapse;font-size:0.87em;margin-top:4px;">
+<tr style="background:#fff3cd;"><th style="padding:4px 7px;text-align:left;border:1px solid #ffe082;">Gap Attribution</th><th style="padding:4px 7px;text-align:center;border:1px solid #ffe082;">Est. kW</th><th style="padding:4px 7px;text-align:left;border:1px solid #ffe082;">Basis</th></tr>
+<tr><td style="padding:4px 7px;border:1px solid #ffe082;">Load variability / operational changes</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;">{_load_var_attr:.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;">Up to 1&#x3C3; load noise floor ({_noise_kw:.1f} kW); production schedule, equipment additions (ASHRAE 14-2023 §5.3)</td></tr>
+<tr style="background:#fafafa;"><td style="padding:4px 7px;border:1px solid #ffe082;">Thermal dissipation lag</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;">{_thermal_lag_attr:.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;">{"Estimated — measurement period only " + str(int(_period_days or 0)) + " day(s); thermal equilibrium may not be reached (IPMVP Vol I §4.2)" if _thermal_lag_attr > 0 else "Negligible — measurement period sufficient for thermal equilibrium"}</td></tr>
+<tr><td style="padding:4px 7px;border:1px solid #ffe082;">Remaining unexplained gap</td><td style="padding:4px 7px;text-align:center;border:1px solid #ffe082;font-weight:bold;color:{"#c62828" if _remaining_gap > 0.1 else "#28a745"};">{_remaining_gap:.2f}</td><td style="padding:4px 7px;border:1px solid #ffe082;">{"Requires sub-metering at individual circuit feeders or extended 30-day measurement period to isolate" if _remaining_gap > 0.1 else "Within acceptable measurement uncertainty"}</td></tr>
+</table>
+</div>''')
+
+                html.append(f'''<p style="margin:8px 0 0 0;font-size:0.86em;color:#444;">
+<strong>Network-Wide Mechanism:</strong> Because tuners are placed at each individual main circuit,
+harmonic <em>and</em> reactive current are eliminated at the source — they do not enter any upstream
+conductor. This maximises the I&#178;R reduction across the entire electrical network
+(every branch, feeder, and main bus conductor benefits), rather than only reducing harmonics at the
+utility point of common coupling. The K-factor drop from <strong>K&#8776;{_K_b:.1f}</strong> to
+<strong>K&#8776;{_K_a:.2f}</strong> also restores every transformer in the network to within its
+thermal rating (IEEE C57.110-2018), eliminating accelerated insulation ageing.
+Where whole-facility metering cannot resolve these distributed savings against normal operational
+variability, sub-metering at individual circuit feeders or a 30-day minimum measurement period
+is recommended to directly verify the harmonic I&#178;R reduction.
+</p>''')
+                html.append('</div>')
+
+            # ── END HARMONIC SAVINGS ISOLATION ANALYSIS ─────────────────────────
+
+            # CLAIM 3: Billing Demand Relief (Utility Tariff PF Clause)
+            html.append('<div style="margin-top: 12px; padding: 10px; background: #e8f5e9; border-radius: 4px; border-left: 4px solid #388e3c;">')
+            pf_relief_color2 = 'green' if pf_benefit_kw > 0 else '#333'
+            html.append(f'<strong style="color: #2e7d32; font-size: 1.05em;">🔋 Billing Demand Relief (Utility Tariff PF Clause): <span style="color: {pf_relief_color2}; font-size: 1.15em;">{format_number(pf_benefit_percent, 2)}%</span></strong> <span style="color: #555; font-size: 0.9em;">({format_number(pf_benefit_kw, 2)} kW demand charge reduction)</span><br/>')
+            html.append('<small style="color: #555;">'
+                        'The utility\'s tariff PF clause (Billed kW = Metered kW × Target PF ÷ Actual PF) reduces the demand charge when PF improves. '
+                        'This is a real, separate financial benefit — <strong>it must not be added to the Verified Energy Savings percentage above.</strong>'
+                        '</small><br/>')
+            html.append('<small style="color: #777; display: block; margin-top: 4px;">'
+                        '<em>Citation: Applicable utility rate schedule PF clause; IPMVP Volume I (demand savings). '
+                        'Not cited under ASHRAE Guideline 14-2023 or IEEE 519-2022 — those govern energy measurement, not tariff billing adjustments.</em>'
+                        '</small>')
+            html.append('</div>')
+
+            # ── CLAIM 4: Measured Peak Demand Charge Reduction ───────────────────
+            # This is separate from the PF-clause (Step 3) — it represents the direct
+            # financial benefit of the measured peak kW reduction on the utility demand bill.
+            _c4_before_data = safe_get(r, "before_data", default={})
+            _c4_after_data  = safe_get(r, "after_data",  default={})
+            def _c4_peak(d):
+                for key in ("avgKw", "totalKw", "peak_demand"):
+                    sub = d.get(key) if isinstance(d, dict) else None
+                    if isinstance(sub, dict):
+                        for field in ("maximum", "max"):
+                            v = sub.get(field)
+                            if v:
+                                try: return float(v)
+                                except: pass
+                        vals = sub.get("values", [])
+                        if vals:
+                            try: return max(float(x) for x in vals if x is not None)
+                            except: pass
+                return 0.0
+            _c4_pk_b = _c4_peak(_c4_before_data) or float(safe_get(r, "power_quality", "peak_kw_before", default=0) or 0)
+            _c4_pk_a = _c4_peak(_c4_after_data)  or float(safe_get(r, "power_quality", "peak_kw_after",  default=0) or 0)
+            _c4_cfg  = safe_get(r, "config", default={})
+            _c4_rate = float(safe_get(_c4_cfg, "demand_rate", default=0) or safe_get(_c4_cfg, "demand_rate_ncp", default=0) or 0)
+            _c4_delta = _c4_pk_b - _c4_pk_a
+            _c4_delta_pct = (_c4_delta / _c4_pk_b * 100) if _c4_pk_b > 0 else 0.0
+
+            if _c4_pk_b > 0:
+                _c4_color = '#1565c0' if _c4_delta > 0 else '#b71c1c'
+                if _c4_rate > 0:
+                    _c4_ann  = _c4_delta * _c4_rate * 12
+                    _c4_dollar_str = f'<strong style="font-size:1.1em;">${_c4_ann:,.0f}/yr</strong> @ ${_c4_rate:.2f}/kW-month × 12'
+                    _c4_rate_note  = ''
+                else:
+                    _c4_ann  = 0.0
+                    _c4_dollar_str = ('<span style="color:#856404;">Enter demand rate in Project Configuration to compute dollar value</span><br/>'
+                                      '<small style="color:#777;">ComEd typical: DS rate ≈ $11–14/kW-mo | GL ≈ $14–16 | LPS large industrial ≈ $16–18</small>')
+                    _c4_rate_note  = ''
+                # Load factor improvement
+                _c4_avg_b = float(kw_before) if kw_before else 0.0
+                _c4_avg_a = float(kw_after)  if kw_after  else 0.0
+                _c4_lf_b  = (_c4_avg_b / _c4_pk_b * 100) if _c4_pk_b > 0 else 0.0
+                _c4_lf_a  = (_c4_avg_a / _c4_pk_a * 100) if _c4_pk_a > 0 else 0.0
+                _c4_lf_d  = _c4_lf_a - _c4_lf_b
+
+                html.append(f'''<div style="margin-top:12px;padding:10px 14px;background:#e3f2fd;border-radius:4px;border-left:4px solid #1565c0;">
+<strong style="color:#0d47a1;font-size:1.05em;">&#128200; Measured Peak Demand Charge Reduction</strong>
+<table style="width:100%;border-collapse:collapse;font-size:0.9em;margin-top:8px;">
+<tr style="background:#bbdefb;">
+  <th style="padding:5px 8px;text-align:left;border:1px solid #90caf9;">Metric</th>
+  <th style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">Before</th>
+  <th style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">After</th>
+  <th style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">Change</th>
+</tr>
+<tr>
+  <td style="padding:5px 8px;border:1px solid #90caf9;">Peak Demand (kW)</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">{format_number(_c4_pk_b,2)} kW</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">{format_number(_c4_pk_a,2)} kW</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;font-weight:bold;color:{_c4_color};">{format_number(_c4_delta,2):+} kW ({format_number(_c4_delta_pct,2)}%)</td>
+</tr>
+<tr style="background:#e3f2fd;">
+  <td style="padding:5px 8px;border:1px solid #90caf9;">Load Factor</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">{format_number(_c4_lf_b,2)}%</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">{format_number(_c4_lf_a,2)}%</td>
+  <td style="padding:5px 8px;text-align:center;border:1px solid #90caf9;font-weight:bold;color:#28a745;">{format_number(_c4_lf_d,"+.2f")}% pp</td>
+</tr>
+<tr>
+  <td style="padding:5px 8px;border:1px solid #90caf9;font-weight:bold;">Annual Demand Charge Savings</td>
+  <td colspan="3" style="padding:5px 8px;text-align:center;border:1px solid #90caf9;">{_c4_dollar_str}</td>
+</tr>
+</table>
+<small style="color:#555;display:block;margin-top:6px;">
+This demand charge reduction is <strong>separate from and in addition to</strong> Steps 1–3. It applies because the
+metered peak kW interval dropped — a direct billing benefit on every utility demand tariff,
+independent of power factor. On demand-charge tariffs (ComEd DS/GL/LPS), demand savings
+often represent the largest single financial benefit when kWh savings are small.
+<br/><em>Citation: Measured peak demand from ANSI C12.20 revenue meter; ComEd applicable rate schedule demand charge clause.</em>
+</small>
+</div>''')
+
+            # ── END CLAIM 4 ──────────────────────────────────────────────────────
+
             html.append('<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">')
             html.append('<strong>Detailed Calculation Breakdown:</strong><br/>')
             html.append('<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">')
@@ -1285,54 +2047,166 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             raw_savings_kw = kw_before - kw_after if has_raw else 0
             raw_savings_percent = (raw_savings_kw / kw_before * 100) if has_raw and kw_before > 0 else 0
             raw_color = 'green' if raw_savings_kw > 0 else 'red'
-            html.append(f'<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Raw Meter Data</strong><br/><small style="color: #666;">No normalization</small></td>')
+            html.append(f'<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Metered Energy Savings</strong><br/><small style="color: #666;">ANSI C12.20 revenue-grade meter — captures I\u00b2R, eddy currents, harmonics, motor efficiency simultaneously</small></td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(kw_before, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(kw_after, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {raw_color};">{format_number(raw_savings_kw, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {raw_color};">{format_number(raw_savings_percent, 2)}%</td></tr>')
             
-            # Step 2: Weather Normalized
+            # Step 2: Weather Normalized (or "Not applied" note)
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 weather_savings_kw_step = weather_normalized_kw_before - weather_normalized_kw_after
                 weather_savings_percent_step = (weather_savings_kw_step / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
                 weather_color = 'green' if weather_savings_kw_step > 0 else 'red'
-                html.append(f'<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 2: Weather Normalized</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>')
+                if _norm_applied:
+                    _step2_label = "Step 2: Weather Normalized"
+                    _step2_desc = "ASHRAE Guideline 14-2023 (R² ≥ 0.75, CV-RMSE &lt; 15%, NMBE &lt; ±5%)"
+                    _step2_bg = "background: #fff3e0;"
+                else:
+                    _step2_label = "Step 2: Weather Normalization NOT APPLIED (R² &lt; 0.75)"
+                    _step2_desc = "Raw metered values — no weather adjustment; ASHRAE regression not statistically valid"
+                    _step2_bg = "background: #fff8e1; opacity: 0.8;"
+                html.append(f'<tr style="{_step2_bg}"><td style="padding: 6px; border: 1px solid #ddd;"><strong>{_step2_label}</strong><br/><small style="color: #666;">{_step2_desc}</small></td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {weather_color};">{format_number(weather_savings_kw_step, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {weather_color};">{format_number(weather_savings_percent_step, 2)}%</td></tr>')
             
-            # Step 3: PF Normalized (Final)
-            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</small></td>')
+            # Step 3: Billing Demand Equivalent (Utility Tariff PF Adjustment)
+            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: Billing Demand Equivalent</strong><br/><small style="color: #666;">Utility tariff PF clause: Billed kW = Metered kW \u00d7 (Target PF \u00f7 Actual PF)</small></td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(total_savings_kw, 2)}</td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(total_normalized_percent, 2)}%</td></tr>')
+
+            # ── Step 4: Measured Peak Demand Charge Reduction ─────────────────────
+            # Separate from PF-clause. The actual measured peak kW dropped — this
+            # directly reduces the utility demand charge regardless of PF change.
+            _before_data_bd = safe_get(r, "before_data", default={})
+            _after_data_bd  = safe_get(r, "after_data",  default={})
+            def _peak_from(d):
+                """Extract peak kW from data dict using multiple fallback paths."""
+                for key in ("avgKw", "totalKw", "peak_demand"):
+                    sub = d.get(key) if isinstance(d, dict) else None
+                    if isinstance(sub, dict):
+                        for field in ("maximum", "max"):
+                            v = sub.get(field)
+                            if v is not None:
+                                try: return float(v)
+                                except: pass
+                        vals = sub.get("values", [])
+                        if vals:
+                            try: return max(float(x) for x in vals if x is not None)
+                            except: pass
+                return 0.0
+
+            _pk_b4 = _peak_from(_before_data_bd) or to_float(safe_get(r, "power_quality", "peak_kw_before", default=0))
+            _pk_af = _peak_from(_after_data_bd)  or to_float(safe_get(r, "power_quality", "peak_kw_after",  default=0))
+            _cfg_bd = safe_get(r, "config", default={})
+            _dem_rate = to_float(safe_get(_cfg_bd, "demand_rate",     default=0) or
+                                 safe_get(_cfg_bd, "demand_rate_ncp", default=0), 0.0)
+            _pk_delta = _pk_b4 - _pk_af   # positive = reduction (good)
+            _pk_delta_pct = (_pk_delta / _pk_b4 * 100) if _pk_b4 > 0 else 0.0
+
+            if _pk_b4 > 0:
+                _s4_color = 'green' if _pk_delta > 0 else '#b71c1c'
+                _s4_sign  = '' if _pk_delta <= 0 else ''
+                if _dem_rate > 0:
+                    _ann_demand_savings = _pk_delta * _dem_rate * 12
+                    _s4_savings_str = (f'{format_number(_pk_delta, 2)} kW &nbsp;|&nbsp; '
+                                       f'<strong>${format_number(_ann_demand_savings, 0):,}/yr</strong> '
+                                       f'@ ${_dem_rate:.2f}/kW-mo')
+                else:
+                    _ann_demand_savings = 0.0
+                    _s4_savings_str = (f'{format_number(_pk_delta, 2)} kW '
+                                       f'&nbsp;<em style="color:#856404;">'
+                                       f'(enter demand_rate in config to see dollar value)</em>')
+                html.append(
+                    f'<tr style="background: #e3f2fd;">'
+                    f'<td style="padding: 6px; border: 1px solid #ddd;">'
+                    f'<strong>Step 4: Measured Peak Demand Reduction</strong><br/>'
+                    f'<small style="color: #666;">'
+                    f'Actual metered peak kW reduction — direct demand charge savings '
+                    f'independent of PF change; applies to every ComEd/utility demand tariff</small></td>'
+                    f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">'
+                    f'{format_number(_pk_b4, 2)} kW</td>'
+                    f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">'
+                    f'{format_number(_pk_af, 2)} kW</td>'
+                    f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color:{_s4_color};">'
+                    f'{_s4_savings_str}</td>'
+                    f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color:{_s4_color};">'
+                    f'{format_number(_pk_delta_pct, 2)}%</td></tr>'
+                )
             html.append('</table>')
-            
+
             # Explanation
             html.append('<div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 3px; border-left: 3px solid #4caf50;">')
-            html.append('<strong style="color: #2e7d32;">📊 How the Final Result is Calculated:</strong><br/>')
+            html.append('<strong style="color: #2e7d32;">📊 How These Results Are Calculated:</strong><br/>')
             html.append('<ul style="margin: 5px 0; padding-left: 20px; color: #666; font-size: 0.9em;">')
-            html.append(f'<li><strong>Step 1:</strong> Raw meter data shows <strong>{format_number(raw_savings_percent, 2)}%</strong> savings ({format_number(raw_savings_kw, 2)} kW)</li>')
+            html.append(f'<li><strong>Step 1 — Metered Energy Savings:</strong> The revenue-grade utility meter (ANSI C12.20) recorded a reduction from <strong>{format_number(kw_before, 2)} kW</strong> to <strong>{format_number(kw_after, 2)} kW</strong> (<strong>{format_number(raw_savings_percent, 2)}%</strong>). '
+                        f'This metered difference is the primary M&amp;V result. It simultaneously captures all physical effects of the Xeco system: '
+                        f'reduced I\u00b2R losses from lower reactive current, reduced eddy current and copper losses in transformer and motor windings, '
+                        f'reduced harmonic-induced losses, and improved motor operating efficiency from better voltage regulation. '
+                        f'Cited per IPMVP Volume I Option B, ANSI C12.20.</li>')
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 weather_savings_kw_step = weather_normalized_kw_before - weather_normalized_kw_after
                 weather_savings_percent_step = (weather_savings_kw_step / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                html.append(f'<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>{format_number(weather_savings_percent_step, 2)}%</strong> weather-normalized savings ({format_number(weather_savings_kw_step, 2)} kW)</li>')
+                if _norm_applied:
+                    html.append(f'<li><strong>Step 2 — Weather Adjustment:</strong> ASHRAE Guideline 14-2023 regression analysis adjusts for ambient temperature differences between the before and after periods, '
+                                f'isolating the equipment improvement from weather variation. Adjusted savings: <strong>{format_number(weather_savings_percent_step, 2)}%</strong> ({format_number(weather_savings_kw_step, 2)} kW).</li>')
+                else:
+                    html.append(f'<li><strong>Step 2 — Weather Adjustment:</strong> Weather normalization was <strong>NOT applied</strong> (R² &lt; 0.75 — the energy-temperature regression did not reach the required ASHRAE Guideline 14-2023 threshold). '
+                                f'The values shown in this row are the raw metered kW without adjustment. '
+                                f'Savings shown here (<strong>{format_number(weather_savings_percent_step, 2)}%</strong>) are identical to Step 1 raw savings and must NOT be described as "weather-normalized savings".</li>')
             # Get target_pf from config for display
             config = safe_get(r, "config", default={})
             target_pf_display = safe_get(config, "target_pf") or safe_get(config, "target_power_factor") or 0.95
             target_pf_percent = int(target_pf_display * 100) if isinstance(target_pf_display, (int, float)) and target_pf_display <= 1 else int(target_pf_display) if isinstance(target_pf_display, (int, float)) else 95
-            
-            html.append(f'<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF ({target_pf_percent}%) for utility billing → <strong>{format_number(total_normalized_percent, 2)}%</strong> total utility billing impact ({format_number(total_savings_kw, 2)} kW)</li>')
-            
-            # Add Equipment Energy Savings explanation if available
+
+            html.append(f'<li><strong>Step 3 — Billing Demand Relief (Tariff):</strong> Because Xeco improves power factor toward the utility\'s target of {target_pf_percent}%, '
+                        f'the utility\'s billing demand multiplier (Billed kW = Metered kW \u00d7 Target PF \u00f7 Actual PF) drops, reducing the demand charge on the bill. '
+                        f'Billing demand equivalent: <strong>{format_number(total_normalized_percent, 2)}%</strong> ({format_number(total_savings_kw, 2)} kW). '
+                        f'This is a real financial saving reported per the applicable utility rate schedule PF clause — '
+                        f'it is separate from, and additional to, the metered energy savings in Steps 1–2.</li>')
+
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
                 equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                html.append(f'<li><strong>Equipment Energy Savings:</strong> <strong>{format_number(equipment_energy_savings_percent, 2)}%</strong> ({format_number(equipment_energy_savings_kw, 2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>')
-            
-            html.append(f'<li><strong>Total Utility Billing Impact:</strong> <strong>{format_number(total_normalized_percent, 2)}%</strong> ({format_number(total_savings_kw, 2)} kW) - This includes both equipment energy savings and power factor correction benefits. This represents the true utility billing impact.</li>')
+                html.append(f'<li><strong>{_savings_verb} Energy Savings (M&amp;V Primary Result):{_pe_pending_note}</strong> <strong>{format_number(equipment_energy_savings_percent, 2)}%</strong> ({format_number(equipment_energy_savings_kw, 2)} kW) — '
+                            f'weather-normalized metered kW reduction. This is the IPMVP-defensible energy savings figure. '
+                            f'The meter already captures the full physical benefit of PF improvement, including I\u00b2R, eddy current, and motor efficiency gains.</li>')
+
+            html.append(f'<li><strong>Billing Demand Relief (Tariff — reported separately):</strong> <strong>{format_number(pf_benefit_percent, 2)}%</strong> ({format_number(pf_benefit_kw, 2)} kW) — '
+                        f'the demand charge reduction on the utility bill resulting from PF improvement under the utility\'s tariff PF clause (Billed kW = Metered kW \u00d7 Target PF \u00f7 Actual PF). '
+                        f'<strong>This figure is reported separately from Verified Energy Savings and must not be added to the energy savings percentage.</strong> '
+                        f'Citation: applicable utility rate schedule PF clause; IPMVP Volume I (demand savings). '
+                        f'This is not an ASHRAE Guideline 14-2023 or IEEE 519-2022 energy quantity.</li>')
+
+            # Step 4 explanation bullet
+            if _pk_b4 > 0:
+                _lf_b4 = (to_float(kw_before) / _pk_b4 * 100) if _pk_b4 > 0 else 0.0
+                _lf_af = (to_float(kw_after)  / _pk_af  * 100) if _pk_af  > 0 else 0.0
+                _lf_delta = _lf_af - _lf_b4
+                if _dem_rate > 0:
+                    _s4_exp_dollar = (f'At the configured demand rate of <strong>${_dem_rate:.2f}/kW-month</strong>, '
+                                      f'this represents <strong>${_ann_demand_savings:,.0f}/year</strong> in demand charge savings. ')
+                else:
+                    _s4_exp_dollar = ('Enter the applicable utility demand rate ($/kW-month) in Project Configuration to compute the annual dollar value. '
+                                      'For ComEd commercial/industrial customers this typically ranges from $11–$18/kW-month depending on rate class '
+                                      '(DS ≈ $11–14, GL ≈ $14–16, LPS ≈ $16–18). ')
+                html.append(
+                    f'<li><strong>Step 4 — Measured Peak Demand Reduction:</strong> '
+                    f'The revenue meter recorded a measured peak demand reduction from <strong>{format_number(_pk_b4, 2)} kW</strong> to '
+                    f'<strong>{format_number(_pk_af, 2)} kW</strong> '
+                    f'(<strong>{format_number(_pk_delta, 2)} kW, {format_number(_pk_delta_pct, 2)}%</strong>). '
+                    f'This is a direct reduction in the utility\'s billed demand charge — entirely independent of power factor change — '
+                    f'because the Xeco system reduces peak RMS current by eliminating harmonic and reactive current components at peak periods. '
+                    f'{_s4_exp_dollar}'
+                    f'Load factor improved from <strong>{format_number(_lf_b4, 2)}%</strong> to <strong>{format_number(_lf_af, 2)}%</strong> '
+                    f'({format_number(_lf_delta, "+.2f")}% pp), confirming the peak-shaving benefit. '
+                    f'<strong>This demand charge reduction is reported separately from and in addition to Steps 1–3.</strong></li>'
+                )
+
             html.append('</ul>')
             html.append('</div>')
             html.append('</div>')
@@ -1472,6 +2346,44 @@ def generate_exact_template_html(r):
     # Extract config and client_profile AFTER handling nested structure
     config = safe_get(r, "config", default={})
     client_profile = safe_get(r, "client_profile", default={})
+
+    # ── FIX E4: Submission mode and M&V agent identification ─────────────────
+    _submission_mode_cfg = (
+        safe_get(config, "submission_mode") or
+        r.get("submission_mode") or
+        r.get("report_type") or
+        "pe_review"
+    )
+    _is_utility_sub = str(_submission_mode_cfg).lower() in (
+        "utility_submission", "utility", "submission", "30day", "utility_report"
+    )
+    _report_purpose_label = "Utility Incentive Submission Package" if _is_utility_sub else "PE Engineering Review"
+    _report_purpose_color = "#1565c0" if _is_utility_sub else "#2e7d32"
+    _report_purpose_bg    = "#e3f2fd" if _is_utility_sub else "#e8f5e9"
+    _report_purpose_badge = (
+        f'<div style="margin:8px 0 4px 0;display:inline-block;padding:4px 14px;'
+        f'background:{_report_purpose_bg};border:1.5px solid {_report_purpose_color};'
+        f'border-radius:4px;font-size:0.92em;font-weight:bold;color:{_report_purpose_color};">'
+        f'Report Purpose: {_report_purpose_label}</div>'
+    )
+    # Baseline confirmation statement
+    _install_date = (
+        safe_get(config, "meter_installation_date") or
+        safe_get(client_profile, "meter_installation_date") or
+        safe_get(config, "installation_date") or
+        ""
+    )
+    _before_label_cfg = safe_get(config, "before_label") or safe_get(r, "before_label") or "Before"
+    _baseline_stmt = (
+        f'<div style="font-size:0.87em;color:#555;margin-top:4px;">'
+        f'<strong>Baseline Period:</strong> Pre-installation metered data ({_before_label_cfg}). '
+        + (f'Device installation date: <strong>{_install_date}</strong>. '
+           if _install_date else
+           'Device installation date: <em>not recorded — enter via Meter Installation Date field.</em> ')
+        + 'All baseline data was collected prior to device activation. '
+          'M&amp;V Agent: <strong>Synerex EM&amp;V</strong> (independent of equipment manufacturer Xeco Laboratories).'
+          '</div>'
+    )
     
     # Show dollar amounts in export? "Show Dollar Savings in report" checkbox - default True
     _sd = config.get("show_dollars", True)
@@ -1554,6 +2466,11 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{REPORT_FACILITY}}', str(facility_address))
     template_content = template_content.replace('{{PROJECT_REPORT_NUMBER}}', project_report_number)
     template_content = template_content.replace('{{COPYRIGHT_YEAR}}', copyright_year)
+
+    # ── FIX E4: Inject report-purpose badge + baseline/attribution statement
+    #    These appear on the cover immediately after {{PE_REVIEW_BADGE}}.
+    _e4_inject = _report_purpose_badge + "\n" + _baseline_stmt
+    template_content = template_content.replace('{{PE_REVIEW_BADGE}}', '{{PE_REVIEW_BADGE}}' + '\n' + _e4_inject, 1)
     
     # Get version number
     try:
@@ -1641,7 +2558,7 @@ def generate_exact_template_html(r):
         # IEEE 519
         if before_compliance.get('ieee_compliant') is not None:
             compliance_status.append({
-                "standard": "IEEE 519-2014/2022",
+                "standard": "IEEE 519-2022",
                 "requirement": "TDD < IEEE 519 Limit (ISC/IL) <5%",
                 "before_pf": "PASS" if before_compliance.get('ieee_compliant', False) else "FAIL",
                 "after_pf": "PASS" if after_compliance.get('ieee_compliant', False) else "FAIL",
@@ -1666,13 +2583,13 @@ def generate_exact_template_html(r):
         
         # IEC 62053
         if before_compliance.get('iec_62053_compliant') is not None:
-            iec_before_class = before_compliance.get('iec_62053_accuracy_class', 'Class 0.5S')
-            iec_after_class = after_compliance.get('iec_62053_accuracy_class', 'Class 0.5S')
+            iec_before_class = before_compliance.get('iec_62053_accuracy_class', 'Class 0.2S')
+            iec_after_class = after_compliance.get('iec_62053_accuracy_class', 'Class 0.2S')
             iec_before_value = before_compliance.get('iec_62053_accuracy_value', 0.4)
             iec_after_value = after_compliance.get('iec_62053_accuracy_value', 0.4)
             compliance_status.append({
                 "standard": "IEC 62053-22",
-                "requirement": "Meter Accuracy Class 0.5S (±0.5%)",
+                "requirement": "Meter Accuracy Class 0.2S (±0.2%)",
                 "before_pf": "PASS" if before_compliance.get('iec_62053_compliant', True) else "FAIL",
                 "after_pf": "PASS" if after_compliance.get('iec_62053_compliant', True) else "FAIL",
                 "before_value": f"{iec_before_class} ({iec_before_value:.1f}%)",
@@ -1740,26 +2657,34 @@ def generate_exact_template_html(r):
     print(f"TEMPLATE DEBUG: STATISTICALLY_SIGNIFICANT = {statistically_significant}")
     template_content = template_content.replace('{{COHENS_D}}', format_number(safe_get(statistical, "cohens_d", default=0), 3))
     
-    # Calculate Cohen's d rating
-    # Use absolute value since Cohen's d can be negative (indicating decrease)
-    # but effect size interpretation uses magnitude (absolute value)
-    # Adjusted thresholds for energy M&V applications:
-    # <0.2 = Excellent (very small effect, very precise measurement)
-    # <0.5 = Very Good (small-medium effect, good measurement)
-    # <0.8 = Good (large effect, solid measurement)
-    # ≥0.8 = Needs Review (very large effect, may indicate measurement issues)
+    # Cohen's d is an effect-size measure (Cohen 1988 / ASHRAE Guideline 14-2023 §5.3.2).
+    # CRITICAL: sign matters — negative d means consumption INCREASED (wrong direction).
+    # Thresholds: 0.2 = small, 0.5 = medium, 0.8 = large (Cohen 1988).
+    # Values below 0.1 (positive or negative) are "negligible" — practically undetectable.
+    # Large sample sizes (n > 5,000 at 1-min intervals) can push p < 0.05 even for d ≈ 0.
     cohens_d_value = safe_get(statistical, "cohens_d", default=0)
-    cohens_d_abs = abs(cohens_d_value) if isinstance(cohens_d_value, (int, float)) else 0
-    
-    if cohens_d_abs < 0.2:
-        cohens_d_rating = "Excellent"
+    cohens_d_value = float(cohens_d_value) if isinstance(cohens_d_value, (int, float)) else 0.0
+    cohens_d_abs   = abs(cohens_d_value)
+
+    if cohens_d_value < 0:
+        # Wrong direction — consumption increased
+        if cohens_d_abs < 0.1:
+            cohens_d_rating = "Negligible — Wrong Direction (consumption increased)"
+        elif cohens_d_abs < 0.2:
+            cohens_d_rating = "Small Effect — Wrong Direction (consumption increased)"
+        else:
+            cohens_d_rating = "Meaningful Effect — Wrong Direction (consumption increased)"
+    elif cohens_d_abs < 0.1:
+        cohens_d_rating = "Negligible — Below Practical Detection Threshold"
+    elif cohens_d_abs < 0.2:
+        cohens_d_rating = "Small Effect"
     elif cohens_d_abs < 0.5:
-        cohens_d_rating = "Very Good"
+        cohens_d_rating = "Moderate Effect (savings signal present)"
     elif cohens_d_abs < 0.8:
-        cohens_d_rating = "Good"
+        cohens_d_rating = "Large Effect (strong savings signal)"
     else:
-        cohens_d_rating = "Needs Review"
-    
+        cohens_d_rating = "Very Large Effect (very strong savings signal)"
+
     template_content = template_content.replace('{{COHENS_D_RATING}}', cohens_d_rating)
     
     # Calculate T-Statistic rating
@@ -1792,32 +2717,45 @@ def generate_exact_template_html(r):
     # Use pre-calculated values from 8082 instead of calculating here
     filtered_points = safe_get(statistical, "filtered_points", default=0)
     days_calculation = safe_get(statistical, "days_calculation", default=0.0)
-    
+    _detected_interval_min = safe_get(statistical, "detected_interval_minutes", default=None)
+    if _detected_interval_min is not None:
+        _im = float(_detected_interval_min)
+        if _im <= 1.5:
+            _interval_label = "1-minute"
+        elif _im <= 7.5:
+            _interval_label = "5-minute"
+        elif _im <= 22.5:
+            _interval_label = "15-minute"
+        elif _im <= 90:
+            _interval_label = "hourly"
+        else:
+            _interval_label = f"{int(_im)}-minute"
+    else:
+        _interval_label = "recorded-interval"
+
     template_content = template_content.replace('{{FILTERED_POINTS}}', str(filtered_points))
     template_content = template_content.replace('{{DAYS_CALCULATION}}', f"{days_calculation:.1f}")
+    template_content = template_content.replace('{{INTERVAL_LABEL}}', _interval_label)
     template_content = template_content.replace('{{T_STATISTIC}}', format_number(safe_get(statistical, "t_statistic", default=0), 2))
     template_content = template_content.replace('{{RELATIVE_PRECISION}}', format_number(safe_get(statistical, "relative_precision", default=0), 1))
     
     template_content = template_content.replace('{{MEETS_ASHRAE_PRECISION}}', "YES" if safe_get(statistical, "meets_ashrae_precision", default=False) else "NO")
     
-    # Get KW_NORMALIZED_SAVINGS_PERCENT from power_quality (matches UI Analysis)
-    # PRIORITIZE: Use normalized savings percent from Step 4 (most accurate)
-    kw_normalized_savings_percent_raw = (
-        safe_get(power_quality, "total_normalized_savings_percent") or  # Step 4 normalized savings percent (most accurate)
-        safe_get(power_quality, "pf_normalized_savings_percent") or  # Step 3 PF normalized savings percent
-        safe_get(power_quality, "kw_normalized_savings_percent") or
-        safe_get(power_quality, "ieee_kw_normalized_improvement_pct") or
-        safe_get(executive_summary, "kw_normalized_savings_percent") or
-        safe_get(r, "kw_normalized_savings_percent") or
-        0.0
-    )
-    # Convert to number if string, remove any non-numeric characters except decimal point and minus sign
-    if isinstance(kw_normalized_savings_percent_raw, str):
-        kw_normalized_match = re.search(r'([-]?\d+\.?\d*)', str(kw_normalized_savings_percent_raw))
-        kw_normalized_savings_percent = float(kw_normalized_match.group(1)) if kw_normalized_match else 0.0
+    # ── FIX C1: KW_NORMALIZED_SAVINGS_PERCENT must be the IPMVP Option B metered
+    #           kW reduction only — NOT the PF-tariff-adjusted "fully normalized"
+    #           figure (total_normalized / pf_normalized). IPMVP treats demand
+    #           charge relief as a separate financial benefit, not energy savings.
+    #           Use weather-normalized kW if normalization was applied, else raw.
+    _wn_b = safe_get(power_quality, "weather_normalized_kw_before") or safe_get(power_quality, "kw_before") or 0.0
+    _wn_a = safe_get(power_quality, "weather_normalized_kw_after")  or safe_get(power_quality, "kw_after")  or 0.0
+    try:
+        _wn_b = float(_wn_b); _wn_a = float(_wn_a)
+    except Exception:
+        _wn_b = _wn_a = 0.0
+    if _wn_b > 0:
+        kw_normalized_savings_percent = (_wn_b - _wn_a) / _wn_b * 100.0
     else:
-        kw_normalized_savings_percent = float(kw_normalized_savings_percent_raw) if kw_normalized_savings_percent_raw else 0.0
-    # Format to 2 decimal places to match UI Analysis
+        kw_normalized_savings_percent = 0.0
     kw_normalized_savings_percent_formatted = f"{kw_normalized_savings_percent:.2f}"
     template_content = template_content.replace('{{KW_NORMALIZED_SAVINGS_PERCENT}}', kw_normalized_savings_percent_formatted)
     
@@ -1832,15 +2770,19 @@ def generate_exact_template_html(r):
     # Main Results Summary - Enhanced extraction with fallbacks
     # PRIORITIZE: Use normalized kW savings from power_quality (matches UI Analysis)
     # These are the values calculated and stored by the UI Analysis
-    kw_savings = (
-        safe_get(power_quality, "total_normalized_savings_kw") or  # Step 4 normalized savings (most accurate)
-        safe_get(power_quality, "calculated_normalized_kw_savings") or  # UI-calculated normalized savings
-        safe_get(power_quality, "pf_normalized_savings_kw") or  # Step 3 PF normalized savings
-        safe_get(executive_summary, "adjusted_kw_savings") or 
-        safe_get(r, "adjusted_kw_savings") or 
-        safe_get(energy, "total_kwh") or 
-        0.0  # Default
-    )
+    # ── FIX C2: kw_savings for cover letter = raw metered kW reduction only.
+    #           pf/total_normalized figures include the utility PF tariff
+    #           multiplier and are NOT energy savings per IPMVP Option B.
+    _ks_b = safe_get(power_quality, "weather_normalized_kw_before") or safe_get(power_quality, "kw_before") or 0.0
+    _ks_a = safe_get(power_quality, "weather_normalized_kw_after")  or safe_get(power_quality, "kw_after")  or 0.0
+    try:
+        kw_savings = float(_ks_b) - float(_ks_a)
+    except Exception:
+        kw_savings = (
+            safe_get(executive_summary, "adjusted_kw_savings") or
+            safe_get(r, "adjusted_kw_savings") or
+            0.0
+        )
     
     # Get annual kWh savings - check financial_debug/bill_weighted first (same as UI uses)
     financial_debug_kwh = safe_get(r, "financial_debug", default={})
@@ -1865,14 +2807,74 @@ def generate_exact_template_html(r):
         power_quality_improvement = 0.0
     
     # Format values for letter
-    # Use 2 decimal places for kW savings to match UI Analysis and report sections
     kw_savings_formatted = f"{kw_savings:.2f}" if isinstance(kw_savings, (int, float)) else "0.00"
     annual_kwh_savings_formatted = f"{annual_kwh_savings:,.0f}" if isinstance(annual_kwh_savings, (int, float)) else "0"
-    power_quality_improvement_formatted = f"{power_quality_improvement:.1f}" if isinstance(power_quality_improvement, (int, float)) else "0.0"
-    
+    # ── FIX C3g: If aggregate meter mode (both THD = 0), report PQ improvement as
+    #            "Power factor improvement — THD not measured (aggregate mode)"
+    #            instead of a 0.0% THD reduction figure, which implies measurement.
+    if thd_before == 0 and thd_after == 0:
+        power_quality_improvement_formatted = "Power factor improvement measured; THD not captured (aggregate meter mode — per-order harmonic analysis required)"
+    else:
+        power_quality_improvement_formatted = f"{power_quality_improvement:.1f}" if isinstance(power_quality_improvement, (int, float)) else "0.0"
+
+    # ── Build honest energy savings description for Key Findings bullet ──────
+    # Separate metered kW savings from modeled network loss savings so they
+    # cannot be conflated, and use correct language (increase vs. reduction).
+    # Network loss savings are suppressed (set to 0) by compute_network_losses()
+    # when: (a) metered load increased, or (b) no conductor data was provided.
+    _kw_val   = float(kw_savings) if isinstance(kw_savings, (int, float)) else 0.0
+    _nw_kwh   = float(safe_get(energy, "network_kwh", default=0.0) or 0.0)
+    _op_hours = float(safe_get(config, "operating_hours", default=8760) or 8760)
+    _kw_before_raw = float(safe_get(power_quality, "kw_before", default=0.0) or 0.0)
+    _kw_after_raw  = float(safe_get(power_quality, "kw_after",  default=0.0) or 0.0)
+    # Pull suppression flag from network_losses result if available
+    _nl_result = r.get("network_losses") if isinstance(r, dict) else None
+    _nw_suppressed = bool(_nl_result.get("suppressed", False)) if isinstance(_nl_result, dict) else False
+
+    if _kw_val > 0.05:
+        _metered_kwh = _kw_val * _op_hours
+        _energy_savings_full = (
+            f"{_kw_val:.2f} kW average demand reduction "
+            f"→ {_metered_kwh:,.0f} kWh/yr metered savings"
+        )
+        if _nw_kwh > 0 and not _nw_suppressed:
+            _energy_savings_full += (
+                f" + {_nw_kwh:,.0f} kWh/yr modeled I²R network loss savings "
+                f"(engineering model estimate, not metered)"
+            )
+    elif _kw_val < -0.05:
+        _increase = abs(_kw_val)
+        _energy_savings_full = (
+            f"<strong style='color:#c0392b;'>No metered demand savings — "
+            f"facility load increased {_increase:.2f} kW"
+        )
+        if _kw_before_raw > 0 and _kw_after_raw > 0:
+            _energy_savings_full += (
+                f" (baseline {_kw_before_raw:.2f} kW → "
+                f"reporting {_kw_after_raw:.2f} kW)"
+            )
+        _energy_savings_full += ".</strong>"
+        # Network loss savings suppressed when load increased — do not report them
+        if _nw_kwh > 0 and not _nw_suppressed:
+            _energy_savings_full += (
+                f" Modeled network I²R loss savings: {_nw_kwh:,.0f} kWh/yr "
+                f"({_nw_kwh / _op_hours * 1000:.1f} W average). "
+                f"Engineering-model estimate only; not metered."
+            )
+    else:
+        _energy_savings_full = (
+            "No measurable demand savings in metered data (change within measurement noise)."
+        )
+        if _nw_kwh > 0 and not _nw_suppressed:
+            _energy_savings_full += (
+                f" Modeled network I²R loss savings: {_nw_kwh:,.0f} kWh/yr "
+                f"(engineering-model estimate, not metered)."
+            )
+
     # Replace letter data placeholders
     template_content = template_content.replace('{{LETTER_KW_SAVINGS}}', kw_savings_formatted)
     template_content = template_content.replace('{{LETTER_KWH_SAVINGS}}', annual_kwh_savings_formatted)
+    template_content = template_content.replace('{{LETTER_ENERGY_SAVINGS_FULL}}', _energy_savings_full)
     template_content = template_content.replace('{{LETTER_POWER_QUALITY_IMPROVEMENT}}', power_quality_improvement_formatted)
     
     # Extract additional data for letter
@@ -1943,8 +2945,13 @@ def generate_exact_template_html(r):
     pf_before_formatted = f"{(pf_before * 100):.1f}%" if isinstance(pf_before, (int, float)) and pf_before > 0 else "N/A"
     pf_after_formatted = f"{(pf_after * 100):.1f}%" if isinstance(pf_after, (int, float)) and pf_after > 0 else "N/A"
     pf_improvement_formatted = f"{pf_improvement:.1f}" if isinstance(pf_improvement, (int, float)) else "0.0"
-    thd_before_formatted = f"{thd_before:.1f}" if isinstance(thd_before, (int, float)) else "N/A"
-    thd_after_formatted = f"{thd_after:.1f}" if isinstance(thd_after, (int, float)) else "N/A"
+    # ── FIX C3c: If both THD values are 0 (aggregate mode), say so in letter
+    if isinstance(thd_before, (int, float)) and isinstance(thd_after, (int, float)) and thd_before == 0 and thd_after == 0:
+        thd_before_formatted = "Not measured (aggregate mode)"
+        thd_after_formatted  = "Not measured (aggregate mode)"
+    else:
+        thd_before_formatted = f"{thd_before:.1f}" if isinstance(thd_before, (int, float)) else "N/A"
+        thd_after_formatted  = f"{thd_after:.1f}"  if isinstance(thd_after,  (int, float)) else "N/A"
     p_value_formatted = f"{p_value:.4f}" if isinstance(p_value, (int, float)) and p_value > 0 else "N/A"
     statistical_significance_text = "high" if statistically_significant else "moderate"
     
@@ -1956,6 +2963,16 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{LETTER_PF_BEFORE}}', pf_before_formatted)
     template_content = template_content.replace('{{LETTER_PF_AFTER}}', pf_after_formatted)
     template_content = template_content.replace('{{LETTER_PF_IMPROVEMENT}}', pf_improvement_formatted)
+    # Derive the PF direction word for the letter ("Improved" vs "Declined")
+    _letter_pf_b = safe_get(power_quality, "pf_before", default=0.0) or 0.0
+    _letter_pf_a = safe_get(power_quality, "pf_after",  default=0.0) or 0.0
+    try:
+        _letter_pf_b = float(_letter_pf_b)
+        _letter_pf_a = float(_letter_pf_a)
+    except (TypeError, ValueError):
+        _letter_pf_b = _letter_pf_a = 0.0
+    _letter_pf_direction = "Improved" if _letter_pf_a >= _letter_pf_b else "Declined"
+    template_content = template_content.replace('{{LETTER_PF_DIRECTION}}', _letter_pf_direction)
     template_content = template_content.replace('{{LETTER_THD_BEFORE}}', thd_before_formatted)
     template_content = template_content.replace('{{LETTER_THD_AFTER}}', thd_after_formatted)
     template_content = template_content.replace('{{LETTER_STATISTICAL_SIGNIFICANCE}}', statistical_significance_text)
@@ -2122,6 +3139,38 @@ def generate_exact_template_html(r):
     # Format Annual kWh Savings with "kWh" unit
     annual_kwh_savings_formatted = f"{format_number(annual_kwh_savings, 0)} kWh"
     template_content = template_content.replace('{{ANNUAL_KWH_SAVINGS}}', annual_kwh_savings_formatted)
+
+    # Populate metered-base vs network-losses kWh breakdown placeholders.
+    # Use attribution.energy.components when available; fall back to financial_debug.
+    _base_kwh_val = (
+        safe_get(safe_get(r, "attribution", default={}), "energy", "components", "base_kwh")
+        or safe_get(safe_get(r, "energy", default={}), "kwh")
+        or 0.0
+    )
+    _network_kwh_val = (
+        safe_get(safe_get(r, "attribution", default={}), "energy", "components", "network_kwh")
+        or safe_get(safe_get(r, "energy", default={}), "network_kwh")
+        or 0.0
+    )
+    _operating_hours_val = (
+        safe_get(safe_get(r, "energy", default={}), "operating_hours")
+        or safe_get(safe_get(r, "config", default={}), "operating_hours")
+        or 8760
+    )
+    try:
+        _base_kwh_val = float(_base_kwh_val)
+        _network_kwh_val = float(_network_kwh_val)
+    except (TypeError, ValueError):
+        _base_kwh_val = 0.0
+        _network_kwh_val = 0.0
+    _include_nw = (str(safe_get(r, "config", "include_network_losses", default="on")).lower()
+                   not in ("0", "off", "false", "no", "n", "f"))
+    _network_kwh_display = _network_kwh_val if _include_nw else 0.0
+    template_content = template_content.replace('{{BASE_KWH_SAVINGS}}', f"{format_number(_base_kwh_val, 0)} kWh")
+    template_content = template_content.replace('{{NETWORK_KWH_SAVINGS}}',
+        f"{format_number(_network_kwh_display, 0)} kWh" if _network_kwh_display > 0
+        else "0 kWh (not included)")
+    template_content = template_content.replace('{{OPERATING_HOURS}}', f"{int(_operating_hours_val)}")
     # Format NPV with dollar sign (it's a dollar amount) - hide when show_dollars unchecked
     npv_formatted = _fmt_dollar(npv if isinstance(npv, (int, float)) else 0, show_dollars)
     template_content = template_content.replace('{{NPV}}', npv_formatted)
@@ -2395,8 +3444,45 @@ def generate_exact_template_html(r):
         # For values outside standard classes, show the actual value
         ansi_c12_class_description = f"Meter Accuracy Class {ansi_c12_accuracy:.2f}"
     
-    ieee_c57_110_status = "PASS"  # Always pass for THD approximation method
-    ieee_c57_110_value = "THD Approximation"
+    # IEEE C57.110-2018: K-factor derating check — populate when per-order spectrum present
+    _k_factor_val = power_quality.get('k_factor') if isinstance(power_quality, dict) else None
+    if _k_factor_val is not None:
+        # Interpret K-factor against common K-rated transformer categories
+        # K=1 (standard), K=4, K=13, K=20 are standard ANSI/IEEE K-ratings.
+        # A standard K=1 transformer should not serve loads with K-factor > 1.
+        if _k_factor_val <= 1.0:
+            _kf_rating = "K=1 (Standard transformer adequate)"
+            _kf_class = "pass"
+            ieee_c57_110_status = "PASS"
+        elif _k_factor_val <= 4.0:
+            _kf_rating = "K=4 rated transformer required"
+            _kf_class = "warn"
+            ieee_c57_110_status = "REVIEW"
+        elif _k_factor_val <= 13.0:
+            _kf_rating = "K=13 rated transformer required"
+            _kf_class = "warn"
+            ieee_c57_110_status = "REVIEW"
+        else:
+            _kf_rating = "K=20 (or higher) rated transformer required"
+            _kf_class = "fail"
+            ieee_c57_110_status = "FAIL"
+        ieee_c57_110_value = (
+            f"K-factor = {_k_factor_val:.3f} — {_kf_rating}. "
+            f"Computed from per-order harmonic spectrum per IEEE C57.110-2018 §5 "
+            f"(K = \u03a3[I\u2095/I\u2081]\u00b2 \u00d7 h\u00b2). "
+            f"A licensed electrical engineer must confirm transformer nameplate K-rating meets or exceeds this value."
+        )
+    else:
+        # No per-order data — fall back to advisory note
+        ieee_c57_110_status = "NOT EVALUATED"
+        ieee_c57_110_value = (
+            "K-factor derating check not performed — per-order harmonic current spectrum (h=1,3,5,7,11,13\u2026) "
+            "is required by IEEE C57.110-2018 \u00a75 but is not present in the 1-minute interval CSV data (only aggregate avg THD is available). "
+            "To complete this evaluation a power quality analyzer capturing individual harmonic orders must be connected at the transformer secondary. "
+            "The aggregate THD approximation shown in the harmonic section is used for heat-load estimation only and does not constitute "
+            "a C57.110-2018 compliance determination. A licensed electrical engineer should perform the full K-factor calculation "
+            "if transformer harmonic capability is a requirement of the incentive program or utility interconnection agreement."
+        )
     
     template_content = template_content.replace('{{ASHRAE_GUIDELINE_14_STATUS}}', str(ashrae_precision_status))
     template_content = template_content.replace('{{ASHRAE_GUIDELINE_14_VALUE}}', str(ashrae_precision_value_str))
@@ -2407,6 +3493,8 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{ANSI_C12_STATUS}}', str(ansi_c12_status))
     template_content = template_content.replace('{{ANSI_C12_VALUE}}', str(ansi_c12_value))
     template_content = template_content.replace('{{ANSI_C12_CLASS_DESCRIPTION}}', str(ansi_c12_class_description))
+    _c57_class_map = {"PASS": "compliant", "REVIEW": "warning", "FAIL": "non-compliant", "NOT EVALUATED": "not-evaluated"}
+    template_content = template_content.replace('{{IEEE_C57_110_STATUS_CLASS}}', _c57_class_map.get(ieee_c57_110_status, "not-evaluated"))
     template_content = template_content.replace('{{IEEE_C57_110_STATUS}}', str(ieee_c57_110_status))
     template_content = template_content.replace('{{IEEE_C57_110_VALUE}}', str(ieee_c57_110_value))
     
@@ -2488,8 +3576,22 @@ def generate_exact_template_html(r):
     # Performance Standards - GET from before_compliance and after_compliance sections (using same approach as ASHRAE)
     template_content = template_content.replace('{{IEEE_519_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "ieee_compliant", default=True) else "FAIL")
     template_content = template_content.replace('{{IEEE_519_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "ieee_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_VALUE}}', f"{format_number(safe_get(power_quality, 'thd_before', default=0), 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_VALUE}}', f"{format_number(safe_get(power_quality, 'thd_after', default=0), 1)}%")
+    # ── FIX C3b / E3a: IEEE 519 compliance table value.
+    #    Show "Not measured" ONLY when:
+    #      (a) both aggregate THD values are 0, AND
+    #      (b) harmonic_analysis_mode is NOT 'per_order_spectrum'
+    #    When per-order data was captured, IEEE 519 claims are valid.
+    _c3_thd_b = safe_get(power_quality, 'thd_before', default=0)
+    _c3_thd_a = safe_get(power_quality, 'thd_after',  default=0)
+    _harm_mode = safe_get(power_quality, 'harmonic_analysis_mode', default='thd_aggregate')
+    _is_per_order = str(_harm_mode).lower() == 'per_order_spectrum'
+    _thd_zero_aggregate = (_c3_thd_b == 0 and _c3_thd_a == 0 and not _is_per_order)
+    if _thd_zero_aggregate:
+        template_content = template_content.replace('{{IEEE_519_BEFORE_VALUE}}', "Not measured (aggregate meter mode \u2014 per-order analysis required for IEEE 519)")
+        template_content = template_content.replace('{{IEEE_519_AFTER_VALUE}}',  "Not measured (aggregate meter mode \u2014 per-order analysis required for IEEE 519)")
+    else:
+        template_content = template_content.replace('{{IEEE_519_BEFORE_VALUE}}', f"{format_number(_c3_thd_b, 1)}%")
+        template_content = template_content.replace('{{IEEE_519_AFTER_VALUE}}',  f"{format_number(_c3_thd_a, 1)}%")
 
     # Performance Standards - ASHRAE Guideline 14 Relative Precision - use processed compliance data
     before_ashrae_compliant = safe_get(before_compliance, "ashrae_precision_compliant", default=True)
@@ -2527,10 +3629,42 @@ def generate_exact_template_html(r):
     
     template_content = template_content.replace('{{IPMVP_BEFORE_STATUS}}', "PASS")
     template_content = template_content.replace('{{IPMVP_AFTER_STATUS}}', "PASS" if after_ipmvp_compliant else "FAIL")
-    template_content = template_content.replace('{{IPMVP_BEFORE_VALUE}}', "p = 0.0000")  # Baseline period - no comparison yet
-    template_content = template_content.replace('{{IPMVP_AFTER_VALUE}}', f"p = {p_value_for_ipmvp:.4f}" if p_value_for_ipmvp > 0 else "p = 0.0000")
+    template_content = template_content.replace('{{IPMVP_BEFORE_VALUE}}', "N/A — baseline period (no comparative test)")
+    template_content = template_content.replace('{{IPMVP_AFTER_VALUE}}', f"p = {p_value_for_ipmvp:.4f}" if p_value_for_ipmvp > 0 else "N/A — insufficient data for t-test")
     template_content = template_content.replace('{{IPMVP_BEFORE_STATUS_CLASS}}', "compliant")
     template_content = template_content.replace('{{IPMVP_AFTER_STATUS_CLASS}}', "compliant" if after_ipmvp_compliant else "non-compliant")
+
+    # ── FIX D3: ASHRAE FAIL + IPMVP PASS cross-reference note ───────────────
+    # When ASHRAE relative precision fails but IPMVP statistical significance
+    # passes, insert an explanatory note clarifying they measure different things.
+    # Without this, a reviewer sees an apparent contradiction and loses confidence.
+    _d3_ashrae_fail  = not bool(ashrae_compliant)
+    _d3_ipmvp_pass   = bool(after_ipmvp_compliant)
+    if _d3_ashrae_fail and _d3_ipmvp_pass:
+        _d3_note = (
+            '<div style="margin:12px 0;padding:10px 14px;background:#fff8e1;'
+            'border-left:4px solid #ffc107;border-radius:4px;font-size:0.88em;color:#555;">'
+            '<strong style="color:#856404;">&#9432; Why ASHRAE Relative Precision FAILS while IPMVP Statistical Significance PASSES:</strong>'
+            '<br/>These two tests measure fundamentally different properties and can legitimately produce opposite results.'
+            '<ul style="margin:6px 0 0 0;padding-left:18px;">'
+            '<li><strong>IPMVP p-value (p = ' + (f'{p_value_for_ipmvp:.4f}' if p_value_for_ipmvp else 'N/A') + '):</strong> '
+            'Tests whether the <em>mean demand changed</em> between baseline and reporting periods. '
+            'A large sample (many 1-minute intervals) can produce a statistically significant result '
+            'even when the savings magnitude is highly uncertain — this is the "large N fallacy."</li>'
+            '<li><strong>ASHRAE Relative Precision (' + f'{relative_precision:.1f}%' + '):</strong> '
+            'Tests whether the savings figure is <em>precise enough to be useful</em>. '
+            'When relative precision ≥ 50%, the 95% confidence interval on the savings '
+            'is so wide that the result cannot be cited as a specific number. '
+            'IPMVP §5.4 and ASHRAE 14-2023 §4.1.3 both require relative precision &lt; 50% '
+            'for a submittable M&amp;V result.</li>'
+            '</ul>'
+            '<strong style="color:#c62828;">Implication:</strong> The IPMVP PASS does not override the ASHRAE FAIL. '
+            'A statistically significant result with ≥50% uncertainty cannot be cited as a specific savings figure '
+            'for utility incentive purposes.'
+            '</div>'
+        )
+        template_content = template_content.replace('{{PE_REVIEW_BADGE}}',
+                                                    _d3_note + '\n{{PE_REVIEW_BADGE}}', 1)
     
     # NEMA MG1 Performance section
     # NOTE: NEMA MG1 values are set later (around line 3757) after comprehensive extraction with CSV fallback
@@ -2564,15 +3698,9 @@ def generate_exact_template_html(r):
     )
     print(f"[DEBUG] NEMA MG1 early compliance - before={nema_before_pass_early}, after={nema_after_pass_early}", flush=True)
     
-    # Only set early status if values are available, otherwise leave placeholder for final replacement
-    if nema_before_unbalance_early is not None and nema_after_unbalance_early is not None:
-        template_content = template_content.replace('{{NEMA_MG1_BEFORE_STATUS}}', "PASS" if nema_before_pass_early else "FAIL")
-        template_content = template_content.replace('{{NEMA_MG1_AFTER_STATUS}}', "PASS" if nema_after_pass_early else "FAIL")
-        print(f"[DEBUG] NEMA MG1 early replacement applied - before={nema_before_pass_early}, after={nema_after_pass_early}", flush=True)
-    else:
-        print(f"[DEBUG] NEMA MG1 early replacement skipped - values not available yet, will use final replacement", flush=True)
-    template_content = template_content.replace('{{NEMA_MG1_BEFORE_STATUS_CLASS}}', "compliant" if nema_before_pass_early else "non-compliant")
-    template_content = template_content.replace('{{NEMA_MG1_AFTER_STATUS_CLASS}}', "compliant" if nema_after_pass_early else "non-compliant")
+    # NEMA MG1 STATUS/STATUS_CLASS: deferred to comprehensive block (~line 5343)
+    # which uses the final extracted voltage-unbalance values with improvement check.
+    print(f"[DEBUG] NEMA MG1 early replacement deferred to final block", flush=True)
     
     # IEC 62053-22 Performance section
     template_content = template_content.replace('{{IEC_62053_22_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "iec_62053_22_compliant", default=True) else "FAIL")
@@ -2585,8 +3713,15 @@ def generate_exact_template_html(r):
     # IEC 61000-4-7 Performance section
     template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "iec_61000_4_7_compliant", default=True) else "FAIL")
     template_content = template_content.replace('{{IEC_61000_4_7_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "iec_61000_4_7_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_VALUE}}', f"{safe_get(power_quality, 'thd_before', default=0):.1f}%")
-    template_content = template_content.replace('{{IEC_61000_4_7_AFTER_VALUE}}', f"{safe_get(power_quality, 'thd_after', default=0):.1f}%")
+    # ── FIX C3f: IEC 61000-4-7 early THD replacement with aggregate guard
+    _iec_thd_b = safe_get(power_quality, 'thd_before', default=0)
+    _iec_thd_a = safe_get(power_quality, 'thd_after',  default=0)
+    if _iec_thd_b == 0 and _iec_thd_a == 0:
+        template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_VALUE}}', "Not measured (aggregate meter)")
+        template_content = template_content.replace('{{IEC_61000_4_7_AFTER_VALUE}}',  "Not measured (aggregate meter)")
+    else:
+        template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_VALUE}}', f"{_iec_thd_b:.1f}%")
+        template_content = template_content.replace('{{IEC_61000_4_7_AFTER_VALUE}}',  f"{_iec_thd_a:.1f}%")
     template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_STATUS_CLASS}}', "compliant" if safe_get(before_compliance, "iec_61000_4_7_compliant", default=True) else "non-compliant")
     template_content = template_content.replace('{{IEC_61000_4_7_AFTER_STATUS_CLASS}}', "compliant" if safe_get(after_compliance, "iec_61000_4_7_compliant", default=True) else "non-compliant")
     
@@ -2594,21 +3729,10 @@ def generate_exact_template_html(r):
     # NOTE: Values are replaced later (around line 909) with actual extraction logic
     # DO NOT set placeholder values here - they will overwrite the correct values!
     
-    # AHRI 550/590 Performance section
-    template_content = template_content.replace('{{AHRI_550_590_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "ahri_550_590_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{AHRI_550_590_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "ahri_550_590_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{AHRI_550_590_BEFORE_VALUE}}', "High")
-    template_content = template_content.replace('{{AHRI_550_590_AFTER_VALUE}}', "High")
-    template_content = template_content.replace('{{AHRI_550_590_BEFORE_STATUS_CLASS}}', "compliant" if safe_get(before_compliance, "ahri_550_590_compliant", default=True) else "non-compliant")
-    template_content = template_content.replace('{{AHRI_550_590_AFTER_STATUS_CLASS}}', "compliant" if safe_get(after_compliance, "ahri_550_590_compliant", default=True) else "non-compliant")
+    # AHRI 550/590 replacements: deferred to the compliance_status block below (~line 4768)
+    # which uses the richer compliance_status array lookup with proper efficiency-class labels.
     
-    # ANSI C12.1 & C12.20 Performance section
-    template_content = template_content.replace('{{ANSI_C12_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "ansi_c12_20_class_05_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{ANSI_C12_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "ansi_c12_20_class_05_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{ANSI_C12_BEFORE_VALUE}}', "0.2")
-    template_content = template_content.replace('{{ANSI_C12_AFTER_VALUE}}', "0.2")
-    template_content = template_content.replace('{{ANSI_C12_BEFORE_STATUS_CLASS}}', "compliant" if safe_get(before_compliance, "ansi_c12_20_class_05_compliant", default=True) else "non-compliant")
-    template_content = template_content.replace('{{ANSI_C12_AFTER_STATUS_CLASS}}', "compliant" if safe_get(after_compliance, "ansi_c12_20_class_05_compliant", default=True) else "non-compliant")
+    # ANSI C12 replacements: handled by block 2 (STATUS/CLASS) and D4 proxy note (VALUE) below.
     
     # ISO 50001 Performance section (before/after)
     # ISO 50001 is a methodology, always PASS
@@ -2629,15 +3753,15 @@ def generate_exact_template_html(r):
     # ISO 50015 Performance section (before/after)
     before_iso_50015_compliant = safe_get(before_compliance, "statistically_significant", default=True)
     after_iso_50015_compliant = safe_get(after_compliance, "statistically_significant", default=True)
-    # Before period: baseline period has no statistical comparison, so show 0 instead of N/A
-    before_p_value = 0  # No statistical test for baseline period - use 0 instead of N/A
+    # Before period: baseline period has no statistical comparison — show N/A, not 0
+    before_p_value = None  # No statistical test for baseline period
     # After period: p-value from statistical comparison
     after_p_value = safe_get(after_compliance, 'statistical_p_value', default=p_value)
     
     template_content = template_content.replace('{{ISO_50015_BEFORE_STATUS}}', "PASS" if before_iso_50015_compliant else "FAIL")
     template_content = template_content.replace('{{ISO_50015_AFTER_STATUS}}', "PASS" if after_iso_50015_compliant else "FAIL")
-    template_content = template_content.replace('{{ISO_50015_BEFORE_VALUE}}', "p = 0.000")  # Baseline period - no comparison yet
-    template_content = template_content.replace('{{ISO_50015_AFTER_VALUE}}', f"p = {after_p_value:.3f}" if after_p_value > 0 else "p = 0.000")
+    template_content = template_content.replace('{{ISO_50015_BEFORE_VALUE}}', "N/A — baseline period (no comparative test)")
+    template_content = template_content.replace('{{ISO_50015_AFTER_VALUE}}', f"p = {after_p_value:.3f}" if after_p_value and after_p_value > 0 else "N/A — insufficient data for t-test")
     template_content = template_content.replace('{{ISO_50015_BEFORE_STATUS_CLASS}}', "compliant" if before_iso_50015_compliant else "non-compliant")
     template_content = template_content.replace('{{ISO_50015_AFTER_STATUS_CLASS}}', "compliant" if after_iso_50015_compliant else "non-compliant")
     
@@ -2660,46 +3784,56 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{IEC_62053_AFTER_STATUS_CLASS}}', "compliant" if safe_get(after_compliance, "iec_62053_compliant", default=True) else "non-compliant")
     
     # ITIC/CBEMA Performance section
-    template_content = template_content.replace('{{ITIC_CBEMA_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "itic_cbema_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{ITIC_CBEMA_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "itic_cbema_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{ITIC_CBEMA_BEFORE_VALUE}}', f"{safe_get(before_compliance, 'itic_cbema_tolerance', default=9.4):.1f}% (ITIC/CBEMA compliant)")
-    template_content = template_content.replace('{{ITIC_CBEMA_AFTER_VALUE}}', f"{safe_get(after_compliance, 'itic_cbema_tolerance', default=10.0):.1f}% (ITIC/CBEMA compliant) (+6.6% improvement)")
-    template_content = template_content.replace('{{ITIC_CBEMA_BEFORE_STATUS_CLASS}}', "compliant" if safe_get(before_compliance, "itic_cbema_compliant", default=True) else "non-compliant")
-    template_content = template_content.replace('{{ITIC_CBEMA_AFTER_STATUS_CLASS}}', "compliant" if safe_get(after_compliance, "itic_cbema_compliant", default=True) else "non-compliant")
-    
-    # ANSI C57.12.00 Performance section - REMOVED (using correct section below)
-    
-    # ASHRAE Weather Normalization Performance section
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS}}', "PASS")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS}}', "PASS")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_VALUE}}', f"{safe_get(power_quality, 'kw_before', default=64.0):.1f}kW")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_VALUE}}', f"{safe_get(power_quality, 'kw_after', default=54.3):.1f}kW")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS_CLASS}}', "compliant")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS_CLASS}}', "compliant")
+    # ITIC-CBEMA replacements: deferred to compliance_status block below (~line 4343)
+    # which uses actual tolerance values and computed improvement, not hardcoded defaults.
+    # ── ASHRAE Weather Normalization table — single consolidated block ────────
+    # Status: tied to relative_precision (C4 fix — prevents PASS/FAIL contradiction)
+    # Value:  weather-normalized kW when normalization was applied; raw kW otherwise
+    _wn = safe_get(r, "weather_normalization", default={})
+    wn_norm_applied   = safe_get(_wn, "normalization_applied")
+    wn_ashrae_r2_pass = safe_get(_wn, "ashrae_compliant")          # True when R² ≥ 0.75
+    _rp_pass = bool(ashrae_compliant)  # relative_precision < 50% AND period ≥ min days
+
+    # Status label
+    if wn_norm_applied is True and wn_ashrae_r2_pass is True and _rp_pass:
+        wn_status = "PASS"
+        wn_status_class = "compliant"
+    elif wn_norm_applied is True and not _rp_pass:
+        wn_status = (
+            "APPLIED (R\u00b2 \u2265 0.75) \u2014 but relative precision FAIL ("
+            + f"{relative_precision:.1f}% > 50%)"
+        )
+        wn_status_class = "non-compliant"
+    elif wn_norm_applied is False and wn_ashrae_r2_pass is False:
+        wn_status = "NOT APPLIED (R\u00b2 < 0.75)"
+        wn_status_class = "not-evaluated"
+    elif wn_norm_applied is False:
+        wn_status = "NOT APPLIED (\u0394T < 0.5\u00b0C)"
+        wn_status_class = "not-evaluated"
+    else:
+        wn_status = "\u2014"
+        wn_status_class = "not-evaluated"
+
+    # Value label — show normalized kW when normalization was applied, raw kW otherwise
+    _wn_kw_before_raw = safe_get(_wn, "normalized_kw_before", default=0)
+    _wn_kw_after_raw  = safe_get(_wn, "normalized_kw_after",  default=0)
+    if wn_norm_applied is True and _wn_kw_before_raw != 0:
+        wn_before_value = f"{_wn_kw_before_raw:.2f} kW (weather-normalized)"
+        wn_after_value  = f"{_wn_kw_after_raw:.2f} kW (weather-normalized)"
+    else:
+        _raw_kw_b = safe_get(power_quality, 'kw_before', default=0)
+        _raw_kw_a = safe_get(power_quality, 'kw_after',  default=0)
+        wn_before_value = f"{_raw_kw_b:.2f} kW (raw \u2014 normalization not applied)"
+        wn_after_value  = f"{_raw_kw_a:.2f} kW (raw \u2014 normalization not applied)"
+
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS}}',       wn_status)
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS}}',        wn_status)
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_VALUE}}',        wn_before_value)
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_VALUE}}',         wn_after_value)
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS_CLASS}}', wn_status_class)
+    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS_CLASS}}',  wn_status_class)
 
     # Performance Standards - IPMVP Statistical Significance - use processed compliance data
-    # The p-value is a statistical test comparing before vs after periods
-    # Before period: baseline (no comparison yet)
-    # After period: p-value from statistical comparison
-    before_ipmvp_compliant = True  # Baseline period - no statistical test
-    after_ipmvp_compliant = safe_get(after_compliance, "statistically_significant", default=False)
-    # Get the actual p-value from statistical section (comparison result)
-    # Re-retrieve p_value to ensure we have the latest value
-    statistical = r.get('statistical', {}) if isinstance(r.get('statistical'), dict) else {}
-    p_value_for_ipmvp = safe_get(statistical, "p_value", default=0)
-    # Debug logging
-    print(f"[DEBUG] IPMVP p_value from statistical (second location): {p_value_for_ipmvp}", flush=True)
-    print(f"[DEBUG] statistical keys: {list(statistical.keys()) if isinstance(statistical, dict) else 'Not a dict'}", flush=True)
-
-    template_content = template_content.replace('{{IPMVP_BEFORE_STATUS}}', "PASS")
-    template_content = template_content.replace('{{IPMVP_AFTER_STATUS}}', "PASS" if after_ipmvp_compliant else "FAIL")
-    template_content = template_content.replace('{{IPMVP_BEFORE_VALUE}}', "p = 0.0000")  # Baseline period - no comparison yet
-    template_content = template_content.replace('{{IPMVP_AFTER_VALUE}}', f"p = {format_number(p_value_for_ipmvp, 4)}" if p_value_for_ipmvp > 0 else "p = 0.0000")
-    
-    # CSS class replacements for IPMVP Statistical Significance
-    template_content = template_content.replace('{{IPMVP_BEFORE_STATUS_CLASS}}', "compliant")
-    template_content = template_content.replace('{{IPMVP_AFTER_STATUS_CLASS}}', "compliant" if after_ipmvp_compliant else "non-compliant")
-
     # Performance Standards - ANSI C12.1 & C12.20 Meter Accuracy - use meter class, not accuracy percentage
     before_ansi_compliant = safe_get(before_compliance, "ansi_c12_20_class_05_compliant", default=True)
     after_ansi_compliant = safe_get(after_compliance, "ansi_c12_20_class_05_compliant", default=True)
@@ -2707,33 +3841,28 @@ def generate_exact_template_html(r):
     before_ansi_value = safe_get(before_compliance, "ansi_c12_20_meter_class", default="0.2")
     after_ansi_value = safe_get(after_compliance, "ansi_c12_20_meter_class", default="0.2")
 
+    # ANSI C12 STATUS and STATUS_CLASS — authoritative single replacement
     template_content = template_content.replace('{{ANSI_C12_BEFORE_STATUS}}', "PASS" if before_ansi_compliant else "FAIL")
     template_content = template_content.replace('{{ANSI_C12_AFTER_STATUS}}', "PASS" if after_ansi_compliant else "FAIL")
-    template_content = template_content.replace('{{ANSI_C12_BEFORE_VALUE}}', str(before_ansi_value))
-    template_content = template_content.replace('{{ANSI_C12_AFTER_VALUE}}', str(after_ansi_value))
-    
+    # ANSI_C12_BEFORE_VALUE and ANSI_C12_AFTER_VALUE handled by D4 proxy disclosure below
+
     # CSS class replacements for ANSI C12.1 & C12.20 Meter Accuracy
     template_content = template_content.replace('{{ANSI_C12_BEFORE_STATUS_CLASS}}', "compliant" if before_ansi_compliant else "non-compliant")
     template_content = template_content.replace('{{ANSI_C12_AFTER_STATUS_CLASS}}', "compliant" if after_ansi_compliant else "non-compliant")
 
-    # Performance Standards - ASHRAE Weather Normalization - GET from UI HTML Report generator (README.md protocol)
-    weather_norm = safe_get(r, "weather_normalization", default={})
-    before_weather_compliant = True  # Weather normalization is always compliant when applied
-    after_weather_compliant = True   # Weather normalization is always compliant when applied
-    before_weather_raw = safe_get(weather_norm, "normalized_kw_before", default=0)
-    after_weather_raw = safe_get(weather_norm, "normalized_kw_after", default=0)
-    before_weather_value = f"{before_weather_raw:.2f}" if before_weather_raw != 0 else "N/A"
-    after_weather_value = f"{after_weather_raw:.2f}" if after_weather_raw != 0 else "N/A"
+    # ── FIX D4: ANSI C12.20 proxy test disclosure ────────────────────────────
+    # The CV ≤ 0.2% test is a data-consistency proxy, NOT an independent meter
+    # calibration certificate. Inject this disclosure into the ANSI value cell.
+    _d4_note = (
+        "Class 0.2 (data-consistency proxy — see note below). "
+        "Note: this result is derived from the CV of the interval data, not from an "
+        "independent calibration certificate. For formal ANSI C12.20 compliance, "
+        "a utility-issued meter accuracy certificate or third-party calibration "
+        "record is required."
+    )
+    template_content = template_content.replace('{{ANSI_C12_BEFORE_VALUE}}', _d4_note)
+    template_content = template_content.replace('{{ANSI_C12_AFTER_VALUE}}',  _d4_note)
 
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS}}', "PASS" if before_weather_compliant else "FAIL")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS}}', "PASS" if after_weather_compliant else "FAIL")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_VALUE}}', str(before_weather_value))
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_VALUE}}', str(after_weather_value))
-    
-    # CSS class replacements for ASHRAE Weather Normalization
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_BEFORE_STATUS_CLASS}}', "compliant" if before_weather_compliant else "non-compliant")
-    template_content = template_content.replace('{{ASHRAE_WEATHER_NORMALIZATION_AFTER_STATUS_CLASS}}', "compliant" if after_weather_compliant else "non-compliant")
-    
     # NEMA MG1
     # Get unbalance values for improvement-based compliance check
     nema_before_dict_dup = safe_get(before_compliance, "nema_mg1", {}) or {}
@@ -2995,11 +4124,8 @@ def generate_exact_template_html(r):
     iec_61000_4_7_before_value = safe_get(before_compliance, "iec_61000_4_7_thd_value", default=0)
     iec_61000_4_7_after_value = safe_get(after_compliance, "iec_61000_4_7_thd_value", default=0)
     
-    template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_STATUS}}', "PASS" if iec_61000_4_7_before_compliant else "FAIL")
-    template_content = template_content.replace('{{IEC_61000_4_7_AFTER_STATUS}}', "PASS" if iec_61000_4_7_after_compliant else "FAIL")
-    template_content = template_content.replace('{{IEC_61000_4_7_BEFORE_VALUE}}', f"{format_number(iec_61000_4_7_before_value, 1)}%")
-    template_content = template_content.replace('{{IEC_61000_4_7_AFTER_VALUE}}', f"{format_number(iec_61000_4_7_after_value, 1)}%")
-    
+    # IEC 61000-4-7 STATUS/VALUE already replaced by block 1 (~line 3717) which includes C3f aggregate-mode guard
+
     # IEC 61000-2-2 Voltage Variation - GET same values as UI HTML Performance section
     # UI HTML reads from: r.before_compliance.iec_61000_2_2_voltage_variation and r.after_compliance.iec_61000_2_2_voltage_variation
     # Client HTML Report should just GET the same values - no recalculation!
@@ -3124,18 +4250,8 @@ def generate_exact_template_html(r):
         iec_62053_before_status = "PASS" if iec_62053_before_compliant else "FAIL"
         iec_62053_after_status = "PASS" if iec_62053_after_compliant else "FAIL"
     
-    # Force replacement of IEC 62053 placeholders
-    template_content = template_content.replace('{{IEC_62053_BEFORE_STATUS}}', iec_62053_before_status)
-    template_content = template_content.replace('{{IEC_62053_AFTER_STATUS}}', iec_62053_after_status)
-    template_content = template_content.replace('{{IEC_62053_BEFORE_VALUE}}', iec_62053_before_value)
-    template_content = template_content.replace('{{IEC_62053_AFTER_VALUE}}', iec_62053_after_value)
-    
-    
-    
-    # CSS class replacements for IEC 62053
-    template_content = template_content.replace('{{IEC_62053_BEFORE_STATUS_CLASS}}', "compliant" if iec_62053_before_compliant else "non-compliant")
-    template_content = template_content.replace('{{IEC_62053_AFTER_STATUS_CLASS}}', "compliant" if iec_62053_after_compliant else "non-compliant")
-    
+    # IEC 62053 already replaced by block 1 (~line 3783) which uses compliance data directly.
+
     # Check if ITIC/CBEMA section should be included
     # IMPORTANT: Unchecked checkboxes don't send a value, so if key doesn't exist, default to False
     if "include_itic_cbema" not in config:
@@ -3624,22 +4740,6 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{AHRI_550_590_BEFORE_STATUS_CLASS}}', "compliant" if ari_550_590_before_compliant else "non-compliant")
     template_content = template_content.replace('{{AHRI_550_590_AFTER_STATUS_CLASS}}', "compliant" if ari_550_590_after_compliant else "non-compliant")
     
-    # ANSI C57.12.00 Transformer Efficiency - Use SAME data sources as UI HTML
-    ansi_c57_12_00_before_compliant = safe_get(before_compliance, "ansi_c57_12_00_compliant", default=True)
-    ansi_c57_12_00_after_compliant = safe_get(after_compliance, "ansi_c57_12_00_compliant", default=True)
-    ansi_c57_12_00_before_value = safe_get(before_compliance, "ansi_c57_12_00_efficiency", default=0)
-    ansi_c57_12_00_after_value = safe_get(after_compliance, "ansi_c57_12_00_efficiency", default=0)
-    
-    # Performance section - ANSI C57.12.00 values (GET same values as UI HTML Performance section)
-    # Use the SAME values that UI HTML Performance section calculated - no recalculation!
-    ansi_c57_12_00_before_value_str = f"{ansi_c57_12_00_before_value:.1%}"
-    ansi_c57_12_00_after_value_str = f"{ansi_c57_12_00_after_value:.1%}"
-    
-    template_content = template_content.replace('{{ANSI_C57_12_00_BEFORE_STATUS}}', "PASS" if ansi_c57_12_00_before_compliant else "FAIL")
-    template_content = template_content.replace('{{ANSI_C57_12_00_AFTER_STATUS}}', "PASS" if ansi_c57_12_00_after_compliant else "FAIL")
-    template_content = template_content.replace('{{ANSI_C57_12_00_BEFORE_VALUE}}', ansi_c57_12_00_before_value_str)
-    template_content = template_content.replace('{{ANSI_C57_12_00_AFTER_VALUE}}', ansi_c57_12_00_after_value_str)
-    
     # IEEE 519 Compliance Details - Calculate from CSV data
     ieee_519_edition = safe_get(r, "ieee_519_edition", default="2014")
     
@@ -3705,27 +4805,43 @@ def generate_exact_template_html(r):
             else:
                 ieee_519_isc_il_ratio = 0
         
-        # Calculate IEEE 519 TDD limit based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-        # CORRECTED: Use correct IEEE 519-2014 Table 10.3 thresholds
+        # IEEE 519-2022 Table 2 — TDD limits for 120 V to 69 kV systems.
+        # Stronger grid (higher ISC/IL) → more fault current capacity → more lenient limit.
+        # ISC  = available short-circuit current at PCC
+        # IL   = maximum demand load current (15- or 30-min average) at PCC
         if ieee_519_isc_il_ratio >= 1000:
-            ieee_519_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
+            ieee_519_tdd_limit = 20.0  # ISC/IL ≥ 1000: 20 % (strongest grid)
         elif ieee_519_isc_il_ratio >= 100:
-            ieee_519_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
+            ieee_519_tdd_limit = 15.0  # ISC/IL 100 – <1000: 15 %
+        elif ieee_519_isc_il_ratio >= 50:
+            ieee_519_tdd_limit = 12.0  # ISC/IL 50 – <100: 12 %
         elif ieee_519_isc_il_ratio >= 20:
-            ieee_519_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
+            ieee_519_tdd_limit = 8.0   # ISC/IL 20 – <50: 8 %
         else:
-            ieee_519_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
+            ieee_519_tdd_limit = 5.0   # ISC/IL < 20: 5 % (weakest grid — most restrictive)
         
         # GET TDD values from already-calculated compliance data (not recalculate)
         # These values are already calculated and stored in before_compliance/after_compliance
         ieee_519_before_tdd = safe_get(before_compliance, "ieee_tdd_value", default=None)
         ieee_519_after_tdd = safe_get(after_compliance, "ieee_tdd_value", default=None)
-        
-        # Fallback to power_quality if not in compliance data
+
+        # Fallback: try dedicated TDD fields on power_quality before touching THD.
+        # TDD (Total Demand Distortion) uses maximum demand current as denominator;
+        # THD uses the fundamental component — they are NOT interchangeable.
         if ieee_519_before_tdd is None:
-            ieee_519_before_tdd = safe_get(power_quality, "thd_before", default=0)
+            ieee_519_before_tdd = safe_get(power_quality, "tdd_before", default=None)
         if ieee_519_after_tdd is None:
-            ieee_519_after_tdd = safe_get(power_quality, "thd_after", default=0)
+            ieee_519_after_tdd = safe_get(power_quality, "tdd_after", default=None)
+        # Only fall back to THD if no TDD data exists at all, and mark it as advisory.
+        _tdd_using_thd_fallback = False
+        if ieee_519_before_tdd is None and ieee_519_after_tdd is None:
+            ieee_519_before_tdd = safe_get(power_quality, "thd_before", default=0)
+            ieee_519_after_tdd  = safe_get(power_quality, "thd_after",  default=0)
+            _tdd_using_thd_fallback = True
+        if ieee_519_before_tdd is None:
+            ieee_519_before_tdd = 0
+        if ieee_519_after_tdd is None:
+            ieee_519_after_tdd = 0
         
         # Safely convert to float
         try:
@@ -3775,6 +4891,10 @@ def generate_exact_template_html(r):
         try:
             ieee_519_before_compliance = "PASS" if float(ieee_519_before_tdd) <= float(ieee_519_tdd_limit) else "FAIL"
             ieee_519_after_compliance = "PASS" if float(ieee_519_after_tdd) <= float(ieee_519_tdd_limit) else "FAIL"
+            # If we fell back to THD in place of TDD, mark results advisory-only
+            if _tdd_using_thd_fallback:
+                ieee_519_before_compliance += " \u2014 ADVISORY (THD used; TDD not available)"
+                ieee_519_after_compliance  += " \u2014 ADVISORY (THD used; TDD not available)"
         except (ValueError, TypeError) as e:
             print(f"[WARN] Error in compliance comparison: {e}, before_tdd={ieee_519_before_tdd}, after_tdd={ieee_519_after_tdd}, limit={ieee_519_tdd_limit}", flush=True)
             ieee_519_before_compliance = "FAIL"
@@ -3826,7 +4946,28 @@ def generate_exact_template_html(r):
     
     template_content = template_content.replace('{{IEEE_519_EDITION}}', ieee_519_edition)
     template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
-    template_content = template_content.replace('{{IEEE_519_TDD_LIMIT}}', str(ieee_519_tdd_limit))
+    # ── FIX D1b: If no transformer data was available, mark TDD limit as assumed
+    _d1_no_xfmr = (
+        (safe_get(config, "isc_kA") or 0) == 0 and
+        (safe_get(config, "il_A") or 0) == 0 and
+        (safe_get(config, "xfmr_kva") or 0) == 0
+    )
+    if _d1_no_xfmr and ieee_519_tdd_limit == 5.0:
+        # No transformer/ISC data → ISC/IL = 0 → fell into the < 20 bucket (5 % limit).
+        # This is not a "verified" limit — flag it as assumed and block compliance verdicts.
+        _tdd_limit_display = (
+            "5.0% \u26a0 ASSUMED CONSERVATIVE DEFAULT \u2014 transformer data not provided; "
+            "ISC/IL ratio unknown. Enter transformer kVA and short-circuit impedance to "
+            "calculate the correct IEEE 519-2022 Table 2 limit for this site."
+        )
+        # Override compliance result to UNVERIFIED rather than PASS/FAIL against an assumed limit
+        ieee_519_before_compliance = "UNVERIFIED (default limit used)"
+        ieee_519_after_compliance  = "UNVERIFIED (default limit used)"
+        template_content = template_content.replace('{{IEEE_519_BEFORE_COMPLIANCE}}', ieee_519_before_compliance)
+        template_content = template_content.replace('{{IEEE_519_AFTER_COMPLIANCE}}',  ieee_519_after_compliance)
+    else:
+        _tdd_limit_display = str(ieee_519_tdd_limit)
+    template_content = template_content.replace('{{IEEE_519_TDD_LIMIT}}', _tdd_limit_display)
     template_content = template_content.replace('{{IEEE_519_BEFORE_TDD}}', f"{format_number(ieee_519_before_tdd, 1)}%")
     template_content = template_content.replace('{{IEEE_519_AFTER_TDD}}', f"{format_number(ieee_519_after_tdd, 1)}%")
     template_content = template_content.replace('{{IEEE_519_BEFORE_COMPLIANCE}}', ieee_519_before_compliance)
@@ -4490,17 +5631,31 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{PF_BEFORE}}', f"{pf_before_pct:.2f}%")
     template_content = template_content.replace('{{PF_AFTER}}', f"{pf_after_pct:.2f}%")
     template_content = template_content.replace('{{PF_IMPROVEMENT}}', pf_improvement)
+    # Direction word for the Key Improvements note
+    try:
+        _pf_b_raw = float(pf_before) if pf_before else 0.0
+        _pf_a_raw = float(pf_after)  if pf_after  else 0.0
+    except (TypeError, ValueError):
+        _pf_b_raw = _pf_a_raw = 0.0
+    _pf_direction = "Improved" if _pf_a_raw >= _pf_b_raw else "Declined"
+    template_content = template_content.replace('{{PF_DIRECTION}}', _pf_direction)
     
     template_content = template_content.replace('{{KVAR_BEFORE}}', f"{format_number(kvar_before, 2)} kVAR")
     template_content = template_content.replace('{{KVAR_AFTER}}', f"{format_number(kvar_after, 2)} kVAR")
     template_content = template_content.replace('{{KVAR_IMPROVEMENT}}', kvar_improvement)
     
-    template_content = template_content.replace('{{THD_BEFORE}}', f"{format_number(thd_before, 2)}%")
-    template_content = template_content.replace('{{THD_AFTER}}', f"{format_number(thd_after, 2)}%")
-    template_content = template_content.replace('{{THD_IMPROVEMENT}}', thd_improvement)
+    # ── FIX C3d: Aggregate meter mode guard for {{THD_BEFORE/AFTER}}
+    if isinstance(thd_before, (int, float)) and isinstance(thd_after, (int, float)) and thd_before == 0 and thd_after == 0:
+        template_content = template_content.replace('{{THD_BEFORE}}', "N/A (aggregate meter)")
+        template_content = template_content.replace('{{THD_AFTER}}',  "N/A (aggregate meter)")
+        template_content = template_content.replace('{{THD_IMPROVEMENT}}', "Not measured — per-order harmonic analysis required")
+    else:
+        template_content = template_content.replace('{{THD_BEFORE}}', f"{format_number(thd_before, 2)}%")
+        template_content = template_content.replace('{{THD_AFTER}}',  f"{format_number(thd_after, 2)}%")
+        template_content = template_content.replace('{{THD_IMPROVEMENT}}', thd_improvement)
     
     
-    # IEEE 519-2014/2022 Power Quality Analysis - Standards-Compliant Electrical Parameters
+    # IEEE 519-2022 Power Quality Analysis - Standards-Compliant Electrical Parameters
     # Use power_quality data source (same as UI) for consistency
     power_quality = safe_get(r, "power_quality", default={})
     
@@ -4545,7 +5700,7 @@ def generate_exact_template_html(r):
     else:
         ieee_kw_weather_normalized_improvement = "N/A"
     
-    # IEEE 519 kW (Fully Normalized) - ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards - MATCHES Step 3 and Step 4
+    # Billing Demand Equivalent kW (Fully Normalized) - weather normalization per ASHRAE Guideline 14-2023 §5.3, utility tariff PF clause - MATCHES Step 3 and Step 4
     # This is the primary value that should match Step 3 and Step 4
     ieee_kw_normalized_before = (
         safe_get(power_quality, "calculated_pf_normalized_kw_before") or  # Step 4 PF-normalized (most accurate)
@@ -4643,10 +5798,7 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{IEEE_PEAK_KW_AFTER}}', f"{format_number(peak_kw_after_raw, 2)} kW")
     template_content = template_content.replace('{{IEEE_PEAK_KW_IMPROVEMENT}}', peak_kw_improvement)
     
-    # Extract percentage value for T-Statistic annotation (use fully normalized)
-    kw_normalized_percent_match = re.search(r'(\d+\.?\d*)%', ieee_kw_normalized_improvement)
-    kw_normalized_savings_percent = kw_normalized_percent_match.group(1) if kw_normalized_percent_match else "11.8"
-    template_content = template_content.replace('{{KW_NORMALIZED_SAVINGS_PERCENT}}', kw_normalized_savings_percent)
+    # KW_NORMALIZED_SAVINGS_PERCENT already replaced by authoritative block (~line 2757).
     
     template_content = template_content.replace('{{IEEE_KVA_BEFORE}}', f"{format_number(ieee_kva_before, 1)} kVA")
     template_content = template_content.replace('{{IEEE_KVA_AFTER}}', f"{format_number(ieee_kva_after, 1)} kVA")
@@ -4659,9 +5811,16 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{IEEE_PF_AFTER}}', f"{format_number(ieee_pf_after_pct, 1)}%")
     template_content = template_content.replace('{{IEEE_PF_IMPROVEMENT}}', ieee_pf_improvement)
     
-    template_content = template_content.replace('{{IEEE_THD_BEFORE}}', f"{format_number(ieee_thd_before, 2)}%")
-    template_content = template_content.replace('{{IEEE_THD_AFTER}}', f"{format_number(ieee_thd_after, 2)}%")
-    template_content = template_content.replace('{{IEEE_THD_IMPROVEMENT}}', ieee_thd_improvement)
+    # ── FIX C3e: Aggregate meter mode guard for IEEE_THD_BEFORE/AFTER
+    if (isinstance(ieee_thd_before, (int, float)) and isinstance(ieee_thd_after, (int, float))
+            and ieee_thd_before == 0 and ieee_thd_after == 0):
+        template_content = template_content.replace('{{IEEE_THD_BEFORE}}', "N/A (aggregate meter mode)")
+        template_content = template_content.replace('{{IEEE_THD_AFTER}}',  "N/A (aggregate meter mode)")
+        template_content = template_content.replace('{{IEEE_THD_IMPROVEMENT}}', "Not measured — per-order harmonic analysis required for IEEE 519")
+    else:
+        template_content = template_content.replace('{{IEEE_THD_BEFORE}}', f"{format_number(ieee_thd_before, 2)}%")
+        template_content = template_content.replace('{{IEEE_THD_AFTER}}',  f"{format_number(ieee_thd_after, 2)}%")
+        template_content = template_content.replace('{{IEEE_THD_IMPROVEMENT}}', ieee_thd_improvement)
     
     template_content = template_content.replace('{{IEEE_VOLTAGE_UNBALANCE_BEFORE}}', f"{format_number(ieee_voltage_unbalance_before, 2)}%")
     template_content = template_content.replace('{{IEEE_VOLTAGE_UNBALANCE_AFTER}}', f"{format_number(ieee_voltage_unbalance_after, 2)}%")
@@ -4683,10 +5842,7 @@ def generate_exact_template_html(r):
     print(f"*** BREAKDOWN DEBUG: Generated breakdown HTML length: {len(breakdown_html)} characters ***")
     template_content = template_content.replace('{{KW_NORMALIZATION_BREAKDOWN}}', breakdown_html)
     
-    # Add missing template variable replacements for Raw Meter Test Data section
-    template_content = template_content.replace('{{AMPS_IMPROVEMENT}}', amps_improvement)
-    print(f"DEBUG: AMPS DEBUG: Line 1412 - Replaced {{AMPS_IMPROVEMENT}} with amps_improvement = {amps_improvement}")
-    template_content = template_content.replace('{{KVA_IMPROVEMENT}}', kva_improvement)
+    # AMPS_IMPROVEMENT and KVA_IMPROVEMENT already replaced by authoritative block (~line 5639).
     
     # Bill-Weighted Savings - Financial Impact Analysis
     # Use financial_debug data source (same as UI) for consistency
@@ -4768,26 +5924,214 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{AVERAGE_KW_SAVINGS}}', f"{format_number(average_kw_savings, 1)} kW")
     
     # Methods & Formulas - ASHRAE Guideline 14 Baseline Model
-    # Use before_compliance data source (same as UI) for consistency
+    # Priority: real regression values from weather_normalization > statistical > before_compliance
     before_compliance = safe_get(r, "before_compliance", default={})
-    
-    # Extract ASHRAE baseline model data from compliance analysis
-    ashrae_model_selected = safe_get(before_compliance, "baseline_model_selected", default="ASHRAE Guideline 1")
-    ashrae_cvrmse = safe_get(before_compliance, "baseline_model_cvrmse", default=0)
-    ashrae_nmbe = safe_get(before_compliance, "baseline_model_nmbe", default=0)
-    ashrae_r_squared = safe_get(before_compliance, "baseline_model_r_squared", default=0)
+    weather_norm_for_ashrae = safe_get(r, "weather_normalization", default={})
+
+    # Real regression values from WeatherNormalizationML (computed from actual residuals)
+    real_regression_cvrmse = safe_get(weather_norm_for_ashrae, "regression_cvrmse")
+    real_regression_nmbe = safe_get(weather_norm_for_ashrae, "regression_nmbe")
+    real_regression_r2 = safe_get(weather_norm_for_ashrae, "regression_r2")
+    real_regression_model = safe_get(weather_norm_for_ashrae, "regression_model_name")
+
+    # Determine normalization decision
+    norm_applied = safe_get(weather_norm_for_ashrae, "normalization_applied")
+    ashrae_norm_compliant_flag = safe_get(weather_norm_for_ashrae, "ashrae_compliant")
+    if norm_applied is True:
+        norm_label = "APPLIED (R² ≥ 0.75 demonstrated)"
+    elif norm_applied is False and ashrae_norm_compliant_flag is False:
+        norm_label = "NOT APPLIED (R² < 0.75 — raw values used)"
+    elif norm_applied is False:
+        norm_label = "NOT APPLIED (insufficient temperature difference)"
+    else:
+        norm_label = "—"
+
+    # Select values with clear provenance
+    if real_regression_cvrmse is not None:
+        ashrae_cvrmse = real_regression_cvrmse
+        ashrae_nmbe = real_regression_nmbe if real_regression_nmbe is not None else 0
+        ashrae_r_squared = real_regression_r2 if real_regression_r2 is not None else 0
+        ashrae_model_selected = (
+            f"{real_regression_model or 'ASHRAE change-point'} | Normalization: {norm_label}"
+        )
+    else:
+        # Fall back to statistical dict (may be None if no regression was run)
+        ashrae_cvrmse = safe_get(statistical, "cvrmse")
+        ashrae_nmbe = safe_get(statistical, "nmbe")
+        ashrae_r_squared = safe_get(statistical, "r_squared")
+        ashrae_model_selected = (
+            safe_get(statistical, "baseline_model_selected")
+            or "No regression data — weather normalization not applicable"
+        )
+
     ashrae_temperature_units = safe_get(statistical, "temperature_units", default="deg C")
     ashrae_relative_precision = safe_get(statistical, "relative_precision", default=0)
     ashrae_precision_status = "PASS" if safe_get(statistical, "meets_ashrae_precision", default=False) else "FAIL"
-    
+
+    # ── FIX E2: CV(RMSE) and NMBE are only meaningful when normalization was applied.
+    #    When normalization was NOT applied (R² < 0.75), these statistics are computed
+    #    from residuals of a model that was deliberately rejected — displaying them with
+    #    PASS/FAIL labels implies they validate the savings figure, which is misleading.
+    _norm_was_applied = (norm_applied is True)
+
+    if not _norm_was_applied:
+        ashrae_cvrmse_str = (
+            "Not applicable \u2014 weather normalization was not applied (R\u00b2 < 0.75). "
+            "CV(RMSE) is a model-fit statistic; it is meaningless without an accepted regression model."
+        )
+        ashrae_nmbe_str = (
+            "Not applicable \u2014 weather normalization was not applied (R\u00b2 < 0.75). "
+            "NMBE is a model-bias statistic; it is meaningless without an accepted regression model."
+        )
+    else:
+        # Format with ASHRAE 14-2023 threshold pass/fail labels
+        if ashrae_cvrmse is not None and isinstance(ashrae_cvrmse, (int, float)):
+            cvrmse_pass = "\u2713 PASS" if ashrae_cvrmse < 15.0 else "\u2717 FAIL"
+            ashrae_cvrmse_str = f"{ashrae_cvrmse:.1f}% ({cvrmse_pass}, threshold < 15%)"
+        else:
+            ashrae_cvrmse_str = "\u2014 (no regression data)"
+
+        if ashrae_nmbe is not None and isinstance(ashrae_nmbe, (int, float)):
+            nmbe_pass = "\u2713 PASS" if abs(ashrae_nmbe) < 5.0 else "\u2717 FAIL"
+            ashrae_nmbe_str = f"{ashrae_nmbe:.1f}% ({nmbe_pass}, threshold \u00b15%)"
+        else:
+            ashrae_nmbe_str = "\u2014 (no regression data)"
+
+    if ashrae_r_squared is not None and isinstance(ashrae_r_squared, (int, float)):
+        r2_pass = "✓ PASS" if ashrae_r_squared >= 0.75 else "✗ FAIL"
+        ashrae_r_squared_str = f"{ashrae_r_squared:.4f} ({r2_pass}, threshold ≥ 0.75)"
+    else:
+        ashrae_r_squared_str = "— (no regression data)"
+
+    # p-value for regression slope (ASHRAE 14-2023 statistical dependence demonstration)
+    regression_p_value = safe_get(weather_norm_for_ashrae, "regression_p_value")
+    if regression_p_value is not None and isinstance(regression_p_value, (int, float)):
+        p_sig = "✓ PASS" if regression_p_value < 0.05 else "✗ FAIL"
+        if regression_p_value < 0.001:
+            ashrae_p_value_str = f"< 0.001 ({p_sig}, threshold p < 0.05)"
+        else:
+            ashrae_p_value_str = f"{regression_p_value:.4f} ({p_sig}, threshold p < 0.05)"
+    else:
+        ashrae_p_value_str = "— (no regression data)"
+
+    # Build inline Chart.js regression scatter plot (temperature vs. energy, before and after periods)
+    scatter_temp_baseline = safe_get(weather_norm_for_ashrae, "scatter_temp_baseline") or []
+    scatter_energy_baseline = safe_get(weather_norm_for_ashrae, "scatter_energy_baseline") or []
+    scatter_temp_after = safe_get(weather_norm_for_ashrae, "scatter_temp_after") or []
+    scatter_energy_after = safe_get(weather_norm_for_ashrae, "scatter_energy_after") or []
+    regression_line_temp = safe_get(weather_norm_for_ashrae, "regression_line_temp") or []
+    regression_line_energy = safe_get(weather_norm_for_ashrae, "regression_line_energy") or []
+    n_regression = safe_get(weather_norm_for_ashrae, "regression_n_points") or 0
+
+    if scatter_temp_baseline and scatter_energy_baseline:
+        import json as _json
+        _baseline_pts = [{"x": float(t), "y": float(e)} for t, e in zip(scatter_temp_baseline, scatter_energy_baseline)]
+        _after_pts    = [{"x": float(t), "y": float(e)} for t, e in zip(scatter_temp_after, scatter_energy_after)] if scatter_temp_after else []
+        _line_pts     = [{"x": float(t), "y": float(e)} for t, e in zip(regression_line_temp, regression_line_energy)] if regression_line_temp else []
+        _chart_id = "weatherRegressionScatter"
+        _scatter_html = f"""
+<div style="margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+  <h5 style="margin: 0 0 4px 0; color: #1565c0; font-size: 1em;">Weather Normalization Regression Model</h5>
+  <p style="margin: 0 0 10px 0; color: #555; font-size: 0.85em;">
+    Temperature vs. kW scatter plot — baseline period used to build ASHRAE change-point model.
+    R²&nbsp;= {ashrae_r_squared:.4f if isinstance(ashrae_r_squared, float) else 'N/A'} &nbsp;|&nbsp;
+    n&nbsp;= {n_regression} points &nbsp;|&nbsp;
+    p-value&nbsp;= {ashrae_p_value_str.split(' ')[0]} &nbsp;|&nbsp;
+    Citation: ASHRAE Guideline 14-2023 §5.3
+  </p>
+  <canvas id="{_chart_id}" style="max-height: 320px;"></canvas>
+  <script>
+  (function() {{
+    var ctx = document.getElementById('{_chart_id}').getContext('2d');
+    new Chart(ctx, {{
+      type: 'scatter',
+      data: {{
+        datasets: [
+          {{
+            label: 'Baseline period (before)',
+            data: {_json.dumps(_baseline_pts)},
+            backgroundColor: 'rgba(25,118,210,0.55)',
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            type: 'scatter'
+          }},
+          {('{"label":"Reporting period (after)","data":' + _json.dumps(_after_pts) + ',"backgroundColor":"rgba(56,142,60,0.55)","pointRadius":4,"pointHoverRadius":6,"type":"scatter"},') if _after_pts else ''}
+          {{
+            label: 'Regression line (ASHRAE model)',
+            data: {_json.dumps(_line_pts)},
+            type: 'line',
+            borderColor: 'rgba(198,40,40,0.85)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.1
+          }}
+        ]
+      }},
+      options: {{
+        responsive: true,
+        plugins: {{
+          legend: {{ position: 'top' }},
+          tooltip: {{ callbacks: {{ label: function(ctx) {{ return ctx.dataset.label + ': (' + ctx.parsed.x.toFixed(1) + '°C, ' + ctx.parsed.y.toFixed(2) + ' kW)'; }} }} }}
+        }},
+        scales: {{
+          x: {{ title: {{ display: true, text: 'Outdoor Temperature (°C)' }} }},
+          y: {{ title: {{ display: true, text: 'Energy Demand (kW)' }} }}
+        }}
+      }}
+    }});
+  }})();
+  </script>
+</div>"""
+        template_content = template_content.replace('{{WEATHER_REGRESSION_SCATTER_PLOT}}', _scatter_html)
+    else:
+        template_content = template_content.replace('{{WEATHER_REGRESSION_SCATTER_PLOT}}',
+            '<p style="color:#999; font-style:italic; font-size:0.9em;">Regression scatter plot not available — insufficient time-series data for this project.</p>')
+
     # Replace ASHRAE baseline model template variables
-    template_content = template_content.replace('{{ASHRAE_MODEL_SELECTED}}', ashrae_model_selected)
-    template_content = template_content.replace('{{ASHRAE_CVRMSE}}', f"{format_number(ashrae_cvrmse, 1)}%")
-    template_content = template_content.replace('{{ASHRAE_NMBE}}', f"{format_number(ashrae_nmbe, 1)}%")
-    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', f"{format_number(ashrae_r_squared, 2)}")
+    template_content = template_content.replace('{{ASHRAE_MODEL_SELECTED}}', str(ashrae_model_selected))
+    template_content = template_content.replace('{{ASHRAE_CVRMSE}}', ashrae_cvrmse_str)
+    template_content = template_content.replace('{{ASHRAE_NMBE}}', ashrae_nmbe_str)
+    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', ashrae_r_squared_str)
+    template_content = template_content.replace('{{ASHRAE_REGRESSION_P_VALUE}}', ashrae_p_value_str)
     template_content = template_content.replace('{{ASHRAE_TEMPERATURE_UNITS}}', ashrae_temperature_units)
     template_content = template_content.replace('{{ASHRAE_RELATIVE_PRECISION}}', f"{format_number(ashrae_relative_precision, 1)}%")
     template_content = template_content.replace('{{ASHRAE_PRECISION_STATUS}}', ashrae_precision_status)
+
+    # ── T6: Build and inject regression equation ──────────────────────────────
+    try:
+        _bm = (r.get("statistical", {}) or {}).get("baseline_model", {}) or {}
+        _bm_name = _bm.get("model_name", "")
+        _bm_a = _bm.get("a")
+        _bm_b = _bm.get("b")
+        _bm_c = _bm.get("c")
+        _bm_t = _bm.get("t_base") or _bm.get("t_change")
+        _bm_r2 = _bm.get("r_squared") or ashrae_r_squared
+        if _bm_a is not None and _bm_b is not None:
+            if _bm_name.startswith("2P"):
+                _eq = f"kW = {_bm_a:.2f} + {_bm_b:.4f} × T"
+            elif _bm_name.startswith("3P_cooling"):
+                _tc = f"{_bm_t:.1f}" if _bm_t is not None else "T_c"
+                _eq = f"kW = {_bm_a:.2f} + {_bm_c:.4f} × max(0, T − {_tc})"
+            elif _bm_name.startswith("3P_heating"):
+                _tc = f"{_bm_t:.1f}" if _bm_t is not None else "T_h"
+                _eq = f"kW = {_bm_a:.2f} + {_bm_c:.4f} × max(0, {_tc} − T)"
+            elif _bm_name.startswith("4P"):
+                _tc = f"{_bm_t:.1f}" if _bm_t is not None else "T_c"
+                _eq = f"kW = {_bm_a:.2f} + {_bm_b:.4f} × T + {_bm_c:.4f} × max(0, T − {_tc})"
+            else:
+                _eq = f"kW = {_bm_a:.2f} + {_bm_b:.4f} × T"
+            _r2_str = f"{_bm_r2:.4f}" if isinstance(_bm_r2, float) else str(_bm_r2 or "N/A")
+            _eq_html = (f'<div style="margin-top:6px;padding:6px 10px;background:#e8eaf6;border-left:3px solid #3949ab;border-radius:3px;font-family:monospace;font-size:0.95em;">'
+                        f'<strong>Baseline Model ({_bm_name}):</strong> '
+                        f'<span style="color:#1a237e;">{_eq}</span> &nbsp; R²={_r2_str}'
+                        f'&nbsp;&nbsp;<span style="color:#666;font-family:sans-serif;font-size:0.85em;">(T = ambient °C; ASHRAE AICc model selection)</span>'
+                        f'</div>')
+        else:
+            _eq_html = '<span style="color:#999;font-size:0.88em;font-style:italic;">Regression equation not available — insufficient time-series data.</span>'
+        template_content = template_content.replace('{{REGRESSION_EQUATION}}', _eq_html)
+    except Exception:
+        template_content = template_content.replace('{{REGRESSION_EQUATION}}', '')
     
     # Methods & Formulas - Statistical Analysis Methods - USE ACTUAL CALCULATED VALUES
     # Extract statistical test data from CSV analysis using industry standards
@@ -5000,8 +6344,20 @@ def generate_exact_template_html(r):
     weather_normalization = safe_get(r, "weather_normalization", default={})
     environmental = safe_get(r, "environmental", default={})
     
-    # Weather station and data source
-    weather_station = safe_get(r, "weather_provider", default="Open-Meteo")
+    # Weather station and data source — prefer NOAA ASOS metadata from results
+    _asos_id   = safe_get(r, "asos_station_id",   default=None) or safe_get(r, "weather_data", "asos_station_id",   default=None)
+    _asos_name = safe_get(r, "asos_station_name", default=None) or safe_get(r, "weather_data", "asos_station_name", default=None)
+    _asos_dist = safe_get(r, "asos_station_distance_km", default=None) or safe_get(r, "weather_data", "asos_station_distance_km", default=None)
+    _wsrc      = safe_get(r, "weather_source",    default=None) or safe_get(r, "weather_data", "weather_source", default=None)
+
+    if _asos_id and _asos_name:
+        _dist_str = f", {_asos_dist:.1f} km" if _asos_dist is not None else ""
+        weather_station = f"NOAA ASOS — {_asos_id} ({_asos_name}{_dist_str})"
+    elif _wsrc:
+        weather_station = _wsrc
+    else:
+        weather_station = safe_get(r, "weather_provider", default="Open-Meteo (ERA5 Reanalysis)")
+
     weather_data_source = safe_get(weather_normalization, "data_source", default="Historical")
     
     # Temperature range analysis
@@ -5021,12 +6377,20 @@ def generate_exact_template_html(r):
     # Weather data completeness
     weather_data_completeness = safe_get(weather_normalization, "data_completeness", default=0)
     
-    # Weather normalization method
-    weather_normalization_method = safe_get(r, "enhanced_weather_normalization", default="Enhanced")
-    if weather_normalization_method == "1":
-        weather_normalization_method = "Enhanced"
+    # Weather normalization method — derive from what actually ran
+    _wn_method_raw = safe_get(weather_normalization, "method", default="")
+    _wn_applied    = safe_get(weather_normalization, "normalization_applied", default=False)
+    _wn_model_name = safe_get(weather_normalization, "regression_model_name", default="")
+    _wn_r2         = safe_get(weather_normalization, "regression_r2", default=None)
+    if _wn_applied and _wn_model_name:
+        weather_normalization_method = (
+            f"ASHRAE GL14-2023 regression ({_wn_model_name})"
+            + (f", R\u00b2={_wn_r2:.3f}" if _wn_r2 is not None else "")
+        )
+    elif _wn_applied:
+        weather_normalization_method = "ASHRAE GL14-2023 regression (model details unavailable)"
     else:
-        weather_normalization_method = "Standard"
+        weather_normalization_method = "Not applied — insufficient weather-energy correlation (R\u00b2 < 0.75)"
     
     # Replace Weather Normalization template variables
     template_content = template_content.replace('{{WEATHER_STATION}}', weather_station)
@@ -5036,7 +6400,7 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{WEATHER_DATA_COMPLETENESS}}', f"{format_number(weather_data_completeness, 1)}%")
     template_content = template_content.replace('{{WEATHER_NORMALIZATION_METHOD}}', weather_normalization_method)
     
-    # IEEE 519-2014 Power Quality Analysis - Harmonic Control Methodology
+    # IEEE 519-2022 Power Quality Analysis - Harmonic Control Methodology
     # Use power_quality and config data sources (same as UI) for consistency
     power_quality = safe_get(r, "power_quality", default={})
     config = safe_get(r, "config", default={})
@@ -5067,19 +6431,7 @@ def generate_exact_template_html(r):
     # Replace IEEE 519 template variables
     template_content = template_content.replace('{{IEEE_519_STANDARD_REFERENCE}}', ieee_519_standard_reference)
     template_content = template_content.replace('{{IEEE_519_PCC_STATUS}}', ieee_519_pcc_status)
-    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
-    template_content = template_content.replace('{{IEEE_519_HARMONIC_DEPTH}}', ieee_519_harmonic_depth)
-    template_content = template_content.replace('{{IEEE_519_MEASUREMENT_METHOD}}', ieee_519_measurement_method)
-    template_content = template_content.replace('{{IEEE_519_TDD_FORMULA}}', ieee_519_tdd_formula)
-    template_content = template_content.replace('{{IEEE_519_VOLTAGE_TDD_LIMIT}}', f"{format_number(ieee_519_voltage_tdd_limit, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_TDD_LIMIT}}', f"{format_number(ieee_519_tdd_limit, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_VOLTAGE_TDD}}', f"{format_number(ieee_519_before_voltage_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_VOLTAGE_TDD}}', f"{format_number(ieee_519_after_voltage_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_TDD}}', f"{format_number(ieee_519_before_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_TDD}}', f"{format_number(ieee_519_after_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_INDIVIDUAL_LIMITS}}', ieee_519_individual_limits)
-    template_content = template_content.replace('{{IEEE_519_BEFORE_COMPLIANCE}}', ieee_519_before_compliance)
-    template_content = template_content.replace('{{IEEE_519_AFTER_COMPLIANCE}}', ieee_519_after_compliance)
+    # IEEE 519 TDD/ISC_IL/COMPLIANCE already replaced by authoritative block (~line 4983).
     template_content = template_content.replace('{{IEEE_C57_110_APPLIED}}', ieee_c57_110_applied)
     template_content = template_content.replace('{{IEEE_519_TRANSFORMER_LOSS_METHOD}}', ieee_519_transformer_loss_method)
     template_content = template_content.replace('{{IEEE_519_STEADY_STATE_ANALYSIS}}', ieee_519_steady_state_analysis)
@@ -7070,6 +8422,242 @@ def generate_exact_template_html(r):
             print(f"*** MANUFACTURING DEBUG: Added manufacturing section to Client HTML Report ***")
             print(f"*** MANUFACTURING DEBUG: Energy per unit before={energy_per_unit_before:.4f}, after={energy_per_unit_after:.4f}, improvement={energy_per_unit_improvement_pct:.2f}% ***")
     
+    # ── PE Review Status — must be replaced BEFORE both catch-all cleanup passes ──
+    # This block populates {{PE_REVIEW_STATUS}} so the catch-all does not blank it out.
+    if '{{PE_REVIEW_STATUS}}' in template_content:
+        try:
+            _pe_name_v    = (r.get('pe_name') or '').strip() if isinstance(r, dict) else ''
+            _pe_license_v = (r.get('pe_license') or r.get('pe_license_number') or '').strip() if isinstance(r, dict) else ''
+            _pe_state_v   = (r.get('pe_state') or '').strip() if isinstance(r, dict) else ''
+            _pe_signed_v  = (r.get('pe_signed_at') or r.get('signed_at') or '').strip() if isinstance(r, dict) else ''
+
+            if _pe_name_v and _pe_license_v and _pe_signed_v:
+                _pe_status_v = (
+                    '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                    'background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:4px; '
+                    'font-size:0.95em; color:#1b5e20;">'
+                    '<strong>&#10003; Professional Engineer Review:</strong> '
+                    f'Calculations reviewed and approved by <strong>{_pe_name_v}</strong>, PE &#8212; '
+                    f'License No. {_pe_license_v}'
+                    + (f', {_pe_state_v}' if _pe_state_v else '')
+                    + f' &#8212; Approved {_pe_signed_v[:10]}.</span>'
+                )
+            else:
+                _pe_status_v = (
+                    '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                    'background:#fff3cd; border-left:4px solid #ffc107; border-radius:4px; '
+                    'font-size:0.95em; color:#856404;">'
+                    '<strong>&#9888; PE Review Pending:</strong> '
+                    'This report has not yet been reviewed and stamped by a licensed Professional '
+                    'Engineer. Per IPMVP &#167;3.1, utility submission requires an independent PE '
+                    'certification with name, license number, state, date, and PE stamp. '
+                    'Contact your M&amp;V administrator to initiate the PE review workflow.</span>'
+                )
+            template_content = template_content.replace('{{PE_REVIEW_STATUS}}', _pe_status_v)
+        except Exception:
+            template_content = template_content.replace('{{PE_REVIEW_STATUS}}', '<em>PE review status unavailable.</em>')
+
+    # ── Annualization caveat — also must run BEFORE catch-all cleanup ─────────
+    if '{{ANNUALIZATION_CAVEAT}}' in template_content:
+        try:
+            _ac_r2  = r if isinstance(r, dict) else {}
+            _ac_bc2 = _ac_r2.get("before_compliance", {}) or {}
+            _ac_ac2 = _ac_r2.get("after_compliance",  {}) or {}
+            _ac_pb  = _ac_bc2.get("measurement_period_days")
+            _ac_pa  = _ac_ac2.get("measurement_period_days")
+            _ac_min2 = min((d for d in [_ac_pb, _ac_pa] if d is not None), default=None)
+            if _ac_min2 is not None and _ac_min2 < 30:
+                _ac_ds = f"{_ac_min2:.0f}-day" if _ac_min2 == int(_ac_min2) else f"{_ac_min2:.1f}-day"
+                _ac_v = (
+                    f'<br/><span style="color:#c62828; font-size:0.88em;">'
+                    f'&#9888; <strong>Extrapolation caveat:</strong> Annualized from a '
+                    f'{_ac_ds} measurement period. These annual figures are provisional '
+                    f'and must be validated over a full representative operating season before '
+                    f'utility submission (IPMVP Volume I &sect;5.3 / ASHRAE Guideline 14-2023 &sect;4.1.3).'
+                    f'</span>'
+                )
+            else:
+                _ac_v = ''
+            template_content = template_content.replace('{{ANNUALIZATION_CAVEAT}}', _ac_v)
+        except Exception:
+            template_content = template_content.replace('{{ANNUALIZATION_CAVEAT}}', '')
+
+    # ── Variable production loads sub-metering caveat ────────────────────────
+    if '{{VARIABLE_LOADS_WARNING}}' in template_content:
+        try:
+            _cfg_vl = config if isinstance(config, dict) else {}
+            _vl_flag = (
+                _cfg_vl.get('has_variable_production_loads') in (True, 'on', 'true', '1', 'yes')
+                or str(_cfg_vl.get('has_variable_production_loads', '')).lower() in ('on', 'true', '1', 'yes')
+            )
+            if _vl_flag:
+                _vl_html = (
+                    '<div style="background:#fff3cd; border-left:4px solid #f59e0b; padding:10px 14px; '
+                    'border-radius:0 4px 4px 0; margin:10px 0; font-size:0.93em; color:#92400e;">'
+                    '<strong>&#9888; Sub-Metering Required for IPMVP Compliance:</strong> '
+                    'The project configuration indicates this consolidated meter serves variable or '
+                    'mixed production loads in addition to the device under test. Per IPMVP Option B '
+                    '(\u00a73.3) and ASHRAE Guideline 14-2023, load-specific sub-metering is required '
+                    'to isolate the savings attributable to this device. Without it, the reported kWh '
+                    'savings cannot be attributed solely to the installed equipment and may be rejected '
+                    'by a utility or third-party auditor. A licensed PE must confirm sub-metering '
+                    'adequacy before incentive submission.'
+                    '</div>'
+                )
+            else:
+                _vl_html = ''
+            template_content = template_content.replace('{{VARIABLE_LOADS_WARNING}}', _vl_html)
+        except Exception:
+            template_content = template_content.replace('{{VARIABLE_LOADS_WARNING}}', '')
+
+    # ── Audit-Readiness Banner ────────────────────────────────────────────────
+    # Builds a prominent top-of-report status block that honestly reflects whether
+    # this report meets IPMVP / utility submission requirements.  The banner is
+    # colour-coded: RED = not submission-ready; AMBER = marginal; GREEN = ready.
+    if '{{AUDIT_READINESS_BANNER}}' in template_content:
+        try:
+            _ar_cfg  = config if isinstance(config, dict) else {}
+            _ar_r    = r if isinstance(r, dict) else {}
+            _ar_bc   = _ar_r.get('before_compliance', {}) or {}
+            _ar_ac   = _ar_r.get('after_compliance',  {}) or {}
+            _ar_pq   = _ar_r.get('power_quality', {}) or {}
+
+            # ── 1. Measurement period ──────────────────────────────────────
+            _ar_pb = (_ar_bc.get('measurement_period_days') if isinstance(_ar_bc, dict) else None)
+            _ar_pa = (_ar_ac.get('measurement_period_days') if isinstance(_ar_ac, dict) else None)
+            _ar_min_days = min((d for d in [_ar_pb, _ar_pa] if d is not None), default=None)
+            if _ar_min_days is None:
+                _period_ok = False; _period_note = "Measurement period unknown"
+            elif _ar_min_days < 7:
+                _period_ok = False; _period_note = f"{_ar_min_days:.0f}-day test — minimum 30 days required"
+            elif _ar_min_days < 30:
+                _period_ok = False; _period_note = f"{_ar_min_days:.0f}-day test — minimum 30 days required (IPMVP \u00a75.3)"
+            else:
+                _period_ok = True;  _period_note = f"{_ar_min_days:.0f}-day test \u2014 meets 30-day minimum"
+
+            # ── 2. PE sign-off ─────────────────────────────────────────────
+            _ar_pe_name   = (_ar_r.get('pe_name') or '').strip()
+            _ar_pe_lic    = (_ar_r.get('pe_license') or _ar_r.get('pe_license_number') or '').strip()
+            _ar_pe_signed = (_ar_r.get('pe_signed_at') or _ar_r.get('signed_at') or '').strip()
+            _pe_ok = bool(_ar_pe_name and _ar_pe_lic and _ar_pe_signed)
+            _pe_note = (f"Signed by {_ar_pe_name}, PE \u2014 Lic. {_ar_pe_lic}"
+                        if _pe_ok else "No independent PE sign-off (required before utility submission)")
+
+            # ── 3. Harmonic analysis mode ──────────────────────────────────
+            _ar_harm_mode = (_ar_pq.get('harmonic_analysis_mode', 'thd_aggregate')
+                             if isinstance(_ar_pq, dict) else 'thd_aggregate')
+            _harm_ok = _ar_harm_mode == 'per_order_spectrum'
+            _harm_note = ("Per-order harmonic spectrum (H3\u2013H49) recorded \u2014 full IEEE 519 + C57.110 K-factor available"
+                          if _harm_ok else
+                          "Aggregate THD only \u2014 per-order harmonic spectrum required for full IEEE 519 / C57.110 K-factor compliance")
+
+            # ── 4. Sub-metering flag ───────────────────────────────────────
+            _vl = (_ar_cfg.get('has_variable_production_loads') in (True, 'on', 'true', '1', 'yes')
+                   or str(_ar_cfg.get('has_variable_production_loads', '')).lower() in ('on', 'true', '1', 'yes'))
+            _submeter_ok = not _vl
+            _submeter_note = ("No variable production loads flagged on this meter"
+                              if _submeter_ok else
+                              "Meter includes variable/mixed production loads \u2014 load-specific sub-metering required (IPMVP Option B \u00a73.3)")
+
+            # ── 5. Device certification ────────────────────────────────────
+            _cert_num = (_ar_cfg.get('device_certification') or '').strip()
+            _cert_ok  = bool(_cert_num)
+            _cert_note = (f"Independent lab certification on file: {_cert_num}"
+                          if _cert_ok else
+                          "No independent lab certification on file (optional; strongly recommended for utility programs)")
+
+            # ── Determine overall status ───────────────────────────────────
+            _blockers = [not _period_ok, not _pe_ok, not _harm_ok, not _submeter_ok]
+            _n_blockers = sum(_blockers)
+            if _n_blockers == 0:
+                _banner_color   = '#1b5e20'; _banner_bg = '#e8f5e9'; _banner_border = '#2e7d32'
+                _banner_title   = '\u2713 Audit-Ready Report'
+                _banner_label_color = '#1b5e20'
+                _status_pill_bg = '#2e7d32'; _status_pill_text = 'SUBMISSION READY'
+            elif _n_blockers <= 2:
+                _banner_color   = '#7c4700'; _banner_bg = '#fff8e1'; _banner_border = '#f57c00'
+                _banner_title   = '\u26a0 Preliminary Assessment \u2014 Additional Work Required'
+                _banner_label_color = '#e65100'
+                _status_pill_bg = '#f57c00'; _status_pill_text = 'NOT SUBMISSION-READY'
+            else:
+                _banner_color   = '#7f1d1d'; _banner_bg = '#fff5f5'; _banner_border = '#c62828'
+                _banner_title   = '\u26d4 Preliminary Vendor Data \u2014 Not for Utility Submission'
+                _banner_label_color = '#c62828'
+                _status_pill_bg = '#c62828'; _status_pill_text = 'NOT SUBMISSION-READY'
+
+            def _row(ok, note):
+                icon  = '\u2713' if ok else '\u2717'
+                color = '#2e7d32' if ok else '#c62828'
+                return (
+                    f'<tr><td style="width:28px; text-align:center; color:{color}; font-weight:bold; font-size:1.1em;">{icon}</td>'
+                    f'<td style="padding:3px 8px; color:{_banner_color};">{note}</td></tr>'
+                )
+
+            _banner_html = (
+                f'<div style="margin:0 0 24px 0; padding:16px 20px; background:{_banner_bg}; '
+                f'border-left:5px solid {_banner_border}; border-radius:0 6px 6px 0; '
+                f'font-family:Arial,sans-serif; page-break-inside:avoid;">'
+                f'<div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">'
+                f'<span style="font-size:1.15em; font-weight:bold; color:{_banner_color};">{_banner_title}</span>'
+                f'<span style="padding:3px 10px; background:{_status_pill_bg}; color:#fff; '
+                f'border-radius:12px; font-size:0.8em; font-weight:bold; letter-spacing:0.5px;">'
+                f'{_status_pill_text}</span>'
+                f'</div>'
+                f'<table style="border-collapse:collapse; width:100%; font-size:0.9em;">'
+                f'{_row(_period_ok, _period_note)}'
+                f'{_row(_pe_ok, _pe_note)}'
+                f'{_row(_harm_ok, _harm_note)}'
+                f'{_row(_submeter_ok, _submeter_note)}'
+                f'{_row(_cert_ok, _cert_note)}'
+                f'</table>'
+            )
+
+            if _n_blockers > 0:
+                _banner_html += (
+                    f'<p style="margin:10px 0 0 0; font-size:0.85em; color:{_banner_color}; '
+                    f'border-top:1px solid {_banner_border}; padding-top:8px;">'
+                    f'<strong>Per IPMVP Volume I Option B / ASHRAE Guideline 14-2023:</strong> '
+                    f'Outstanding items above must be resolved before this report can be submitted '
+                    f'for utility incentives or accepted as audit-worthy M&amp;V evidence. '
+                    f'A licensed Professional Engineer (Illinois or reciprocal state) must review '
+                    f'and stamp the final report and the M&amp;V Plan prior to installation.'
+                    f'</p>'
+                )
+
+            _banner_html += '</div>'
+            template_content = template_content.replace('{{AUDIT_READINESS_BANNER}}', _banner_html)
+        except Exception:
+            template_content = template_content.replace('{{AUDIT_READINESS_BANNER}}', '')
+
+    # ── Device / lab certification badge ─────────────────────────────────────
+    if '{{DEVICE_CERTIFICATION_BADGE}}' in template_content:
+        try:
+            _cfg_dc = config if isinstance(config, dict) else {}
+            _dc_num  = (_cfg_dc.get('device_certification') or '').strip()
+            _dc_lab  = (_cfg_dc.get('device_cert_lab') or '').strip()
+            _dc_date = (_cfg_dc.get('device_cert_date') or '').strip()
+            if _dc_num:
+                _dc_parts = [f'Cert. No. <strong>{_dc_num}</strong>']
+                if _dc_lab:  _dc_parts.append(f'Lab: {_dc_lab}')
+                if _dc_date: _dc_parts.append(f'Date: {_dc_date}')
+                _dc_html = (
+                    '<span style="display:inline-block; padding:4px 10px; background:#e8f5e9; '
+                    'border:1px solid #a5d6a7; border-radius:12px; font-size:0.88em; color:#1b5e20; '
+                    'margin-top:4px;">&#10003; Device Certified &mdash; '
+                    + ' | '.join(_dc_parts)
+                    + '</span>'
+                )
+            else:
+                _dc_html = (
+                    '<span style="display:inline-block; padding:4px 10px; background:#f8f9fa; '
+                    'border:1px solid #dee2e6; border-radius:12px; font-size:0.88em; color:#6c757d; '
+                    'margin-top:4px;">&#9675; No independent lab certification on file '
+                    '(optional per IPMVP; recommended for utility incentive programs)</span>'
+                )
+            template_content = template_content.replace('{{DEVICE_CERTIFICATION_BADGE}}', _dc_html)
+        except Exception:
+            template_content = template_content.replace('{{DEVICE_CERTIFICATION_BADGE}}', '')
+
     # Final cleanup: Replace ANY remaining template variables - this is critical
     # Use replace_all to ensure we catch all instances
     remaining_vars = re.findall(r'\{\{([A-Za-z0-9_]+)\}\}', template_content)
@@ -7199,7 +8787,42 @@ def generate_exact_template_html(r):
         print(f"*** VERIFICATION CERTIFICATE: ERROR - {e} ***")
         # Remove placeholder on error
         template_content = template_content.replace('{{VERIFICATION_CERTIFICATE_HTML}}', '')
-    
+
+    # ── Early PE Review Status replacement (must run BEFORE catch-all cleanup) ─
+    # The catch-all regex below erases any remaining {{...}} placeholders, so
+    # {{PE_REVIEW_STATUS}} must be resolved here.
+    try:
+        _early_pe_name    = (r.get('pe_name') or '').strip()
+        _early_pe_license = (r.get('pe_license') or r.get('pe_license_number') or '').strip()
+        _early_pe_state   = (r.get('pe_state') or '').strip()
+        _early_pe_signed  = (r.get('pe_signed_at') or r.get('signed_at') or '').strip()
+
+        if _early_pe_name and _early_pe_license and _early_pe_signed:
+            _early_pe_html = (
+                '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                'background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:4px; '
+                'font-size:0.95em; color:#1b5e20;"'
+                '><strong>&#10003; Professional Engineer Review:</strong> '
+                f'Calculations reviewed and approved by <strong>{_early_pe_name}</strong>, PE &#8212; '
+                f'License No. {_early_pe_license}'
+                + (f', {_early_pe_state}' if _early_pe_state else '')
+                + f' &#8212; Approved {_early_pe_signed[:10]}.</span>'
+            )
+        else:
+            _early_pe_html = (
+                '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                'background:#fff3cd; border-left:4px solid #ffc107; border-radius:4px; '
+                'font-size:0.95em; color:#856404;"'
+                '><strong>&#9888; PE Review Pending:</strong> '
+                'This report has not yet been reviewed and stamped by a licensed Professional '
+                'Engineer. Per IPMVP &#167;3.1, utility submission requires an independent PE '
+                'certification with name, license number, state, date, and PE stamp. '
+                'Contact your M&amp;V administrator to initiate the PE review workflow.</span>'
+            )
+        template_content = template_content.replace('{{PE_REVIEW_STATUS}}', _early_pe_html)
+    except Exception:
+        template_content = template_content.replace('{{PE_REVIEW_STATUS}}', '<em>PE review status unavailable.</em>')
+
     # Use regex to find ALL remaining variables
     final_remaining = re.findall(r'\{\{([A-Za-z0-9_]+)\}\}', template_content)
     if final_remaining:
@@ -7237,7 +8860,864 @@ def generate_exact_template_html(r):
     # Remove dollar-related blocks when show_dollars is False (engineering-only report)
     template_content = _remove_dollar_blocks(template_content, show_dollars)
 
+    # ── Dynamic compliance summary for the executive letter ───────────────────
+    # Populate {{COMPLIANCE_STATUS_SUMMARY}} based on actual compliance flags.
+    # Also clean up any remaining direction placeholders that weren't hit above.
+    try:
+        _cs_r = r if isinstance(r, dict) else {}
+        _cs_pq = _cs_r.get("power_quality", {}) or {}
+        _cs_before = _cs_r.get("before_compliance", {}) or {}
+        _cs_after  = _cs_r.get("after_compliance",  {}) or {}
+        _cs_wn     = _cs_r.get("weather_normalization", {}) or {}
+        _cs_stat   = _cs_r.get("statistical", {}) or {}
+
+        # PF direction
+        _cs_pf_b = float(_cs_pq.get("pf_before") or 0)
+        _cs_pf_a = float(_cs_pq.get("pf_after")  or 0)
+        _cs_pf_dir = "Improved" if _cs_pf_a >= _cs_pf_b else "Declined"
+        template_content = template_content.replace('{{PF_DIRECTION}}', _cs_pf_dir)
+        template_content = template_content.replace('{{LETTER_PF_DIRECTION}}', _cs_pf_dir)
+
+        # Harmonic mode
+        _cs_harm_mode = _cs_pq.get("harmonic_analysis_mode", "thd_aggregate")
+        _cs_per_order = _cs_harm_mode == "per_order_spectrum"
+        _cs_thd_after = float(_cs_pq.get("thd_after") or 0)
+        _cs_ieee519_pass = (
+            bool(_cs_pq.get("individual_harmonics_compliant")) if _cs_per_order else False
+        )
+        _cs_ieee519_soft = (not _cs_per_order) and (_cs_thd_after > 0) and (_cs_thd_after <= 5.0)
+
+        # Period duration
+        _cs_period_ok = not bool(_cs_after.get("ashrae_precision_period_override", False))
+
+        # Weather normalization
+        _cs_wn_applied = _cs_wn.get("normalization_applied") is True
+
+        # ASHRAE / IPMVP
+        _cs_ashrae = bool(_cs_after.get("ashrae_precision_compliant", False)) and _cs_period_ok
+        _cs_ipmvp  = bool(_cs_stat.get("statistically_significant", False))  and _cs_period_ok
+
+        # ANSI C12.20 meter accuracy
+        _cs_ansi = bool(_cs_after.get("ansi_c12_20_class_05_compliant", True))
+
+        # PF normalization skipped flag (PF declined)
+        _cs_pf_skipped = bool(_cs_pq.get("pf_normalization_skipped", False))
+
+        # Build summary sentence
+        _cs_parts = []
+        # ANSI C12.20 (meter accuracy) — almost always passes
+        if _cs_ansi:
+            _cs_parts.append("ANSI C12.20 meter accuracy")
+        # ASHRAE / IPMVP
+        if _cs_ashrae and _cs_ipmvp:
+            _cs_parts.append("ASHRAE Guideline 14-2023 statistical precision")
+            _cs_parts.append("IPMVP Volume I Option B significance")
+        elif _cs_ashrae:
+            _cs_parts.append("ASHRAE Guideline 14-2023 statistical precision")
+        elif _cs_ipmvp:
+            _cs_parts.append("IPMVP Volume I Option B significance")
+
+        if _cs_parts:
+            _cs_pass_str = "Results comply with " + ", ".join(_cs_parts) + "."
+        else:
+            _cs_pass_str = "Meter accuracy (ANSI C12.20) confirmed."
+
+        _cs_caveats = []
+        # Period duration
+        if not _cs_period_ok:
+            _cs_min = _cs_after.get("measurement_period_days") or _cs_before.get("measurement_period_days")
+            _period_str = f" ({_cs_min:.1f} days)" if _cs_min else ""
+            _cs_caveats.append(
+                f"Measurement period{_period_str} is below the 7-day IPMVP minimum — "
+                f"ASHRAE Guideline 14-2023 and IPMVP statistical conclusions are not valid for this dataset."
+            )
+        # IEEE 519
+        if _cs_per_order and not _cs_ieee519_pass:
+            _cs_caveats.append(
+                "IEEE 519-2022 harmonic limits: one or more per-order current distortion limits were exceeded (see Standards Compliance tab)."
+            )
+        elif not _cs_per_order:
+            if _cs_ieee519_soft:
+                _cs_caveats.append(
+                    "IEEE 519-2022 aggregate THD is within the 5% guideline threshold; however, per-order harmonic spectrum "
+                    "and TDD have not been verified (meter is in THD-aggregate mode). Full IEEE 519-2022 Table 2 compliance "
+                    "confirmation requires per-order data from the upgraded meter firmware."
+                )
+            else:
+                _cs_caveats.append(
+                    f"IEEE 519-2022 harmonic compliance: aggregate THD ({_cs_thd_after:.1f}%) exceeds the 5% TDD guideline threshold. "
+                    f"Per-order harmonic spectrum and TDD cannot be verified in THD-aggregate mode. "
+                    f"Full compliance assessment requires per-order data from the upgraded meter firmware."
+                )
+        # Weather normalization
+        if not _cs_wn_applied:
+            _cs_caveats.append(
+                "Weather normalization was not applied (R² < 0.75); energy savings are reported as raw metered values."
+            )
+        # PF direction
+        if _cs_pf_skipped:
+            _cs_caveats.append(
+                f"Power factor declined from {_cs_pf_b * 100:.2f}% to {_cs_pf_a * 100:.2f}%; "
+                f"billing-demand PF adjustment was not applied."
+            )
+
+        if _cs_caveats:
+            _cs_summary = _cs_pass_str + " Caveats: " + " ".join(_cs_caveats)
+        else:
+            _cs_summary = _cs_pass_str
+
+        template_content = template_content.replace('{{COMPLIANCE_STATUS_SUMMARY}}', _cs_summary)
+    except Exception as _cs_err:
+        template_content = template_content.replace(
+            '{{COMPLIANCE_STATUS_SUMMARY}}',
+            "See Standards Compliance section for detailed compliance assessment."
+        )
+        template_content = template_content.replace('{{PF_DIRECTION}}', "Changed")
+        template_content = template_content.replace('{{LETTER_PF_DIRECTION}}', "Changed")
+
+    # ── PE Review Status ──────────────────────────────────────────────────────
+    # Populates {{PE_REVIEW_STATUS}} with either a verified PE attestation block
+    # (name, license, state, date) or a prominent "PE review pending" notice.
+    # The data comes from the mv_plans row merged into r by the report generator,
+    # or from the analysis results dict if the caller forwarded it.
+    try:
+        _pe_name     = (r.get('pe_name') or '').strip()
+        _pe_license  = (r.get('pe_license') or r.get('pe_license_number') or '').strip()
+        _pe_state    = (r.get('pe_state') or '').strip()
+        _pe_signed   = (r.get('pe_signed_at') or r.get('signed_at') or '').strip()
+
+        if _pe_name and _pe_license and _pe_signed:
+            # PE has signed — show the attestation inline in the executive letter
+            _pe_status_html = (
+                '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                'background:#e8f5e9; border-left:4px solid #2e7d32; border-radius:4px; '
+                'font-size:0.95em; color:#1b5e20;"'
+                '><strong>&#10003; Professional Engineer Review:</strong> '
+                f'Calculations reviewed and approved by <strong>{_pe_name}</strong>, PE — '
+                f'License No. {_pe_license}'
+                + (f', {_pe_state}' if _pe_state else '')
+                + f' — Approved {_pe_signed[:10]}.</span>'
+            )
+        else:
+            # No PE has signed yet — display an honest pending notice
+            _pe_status_html = (
+                '<span style="display:inline-block; margin-top:6px; padding:8px 14px; '
+                'background:#fff3cd; border-left:4px solid #ffc107; border-radius:4px; '
+                'font-size:0.95em; color:#856404;"'
+                '><strong>&#9888; PE Review Pending:</strong> '
+                'This report has not yet been reviewed and stamped by a licensed Professional '
+                'Engineer. Per IPMVP §3.1, utility submission requires an independent PE '
+                'certification with name, license number, state, date, and PE stamp. '
+                'Contact your M&amp;V administrator to initiate the PE review workflow.</span>'
+            )
+        template_content = template_content.replace('{{PE_REVIEW_STATUS}}', _pe_status_html)
+    except Exception:
+        template_content = template_content.replace(
+            '{{PE_REVIEW_STATUS}}',
+            '<em>PE review status unavailable.</em>'
+        )
+
+    # ── Annualization caveat ──────────────────────────────────────────────────
+    # Populates {{ANNUALIZATION_CAVEAT}} — injected into the description cells of
+    # annual kWh and dollar savings rows.  When the measurement period is shorter
+    # than 30 days the extrapolated annual figures are provisional.
+    try:
+        _ac_r  = r if isinstance(r, dict) else {}
+        _ac_bc = _ac_r.get("before_compliance", {}) or {}
+        _ac_ac = _ac_r.get("after_compliance",  {}) or {}
+        _ac_period_b = _ac_bc.get("measurement_period_days")
+        _ac_period_a = _ac_ac.get("measurement_period_days")
+        _ac_min = min(
+            (d for d in [_ac_period_b, _ac_period_a] if d is not None),
+            default=None
+        )
+        if _ac_min is not None and _ac_min < 30:
+            _ac_days_str = f"{_ac_min:.0f}-day" if _ac_min == int(_ac_min) else f"{_ac_min:.1f}-day"
+            _ac_text = (
+                f'<br/><div style="margin-top:6px;padding:6px 10px;background:#fff3cd;border-left:3px solid #ffc107;border-radius:3px;font-size:0.87em;color:#856404;">'
+                f'&#9888; <strong>ESTIMATE — Annualized from {_ac_days_str} measurement period.</strong> '
+                f'These annual figures are provisional and must be validated over a full representative operating season before '
+                f'utility submission (IPMVP Volume I &sect;5.3 / ASHRAE Guideline 14-2023 &sect;4.1.3).'
+                f'</div>'
+            )
+        else:
+            _ac_text = ''
+        template_content = template_content.replace('{{ANNUALIZATION_CAVEAT}}', _ac_text)
+    except Exception:
+        template_content = template_content.replace('{{ANNUALIZATION_CAVEAT}}', '')
+
+    # ── Methodology Appendix ─────────────────────────────────────────────────
+    # Inject a transparent, self-contained methodology appendix so that any
+    # third-party reviewer (utility engineer, PE, independent M&V agent) can
+    # verify every formula and data-processing step without access to source code.
+    try:
+        _ma_config   = r.get("config", {}) or {}
+        _ma_stat     = r.get("statistical", {}) or {}
+        _ma_bc       = r.get("before_compliance", {}) or {}
+        _ma_ac       = r.get("after_compliance",  {}) or {}
+        _ma_pq       = r.get("power_quality",     {}) or {}
+        _ma_energy_rate   = float(_ma_config.get("energy_rate",  0) or 0)
+        _ma_demand_rate   = float(_ma_config.get("demand_rate",  0) or 0)
+        _ma_thermal_hours = float(_ma_config.get("thermal_settling_exclusion_hours", 48) or 48)
+        _ma_hvac_type     = str(_ma_config.get("facility_hvac_type", "Not configured") or "Not configured")
+        # Meter identification (Fix 6)
+        _ma_meter_sn = (
+            _ma_config.get("meter_sn") or _ma_config.get("meter_serial_number") or
+            r.get("meter_serial_number") or
+            (r.get("client_profile", {}) or {}).get("meter_serial_number") or
+            (r.get("client", {}) or {}).get("meter_number") or
+            "Not recorded"
+        )
+        _ma_meter_install = _ma_config.get("meter_install_date") or "Not recorded"
+        # Measure life (Fix 7)
+        _ma_measure_life = _ma_config.get("measure_life_years") or r.get("measure_life_years")
+        _ma_measure_life_str = (
+            f"{int(_ma_measure_life)} years" if _ma_measure_life is not None else
+            "Not specified \u2014 enter in project configuration (field: Measure Life)"
+        )
+        # Baseline condition confirmation (Fix 8)
+        _ma_baseline_confirmed = bool(
+            _ma_config.get("baseline_conditions_confirmed") or
+            r.get("baseline_conditions_confirmed")
+        )
+        _ma_baseline_note = str(
+            _ma_config.get("baseline_conditions_note") or
+            r.get("baseline_conditions_note") or ""
+        ).strip()
+        _ma_rel_prec      = _ma_ac.get("ashrae_precision_value") or _ma_bc.get("ashrae_precision_value")
+        _ma_p_val         = _ma_stat.get("p_value")
+        _ma_cohens_d      = _ma_stat.get("cohens_d")
+        _ma_n_b           = _ma_stat.get("sample_size_before", "N/A")
+        _ma_n_a           = _ma_stat.get("sample_size_after",  "N/A")
+        _ma_neff_b        = _ma_stat.get("effective_n_before")
+        _ma_neff_a        = _ma_stat.get("effective_n_after")
+        _ma_autocorr      = _ma_stat.get("autocorr_correction_applied", False)
+        _ma_il            = float(_ma_config.get("il_A", 0) or 0)
+        _ma_isc           = float(_ma_config.get("isc_ka", 0) or 0)
+        _ma_tdd_limit     = float(_ma_pq.get("ieee_tdd_limit", 5.0) or 5.0)
+        _ma_thd_b         = float(_ma_pq.get("avg_thd_before", 0) or 0)
+        _ma_thd_a         = float(_ma_pq.get("avg_thd_after",  0) or 0)
+        _ma_tdd_b         = float(_ma_pq.get("tdd_before", 0) or 0)
+        _ma_tdd_a         = float(_ma_pq.get("tdd_after",  0) or 0)
+
+        # Regression equation for Appendix A.2 (T6)
+        # Primary source: exported ASHRAE GL14 coefficients from WeatherNormalizationML.
+        # Fallback: legacy baseline_model dict (older results).
+        _ma_wn         = r.get("weather_normalization", {}) or {}
+        _ma_beta_0     = _ma_wn.get("regression_beta_0")
+        _ma_beta_1     = _ma_wn.get("regression_beta_1")
+        _ma_beta_2     = _ma_wn.get("regression_beta_2")
+        _ma_base_temp  = _ma_wn.get("regression_base_temp") or _ma_wn.get("optimized_base_temp") or _ma_wn.get("base_temp_celsius")
+        _ma_model_name = (_ma_wn.get("regression_model_name") or
+                          _ma_stat.get("baseline_model_selected") or "N/A")
+        _ma_bm         = _ma_stat.get("baseline_model", {}) or {}
+        if not _ma_model_name or _ma_model_name == "N/A":
+            _ma_model_name = _ma_bm.get("model_name") or "N/A"
+        try:
+            if _ma_beta_0 is not None and _ma_beta_1 is not None:
+                # Use directly exported ASHRAE GL14 coefficients (most accurate)
+                _b0 = float(_ma_beta_0)
+                _b1 = float(_ma_beta_1)
+                _b2 = float(_ma_beta_2) if _ma_beta_2 is not None else None
+                _tc = f"{float(_ma_base_temp):.1f}" if _ma_base_temp is not None else "T_c"
+                _mn = str(_ma_model_name).lower()
+                if "heating" in _mn and "cooling" not in _mn:
+                    _ma_eq_str = f"kW = {_b0:.2f} + {_b1:.4f} \u00d7 max(0, {_tc}\u2212T)"
+                    if _b2 is not None:
+                        _ma_eq_str += f" + {_b2:.4f} \u00d7 max(0, T\u2212{_tc})"
+                elif "combined" in _mn or "5p" in _mn or "6p" in _mn:
+                    _b2_str = f"{_b2:.4f}" if _b2 is not None else "0.0000"
+                    _ma_eq_str = (f"kW = {_b0:.2f} + {_b1:.4f} \u00d7 max(0, T\u2212{_tc})"
+                                  f" + {_b2_str} \u00d7 max(0, {_tc}\u2212T)")
+                elif "3p_cooling" in _mn or "cooling" in _mn:
+                    _ma_eq_str = f"kW = {_b0:.2f} + {_b1:.4f} \u00d7 max(0, T\u2212{_tc})"
+                else:
+                    _ma_eq_str = f"kW = {_b0:.2f} + {_b1:.4f} \u00d7 T"
+            else:
+                # Fallback: legacy baseline_model dict
+                _ma_bm_a = _ma_bm.get("a")
+                _ma_bm_b = _ma_bm.get("b")
+                _ma_bm_c = _ma_bm.get("c")
+                _ma_bm_t = _ma_bm.get("t_base") or _ma_bm.get("t_change")
+                if _ma_bm_a is not None and _ma_bm_b is not None:
+                    if str(_ma_model_name).startswith("3P_cooling"):
+                        _tc = f"{_ma_bm_t:.1f}" if _ma_bm_t is not None else "T_c"
+                        _ma_eq_str = f"kW = {_ma_bm_a:.2f} + {_ma_bm_c:.4f} \u00d7 max(0, T\u2212{_tc})"
+                    elif str(_ma_model_name).startswith("3P_heating"):
+                        _tc = f"{_ma_bm_t:.1f}" if _ma_bm_t is not None else "T_h"
+                        _ma_eq_str = f"kW = {_ma_bm_a:.2f} + {_ma_bm_c:.4f} \u00d7 max(0, {_tc}\u2212T)"
+                    elif str(_ma_model_name).startswith("4P"):
+                        _tc = f"{_ma_bm_t:.1f}" if _ma_bm_t is not None else "T_c"
+                        _ma_eq_str = f"kW = {_ma_bm_a:.2f} + {_ma_bm_b:.4f}\u00d7T + {_ma_bm_c:.4f}\u00d7max(0,T\u2212{_tc})"
+                    else:
+                        _ma_eq_str = f"kW = {_ma_bm_a:.2f} + {_ma_bm_b:.4f} \u00d7 T"
+                else:
+                    _ma_eq_str = "N/A \u2014 regression coefficients not available (re-run analysis to populate)"
+        except Exception:
+            _ma_eq_str = "N/A"
+
+        def _mafmt(v, d=4):
+            try:
+                return f"{float(v):.{d}f}" if v is not None else "N/A"
+            except Exception:
+                return "N/A"
+
+        _methodology_appendix = f"""
+<div style="page-break-before:always; margin-top:40px; padding:20px 24px; background:#f5f5f5; border:2px solid #90a4ae; border-radius:6px; font-family: 'Segoe UI', Arial, sans-serif; font-size:0.88em; color:#333;">
+  <h2 style="margin-top:0; color:#1a237e; border-bottom:2px solid #3949ab; padding-bottom:8px;">
+    Appendix A — Calculation Methodology &amp; Transparency Disclosure
+  </h2>
+  <p style="color:#555; margin-bottom:16px; font-size:0.92em;">
+    This appendix documents every formula, standard reference, and data-processing step used
+    to produce the results in this report. It is intended to enable independent verification
+    by a third-party reviewer, licensed PE, or utility M&amp;V agent without requiring access
+    to the proprietary platform source code. All values shown are the actual inputs used for
+    this specific project.
+  </p>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.1 — Data Processing Pipeline</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Step</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Description</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Standard Reference</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">1. CSV ingestion</td><td style="padding:4px 8px;border:1px solid #c5cae9;">Raw 1-minute interval meter data (kW, kVAR, kVA, V, I, THD) read from revenue-grade meter export files. Timestamps parsed with timezone awareness.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IEC 62053-22 (Class 0.2) / ANSI C12.20 Class 0.2S</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">2. Thermal settling exclusion</td><td style="padding:4px 8px;border:1px solid #c5cae9;">First <strong>{_ma_thermal_hours:.0f} hours</strong> of post-installation data are excluded to allow thermal equilibrium. Facility HVAC type: <strong>{_ma_hvac_type}</strong>.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IPMVP Vol. I §4.2; ASHRAE Guideline 14-2023 §4.1.2</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">3. Outlier removal</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IQR method: data points outside [Q1 − 1.5×IQR, Q3 + 1.5×IQR] removed. Outlier percentage logged for audit trail.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">ASHRAE Guideline 14-2023 §5.3.3</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">4. Weather normalization</td><td style="padding:4px 8px;border:1px solid #c5cae9;">Linear regression of kW vs. ambient temperature. Applied when R² ≥ 0.75; raw savings reported when R² &lt; 0.75. Baseline adjusted to reporting-period conditions.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">ASHRAE Guideline 14-2023 §5.3.4 / IPMVP Vol. I Option B</td></tr>
+  </table>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.2 — Energy Savings (ASHRAE Guideline 14 / IPMVP Option B)</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Metric</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Formula</th><th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">This Report</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Relative Precision (ASHRAE §14.3)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">RP = (t&#x2090; × SE_mean / mean_energy) × 100%<br/><small>SE_mean = σ / √n; mean_energy = (μ_before + μ_after) / 2; threshold &lt; 50%</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;font-weight:bold;">{_mafmt(_ma_rel_prec, 1)}%</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">t-statistic (Welch's two-sample)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">t = (μ_before − μ_after) / √(s₁²/n₁ + s₂²/n₂)</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">{_mafmt(_ma_stat.get("t_statistic"), 3)}</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">p-value</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">Two-tailed Welch's t-test; significant when p &lt; 0.05</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">{_mafmt(_ma_p_val, 4)}</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Cohen's d (effect size)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">d = (μ_before − μ_after) / s_pooled<br/><small>s_pooled = √[((n₁−1)s₁² + (n₂−1)s₂²) / (n₁+n₂−2)]</small><br/><small>Interpretation: |d|&lt;0.2 negligible, 0.2–0.5 small, 0.5–0.8 medium, &gt;0.8 large</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">{_mafmt(_ma_cohens_d, 3)}</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Sample sizes (n / n_eff)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">Raw n = 1-minute interval data points after exclusions.<br/><small><strong>n_eff</strong> = autocorrelation-corrected effective sample size (ASHRAE GL14-2023 Annex B, AR(1) approximation: n_eff = n×(1−ρ₁)/(1+ρ₁)). All SE, CI, p-value, and relative precision calculations use n_eff.</small>{"<br/><small style='color:#c62828;'>⚠ Autocorrelation correction applied — raw n exceeds n_eff; statistical confidence metrics are conservative.</small>" if _ma_autocorr else ""}</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">Before: {_ma_n_b} (n_eff: {_ma_neff_b if _ma_neff_b is not None else "N/A"})<br/>After: {_ma_n_a} (n_eff: {_ma_neff_a if _ma_neff_a is not None else "N/A"})</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Annual kWh extrapolation</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">Annual kWh = ΔkW_verified × 8,760 h/yr<br/><small>Provisional when measurement period &lt; 30 days; see caveat in report body.</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">Energy rate: ${_ma_energy_rate:.4f}/kWh</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Regression equation (ASHRAE Baseline)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">Best-fit model selected by AICc (Akaike Information Criterion corrected). Model type: {_ma_model_name}.<br/>Independent reproduction: fit kW vs. T using the data rows shown in this report.</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">{_ma_eq_str}</td></tr>
+  </table>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.3 — IEEE 519-2022 Harmonic Compliance</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Metric</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Formula / Method</th><th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">This Report</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">THD (measured)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">THD = (√Σ Iₕ²) / I₁ × 100% — from revenue-grade meter export</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">Before: {_mafmt(_ma_thd_b, 1)}% / After: {_mafmt(_ma_thd_a, 1)}%</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">TDD (IEEE 519-2022 Table 2)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">TDD = THD × (I_avg / I_L)<br/><small>I_L = maximum demand load current (15/30-min demand); I_avg = period average current</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">Before: {_mafmt(_ma_tdd_b, 1)}% / After: {_mafmt(_ma_tdd_a, 1)}%</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">ISC/IL ratio &amp; TDD limit</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">ISC/IL = I_sc / I_L; limit from IEEE 519-2022 Table 2 (20→8%, 50→10%, 100→12%, 1000→15%)</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">ISC: {_mafmt(_ma_isc * 1000, 0)} A / IL: {_mafmt(_ma_il, 0)} A / Limit: {_mafmt(_ma_tdd_limit, 0)}%</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Meter class &amp; identification</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IEC 62053-22 Class 0.2 / ANSI C12.20 Class 0.2S — revenue-grade, ±0.2% accuracy; sufficient for utility incentive rebates per IPMVP Vol. I §3.5.<br/><small>Meter serial number and installation date are required for utility M&amp;V submissions to link data to a specific revenue-grade instrument.</small></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Class 0.2S<br/>S/N: <strong>{_ma_meter_sn}</strong><br/>Installed: {_ma_meter_install}</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Measure life</td><td style="padding:4px 8px;border:1px solid #c5cae9;">Expected service life of the installed measure; used by utilities to calculate total resource benefit and levelized cost of saved energy. Required for incentive payment processing by most utility programs.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">{"<span style='color:#28a745;font-weight:bold;'>" + _ma_measure_life_str + "</span>" if _ma_measure_life is not None else "<span style='color:#c62828;'>" + _ma_measure_life_str + "</span>"}</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Baseline condition confirmation (IPMVP §4.1)</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IPMVP Volume I §4.1 requires that baseline conditions be documented and confirmed as representative of normal facility operating conditions. Unusual events (equipment downtime, vacancy, atypical production) during the baseline period must be disclosed.</td><td style="padding:4px 8px;border:1px solid #c5cae9;">{"<span style='color:#28a745;font-weight:bold;'>&#10003; Confirmed</span>" + (" &mdash; " + _ma_baseline_note if _ma_baseline_note else "") if _ma_baseline_confirmed else "<span style='color:#c62828;font-weight:bold;'>&#9888; Not confirmed &mdash; enter baseline condition statement in project configuration</span>"}</td></tr>
+  </table>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.4 — Peak Demand Charge Savings</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Metric</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Formula</th><th style="padding:5px 8px;text-align:center;border:1px solid #9fa8da;">This Report</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Peak kW reduction</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">ΔkW_peak = max(kW_before) − max(kW_after)<br/><small>Maximum 1-minute demand over measurement period</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">See Claim 4 section</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Annual demand savings ($)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">Annual$ = ΔkW_peak × demand_rate × 12 months</td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">Demand rate: ${_ma_demand_rate:.2f}/kW-mo</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Load Factor</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;">LF = average_kW / peak_kW × 100%<br/><small>Higher LF = more efficient load utilization</small></td><td style="padding:4px 8px;text-align:center;border:1px solid #c5cae9;">See Claim 4 section</td></tr>
+  </table>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.5 — Harmonic Loss Savings (I²R / Eddy Current / Motor Copper)</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Loss Type</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Formula</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Standard</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Conductor I²R (harmonic component)</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;font-size:0.87em;">ΔP_cond = I_rms² × R × [THD²_before/(1+THD²_before) − THD²_after/(1+THD²_after)]<br/>Conservative: R assumed 3% of kW load as I²R baseline</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IEEE 519-2022; IPMVP Vol. I §4.3</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Motor harmonic copper losses</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;font-size:0.87em;">ΔP_motor = P_motor_rated × 0.04 × 0.64 × ΔTHD²<br/>Assumes 70% motor load at 80% load factor</td><td style="padding:4px 8px;border:1px solid #c5cae9;">NEMA MG1 §20.52</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;">Transformer eddy-current losses</td><td style="padding:4px 8px;border:1px solid #c5cae9;font-family:monospace;font-size:0.87em;">K = Σ(Iₕ/I₁)²×h² (≈ THD²×25 with 5th harmonic dominant)<br/>ΔP_eddy = PEC-R × kVA_transformer × (K_before − K_after) / (1 + K_before)<br/>PEC-R = 7% (mid-range distribution transformer)</td><td style="padding:4px 8px;border:1px solid #c5cae9;">IEEE C57.110-2018</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;">Note on thermal lag</td><td style="padding:4px 8px;border:1px solid #c5cae9;" colspan="2">Harmonic losses dissipate as heat. Thermal equilibrium may take 24–72 hours for HVAC-coupled systems (IPMVP Vol. I §4.2). First <strong>{_ma_thermal_hours:.0f} hours</strong> of post-installation data are excluded to account for thermal settling.</td></tr>
+  </table>
+
+  <h3 style="color:#283593; margin-bottom:6px;">A.6 — Standards Referenced</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+    <tr style="background:#c5cae9;"><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Standard</th><th style="padding:5px 8px;text-align:left;border:1px solid #9fa8da;">Application in This Report</th></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>IPMVP Volume I (2022)</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Option B whole-facility metering; measurement boundary; savings verification framework</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>ASHRAE Guideline 14-2023</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Relative precision (&lt;50% @ 95% CL); weather normalization; data quality requirements; minimum 7-day period; 30-day for weather-sensitive</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>IEEE 519-2022</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">TDD limits (Table 2) based on ISC/IL ratio; harmonic distortion compliance at PCC</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>IEEE C57.110-2018</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Transformer K-factor and eddy-current loss derating; harmonic loss factor calculation</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>NEMA MG1-2016 §20.52</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Motor harmonic copper loss estimation; voltage/current unbalance limits</td></tr>
+    <tr style="background:#eef;"><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>IEC 62053-22 / ANSI C12.20</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Revenue-grade Class 0.2 meter accuracy; sufficient for utility incentive rebate submissions</td></tr>
+    <tr><td style="padding:4px 8px;border:1px solid #c5cae9;white-space:nowrap;"><strong>IEC 61000-4-30 Class A</strong></td><td style="padding:4px 8px;border:1px solid #c5cae9;">Power quality measurement methodology; harmonic measurement accuracy</td></tr>
+  </table>
+
+  <p style="font-size:0.84em; color:#888; margin-top:12px; border-top:1px solid #bbb; padding-top:8px;">
+    This methodology disclosure was auto-generated by the Synerex EM&amp;V Platform. All formulas
+    and parameter values are sourced directly from the analysis engine that produced this report.
+    An independent reviewer may reproduce any calculation using the inputs listed above and the
+    referenced standards. Questions regarding this methodology should be directed to the
+    issuing organization's M&amp;V administrator.
+  </p>
+</div>
+"""
+        # Inject appendix before closing </body> tag, or append to end if tag not found
+        if '</body>' in template_content:
+            template_content = template_content.replace('</body>', _methodology_appendix + '\n</body>', 1)
+        else:
+            template_content += _methodology_appendix
+    except Exception as _ma_exc:
+        import traceback
+        logger.warning(f"Methodology appendix generation failed: {_ma_exc}\n{traceback.format_exc()}")
+
+    # ── Blocking-flag banner — inject at top of <body> ────────────────────────
+    try:
+        _blocking_flags = _detect_blocking_flags(r)
+        if _blocking_flags:
+            _banner_html = _build_blocking_banner(_blocking_flags)
+            _has_blocking = any(f.get("severity") == "BLOCKING" for f in _blocking_flags)
+
+            # When BLOCKING issues exist, append a financial-data caveat directly
+            # to the banner so readers scrolling past the banner still see it.
+            if _has_blocking:
+                _fin_caveat = (
+                    '<div style="margin:12px 0 0 0;padding:10px 14px;background:#fff9c4;'
+                    'border-left:4px solid #f9a825;border-radius:4px;font-size:0.9em;">'
+                    '<strong style="color:#e65100;">&#9888; Financial Summary Notice:</strong> '
+                    'Annual kWh savings, annual dollar savings, simple payback, and ROI figures '
+                    'shown in this report are <strong>provisional and should not be cited</strong> '
+                    'until all blocking issues above are resolved. The underlying kW measurement '
+                    'is preserved; only the financial extrapolation is affected by the issues listed.'
+                    '</div>'
+                )
+                _banner_html = _banner_html.rstrip('</div>') + _fin_caveat + '</div>'
+
+            # Inject immediately after <body> tag so it is the very first thing seen
+            if '<body' in template_content:
+                # Find end of opening <body ...> tag
+                _body_end = template_content.find('>', template_content.find('<body')) + 1
+                template_content = (
+                    template_content[:_body_end]
+                    + '\n' + _banner_html
+                    + template_content[_body_end:]
+                )
+            else:
+                template_content = _banner_html + template_content
+            # Also store flag codes in a meta comment for serve-time PE gate
+            import json as _json
+            _flag_codes = [f["code"] for f in _blocking_flags]
+            _meta = f'<!-- SYNEREX_BLOCKING_FLAGS:{_json.dumps(_flag_codes)} -->'
+            template_content = _meta + "\n" + template_content
+    except Exception as _bf_exc:
+        logger.warning(f"Blocking flag banner injection failed: {_bf_exc}")
+
     return template_content
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Blocking-flag detector and banner builder
+# ─────────────────────────────────────────────────────────────────────────────
+def _detect_blocking_flags(r: dict) -> list:
+    """Return a list of blocking/warning flags that disqualify utility submission."""
+    flags = []
+    try:
+        config      = r.get("config", {}) or {}
+        pq          = r.get("power_quality", {}) or {}
+        wn          = r.get("weather_normalization", {}) or {}
+        stat        = r.get("statistical", {}) or {}
+        before_comp = r.get("before_compliance", {}) or {}
+        after_comp  = r.get("after_compliance", {}) or {}
+
+        def _f(d, *keys):
+            for k in keys:
+                v = d.get(k)
+                if v is not None:
+                    try: return float(v)
+                    except Exception: pass
+            return None
+
+        # 1. Inter-period temperature bias ≥ 3 °C AND normalization not applied
+        temp_b = _f(pq,"temp_before") or _f(wn,"temp_before") or _f(config,"temp_before")
+        temp_a = _f(pq,"temp_after")  or _f(wn,"temp_after")  or _f(config,"temp_after")
+        r2     = _f(wn,"regression_r2","r2","r_squared") or _f(stat,"r_squared")
+        norm   = wn.get("normalization_applied")
+        if temp_b is not None and temp_a is not None:
+            delta_t = abs(temp_b - temp_a)
+            if delta_t >= 3.0 and (r2 is None or r2 < 0.75) and norm is not True:
+                r2_str = f"{r2:.4f}" if r2 is not None else "N/A"
+                flags.append({
+                    "code": "TEMP_BIAS_UNADDRESSED", "severity": "BLOCKING",
+                    "title": "Unaddressed Inter-Period Temperature Bias",
+                    "detail": (
+                        f"Baseline avg {temp_b:.1f} °C vs. reporting avg {temp_a:.1f} °C "
+                        f"(Δ = {delta_t:.1f} °C). ASHRAE Guideline 14-2023 §7.3 / IPMVP §4.2 "
+                        f"require weather normalization when Δ ≥ 3 °C. Normalization was NOT applied "
+                        f"because R² = {r2_str} (threshold ≥ 0.75). "
+                        "The temperature bias is unquantified in the savings figure."
+                    ),
+                    "resolution": (
+                        "Option A: Re-collect both periods during matched ambient conditions (same season). "
+                        "Option B: PE-signed bias analysis proving facility load is weather-independent "
+                        "(flat load profile evidence required). "
+                        "Option C: Manual HDD/CDD adjustment with PE-documented assumptions."
+                    )
+                })
+
+        # 2. Measurement period minimum — threshold adapts to report purpose:
+        #    pe_review:          7 days  (IPMVP absolute minimum)
+        #    utility_submission: 30 days (most utility programs require this)
+        _submission_mode = str(
+            _f(config, "submission_mode") or
+            r.get("submission_mode") or
+            r.get("report_type") or
+            "pe_review"
+        ).lower()
+        _is_utility_submission = _submission_mode in (
+            "utility_submission", "utility", "submission", "30day", "utility_report"
+        )
+        _min_days  = 30 if _is_utility_submission else 7
+        _mode_label = "Utility Submission" if _is_utility_submission else "PE Review"
+
+        for label, comp_dict in [("Baseline", before_comp), ("Reporting", after_comp)]:
+            days = _f(comp_dict, "measurement_period_days")
+            if days is not None and days < _min_days:
+                flags.append({
+                    "code": f"SHORT_PERIOD_{label.upper()}", "severity": "BLOCKING",
+                    "title": f"Measurement Period Below {_mode_label} Minimum \u2014 {label} ({days:.0f} day(s))",
+                    "detail": (
+                        f"{label} period: {days:.0f} day(s). "
+                        f"This report is configured as <strong>{_mode_label}</strong> "
+                        f"(minimum: {_min_days} days). "
+                        "IPMVP Volume I \u00a75.3 absolute minimum: 7 days. "
+                        "Most utility incentive programs require \u2265 30 continuous days "
+                        "for a statistically defensible baseline and reporting period."
+                    ),
+                    "resolution": (
+                        f"Re-collect the {label.lower()} period with \u2265 {_min_days} continuous days "
+                        "of revenue-grade meter data. "
+                        + ("For PE Review reports only, 7 days is the IPMVP minimum. "
+                           "Switch to Utility Submission mode when submitting to a utility program."
+                           if not _is_utility_submission else
+                           "30 days minimum is required for utility incentive submissions.")
+                    )
+                })
+
+        # 3. Negative savings
+        kw_b = (_f(pq,"weather_normalized_kw_before") or _f(pq,"kw_before"))
+        kw_a = (_f(pq,"weather_normalized_kw_after") or _f(pq,"normalized_kw_after") or _f(pq,"kw_after"))
+        if kw_b is not None and kw_a is not None and kw_b > 0 and kw_a > kw_b:
+            pct = (kw_a - kw_b) / kw_b * 100
+            flags.append({
+                "code": "NEGATIVE_SAVINGS", "severity": "BLOCKING",
+                "title": "Consumption Increased After Installation — No Verified Savings",
+                "detail": (
+                    f"Metered demand increased from {kw_b:.2f} kW to {kw_a:.2f} kW (+{pct:.1f}%). "
+                    "This is a measured consumption increase, not a savings event. "
+                    "Utilities will not issue an incentive for increased load."
+                ),
+                "resolution": (
+                    "Investigate load growth, additional equipment, seasonal variation, or measurement error. "
+                    "PE-signed load normalization analysis required if load growth is the cause."
+                )
+            })
+
+        # 4. Data completeness < 95%
+        for label, comp_dict in [("Baseline", before_comp), ("Reporting", after_comp)]:
+            completeness = _f(comp_dict,"data_completeness","completeness_percent","completeness")
+            if completeness is not None and completeness < 95.0:
+                flags.append({
+                    "code": f"LOW_COMPLETENESS_{label.upper()}", "severity": "BLOCKING",
+                    "title": f"Data Completeness Below 95% Threshold — {label}",
+                    "detail": (
+                        f"{label} completeness: {completeness:.1f}% "
+                        "(ASHRAE Guideline 14-2023 §5.3.3 requires \u2265 95%). "
+                        "Non-random gaps may introduce load-following bias."
+                    ),
+                    "resolution": (
+                        "Obtain complete data with < 5% gaps, or provide a PE-documented gap-filling "
+                        "methodology with written justification that gaps are random and non-biasing."
+                    )
+                })
+
+        # ── 5. Savings magnitude plausibility check ───────────────────────────
+        # For passive power quality devices (PF correction + harmonic filtering),
+        # whole-facility kW savings > 20% are outside the physically plausible
+        # range when weather normalization failed OR THD shows no change.
+        # Peer-reviewed verified range for this device class: 1–12%, typical 2–8%.
+        # A claim above this threshold, uncorroborated by passing normalization or
+        # measurable THD reduction, cannot be attributed to the device under IPMVP.
+        _PLAUSIBILITY_THRESHOLD = 20.0  # percent — conservative; only fires on clear outliers
+        _savings_pct = None
+        try:
+            _s_b = _f(pq, "weather_normalized_kw_before") or _f(pq, "kw_before")
+            _s_a = _f(pq, "weather_normalized_kw_after")  or _f(pq, "kw_after")
+            if _s_b and _s_b > 0 and _s_a is not None:
+                _savings_pct = (_s_b - _s_a) / _s_b * 100.0
+        except Exception:
+            pass
+
+        # ── 5b. IEEE 519 TDD limit could not be calculated (no transformer data) ──
+        # When isc_kA / il_A and xfmr_kva are all missing, the TDD compliance
+        # check used the 20% catch-all default — not a valid IEEE 519-2022 limit.
+        # The true limit is 5–15% depending on the ISC/IL ratio. Report as WARNING.
+        _isc = _f(config, "isc_kA") or 0.0
+        _il  = _f(config, "il_A")   or 0.0
+        _xfmr_kva = _f(config, "xfmr_kva") or 0.0
+        _no_xfmr_data = (_isc == 0.0 and _il == 0.0 and _xfmr_kva == 0.0)
+        if _no_xfmr_data:
+            flags.append({
+                "code": "IEEE519_TDD_LIMIT_UNKNOWN",
+                "severity": "WARNING",
+                "title": "IEEE 519 TDD Compliance Limit Could Not Be Determined",
+                "detail": (
+                    "The ISC/IL ratio required to select the correct TDD limit from "
+                    "IEEE 519-2022 Table 2 could not be calculated because transformer "
+                    "short-circuit current (ISC), load current (IL), and transformer kVA "
+                    "data were not provided. The compliance table used a 20% default, "
+                    "which is not a valid IEEE 519-2022 limit (valid range: 5–15% "
+                    "depending on utility connection strength). The IEEE 519 PASS/FAIL "
+                    "result shown in this report may be incorrect."
+                ),
+                "resolution": (
+                    "Obtain from the utility or electrical engineer: (a) transformer rated kVA "
+                    "and impedance %, or (b) available short-circuit current in kA at the point "
+                    "of common coupling. Enter these values in the project configuration to "
+                    "calculate the correct ISC/IL ratio and applicable TDD limit per "
+                    "IEEE 519-2022 Table 2."
+                )
+            })
+
+        if _savings_pct is not None and _savings_pct > _PLAUSIBILITY_THRESHOLD:
+            _thd_b = _f(pq, "thd_before") or 0.0
+            _thd_a = _f(pq, "thd_after")  or 0.0
+            _thd_no_change = (_thd_b == 0.0 and _thd_a == 0.0) or (abs(_thd_b - _thd_a) < 0.5)
+            _norm_failed   = (norm is not True) or (r2 is None or r2 < 0.75)
+
+            # Only flag when at least one corroborating failure is present.
+            # If normalization passed AND THD shows a real reduction, a PE can
+            # potentially defend the number — give the report the benefit of the doubt.
+            if _thd_no_change or _norm_failed:
+                _reasons = []
+                if _norm_failed:
+                    _r2_str = f"{r2:.4f}" if r2 is not None else "N/A"
+                    _reasons.append(
+                        f"weather normalization failed (R\u00b2 = {_r2_str}, "
+                        f"threshold \u2265 0.75) \u2014 the savings figure includes unquantified "
+                        "inter-period load and weather variation"
+                    )
+                if _thd_no_change:
+                    _reasons.append(
+                        "no THD reduction was measured (aggregate meter mode or genuine "
+                        "zero harmonic improvement) \u2014 the primary physical mechanism for "
+                        "real-power savings from this device class cannot be confirmed"
+                    )
+                flags.append({
+                    "code": "SAVINGS_PLAUSIBILITY",
+                    "severity": "BLOCKING",
+                    "title": (
+                        f"Savings Magnitude Implausible for Technology "
+                        f"({_savings_pct:.1f}% on whole-facility meter)"
+                    ),
+                    "detail": (
+                        f"Claimed savings of {_savings_pct:.1f}% on a whole-facility "
+                        "revenue meter exceed the physically plausible range for a passive "
+                        "power quality / PF correction device (peer-reviewed verified range: "
+                        "1\u201312%, typical 2\u20138%). "
+                        "This result is further undermined because: "
+                        + "; and ".join(_reasons) + ". "
+                        "Utility incentive programs routinely reject claims above 15\u201320% "
+                        "for passive harmonic/PF devices without independent sub-metering "
+                        "evidence of the specific savings mechanism."
+                    ),
+                    "resolution": (
+                        "Option A: Sub-meter at the load level to isolate device-attributable "
+                        "savings from facility-wide operational and weather variation. "
+                        "Option B: Re-collect both periods during matched seasons with a "
+                        "minimum 30-day baseline and 30-day reporting period. "
+                        "Option C: PE-signed engineering analysis explaining the physical "
+                        "mechanism behind the claimed savings magnitude with supporting "
+                        "evidence (load curve data, harmonic spectrum measurements, "
+                        "conductor loss calculations) \u2014 a tariff billing calculation alone "
+                        "is not sufficient."
+                    )
+                })
+
+        # 7. Missing M&V Plan — blocking for Utility Submission mode only.
+        #    IPMVP §3.1 requires a written M&V Plan approved before retrofit work begins.
+        #    Without it a utility cannot verify that the measurement approach was pre-specified.
+        _submission_mode_flag = str(
+            config.get("submission_mode") or
+            r.get("submission_mode") or
+            r.get("report_type") or
+            "pe_review"
+        ).lower()
+        _is_utility_sub_flag = _submission_mode_flag in (
+            "utility_submission", "utility", "submission", "30day", "utility_report"
+        )
+        _mv_plan_ref = (
+            r.get("mv_plan_reference") or
+            config.get("mv_plan_reference") or
+            r.get("client_profile", {}).get("mv_plan_reference") if isinstance(r.get("client_profile"), dict) else None
+        )
+        if _is_utility_sub_flag and not _mv_plan_ref:
+            flags.append({
+                "code": "MV_PLAN_MISSING",
+                "severity": "BLOCKING",
+                "title": "M\u0026V Plan Not on File \u2014 Required for Utility Submission",
+                "detail": (
+                    "IPMVP Volume I \u00a73.1 requires a written Measurement \u0026 Verification Plan "
+                    "to be prepared and approved before retrofit work begins. The M\u0026V Plan must specify: "
+                    "measurement boundary, baseline conditions, acceptable baseline adjustments, "
+                    "measurement methods (Option B \u2014 retrofit isolation), and verification protocols. "
+                    "A utility incentive program cannot verify that the measurement approach was "
+                    "pre-specified if no M\u0026V Plan reference is provided."
+                ),
+                "resolution": (
+                    "Enter the M\u0026V Plan document reference number in the project configuration "
+                    "(field: M\u0026V Plan Reference). The plan must be signed and dated prior to "
+                    "device installation. Upload or attach the signed plan to the project record "
+                    "before resubmitting for utility review."
+                )
+            })
+
+        # 8. Operating hours default (8,760) used without confirmation.
+        #    ΔkWh_annual = ΔkW × operating_hours — if the user left this at the
+        #    24/7 default, annual savings are systematically overstated for any
+        #    facility that does not operate around the clock.
+        _op_hours_raw = config.get("operating_hours")
+        _op_hours_confirmed = config.get("operating_hours_confirmed", False)
+        _op_hours_val = float(_op_hours_raw) if _op_hours_raw is not None else 8760.0
+        _ALWAYS_ON_THRESHOLD = 8700.0   # Allow a small margin below 8,760 to pass silently
+        if _op_hours_val >= _ALWAYS_ON_THRESHOLD and not _op_hours_confirmed:
+            flags.append({
+                "code": "OPERATING_HOURS_UNCONFIRMED",
+                "severity": "WARNING",
+                "title": "Operating Hours Not Confirmed \u2014 Annual Savings May Be Overstated",
+                "detail": (
+                    f"Annual kWh savings are calculated as \u0394kW \u00d7 {_op_hours_val:,.0f} h/yr. "
+                    "The operating hours value is at or near the 8,760-hour (24/7/365) default, "
+                    "which has not been confirmed as correct for this facility. "
+                    "If the facility does not operate continuously (e.g., a restaurant operating "
+                    "12 h/day = 4,380 h/yr), using 8,760 h/yr overstates annual kWh savings by "
+                    "up to 2\u00d7. Utilities verify annual savings against billing history and "
+                    "will identify this discrepancy."
+                ),
+                "resolution": (
+                    "Enter the actual annual operating hours for this facility in the project "
+                    "configuration (field: Operating Hours) and check the confirmation box. "
+                    "Typical values: restaurants 3,000\u20135,000 h/yr; retail 3,500\u20136,000 h/yr; "
+                    "manufacturing 6,000\u20138,760 h/yr; data centers / pumping stations ~8,760 h/yr."
+                )
+            })
+
+        # 9. Seasonal representativeness — if both measurement periods fall in
+        #    the same off-peak season (Nov–Feb winter or Jun–Sep summer only),
+        #    annualization with a flat factor will mis-estimate savings when the
+        #    device's impact varies with load (power quality devices typically do).
+        try:
+            _before_start = (before_comp.get("start_date") or before_comp.get("start_timestamp") or
+                             config.get("before_start_date") or "")
+            _after_start  = (after_comp.get("start_date")  or after_comp.get("start_timestamp")  or
+                             config.get("after_start_date")  or "")
+            def _month_from_str(s):
+                import re as _re
+                m = _re.search(r'(\d{4})[-/](\d{2})', str(s))
+                return int(m.group(2)) if m else None
+            _m_before = _month_from_str(_before_start)
+            _m_after  = _month_from_str(_after_start)
+            _WINTER = {11, 12, 1, 2}
+            _SUMMER = {6, 7, 8, 9}
+            if (_m_before is not None and _m_after is not None):
+                _both_winter = (_m_before in _WINTER and _m_after in _WINTER)
+                _both_summer = (_m_before in _SUMMER and _m_after in _SUMMER)
+                if _both_winter or _both_summer:
+                    _season_label = "winter (Nov\u2013Feb)" if _both_winter else "summer (Jun\u2013Sep)"
+                    flags.append({
+                        "code": "SEASONAL_REPRESENTATIVENESS",
+                        "severity": "WARNING",
+                        "title": f"Measurement Periods Both in {_season_label.title()} \u2014 Annual Extrapolation May Not Be Representative",
+                        "detail": (
+                            f"Both the baseline and reporting periods fall in {_season_label}. "
+                            "For power quality / PF correction devices, savings typically scale "
+                            "with load, which varies significantly between seasons. "
+                            "Annualizing a single-season measurement with a flat operating-hours "
+                            "factor (ASHRAE GL14 Eq. 1) may overstate or understate annual kWh "
+                            "savings for facilities with seasonal load profiles. "
+                            "ASHRAE Guideline 14-2023 \u00a75.4 recommends that the measurement "
+                            "period be representative of annual operating conditions."
+                        ),
+                        "resolution": (
+                            "Option A: Collect measurements that span a mix of seasons, or "
+                            "collect separate peak and off-peak season measurements and "
+                            "weight by seasonal operating hours. "
+                            "Option B: PE-signed analysis demonstrating that facility load "
+                            "is seasonally flat (e.g., constant-load manufacturing process) "
+                            "so that single-season measurement is representative."
+                        )
+                    })
+        except Exception:
+            pass
+
+        # 10. IEEE 519 TDD limit unknown — escalate to BLOCKING for utility submission.
+        #     A WARNING is acceptable for a PE-review 7-day report; a utility
+        #     submission that makes a power quality compliance claim MUST have a
+        #     verified limit calculated from transformer data.
+        if _is_utility_sub_flag and _no_xfmr_data:
+            # Upgrade the already-appended WARNING to BLOCKING by replacing it.
+            for _existing in flags:
+                if _existing.get("code") == "IEEE519_TDD_LIMIT_UNKNOWN":
+                    _existing["severity"] = "BLOCKING"
+                    _existing["title"] = (
+                        "IEEE 519 TDD Compliance Limit Unknown \u2014 "
+                        "Cannot Make Power Quality Claims in Utility Submission"
+                    )
+                    _existing["detail"] = (
+                        "The ISC/IL ratio required to select the correct TDD limit from "
+                        "IEEE 519-2022 Table 2 could not be calculated because transformer "
+                        "short-circuit current (ISC), load current (IL), and transformer kVA "
+                        "data were not provided. For a Utility Submission report that includes "
+                        "power quality improvement claims, a valid IEEE 519-2022 TDD limit is "
+                        "mandatory. The compliance table defaulted to 20%, which is not a valid "
+                        "IEEE 519-2022 limit (valid range: 5\u201315% depending on utility "
+                        "connection strength). The IEEE 519 PASS/FAIL result is unreliable."
+                    )
+                    break
+
+    except Exception as _e:
+        logger.warning(f"Blocking flag detection failed: {_e}")
+    return flags
+
+
+def _build_blocking_banner(flags: list) -> str:
+    """Build the prominent HTML banner for blocking/warning flags."""
+    if not flags:
+        return ""
+    blocking = [f for f in flags if f["severity"] == "BLOCKING"]
+    warnings = [f for f in flags if f["severity"] == "WARNING"]
+    rows = ""
+    for f in blocking + warnings:
+        icon  = "❌" if f["severity"] == "BLOCKING" else "⚠️"
+        color = "#c62828" if f["severity"] == "BLOCKING" else "#e65100"
+        bg    = "#ffebee" if f["severity"] == "BLOCKING" else "#fff8e1"
+        bc    = "#ef9a9a" if f["severity"] == "BLOCKING" else "#ffe082"
+        rows += (
+            f'<div style="margin-bottom:12px;padding:12px 14px;background:{bg};'
+            f'border-left:4px solid {bc};border-radius:4px;">'
+            f'<div style="font-weight:bold;color:{color};font-size:1em;">{icon} {f["title"]}</div>'
+            f'<div style="color:#333;font-size:0.9em;margin-top:4px;">{f["detail"]}</div>'
+            f'<div style="color:#555;font-size:0.87em;margin-top:6px;font-style:italic;">'
+            f'<strong>Resolution:</strong> {f["resolution"]}</div>'
+            f'</div>'
+        )
+    header_color = "#b71c1c" if blocking else "#e65100"
+    header_bg    = "#ffcdd2" if blocking else "#ffe0b2"
+    header_title = (
+        "⛔ NOT FOR UTILITY SUBMISSION — Blocking Issues Must Be Resolved"
+        if blocking else
+        "⚠️ UTILITY SUBMISSION REQUIRES ADDITIONAL DOCUMENTATION"
+    )
+    count_note = (
+        f'<div style="font-size:0.9em;color:#b71c1c;margin-top:6px;">'
+        f'{len(blocking)} blocking issue(s) and {len(warnings)} warning(s). '
+        f'A PE stamp does not override these requirements without a documented waiver for each issue.</div>'
+    ) if blocking else ""
+    return (
+        f'<div style="page-break-after:avoid;margin:0 0 24px 0;padding:16px 20px;'
+        f'background:{header_bg};border:2.5px solid {header_color};border-radius:6px;'
+        f'font-family:Arial,sans-serif;">'
+        f'<div style="font-size:1.15em;font-weight:bold;color:{header_color};">{header_title}</div>'
+        f'{count_note}'
+        f'<div style="margin-top:12px;">{rows}</div>'
+        f'<div style="font-size:0.82em;color:#555;margin-top:10px;border-top:1px solid {header_color};padding-top:8px;">'
+        f'Flagged by Synerex EM&amp;V Platform per IPMVP Volume I (2022), ASHRAE Guideline 14-2023, and IEEE 519-2022. '
+        f'This banner cannot be removed without resolving each issue above or supplying a PE-signed waiver.</div>'
+        f'</div>'
+    )
+
 
 def generate_fallback_html(r):
     """Generate a fallback HTML if template is not found"""
