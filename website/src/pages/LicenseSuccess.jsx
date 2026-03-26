@@ -9,7 +9,7 @@ export default function LicenseSuccess() {
   const [error, setError] = useState(null);
   const [isNewRegistration, setIsNewRegistration] = useState(false);
   
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || '/license';
   const orderId = searchParams.get("order_id");
   const licenseId = searchParams.get("license_id");
   const registered = searchParams.get("registered");
@@ -41,7 +41,7 @@ export default function LicenseSuccess() {
     return (
       <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-purple-400 text-xl mb-4">Loading license information...</div>
+          <div className="text-purple-200 text-xl mb-4">Loading license information...</div>
         </div>
       </div>
     );
@@ -53,7 +53,7 @@ export default function LicenseSuccess() {
         <div className="text-center max-w-2xl mx-auto px-3">
           <div className="text-red-400 text-xl mb-4">Error</div>
           <div className="text-gray-300">{error}</div>
-          <a href="/" className="mt-6 inline-block px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-400">
+          <a href="/" className="mt-6 inline-block px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-300">
             Return Home
           </a>
         </div>
@@ -64,16 +64,10 @@ export default function LicenseSuccess() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
       <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -104,12 +98,12 @@ export default function LicenseSuccess() {
                 <ol className="text-gray-400 text-sm space-y-2 list-decimal list-inside">
                   <li>Check your email for your login credentials</li>
                   <li>Log in to your account using the button below</li>
-                  <li>From <strong className="text-purple-400">My Account</strong>, select and purchase a license for the program you need</li>
+                  <li>From <strong className="text-purple-200">My Account</strong>, select and purchase a license for the program you need</li>
                 </ol>
               </div>
               <a
                 href={`${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.origin + '/my-account')}`}
-                className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-400 text-white font-semibold rounded-lg transition-colors"
+                className="inline-block px-6 py-3 bg-purple-500 hover:bg-purple-300 text-white font-semibold rounded-lg transition-colors"
               >
                 Log In to My Account
               </a>
@@ -125,7 +119,7 @@ export default function LicenseSuccess() {
               {licenseData && (
                 <div className="bg-gray-800 p-4 rounded-lg mb-6">
                   <div className="text-sm text-gray-400 mb-2">License ID:</div>
-                  <div className="text-lg font-mono text-purple-300">{licenseData.licenseId}</div>
+                  <div className="text-lg font-mono text-purple-200">{licenseData.licenseId}</div>
                   {licenseData.orderId && licenseData.orderId !== "N/A" && (
                     <>
                       <div className="text-sm text-gray-400 mb-2 mt-4">Order ID:</div>
@@ -137,11 +131,11 @@ export default function LicenseSuccess() {
 
               <div className="mt-6 text-sm text-gray-400">
                 <p className="mb-4">
-                  <strong className="text-purple-400">Next Steps:</strong> Log in to your account to access your licensed programs.
+                  <strong className="text-purple-200">Next Steps:</strong> Log in to your account to access your licensed programs.
                 </p>
                 <a
                   href={`${LICENSE_SERVICE_URL}/auth/login?return_url=${encodeURIComponent(window.location.origin + '/my-account')}`}
-                  className="inline-block px-6 py-3 bg-purple-600 hover:bg-purple-400 text-white font-semibold rounded-lg transition-colors"
+                  className="inline-block px-6 py-3 bg-purple-500 hover:bg-purple-300 text-white font-semibold rounded-lg transition-colors"
                 >
                   Log In to My Account
                 </a>

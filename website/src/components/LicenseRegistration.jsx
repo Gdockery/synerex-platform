@@ -4,7 +4,7 @@ export default function LicenseRegistration({ program = "emv", plan = "annual" }
   const [redirecting, setRedirecting] = useState(false);
   
   // License Service URL - should be in environment variable
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
+  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || '/license';
   
   const handleRegister = () => {
     setRedirecting(true);
@@ -20,14 +20,14 @@ export default function LicenseRegistration({ program = "emv", plan = "annual" }
   
   return (
     <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-      <h3 className="text-xl font-bold text-purple-400 mb-4">Get Started</h3>
+      <h3 className="text-xl font-bold text-purple-200 mb-4">Get Started</h3>
       <p className="text-gray-300 mb-6">
         Register for a license to access the {programNames[program] || program.toUpperCase()} program.
       </p>
       <button
         onClick={handleRegister}
         disabled={redirecting}
-        className="px-6 py-3 bg-purple-600 hover:bg-purple-400 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow transition-colors"
+        className="px-6 py-3 bg-purple-500 hover:bg-purple-300 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow transition-colors"
       >
         {redirecting ? "Redirecting..." : "Register for License"}
       </button>

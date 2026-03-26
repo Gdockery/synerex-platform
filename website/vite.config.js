@@ -7,7 +7,14 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    strictPort: false
+    strictPort: false,
+    proxy: {
+      '/license':         { target: 'http://localhost:8080', changeOrigin: true },
+      '/tracking':        { target: 'http://localhost:8080', changeOrigin: true },
+      '/emv':             { target: 'http://localhost:8080', changeOrigin: true },
+      '/service-manager': { target: 'http://localhost:8080', changeOrigin: true },
+      '/api':             { target: 'http://localhost:3001',  changeOrigin: true },
+    }
   },
   build: {
     rollupOptions: {

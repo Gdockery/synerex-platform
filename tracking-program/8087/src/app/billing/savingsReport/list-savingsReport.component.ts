@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, ViewChild, ViewChildren, QueryList } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, ViewChild, ViewChildren, QueryList } from '@angular/core';
 import { SavingsReportService } from "./savingsReport.service";
 import { BillAnalyticService } from "../billAnalytic/billAnalytic.service";
 import { CurrentUserService } from "../../shared/user/currentUser.service";
@@ -74,18 +74,16 @@ let moment = require('moment');
               <input class="form-control" [(ngModel)]="emvClientAddress" placeholder="123 Main St" />
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="form-group">
-              <label>Location</label>
-              <input class="form-control" [(ngModel)]="emvClientLocation" placeholder="Suite 100" />
+              <label>City</label>
+              <input class="form-control" [(ngModel)]="emvClientCity" placeholder="Dallas" />
             </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="col-md-4">
+          <div class="col-md-2">
             <div class="form-group">
-              <label>City, State</label>
-              <input class="form-control" [(ngModel)]="emvClientCityState" placeholder="Dallas, TX" />
+              <label>State</label>
+              <input class="form-control" [(ngModel)]="emvClientState" placeholder="TX" />
             </div>
           </div>
           <div class="col-md-2">
@@ -217,7 +215,7 @@ let moment = require('moment');
           <div class="col-md-3">
             <div class="form-group">
               <label>Energy Rate ($/kWh)</label>
-              <input class="form-control" type="number" step="0.0001" [(ngModel)]="emvEnergyRate" placeholder="0.0000" />
+              <input class="form-control" type="number" step="0.0001" [(ngModel)]="emvEnergyRate" (ngModelChange)="scheduleBillAnalyticSave()" placeholder="0.0000" />
             </div>
           </div>
           <div class="col-md-3">
@@ -371,11 +369,15 @@ let moment = require('moment');
         </div>
 
         <div class="row" style="margin-top:0.5em;">
-          <div class="col-md-12">
+          <div class="col-md-12" style="display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
+            <button class="default-button" (click)="saveAll()"
+                    style="background:#0a6e3f; border-color:#0a6e3f; color:#fff; font-weight:600; padding:8px 20px;">
+              &#128190; Save
+            </button>
             <button class="default-button green-button" (click)="sendToEmv()" style="background:#1a6eb5; border-color:#1a6eb5;">
               Save for EM&amp;V Analysis
             </button>
-            <span *ngIf="emvSendStatus" style="margin-left:10px; font-size:0.9em;" [style.color]="emvSendError ? '#c00' : '#2a7a2a'">{{emvSendStatus}}</span>
+            <span *ngIf="emvSendStatus" style="font-size:0.9em;" [style.color]="emvSendError ? '#c00' : '#2a7a2a'">{{emvSendStatus}}</span>
           </div>
         </div>
       </div>
@@ -398,7 +400,7 @@ let moment = require('moment');
       </div>
 
       <!-- Bill Analytic Data Fields (populated from scan, editable before generating report) -->
-      <div *ngIf="billScanSuccess || baTotalKwh" style="background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
+      <div style="background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
         <h3 style="margin-top:0; margin-bottom:0.75em; color:#333;">Bill Analytic Data
           <small style="font-size:0.65em; color:#888; font-weight:normal;">Review and adjust before generating the report</small>
         </h3>
@@ -407,19 +409,19 @@ let moment = require('moment');
           <div class="col-md-4">
             <div class="form-group">
               <label>Bill Reference</label>
-              <input class="form-control" [(ngModel)]="baBillReference" placeholder="e.g. January 2025 Electric Bill" />
+              <input class="form-control" [(ngModel)]="baBillReference" (ngModelChange)="scheduleBillAnalyticSave()" placeholder="e.g. January 2025 Electric Bill" />
             </div>
           </div>
           <div class="col-md-4">
             <div class="form-group">
               <label>Electric Company</label>
-              <input class="form-control" [(ngModel)]="baElectricCompanyName" placeholder="e.g. Oncor" />
+              <input class="form-control" [(ngModel)]="baElectricCompanyName" (ngModelChange)="scheduleBillAnalyticSave()" placeholder="e.g. Oncor" />
             </div>
           </div>
           <div class="col-md-4">
             <div class="form-group">
               <label>Account Number</label>
-              <input class="form-control" [(ngModel)]="baAccountNumber" />
+              <input class="form-control" [(ngModel)]="baAccountNumber" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
         </div>
@@ -428,7 +430,7 @@ let moment = require('moment');
           <div class="col-md-4">
             <div class="form-group">
               <label>Tariff / Rate Schedule</label>
-              <input class="form-control" [(ngModel)]="baTariff" placeholder="e.g. TOU-GS-3-B" />
+              <input class="form-control" [(ngModel)]="baTariff" (ngModelChange)="scheduleBillAnalyticSave()" placeholder="e.g. TOU-GS-3-B" />
             </div>
           </div>
           <div class="col-md-4">
@@ -474,19 +476,19 @@ let moment = require('moment');
           <div class="col-md-3">
             <div class="form-group">
               <label>Total KWH</label>
-              <input class="form-control" type="number" step="any" [(ngModel)]="baTotalKwh" />
+              <input class="form-control" type="number" step="any" [(ngModel)]="baTotalKwh" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
           <div class="col-md-3">
             <div class="form-group">
               <label>KW Peak</label>
-              <input class="form-control" type="number" step="any" [(ngModel)]="baKwPeak" />
+              <input class="form-control" type="number" step="any" [(ngModel)]="baKwPeak" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
           <div class="col-md-3">
             <div class="form-group">
               <label>Total Bill Amount ($)</label>
-              <input class="form-control" type="number" step="0.01" [(ngModel)]="baBillAmount" />
+              <input class="form-control" type="number" step="0.01" [(ngModel)]="baBillAmount" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
         </div>
@@ -495,13 +497,13 @@ let moment = require('moment');
           <div class="col-md-3">
             <div class="form-group">
               <label>Days Billed</label>
-              <input class="form-control" type="number" step="1" [(ngModel)]="baDaysBilled" />
+              <input class="form-control" type="number" step="1" [(ngModel)]="baDaysBilled" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
           <div class="col-md-3">
             <div class="form-group">
               <label>Voltage</label>
-              <select class="form-control" [(ngModel)]="baVoltage">
+              <select class="form-control" [(ngModel)]="baVoltage" (ngModelChange)="scheduleBillAnalyticSave()">
                 <option value="480">480</option>
                 <option value="240">240</option>
                 <option value="208">208</option>
@@ -511,7 +513,7 @@ let moment = require('moment');
           <div class="col-md-3">
             <div class="form-group">
               <label>KW Rate per Tariff</label>
-              <input class="form-control" type="number" step="any" [(ngModel)]="baKwRatePerTariff" />
+              <input class="form-control" type="number" step="any" [(ngModel)]="baKwRatePerTariff" (ngModelChange)="scheduleBillAnalyticSave()" />
             </div>
           </div>
         </div>
@@ -530,11 +532,11 @@ let moment = require('moment');
           </thead>
           <tbody>
             <tr *ngFor="let item of baLineItems; let i = index">
-              <td><input class="form-control input-sm" [(ngModel)]="baLineItems[i].name" /></td>
+              <td><input class="form-control input-sm" [(ngModel)]="baLineItems[i].name" (ngModelChange)="scheduleBillAnalyticSave()" /></td>
               <td style="padding:6px 8px;">{{ item.type }}</td>
-              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].cost" /></td>
-              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].billingRate" /></td>
-              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].meterReading" /></td>
+              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].cost" (ngModelChange)="scheduleBillAnalyticSave()" /></td>
+              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].billingRate" (ngModelChange)="scheduleBillAnalyticSave()" /></td>
+              <td><input class="form-control input-sm" type="number" [(ngModel)]="baLineItems[i].meterReading" (ngModelChange)="scheduleBillAnalyticSave()" /></td>
             </tr>
             <tr *ngIf="baLineItems.length === 0">
               <td colspan="5" style="text-align:center; color:#888; font-style:italic;">No line items — scan a bill or add manually.</td>
@@ -542,18 +544,32 @@ let moment = require('moment');
           </tbody>
         </table>
 
-        <div style="text-align:right; margin-top:0.75em;">
-          <button type="button" class="default-button green-button" (click)="generateBillAnalytic()" [disabled]="!baTotalKwh || baGenerating">
-            {{ baGenerating ? 'Saving...' : 'Generate Bill Analytic Report' }}
-          </button>
-          <span *ngIf="baGenerateStatus" style="margin-left:12px; font-size:0.9em;" [style.color]="baGenerateError ? '#c00' : '#2a7a2a'">{{ baGenerateStatus }}</span>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:0.75em; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="default-button" (click)="saveBillAnalyticFields()"
+                    style="background:#0a6e3f; border-color:#0a6e3f; color:#fff; font-weight:600; padding:8px 20px;">
+              &#128190; Save
+            </button>
+            <span *ngIf="saveAllStatus" style="font-size:0.9em;" [style.color]="saveAllError ? '#c00' : '#2a7a2a'">{{ saveAllStatus }}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="default-button green-button" (click)="generateBillAnalytic()" [disabled]="!baTotalKwh || baGenerating">
+              {{ baGenerating ? 'Saving...' : 'Generate Bill Analytic Report' }}
+            </button>
+            <span *ngIf="baGenerateStatus" style="font-size:0.9em;" [style.color]="baGenerateError ? '#c00' : '#2a7a2a'">{{ baGenerateStatus }}</span>
+          </div>
+          <div *ngIf="userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7" style="display:flex; align-items:center; gap:10px;">
+            <a class="default-button green-button" [routerLink]="['/billing/bill-analytic/equipments']" style="text-decoration:none;">
+              Confirm Equipment Totals
+            </a>
+          </div>
         </div>
       </div>
 
       <div *ngIf="billAnalytic===false">
         <h3>Electric Bill Analytics</h3>
         <p>Create a new monthly cost savings report for this project or review reports from this client past electric bills.</p>
-        <button *ngIf="userService.user.role === 8 || userService.user.role === 7" class="default-button green-button" [routerLink]="['/billing/bill-analytic/create']">Create Initial Analytic</button>
+        <button *ngIf="userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7" class="default-button green-button" [routerLink]="['/billing/bill-analytic/create']">Create Initial Analytic</button>
       </div>
       
       <div *ngIf="billAnalytic">
@@ -568,7 +584,7 @@ let moment = require('moment');
               <button *ngIf="userService.user.role === 8 || userService.user.role === 7 || userService.user.role === 4 || userService.user.role === 2" class="default-button green-button" [routerLink]="['/billing/savings-report/create']">Enter New Month's Electric Bill</button>
               <p style="font-size: 18px">
                 The initial billing analytic was created {{(billAnalytic.date | projectTzMoment) | amDateFormat:'MMMM D, YYYY'}}
-                click <a *ngIf="userService.user.role === 8 || userService.user.role === 7 || userService.user.role === 2" [routerLink]="['/billing/bill-analytic/list']"><strong>here</strong></a> to review or edit.
+                click <a *ngIf="userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7 || userService.user.role === 2" [routerLink]="['/billing/bill-analytic/list']"><strong>here</strong></a> to review or edit.
               </p>
             </div>
           </div>
@@ -729,7 +745,7 @@ let moment = require('moment');
     </div>
   `
 })
-export class ListSavingsReportComponent implements OnInit {
+export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   @ViewChild('table', {static: false}) table;
   @ViewChild('table2', {static: false}) table2;
@@ -758,8 +774,8 @@ export class ListSavingsReportComponent implements OnInit {
   // Client Information
   public emvClientName: string = '';
   public emvClientAddress: string = '';
-  public emvClientLocation: string = '';
-  public emvClientCityState: string = '';
+  public emvClientCity: string = '';
+  public emvClientState: string = '';
   public emvClientZip: string = '';
   public emvContactName: string = '';
   public emvContactEmail: string = '';
@@ -802,6 +818,8 @@ export class ListSavingsReportComponent implements OnInit {
   public emvRatchetRefPeak: string = '';
   public emvSendStatus: string = '';
   public emvSendError: boolean = false;
+  public saveAllStatus: string = '';
+  public saveAllError: boolean = false;
 
   // Bill scan state (for Bill Analytic generation)
   public billScanFile: File | null = null;
@@ -834,6 +852,9 @@ export class ListSavingsReportComponent implements OnInit {
   public baGenerating = false;
   public baGenerateStatus: string = '';
   public baGenerateError: boolean = false;
+
+  private _billAnalyticSaveTimeout: any = null;
+  private readonly _billAnalyticSaveDebounceMs = 1500;
 
   protected pdfSource: SafeResourceUrl;
 
@@ -884,6 +905,10 @@ export class ListSavingsReportComponent implements OnInit {
     private createFromBillService: CreateFromBillService,
   ) { }
 
+  ngOnDestroy() {
+    if (this._billAnalyticSaveTimeout) clearTimeout(this._billAnalyticSaveTimeout);
+  }
+
   ngOnInit() {
     this.hasRunTest = this.userService.user.selectedProject.hasRunTest;
     this.pdfLinkService.getLinks().subscribe(links => {
@@ -905,12 +930,68 @@ export class ListSavingsReportComponent implements OnInit {
         if (rf['utility']          && !merged.electricCompanyName){ merged.electricCompanyName = rf['utility']; }
         if (rf['account']          && !merged.accountNumber)     { merged.accountNumber     = rf['account']; }
         if (rf['facility_address'] && !merged.serviceAddress)    { merged.serviceAddress    = rf['facility_address']; }
-        if (rf['location']         && !merged.serviceCity)       { merged.serviceCity       = rf['location']; }
+        if (rf['facility_city']    && !merged.serviceCity)       { merged.serviceCity       = rf['facility_city']; }
         if (rf['facility_state']   && !merged.serviceState)      { merged.serviceState      = rf['facility_state']; }
         if (rf['facility_zip']     && !merged.serviceZip)        { merged.serviceZip        = rf['facility_zip']; }
         if (rf['tariff']           && !merged.tariff)            { merged.tariff            = rf['tariff']; }
       }
       this.populateFromScan(merged);
+    }
+
+    // Restore all EM&V Pre-fill fields from project.reportFields so they show on every page load.
+    const rf: any = (proj && proj.reportFields) || {};
+    if (rf && typeof rf === 'object' && Object.keys(rf).length > 0) {
+      // Client Information
+      if (rf['company'])            this.emvClientName        = rf['company'];
+      if (rf['cp_address'])         this.emvClientAddress     = rf['cp_address'];
+      if (rf['cp_city'])            this.emvClientCity        = rf['cp_city'];
+      if (rf['cp_state'])           this.emvClientState       = rf['cp_state'];
+      // Legacy: parse cp_city_state into city and state
+      if (!this.emvClientCity && !this.emvClientState && rf['cp_city_state']) {
+        const parts = String(rf['cp_city_state']).split(',').map((s: string) => s.trim());
+        if (parts[0]) this.emvClientCity = parts[0];
+        if (parts[1]) this.emvClientState = parts[1];
+      }
+      if (rf['cp_zip'])             this.emvClientZip         = rf['cp_zip'];
+      if (rf['contact'])            this.emvContactName       = rf['contact'];
+      if (rf['phone'])              this.emvContactPhone      = rf['phone'];
+      if (rf['email'])              this.emvContactEmail      = rf['email'];
+      // Project Information
+      if (rf['project_type'])       this.emvProjectType       = rf['project_type'];
+      if (rf['facility_address'])   this.emvFacilityAddress   = rf['facility_address'];
+      if (rf['facility_city'])     this.emvFacilityCity      = rf['facility_city'];
+      if (rf['facility_state'])     this.emvFacilityState     = rf['facility_state'];
+      if (rf['facility_zip'])       this.emvFacilityZip       = rf['facility_zip'];
+      // Billing Information
+      if (rf['project_cost'])       this.emvProjectCost       = rf['project_cost'];
+      if (rf['utility'])            { this.emvUtility = rf['utility']; this.emvUtilityName = rf['utility']; }
+      if (rf['utility_name'])       this.emvUtilityName       = rf['utility_name'];
+      if (rf['utility_program'])    this.emvUtilityProgram    = rf['utility_program'];
+      if (rf['tariff'])             this.emvTariff            = rf['tariff'];
+      if (rf['account'])            this.emvAccountNumber     = rf['account'];
+      if (rf['energy_rate'])        this.emvEnergyRate        = String(rf['energy_rate']);
+      if (rf['demand_rate'])        this.emvDemandRate        = String(rf['demand_rate']);
+      if (rf['capacity_rate'])      this.emvCapacityRate      = String(rf['capacity_rate']);
+      if (rf['billing_model'])      this.emvBillingModel      = rf['billing_model'];
+      if (rf['kva_demand_rate'])    this.emvKvaDemandRate     = String(rf['kva_demand_rate']);
+      if (rf['reactive_adder'])     this.emvReactiveAdder     = String(rf['reactive_adder']);
+      if (rf['ncp_demand_rate'])    this.emvNcpDemandRate     = String(rf['ncp_demand_rate']);
+      if (rf['cp_demand_rate'])     this.emvCpDemandRate      = String(rf['cp_demand_rate']);
+      if (rf['coincident_peak'])    this.emvCoincidentPeakRate= String(rf['coincident_peak']);
+      if (rf['target_pf'])          this.emvTargetPF          = String(rf['target_pf']);
+      if (rf['discount_rate'])      this.emvDiscountRate      = String(rf['discount_rate']);
+      if (rf['escalation_rate'])    this.emvEscalationRate    = String(rf['escalation_rate']);
+      if (rf['analysis_period'])    this.emvAnalysisPeriod    = String(rf['analysis_period']);
+      if (rf['tou_on_peak'])        this.emvTouOnPeak         = String(rf['tou_on_peak']);
+      if (rf['tou_off_peak'])       this.emvTouOffPeak        = String(rf['tou_off_peak']);
+      if (rf['summer_fraction_pct'])this.emvSummerFraction    = String(rf['summer_fraction_pct']);
+      if (rf['summer_on_peak'])     this.emvSummerOnPeak      = String(rf['summer_on_peak']);
+      if (rf['summer_off_peak'])    this.emvSummerOffPeak     = String(rf['summer_off_peak']);
+      if (rf['winter_on_peak'])     this.emvWinterOnPeak      = String(rf['winter_on_peak']);
+      if (rf['winter_off_peak'])    this.emvWinterOffPeak     = String(rf['winter_off_peak']);
+      if (rf['onpeak_fraction_pct'])this.emvOnPeakShare       = String(rf['onpeak_fraction_pct']);
+      if (rf['ratchet_percent'])    this.emvRatchetPct        = String(rf['ratchet_percent']);
+      if (rf['ratchet_ref_peak'])   this.emvRatchetRefPeak    = String(rf['ratchet_ref_peak']);
     }
   }
 
@@ -925,8 +1006,8 @@ export class ListSavingsReportComponent implements OnInit {
     }
     let requestParameters = this.apiHelpers.parsePaginationParams(params);
     this.savingsReportService.getSavingsReports(requestParameters).subscribe(data => {
-      this.recordCount = data.meta.total;
-      this.savingsReports = data.response;
+      this.recordCount = (data && data.meta) ? data.meta.total : 0;
+      this.savingsReports = (data && data.response) ? data.response : [];
     });
     
   }
@@ -971,8 +1052,11 @@ export class ListSavingsReportComponent implements OnInit {
     // Client Information
     this.emvClientName        = rd.client_name || '';
     this.emvClientAddress     = rd.client_address || '';
-    this.emvClientLocation    = rd.client_location || '';
-    this.emvClientCityState   = rd.client_city_state || '';
+    // Support both new (client_city, client_state) and legacy (client_city_state) formats
+    const cityState = rd.client_city_state || '';
+    const [legacyCity, legacyState] = cityState ? cityState.split(',').map((s: string) => s.trim()) : ['', ''];
+    this.emvClientCity        = rd.client_city || legacyCity || '';
+    this.emvClientState       = rd.client_state || legacyState || '';
     this.emvClientZip         = rd.client_zip || '';
     this.emvContactName       = rd.contact_name || '';
     this.emvContactEmail      = rd.contact_email || '';
@@ -1090,8 +1174,8 @@ export class ListSavingsReportComponent implements OnInit {
     // Client Information
     newData.client_name         = this.emvClientName;
     newData.client_address      = this.emvClientAddress;
-    newData.client_location     = this.emvClientLocation;
-    newData.client_city_state   = this.emvClientCityState;
+    newData.client_city         = this.emvClientCity;
+    newData.client_state        = this.emvClientState;
     newData.client_zip          = this.emvClientZip;
     newData.contact_name        = this.emvContactName;
     newData.contact_email       = this.emvContactEmail;
@@ -1143,9 +1227,201 @@ export class ListSavingsReportComponent implements OnInit {
     });
   }
 
+  saveAll() {
+    this.saveAllStatus = 'Saving...';
+    this.saveAllError = false;
+    this.emvSendStatus = 'Saving...';
+    this.emvSendError = false;
+
+    // Persist Bill Analytic fields to project.electricBillAnalysis
+    if (this.selectedSavingsReport) {
+      const analyticData: any = {
+        billReference:       this.baBillReference,
+        electricCompanyName: this.baElectricCompanyName,
+        accountNumber:       this.baAccountNumber,
+        meterNumber:         this.baMeterNumber,
+        tariff:              this.baTariff,
+        totalKwh:            parseFloat(this.baTotalKwh)         || 0,
+        kwPeak:              parseFloat(this.baKwPeak)           || 0,
+        billAmount:          parseFloat(this.baBillAmount)       || 0,
+        daysBilled:          parseFloat(this.baDaysBilled)       || 30,
+        voltage:             this.baVoltage,
+        kwRatePerTariff:     parseFloat(this.baKwRatePerTariff)  || 0,
+        kwhRate:             parseFloat(this.emvEnergyRate)      || 0,
+        lineItems:           this.baLineItems,
+      };
+      this.billAnalyticService.updateAnalytic(analyticData).subscribe(() => {}, () => {});
+
+      // Persist all EM&V + bill metric fields to savings report reportData
+      const newData = ObjectHelpers.deepCopy(this.selectedSavingsReport.reportData);
+      newData.pfc              = this.powerFactor;
+      newData.usageKWH         = this.kwhUsage;
+      newData.kwPeak           = this.kwPeak;
+      newData.totalBill        = this.totalBill;
+      newData.kwhSavings       = this.kwhSavings;
+      newData.kwPeakSavings    = this.peakSavings;
+      newData.multiplier       = this.selectedMultiplier;
+      // Client Info
+      newData.client_name         = this.emvClientName;
+      newData.client_address      = this.emvClientAddress;
+      newData.client_city         = this.emvClientCity;
+      newData.client_state        = this.emvClientState;
+      newData.client_zip          = this.emvClientZip;
+      newData.contact_name        = this.emvContactName;
+      newData.contact_email       = this.emvContactEmail;
+      newData.contact_phone       = this.emvContactPhone;
+      // Project Info
+      newData.project_type        = this.emvProjectType;
+      newData.facility_address    = this.emvFacilityAddress;
+      newData.facility_city       = this.emvFacilityCity;
+      newData.facility_state      = this.emvFacilityState;
+      newData.facility_zip        = this.emvFacilityZip;
+      // Billing Info
+      newData.project_cost        = this.emvProjectCost;
+      newData.utility             = this.emvUtility;
+      newData.utility_name        = this.emvUtilityName;
+      newData.utility_program     = this.emvUtilityProgram;
+      newData.tariff              = this.emvTariff || this.baTariff;
+      newData.account_number      = this.emvAccountNumber || this.baAccountNumber;
+      newData.energy_rate         = this.emvEnergyRate;
+      newData.demand_rate         = this.emvDemandRate;
+      newData.capacity_rate       = this.emvCapacityRate;
+      newData.billing_model       = this.emvBillingModel;
+      newData.kva_demand_rate     = this.emvKvaDemandRate;
+      newData.reactive_adder      = this.emvReactiveAdder;
+      newData.ncp_demand_rate     = this.emvNcpDemandRate;
+      newData.cp_demand_rate      = this.emvCpDemandRate;
+      newData.coincident_peak_rate= this.emvCoincidentPeakRate;
+      newData.target_pf           = this.emvTargetPF;
+      newData.discount_rate       = this.emvDiscountRate;
+      newData.escalation_rate     = this.emvEscalationRate;
+      newData.analysis_period     = this.emvAnalysisPeriod;
+      newData.tou_on_peak         = this.emvTouOnPeak;
+      newData.tou_off_peak        = this.emvTouOffPeak;
+      newData.summer_fraction_pct = this.emvSummerFraction;
+      newData.summer_on_peak      = this.emvSummerOnPeak;
+      newData.summer_off_peak     = this.emvSummerOffPeak;
+      newData.winter_on_peak      = this.emvWinterOnPeak;
+      newData.winter_off_peak     = this.emvWinterOffPeak;
+      newData.onpeak_fraction_pct = this.emvOnPeakShare;
+      newData.ratchet_percent     = this.emvRatchetPct;
+      newData.ratchet_ref_peak    = this.emvRatchetRefPeak;
+
+      this.savingsReportService.update(this.selectedSavingsReport.month, { reportData: newData }).subscribe(() => {
+        this.selectedSavingsReport.reportData = newData;
+        this.originalData = ObjectHelpers.deepCopy(newData);
+        this.saveAllStatus = 'All fields saved.';
+        this.saveAllError = false;
+        this.emvSendStatus = 'All fields saved.';
+        this.emvSendError = false;
+      }, () => {
+        this.saveAllStatus = 'Error saving fields.';
+        this.saveAllError = true;
+        this.emvSendStatus = 'Error saving fields.';
+        this.emvSendError = true;
+      });
+    }
+
+    // Also persist all EM&V Pre-fill fields to project.reportFields so they restore on every page load.
+    const proj2: any = this.userService.user.selectedProject;
+    const orgId2   = proj2 ? (proj2.orgId  || '') : '';
+    const projId2  = proj2 ? (proj2.id     || '') : '';
+    if (orgId2 && projId2) {
+      const rfFields: any = {};
+      if (this.emvClientName)          rfFields['company']            = this.emvClientName;
+      if (this.emvClientAddress)       rfFields['cp_address']         = this.emvClientAddress;
+      if (this.emvClientCity)         rfFields['cp_city']             = this.emvClientCity;
+      if (this.emvClientState)        rfFields['cp_state']             = this.emvClientState;
+      if (this.emvClientZip)           rfFields['cp_zip']             = this.emvClientZip;
+      if (this.emvContactName)         rfFields['contact']            = this.emvContactName;
+      if (this.emvContactPhone)        rfFields['phone']              = this.emvContactPhone;
+      if (this.emvContactEmail)        rfFields['email']              = this.emvContactEmail;
+      if (this.emvProjectType)         rfFields['project_type']       = this.emvProjectType;
+      if (this.emvFacilityAddress)     rfFields['facility_address']   = this.emvFacilityAddress;
+      if (this.emvFacilityCity)        rfFields['facility_city']     = this.emvFacilityCity;
+      if (this.emvFacilityState)       rfFields['facility_state']     = this.emvFacilityState;
+      if (this.emvFacilityZip)         rfFields['facility_zip']       = this.emvFacilityZip;
+      if (this.emvProjectCost)         rfFields['project_cost']       = this.emvProjectCost;
+      if (this.emvUtility)             rfFields['utility']            = this.emvUtility;
+      if (this.emvUtilityName)         rfFields['utility_name']       = this.emvUtilityName;
+      if (this.emvUtilityProgram)      rfFields['utility_program']    = this.emvUtilityProgram;
+      if (this.emvTariff || this.baTariff) rfFields['tariff']         = this.emvTariff || this.baTariff;
+      if (this.emvAccountNumber || this.baAccountNumber) rfFields['account'] = this.emvAccountNumber || this.baAccountNumber;
+      if (this.emvEnergyRate)          rfFields['energy_rate']        = this.emvEnergyRate;
+      if (this.emvDemandRate)          rfFields['demand_rate']        = this.emvDemandRate;
+      if (this.emvCapacityRate)        rfFields['capacity_rate']      = this.emvCapacityRate;
+      if (this.emvBillingModel)        rfFields['billing_model']      = this.emvBillingModel;
+      if (this.emvKvaDemandRate)       rfFields['kva_demand_rate']    = this.emvKvaDemandRate;
+      if (this.emvReactiveAdder)       rfFields['reactive_adder']     = this.emvReactiveAdder;
+      if (this.emvNcpDemandRate)       rfFields['ncp_demand_rate']    = this.emvNcpDemandRate;
+      if (this.emvCpDemandRate)        rfFields['cp_demand_rate']     = this.emvCpDemandRate;
+      if (this.emvCoincidentPeakRate)  rfFields['coincident_peak']    = this.emvCoincidentPeakRate;
+      if (this.emvTargetPF)            rfFields['target_pf']          = this.emvTargetPF;
+      if (this.emvDiscountRate)        rfFields['discount_rate']      = this.emvDiscountRate;
+      if (this.emvEscalationRate)      rfFields['escalation_rate']    = this.emvEscalationRate;
+      if (this.emvAnalysisPeriod)      rfFields['analysis_period']    = this.emvAnalysisPeriod;
+      if (this.emvTouOnPeak)           rfFields['tou_on_peak']        = this.emvTouOnPeak;
+      if (this.emvTouOffPeak)          rfFields['tou_off_peak']       = this.emvTouOffPeak;
+      if (this.emvSummerFraction)      rfFields['summer_fraction_pct']= this.emvSummerFraction;
+      if (this.emvSummerOnPeak)        rfFields['summer_on_peak']     = this.emvSummerOnPeak;
+      if (this.emvSummerOffPeak)       rfFields['summer_off_peak']    = this.emvSummerOffPeak;
+      if (this.emvWinterOnPeak)        rfFields['winter_on_peak']     = this.emvWinterOnPeak;
+      if (this.emvWinterOffPeak)       rfFields['winter_off_peak']    = this.emvWinterOffPeak;
+      if (this.emvOnPeakShare)         rfFields['onpeak_fraction_pct']= this.emvOnPeakShare;
+      if (this.emvRatchetPct)          rfFields['ratchet_percent']    = this.emvRatchetPct;
+      if (this.emvRatchetRefPeak)      rfFields['ratchet_ref_peak']   = this.emvRatchetRefPeak;
+      if (Object.keys(rfFields).length > 0) {
+        fetch('/tracking/api/emv/save-prefill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ orgId: orgId2, projectId: projId2, clientId: proj2.client || '', fields: rfFields }),
+        }).then(() => {
+          // Update the in-memory project so a page reload reads the new values immediately
+          if (proj2.reportFields) { Object.assign(proj2.reportFields, rfFields); }
+          else { proj2.reportFields = rfFields; }
+          if (!this.selectedSavingsReport) {
+            this.saveAllStatus = 'EM\u0026V fields saved.';
+            this.saveAllError = false;
+            this.emvSendStatus = 'EM\u0026V fields saved.';
+            this.emvSendError = false;
+          }
+        }).catch(() => {
+          if (!this.selectedSavingsReport) {
+            this.saveAllStatus = 'Error saving EM\u0026V fields.';
+            this.saveAllError = true;
+          }
+        });
+      }
+    }
+  }
+
+  saveBillAnalyticFields() {
+    const analyticData: any = {
+      billReference:       this.baBillReference,
+      electricCompanyName: this.baElectricCompanyName,
+      accountNumber:       this.baAccountNumber,
+      meterNumber:         this.baMeterNumber,
+      tariff:              this.baTariff,
+      totalKwh:            parseFloat(this.baTotalKwh)        || 0,
+      kwPeak:              parseFloat(this.baKwPeak)          || 0,
+      billAmount:          parseFloat(this.baBillAmount)      || 0,
+      daysBilled:          parseFloat(this.baDaysBilled)      || 30,
+      voltage:             this.baVoltage,
+      kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
+      lineItems:           this.baLineItems,
+    };
+    this.saveAllStatus = 'Saving...';
+    this.saveAllError = false;
+    this.billAnalyticService.updateAnalytic(analyticData).subscribe(
+      () => { this.saveAllStatus = 'Bill data saved.'; this.saveAllError = false; },
+      () => { this.saveAllStatus = 'Error saving bill data.'; this.saveAllError = true; }
+    );
+  }
+
   sendToEmv() {
     const bootstrap = (window as any)['BOOTSTRAP_DATA'] || {};
-    const emvBase = bootstrap.emvUrl || 'http://localhost:8082';
+    const emvBase = bootstrap.emvUrl || '/emv';
     const proj: any = this.userService.user.selectedProject;
     const orgId = proj ? (proj.orgId || '') : '';
     const projectId = proj ? (proj.id || '') : '';
@@ -1155,8 +1431,8 @@ export class ListSavingsReportComponent implements OnInit {
     // Client Information
     if (this.emvClientName)         fields['company']            = this.emvClientName;
     if (this.emvClientAddress)      fields['cp_address']         = this.emvClientAddress;
-    if (this.emvClientLocation)     fields['cp_location']        = this.emvClientLocation;
-    if (this.emvClientCityState)    fields['cp_city_state']      = this.emvClientCityState;
+    if (this.emvClientCity)         fields['cp_city']             = this.emvClientCity;
+    if (this.emvClientState)        fields['cp_state']             = this.emvClientState;
     if (this.emvClientZip)          fields['cp_zip']             = this.emvClientZip;
     if (this.emvContactName)        fields['contact']            = this.emvContactName;
     if (this.emvContactPhone)       fields['phone']              = this.emvContactPhone;
@@ -1164,7 +1440,7 @@ export class ListSavingsReportComponent implements OnInit {
     // Project Information
     if (this.emvProjectType)        fields['project_type']       = this.emvProjectType;
     if (this.emvFacilityAddress)    fields['facility_address']   = this.emvFacilityAddress;
-    if (this.emvFacilityCity)       fields['location']           = this.emvFacilityCity;
+    if (this.emvFacilityCity)       fields['facility_city']       = this.emvFacilityCity;
     if (this.emvFacilityState)      fields['facility_state']     = this.emvFacilityState;
     if (this.emvFacilityZip)        fields['facility_zip']       = this.emvFacilityZip;
     // Billing Information
@@ -1244,8 +1520,8 @@ export class ListSavingsReportComponent implements OnInit {
         this.billScanning = false;
         const data = res.data || res;
         if (res.success !== false && data && Object.keys(data).length > 0) {
-          this.populateFromScan(data);
           this.billScanSuccess = true;
+          this.populateFromScan(data);
         } else {
           this.billScanError = res.error || 'Could not extract bill data. Please enter fields manually.';
         }
@@ -1287,29 +1563,9 @@ export class ListSavingsReportComponent implements OnInit {
     if (d.serviceState)        { this.emvFacilityState = d.serviceState; }
     if (d.serviceZip)          { this.emvFacilityZip = d.serviceZip; }
 
-    // Persist the scanned data to the project so it survives page navigation.
-    // Only save when triggered by a live scan (billScanSuccess set by caller).
     const proj: any = this.userService.user.selectedProject;
-    if (proj && proj.id && this.billScanSuccess !== undefined) {
-      const analyticData: any = {
-        billReference:       this.baBillReference,
-        electricCompanyName: this.baElectricCompanyName,
-        accountNumber:       this.baAccountNumber,
-        meterNumber:         this.baMeterNumber,
-        tariff:              this.baTariff,
-        totalKwh:            parseFloat(this.baTotalKwh)      || 0,
-        kwPeak:              parseFloat(this.baKwPeak)        || 0,
-        billAmount:          parseFloat(this.baBillAmount)    || 0,
-        daysBilled:          parseFloat(this.baDaysBilled)    || 30,
-        voltage:             this.baVoltage,
-        kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
-        kwhRate:             parseFloat(this.emvEnergyRate)   || 0,
-        lineItems:           this.baLineItems,
-      };
-      this.billAnalyticService.updateAnalytic(analyticData).subscribe(
-        () => {},
-        () => {}  // silent — best-effort persistence
-      );
+    if (proj && proj.id && this.billScanSuccess === true) {
+      this.persistBillAnalytic();
     }
   }
 
@@ -1411,12 +1667,44 @@ export class ListSavingsReportComponent implements OnInit {
       this.tariffLookupNotes      = d.notes        || '';
       this.tariffLookupStatus     = `✓ Populated ${filled} field${filled !== 1 ? 's' : ''} from tariff lookup.`;
       this.tariffLookupError      = false;
+      this.persistBillAnalytic();
     })
     .catch(() => {
       this.tariffLookupLoading = false;
       this.tariffLookupStatus  = 'Network error — could not reach tariff lookup service.';
       this.tariffLookupError   = true;
     });
+  }
+
+  /** Persist current Bill Analytic fields to project.electricBillAnalysis */
+  persistBillAnalytic() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    const analyticData: any = {
+      billReference:       this.baBillReference,
+      electricCompanyName:  this.baElectricCompanyName,
+      accountNumber:       this.baAccountNumber,
+      meterNumber:         this.baMeterNumber,
+      tariff:              this.baTariff,
+      totalKwh:            parseFloat(this.baTotalKwh)      || 0,
+      kwPeak:              parseFloat(this.baKwPeak)       || 0,
+      billAmount:          parseFloat(this.baBillAmount)   || 0,
+      daysBilled:          parseFloat(this.baDaysBilled)   || 30,
+      voltage:             this.baVoltage,
+      kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
+      kwhRate:             parseFloat(this.emvEnergyRate) || 0,
+      lineItems:           this.baLineItems,
+    };
+    this.billAnalyticService.updateAnalytic(analyticData).subscribe(() => {}, () => {});
+  }
+
+  /** Schedule a debounced save of Bill Analytic fields (called on field edits) */
+  scheduleBillAnalyticSave() {
+    if (this._billAnalyticSaveTimeout) clearTimeout(this._billAnalyticSaveTimeout);
+    this._billAnalyticSaveTimeout = setTimeout(() => {
+      this._billAnalyticSaveTimeout = null;
+      this.persistBillAnalytic();
+    }, this._billAnalyticSaveDebounceMs);
   }
 
   generateBillAnalytic() {
@@ -1435,7 +1723,13 @@ export class ListSavingsReportComponent implements OnInit {
     }));
     const totalSavings = lineItemsWithSavings.reduce((sum, item) => sum + (parseFloat(item.savings) || 0), 0);
 
-    const analyticData: any = {
+    // Count meters from the meter number field (may be comma-separated for multi-meter bills)
+    const meterNumberStr = (this.baMeterNumber || '').trim();
+    const meterCount = meterNumberStr
+      ? meterNumberStr.split(',').map(s => s.trim()).filter(s => s.length > 0).length
+      : 1;
+
+    const meterBill: any = {
       billReference:       this.baBillReference,
       electricCompanyName: this.baElectricCompanyName,
       accountNumber:       this.baAccountNumber,
@@ -1447,9 +1741,26 @@ export class ListSavingsReportComponent implements OnInit {
       daysBilled:          daysBilled,
       voltage:             parseFloat(this.baVoltage) || 480,
       kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
+      switchGearCount:     meterCount,
       lineItems:           lineItemsWithSavings,
       totalSavings:        totalSavings,
     };
+
+    // Build/update meterBills array so list-billAnalytic can count completed bills
+    const existing: any = this.userService.user.selectedProject.electricBillAnalysis || {};
+    const meterBills: any[] = existing.meterBills ? [...existing.meterBills] : [];
+    const meterNumber = meterBill.meterNumber;
+    const idx = meterNumber
+      ? meterBills.findIndex(b => b.meterNumber === meterNumber)
+      : -1;
+    if (idx >= 0) {
+      meterBills[idx] = meterBill;
+    } else {
+      meterBills.push(meterBill);
+    }
+
+    // Merge top-level scalar fields from the meter bill into the analytic (for PDF, backward compat)
+    const analyticData: any = Object.assign({}, existing, meterBill, { meterBills });
 
     this.baGenerating     = true;
     this.baGenerateStatus = 'Saving bill analytic data...';

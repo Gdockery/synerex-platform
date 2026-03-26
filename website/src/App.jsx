@@ -1,7 +1,23 @@
-import React, { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import React, { Suspense, lazy, useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
+
+/** Redirects /tracking/* to the proxy (8080/tracking) so the Tracking app loads instead of a blank page. */
+function RedirectToTracking() {
+  const location = useLocation();
+  useEffect(() => {
+    const base = import.meta.env.VITE_WEBSITE_FRONTEND_URL || "";
+    const path = location.pathname.replace(/^\/tracking/, "") || "/";
+    const url = `${base}/tracking${path}${location.search}${location.hash}`;
+    window.location.replace(url);
+  }, [location]);
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+      <span className="text-gray-400 text-sm">Redirecting to Tracking…</span>
+    </div>
+  );
+}
 
 const Home = lazy(()=>import("./pages/Home.jsx"));
 const About = lazy(()=>import("./pages/About.jsx"));
@@ -73,7 +89,7 @@ export default function App(){
       <Suspense fallback={
         <div className="flex-1 flex items-center justify-center min-h-[50vh]">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-10 h-10 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
             <span className="text-gray-400 text-sm">Loading…</span>
           </div>
         </div>
@@ -140,6 +156,7 @@ export default function App(){
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/comprehensive-energy-savings-testing" element={<ComprehensiveEnergySavingsTesting />} />
           <Route path="/emv-program" element={<EMVProgram />} />
+          <Route path="/tracking/*" element={<RedirectToTracking />} />
           <Route path="/admin/*" element={<AdminDashboard />} />
         </Routes>
       </Suspense>

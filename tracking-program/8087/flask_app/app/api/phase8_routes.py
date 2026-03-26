@@ -11,8 +11,11 @@ from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import text
 
+import math
+
 from app.extensions import db
 from app.helpers.decorators import license_required
+from app.models.emv_analysis import EmvAnalysis
 from app.models.meter import Meter
 from app.models.meter_data import MeterData
 from app.models.project import Project, project_user
@@ -144,41 +147,78 @@ def get_meter_quality():
     )
     if not md:
         return jsonify({"meta": {}, "response": _empty_quality()})
+
+    v1, v2, v3 = md.l1Volt or 0, md.l2Volt or 0, md.l3Volt or 0
+    a1, a2, a3 = md.l1Amp or 0, md.l2Amp or 0, md.l3Amp or 0
+    thd1, thd2, thd3 = md.l1THD or 0, md.l2THD or 0, md.l3THD or 0
+    pf1, pf2, pf3 = md.l1Pf or 0, md.l2Pf or 0, md.l3Pf or 0
+
     return jsonify(
         {
             "meta": {},
             "response": {
-                "ampLoad1": md.l1Amp or 0,
-                "ampLoad2": md.l2Amp or 0,
-                "ampLoad3": md.l3Amp or 0,
-                "powerFactor1": md.l1Pf or 0,
-                "powerFactor2": md.l2Pf or 0,
-                "powerFactor3": md.l3Pf or 0,
+                "ampLoad1": a1,
+                "ampLoad2": a2,
+                "ampLoad3": a3,
+                "powerFactor1": pf1,
+                "powerFactor2": pf2,
+                "powerFactor3": pf3,
                 "kvar1": md.l1Kvar or 0,
                 "kvar2": md.l2Kvar or 0,
                 "kvar3": md.l3Kvar or 0,
-                "voltage1": md.l1Volt or 0,
-                "voltage2": md.l2Volt or 0,
-                "voltage3": md.l3Volt or 0,
+                "voltage1": v1,
+                "voltage2": v2,
+                "voltage3": v3,
+                "kw1": md.l1Kw or 0,
+                "kw2": md.l2Kw or 0,
+                "kw3": md.l3Kw or 0,
+                "kva1": md.l1Kva or 0,
+                "kva2": md.l2Kva or 0,
+                "kva3": md.l3Kva or 0,
+                "thd1": thd1,
+                "thd2": thd2,
+                "thd3": thd3,
+                "totalThd": md.totalTHD or 0,
+                "voltImbalance": _pct_imbalance(v1, v2, v3),
+                "ampImbalance": _pct_imbalance(a1, a2, a3),
+                "truePf1": _true_pf(pf1, thd1),
+                "truePf2": _true_pf(pf2, thd2),
+                "truePf3": _true_pf(pf3, thd3),
             },
         }
     )
 
 
+def _pct_imbalance(v1, v2, v3):
+    """NEMA MG1 voltage/current imbalance: max deviation from avg / avg * 100."""
+    vals = [v for v in [v1, v2, v3] if v and v > 0]
+    if len(vals) < 2:
+        return 0.0
+    avg = sum(vals) / len(vals)
+    if avg == 0:
+        return 0.0
+    return round(max(abs(v - avg) for v in vals) / avg * 100, 2)
+
+
+def _true_pf(disp_pf, thd_pct):
+    """True PF = Displacement PF / sqrt(1 + (THD_I/100)^2). Accounts for harmonic distortion."""
+    if not disp_pf:
+        return 0.0
+    thd_pu = (thd_pct or 0) / 100.0
+    return round(disp_pf / math.sqrt(1 + thd_pu ** 2), 4)
+
+
 def _empty_quality():
     return {
-        "ampLoad1": 0,
-        "ampLoad2": 0,
-        "ampLoad3": 0,
-        "powerFactor1": 0,
-        "powerFactor2": 0,
-        "powerFactor3": 0,
-        "kvar1": 0,
-        "kvar2": 0,
-        "kvar3": 0,
-        "voltage1": 0,
-        "voltage2": 0,
-        "voltage3": 0,
+        "ampLoad1": 0, "ampLoad2": 0, "ampLoad3": 0,
+        "powerFactor1": 0, "powerFactor2": 0, "powerFactor3": 0,
+        "kvar1": 0, "kvar2": 0, "kvar3": 0,
+        "voltage1": 0, "voltage2": 0, "voltage3": 0,
+        "kw1": 0, "kw2": 0, "kw3": 0,
+        "kva1": 0, "kva2": 0, "kva3": 0,
+        "thd1": 0, "thd2": 0, "thd3": 0, "totalThd": 0,
+        "voltImbalance": 0, "ampImbalance": 0,
+        "truePf1": 0, "truePf2": 0, "truePf3": 0,
     }
 
 
@@ -192,7 +232,10 @@ TYPE_TO_COLUMNS = {
     "kvar": ("l1Kvar", "l2Kvar", "l3Kvar"),
     "pf": ("l1Pf", "l2Pf", "l3Pf"),
     "voltthd": ("l1THD", "l2THD", "l3THD"),
-    "ampthd": ("l1THD", "l2THD", "l3THD"),  # MeterData has THD per phase, use same cols
+    "ampthd": ("l1THD", "l2THD", "l3THD"),
+    # Individual harmonic trend types (H3–H21 for current and voltage per phase)
+    **{f"ampH{h}":  (f"l1AmpH{h}",  f"l2AmpH{h}",  f"l3AmpH{h}")  for h in [3,5,7,9,11,13,15,17,19,21]},
+    **{f"voltH{h}": (f"l1VoltH{h}", f"l2VoltH{h}", f"l3VoltH{h}") for h in [3,5,7,9,11,13,15,17,19,21]},
 }
 
 
@@ -380,3 +423,208 @@ def _timestamp(row):
     if hasattr(v, "timestamp"):  # datetime
         return int(v.timestamp() * 1000)
     return int(v)
+
+
+# ----- IEEE 519-2022 INDIVIDUAL HARMONIC LIMITS -----
+
+def _get_ieee519_limits(isc_il_ratio: float) -> dict:
+    """
+    Return IEEE 519-2022 Table 2 individual harmonic limits (%) for a given ISC/IL ratio.
+    Odd harmonics H3–H21. Even harmonics are 25% of odd limits; not separately enforced here.
+    """
+    if isc_il_ratio < 20:
+        return {"H3":4.0,"H5":4.0,"H7":4.0,"H9":4.0,"H11":2.0,"H13":2.0,"H15":1.5,"H17":1.5,"H19":1.5,"H21":1.5,"tdd":5.0}
+    elif isc_il_ratio < 50:
+        return {"H3":7.0,"H5":7.0,"H7":7.0,"H9":7.0,"H11":3.5,"H13":3.5,"H15":2.5,"H17":2.5,"H19":2.5,"H21":2.5,"tdd":8.0}
+    elif isc_il_ratio < 100:
+        return {"H3":10.0,"H5":10.0,"H7":10.0,"H9":10.0,"H11":4.5,"H13":4.5,"H15":4.0,"H17":4.0,"H19":4.0,"H21":4.0,"tdd":12.0}
+    elif isc_il_ratio < 1000:
+        return {"H3":12.0,"H5":12.0,"H7":12.0,"H9":12.0,"H11":5.5,"H13":5.5,"H15":5.0,"H17":5.0,"H19":5.0,"H21":5.0,"tdd":15.0}
+    else:
+        return {"H3":15.0,"H5":15.0,"H7":15.0,"H9":15.0,"H11":7.0,"H13":7.0,"H15":6.0,"H17":6.0,"H19":6.0,"H21":6.0,"tdd":20.0}
+
+
+def _k_factor(amp_harmonics: dict, i_fund: float) -> float:
+    """
+    K-Factor per IEEE C57.110: K = sum(h^2 * Ih_pu^2) where Ih_pu = (H_pct/100) * I_fund.
+    amp_harmonics: dict of {"H3": pct, "H5": pct, ...}
+    i_fund: fundamental current (A)
+    """
+    if not i_fund or i_fund <= 0:
+        return 0.0
+    total = 0.0
+    for order_key, pct in amp_harmonics.items():
+        try:
+            h = int(order_key.replace("H", ""))
+            ih_pu = (pct / 100.0) * i_fund
+            total += (h ** 2) * (ih_pu ** 2)
+        except (ValueError, TypeError):
+            pass
+    ih_sq_sum = sum(((pct / 100.0) * i_fund) ** 2 for pct in amp_harmonics.values() if pct)
+    if ih_sq_sum == 0:
+        return 0.0
+    return round(total / ih_sq_sum, 2) if ih_sq_sum else 0.0
+
+
+def _neutral_current_est(phase_amp_harmonics: list, i_funds: list) -> float:
+    """
+    Estimate neutral current from triplen harmonics (H3, H9, H15, H21).
+    I_neutral ≈ 3 * sqrt(sum(Ih_triplen_per_phase^2)) simplified.
+    """
+    TRIPLENS = ["H3", "H9", "H15", "H21"]
+    sq_sum = 0.0
+    for harmonics, i_fund in zip(phase_amp_harmonics, i_funds):
+        if not i_fund:
+            continue
+        for h_key in TRIPLENS:
+            pct = harmonics.get(h_key, 0) or 0
+            ih = (pct / 100.0) * i_fund
+            sq_sum += ih ** 2
+    return round(3.0 * math.sqrt(sq_sum), 2) if sq_sum > 0 else 0.0
+
+
+def _k_factor_label(k: float) -> str:
+    """Map K-Factor value to transformer K-rating recommendation."""
+    if k <= 1.0:
+        return "Standard K-1 transformer suitable"
+    elif k <= 4.0:
+        return "Recommend K-4 rated transformer (K-1 derate to ~80%)"
+    elif k <= 13.0:
+        return "Recommend K-13 rated transformer"
+    else:
+        return "Recommend K-20 rated transformer"
+
+
+# ----- METER HARMONICS -----
+
+
+@phase8_bp.route("/api/meter/harmonics", methods=["GET"])
+@login_required
+@license_required
+def get_meter_harmonics():
+    """
+    GET /api/meter/harmonics?project=X&meter=Y&isc_il_ratio=20
+    Returns latest harmonic snapshot (H3-H21) per phase + K-Factor, neutral current,
+    IEEE 519 compliance, and EMV baseline from active EmvAnalysis.
+    """
+    project_id = request.args.get("project", type=int)
+    meter_id   = request.args.get("meter",   type=int)
+    isc_il     = request.args.get("isc_il_ratio", default=20, type=float)
+
+    if not project_id:
+        return jsonify({"error": "project required"}), 400
+    if not meter_id:
+        return jsonify({"error": "meter required"}), 400
+    if not _user_has_project_access(project_id):
+        return jsonify({"error": "Unauthorized"}), 404
+
+    meter = Meter.query.get(meter_id)
+    if not meter or meter.project != project_id:
+        return jsonify({"error": "Meter not found"}), 404
+
+    md = (
+        MeterData.query.filter_by(meter=meter_id)
+        .order_by(MeterData.recordedAt.desc())
+        .first()
+    )
+
+    ORDERS = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+    limits = _get_ieee519_limits(isc_il)
+
+    if not md:
+        return jsonify({"meta": {}, "response": {
+            "hasHarmonicData": False,
+            "timestamp": None,
+            "baseline": {"hasBaseline": False},
+        }})
+
+    def _phase_harmonics(phase_prefix):
+        amp  = {f"H{h}": getattr(md, f"{phase_prefix}AmpH{h}",  None) for h in ORDERS}
+        volt = {f"H{h}": getattr(md, f"{phase_prefix}VoltH{h}", None) for h in ORDERS}
+        amp  = {k: round(v, 3) for k, v in amp.items()  if v is not None}
+        volt = {k: round(v, 3) for k, v in volt.items() if v is not None}
+        return {"amp": amp, "volt": volt}
+
+    l1 = _phase_harmonics("l1")
+    l2 = _phase_harmonics("l2")
+    l3 = _phase_harmonics("l3")
+
+    has_individual = bool(l1["amp"] or l2["amp"] or l3["amp"])
+
+    # Derived metrics
+    i_funds = [md.l1Amp or 0, md.l2Amp or 0, md.l3Amp or 0]
+    k_factors = {
+        "l1": _k_factor(l1["amp"], i_funds[0]),
+        "l2": _k_factor(l2["amp"], i_funds[1]),
+        "l3": _k_factor(l3["amp"], i_funds[2]),
+    }
+    neutral_est = _neutral_current_est([l1["amp"], l2["amp"], l3["amp"]], i_funds)
+
+    # IEEE 519 compliance per harmonic
+    def _compliance(phase_harmonics):
+        result = {}
+        for order_key, measured in phase_harmonics["amp"].items():
+            limit = limits.get(order_key)
+            result[order_key] = {
+                "measured": measured,
+                "limit": limit,
+                "pass": (measured <= limit) if limit is not None else None,
+            }
+        return result
+
+    ieee519 = {
+        "iscIlRatio": isc_il,
+        "tddLimit": limits["tdd"],
+        "individualLimits": {k: v for k, v in limits.items() if k != "tdd"},
+        "l1Compliance": _compliance(l1),
+        "l2Compliance": _compliance(l2),
+        "l3Compliance": _compliance(l3),
+    }
+
+    # Overall compliance — False if any harmonic exceeds limit
+    all_compliance = []
+    for comp in [ieee519["l1Compliance"], ieee519["l2Compliance"], ieee519["l3Compliance"]]:
+        for order_data in comp.values():
+            if order_data["pass"] is not None:
+                all_compliance.append(order_data["pass"])
+    if not all_compliance:
+        overall_compliant = None  # insufficient data
+    else:
+        overall_compliant = all(all_compliance)
+
+    # EMV baseline from active EmvAnalysis
+    emv_baseline = {"hasBaseline": False}
+    proj = Project.query.get(project_id)
+    if proj and proj.active_emv_analysis_id:
+        emv = EmvAnalysis.query.get(proj.active_emv_analysis_id)
+        if emv and emv.harmonic_baseline:
+            emv_baseline = {
+                "hasBaseline": True,
+                "source": "emv_analysis",
+                "emvAnalysisId": emv.id,
+                "analysisDate": emv.analysis_date,
+                "offPeriodStart": emv.off_period_start,
+                "offPeriodEnd": emv.off_period_end,
+                "snapshot": emv.harmonic_baseline,
+            }
+
+    ts = None
+    if md.recordedAt:
+        try:
+            ts = datetime.fromtimestamp(md.recordedAt / 1000).isoformat()
+        except Exception:
+            ts = str(md.recordedAt)
+
+    response = {
+        "hasHarmonicData": has_individual,
+        "timestamp": ts,
+        "l1": l1, "l2": l2, "l3": l3,
+        "kFactor": k_factors,
+        "kFactorLabel": {p: _k_factor_label(v) for p, v in k_factors.items()},
+        "neutralCurrentEst": neutral_est,
+        "ieee519": ieee519,
+        "overallCompliant": overall_compliant,
+        "baseline": emv_baseline,
+    }
+
+    return jsonify({"meta": {}, "response": response})

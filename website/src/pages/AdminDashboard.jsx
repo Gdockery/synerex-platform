@@ -25,14 +25,15 @@ export default function AdminDashboard() {
   const serviceIntervalRef = useRef(null);
   const POLL_INTERVAL_MS = 60000; // 60s - reduce load; pause when tab hidden via visibilitychange
   
-  // Fallbacks so links work even when env vars missing (e.g. Docker build without .env)
-  const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL || 'http://localhost:8080/license';
-  const SERVICE_MANAGER_URL = import.meta.env.VITE_SERVICE_MANAGER_URL || 'http://localhost:9000';
-  const EMV_URL = import.meta.env.VITE_EMV_URL || 'http://localhost:8082';
-  const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL || 'http://localhost:8087';
-  const TRACKING_PROXY_URL = 'http://localhost:8080/tracking';
-  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
-  const WEBSITE_FRONTEND_URL = import.meta.env.VITE_WEBSITE_FRONTEND_URL || 'http://localhost:8080';
+  // Use relative paths so the app works from any host (local or remote via Tailscale/VPN).
+  // The Vite dev server proxy forwards /license, /tracking, /emv, /service-manager to localhost:8080.
+  const LICENSE_SERVICE_URL = '/license';
+  const SERVICE_MANAGER_URL = import.meta.env.VITE_SERVICE_MANAGER_URL || '/service-manager';
+  const EMV_URL = import.meta.env.VITE_EMV_URL || '/emv';
+  const TRACKING_URL = '/tracking';
+  const TRACKING_PROXY_URL = '/tracking';
+  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || '';
+  const WEBSITE_FRONTEND_URL = '';
 
   // Turn network/fetch errors into a clear message so user knows which service is unreachable
   const messageForFetchError = (err, serviceName, url) => {
@@ -716,8 +717,7 @@ export default function AdminDashboard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, password }),
-      });
+        body: JSON.stringify({ username, password }) });
       const data = await res.json();
       if (data.success && data.token) {
         localStorage.setItem("session_token", data.token);
@@ -764,7 +764,7 @@ export default function AdminDashboard() {
                 className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
             </div>
             <button type="submit" disabled={loginLoading}
-              className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded transition-colors">
+              className="w-full py-2 px-4 bg-purple-500 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded transition-colors">
               {loginLoading ? "Logging in…" : "Login"}
             </button>
           </form>
@@ -836,18 +836,18 @@ export default function AdminDashboard() {
               // Navigate in same window and preserve history
               window.location.href = targetUrl;
             }}
-            className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-6 border border-purple-700/50 hover:border-purple-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
+            className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-6 border border-purple-700/50 hover:border-purple-400 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-purple-400">License Management</h3>
-              <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <h3 className="text-xl font-bold text-purple-200">License Management</h3>
+              <svg className="w-6 h-6 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <p className="text-gray-300 text-sm mb-4">
               Manage licenses, organizations, billing, and API keys
             </p>
-            <div className="text-purple-400 text-sm font-semibold">Open Admin Panel →</div>
+            <div className="text-purple-200 text-sm font-semibold">Open Admin Panel →</div>
           </div>
           
           <a
@@ -872,10 +872,10 @@ export default function AdminDashboard() {
           </a>
           
           <a
-            href="http://localhost:8080/tracking/login"
+            href="/tracking/login"
             onClick={(e) => {
               e.preventDefault();
-              window.location.href = 'http://localhost:8080/tracking/login';
+              window.location.href = '/tracking/login';
             }}
             className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-xl p-6 border border-cyan-700/50 hover:border-cyan-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
           >
@@ -915,7 +915,7 @@ export default function AdminDashboard() {
         
         {/* Statistics Section - show skeleton immediately */}
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
-          <h2 className="text-2xl font-bold mb-6 text-purple-400">Platform Statistics</h2>
+          <h2 className="text-2xl font-bold mb-6 text-purple-200">Platform Statistics</h2>
           {loadingStats ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[1,2,3,4,5,6,7,8].map((i) => (
@@ -929,7 +929,7 @@ export default function AdminDashboard() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Organizations</div>
-                <div className="text-3xl font-bold text-purple-400">{stats.organizations || 0}</div>
+                <div className="text-3xl font-bold text-purple-200">{stats.organizations || 0}</div>
               </div>
               <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Active Licenses</div>
@@ -957,7 +957,7 @@ export default function AdminDashboard() {
               </div>
               <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
                 <div className="text-sm text-gray-400 mb-2">Active Seats</div>
-                <div className="text-3xl font-bold text-purple-400">{stats.seat_assignments || 0}</div>
+                <div className="text-3xl font-bold text-purple-200">{stats.seat_assignments || 0}</div>
               </div>
             </div>
           )}
@@ -966,7 +966,7 @@ export default function AdminDashboard() {
         {/* Service Management Section */}
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-purple-400">Service Management</h2>
+            <h2 className="text-2xl font-bold text-purple-200">Service Management</h2>
             <div className="flex gap-2">
               <button
                 onClick={handleStartAll}
@@ -1005,7 +1005,7 @@ export default function AdminDashboard() {
                       setServicesError(null);
                       loadServices();
                     }}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                    className="px-4 py-2 bg-purple-500 hover:bg-purple-700 text-white rounded-lg transition-colors"
                   >
                     Retry Loading Services
                   </button>
@@ -1157,7 +1157,7 @@ export default function AdminDashboard() {
               
               {/* License Service */}
               <div>
-                <h3 className="text-lg font-bold text-purple-400 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-bold text-purple-200 mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -1465,7 +1465,7 @@ export default function AdminDashboard() {
         
         {/* Maintenance Tools Section */}
         <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
-          <h2 className="text-2xl font-bold mb-6 text-purple-400">Maintenance Tools</h2>
+          <h2 className="text-2xl font-bold mb-6 text-purple-200">Maintenance Tools</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <div
               className="bg-gray-900 rounded-lg p-4 border border-gray-700 flex flex-col justify-between"
@@ -1498,7 +1498,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">PE Registrations</div>
+              <div className="font-semibold text-purple-200 mb-1">PE Registrations</div>
               <div className="text-sm text-gray-400">Review and approve Licensed PE registrations</div>
             </a>
             <a
@@ -1510,7 +1510,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">Organizations</div>
+              <div className="font-semibold text-purple-200 mb-1">Organizations</div>
               <div className="text-sm text-gray-400">Manage organizations and their licenses</div>
             </a>
             <a
@@ -1522,7 +1522,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">API Keys</div>
+              <div className="font-semibold text-purple-200 mb-1">API Keys</div>
               <div className="text-sm text-gray-400">Manage API keys and access tokens</div>
             </a>
             <a
@@ -1534,7 +1534,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">Server Info</div>
+              <div className="font-semibold text-purple-200 mb-1">Server Info</div>
               <div className="text-sm text-gray-400">View server configuration and status</div>
             </a>
             <a
@@ -1546,7 +1546,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">API Documentation</div>
+              <div className="font-semibold text-purple-200 mb-1">API Documentation</div>
               <div className="text-sm text-gray-400">View API documentation and test endpoints</div>
             </a>
             <a
@@ -1558,7 +1558,7 @@ export default function AdminDashboard() {
               }}
               className="bg-gray-900 hover:bg-gray-700 rounded-lg p-4 border border-gray-700 transition-colors cursor-pointer"
             >
-              <div className="font-semibold text-purple-400 mb-1">My Account</div>
+              <div className="font-semibold text-purple-200 mb-1">My Account</div>
               <div className="text-sm text-gray-400">View your account information</div>
             </a>
           </div>

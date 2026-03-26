@@ -177,6 +177,7 @@ def _project_to_dict(p, include_meters=False, sess=None):
         "currencyCode": getattr(p, "currencyCode", None),
         "currencyExchangeRate": getattr(p, "currencyExchangeRate", None),
         "activeEmvAnalysisId": getattr(p, "active_emv_analysis_id", None),
+        "location": getattr(p, "location", None),
     }
     if include_meters:
         sess = sess or get_session()
@@ -2060,15 +2061,23 @@ def serve_spa_catchall(path):
     from app.config import _8087_ROOT
     # Serve real static files (JS, CSS, fonts, images) without requiring authentication
     public_dir = _8087_ROOT / ".tmp" / "public"
-    candidate = public_dir / path
-    try:
-        candidate_resolved = candidate.resolve()
-        public_resolved = public_dir.resolve()
-        if candidate_resolved.is_file() and str(candidate_resolved).startswith(str(public_resolved)):
-            from flask import send_from_directory
-            return send_from_directory(str(public_resolved), path)
-    except Exception:
-        pass
+    # When accessed directly on port 8087 (not via proxy), the webpack publicPath prefix
+    # ("/tracking/") is included in the request path but hasn't been stripped.
+    # Strip it so chunk files resolve correctly in both direct and proxied access.
+    lookup_path = path
+    app_root = current_app.config.get("APPLICATION_ROOT", "").strip("/")
+    if app_root and lookup_path.startswith(app_root + "/"):
+        lookup_path = lookup_path[len(app_root) + 1:]
+    for try_path in ([lookup_path] if lookup_path == path else [lookup_path, path]):
+        candidate = public_dir / try_path
+        try:
+            candidate_resolved = candidate.resolve()
+            public_resolved = public_dir.resolve()
+            if candidate_resolved.is_file() and str(candidate_resolved).startswith(str(public_resolved)):
+                from flask import send_from_directory
+                return send_from_directory(str(public_resolved), try_path)
+        except Exception:
+            pass
     # Not a static file — protect with login + license
     if not current_user.is_authenticated:
         return redirect(_login_url())

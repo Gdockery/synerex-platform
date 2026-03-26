@@ -30,7 +30,10 @@ export class EmvService {
   getReportUrl(analysisId?: number): string {
     const projectId = this.userService.user?.selectedProject?.id;
     if (!projectId) return '';
-    const base = `/api/project/${projectId}/emv-report`;
+    const apiBasePath = ((typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {})['apiBasePath'] || '';
+    const prefix = (apiBasePath || '').toString().replace(/\/$/, '');
+    const path = `/api/project/${projectId}/emv-report`;
+    const base = prefix ? prefix + path : path;
     return analysisId ? `${base}?analysisId=${analysisId}` : base;
   }
 }

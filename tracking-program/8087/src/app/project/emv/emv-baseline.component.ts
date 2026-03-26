@@ -33,7 +33,7 @@ export class EmvBaselineComponent implements OnInit {
 
   /** EMV URL with Tracking project context (orgId, projectId, clientId) so EMV can pre-select the project. */
   get emvLegacyUrl(): string {
-    const base = (this.appConfig.locals && this.appConfig.locals.emvUrl) || 'http://localhost:8082';
+    const base = (this.appConfig.locals && this.appConfig.locals.emvUrl) || '/emv';
     const path = (base.replace(/\/+$/, '')) + '/legacy';
     const proj = this.currentUserService.user?.selectedProject as any;
     if (!proj || !proj.id) return path;

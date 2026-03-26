@@ -3,7 +3,7 @@ export default function NDAModal({ open, onClose }){
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || 'http://localhost:3001';
+  const WEBSITE_BACKEND_URL = import.meta.env.VITE_WEBSITE_BACKEND_URL || '';
   async function createNDA(payload){
     const targets = [
       `${WEBSITE_BACKEND_URL}/api/docusign/createNDA`,
@@ -48,7 +48,7 @@ export default function NDAModal({ open, onClose }){
             e.target.nextSibling.style.display = 'block';
           }}
         />
-        <span style={{display: 'none'}} className="text-lg font-bold text-purple-400">SYNEREX</span>
+        <span style={{display: 'none'}} className="text-lg font-bold text-purple-200">SYNEREX</span>
         <div className="text-xl font-bold text-gray-100">Request NDA</div>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -59,7 +59,7 @@ export default function NDAModal({ open, onClose }){
         <div className="text-sm text-red-400">{error}</div>
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-700">Close</button>
-          <button type="submit" disabled={submitting} className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-400 text-white">{submitted ? "Sent" : (submitting ? "Sending…" : "Send NDA Request")}</button>
+          <button type="submit" disabled={submitting} className="px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-300 text-white">{submitted ? "Sent" : (submitting ? "Sending…" : "Send NDA Request")}</button>
         </div>
       </form>
     </div>

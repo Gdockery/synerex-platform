@@ -63,7 +63,7 @@ export class ProjectOverviewComponent implements OnInit {
 
   /** EMV URL with Tracking project context (orgId, projectId, clientId) so EMV can pre-select the project. */
   get emvLegacyUrl(): string {
-    const base = (this.appConfig.locals && this.appConfig.locals.emvUrl) || 'http://localhost:8082';
+    const base = (this.appConfig.locals && this.appConfig.locals.emvUrl) || '/emv';
     const path = (base.replace(/\/+$/, '')) + '/legacy';
     const proj = this.currentUserService.user?.selectedProject as any;
     if (!proj || !proj.id) return path;
@@ -160,6 +160,11 @@ export class ProjectOverviewComponent implements OnInit {
 
   getEmvReportUrl(analysisId?: number): string {
     return this.emvService.getReportUrl(analysisId);
+  }
+
+  openReport(analysisId?: number): void {
+    const url = this.getEmvReportUrl(analysisId);
+    if (url) { window.location.href = url; }
   }
 
   dateChanged(date) {

@@ -12,23 +12,123 @@ export default function MyAccount() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [userInfo, setUserInfo] = useState(null);
   const [jwtToken, setJwtToken] = useState(null);
+  const [deployedMeterCount, setDeployedMeterCount] = useState(null);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [addSeatsOpen, setAddSeatsOpen] = useState(false);
+  const [addSeatsQty, setAddSeatsQty] = useState(1);
+  const [addSeatsLoading, setAddSeatsLoading] = useState(false);
+  const [addSeatsResult, setAddSeatsResult] = useState(null);
+  const [addSeatsError, setAddSeatsError] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(null); // { orderId }
   const navigate = useNavigate();
   
   const LICENSE_SERVICE_URL = import.meta.env.VITE_LICENSE_SERVICE_URL;
   const TRACKING_URL = import.meta.env.VITE_TRACKING_PROGRAM_URL;
+  const TRACKING_PROXY_URL = (import.meta.env.VITE_WEBSITE_FRONTEND_URL || '') + '/tracking';
   const EMV_URL = import.meta.env.VITE_EMV_URL;
   
   useEffect(() => {
     checkAuth();
   }, []);
   
+  const handleSelectPlan = async (program, plan) => {
+    if (!userInfo?.org_id) return;
+    try {
+      // Fetch live meter count from Tracking program for accurate billing
+      let meterCount = 0;
+      if (program === "tracking") {
+        try {
+          const meterResp = await fetch(`${TRACKING_URL}/api/meters/count`, {
+            credentials: "include",
+          });
+          if (meterResp.ok) {
+            const meterData = await meterResp.json();
+            meterCount = meterData.meter_count || 0;
+          }
+        } catch (e) {
+          // Non-fatal: proceed with 0 meters if Tracking program is unreachable
+        }
+      }
+
+      const formData = new FormData();
+      formData.append("org_id", userInfo.org_id);
+      formData.append("program_id", program);
+      formData.append("new_plan", plan);
+      formData.append("meter_count", String(meterCount));
+      formData.append("return_url", window.location.href);
+      const resp = await fetch(`${LICENSE_SERVICE_URL}/register/api/upgrade`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        alert(`Could not create order: ${err.detail || resp.statusText}`);
+        return;
+      }
+      const data = await resp.json();
+      window.location.href = data.payment_url;
+    } catch (e) {
+      alert("Failed to initiate plan selection. Please try again.");
+    }
+  };
+
+  const handleAddSeats = async (paymentMethod) => {
+    if (!userInfo?.org_id || addSeatsQty < 1) return;
+    setAddSeatsLoading(true);
+    setAddSeatsError(null);
+    setAddSeatsResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("org_id", userInfo.org_id);
+      formData.append("quantity", String(addSeatsQty));
+      formData.append("payment_method", paymentMethod);
+      formData.append("program_id", "tracking");
+      const resp = await fetch(`${LICENSE_SERVICE_URL}/register/api/add-seats`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        setAddSeatsError(data.detail || "Failed to add seats. Please try again.");
+      } else {
+        setAddSeatsResult(data);
+        // Update subscription state immediately for demo payments
+        if (data.payment_status === "completed" && subscriptionData) {
+          setSubscriptionData(prev => ({
+            ...prev,
+            seat_limit: data.new_seat_limit,
+            seats_available: Math.max(0, data.new_seat_limit - (prev?.seats_used || 0)),
+          }));
+        }
+      }
+    } catch (e) {
+      setAddSeatsError("Network error. Please try again.");
+    } finally {
+      setAddSeatsLoading(false);
+    }
+  };
+
   const checkAuth = async () => {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const urlToken = urlParams.get('token');
+      const paymentParam = urlParams.get('payment');
+      const orderIdParam = urlParams.get('order_id');
       if (urlToken) {
         setJwtToken(urlToken);
-        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      if (paymentParam === 'success' && orderIdParam) {
+        setPaymentSuccess({ orderId: orderIdParam });
+      }
+      if (urlToken || paymentParam) {
+        // Clean payment/token params from URL bar
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete('token');
+        clean.searchParams.delete('payment');
+        clean.searchParams.delete('order_id');
+        window.history.replaceState({}, document.title, clean.pathname + (clean.search || ''));
       }
       // Fetch check-session and JWT in parallel to reduce load time
       const [sessionResp, jwtResp] = await Promise.all([
@@ -48,6 +148,29 @@ export default function MyAccount() {
           }
         } else if (urlToken) {
           setJwtToken(urlToken);
+        }
+        // Fetch deployed meter count for eligible client orgs
+        if (userData.org_type !== "oem" && userData.user_type !== "admin") {
+          try {
+            const mResp = await fetch(`${TRACKING_URL}/api/meters/count`, { credentials: "include" });
+            if (mResp.ok) {
+              const mData = await mResp.json();
+              setDeployedMeterCount(mData.meter_count ?? null);
+            }
+          } catch (e) { /* non-fatal */ }
+          // Fetch subscription/seat data
+          if (userData.org_id) {
+            try {
+              const subResp = await fetch(
+                `${LICENSE_SERVICE_URL}/register/api/subscription?org_id=${encodeURIComponent(userData.org_id)}&program_id=tracking`,
+                { credentials: "include" }
+              );
+              if (subResp.ok) {
+                const subData = await subResp.json();
+                setSubscriptionData(subData);
+              }
+            } catch (e) { /* non-fatal */ }
+          }
         }
         if (userData.license_id) {
           setLicenseSerial(userData.license_id);
@@ -138,9 +261,6 @@ export default function MyAccount() {
   };
   
   const getAccessUrl = (program) => {
-    if (program === "tracking") {
-      return "http://localhost:8080/tracking/login";
-    }
     if (jwtToken) {
       return `${LICENSE_SERVICE_URL}/access/${program}?token=${encodeURIComponent(jwtToken)}`;
     }
@@ -219,12 +339,10 @@ export default function MyAccount() {
   if (checkingAuth) {
     return (
       <div className="min-h-screen text-gray-100 font-sans pt-16 flex items-center justify-center" style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)',
-        backgroundSize: '400% 400%',
-        animation: 'gradientMove 15s ease infinite'
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)'
       }}>
         <div className="text-center">
-          <div className="text-purple-400 text-xl mb-4">Checking authentication...</div>
+          <div className="text-purple-200 text-xl mb-4">Checking authentication...</div>
         </div>
       </div>
     );
@@ -236,21 +354,13 @@ export default function MyAccount() {
   
   return (
     <div className="min-h-screen text-gray-100 font-sans pt-16" style={{
-      background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)',
-      backgroundSize: '400% 400%',
-      animation: 'gradientMove 15s ease infinite'
+      background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)'
     }}>
       <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -266,6 +376,53 @@ export default function MyAccount() {
         }
       `}</style>
       <LicenseSeal />
+
+      {/* Payment success banner */}
+      {paymentSuccess && (
+        <div style={{
+          background: 'linear-gradient(90deg, #1a5c1a 0%, #1e7d1e 100%)',
+          borderBottom: '3px solid #4caf50',
+          padding: '16px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '24px' }}>✓</span>
+            <div>
+              <div style={{ fontWeight: '700', fontSize: '16px', color: '#fff' }}>Payment Successful — Your license has been activated!</div>
+              <div style={{ fontSize: '13px', color: '#a5d6a7', marginTop: '2px' }}>Order ID: {paymentSuccess.orderId}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <a
+              href={`${LICENSE_SERVICE_URL}/register/success?order_id=${paymentSuccess.orderId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: '#fff',
+                color: '#1a5c1a',
+                fontWeight: '700',
+                padding: '8px 18px',
+                borderRadius: '6px',
+                textDecoration: 'none',
+                fontSize: '14px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              📄 View Receipt
+            </a>
+            <button
+              onClick={() => setPaymentSuccess(null)}
+              style={{ background: 'transparent', border: 'none', color: '#a5d6a7', cursor: 'pointer', fontSize: '20px', lineHeight: 1 }}
+              title="Dismiss"
+            >×</button>
+          </div>
+        </div>
+      )}
+
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <h1 className="text-4xl font-bold mb-4 text-center">My Account</h1>
         {userInfo && (
@@ -292,12 +449,30 @@ export default function MyAccount() {
           Manage your Synerex licenses, access your programs, and view important account information.
         </p>
         
+        {/* Account Summary Card */}
+        {userInfo && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && (
+          <div className="bg-gray-800 rounded-xl p-6 mb-8 border border-purple-700/50 grid sm:grid-cols-3 gap-4">
+            <div className="bg-gray-900 rounded-lg p-4">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Organization</div>
+              <div className="text-base font-semibold text-gray-100 truncate">{userInfo.org_name || "—"}</div>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">Account Email</div>
+              <div className="text-base text-gray-100 truncate">{userInfo.email || "—"}</div>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-4">
+              <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">License Serial</div>
+              <div className="text-base font-mono text-purple-300 truncate">{licenseSerial || userInfo.license_id || "—"}</div>
+            </div>
+          </div>
+        )}
+
         {/* Welcome/Overview Section */}
         <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-6 mb-8 border border-purple-700/50">
-          <h2 className="text-2xl font-bold mb-4 text-purple-400">Welcome to Your Account</h2>
+          <h2 className="text-2xl font-bold mb-4 text-purple-200">Welcome to Your Account</h2>
           <div className="grid md:grid-cols-2 gap-6 text-gray-300">
             <div>
-              <h3 className="font-semibold text-purple-300 mb-2">What You Can Do Here</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">What You Can Do Here</h3>
               <ul className="space-y-2 text-sm">
                 <li>• View your license details and status</li>
                 <li>• Access your licensed programs (EM&V, etc.)</li>
@@ -306,13 +481,13 @@ export default function MyAccount() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-purple-300 mb-2">Quick Links</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Quick Links</h3>
               <ul className="space-y-2 text-sm">
-                <li>• <a href="/emv-program" className="text-purple-400 hover:text-purple-300">Learn about EM&V Program</a></li>
-                <li>• <a href={`${TRACKING_URL}/login?role=user`} className="text-purple-400 hover:text-purple-300">Tracking User Portal</a></li>
-                <li>• <a href="/downloads" className="text-purple-400 hover:text-purple-300">Download Resources</a></li>
-                <li>• <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact Support</a></li>
-                <li>• <a href="/licensing" className="text-purple-400 hover:text-purple-300">License Information</a></li>
+                <li>• <a href="/emv-program" className="text-purple-200 hover:text-purple-200">Learn about EM&V Program</a></li>
+                <li>• <a href={`${TRACKING_URL}/login?role=user`} className="text-purple-200 hover:text-purple-200">Tracking User Portal</a></li>
+                <li>• <a href="/downloads" className="text-purple-200 hover:text-purple-200">Download Resources</a></li>
+                <li>• <a href="/contact" className="text-purple-200 hover:text-purple-200">Contact Support</a></li>
+                <li>• <a href="/licensing" className="text-purple-200 hover:text-purple-200">License Information</a></li>
               </ul>
             </div>
           </div>
@@ -428,7 +603,7 @@ export default function MyAccount() {
         {/* Admin Access - EMV/Tracking links for platform admins */}
         {userInfo && userInfo.user_type === "admin" && (
           <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
-            <h2 className="text-2xl font-bold mb-4 text-purple-400">Admin Access</h2>
+            <h2 className="text-2xl font-bold mb-4 text-purple-200">Admin Access</h2>
             <p className="text-gray-300 mb-6">
               As a platform administrator, you can access the EM&V and Tracking admin panels.
             </p>
@@ -437,14 +612,13 @@ export default function MyAccount() {
                 href={`${EMV_URL}/admin-panel`}
                 
                 rel="noopener noreferrer"
-                className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
+                className="block p-6 bg-purple-500 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-400"
               >
                 <div className="text-xl font-bold mb-2 text-white">EM&V Admin Panel</div>
                 <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
               </a>
               <a
-                href="/tracking/login"
-                
+                href={`${TRACKING_PROXY_URL}/login`}
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >
@@ -455,10 +629,36 @@ export default function MyAccount() {
           </div>
         )}
         
+        {/* Client Admin Portal - visible to customer_admin role users */}
+        {userInfo && userInfo.role === "customer_admin" && (
+          <div className="bg-gradient-to-r from-sky-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-sky-700/50">
+            <h2 className="text-2xl font-bold mb-4 text-sky-200">User Management</h2>
+            <p className="text-gray-300 mb-6">
+              As a Client Admin, you can add and manage users for your organization, and share your branded login link with them.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <a
+                href={`${LICENSE_SERVICE_URL}/auth/client-portal`}
+                className="block p-4 bg-gray-800/70 hover:bg-gray-700/80 rounded-lg border border-gray-600 transition-colors"
+              >
+                <div className="text-base font-bold mb-1 text-white">Manage Client Users</div>
+                <div className="text-sm text-gray-400">Add or remove users, copy your branded login link</div>
+              </a>
+              <a
+                href={`${LICENSE_SERVICE_URL}/auth/change-password`}
+                className="block p-4 bg-gray-800/70 hover:bg-gray-700/80 rounded-lg border border-gray-600 transition-colors"
+              >
+                <div className="text-base font-bold mb-1 text-white">Change Password</div>
+                <div className="text-sm text-gray-400">Update your account password</div>
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* OEM Access - Direct links for OEM org users (no prices) */}
         {userInfo && userInfo.org_type === "oem" && (
           <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
-            <h2 className="text-2xl font-bold mb-4 text-purple-400">OEM Access</h2>
+            <h2 className="text-2xl font-bold mb-4 text-purple-200">OEM Access</h2>
             <p className="text-gray-300 mb-6">
               As an OEM partner, you have access to Synerex programs. Click below to open each application.
             </p>
@@ -466,7 +666,7 @@ export default function MyAccount() {
               <a
                 href={getAccessUrl("emv")}
                 rel="noopener noreferrer"
-                className="block p-6 bg-purple-600 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-500"
+                className="block p-6 bg-purple-500 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-400"
               >
                 <div className="text-xl font-bold mb-2 text-white">EM&V Program</div>
                 <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
@@ -481,7 +681,7 @@ export default function MyAccount() {
               </a>
             </div>
             <div className="mt-6 pt-6 border-t border-purple-700/40">
-              <h3 className="text-lg font-semibold text-purple-300 mb-3">Account Management</h3>
+              <h3 className="text-lg font-semibold text-purple-200 mb-3">Account Management</h3>
               <div className="grid md:grid-cols-2 gap-4">
                 <a
                   href={`${LICENSE_SERVICE_URL}/oem-admin/profile`}
@@ -502,12 +702,19 @@ export default function MyAccount() {
           </div>
         )}
         
-        {/* License Selection Section - Only show if user doesn't have licenses, is NOT OEM, and is NOT admin */}
-        {userInfo && !licenseData && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && (
-          <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
-            <h2 className="text-2xl font-bold mb-4 text-purple-400">Select a License</h2>
-            <p className="text-gray-300 mb-6">
-              Choose a license plan to get started with Synerex programs. After purchase, you'll receive your License Serial Number via email.
+        {/* License Selection Section - always visible for non-OEM, non-admin users */}
+        {userInfo && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && (
+          <div id="license-plans" className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
+            <h2 className="text-2xl font-bold mb-2 text-purple-200">
+              {licenseData ? "Purchase or Upgrade a License" : "Select a License"}
+            </h2>
+            <p className="text-gray-300 mb-2">
+              {licenseData
+                ? "Purchase an additional license or upgrade your existing plan. After purchase, you'll receive a new License Serial Number via email."
+                : "Choose a license plan to get started with Synerex programs. After purchase, you'll receive your License Serial Number via email."}
+            </p>
+            <p className="text-sm text-gray-400 mb-6">
+              Browse the full catalog on our <a href="/licensing" className="text-purple-300 hover:text-purple-200 underline">Licensing page</a>.
             </p>
             
             <div className="grid md:grid-cols-2 gap-6">
@@ -515,24 +722,24 @@ export default function MyAccount() {
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-xl font-bold mb-4 text-blue-400">EM&V Program</h3>
                 <div className="space-y-4">
-                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors cursor-pointer">
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-400 transition-colors cursor-pointer">
                     <div className="font-semibold text-white mb-2">Single Report License</div>
-                    <div className="text-2xl font-bold text-purple-400 mb-2">$4,200</div>
+                    <div className="text-2xl font-bold text-purple-200 mb-2">$4,200</div>
                     <div className="text-sm text-gray-400 mb-3">One-time payment</div>
                     <button 
-                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=emv&plan=single_report`}
-                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                      onClick={() => handleSelectPlan("emv", "single_report")}
+                      className="w-full px-4 py-2 bg-purple-500 hover:bg-purple-500 text-white rounded transition-colors"
                     >
                       Select Plan
                     </button>
                   </div>
-                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-500 transition-colors cursor-pointer">
+                  <div className="border border-gray-700 rounded-lg p-4 hover:border-purple-400 transition-colors cursor-pointer">
                     <div className="font-semibold text-white mb-2">Annual License</div>
-                    <div className="text-2xl font-bold text-purple-400 mb-2">$53,000</div>
+                    <div className="text-2xl font-bold text-purple-200 mb-2">$53,000</div>
                     <div className="text-sm text-gray-400 mb-3">Per year, unlimited reports</div>
                     <button 
-                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=emv&plan=annual`}
-                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                      onClick={() => handleSelectPlan("emv", "annual")}
+                      className="w-full px-4 py-2 bg-purple-500 hover:bg-purple-500 text-white rounded transition-colors"
                     >
                       Select Plan
                     </button>
@@ -543,6 +750,12 @@ export default function MyAccount() {
               {/* Tracking Plans */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                 <h3 className="text-xl font-bold mb-4 text-green-400">Tracking Program</h3>
+                {deployedMeterCount !== null && (
+                  <div className="mb-4 px-3 py-2 bg-gray-700/60 rounded-lg text-sm text-gray-300">
+                    Your account has <span className="font-semibold text-green-400">{deployedMeterCount} meter{deployedMeterCount !== 1 ? "s" : ""}</span> deployed.
+                    Billing will include <span className="font-semibold text-green-400">${(deployedMeterCount * 750).toLocaleString()}/year</span> in meter fees.
+                  </div>
+                )}
                 <div className="space-y-4">
                   <div className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors cursor-pointer">
                     <div className="font-semibold text-white mb-2">Basic Plan</div>
@@ -550,7 +763,7 @@ export default function MyAccount() {
                     <div className="text-sm text-gray-400 mb-1">+ $750/meter/year</div>
                     <div className="text-sm text-gray-400 mb-3">5 Users, Read Only</div>
                     <button 
-                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=basic`}
+                      onClick={() => handleSelectPlan("tracking", "basic")}
                       className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
                     >
                       Select Plan
@@ -559,10 +772,10 @@ export default function MyAccount() {
                   <div className="border border-gray-700 rounded-lg p-4 hover:border-green-500 transition-colors cursor-pointer">
                     <div className="font-semibold text-white mb-2">Pro Plan</div>
                     <div className="text-2xl font-bold text-green-400 mb-2">$950</div>
-                    <div className="text-sm text-gray-400 mb-1">+ $795/meter/year</div>
+                    <div className="text-sm text-gray-400 mb-1">+ $750/meter/year</div>
                     <div className="text-sm text-gray-400 mb-3">15 Users, Equipment Scheduling</div>
                     <button 
-                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=pro`}
+                      onClick={() => handleSelectPlan("tracking", "pro")}
                       className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
                     >
                       Select Plan
@@ -574,7 +787,7 @@ export default function MyAccount() {
                     <div className="text-sm text-gray-400 mb-1">+ $750/meter/year</div>
                     <div className="text-sm text-gray-400 mb-3">Unlimited Users, Full Features</div>
                     <button 
-                      onClick={() => window.location.href = `${LICENSE_SERVICE_URL}/register/payment?program=tracking&plan=enterprise`}
+                      onClick={() => handleSelectPlan("tracking", "enterprise")}
                       className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded transition-colors"
                     >
                       Select Plan
@@ -589,7 +802,7 @@ export default function MyAccount() {
         {/* Lookup Form - hidden for OEM and admin users */}
         {userInfo?.org_type !== "oem" && userInfo?.user_type !== "admin" && (
         <div className="bg-gray-800 rounded-xl p-8 mb-8 border border-gray-700">
-          <h2 className="text-2xl font-bold mb-4 text-purple-400">Lookup License</h2>
+          <h2 className="text-2xl font-bold mb-4 text-purple-200">Lookup License</h2>
           <p className="text-gray-300 mb-6">
             Enter your License Serial Number to view your license information and access your programs. 
             Your License Serial Number can be found in your license receipt email.
@@ -606,7 +819,7 @@ export default function MyAccount() {
                 value={licenseSerial}
                 onChange={(e) => setLicenseSerial(e.target.value)}
                 placeholder="SYX-LIC-2025-XXXXXXXXXX"
-                className="w-full p-3 rounded-lg border border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                className="w-full p-3 rounded-lg border border-gray-700 bg-gray-900 text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-400"
                 required
               />
               <p className="text-sm text-gray-400 mt-2">
@@ -623,7 +836,7 @@ export default function MyAccount() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-400 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow transition-colors"
+              className="w-full px-4 py-3 bg-purple-500 hover:bg-purple-300 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow transition-colors"
             >
               {loading ? "Looking up..." : "Lookup License"}
             </button>
@@ -635,14 +848,14 @@ export default function MyAccount() {
         {licenseData && (
           <div className="bg-gray-800 rounded-xl p-8 border border-gray-700">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-purple-400">License Information</h2>
+              <h2 className="text-2xl font-bold text-purple-200">License Information</h2>
               {getStatusBadge(licenseStatus)}
             </div>
             
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div className="bg-gray-900 rounded-lg p-4">
                 <div className="text-sm text-gray-400 mb-1">License Serial Number</div>
-                <div className="text-lg font-mono text-purple-300">{licenseData.license_id || licenseSerial}</div>
+                <div className="text-lg font-mono text-purple-200">{licenseData.license_id || licenseSerial}</div>
               </div>
               
               <div className="bg-gray-900 rounded-lg p-4">
@@ -650,6 +863,11 @@ export default function MyAccount() {
                 <div className="text-lg font-semibold text-gray-100">
                   {licenseData.program?.program_id?.toUpperCase() || "N/A"}
                 </div>
+              </div>
+
+              <div className="bg-gray-900 rounded-lg p-4">
+                <div className="text-sm text-gray-400 mb-1">Account Email</div>
+                <div className="text-lg text-gray-100">{userInfo?.email || "N/A"}</div>
               </div>
               
               {licenseData.org && (
@@ -689,7 +907,7 @@ export default function MyAccount() {
                     href={getAccessUrl("emv")}
                     
                     rel="noopener noreferrer"
-                    className="block p-6 bg-purple-600 hover:bg-purple-400 rounded-lg text-center transition-colors"
+                    className="block p-6 bg-purple-500 hover:bg-purple-300 rounded-lg text-center transition-colors"
                   >
                     <div className="text-xl font-bold mb-2">Access EM&V Program</div>
                     <div className="text-sm text-purple-500">Click to open the Energy Measurement & Verification program</div>
@@ -705,6 +923,157 @@ export default function MyAccount() {
                     <div className="text-xl font-bold mb-2">Access Tracking Program</div>
                     <div className="text-sm text-green-500">Click to open the Tracking program</div>
                   </a>
+                )}
+              </div>
+            )}
+
+            {/* Seat Management — Tracking only */}
+            {licenseData?.program?.program_id === "tracking" && subscriptionData && (
+              <div className="mt-6 bg-gray-900 rounded-xl p-6 border border-gray-700">
+                <h3 className="text-lg font-bold mb-4 text-green-400">User Seats</h3>
+                
+                {/* Seat usage bar */}
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-400">
+                      {subscriptionData.seats_used ?? 0} of {subscriptionData.seat_limit ?? 0} seats used
+                    </span>
+                    <span className="text-sm font-semibold text-green-400">
+                      {subscriptionData.seats_available ?? 0} available
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full transition-all ${
+                        (subscriptionData.seats_available ?? 1) === 0 ? "bg-red-500" : "bg-green-500"
+                      }`}
+                      style={{
+                        width: `${subscriptionData.seat_limit > 0
+                          ? Math.min(100, ((subscriptionData.seats_used ?? 0) / subscriptionData.seat_limit) * 100)
+                          : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Add seats button — shown when all seats used */}
+                {(subscriptionData.seats_available ?? 1) === 0 && !addSeatsOpen && !addSeatsResult && (
+                  <button
+                    onClick={() => { setAddSeatsOpen(true); setAddSeatsQty(1); setAddSeatsError(null); setAddSeatsResult(null); }}
+                    className="w-full py-2 px-4 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    + Add Additional Seats
+                  </button>
+                )}
+
+                {/* Add seats panel */}
+                {addSeatsOpen && !addSeatsResult && (
+                  <div className="mt-4 p-5 bg-gray-800 rounded-xl border border-green-700">
+                    <h4 className="font-bold text-green-400 mb-3">Purchase Additional Seats</h4>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Additional seats are billed at <span className="text-white font-semibold">$99/seat/year</span>, prorated
+                      to your current license renewal date.
+                    </p>
+
+                    {/* Quantity input */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <label className="text-sm text-gray-300 whitespace-nowrap">Number of seats:</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={addSeatsQty}
+                        onChange={e => setAddSeatsQty(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-20 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-center"
+                      />
+                    </div>
+
+                    {/* Cost preview */}
+                    {licenseData?.term?.term_end && (() => {
+                      const daysLeft = Math.max(1, Math.ceil((new Date(licenseData.term.term_end) - new Date()) / 86400000));
+                      const prorated = ((99 * addSeatsQty * daysLeft) / 365).toFixed(2);
+                      return (
+                        <div className="mb-4 p-3 bg-gray-700/60 rounded-lg text-sm">
+                          <div className="flex justify-between text-gray-300 mb-1">
+                            <span>{addSeatsQty} seat{addSeatsQty !== 1 ? "s" : ""} × $99/year</span>
+                            <span>${(99 * addSeatsQty).toFixed(2)}/yr</span>
+                          </div>
+                          <div className="flex justify-between text-gray-400 mb-1">
+                            <span>Prorated ({daysLeft} days remaining)</span>
+                            <span>× {(daysLeft / 365).toFixed(3)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-green-400 border-t border-gray-600 pt-2 mt-2">
+                            <span>Due today</span>
+                            <span>${prorated}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {addSeatsError && (
+                      <div className="mb-3 p-3 bg-red-900/40 border border-red-700 rounded text-red-300 text-sm">
+                        {addSeatsError}
+                      </div>
+                    )}
+
+                    {/* Payment buttons */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => handleAddSeats("demo")}
+                        disabled={addSeatsLoading}
+                        className="py-2 px-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm"
+                      >
+                        {addSeatsLoading ? "Processing…" : "Pay Now (Demo)"}
+                      </button>
+                      <button
+                        onClick={() => handleAddSeats("eft")}
+                        disabled={addSeatsLoading}
+                        className="py-2 px-4 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 text-white font-semibold rounded-lg transition-colors text-sm"
+                      >
+                        Pay by EFT
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => { setAddSeatsOpen(false); setAddSeatsError(null); }}
+                      className="mt-3 w-full py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                {/* Success receipt */}
+                {addSeatsResult && (
+                  <div className="mt-4 p-5 bg-green-900/30 border border-green-600 rounded-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-green-400 text-xl">✓</span>
+                      <h4 className="font-bold text-green-400">
+                        {addSeatsResult.payment_status === "completed" ? "Seats Added Successfully" : "Order Received"}
+                      </h4>
+                    </div>
+                    <div className="text-sm text-gray-300 space-y-1">
+                      {addSeatsResult.payment_status === "completed" ? (
+                        <>
+                          <div className="flex justify-between"><span className="text-gray-400">Seats added:</span><span className="font-semibold text-green-400">+{addSeatsResult.seats_added}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-400">New seat limit:</span><span>{addSeatsResult.new_seat_limit}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-400">Amount charged:</span><span className="font-semibold">${addSeatsResult.amount_charged}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-400">Receipt ref:</span><span className="font-mono text-xs">{addSeatsResult.receipt_ref}</span></div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between"><span className="text-gray-400">Order ID:</span><span className="font-mono text-xs">{addSeatsResult.order_id}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-400">Amount due:</span><span className="font-semibold">${addSeatsResult.amount_charged}</span></div>
+                          <p className="mt-2 text-yellow-300 text-xs">Your EFT payment is pending. Seats will be activated once payment is confirmed. A confirmation will be sent to your email.</p>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setAddSeatsResult(null); setAddSeatsOpen(false); }}
+                      className="mt-4 w-full py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -725,31 +1094,31 @@ export default function MyAccount() {
         {/* License Benefits Section */}
         {licenseData && (
           <div className="mt-8 bg-gray-800 rounded-xl p-6 border border-gray-700">
-            <h3 className="text-lg font-bold mb-4 text-purple-400">Your License Includes</h3>
+            <h3 className="text-lg font-bold mb-4 text-purple-200">Your License Includes</h3>
             <div className="grid md:grid-cols-2 gap-4 text-gray-300">
               <div className="flex items-start">
-                <span className="text-purple-400 mr-2">✓</span>
+                <span className="text-purple-200 mr-2">✓</span>
                 <div>
                   <div className="font-semibold">Access to Licensed Programs</div>
                   <div className="text-sm text-gray-400">Full access to EM&V and other licensed software programs</div>
                 </div>
               </div>
               <div className="flex items-start">
-                <span className="text-purple-400 mr-2">✓</span>
+                <span className="text-purple-200 mr-2">✓</span>
                 <div>
                   <div className="font-semibold">Technical Support</div>
                   <div className="text-sm text-gray-400">Ongoing support for your licensed programs</div>
                 </div>
               </div>
               <div className="flex items-start">
-                <span className="text-purple-400 mr-2">✓</span>
+                <span className="text-purple-200 mr-2">✓</span>
                 <div>
                   <div className="font-semibold">Software Updates</div>
                   <div className="text-sm text-gray-400">Receive updates and improvements during your license term</div>
                 </div>
               </div>
               <div className="flex items-start">
-                <span className="text-purple-400 mr-2">✓</span>
+                <span className="text-purple-200 mr-2">✓</span>
                 <div>
                   <div className="font-semibold">Documentation & Resources</div>
                   <div className="text-sm text-gray-400">Access to technical documentation and training materials</div>
@@ -761,24 +1130,26 @@ export default function MyAccount() {
         
         {/* Help Section */}
         <div className="mt-8 bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-lg font-bold mb-4 text-purple-400">Need Help?</h3>
+          <h3 className="text-lg font-bold mb-4 text-purple-200">Need Help?</h3>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold text-purple-300 mb-2">Common Questions</h4>
+              <h4 className="font-semibold text-purple-200 mb-2">Common Questions</h4>
               <ul className="space-y-2 text-sm text-gray-300">
                 <li>• Can't find your License Serial Number? Check your license receipt email.</li>
-                <li>• License expired? <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact us to renew</a></li>
-                <li>• Having trouble accessing the program? <a href="/contact" className="text-purple-400 hover:text-purple-300">Contact Support</a></li>
-                <li>• Need to upgrade your license? <a href="/license/register/" className="text-purple-400 hover:text-purple-300">View licensing options</a></li>
+                <li>• License expired? <a href="/contact" className="text-purple-200 hover:text-purple-200">Contact us to renew</a></li>
+                <li>• Having trouble accessing the program? <a href="/contact" className="text-purple-200 hover:text-purple-200">Contact Support</a></li>
+                {userInfo?.org_type !== "oem" && userInfo?.user_type !== "admin" && (
+                  <li>• Need to upgrade your license? <a href="#license-plans" onClick={(e) => { e.preventDefault(); document.getElementById('license-plans')?.scrollIntoView({ behavior: 'smooth' }); }} className="text-purple-200 hover:text-purple-200 cursor-pointer">View licensing options</a></li>
+                )}
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-purple-300 mb-2">Resources & Support</h4>
+              <h4 className="font-semibold text-purple-200 mb-2">Resources & Support</h4>
               <ul className="space-y-2 text-sm text-gray-300">
-                <li>• <a href="/downloads" className="text-purple-400 hover:text-purple-300">Download Documentation</a></li>
-                <li>• <a href="/emv-program" className="text-purple-400 hover:text-purple-300">EM&V Program Guide</a></li>
-                <li>• <a href="/contact" className="text-purple-400 hover:text-purple-300">Technical Support</a></li>
-                <li>• <a href="/licensing" className="text-purple-400 hover:text-purple-300">License Management</a></li>
+                <li>• <a href="/downloads" className="text-purple-200 hover:text-purple-200">Download Documentation</a></li>
+                <li>• <a href="/emv-program" className="text-purple-200 hover:text-purple-200">EM&V Program Guide</a></li>
+                <li>• <a href="/contact" className="text-purple-200 hover:text-purple-200">Technical Support</a></li>
+                <li>• <a href="/licensing" className="text-purple-200 hover:text-purple-200">License Management</a></li>
               </ul>
             </div>
           </div>
