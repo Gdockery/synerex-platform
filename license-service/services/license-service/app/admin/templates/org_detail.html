@@ -317,6 +317,13 @@
   {% elif tab == "billing" %}
   <div>
     <h4 style="margin-bottom: 1rem;">Billing Orders ({{ stats.billing_orders_total }})</h4>
+
+    {% if request.query_params.get('msg') %}
+    <div style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.9rem;">
+      ✓ {{ request.query_params.get('msg')|replace('+', ' ') }}
+    </div>
+    {% endif %}
+
     {% if billing_orders %}
     <table>
       <thead>
@@ -325,6 +332,7 @@
           <th>Program</th>
           <th>Plan</th>
           <th>Amount</th>
+          <th>Gateway</th>
           <th>Status</th>
           <th>Created</th>
           <th>Actions</th>
@@ -332,11 +340,13 @@
       </thead>
       <tbody>
         {% for order in billing_orders %}
+        {% set inv = order_invoices.get(order.order_id) %}
         <tr>
-          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ order.order_id }}</code></td>
+          <td><code style="background: #f7fafc; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">{{ order.order_id[:20] }}…</code></td>
           <td><span class="badge badge-info">{{ order.program_id|upper }}</span></td>
-          <td>{{ order.plan|title }}</td>
+          <td>{{ order.plan|replace('_',' ')|title }}</td>
           <td style="font-weight: 500;">${{ order.amount_total }} {{ order.currency }}</td>
+          <td style="color: #718096; font-size: 0.85rem;">{{ order_gateways.get(order.order_id, '—') }}</td>
           <td>
             {% if order.status == "paid" %}
             <span class="badge badge-success">Paid</span>
@@ -349,11 +359,25 @@
             {% endif %}
           </td>
           <td style="color: #718096; font-size: 0.9rem;">{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else 'N/A' }}</td>
-          <td>
+          <td style="white-space: nowrap;">
             {% if order.license_id %}
-            <a href="{{ admin_url('licenses/' ~ order.license_id) }}" style="color: #667eea; text-decoration: none;">View License →</a>
-            {% else %}
-            <span style="color: #718096;">—</span>
+              <a href="{{ admin_url('licenses/' ~ order.license_id) }}" style="color: #667eea; text-decoration: none; margin-right: 0.5rem;">View License →</a>
+            {% endif %}
+            {% if inv and inv.pdf_path %}
+              <a href="{{ admin_url('billing/invoice/' ~ inv.invoice_id ~ '/download') }}"
+                 style="color: #059669; text-decoration: none; margin-right: 0.5rem;" title="Download Invoice PDF">
+                ↓ Invoice
+              </a>
+            {% endif %}
+            {% if order.status == "pending" and order_gateways.get(order.order_id) == "eft" %}
+              <button onclick="openEftModal('{{ order.order_id }}', '{{ order.amount_total }}', '{{ order.currency }}')"
+                      style="background: #f59e0b; color: white; border: none; border-radius: 4px; padding: 0.3rem 0.7rem; font-size: 0.8rem; cursor: pointer; font-weight: 600;">
+                ✓ Mark EFT Paid
+              </button>
+            {% elif order.status == "pending" and not order.license_id %}
+              <span style="color: #718096; font-size: 0.8rem;">Awaiting payment</span>
+            {% elif not order.license_id %}
+              <span style="color: #718096;">—</span>
             {% endif %}
           </td>
         </tr>
@@ -364,6 +388,48 @@
     <p style="color: #718096; padding: 2rem; text-align: center;">No billing orders found for this organization.</p>
     {% endif %}
   </div>
+
+  <!-- EFT Verification Modal -->
+  <div id="eftModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:10px; padding:2rem; max-width:480px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <h3 style="margin:0 0 0.5rem; color:#2d3748;">Verify EFT Payment</h3>
+      <p id="eftModalDesc" style="color:#718096; font-size:0.9rem; margin:0 0 1.25rem;"></p>
+      <form id="eftForm" method="post">
+        <div style="margin-bottom:1rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.35rem;">Bank Reference / Transaction ID (optional)</label>
+          <input type="text" name="reference" placeholder="e.g. ACH123456789"
+                 style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e0; border-radius:6px; font-size:0.9rem; box-sizing:border-box;"/>
+        </div>
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block; font-size:0.85rem; font-weight:600; color:#4a5568; margin-bottom:0.35rem;">Admin Notes (optional)</label>
+          <textarea name="notes" rows="2" placeholder="e.g. Wire received 2026-03-27, confirmed by Jane"
+                    style="width:100%; padding:0.5rem 0.75rem; border:1px solid #cbd5e0; border-radius:6px; font-size:0.9rem; box-sizing:border-box; resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+          <button type="button" onclick="closeEftModal()"
+                  style="padding:0.5rem 1.1rem; background:#e5e7eb; border:none; border-radius:6px; cursor:pointer; font-size:0.9rem;">
+            Cancel
+          </button>
+          <button type="submit"
+                  style="padding:0.5rem 1.25rem; background:#059669; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer; font-size:0.9rem;">
+            ✓ Confirm &amp; Issue License
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    function openEftModal(orderId, amount, currency) {
+      document.getElementById('eftModalDesc').textContent =
+        'Mark order ' + orderId.slice(0, 20) + '… as paid ($' + amount + ' ' + currency + ') and automatically issue the license.';
+      var prefix = '{{ path_prefix }}';
+      document.getElementById('eftForm').action = prefix + '/admin/billing/eft/' + orderId + '/verify';
+      document.getElementById('eftModal').style.display = 'flex';
+    }
+    function closeEftModal() {
+      document.getElementById('eftModal').style.display = 'none';
+    }
+  </script>
 
   {% elif tab == "activity" %}
   <div>

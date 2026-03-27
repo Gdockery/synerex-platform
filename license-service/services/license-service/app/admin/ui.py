@@ -521,6 +521,28 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         root_pfx = (settings.root_path or "").rstrip("/")
         oem_login_url = f"{base_url}{root_pfx}/auth/login?oem={org_id}"
 
+    # Build billing helpers for the billing tab
+    from ..models.payment import Payment as _Payment, Invoice as _Invoice
+    order_ids = [o.order_id for o in billing_orders]
+
+    # Map order_id -> gateway (from most recent payment)
+    order_gateways: dict = {}
+    if order_ids:
+        payments = db.query(_Payment).filter(_Payment.order_id.in_(order_ids)).all()
+        for p in payments:
+            # prefer completed gateway label; fall back to any
+            if p.order_id not in order_gateways or p.status == "completed":
+                order_gateways[p.order_id] = p.gateway
+
+    # Map order_id -> Invoice (for PDF download link)
+    order_invoices: dict = {}
+    if order_ids:
+        invoices = db.query(_Invoice).filter(_Invoice.order_id.in_(order_ids)).all()
+        for inv in invoices:
+            order_invoices[inv.order_id] = inv
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+
     return templates.TemplateResponse("org_detail.html", {
         "request": request,
         "org": org,
@@ -535,6 +557,9 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         "oem_login_url": oem_login_url,
         "oem_setup_message": oem_setup_message,
         "oem_setup_message_type": oem_setup_message_type,
+        "order_gateways": order_gateways,
+        "order_invoices": order_invoices,
+        "path_prefix": path_prefix,
     })
 
 @router.post("/orgs/{org_id}/setup-oem", response_class=RedirectResponse)
@@ -1690,3 +1715,167 @@ async def downloads_bulk_apply(request: Request, _=Depends(require_admin)):
 
     reg_path.write_text(json.dumps(registry, indent=2), encoding="utf-8")
     return templates.TemplateResponse("downloads.html", {"request": request, "registry": registry})
+
+
+# ---------------------------------------------------------------------------
+# EFT Payment verification — admin marks an EFT payment received and issues
+# the license automatically.
+# ---------------------------------------------------------------------------
+
+@router.post("/billing/eft/{order_id}/verify", response_class=RedirectResponse)
+def eft_verify_payment(
+    order_id: str,
+    request: Request,
+    reference: str = Form(""),
+    notes: str = Form(""),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Mark an EFT billing order as paid, complete the payment record, and issue the license."""
+    import json as _json
+    from ..models.payment import Payment
+    from ..models.authorization import ProgramAuthorization
+    from ..licensing import build_license_payload
+    from ..licensing.issuer import issue_license_record
+    from ..templates_loader import load_template
+    from ..services.payments import generate_invoice
+
+    order = db.get(BillingOrder, order_id)
+    if not order:
+        raise HTTPException(404, f"Order {order_id} not found")
+
+    if order.status == "paid":
+        return RedirectResponse(
+            _admin_url(f"orgs/{order.org_id}?tab=billing&msg=Order+already+paid"),
+            status_code=303,
+        )
+
+    # 1. Complete the pending EFT payment record
+    payment = db.query(Payment).filter(
+        Payment.order_id == order_id,
+        Payment.gateway == "eft",
+    ).first()
+
+    if not payment:
+        payment_id = f"PAY-EFT-{order_id}-{int(datetime.utcnow().timestamp())}"
+        payment = Payment(
+            id=payment_id,
+            order_id=order_id,
+            org_id=order.org_id,
+            amount=order.amount_total,
+            currency=order.currency,
+            gateway="eft",
+            status="pending",
+            payment_method="eft",
+        )
+        db.add(payment)
+
+    payment.status = "completed"
+    payment.completed_at = datetime.utcnow()
+    if reference.strip():
+        payment.gateway_transaction_id = reference.strip()
+    if notes.strip():
+        payment.payment_metadata = _json.dumps({"admin_notes": notes.strip()})
+    db.commit()
+
+    # 2. Issue the license (same logic as demo payment)
+    template_mapping = {
+        "emv":      {"single_report": "emv_single_report", "annual": "emv_annual"},
+        "tracking": {"basic": "tracking_basic", "pro": "tracking_pro", "enterprise": "tracking_enterprise"},
+    }
+    template_id = template_mapping.get(order.program_id, {}).get(order.plan)
+    if not template_id:
+        log_event(db, actor="admin", action="eft.verify.error", ref_id=order_id,
+                  detail={"error": f"unknown plan {order.plan} for {order.program_id}"})
+        return RedirectResponse(
+            _admin_url(f"orgs/{order.org_id}?tab=billing&msg=Unknown+plan+%27{order.plan}%27"),
+            status_code=303,
+        )
+
+    org = db.get(Organization, order.org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    auth_id = f"AUTH-{order.program_id.upper()}-{order.org_id}-{order_id}"
+    existing_auth = db.get(ProgramAuthorization, auth_id)
+    if existing_auth:
+        auth = existing_auth
+    else:
+        auth = ProgramAuthorization(
+            authorization_id=auth_id,
+            program_id=order.program_id,
+            org_id=order.org_id,
+            template_id=template_id,
+            status="active",
+            starts_at=order.term_start,
+            ends_at=order.term_end,
+            scope_json=_json.dumps({}, ensure_ascii=False),
+            constraints_json=_json.dumps({}, ensure_ascii=False),
+            bindings_override_json=_json.dumps({}, ensure_ascii=False),
+            issued_by="admin_eft_verify",
+        )
+        db.add(auth)
+    db.commit()
+
+    template = load_template(order.program_id, template_id)
+    license_id = f"SYX-LIC-{datetime.utcnow().year}-{int(datetime.utcnow().timestamp())}"
+    program_env = {
+        "program_id": order.program_id,
+        "authorization_id": auth_id,
+        "status": "active",
+        "policy_version": template.get("policy_version", "2026.01"),
+    }
+    license_payload = build_license_payload(
+        license_id=license_id,
+        issuer=settings.issuer_name,
+        org={"org_id": org.org_id, "org_name": org.org_name, "org_type": org.org_type},
+        term_start=order.term_start,
+        term_end=order.term_end,
+        program=program_env,
+        template=template,
+    )
+    license_rec, _ = issue_license_record(db, authorization=auth, license_payload=license_payload)
+
+    # 3. Mark order paid and link license
+    order.status = "paid"
+    order.paid_at = datetime.utcnow()
+    order.license_id = license_rec.license_id
+    if notes.strip():
+        order.notes = (order.notes or "") + f"\n[EFT verified by admin: {notes.strip()}]"
+    db.commit()
+
+    # 4. Generate invoice PDF
+    try:
+        generate_invoice(order, payment, db)
+    except Exception as exc:
+        log_event(db, actor="admin", action="eft.invoice.error", ref_id=order_id,
+                  detail={"error": str(exc)})
+
+    log_event(db, actor="admin", action="eft.payment.verified", ref_id=order_id,
+              detail={"license_id": license_rec.license_id, "reference": reference, "org_id": order.org_id})
+
+    return RedirectResponse(
+        _admin_url(f"orgs/{order.org_id}?tab=billing&msg=EFT+payment+verified+and+license+issued"),
+        status_code=303,
+    )
+
+
+@router.get("/billing/invoice/{invoice_id}/download")
+def download_invoice_pdf(invoice_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Download the PDF for an invoice."""
+    from ..models.payment import Invoice
+    from fastapi.responses import FileResponse
+
+    inv = db.get(Invoice, invoice_id)
+    if not inv or not inv.pdf_path:
+        raise HTTPException(404, "Invoice PDF not found")
+
+    full_path = Path(__file__).resolve().parents[2] / "static" / inv.pdf_path
+    if not full_path.exists():
+        raise HTTPException(404, "Invoice PDF file not found on disk")
+
+    return FileResponse(
+        str(full_path),
+        media_type="application/pdf",
+        filename=f"{inv.invoice_number}.pdf",
+    )
