@@ -1117,11 +1117,163 @@ def run_generate_monthly_reports():
             ))
             db.session.commit()
             logger.info("[rollup] created SavingsReport for project %s month %s", project.id, month_str)
+            # Email the ESR to client contacts
+            try:
+                _send_monthly_esr_email(project, month_str, report_data)
+            except Exception as email_err:
+                logger.exception("[rollup] ESR email failed for project %s month %s: %s", project.id, month_str, email_err)
         except Exception as e:
             logger.exception("[rollup] generate-automatic-monthly-reports project %s: %s", project.id, e)
             db.session.rollback()
 
     logger.info("[rollup] generate-automatic-monthly-reports done")
+
+
+def _send_monthly_esr_email(project, month_str, report_data):
+    """Generate the ESR PDF and email it to client contacts for the given project/month."""
+    from flask import current_app
+    from app.models.client import Client
+    from app.models.user import User
+    from app import services as _svc_pkg
+
+    # ── Recipients ─────────────────────────────────────────────────────────────
+    recipients = set()
+    client = Client.query.get(project.client) if project.client else None
+    if client:
+        for field in ("financeEmail", "managerEmail"):
+            val = getattr(client, field, None)
+            if val and "@" in val:
+                recipients.add(val.strip())
+    # All Client Admin (role 2) and Client Manager (role 3) users for this client
+    if project.client:
+        for u in User.query.filter_by(client=project.client, isDeleted=False).all():
+            if getattr(u, "role", None) in (2, 3) and u.email and "@" in u.email:
+                recipients.add(u.email.strip())
+
+    if not recipients:
+        logger.info("[esr-email] no recipients for project %s, skipping", project.id)
+        return
+
+    mail_server = current_app.config.get("MAIL_SERVER", "")
+    if not mail_server or not current_app.config.get("MAIL_USERNAME", ""):
+        logger.warning("[esr-email] mail not configured, skipping ESR email for project %s", project.id)
+        return
+
+    # ── Build the public ESR link ───────────────────────────────────────────────
+    public_base = (current_app.config.get("TRACKING_PUBLIC_WEBSITE_URL") or "").rstrip("/")
+    app_root = (current_app.config.get("APPLICATION_ROOT") or "").rstrip("/")
+    if not public_base:
+        public_base = (current_app.config.get("TRACKING_BASE_URL") or "http://localhost:8087").rstrip("/")
+    esr_link = f"{public_base}{app_root}/secure/view?costSavings={project.documentShareToken}"
+
+    # ── Generate PDF attachment ─────────────────────────────────────────────────
+    pdf_bytes = None
+    try:
+        import importlib
+        pdf_mod = importlib.import_module("app.services.pdf_service")
+        if "costSavings" in pdf_mod.SUPPORTED_DOCUMENT_KINDS:
+            pdf_stream = pdf_mod.generate_pdf(project, "costSavings")
+            pdf_bytes = pdf_stream.read()
+    except Exception as pdf_err:
+        logger.warning("[esr-email] PDF generation failed for project %s: %s — sending link only", project.id, pdf_err)
+
+    # ── Format month for display (e.g. "February 2026") ────────────────────────
+    try:
+        from datetime import datetime as _dt
+        month_display = _dt.strptime(month_str, "%Y-%m").strftime("%B %Y")
+    except Exception:
+        month_display = month_str
+
+    project_name = project.name or f"Project {project.id}"
+    client_name = client.name if client else project_name
+    kwh_savings_pct = round((report_data.get("kwhSavings") or 0), 1)
+    total_savings = round((report_data.get("totalBeforeXeco", 0) or 0) - (report_data.get("totalBill", 0) or 0), 2)
+    total_bill = round(report_data.get("totalBill") or 0, 2)
+
+    subject = f"Energy Savings Report — {client_name} — {month_display}"
+    body_html = f"""
+<html>
+<body style="font-family: Inter, Arial, sans-serif; color: #212121; max-width: 600px; margin: 0 auto; padding: 24px;">
+  <div style="background: #26c49d; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+    <h1 style="color: #fff; margin: 0; font-size: 20px;">Monthly Energy Savings Report</h1>
+    <p style="color: #e0f7f3; margin: 4px 0 0; font-size: 14px;">{month_display}</p>
+  </div>
+  <div style="border: 1px solid #e0e0e0; border-top: none; padding: 24px; border-radius: 0 0 8px 8px;">
+    <p style="font-size: 15px;">Dear {client_name} Team,</p>
+    <p style="font-size: 15px;">
+      Please find your Energy Savings Report for <strong>{month_display}</strong> for project
+      <strong>{project_name}</strong>.
+    </p>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+      <tr style="background: #f5f5f5;">
+        <td style="padding: 10px 14px; font-weight: 600; font-size: 14px;">Monthly Bill</td>
+        <td style="padding: 10px 14px; font-size: 14px; text-align: right;">${total_bill:,.2f}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 14px; font-weight: 600; font-size: 14px;">Estimated Savings</td>
+        <td style="padding: 10px 14px; font-size: 14px; text-align: right; color: #26c49d;">
+          ${total_savings:,.2f} ({kwh_savings_pct}% kWh reduction)
+        </td>
+      </tr>
+      <tr style="background: #f5f5f5;">
+        <td style="padding: 10px 14px; font-weight: 600; font-size: 14px;">kWh Used</td>
+        <td style="padding: 10px 14px; font-size: 14px; text-align: right;">{int(report_data.get("usageKWH") or 0):,} kWh</td>
+      </tr>
+    </table>
+    <p style="margin: 20px 0;">
+      <a href="{esr_link}"
+         style="background: #26c49d; color: #fff; padding: 12px 24px; border-radius: 6px;
+                text-decoration: none; font-weight: 600; font-size: 14px;">
+        View Full Energy Savings Report
+      </a>
+    </p>
+    {"<p style='font-size: 13px; color: #757575;'>The full PDF report is attached to this email.</p>" if pdf_bytes else ""}
+    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;">
+    <p style="font-size: 12px; color: #9e9e9e;">
+      This is an automated monthly report from the Synerex Energy Portal.
+      For questions, contact your Synerex account manager.
+    </p>
+  </div>
+</body>
+</html>
+"""
+
+    # ── Send ───────────────────────────────────────────────────────────────────
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.application import MIMEApplication
+
+    for recipient in recipients:
+        try:
+            msg = MIMEMultipart("mixed")
+            msg["Subject"] = subject
+            msg["From"] = current_app.config.get("MAIL_FROM", "noreply@synerex.com")
+            msg["To"] = recipient
+
+            alt = MIMEMultipart("alternative")
+            alt.attach(MIMEText(body_html, "html"))
+            msg.attach(alt)
+
+            if pdf_bytes:
+                pdf_part = MIMEApplication(pdf_bytes, _subtype="pdf")
+                pdf_filename = f"ESR-{project.slug or project.id}-{month_str}.pdf"
+                pdf_part.add_header("Content-Disposition", "attachment", filename=pdf_filename)
+                msg.attach(pdf_part)
+
+            port = current_app.config.get("MAIL_PORT", 587)
+            use_tls = current_app.config.get("MAIL_USE_TLS", True)
+            with smtplib.SMTP(mail_server, port) as server:
+                if use_tls:
+                    server.starttls()
+                server.login(
+                    current_app.config["MAIL_USERNAME"],
+                    current_app.config.get("MAIL_PASSWORD", ""),
+                )
+                server.sendmail(msg["From"], recipient, msg.as_string())
+            logger.info("[esr-email] sent ESR for project %s month %s to %s", project.id, month_str, recipient)
+        except Exception as e:
+            logger.exception("[esr-email] failed to send to %s for project %s: %s", recipient, project.id, e)
 
 
 def run_check_payment():

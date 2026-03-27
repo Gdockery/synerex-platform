@@ -66,10 +66,10 @@
                     <a id="back-to-home-btn" class="btn-secondary" href="{{ website_url or "http://localhost:5173" }}/" aria-label="Back to previous page">Back to previous page</a>
 
                     <button id="help-btn" class="btn-help">Help</button>
-                    <button id="users-guide-btn" class="btn-users-guide" onclick="window.open('{{ static_base or "" }}/users-guide', '_blank')">User's Guide</button>
-                    <button id="csv-editor-guide-btn" class="btn-users-guide" onclick="window.open('{{ static_base or "" }}/csv-editor-guide', '_blank')" title="CSV Editor Guide">📖 CSV Guide</button>
-                    <button id="standards-guide-btn" class="btn-standards-guide" onclick="window.open('{{ static_base or "" }}/standards-guide', '_blank')">Standards Guide</button>
-                    <button id="synerex-ai-btn" class="btn-synerex-ai" onclick="window.open('{{ static_base or "" }}/synerex-ai', '_blank')">SynerexAI</button>
+                    <button id="users-guide-btn" class="btn-users-guide" onclick="window.location.href='{{ static_base or "" }}/users-guide'">User's Guide</button>
+                    <button id="csv-editor-guide-btn" class="btn-users-guide" onclick="window.location.href='{{ static_base or '' }}/csv-editor-guide'" title="CSV Editor Guide">📖 CSV Guide</button>
+                    <button id="standards-guide-btn" class="btn-standards-guide" onclick="window.location.href='{{ static_base or '' }}/standards-guide'">Standards Guide</button>
+                    <button id="synerex-ai-btn" class="btn-synerex-ai" onclick="window.location.href='{{ static_base or '' }}/synerex-ai'">SynerexAI</button>
                     <button id="admin-btn" class="btn-admin" onclick="openAdminPanel()" style="display: none;">Admin</button>
                 </div>
                 <div class="header-buttons-right">

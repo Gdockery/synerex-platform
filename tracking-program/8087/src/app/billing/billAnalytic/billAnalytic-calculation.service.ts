@@ -98,65 +98,72 @@ export class BillAnalyticCalculationsService  {
   }
 
   fillPartTotals(items, parts, analytic) {
-    let allItemsCount = 0;
+    if (!analytic) { return; }
 
-    let origCount = Math.ceil(parseFloat(analytic.kwPeak) / parseFloat(analytic.kWPerUnit));
-    let unitCount;
-    let boosterCount;
-    let filterCount;
-    let itemCount = items.reduce((total, item) => {
-      total += parseInt(item.value.count);
-      //console.log("item:" , item);
-      if (item.value.name !== 'XPS600') {
-	allItemsCount += item.value.count;
-	if (item.value.name === 'XECO600B')
-	    boosterCount = item.value.count;
-	if (item.value.name === 'XPF480-100')
-	    filterCount = item.value.count;
-      }
-      return total;
-    }, 0);
-    console.log("allItemsCount:" , allItemsCount);
+    // kwPeak may live at the top-level analytic or inside the first meterBill
+    const firstBill = analytic.meterBills && analytic.meterBills[0];
+    const kwPeak    = parseFloat(analytic.kwPeak) || parseFloat(firstBill && firstBill.kwPeak);
+    // kWPerUnit defaults to 75 (standard XECO unit capacity) when not set or zero
+    const kWPerUnit = parseFloat(analytic.kWPerUnit) || parseFloat(firstBill && firstBill.kWPerUnit) || 75;
 
-    unitCount = origCount - (filterCount * 2);
+    if (!kwPeak || isNaN(kwPeak)) {
+      console.warn('fillPartTotals: kwPeak missing/invalid — cannot auto-fill part quantities.');
+      return;
+    }
 
-    items.forEach(function(item) {
+    const safeInt = (v: any, fallback = 0) => { const n = parseInt(v); return isNaN(n) ? fallback : n; };
+    const safeCeil = (v: number) => isNaN(v) ? 0 : Math.ceil(v);
+
+    let boosterCount = 0;
+    let filterCount  = 0;
+
+    items.forEach(item => {
+      if (item.value.name === 'XECO600B')   boosterCount = safeInt(item.value.count);
+      if (item.value.name === 'XPF480-100') filterCount  = safeInt(item.value.count);
+    });
+
+    const origCount = safeCeil(kwPeak / kWPerUnit);
+    const unitCount = Math.max(0, origCount - filterCount * 2);
+
+    items.forEach(item => {
       if (item.value.name === 'XPS600') {
-         console.log("trying");
-         item.controls.count.setValue(unitCount);
+        item.controls.count.setValue(unitCount);
       }
     });
 
+    const switchGearCount  = safeInt(analytic.switchGearCount);
+    const mainCircuitCount = safeInt(analytic.mainCircuitCount);
+
     parts.forEach(part => {
-      let partType = this.partService.get(part.value.name);
-      switch(partType ? partType.countType : '') {
+      const partType = this.partService.get(part.value.name);
+      switch (partType ? partType.countType : '') {
         case 'item':
-          part.controls.count.setValue(Math.ceil((unitCount-(boosterCount*2)) * part.value.factor));
+          part.controls.count.setValue(safeCeil((unitCount - boosterCount * 2) * part.value.factor));
           break;
         case 'manual':
-          if (part.value.name == 'XPF480-LC5A (Power Filter Load Controller)') {
-            part.controls.count.setValue(Math.ceil(filterCount * part.value.factor));
+          if (part.value.name === 'XPF480-LC5A (Power Filter Load Controller)') {
+            part.controls.count.setValue(safeCeil(filterCount * part.value.factor));
           } else {
             part.controls.count.setValue(0);
-	  }
+          }
           break;
         case 'single':
           part.controls.count.setValue(1);
           break;
         case 'mainCircuit':
-          part.controls.count.setValue(Math.ceil(analytic.mainCircuitCount * part.value.factor));
+          part.controls.count.setValue(safeCeil(mainCircuitCount * part.value.factor));
           break;
         case 'switchGear':
-          if (part.value.name == 'XLC90 (90 Amp Load Controller)' || part.value.name == 'Revenue Grade Meter' || part.value.name == '24" Rocoil CTs') {
-            part.controls.count.setValue(Math.ceil(boosterCount * part.value.factor));
+          if (part.value.name === 'XLC90 (90 Amp Load Controller)' ||
+              part.value.name === 'Revenue Grade Meter' ||
+              part.value.name === '24" Rocoil CTs') {
+            part.controls.count.setValue(safeCeil(boosterCount * part.value.factor));
           } else {
-            part.controls.count.setValue(Math.ceil(analytic.switchGearCount * part.value.factor));
-	  }
+            part.controls.count.setValue(safeCeil(switchGearCount * part.value.factor));
+          }
           break;
         case 'manager':
           part.controls.count.setValue(1);
-          //@Todo: Set the cost to the manager to the percent pulled from globals applied to total savings.
-          // part.controls.cost.setValue();
           break;
       }
     });

@@ -34,3 +34,7 @@ class EmvAnalysis(BaseModel):
     off_period_end = db.Column(db.String(50), nullable=True)
     on_period_start = db.Column(db.String(50), nullable=True)
     on_period_end = db.Column(db.String(50), nullable=True)
+
+    # OFF-period harmonic baseline pushed by EMV program (H3–H21 per phase + THD/TDD)
+    # Structure: {"l1":{"amp":{"H3":2.1,...},"volt":{...}},"l2":{...},"l3":{...},"thd":{...},"tdd":{...}}
+    harmonic_baseline = db.Column(db.JSON, nullable=True)

@@ -14,6 +14,7 @@ class NotificationType(str, Enum):
     LICENSE_SUSPENDED = "license_suspended"
     LICENSE_ACTIVATED = "license_activated"
     TRIAL_EXPIRING = "trial_expiring"
+    CLIENT_INVITATION = "client_invitation"  # Sent by OEM to invite a pre-registered client to activate
 
 class NotificationStatus(str, Enum):
     PENDING = "pending"

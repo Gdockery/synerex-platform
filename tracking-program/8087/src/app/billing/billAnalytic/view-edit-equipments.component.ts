@@ -8,7 +8,7 @@ import {BillAnalyticService} from "./billAnalytic.service";
       <button class="default-button green-button" [routerLink]="['/billing/bill-analytic/list']">Back to bill analytic list</button>
     </div>
     
-    <equipment-form *ngIf="equipment && analytic"
+    <equipment-form *ngIf="analytic"
       [analytic]="analytic" 
       [equipment]="equipment"
       [meterNumber]="meterNumber"
@@ -36,13 +36,7 @@ export class ViewEditEquipmentsComponent implements OnInit {
       }*/
     });
     this.billAnalyticService.getEquipment().subscribe(equipment => {
-      this.equipment = equipment;
-   
-      /*if (this.meterNumber) {
-        this.equipment = equipment.meterEquipments.filter(meter => { return meter.meterNumber === this.meterNumber});
-      } else {
-        this.equipment = equipment;
-      }*/
+      this.equipment = equipment || {};
     });
   }
 

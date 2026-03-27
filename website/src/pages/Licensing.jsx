@@ -5,16 +5,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function Licensing(){
   const [ndaOpen, setNdaOpen] = useState(false);
   return (<div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-    <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+    <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -30,7 +25,7 @@ export default function Licensing(){
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
@@ -46,7 +41,7 @@ export default function Licensing(){
           <h1 className="text-5xl font-bold mb-4 drop-shadow-2xl" style={{ fontSize: '1.92rem', textShadow: '0 4px 12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4)' }}>OEM/ODM manufacturing and system integration under patented and licensed architectures.</h1>
           <div className="max-w-4xl mx-auto">
             <p className="text-lg text-gray-200 mb-6">
-              <strong>SYNEREX</strong> (<strong className="text-purple-300">SYN</strong>ergistic <strong className="text-purple-300">E</strong>nergy <strong className="text-purple-300">R</strong>esearch and <strong className="text-purple-300">EX</strong>ecution) licensing platform enables qualified partners to access patented systems, proprietary software, and validated engineering methodologies through structured licensing and OEM/ODM programs.
+              <strong>SYNEREX</strong> (<strong className="text-purple-200">SYN</strong>ergistic <strong className="text-purple-200">E</strong>nergy <strong className="text-purple-200">R</strong>esearch and <strong className="text-purple-200">EX</strong>ecution) licensing platform enables qualified partners to access patented systems, proprietary software, and validated engineering methodologies through structured licensing and OEM/ODM programs.
             </p>
             <p className="text-lg text-gray-200 mb-6">
               Licensing offerings are built around the ECBS (Electrical Current Balancing System) patented technology and the SYNEREX analytical software platform. These programs are designed to support direct patent licensing, software licensing, private-label integration, and OEM/ODM manufacturing, while preserving technical integrity, performance consistency, and utility-grade verification standards.
@@ -60,14 +55,14 @@ export default function Licensing(){
       <LicenseSeal />
     <section className="max-w-7xl mx-auto px-4 py-10 space-y-6 fade-in">
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/patent-technology-licensing" className="hover:text-purple-400"><h3 className="font-bold text-purple-300">Patented Technology Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Implement ECBS with field-of-use flexibility.</p></div>
-        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/copyright-software-licensing" className="hover:text-purple-400"><h3 className="font-bold text-purple-300">Copyright Software Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Advanced Power Quality Analytics and Synerex PQ Monitoring™.</p></div>
-        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/oem-odm-equipment-licensing" className="hover:text-purple-400"><h3 className="font-bold text-purple-300">OEM / ODM Equipment Licensing</h3></a><p className="text-sm mt-2 text-gray-300">White-label or co-develop. Manufacturing support included.</p></div>
-        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/custom-engineering-design-licensing" className="hover:text-purple-400"><h3 className="font-bold text-purple-300">Custom Engineering Design Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Co-design hardware/software with SOW-driven milestones.</p></div>
-        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/trademark-licensing" className="hover:text-purple-400"><h3 className="font-bold text-purple-300">Trademark Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Licensing of Synerex trademarks and brand assets for authorized use in products and services.</p></div>
+        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/patent-technology-licensing" className="hover:text-purple-200"><h3 className="font-bold text-purple-200">Patented Technology Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Implement ECBS with field-of-use flexibility.</p></div>
+        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/copyright-software-licensing" className="hover:text-purple-200"><h3 className="font-bold text-purple-200">Copyright Software Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Advanced Power Quality Analytics and Synerex PQ Monitoring™.</p></div>
+        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/oem-odm-equipment-licensing" className="hover:text-purple-200"><h3 className="font-bold text-purple-200">OEM / ODM Equipment Licensing</h3></a><p className="text-sm mt-2 text-gray-300">White-label or co-develop. Manufacturing support included.</p></div>
+        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/custom-engineering-design-licensing" className="hover:text-purple-200"><h3 className="font-bold text-purple-200">Custom Engineering Design Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Co-design hardware/software with SOW-driven milestones.</p></div>
+        <div className="p-6 rounded-xl border border-gray-700 bg-gray-800"><a href="/trademark-licensing" className="hover:text-purple-200"><h3 className="font-bold text-purple-200">Trademark Licensing</h3></a><p className="text-sm mt-2 text-gray-300">Licensing of Synerex trademarks and brand assets for authorized use in products and services.</p></div>
       </div>
       <div className="flex gap-3">
-        <button onClick={()=>setNdaOpen(true)} className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-400 text-white">Request NDA</button>
+        <button onClick={()=>setNdaOpen(true)} className="px-4 py-2 rounded-lg bg-purple-500 hover:bg-purple-300 text-white">Request NDA</button>
         <a className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800" href="/legal-resources">Legal Resources</a>
       </div>
       <div className="mt-6"><InquiryForm variant="licensing"/></div>

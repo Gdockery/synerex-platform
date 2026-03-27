@@ -4,16 +4,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function ComprehensiveEnergySavingsTesting() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -29,7 +24,7 @@ export default function ComprehensiveEnergySavingsTesting() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -238,13 +233,13 @@ export default function ComprehensiveEnergySavingsTesting() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
                 href="/contact" 
-                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-400 transition-colors"
+                className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-300 transition-colors"
               >
                 Contact Us
               </a>
               <a 
                 href="/downloads" 
-                className="px-6 py-3 border border-purple-500 text-purple-400 rounded-lg hover:bg-purple-400/30 transition-colors"
+                className="px-6 py-3 border border-purple-400 text-purple-200 rounded-lg hover:bg-purple-300/30 transition-colors"
               >
                 Download Resources
               </a>

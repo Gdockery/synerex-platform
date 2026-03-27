@@ -234,6 +234,16 @@ export class CreateFromBillWizardComponent implements OnInit {
       } catch (_) {}
     }
 
+    // Derive meter count from the meterNumber field (may be comma-separated for multi-meter bills)
+    const meterNumberStr = (billVal.meterNumber || '').toString().trim();
+    const meterCount = meterNumberStr
+      ? meterNumberStr.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0).length
+      : 1;
+
+    // Determine currency exchange rate from currency symbol extracted by AI scan
+    const currencySymbol = (this.scanData && this.scanData.currencySymbol) || '$';
+    const currencyExchangeRate = (currencySymbol.trim() === '$') ? 1 : 1;
+
     const meterBill = {
       billReference: billVal.billReference,
       billDate: billDateTs,
@@ -244,7 +254,7 @@ export class CreateFromBillWizardComponent implements OnInit {
       electricCompanyZip: billVal.electricCompanyZip,
       electricCompanyCountry: 'USA',
       accountNumber: billVal.accountNumber,
-      meterNumber: billVal.meterNumber || '1',
+      meterNumber: meterNumberStr || '1',
       totalKwh: billVal.totalKwh,
       kwPeak: billVal.kwPeak,
       billAmount: billVal.billAmount,
@@ -253,9 +263,9 @@ export class CreateFromBillWizardComponent implements OnInit {
       kwRatePerTariff: billVal.kwRatePerTariff || '0',
       customerCharge: billVal.customerCharge || '0',
       tariff: billVal.tariff || '',
-      switchGearCount: 0,
+      switchGearCount: meterCount,
       mainCircuitCount: 0,
-      kWPerUnit: 0,
+      kWPerUnit: 75,
       lineItems: (this.scanData && this.scanData.lineItems) || [
         { name: 'KWH Charges', type: 'kwh', cost: 0, billingRate: 0, tierHours: '24', meterReading: billVal.totalKwh, savings: 0 },
         { name: 'KW Charges', type: 'kw', cost: 0, billingRate: billVal.kwRatePerTariff, tierHours: '24', meterReading: billVal.kwPeak, savings: 0 }
@@ -270,7 +280,11 @@ export class CreateFromBillWizardComponent implements OnInit {
     };
 
     const payload: any = {
-      project: this.projectForm.value,
+      project: {
+        ...this.projectForm.value,
+        currencyExchangeRate,
+        reportFields: { numberOfMeters: meterCount },
+      },
       electricBillAnalysis
     };
     if (this.useExistingClient && this.selectedClientId) {

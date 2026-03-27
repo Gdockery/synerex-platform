@@ -9,7 +9,7 @@ import {BaseChartDirective} from "ng2-charts";
               [datasets]="data"
               [labels]="labels"
               [options]="barChartOptions"
-              [legend]="false"
+              [legend]="true"
               [chartType]="'bar'"
               [colors]="colors"></canvas>
   `,
@@ -28,6 +28,9 @@ export class BarChartComponent implements OnInit {
   @Input() public height = 200;
   @Input() public colors = ['#26c49d'];
   @Input() public beginAtZero = false;
+  @Input() public limitValue: number | null = null;  // Optional IEEE limit horizontal line
+  @Input() public yAxisLabel: string = '';
+  @Input() public xAxisLabel: string = 'Date';
 
   private labels = ['',''];
 
@@ -44,27 +47,43 @@ export class BarChartComponent implements OnInit {
       maintainAspectRatio: false,
       scales: {
         yAxes: [{
-          gridLines: {
-            display:false
-          },
+          gridLines: { display: false },
           display: true,
-          ticks: {
-            beginAtZero: this.beginAtZero   // minimum value will be 0.
-          }
+          ticks: { beginAtZero: this.beginAtZero },
+          scaleLabel: this.yAxisLabel
+            ? { display: true, labelString: this.yAxisLabel, fontColor: '#666', fontSize: 12 }
+            : { display: false },
         }],
         xAxes: [{
-          gridLines: {
-            display:false
-          }
+          gridLines: { display: false },
+          scaleLabel: this.xAxisLabel
+            ? { display: true, labelString: this.xAxisLabel, fontColor: '#666', fontSize: 12 }
+            : { display: false },
         }]
       }
     };
   }
 
   setData(data, labels = null) {
-    this.data = data;
-    if(labels) {
-      // this.labels = labels;
+    const datasets = [...data];
+    // Inject a flat horizontal line dataset for the IEEE 519 limit if configured
+    if (this.limitValue !== null && this.limitValue !== undefined) {
+      const labelCount = labels ? labels.length : (data[0] && data[0].data ? data[0].data.length : 10);
+      datasets.push({
+        type: 'line',
+        data: Array(labelCount).fill(this.limitValue),
+        label: 'IEEE 519 Limit',
+        borderColor: '#e74c3c',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        backgroundColor: 'transparent',
+      });
+    }
+    this.data = datasets;
+    if (labels) {
       this.chart.chart.config.data.labels = labels;
     }
   }

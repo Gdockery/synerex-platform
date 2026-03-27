@@ -272,13 +272,12 @@
                 <button onclick="goBack()" style="background: #2c5aa0; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
                     ← Back
                 </button>
-                <div style="display: flex; align-items: center;">
-                    <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 60px; width: auto; margin-right: 15px;">
-                    <h1 style="margin: 0; font-size: 2.2em;">System</h1>
+                <div style="text-align: center; flex: 1;">
+                    <img src="/emv/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 65px; width: auto; margin-bottom: 8px; display: block; margin-left: auto; margin-right: auto;">
+                    <h1 style="margin: 0; font-size: 2.2em;">User's Guide</h1>
                 </div>
                 <div style="width: 120px;"></div> <!-- Spacer for centering -->
             </div>
-                <div class="subtitle">Comprehensive User's Guide</div>
                 <div class="subtitle">System Version: {{ version }} - 100% Standards Compliant Power Quality & Energy Analysis Platform</div>
                 <div class="subtitle">Document Version: {{ version }} | Last Updated: October 19, 2025 | 100% Compliance Achieved</div>
         </div>
@@ -729,7 +728,7 @@ synerex-oneform/
             if (window.history.length > 1) {
                 window.history.back();
             } else {
-                window.location.href = '/main-dashboard';
+                window.location.href = '/emv/main-dashboard';
             }
         }
         

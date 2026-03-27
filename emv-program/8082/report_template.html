@@ -764,27 +764,24 @@
                 </p>
                 
                 <ul>
-                    <li><strong>Energy Savings:</strong> {{LETTER_KW_SAVINGS}} kW average reduction, resulting in 
-                        {{LETTER_KWH_SAVINGS}} kWh annual savings</li>
+                    <li><strong>Energy Savings:</strong> {{LETTER_ENERGY_SAVINGS_FULL}}</li>
                     <li><strong>Power Quality:</strong> Total harmonic distortion reduced {{LETTER_POWER_QUALITY_IMPROVEMENT}}% 
                         (from {{LETTER_THD_BEFORE}}% to {{LETTER_THD_AFTER}}%)</li>
-                    <li><strong>Power Factor:</strong> Improved from {{LETTER_PF_BEFORE}} to {{LETTER_PF_AFTER}} 
-                        ({{LETTER_PF_IMPROVEMENT}}% improvement)</li>
-                    <li><strong>Network Smoothing:</strong> Overall smoothing index of {{LETTER_SMOOTHING_INDEX}}%, 
-                        indicating {{LETTER_SMOOTHING_STATUS}} load profile smoothing and reduced current fluctuations</li>
+                    <li><strong>Power Factor:</strong> {{LETTER_PF_DIRECTION}} from {{LETTER_PF_BEFORE}} to {{LETTER_PF_AFTER}} 
+                        ({{LETTER_PF_IMPROVEMENT}})</li>
+                    <li><strong>Network Smoothing (Proprietary Metric):</strong> Overall smoothing index of {{LETTER_SMOOTHING_INDEX}}% — indicating {{LETTER_SMOOTHING_STATUS}} load profile variability reduction. <em>Note: this is a Synerex operational metric, not an IEEE/ASHRAE standard measure; it is excluded from verified savings totals.</em></li>
                     <li><strong>Electrical Network Improvements:</strong> Network losses reduced by {{LETTER_NETWORK_LOSS_REDUCTION}} kW 
                         (conductor losses: {{LETTER_CONDUCTOR_LOSS_REDUCTION}} kW, transformer losses: {{LETTER_TRANSFORMER_LOSS_REDUCTION}} kW) 
                         from reduced I²R and transformer losses</li>
                     <li><strong>Statistical Validation:</strong> Results demonstrate {{LETTER_STATISTICAL_SIGNIFICANCE}} 
                         statistical significance (p = {{LETTER_P_VALUE}}) and meet ASHRAE precision requirements</li>
-                    <li><strong>Compliance Status:</strong> All measurements meet or exceed IEEE 519, ASHRAE, NEMA MG1, IPMVP, 
-                        ISO 50001, ISO 50015, and ANSI C12 standards</li>
+                    <li><strong>Compliance Status:</strong> {{COMPLIANCE_STATUS_SUMMARY}}</li>
                 </ul>
+                {{VARIABLE_LOADS_WARNING}}
                 
                 <p>
                     The detailed technical analysis, including measurement methodology, statistical significance testing, 
-                    and compliance verification, is presented in the following sections of this report. All calculations 
-                    have been reviewed and approved by a licensed Professional Engineer.
+                    and compliance verification, is presented in the following sections of this report. {{PE_REVIEW_STATUS}}
                 </p>
                 
                 <p>
@@ -837,6 +834,7 @@
                         <div><strong>Meter Calibration Status:</strong> {{meter_calibration_status}}</div>
                         <div><strong>Int. Data:</strong> {{interval_data}}</div>
                         <div><strong>% of Total PK Load:</strong> {{total_load_pct}}</div>
+                        <div style="margin-top:6px;"><strong>Device Certification:</strong> {{DEVICE_CERTIFICATION_BADGE}}</div>
                     </div>
                 </div>
                 
@@ -856,6 +854,7 @@
                 </div>
             </div>
         </div>
+        {{AUDIT_READINESS_BANNER}}
         <div class="content">
             <div class="results">
             <div class="statistical-summary">
@@ -876,7 +875,7 @@
                 <!-- Data Quality Explanation -->
                 <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 12px 0; font-size: 14px; color: #666; border-left: 4px solid #28a745;">
                     <strong>Data Quality Note:</strong> The {{SAMPLE_SIZE_BEFORE}} data points represent high-quality, validated data 
-                    ({{FILTERED_POINTS}} points filtered out for quality), equaling {{DAYS_CALCULATION}} days of hourly measurements. This professional-grade data filtering 
+                    ({{FILTERED_POINTS}} points filtered out for quality), equaling {{DAYS_CALCULATION}} days of {{INTERVAL_LABEL}} measurements. This professional-grade data filtering 
                     follows industry standard practices to ensure statistical accuracy and reliability.
                 </div>
                 
@@ -885,7 +884,7 @@
                     <span style="font-size: 1.1em; font-weight: bold; color: #28a745;">{{STATISTICALLY_SIGNIFICANT}}</span>
                 </div>
                 <div class="metric-row">
-                    <span style="font-weight: 600; color: #333;">Cohen's d: <em style="font-weight: normal; color: #666;">(statistical measure of energy behavior change - <0.2=Excellent, <0.5=Very Good, <0.8=Good, ≥0.8=Needs Review) - <span style="font-size: 1.0em; font-weight: bold; color: #28a745;">{{COHENS_D_RATING}}</span></em></span>
+                    <span style="font-weight: 600; color: #333;">Cohen's d: <em style="font-weight: normal; color: #666;">(effect size per Cohen 1988 / ASHRAE Guideline 14-2023 &sect;5.3.2 &mdash; <strong>larger = stronger savings signal</strong>: &lt;0.2=Small, &lt;0.5=Moderate, &lt;0.8=Large, &ge;0.8=Very&nbsp;Large) - <span style="font-size: 1.0em; font-weight: bold; color: #28a745;">{{COHENS_D_RATING}}</span></em></span>
                     <span style="font-size: 1.1em; font-weight: bold;">{{COHENS_D}}</span>
                 </div>
                 <div class="metric-row">
@@ -909,7 +908,7 @@
                     • Sample Size (Before): <strong>{{SAMPLE_SIZE_BEFORE_DETAILED}}</strong> <em>(number of data points in baseline period.)</em><br/>
                     • Sample Size (After): <strong>{{SAMPLE_SIZE_AFTER_DETAILED}}</strong> <em>(number of data points in post-installation period.)</em><br/>
                     • Statistically Significant: <strong>{{STATISTICALLY_SIGNIFICANT_DETAILED}}</strong> <em>(difference is real, not due to random variation, e.g., p < 0.05 = 95% confidence)</em><br/>
-                    • Cohen's d: <strong>{{COHENS_D_DETAILED}}</strong> <em>(effect size - magnitude of the practical difference, e.g., -1.553 = large effect)</em><br/>
+                    • Cohen's d: <strong>{{COHENS_D_DETAILED}}</strong> <em>(effect size per Cohen 1988 / ASHRAE Guideline 14-2023 &sect;5.3.2 &mdash; larger absolute value = stronger savings signal relative to measurement scatter; &ge;0.8 is a very large, favourable effect for M&amp;V)</em><br/>
                     • T-Statistic: <strong>{{T_STATISTIC_DETAILED}}</strong> <em>(standardized difference between group means, e.g., -29.08 = very large difference)</em><br/>
                     • Relative Precision: <strong>{{RELATIVE_PRECISION_DETAILED}}</strong> <em>(measurement uncertainty at 95% confidence, e.g., -6.75% = very precise)</em><br/>
                     • Meets ASHRAE Precision: <strong>{{ASHRAE_PRECISION_STATUS_DETAILED}}</strong> <em>(measurement quality meets professional standards, e.g., < 50% = excellent)</em><br/>
@@ -1094,7 +1093,7 @@
             
             <div class="compliance-note" style="margin-top: 15px;">
                 <strong>Key Improvements:</strong><br>
-                <strong>Power Factor:</strong> Improved from {{PF_BEFORE}} to {{PF_AFTER}} ({{PF_IMPROVEMENT}} power factor improvement - reduced reactive power consumption)<br>
+                <strong>Power Factor:</strong> {{PF_DIRECTION}} from {{PF_BEFORE}} to {{PF_AFTER}} ({{PF_IMPROVEMENT}})<br>
                 <strong>THD Reduction:</strong> Reduced from {{THD_BEFORE}} to {{THD_AFTER}} ({{THD_IMPROVEMENT}} reduction)<br>
                 <strong>kVAR Reduction:</strong> Reduced from {{KVAR_BEFORE}} to {{KVAR_AFTER}} ({{KVAR_IMPROVEMENT}} reduction)
             </div>
@@ -1133,7 +1132,9 @@
                 <tr><td><strong>Demand $ (annual)</strong></td><td class="value-cell">{{DEMAND_ANNUAL_SAVINGS}}</td><td>Annual demand charge savings from reduced peak power consumption</td></tr>
                 <tr><td><strong>Network (I^2R+eddy) - Included</strong></td><td class="value-cell">{{NETWORK_ANNUAL_SAVINGS}}</td><td>Annual savings from reduced I^2R losses and transformer stray/eddy losses</td></tr>
                 <tr><td><strong>Total $ (annual)</strong></td><td class="value-cell">{{TOTAL_ANNUAL_SAVINGS}}</td><td>Combined annual financial savings from all sources</td></tr>
-                <tr><td><strong>ΔkWh (annual)</strong></td><td class="value-cell">{{ANNUAL_KWH_SAVINGS}}</td><td>Total annual energy savings including base and network losses</td></tr>
+                <tr><td><strong>ΔkWh — Metered base (annual)</strong></td><td class="value-cell">{{BASE_KWH_SAVINGS}}</td><td>Directly metered kWh: ΔkW(avg) × {{OPERATING_HOURS}} h/yr{{ANNUALIZATION_CAVEAT}}</td></tr>
+                <tr><td><strong>ΔkWh — Network losses model (annual)</strong></td><td class="value-cell">{{NETWORK_KWH_SAVINGS}}</td><td>Modeled I²R + transformer eddy-loss kWh reduction (separate from metered){{ANNUALIZATION_CAVEAT}}</td></tr>
+                <tr><td><strong>ΔkWh — Total (annual)</strong></td><td class="value-cell">{{ANNUAL_KWH_SAVINGS}}</td><td>Total = Metered base + Network losses model{{ANNUALIZATION_CAVEAT}}</td></tr>
                 <tr><td><strong>ΔkW (avg)</strong></td><td class="value-cell">{{AVERAGE_KW_SAVINGS}}</td><td>Average power reduction across the analysis period</td></tr>
             </table>
             
@@ -1144,7 +1145,7 @@
             <table class="compliance-table">
                 <tr><th>Metric</th><th style="text-align: right;">Value</th><th>Description</th></tr>
                 <tr><td><strong>kW Savings (Normalized)</strong></td><td class="value-cell">{{KW_SAVINGS}}</td><td>Weather and power factor normalized power reduction per ASHRAE Guideline 14-2014 and IEEE 519 standards - used for technical performance analysis</td></tr>
-                <tr><td><strong>Annual kWh Savings</strong></td><td class="value-cell">{{ANNUAL_KWH_SAVINGS}}</td><td>Total annual energy savings including base and network losses</td></tr>
+                <tr><td><strong>Annual kWh Savings (total)</strong></td><td class="value-cell">{{ANNUAL_KWH_SAVINGS}}</td><td>Total = Metered base ({{BASE_KWH_SAVINGS}}) + Network losses model ({{NETWORK_KWH_SAVINGS}}){{ANNUALIZATION_CAVEAT}}</td></tr>
                 <tr><td><strong>NPV</strong></td><td class="value-cell">{{NPV}}</td><td>Net Present Value - total discounted value of all future savings</td></tr>
                 <tr><td><strong>Simple Payback</strong></td><td class="value-cell">{{SIMPLE_PAYBACK}}</td><td>Simple payback period - time to recover initial investment</td></tr>
                 <tr><td><strong>IRR</strong></td><td class="value-cell">{{IRR}}</td><td>Internal Rate of Return - annualized return on investment</td></tr>
@@ -1153,7 +1154,7 @@
             <div class="compliance-note" style="margin-top: 15px;">
                 <strong>Summary:</strong><br>
                 <strong>kW Savings (Normalized):</strong> {{KW_SAVINGS}}<br>
-                <strong>Annual kWh Savings:</strong> {{ANNUAL_KWH_SAVINGS}}<br>
+                <strong>Annual kWh Savings (total):</strong> {{ANNUAL_KWH_SAVINGS}} = Metered base {{BASE_KWH_SAVINGS}} + Network losses model {{NETWORK_KWH_SAVINGS}}<br>
                 <strong>NPV:</strong> {{NPV}}<br>
                 <strong>SIR:</strong> {{SIR}}<br>
                 <strong>Simple Payback:</strong> {{SIMPLE_PAYBACK}}<br>
@@ -1182,17 +1183,20 @@
                     • Selected Model: <strong>{{ASHRAE_MODEL_SELECTED}}</strong> <em>(algorithm used for baseline prediction, e.g., "Linear Regression" = straight-line fit)</em><br/>
                     • CVRMSE: <strong>{{ASHRAE_CVRMSE}}</strong> <em>(coefficient of variation of root mean square error - model accuracy, e.g., 8.2% = very good fit)</em><br/>
                     • NMBE: <strong>{{ASHRAE_NMBE}}</strong> <em>(normalized mean bias error - systematic over/under prediction, e.g., 3.0% = slight over-prediction)</em><br/>
-                    • R^2: <strong>{{ASHRAE_R_SQUARED}}</strong> <em>(coefficient of determination - model fit quality, e.g., 0.96 = excellent fit)</em><br/>
+                    • R^2: <strong>{{ASHRAE_R_SQUARED}}</strong> <em>(coefficient of determination - model fit quality; threshold &ge; 0.75 per ASHRAE 14-2023)</em><br/>
+                    {{REGRESSION_EQUATION}}
+                    • Regression p-value: <strong>{{ASHRAE_REGRESSION_P_VALUE}}</strong> <em>(F-test significance of weather-energy relationship; threshold p &lt; 0.05)</em><br/>
                     • Temperature Units: <strong>{{ASHRAE_TEMPERATURE_UNITS}}</strong> <em>(weather normalization units, e.g., "Celsius" = temperature scale used)</em><br/>
                     • Relative Precision: <strong>{{ASHRAE_RELATIVE_PRECISION}}</strong> <em>(measurement uncertainty at 95% confidence, e.g., 8.2% = very precise)</em><br/>
                     • Meets ASHRAE Precision: <strong>{{ASHRAE_PRECISION_STATUS}}</strong> <em>(compliance with ASHRAE Guideline 14, e.g., "PASS" = meets professional standards)</em>
                 </div>
                 
                 
+                {{WEATHER_REGRESSION_SCATTER_PLOT}}
                 <h4>Weather Normalization</h4>
                 <div style="background:#f8f9fa; padding:4px 12px; border-radius:6px; margin:4px 0;">
                     <strong>Weather Data Quality:</strong><br/>
-                    • Weather Station: <strong>{{WEATHER_STATION}}</strong> <em>(weather data provider, e.g., "Open-Meteo" = professional weather service)</em><br/>
+                    • Weather Station: <strong>{{WEATHER_STATION}}</strong> <em>(NOAA ASOS = official National Weather Service ground station; Open-Meteo ERA5 = satellite reanalysis fallback for international sites)</em><br/>
                     • Data Source: <strong>{{WEATHER_DATA_SOURCE}}</strong> <em>(type of weather data used, e.g., "Historical" = past weather records)</em><br/>
                     • Temperature Range: <strong>{{TEMPERATURE_RANGE}}</strong> <em>(temperature variation during analysis, e.g., 20-35C = typical seasonal range)</em><br/>
                     • Humidity Range: <strong>{{HUMIDITY_RANGE}}</strong> <em>(humidity variation during analysis, e.g., 30-80% = normal humidity range)</em><br/>
@@ -1346,10 +1350,11 @@
                     <td style="min-width: 150px; width: 20%;">{{POWER_FACTOR_SAVINGS_COST}}</td>
                     <td>PF penalty reduction applied to energy cost subtotal.</td>
                 </tr>
-                <tr>
-                    <td><b>Envelope Smoothing</b></td>
+                <tr style="background:#fffde7;">
+                    <td><b>Envelope Smoothing <sup style="color:#e65100;">&#9888;</sup></b><br/>
+                        <small style="color:#e65100; font-weight:normal;">Proprietary metric — excluded from IPMVP verified savings</small></td>
                     <td style="min-width: 150px; width: 20%;">{{ENVELOPE_SMOOTHING_COST}}</td>
-                    <td>Analyzes the reduction in electrical parameter variability across four key metrics to provide network-wide stability benefits that translate into measurable financial value.</td>
+                    <td>Synerex proprietary measure of electrical parameter variability reduction (kW, kVA, PF, THD). <strong>Not an IEEE/ASHRAE-defined term; not included in IPMVP Option B verified savings.</strong> Provided for operational context only.</td>
                 </tr>
                 <tr>
                     <td><b>Harmonic Losses (I^2R)</b></td>
@@ -1373,8 +1378,14 @@
         </div>
             <h2>Network Envelope Analysis</h2>
             <div class="card">
-                <div class="compliance-note" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 14px; color: #666;">
-                    <strong>Envelope Smoothing Definition:</strong> Envelope smoothing of a three-phase electrical network isn't a standard textbook term like "harmonic filtering" or "power factor correction," but in power quality engineering it typically refers to reducing the short-term fluctuations (the "envelope") of current or voltage across phases so that the network behaves more smoothly over time.
+                <div class="compliance-note" style="background: #fff3cd; padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 14px; color: #856404; border-left: 4px solid #ffc107;">
+                    <strong>&#9888; Proprietary Operational Metric — Not an IEEE/ASHRAE Compliance Measure:</strong>
+                    The "Overall Smoothing Index" and "Envelope Smoothing Analysis" are Synerex-proprietary metrics
+                    that quantify the reduction in electrical parameter variability (kW, kVA, PF, THD) measured from
+                    the meter data. These metrics are <strong>not defined in IEEE 519-2022, ASHRAE Guideline 14-2023,
+                    IPMVP Volume I, or any cited standard</strong> and are provided for informational purposes only.
+                    They are excluded from the IPMVP Option B verified savings calculation and do not appear in
+                    utility-submittable compliance tables.
                 </div>
                 <div class="grid threecol">
                     <div><div class="muted">Overall Smoothing Index</div><div><b>{{OVERALL_SMOOTHING_INDEX}}</b></div></div>
@@ -1555,7 +1566,7 @@ The SYNEREX Power Analysis System has been enhanced with comprehensive audit com
 #### Data Quality Requirements
 - **Weather Data**: Minimum 2 weeks of hourly data
 - **Power Quality Data**: Continuous monitoring during baseline and post-retrofit
-- **Energy Data**: 15-minute interval data for accurate analysis
+- **Energy Data**: {{INTERVAL_LABEL}} interval data for accurate analysis
 - **Completeness**: >95% data completeness for reliable results
 
 #### Accuracy Assessment

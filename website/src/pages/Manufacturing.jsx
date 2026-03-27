@@ -3,16 +3,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function Manufacturing() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -28,7 +23,7 @@ export default function Manufacturing() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -48,27 +43,27 @@ export default function Manufacturing() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Production-Ready Designs</h3>
+            <h3 className="font-bold text-purple-200">Production-Ready Designs</h3>
             <p className="text-sm mt-2 text-gray-300">Complete manufacturing solutions with tested designs, quality control processes, and scalable production capabilities for ECBS hardware and power electronics.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Compliance & Certification</h3>
+            <h3 className="font-bold text-purple-200">Compliance & Certification</h3>
             <p className="text-sm mt-2 text-gray-300">Full regulatory compliance support including UL, ETL, TUV, CE, FCC, and other industry certifications to ensure your products meet all safety and performance standards.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">OEM/ODM Partnerships</h3>
+            <h3 className="font-bold text-purple-200">OEM/ODM Partnerships</h3>
             <p className="text-sm mt-2 text-gray-300">Collaborative manufacturing partnerships with white-label options, custom branding, and co-development opportunities for power quality solutions.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Supply Chain Management</h3>
+            <h3 className="font-bold text-purple-200">Supply Chain Management</h3>
             <p className="text-sm mt-2 text-gray-300">End-to-end supply chain solutions including component sourcing, inventory management, and logistics support for reliable product delivery.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Quality Assurance</h3>
+            <h3 className="font-bold text-purple-200">Quality Assurance</h3>
             <p className="text-sm mt-2 text-gray-300">Comprehensive testing protocols, quality control systems, and performance validation to ensure consistent product reliability and customer satisfaction.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Scalable Production</h3>
+            <h3 className="font-bold text-purple-200">Scalable Production</h3>
             <p className="text-sm mt-2 text-gray-300">Flexible manufacturing capabilities that can scale from prototype quantities to high-volume production runs based on your business requirements.</p>
           </div>
         </div>

@@ -30,10 +30,10 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
               <td>Price Each</td>
               <td class="text-right">Cost</td>
             </tr>
-            <tr *ngFor="let item of form.get('items').controls;" [formGroup]="item">
+            <tr *ngFor="let item of form.get('items').controls; let i=index" [formGroup]="item">
               <td class="purple">{{item.value.name}}</td>
-              <td><input type="number" (change)="calculateTotals(); fillPartTotals()" class="form-control" id="count" name="count" formControlName="count"></td>
-              <td><input type="text" (change)="calculateTotals()" class="form-control" id="price" name="price" formControlName="price"></td>
+              <td><input type="number" (change)="calculateTotals(); fillPartTotals()" class="form-control" [id]="'item-count-' + i" [name]="'item-count-' + i" formControlName="count"></td>
+              <td><input type="text" (change)="calculateTotals()" class="form-control" [id]="'item-price-' + i" [name]="'item-price-' + i" formControlName="price"></td>
               <td class="text-right">{{item.value.count * item.value.price | projectCurrency:"symbol":'1.2-2'}}</td>
             </tr>
           </table>
@@ -52,11 +52,11 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
                 <button *ngIf="part.value.addedPart" type="button" class="red-button round-button" style="width:40px;height:40px;" (click)="removePart(i)">
                   <span class="ss-hyphen" style="vertical-align:middle;"></span>
                 </button>
-                <input style="width:75%;display:inline-block;" *ngIf="part.value.addedPart" type="text" class="form-control" id="name" name="name" formControlName="name">
+                <input style="width:75%;display:inline-block;" *ngIf="part.value.addedPart" type="text" class="form-control" [id]="'part-name-' + i" [name]="'part-name-' + i" formControlName="name">
                 <span *ngIf="!part.value.addedPart">{{part.value.name}}</span>
               </td>
-              <td><input type="number" (change)="calculateTotals()" class="form-control" id="count" name="count" formControlName="count"></td>
-              <td><input type="text" (change)="calculateTotals()" class="form-control" id="price" name="price" formControlName="price"></td>
+              <td><input type="number" (change)="calculateTotals()" class="form-control" [id]="'part-count-' + i" [name]="'part-count-' + i" formControlName="count"></td>
+              <td><input type="text" (change)="calculateTotals()" class="form-control" [id]="'part-price-' + i" [name]="'part-price-' + i" formControlName="price"></td>
               <td class="text-right">{{part.value.count * part.value.price | projectCurrency:"symbol":'1.2-2'}}</td>
             </tr>
           </table>
@@ -77,8 +77,7 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
             <tr *ngFor="let service of form.get('services').controls; let i=index" [formGroup]="service">
               <td class="purple">{{service.value.name}}</td>
              
-              <td><input type="text" (change)="calculateTotals()" class="form-control" id="price" name="price" formControlName="price"></td>
-              <td class="text-right">{{service.value.price | projectCurrency:"symbol":'1.2-2'}}</td>
+              <td><input type="text" (change)="calculateTotals()" class="form-control" [id]="'service-price-' + i" [name]="'service-price-' + i" formControlName="price"></td>
             </tr>
           </table>
         </div>
@@ -166,7 +165,7 @@ export class EquipmentFormComponent implements OnInit {
 
   ngOnInit() {
     //let unitType = parseFloat(this.currentUserService.user.selectedProject.;
-    let exchangeRate = parseFloat(this.currentUserService.user.selectedProject.currencyExchangeRate);
+    let exchangeRate = parseFloat(this.currentUserService.user.selectedProject.currencyExchangeRate) || 1;
 
     this.itemService.getAll().subscribe(data => {
       this.items = data;
@@ -194,23 +193,37 @@ export class EquipmentFormComponent implements OnInit {
 
   initializeForm() {
     this.totalAnalytic = this.analytic;
- 
+
     if (this.meterNumber) {
-      this.analytic = this.analytic.meterBills.filter(bill => { return bill.meterNumber === this.meterNumber})[0];
-      if (this.equipment.meterEquipment) {
-        this.equipment = this.equipment.meterEquipment.find(meter => { return meter.meterNumber == this.meterNumber});
-        
+      const meterBills = this.analytic && this.analytic.meterBills;
+      if (meterBills) {
+        // Use == (loose equality) to handle string/number meterNumber mismatch from route params
+        this.analytic = meterBills.find(bill => bill.meterNumber == this.meterNumber);
+      }
+      if (!this.analytic) {
+        // Fallback: no matching meter bill found — use the total analytic
+        this.analytic = this.totalAnalytic;
+      }
+      if (this.equipment && this.equipment.meterEquipment) {
+        this.equipment = this.equipment.meterEquipment.find(meter => meter.meterNumber == this.meterNumber) || null;
       } else {
         this.equipment = null;
       }
-    } 
+    }
+
+    const hasSavedItems = this.equipment && this.equipment.items && this.equipment.items.length > 0;
+    const hasSavedParts = this.equipment && this.equipment.parts && this.equipment.parts.length > 0;
 
     this.form = this.formBuilder.group({
-      items: this.formBuilder.array(this.equipment && this.equipment.items ? this.equipment.items.map(item => this.getItem(item)) : this.items.map(item => this.getItem(item))),
-      parts: this.formBuilder.array(this.equipment && this.equipment.parts ? this.equipment.parts.map(part => this.getPartItem(part)) : this.parts.map(part => this.getPartItem(part))),
+      items: this.formBuilder.array(hasSavedItems ? this.equipment.items.map(item => this.getItem(item)) : this.items.map(item => this.getItem(item))),
+      parts: this.formBuilder.array(hasSavedParts ? this.equipment.parts.map(part => this.getPartItem(part)) : this.parts.map(part => this.getPartItem(part))),
     });
 
-    if (!this.equipment) {
+    // Auto-fill part quantities when there is no previously saved equipment data.
+    // kwPeak may be at top level or inside meterBills[0]; the service handles the lookup.
+    const firstBill = this.analytic && this.analytic.meterBills && this.analytic.meterBills[0];
+    const hasKwPeak = this.analytic && (parseFloat(this.analytic.kwPeak) || parseFloat(firstBill && firstBill.kwPeak));
+    if (!hasSavedParts && hasKwPeak) {
       this.calculationsService.fillPartTotals(
         this.form.get('items').controls,
         this.form.get('parts').controls,
@@ -219,9 +232,9 @@ export class EquipmentFormComponent implements OnInit {
     }
 
     this.calculateTotalsBeforeService();
-    this.form.addControl('services', this.formBuilder.array(this.equipment && this.equipment.services ? this.equipment.services.map(service => this.getServiceItem(service)) : this.services.map(service => this.getServiceItem(service))));
-    this.calculateTotals(); 
-    //}
+    const hasSavedServices = this.equipment && this.equipment.services && this.equipment.services.length > 0;
+    this.form.addControl('services', this.formBuilder.array(hasSavedServices ? this.equipment.services.map(service => this.getServiceItem(service)) : this.services.map(service => this.getServiceItem(service))));
+    this.calculateTotals();
   }
 
   getPartItem(item:any = {}, addedPart = false) {
@@ -236,16 +249,14 @@ export class EquipmentFormComponent implements OnInit {
   }
 
   getItem(item:any = {}, addedPart = false) {
-    if (item.id == this.analytic.xecoUnitType) {
-	//unitType = this.analytic.xecoUnitType;
-	console.log("kwPeak:" , this.analytic.kwPeak);
-	let factor = 75;
-        if (item.id == 2) 
-	    factor = 40;
-	//console.log("item.id:" , item.id);
-	//console.log("factor:" , factor);
-      let count = Math.ceil(parseFloat(this.analytic.kwPeak) / factor - (this.analytic.switchGearCount * 2));
-      //let count = Math.ceil(parseFloat(this.analytic.totalKwh) / (this.analytic.daysBilled * 24) * (this.currentUserService.user.selectedProject.ILRatio / 100) / 65 - (this.analytic.switchGearCount * 2));
+    // If xecoUnitType is not set (e.g. from scan workflow), default to XPS600 (id=3)
+    const effectiveUnitType = this.analytic.xecoUnitType || 3;
+
+    if (item.id == effectiveUnitType) {
+      let factor = 75;
+      if (item.id == 2)
+        factor = 40;
+      let count = Math.ceil(parseFloat(this.analytic.kwPeak) / factor - ((parseInt(this.analytic.switchGearCount) || 0) * 2));
       return this.formBuilder.group({
         name: new FormControl(item.name, [Validators.required]),
         price: new FormControl(item.price, [Validators.required, CustomValidators.number]),
@@ -253,16 +264,16 @@ export class EquipmentFormComponent implements OnInit {
         taxable: new FormControl(item.taxable),
         addedPart: new FormControl(addedPart, [Validators.required]),
       });
-   } else if (item.id == 4) {
+    } else if (item.id == 4) {
       return this.formBuilder.group({
         name: new FormControl(item.name, [Validators.required]),
         price: new FormControl(item.price, [Validators.required, CustomValidators.number]),
-        count: new FormControl(this.analytic.switchGearCount || item.count || 0, [Validators.required, CustomValidators.number]),
+        count: new FormControl(parseInt(this.analytic.switchGearCount) || item.count || 0, [Validators.required, CustomValidators.number]),
         taxable: new FormControl(item.taxable),
         addedPart: new FormControl(addedPart, [Validators.required]),
       });
-   } else {
-     return this.formBuilder.group({
+    } else {
+      return this.formBuilder.group({
         name: new FormControl(item.name, [Validators.required]),
         price: new FormControl(item.price, [Validators.required, CustomValidators.number]),
         count: new FormControl(item.count || 0, [Validators.required, CustomValidators.number]),

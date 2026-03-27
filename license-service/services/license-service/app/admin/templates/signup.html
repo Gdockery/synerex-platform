@@ -11,8 +11,11 @@
     h1 { color: #111827; margin-bottom: 1rem; font-size: 1.5rem; }
     .error { background: #fef2f2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #fecaca; }
     .success { background: #f0fdf4; color: #166534; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #bbf7d0; }
+    .prefill-notice { background: #f5f3ff; color: #5b21b6; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #ddd6fe; font-size: 0.9rem; }
+    .prefill-notice strong { display: block; margin-bottom: 0.25rem; }
     label { display: block; margin-top: 0.75rem; margin-bottom: 0.25rem; color: #111827; }
     input, select { width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; background: #4c1d95; color: #f3f4f6; }
+    input[readonly] { background: #3b0764; opacity: 0.8; cursor: not-allowed; }
     .row { margin-bottom: 0.5rem; }
     button[type="submit"] { margin-top: 1rem; padding: 0.75rem 1.5rem; background: #1976d2; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; }
     a { color: #1976d2; }
@@ -33,7 +36,16 @@
       {% endif %}
     </div>
     <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
-    <h1>Create an account</h1>
+    <h1>{% if prefill_org %}Activate Your Account{% else %}Create an account{% endif %}</h1>
+
+    {% if prefill_org %}
+    <div class="prefill-notice">
+      <strong>&#127881; Your account is pre-configured</strong>
+      Your organization <strong>{{ prefill_org.org_name }}</strong> has already been set up.
+      Just create your login credentials below and choose a plan to activate your subscription.
+    </div>
+    {% endif %}
+
     {% if error %}
     <div class="error">{{ error }}</div>
     {% endif %}
@@ -42,17 +54,26 @@
     {% endif %}
     <form method="post" autocomplete="off" action="{{ register_action or ((path_prefix + '/register') if path_prefix else '/register') }}">
       <input type="hidden" name="return_url" value="{{ return_url or '' }}"/>
+      {% if prefill_org %}
+      <input type="hidden" name="existing_org_id" value="{{ prefill_org.org_id }}"/>
+      <input type="hidden" name="org_type" value="{{ prefill_org.org_type or 'customer' }}"/>
+      <div class="row">
+        <label>Organization name</label>
+        <input type="text" name="org_name" value="{{ prefill_org.org_name }}" readonly/>
+      </div>
+      {% else %}
       <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc" autocomplete="off"/></div>
       <div class="row"><label>Account type *</label><select name="org_type" required><option value="customer">Customer / Licensee</option><option value="pe">Licensed PE</option></select></div>
+      {% endif %}
       <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe" autocomplete="off"/></div>
       <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"/></div>
       <div class="row"><label>Confirm password *</label><input type="password" name="password_confirm" required minlength="8" autocomplete="new-password"/></div>
-      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com" autocomplete="off"/></div>
-      <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St"/></div>
-      <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City"/></div>
-      <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2"/></div>
-      <div class="row"><label>ZIP *</label><input type="text" name="company_zip" required placeholder="12345"/></div>
-      <div class="row"><label>Company phone *</label><input type="tel" name="company_phone" required placeholder="555-123-4567"/></div>
+      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com" value="{{ prefill_org.email if prefill_org else '' }}" autocomplete="off"/></div>
+      <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St" value="{{ prefill_org.company_address if prefill_org else '' }}"/></div>
+      <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City" value="{{ prefill_org.company_city if prefill_org else '' }}"/></div>
+      <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2" value="{{ prefill_org.company_state if prefill_org else '' }}"/></div>
+      <div class="row"><label>ZIP *</label><input type="text" name="company_zip" required placeholder="12345" value="{{ prefill_org.company_zip if prefill_org else '' }}"/></div>
+      <div class="row"><label>Company phone *</label><input type="tel" name="company_phone" required placeholder="555-123-4567" value="{{ prefill_org.company_phone if prefill_org else '' }}"/></div>
       <div class="row"><label>Company cell (optional)</label><input type="tel" name="company_cell"/></div>
       <div class="row"><label>Physical address (optional)</label><input type="text" name="physical_address"/></div>
       <div class="row"><label>Physical city (optional)</label><input type="text" name="physical_city"/></div>
@@ -60,18 +81,26 @@
       <div class="row"><label>Physical ZIP (optional)</label><input type="text" name="physical_zip"/></div>
       <div class="row"><label>Physical phone (optional)</label><input type="tel" name="physical_phone"/></div>
       <div class="row"><label>Physical cell (optional)</label><input type="tel" name="physical_cell"/></div>
+      {% if not prefill_org %}
       <div class="row" id="pe-fields" style="display:none;"><label>PE License number *</label><input type="text" name="pe_license_number"/></div>
       <div class="row" id="pe-state-row" style="display:none;"><label>PE License state *</label><input type="text" name="pe_license_state" maxlength="2"/></div>
+      {% endif %}
       <div class="row"><label><input type="checkbox" name="agreement_accepted" value="on" required/> I accept the Software License Agreement</label></div>
-      <button type="submit">Register</button>
+      <button type="submit">{% if prefill_org %}Activate My Subscription{% else %}Register{% endif %}</button>
     </form>
     <div class="links"><a href="{{ login_href or ((path_prefix + '/auth/login') if path_prefix else '/auth/login') }}">Already have an account? Log in</a></div>
     <div style="margin-top: 1rem;"><a href="javascript:history.back()" class="back-btn">&#8592; Back</a></div>
   </div>
   <script>
-  (function(){ var s=document.querySelector('select[name="org_type"]'); var pe=document.getElementById('pe-fields'); var st=document.getElementById('pe-state-row');
-  if(s&&pe&&st){ function t(){ var show=s.value==='pe'; pe.style.display=show?'block':'none'; st.style.display=show?'block':'none'; pe.querySelector('input').required=show; st.querySelector('input').required=show; }
-  s.addEventListener('change',t); t(); } })();
+  (function(){
+    var s=document.querySelector('select[name="org_type"]');
+    var pe=document.getElementById('pe-fields');
+    var st=document.getElementById('pe-state-row');
+    if(s&&pe&&st){
+      function t(){ var show=s.value==='pe'; pe.style.display=show?'block':'none'; st.style.display=show?'block':'none'; pe.querySelector('input').required=show; st.querySelector('input').required=show; }
+      s.addEventListener('change',t); t();
+    }
+  })();
   </script>
 </body>
 </html>

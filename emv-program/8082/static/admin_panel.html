@@ -56,6 +56,7 @@
             align-items: center;
             gap: 10px;
         }
+        .logo img { max-width: 160px; height: auto; display: block; }
         .logo span { color: var(--accent-primary); }
         .nav-section { padding: 0 12px; margin-bottom: 24px; }
         .nav-label {
@@ -329,9 +330,20 @@
 <body>
     <div class="app-container">
         <nav class="sidebar">
-            <div class="logo">
-                <h1>⚡ <span>SYNEREX</span></h1>
+            <div class="logo" data-synerex-logo-replacement="true">
+                <img id="sidebar-logo"
+                     alt="Synerex"
+                     style="max-width:160px; height:auto; display:block; filter:brightness(0) invert(1);"
+                     onerror="this.style.display='none';">
             </div>
+            <script>
+            (function() {
+                var img = document.getElementById('sidebar-logo');
+                if (!img) return;
+                var base = window.location.pathname.startsWith('/emv') ? '/emv' : '';
+                img.src = base + '/static/synerex_logo_header.PNG';
+            })();
+            </script>
             <div class="nav-section">
                 <div class="nav-label">Navigation</div>
                 <a href="/main-dashboard" class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
@@ -515,7 +527,25 @@
     </div>
     
     <script>
-        const SM_URL = 'http://localhost:9000';
+        // Detect /emv/ proxy prefix so all API fetch calls use the correct base path.
+        window.SYNEREX_EMV_BASE = (function() {
+            var p = window.location.pathname;
+            var port = window.location.port;
+            if (p.startsWith('/emv') || (port && port !== '8082')) return '/emv';
+            return '';
+        })();
+
+        // When accessed through the platform proxy (/emv/ prefix or any non-direct port),
+        // use /service-manager relative path so it works from any remote host.
+        // Falls back to localhost:9000 only when accessed directly on port 8082.
+        const SM_URL = (function() {
+            var p = window.location.pathname;
+            var port = window.location.port;
+            if (p.startsWith('/emv') || (port && port !== '8082')) {
+                return '/service-manager';
+            }
+            return 'http://localhost:9000';
+        })();
         
         const SERVICE_CATEGORIES = [
             { id: 'core', name: 'EM&V Core Services', icon: '⚡', services: [
@@ -868,7 +898,7 @@
         
         async function loadUsers() {
             try {
-                const r = await fetch('/admin/users/list', { credentials: 'include' });
+                const r = await fetch((window.SYNEREX_EMV_BASE||'') + '/admin/users/list', { credentials: 'include' });
                 const data = await r.json();
                 if (r.status === 401 || r.status === 403) {
                     document.getElementById('userSelect').innerHTML = '<option value="">Admin access required</option>';
@@ -907,7 +937,7 @@
             }
             
             try {
-                const r = await fetch('/admin/users/delete', {
+                const r = await fetch((window.SYNEREX_EMV_BASE||'') + '/admin/users/delete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -984,5 +1014,28 @@
             }
         });
     </script>
+
+    <script>
+    // Fix nav links to work correctly whether accessed directly or via the /emv/ proxy prefix.
+    (function() {
+        var base = window.location.pathname.startsWith('/emv') ? '/emv' : '';
+        var origin = window.location.origin;
+
+        document.querySelectorAll('a.nav-link').forEach(function(a) {
+            var href = a.getAttribute('href') || '';
+            if (href.indexOf('localhost') !== -1) {
+                // Replace any hardcoded localhost URL with the correct origin
+                try {
+                    var u = new URL(href);
+                    a.href = origin + u.pathname + u.search + u.hash;
+                } catch(e) {}
+            } else if (base && href.charAt(0) === '/') {
+                // Prepend /emv prefix to bare EMV-app paths
+                a.href = base + href;
+            }
+        });
+    })();
+    </script>
+
 </body>
 </html>

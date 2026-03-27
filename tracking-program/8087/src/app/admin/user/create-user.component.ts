@@ -252,10 +252,24 @@ export class CreateUserComponent implements OnInit {
         this.reEnabledUser = responseData.response.reEnabledUser;
         this.userCreated = true;
       }, error => {
-        if(error.code == 409) {
-          alert('User with this email already exists.');
-        }
         this.syncing = false;
+        if (error.code == 402) {
+          // Seat limit reached — show actionable popup
+          const myAccountUrl = window.location.origin.replace(':8087', ':8080') + '/my-account';
+          const msg = (error.error && error.error.error)
+            ? error.error.error
+            : 'All user seats are in use.';
+          const goNow = window.confirm(
+            msg + '\n\nTo add more users, you need to purchase additional seats.\n\nClick OK to go to your My Account page and add seats now.'
+          );
+          if (goNow) {
+            window.open(myAccountUrl, '_blank');
+          }
+        } else if (error.code == 409) {
+          alert('User with this email already exists.');
+        } else {
+          alert('An error occurred creating the user. Please try again.');
+        }
       });
     }
   }

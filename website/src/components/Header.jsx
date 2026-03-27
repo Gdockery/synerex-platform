@@ -168,7 +168,7 @@ export default function Header(){
                   <div className="text-xs text-gray-500 mt-1">Manage EM&V program settings</div>
                 </a>
                 <a
-                  href="http://localhost:8080/tracking/login"
+                  href="/tracking/login"
                   className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-purple-300 transition-colors border-t border-gray-700 cursor-pointer no-underline"
                 >
                   <div className="font-semibold">Tracking Admin Portal</div>

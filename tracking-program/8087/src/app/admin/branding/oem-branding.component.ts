@@ -16,36 +16,68 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
       <div *ngIf="errorMsg" class="alert alert-danger">{{errorMsg}}</div>
 
       <!-- Logo Upload -->
+      <h4>Your Logos</h4>
+      <p class="text-muted">
+        Upload two versions of your logo. The <strong>Color Logo</strong> appears in the navigation bar and login page.
+        The <strong>White Logo</strong> is used on dark backgrounds such as PDF cover pages.
+        Recommended: PNG, at least 200px wide.
+      </p>
       <div class="row" style="margin-bottom: 2em;">
-        <div class="col-md-6">
-          <h4>Your Logo</h4>
-          <p class="text-muted">This logo appears in the navigation bar and login page for all your clients. Recommended: PNG with transparent background, at least 200px wide.</p>
 
-          <!-- Current logo preview -->
-          <div *ngIf="logoUrl" style="margin-bottom: 1em; padding: 1em; background: #1a1a2e; border-radius: 6px; display: inline-block;">
-            <p class="text-muted" style="font-size:0.8em; margin-bottom:0.5em;">Current logo preview (on dark background):</p>
-            <img [src]="logoUrl + '?t=' + cacheBust" alt="Current OEM Logo" style="max-height: 60px; max-width: 240px;" (error)="logoUrl = null"/>
-          </div>
-          <div *ngIf="!logoUrl" class="text-muted" style="margin-bottom:1em;">
-            <em>No logo uploaded yet. Your clients will see the default Synerex logo until you upload yours.</em>
+        <!-- Color Logo -->
+        <div class="col-md-5" style="border-right: 1px solid #e0e0e0; padding-right: 2em;">
+          <h5 style="font-weight:bold;"><span class="glyphicon glyphicon-picture"></span> Color Logo</h5>
+          <p class="text-muted" style="font-size:0.9em;">Shown in the navbar and login page. Use your full-color version with a transparent background.</p>
+
+          <div style="margin-bottom: 1em; padding: 1em; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; min-height: 80px; display:flex; align-items:center; justify-content:center;">
+            <img *ngIf="logoUrl" [src]="logoUrl + '?t=' + cacheBust" alt="Color Logo" style="max-height: 60px; max-width: 220px;" (error)="logoUrl = null"/>
+            <span *ngIf="!logoUrl" class="text-muted" style="font-size:0.85em;"><em>No color logo uploaded yet</em></span>
           </div>
 
           <div>
-            <label class="btn btn-default" style="cursor:pointer;">
-              <span class="glyphicon glyphicon-upload"></span> Choose Logo File
+            <label class="btn btn-default btn-sm" style="cursor:pointer;">
+              <span class="glyphicon glyphicon-upload"></span> Choose File
               <input type="file" style="display:none;" accept="image/png,image/jpeg,image/svg+xml,image/gif"
                      (change)="onLogoSelected($event)"/>
             </label>
-            <span *ngIf="selectedFile" style="margin-left:1em;">{{selectedFile.name}}</span>
+            <span *ngIf="selectedFile" style="margin-left:0.75em; font-size:0.9em;">{{selectedFile.name}}</span>
           </div>
           <div *ngIf="selectedFile" style="margin-top:0.8em;">
-            <button class="btn btn-primary" (click)="uploadLogo()" [disabled]="uploading">
+            <button class="btn btn-primary btn-sm" (click)="uploadLogo()" [disabled]="uploading">
               <span *ngIf="uploading"><span class="glyphicon glyphicon-refresh"></span> Uploading...</span>
-              <span *ngIf="!uploading"><span class="glyphicon glyphicon-cloud-upload"></span> Upload Logo</span>
+              <span *ngIf="!uploading"><span class="glyphicon glyphicon-cloud-upload"></span> Upload Color Logo</span>
             </button>
-            <button class="btn btn-default" style="margin-left:0.5em;" (click)="selectedFile = null">Cancel</button>
+            <button class="btn btn-default btn-sm" style="margin-left:0.5em;" (click)="selectedFile = null">Cancel</button>
           </div>
         </div>
+
+        <!-- White Logo -->
+        <div class="col-md-5 col-md-offset-1">
+          <h5 style="font-weight:bold;"><span class="glyphicon glyphicon-adjust"></span> White Logo</h5>
+          <p class="text-muted" style="font-size:0.9em;">Used on dark backgrounds such as PDF report covers. Use an all-white version of your logo with a transparent background.</p>
+
+          <div style="margin-bottom: 1em; padding: 1em; background: #1a1a2e; border-radius: 6px; min-height: 80px; display:flex; align-items:center; justify-content:center;">
+            <img *ngIf="whiteLogoUrl" [src]="whiteLogoUrl + '?t=' + cacheBust" alt="White Logo" style="max-height: 60px; max-width: 220px;" (error)="whiteLogoUrl = null"/>
+            <span *ngIf="!whiteLogoUrl" style="color: rgba(255,255,255,0.4); font-size:0.85em;"><em>No white logo uploaded yet</em></span>
+          </div>
+
+          <div>
+            <label class="btn btn-default btn-sm" style="cursor:pointer;">
+              <span class="glyphicon glyphicon-upload"></span> Choose File
+              <input type="file" style="display:none;" accept="image/png,image/jpeg,image/svg+xml,image/gif"
+                     (change)="onWhiteLogoSelected($event)"/>
+            </label>
+            <span *ngIf="selectedWhiteFile" style="margin-left:0.75em; font-size:0.9em;">{{selectedWhiteFile.name}}</span>
+          </div>
+          <div *ngIf="selectedWhiteFile" style="margin-top:0.8em;">
+            <button class="btn btn-primary btn-sm" (click)="uploadWhiteLogo()" [disabled]="uploadingWhite">
+              <span *ngIf="uploadingWhite"><span class="glyphicon glyphicon-refresh"></span> Uploading...</span>
+              <span *ngIf="!uploadingWhite"><span class="glyphicon glyphicon-cloud-upload"></span> Upload White Logo</span>
+            </button>
+            <button class="btn btn-default btn-sm" style="margin-left:0.5em;" (click)="selectedWhiteFile = null">Cancel</button>
+          </div>
+        </div>
+
       </div>
 
       <hr/>
@@ -129,13 +161,21 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
       <hr/>
 
       <!-- Preview box -->
-      <div *ngIf="form.brand_name || logoUrl">
+      <div *ngIf="form.brand_name || logoUrl || whiteLogoUrl">
         <h4>Preview</h4>
         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1.5em; background: #f9f9f9;">
+          <!-- Navbar preview (color logo on dark) -->
+          <p class="text-muted" style="font-size:0.8em; margin-bottom:0.4em;">Navigation bar (dark background):</p>
           <div style="background: #1a1a2e; padding: 0.75em 1.5em; border-radius: 6px; display: flex; align-items: center; gap: 1em; margin-bottom: 1em;">
             <img *ngIf="logoUrl" [src]="logoUrl + '?t=' + cacheBust" style="height:40px; max-width:160px;" alt="logo"/>
             <span *ngIf="!logoUrl" style="color:white; font-size:1.2em; font-weight:bold;">{{form.brand_name || 'Your Brand'}}</span>
             <span style="color:rgba(255,255,255,0.6); font-size:0.9em;">— Navigation Bar</span>
+          </div>
+          <!-- PDF cover preview (white logo on dark) -->
+          <p class="text-muted" style="font-size:0.8em; margin-bottom:0.4em;">PDF cover page (dark image + color overlay):</p>
+          <div style="background: #2a3a5c; padding: 0.75em 1.5em; border-radius: 6px; display: flex; align-items: center; gap: 1em; margin-bottom: 1em;">
+            <img *ngIf="whiteLogoUrl" [src]="whiteLogoUrl + '?t=' + cacheBust" style="height:40px; max-width:160px;" alt="white logo"/>
+            <span *ngIf="!whiteLogoUrl" style="color:rgba(255,255,255,0.5); font-size:1em;">No white logo uploaded — default Synerex white logo will be used</span>
           </div>
           <p class="text-muted" style="font-size:0.9em;">
             Clients logging in will see "<strong>{{form.brand_name || 'Your Brand'}}</strong>" throughout the portal.
@@ -150,8 +190,11 @@ export class OemBrandingComponent implements OnInit {
 
   public brandName: string = 'Your Brand';
   public logoUrl: string | null = null;
+  public whiteLogoUrl: string | null = null;
   public selectedFile: File | null = null;
+  public selectedWhiteFile: File | null = null;
   public uploading = false;
+  public uploadingWhite = false;
   public saving = false;
   public successMsg: string | null = null;
   public errorMsg: string | null = null;
@@ -193,6 +236,9 @@ export class OemBrandingComponent implements OnInit {
           if (b.logo_url) {
             this.logoUrl = b.logo_url;
           }
+          if (b.white_logo_url) {
+            this.whiteLogoUrl = b.white_logo_url;
+          }
         }
       },
       err => { /* not yet saved - ignore */ }
@@ -201,9 +247,12 @@ export class OemBrandingComponent implements OnInit {
 
   onLogoSelected(event: any) {
     const file = event.target.files && event.target.files[0];
-    if (file) {
-      this.selectedFile = file;
-    }
+    if (file) { this.selectedFile = file; }
+  }
+
+  onWhiteLogoSelected(event: any) {
+    const file = event.target.files && event.target.files[0];
+    if (file) { this.selectedWhiteFile = file; }
   }
 
   uploadLogo() {
@@ -211,25 +260,47 @@ export class OemBrandingComponent implements OnInit {
     this.uploading = true;
     this.successMsg = null;
     this.errorMsg = null;
-
     const formData = new FormData();
     formData.append('logo', this.selectedFile);
-
+    formData.append('logo_type', 'color');
     this.http.post<any>('/api/whitelabel/oem-logo', formData).subscribe(
       res => {
         this.uploading = false;
         this.selectedFile = null;
         this.cacheBust = Date.now();
         const logoPath = (res && (res.logo_url || res.response)) || null;
-        if (logoPath) {
-          this.logoUrl = logoPath;
-        }
-        this.successMsg = 'Logo uploaded successfully! Your clients will see your logo in the navbar and login page.';
+        if (logoPath) { this.logoUrl = logoPath; }
+        this.successMsg = 'Color logo uploaded successfully!';
         setTimeout(() => this.successMsg = null, 5000);
       },
       err => {
         this.uploading = false;
         this.errorMsg = (err.error && err.error.error) || 'Logo upload failed. Please try again.';
+      }
+    );
+  }
+
+  uploadWhiteLogo() {
+    if (!this.selectedWhiteFile) return;
+    this.uploadingWhite = true;
+    this.successMsg = null;
+    this.errorMsg = null;
+    const formData = new FormData();
+    formData.append('logo', this.selectedWhiteFile);
+    formData.append('logo_type', 'white');
+    this.http.post<any>('/api/whitelabel/oem-logo', formData).subscribe(
+      res => {
+        this.uploadingWhite = false;
+        this.selectedWhiteFile = null;
+        this.cacheBust = Date.now();
+        const logoPath = (res && (res.logo_url || res.response)) || null;
+        if (logoPath) { this.whiteLogoUrl = logoPath; }
+        this.successMsg = 'White logo uploaded successfully! It will appear on PDF cover pages.';
+        setTimeout(() => this.successMsg = null, 5000);
+      },
+      err => {
+        this.uploadingWhite = false;
+        this.errorMsg = (err.error && err.error.error) || 'White logo upload failed. Please try again.';
       }
     );
   }

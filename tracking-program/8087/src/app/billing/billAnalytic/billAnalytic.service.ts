@@ -27,7 +27,7 @@ export class BillAnalyticService {
   updateAnalytic(inputParams:any = {}): Observable<any> {
     let response = this.apiRequestService.put('/api/project/'+this.currentUserService.user.selectedProject.id+'/electric-bill-analysis', {electricBillAnalysis: inputParams});
     response.subscribe(response => {
-      this.currentUserService.user.selectedProject.electricBillAnalysis = response;
+      this.currentUserService.user.selectedProject.electricBillAnalysis = (response && response.response !== undefined) ? response.response : response;
     });
     return response;
   };
@@ -35,7 +35,7 @@ export class BillAnalyticService {
   updateEquipment(inputParams:any = {}, meterNumber?): Observable<any> {
     let response = this.apiRequestService.put('/api/project/'+this.currentUserService.user.selectedProject.id+'/equipment-info/', {equipmentInfo: inputParams, meterNumber: meterNumber});
     response.subscribe(response => {
-      this.currentUserService.user.selectedProject.equipmentInfo = response;
+      this.currentUserService.user.selectedProject.equipmentInfo = (response && response.response !== undefined) ? response.response : response;
     });
     return response;
   };

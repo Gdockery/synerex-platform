@@ -13,7 +13,9 @@ export class PdfLinkService {
   }
 
   getLinks(data?): Observable<any> {
-    this.baseUrl = this.windowRef.getNativeWindow().location.origin + '/secure/view?';
+    const win = this.windowRef.getNativeWindow();
+    const apiBasePath = ((win['BOOTSTRAP_DATA'] || {})['apiBasePath'] || '').toString().replace(/\/$/, '');
+    this.baseUrl = win.location.origin + (apiBasePath ? apiBasePath + '/' : '') + 'secure/view?';
     this.token = this.currentUserService.user.selectedProject.documentShareToken;
     if (data) {
      return new Observable((observer) => {

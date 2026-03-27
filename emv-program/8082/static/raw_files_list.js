@@ -16,11 +16,11 @@ class RawFilesList {
     initializeEventListeners() {
         // Navigation
         document.getElementById('back-to-dashboard').addEventListener('click', () => {
-            window.location.href = '/main-dashboard';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
         });
         
         document.getElementById('upload-new-files').addEventListener('click', () => {
-            window.location.href = '/upload-interface';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/upload-interface';
         });
         
         document.getElementById('logout-btn').addEventListener('click', () => {
@@ -86,7 +86,7 @@ class RawFilesList {
         if (!this.sessionToken) {
             this.showNotification('Please login to access this page', 'error');
             setTimeout(() => {
-                window.location.href = '/main-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
             }, 2000);
             return;
         }
@@ -106,14 +106,14 @@ class RawFilesList {
             } else {
                 this.showNotification('Session expired. Please login again.', 'error');
                 setTimeout(() => {
-                    window.location.href = '/main-dashboard';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
                 }, 2000);
             }
         } catch (error) {
             console.error('Authentication error:', error);
             this.showNotification('Authentication error. Please login again.', 'error');
             setTimeout(() => {
-                window.location.href = '/main-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
             }, 2000);
         }
     }
@@ -317,7 +317,7 @@ class RawFilesList {
     
     async downloadFile(fileId) {
         try {
-            const response = await fetch(`/api/original-files/${fileId}/download`, {
+            const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/original-files/${fileId}/download`, {
                 headers: this.getAuthHeaders()
             });
             if (response.ok) {
@@ -354,7 +354,7 @@ class RawFilesList {
         }
         
         try {
-            const response = await fetch(`/api/original-files/${fileId}`, {
+            const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/original-files/${fileId}`, {
                 method: 'DELETE',
                 headers: this.getAuthHeaders()
             });
@@ -479,7 +479,7 @@ class RawFilesList {
             if (websiteUrl) {
                 window.location.href = `${websiteUrl}/`;
             } else {
-                window.location.href = '/main-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
             }
         }
     }

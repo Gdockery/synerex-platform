@@ -79,10 +79,21 @@ export class SnapshotLineChartComponent implements OnInit {
   }
 
   setData(chartData, labels) {
-   this.data = chartData;
-
-    //Hacky fix for issue of not being able to update labels in ng2-charts
+    this.data = chartData;
     this.chart.chart.config.data.labels = labels;
+  }
+
+  /** Update axis labels at runtime without re-creating the chart. */
+  setAxisLabels(yLabel: string, xLabel: string = 'Time') {
+    if (!this.chart || !this.chart.chart) { return; }
+    const cfg = this.chart.chart.config.options.scales;
+    if (cfg.yAxes && cfg.yAxes[0]) {
+      cfg.yAxes[0].scaleLabel = { display: true, labelString: yLabel, fontColor: '#666', fontSize: 12 };
+    }
+    if (cfg.xAxes && cfg.xAxes[0]) {
+      cfg.xAxes[0].scaleLabel = { display: true, labelString: xLabel, fontColor: '#666', fontSize: 12 };
+    }
+    this.chart.chart.update();
   }
 
 }

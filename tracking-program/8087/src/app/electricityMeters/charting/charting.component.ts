@@ -86,25 +86,38 @@ export class ChartingComponent implements OnInit, OnDestroy {
     this.updateChartData();
   }
 
-  updateChartData() { 
+  private static readonly TYPE_Y_LABELS: {[key: string]: string} = {
+    kw:       'kW',
+    kva:      'kVA',
+    voltage:  'Volts (V)',
+    amperage: 'Amps (A)',
+    kvar:     'kVAR',
+    pf:       'Power Factor (%)',
+    voltthd:  'THD Voltage (%)',
+    ampthd:   'THD Current (%)',
+  };
+
+  updateChartData() {
     if (!this.selectedMeter || !this.chart) return;
-    if(this.validateParameter()) {
+    if (this.validateParameter()) {
       this.projectOverviewService.getPowerQualityChart({
         project: this.userService.user.selectedProject.id,
         fromDate: this.timeHelpers.getMomentFromDatepickerDictionary(this.dateForm.get('dateFrom').value.date).format('x'),
-        toDate: this.timeHelpers.getMomentFromDatepickerDictionary(this.dateForm.get('dateTo').value.date).format('x'), 
+        toDate: this.timeHelpers.getMomentFromDatepickerDictionary(this.dateForm.get('dateTo').value.date).format('x'),
         type: this.type,
         period: this.period,
-        meter: this.selectedMeter, 
+        meter: this.selectedMeter,
       }).subscribe(result => {
-          this.chart.setData([
-          {data: result.p1Data, label: "Phase1"}, 
-          {data: result.p2Data, label: "Phase2"}, 
-          {data: result.p3Data, label: "Phase3"}], 
+        this.chart.setData([
+          {data: result.p1Data, label: 'Phase 1'},
+          {data: result.p2Data, label: 'Phase 2'},
+          {data: result.p3Data, label: 'Phase 3'}],
           result.timeLabels);
+        const yLabel = ChartingComponent.TYPE_Y_LABELS[this.type] || this.type;
+        this.chart.setAxisLabels(yLabel, 'Time');
       });
     }
-  };
+  }
 
 
   /**

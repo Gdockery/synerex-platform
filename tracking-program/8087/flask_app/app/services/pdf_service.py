@@ -17,6 +17,7 @@ from app.services.pdf.generators import proposal as proposal_gen
 from app.services.pdf.generators import test_report as test_report_gen
 from app.services.pdf.generators import simple_document as simple_gen
 from app.services.pdf import data_mappers
+from app.services.pdf import cover_page as cover_gen
 
 
 INVOICE_TYPES = frozenset({"depositInvoice", "finalInvoice", "installationInvoice", "totalInvoice"})
@@ -71,17 +72,43 @@ def generate_pdf(project, document_kind, **kwargs):
         if not xeco:
             raise ValueError("Xeco config not found")
         invoice_data = data_mappers.map_invoice_data(project, client, xeco, document_kind)
-        logo_path = _get_pdf_logo_path("logo.png")
-        brand_name = _get_brand_name()
+        logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("logo.png")
+        brand_name = _get_brand_name(project)
         return invoice_gen.generate(invoice_data, logo_path, brand_name)
 
     if document_kind in ("proposal", "selectedProposal"):
         client = _get_project_client(project)
         xeco_manager = _get_xeco_manager(project)
         proposal_data = data_mappers.map_proposal_data(project, client, xeco_manager)
-        logo_path = _get_pdf_logo_path("logo.png")
-        brand_name = _get_brand_name()
-        return proposal_gen.generate(proposal_data, logo_path, brand_name)
+        brand_name = _get_brand_name(project)
+        proposal_data["brandName"] = brand_name
+        logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("logo.png")
+        white_logo = _get_white_logo_path(project) or logo_path
+        # Generate content (bridge first, then fallback)
+        # Pass indexLogo explicitly so bridge uses white logo on its first content page
+        content_buf = _try_pdf_bridge("proposal", proposal_data, project=project,
+                                      extra_paths={"indexLogo": white_logo})
+        if content_buf:
+            # Bridge has its own cover on page 1 — strip it, we replace with ours
+            content_buf = _strip_first_page(content_buf)
+        else:
+            content_buf = proposal_gen.generate(proposal_data, logo_path, brand_name)
+        # Always prepend branded cover (use white logo on dark cover background)
+        branding = _get_oem_branding(project)
+        cover_image = str(Path(__file__).parent / "pdf" / "proposal_cover.png")
+        cover_buf = cover_gen.build_cover(
+            doc_type="Proposal",
+            oem_name=brand_name,
+            client_name=proposal_data.get("clientName", ""),
+            project_name=proposal_data.get("location", "") or proposal_data.get("projectName", ""),
+            date_str=proposal_data.get("proposalDate", "") or proposal_data.get("date", ""),
+            doc_number=proposal_data.get("proposalNumber", ""),
+            cover_image_path=cover_image,
+            primary_color=branding.primary_color if branding and branding.primary_color else "#1a4f8a",
+            secondary_color=branding.secondary_color if branding and branding.secondary_color else "#ffffff",
+            logo_path=white_logo,
+        )
+        return _merge_pdfs(cover_buf, content_buf)
 
     if document_kind == "testReport":
         test_id = kwargs.get("test")
@@ -89,20 +116,43 @@ def generate_pdf(project, document_kind, **kwargs):
         if not test_id:
             raise ValueError("testReport requires test id")
         report_data = _build_test_report_data(project, test_id, meters_to_report)
-        logo_path = _get_pdf_logo_path("bill-logo.png")
-        brand_name = _get_brand_name()
+        logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("bill-logo.png")
+        brand_name = _get_brand_name(project)
         return test_report_gen.generate(report_data, logo_path, brand_name)
 
     if document_kind in ("billAnalytic", "selectedBillAnalytic"):
         data = _build_bill_analytic_data(project, kwargs.get("metersToReport"))
-        buf = _try_pdf_bridge(document_kind, data)
-        if buf:
-            return buf
-        return simple_gen.generate_summary("Bill Analytic", data, [
-            ("Total Charges", data.get("estimatedSavings", {}).get("totalCharges")),
-            ("Total Savings", data.get("estimatedSavings", {}).get("totalSavings")),
-            ("Annual Savings", data.get("estimatedSavings", {}).get("annualSavings")),
-        ])
+        brand_name = _get_brand_name(project)
+        branding = _get_oem_branding(project)
+        client = _get_project_client(project)
+        logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("logo.png")
+        white_logo = _get_white_logo_path(project) or logo_path
+        # Generate content (bridge first, then fallback)
+        content_buf = _try_pdf_bridge(document_kind, data, project=project)
+        if content_buf:
+            # Bridge has its own cover on page 1 — strip it, we replace with ours
+            content_buf = _strip_first_page(content_buf)
+        else:
+            content_buf = simple_gen.generate_summary("Bill Analytic", data, [
+                ("Total Charges", data.get("estimatedSavings", {}).get("totalCharges")),
+                ("Total Savings", data.get("estimatedSavings", {}).get("totalSavings")),
+                ("Annual Savings", data.get("estimatedSavings", {}).get("annualSavings")),
+            ])
+        # Always prepend branded cover
+        cover_image = str(Path(__file__).parent / "pdf" / "bill_analytic_cover.png")
+        cover_buf = cover_gen.build_cover(
+            doc_type="Bill Analytic",
+            oem_name=brand_name,
+            client_name=data.get("clientName", client.name if client else ""),
+            project_name=data.get("location", "") or data.get("projectName", ""),
+            date_str=data.get("date", ""),
+            doc_number=data.get("proposalNumber", "") or data.get("projectNumber", ""),
+            cover_image_path=cover_image,
+            primary_color=branding.primary_color if branding and branding.primary_color else "#1a4f8a",
+            secondary_color=branding.secondary_color if branding and branding.secondary_color else "#ffffff",
+            logo_path=white_logo,
+        )
+        return _merge_pdfs(cover_buf, content_buf)
 
     if document_kind == "financeAgreement":
         client = _get_project_client(project)
@@ -110,7 +160,7 @@ def generate_pdf(project, document_kind, **kwargs):
         if not xeco:
             raise ValueError("Xeco config not found")
         data = data_mappers.map_finance_agreement_data(project, client, xeco)
-        buf = _try_pdf_bridge(document_kind, data)
+        buf = _try_pdf_bridge(document_kind, data, project=project)
         if buf:
             return buf
         return simple_gen.generate_summary("Finance Agreement", data, [
@@ -123,7 +173,7 @@ def generate_pdf(project, document_kind, **kwargs):
 
     if document_kind in ("costSavings", "lsPotential", "co2Savings", "partsProcurement", "shippingDocuments", "selectedShippingDocuments"):
         data = _build_minimal_document_data(project)
-        buf = _try_pdf_bridge(document_kind, data)
+        buf = _try_pdf_bridge(document_kind, data, project=project)
         if buf:
             return buf
         title = document_kind.replace("_", " ").title()
@@ -143,7 +193,73 @@ def _get_pdf_logo_path(asset_name):
     return str(base / asset_name) if (base / asset_name).exists() else None
 
 
-def _try_pdf_bridge(document_kind, data, paths=None):
+def _get_white_logo_path(project=None):
+    """Return white logo path: OEM uploaded white logo first, then Synerex default."""
+    try:
+        from app.models.oem_branding import OemBranding
+        from flask import current_app
+        org_id = None
+        if project is not None:
+            org_id = getattr(project, "orgId", None) or getattr(project, "org_id", None)
+        if not org_id:
+            try:
+                from flask_jwt_extended import get_jwt
+                claims = get_jwt()
+                org_id = claims.get("orgId") or claims.get("org_id")
+            except Exception:
+                pass
+        if org_id:
+            branding = OemBranding.query.filter_by(org_id=org_id).first()
+            if branding and branding.white_logo_path:
+                from pathlib import Path as _Path
+                p = _Path(branding.white_logo_path)
+                if p.exists():
+                    return str(p)
+    except Exception:
+        pass
+    return _get_pdf_logo_path("synerex-logo-white.png")
+
+
+def _get_oem_logo_path(project=None):
+    """Resolve logo path: OEM uploaded logo first, then default Synerex logo."""
+    from app.config import _8087_ROOT
+    from flask import current_app
+    from pathlib import Path
+
+    # Try OEM uploaded logo
+    try:
+        from app.models.oem_branding import OemBranding
+        org_id = None
+        if project is not None:
+            org_id = getattr(project, 'orgId', None) or getattr(project, 'org_id', None)
+        if not org_id:
+            try:
+                from flask_jwt_extended import get_jwt
+                claims = get_jwt()
+                org_id = claims.get('orgId') or claims.get('org_id')
+            except Exception:
+                pass
+        if org_id:
+            branding = OemBranding.query.filter_by(org_id=org_id).first()
+            if branding and branding.logo_path:
+                storage = current_app.config.get("STORAGE_LOCAL_PATH", "")
+                if storage:
+                    logo_file = Path(storage) / branding.logo_path
+                    if logo_file.exists():
+                        return str(logo_file)
+    except Exception:
+        pass
+
+    # Fall back to default Synerex logo
+    for fallback_name in ("synerex-logo.png", "logo.png", "bill-logo.png"):
+        default_logo = _8087_ROOT / "api" / "services" / "pdf" / "resources" / fallback_name
+        if default_logo.exists():
+            return str(default_logo)
+
+    return None
+
+
+def _try_pdf_bridge(document_kind, data, paths=None, project=None, extra_paths=None):
     """Invoke Node pdf-bridge.js for full PDF layouts. Returns BytesIO or None on failure."""
     from app.config import _8087_ROOT
     from flask import current_app
@@ -152,6 +268,7 @@ def _try_pdf_bridge(document_kind, data, paths=None):
         return None
     kind_map = {
         "billAnalytic": "billAnalytic", "selectedBillAnalytic": "billAnalytic",
+        "proposal": "proposal", "selectedProposal": "proposal",
         "costSavings": "costSavings", "lsPotential": "lsPotential", "co2Savings": "co2Savings",
         "partsProcurement": "partsProcurement", "shippingDocuments": "shippingDocuments",
         "selectedShippingDocuments": "shippingDocuments", "financeAgreement": "financeAgreement",
@@ -159,10 +276,22 @@ def _try_pdf_bridge(document_kind, data, paths=None):
     node_kind = kind_map.get(document_kind)
     if not node_kind:
         return None
-    logo_path = _get_pdf_logo_path("logo.png")
+    logo_path = _get_oem_logo_path(project)
+    brand_name = _get_brand_name(project)
     data_ser = json.loads(json.dumps(data, default=str)) if isinstance(data, dict) else data
-    payload = {"data": data_ser, "paths": dict(paths or {}, logo=logo_path)}
+    if isinstance(data_ser, dict):
+        data_ser.setdefault('brandName', brand_name)
+    payload = {"data": data_ser, "paths": dict(paths or {}, logo=logo_path, **(extra_paths or {}))}
     try:
+        # Debug: dump the payload to a file so layout issues can be reproduced
+        # with simulate-pdf.js.  Remove once confirmed working.
+        import logging
+        _debug_path = Path("/app/8087/.tmp/pdf_debug_payload.json")
+        try:
+            _debug_path.write_text(json.dumps(payload, default=str, indent=2))
+        except Exception as _de:
+            logging.getLogger(__name__).debug("pdf debug dump failed: %s", _de)
+
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as out:
             out_path = out.name
         proc = subprocess.run(
@@ -275,35 +404,28 @@ def _build_test_report_data(project, test_id, meters_to_report):
 
 
 def _build_bill_analytic_data(project, meters_to_report=None):
-    """Build bill analytic data. Uses selected_bill_analytic when metersToReport filters meters."""
-    import copy
-    from types import SimpleNamespace
+    """Build bill analytic data for the original multi-page report."""
+    from app.services.pdf.bill_analytic_data_mapper import map_bill_analytic_data
     client = _get_project_client(project)
-    eba = (project.electricBillAnalysis or {}) if hasattr(project, "electricBillAnalysis") else {}
-    if meters_to_report and eba.get("meterBills"):
-        from app.services.selected_bill_analytic_calculations import calculate as selected_calc
-        proj_dict = {"electricBillAnalysis": copy.deepcopy(eba), "reportFields": (project.reportFields or {}) if hasattr(project, "reportFields") else {}}
-        selected_calc(proj_dict, meters_to_report)
-        eba = proj_dict["electricBillAnalysis"]
-        project = SimpleNamespace(
-            electricBillAnalysis=eba,
-            reportFields=proj_dict["reportFields"],
-            **{k: getattr(project, k, None) for k in ("location", "proposalNumber", "currencyCode") if hasattr(project, k)},
-        )
-    from app.services.bill_analytic_calculations import calculate
-    calc_data = calculate(project)
-    total_savings = float(eba.get("totalSavings") or 0)
-    total_charges = float(calc_data.get("totalCharges") or 0)
-    return {
-        "clientName": (client.legalName or (client.name if client else "")),
-        "location": project.location or "",
-        "date": __import__("datetime").datetime.now().strftime("%B %d, %Y"),
-        "estimatedSavings": {
-            "totalCharges": f"${total_charges:,.2f}",
-            "totalSavings": f"${total_savings:,.2f}",
-            "annualSavings": f"${total_savings * 12:,.2f}",
-        },
-    }
+    xeco_manager = _get_xeco_manager(project)
+    try:
+        return map_bill_analytic_data(project, client, xeco_manager, meters_to_report)
+    except Exception:
+        from app.services.bill_analytic_calculations import calculate
+        eba = (project.electricBillAnalysis or {}) if hasattr(project, "electricBillAnalysis") else {}
+        calc = calculate(project)
+        total_savings = float(eba.get("totalSavings") or 0)
+        total_charges = float(calc.get("totalCharges") or 0)
+        return {
+            "clientName": (client.legalName or (client.name if client else "")),
+            "location": getattr(project, "location", "") or "",
+            "date": __import__("datetime").datetime.now().strftime("%B %d, %Y"),
+            "estimatedSavings": {
+                "totalCharges": f"${total_charges:,.2f}",
+                "totalSavings": f"${total_savings:,.2f}",
+                "annualSavings": f"${total_savings * 12:,.2f}",
+            },
+        }
 
 
 def _build_minimal_document_data(project):
@@ -317,22 +439,88 @@ def _build_minimal_document_data(project):
     }
 
 
-def _get_brand_name():
-    """Get brand name for whitelabel."""
-    from flask import request, current_app
+def _get_oem_branding(project=None):
+    """Return OemBranding instance for the project's org, or None."""
     try:
-        hostname = (request.host or "").split(":")[0]
-        mappings = current_app.config.get("WHITELABEL_DOMAIN_MAPPINGS") or {}
-        branding = mappings.get(hostname)
-        if branding:
-            return branding
-        parts = hostname.split(".")
-        sub = parts[0].lower() if parts else ""
-        if sub in ("", "www", "portal"):
-            return "Xeco"
-        return sub or "Xeco"
+        from app.models.oem_branding import OemBranding
+        org_id = None
+        if project is not None:
+            org_id = getattr(project, "orgId", None) or getattr(project, "org_id", None)
+        if not org_id:
+            try:
+                from flask_jwt_extended import get_jwt
+                claims = get_jwt()
+                org_id = claims.get("orgId") or claims.get("org_id")
+            except Exception:
+                pass
+        if org_id:
+            return OemBranding.query.filter_by(org_id=org_id).first()
     except Exception:
-        return "Xeco"
+        pass
+    return None
+
+
+def _merge_pdfs(cover_buf: BytesIO, content_buf: BytesIO) -> BytesIO:
+    """Merge cover PDF and content PDF into a single BytesIO (uses pypdf)."""
+    try:
+        from pypdf import PdfWriter, PdfReader
+        writer = PdfWriter()
+        for buf in (cover_buf, content_buf):
+            buf.seek(0)
+            reader = PdfReader(buf)
+            for page in reader.pages:
+                writer.add_page(page)
+        out = BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return out
+    except Exception:
+        content_buf.seek(0)
+        return content_buf
+
+
+def _strip_first_page(pdf_buf: BytesIO) -> BytesIO:
+    """Return a new BytesIO with page 1 removed (the bridge's built-in cover)."""
+    try:
+        from pypdf import PdfWriter, PdfReader
+        pdf_buf.seek(0)
+        reader = PdfReader(pdf_buf)
+        if len(reader.pages) <= 1:
+            pdf_buf.seek(0)
+            return pdf_buf
+        writer = PdfWriter()
+        for page in reader.pages[1:]:
+            writer.add_page(page)
+        out = BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return out
+    except Exception:
+        pdf_buf.seek(0)
+        return pdf_buf
+
+
+def _get_brand_name(project=None):
+    try:
+        from app.models.oem_branding import OemBranding
+        org_id = None
+        if project is not None:
+            org_id = getattr(project, 'orgId', None) or getattr(project, 'org_id', None)
+        if not org_id:
+            from flask import request
+            try:
+                from flask_jwt_extended import get_jwt
+                claims = get_jwt()
+                org_id = claims.get('orgId') or claims.get('org_id')
+            except Exception:
+                pass
+        if org_id:
+            branding = OemBranding.query.filter_by(org_id=org_id).first()
+            if branding and branding.brand_name:
+                return branding.brand_name
+    except Exception:
+        pass
+    return 'Synerex'
 
 
 def _get_client_logo_path(project, invoice_data):

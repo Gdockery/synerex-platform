@@ -48,7 +48,12 @@ export class NavbarComponent {
   /** Website My Account page URL (when in platform flow). Avoids double /my-account. */
   get myAccountPageUrl(): string {
     if (!this.myAccountUrl) return '';
-    return this.myAccountUrl.endsWith('/my-account') ? this.myAccountUrl : this.myAccountUrl + '/my-account';
+    // Use the browser's current origin so the link works from any IP/port
+    // (avoids server-side localhost URLs breaking remote users).
+    const origin = (typeof window !== 'undefined' && window.location && window.location.origin)
+      ? window.location.origin
+      : this.myAccountUrl;
+    return origin + '/my-account';
   }
 
   _toggleSidebar() {

@@ -135,7 +135,10 @@ class Config:
     # PDF: Path to Node pdf-bridge.js for full PDF layouts. When set, Flask uses it for
     # billAnalytic, costSavings, lsPotential, co2Savings, partsProcurement, shippingDocuments, financeAgreement.
     # Run from 8087 dir: node scripts/pdf-bridge.js <kind> < data.json
-    PDF_BRIDGE_PATH = os.environ.get("PDF_BRIDGE_PATH", "")
+    _bridge = os.environ.get("PDF_BRIDGE_PATH", "").strip()
+    if not _bridge and (_8087_ROOT / "scripts" / "pdf-bridge.js").exists():
+        _bridge = str(_8087_ROOT / "scripts" / "pdf-bridge.js")
+    PDF_BRIDGE_PATH = _bridge
 
     # Constants (from config/constants.js)
     DEFAULT_PAGE_SIZE = 10

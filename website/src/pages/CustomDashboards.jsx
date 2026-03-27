@@ -4,16 +4,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function CustomDashboards() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -29,7 +24,7 @@ export default function CustomDashboards() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,32 +40,32 @@ export default function CustomDashboards() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Custom Alerts</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Custom Alerts</h3>
             <p className="text-sm text-gray-300">Configurable alert rules with multiple notification channels including email, SMS, and webhook integrations.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Role-Based Views</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Role-Based Views</h3>
             <p className="text-sm text-gray-300">Customized dashboard views for different user roles including operators, engineers, and management.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">KPI Tracking</h3>
+            <h3 className="font-bold text-purple-200 mb-3">KPI Tracking</h3>
             <p className="text-sm text-gray-300">Key performance indicators and metrics tracking with customizable thresholds and trend analysis.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Historical Analysis</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Historical Analysis</h3>
             <p className="text-sm text-gray-300">Historical data visualization with time-series charts and comparative analysis tools.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Mobile Responsive</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Mobile Responsive</h3>
             <p className="text-sm text-gray-300">Fully responsive dashboards that work seamlessly across desktop, tablet, and mobile devices.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Export & Sharing</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Export & Sharing</h3>
             <p className="text-sm text-gray-300">Export dashboard data and share custom views with team members and stakeholders.</p>
           </div>
         </div>
@@ -79,7 +74,7 @@ export default function CustomDashboards() {
           <h2 className="text-2xl font-bold text-gray-300 mb-4">Dashboard Customization Features</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">Visual Components</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Visual Components</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Interactive charts and graphs</li>
                 <li>• Real-time gauges and meters</li>
@@ -89,7 +84,7 @@ export default function CustomDashboards() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">Configuration Options</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Configuration Options</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Custom color schemes and themes</li>
                 <li>• Flexible layout arrangements</li>
@@ -102,7 +97,7 @@ export default function CustomDashboards() {
         </div>
         
         <div className="mt-8 p-6 bg-gray-800 border border-gray-700 rounded-lg">
-          <h3 className="font-bold text-purple-400 mb-3">Dashboard Templates</h3>
+          <h3 className="font-bold text-purple-200 mb-3">Dashboard Templates</h3>
           <div className="grid md:grid-cols-3 gap-4">
             <div className="p-4 border border-gray-700 rounded-lg">
               <h4 className="font-semibold text-gray-300 mb-2">Operations Dashboard</h4>
@@ -122,7 +117,7 @@ export default function CustomDashboards() {
         <div className="mt-8 text-center">
           <a 
             href="/real-time-analytics" 
-            className="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-400 transition-colors"
+            className="inline-flex items-center px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-300 transition-colors"
           >
             Learn More About Power Analysis
           </a>

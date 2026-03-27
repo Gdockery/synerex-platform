@@ -55,8 +55,12 @@ export class WhitelabelService {
    * @returns URL path to the image (backend will resolve to whitelabel or default)
    */
   getImageUrl(filename: string): string {
-    // Always return the standard path - backend route handler will resolve to whitelabel or default
-    return `/images/${filename}`;
+    // Prefix with apiBasePath (e.g. /tracking) so image requests route through
+    // the correct proxy path when the app is served under a sub-path.
+    const base = (typeof window !== 'undefined' &&
+                  window['BOOTSTRAP_DATA'] &&
+                  window['BOOTSTRAP_DATA'].apiBasePath) || '';
+    return `${base}/images/${filename}`;
   }
 
   /**

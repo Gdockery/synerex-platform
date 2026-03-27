@@ -61,9 +61,15 @@ const comprehensiveSections = {
                         <td>Yes</td>
                     </tr>
                     <tr>
-                        <td>Location</td>
-                        <td>City, State Zip Code</td>
-                        <td>Geographic location</td>
+                        <td>City</td>
+                        <td>City name</td>
+                        <td>City</td>
+                        <td>Yes</td>
+                    </tr>
+                    <tr>
+                        <td>State</td>
+                        <td>State abbreviation</td>
+                        <td>State or province</td>
                         <td>Yes</td>
                     </tr>
                     <tr>

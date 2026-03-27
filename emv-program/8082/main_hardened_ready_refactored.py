@@ -12851,6 +12851,95 @@ def tracking_bill_analytic():
         return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
 
+def _build_harmonic_baseline_from_results(analysis_results: dict) -> dict | None:
+    """
+    Extract OFF-period harmonic snapshot from EMV analysis results for push to Tracking.
+    Returns a dict suitable for EmvAnalysis.harmonic_baseline, or None if no data available.
+
+    The power_quality dict uses aggregate keys (thd_before, avg_thd_before_pct, etc.)
+    rather than per-phase keys. We map those to a per-phase-compatible structure.
+    Individual H3–H21 per-phase data is sparse unless explicitly measured via power analyzer.
+    """
+    if not isinstance(analysis_results, dict):
+        return None
+    pq = analysis_results.get("power_quality") or analysis_results.get("power_quality_results") or {}
+    if not isinstance(pq, dict):
+        return None
+
+    ORDERS = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+    phases = {}
+    for phase in ["l1", "l2", "l3"]:
+        amp_h = {}
+        volt_h = {}
+        phase_num = phase[-1]  # "1", "2", "3"
+        for h in ORDERS:
+            # Try multiple naming conventions that PowerQualityAnalysis may use
+            for key_pattern in [
+                f"{phase}_amp_h{h}", f"{phase}AmpH{h}",
+                f"phase{phase_num}_amp_h{h}", f"l{phase_num}_amp_h{h}",
+                f"h{h}_{phase}", f"H{h}_{phase}",
+            ]:
+                val = pq.get(key_pattern)
+                if val is not None:
+                    amp_h[f"H{h}"] = float(val)
+                    break
+            for key_pattern in [
+                f"{phase}_volt_h{h}", f"{phase}VoltH{h}",
+                f"phase{phase_num}_volt_h{h}", f"l{phase_num}_volt_h{h}",
+            ]:
+                val = pq.get(key_pattern)
+                if val is not None:
+                    volt_h[f"H{h}"] = float(val)
+                    break
+        phases[phase] = {"amp": amp_h, "volt": volt_h}
+
+    # THD — per-phase preferred, fall back to aggregate thd_before for all phases
+    # EMV stores: "thd_before" (aggregate), "avg_thd_before_pct", "raw_thd_before", "normalized_thd_before"
+    thd = {}
+    for phase in ["l1", "l2", "l3"]:
+        for key in [f"{phase}_thd", f"{phase}THD", f"thd_{phase}"]:
+            val = pq.get(key)
+            if val is not None:
+                thd[phase] = float(val)
+                break
+
+    if not thd:
+        # Fall back to aggregate OFF-period (before) THD value for all three phases
+        agg_thd = None
+        for key in ["thd_before", "raw_thd_before", "avg_thd_before_pct",
+                    "normalized_thd_before", "individual_thd_before"]:
+            val = pq.get(key)
+            if val is not None:
+                try:
+                    agg_thd = float(val)
+                    break
+                except (TypeError, ValueError):
+                    pass
+        if agg_thd is not None:
+            thd = {"l1": agg_thd, "l2": agg_thd, "l3": agg_thd}
+
+    # TDD (aggregate only from EMV)
+    tdd = {}
+    for key in ["tdd_before", "avg_tdd_before_pct", "tdd"]:
+        val = pq.get(key)
+        if val is not None:
+            try:
+                tdd = {"l1": float(val), "l2": float(val), "l3": float(val)}
+                break
+            except (TypeError, ValueError):
+                pass
+
+    has_individual = any(phases[p]["amp"] or phases[p]["volt"] for p in phases)
+    has_thd = bool(thd)
+    if not has_individual and not has_thd:
+        return None  # No harmonic data whatsoever in this analysis — skip
+
+    result = {**phases, "thd": thd}
+    if tdd:
+        result["tdd"] = tdd
+    return result
+
+
 @app.route("/api/tracking/push-baseline", methods=["POST"], strict_slashes=False)
 @app.route("/emv/api/tracking/push-baseline", methods=["POST"], strict_slashes=False)
 @license_required
@@ -12869,6 +12958,14 @@ def tracking_push_baseline():
     # caused "Project not found". Only fall back to session org when payload has no orgId.
     payload_org = (data.get("orgId") or "").strip()
     data["orgId"] = payload_org if payload_org else session_org
+
+    # Enrich payload with OFF-period harmonic baseline if not already present
+    if not data.get("harmonicBaseline"):
+        stored = getattr(app, "_latest_analysis_results", None) or {}
+        harmonic_baseline = _build_harmonic_baseline_from_results(stored)
+        if harmonic_baseline:
+            data["harmonicBaseline"] = harmonic_baseline
+
     try:
         resp = requests.post(
             f"{TRACKING_URL.rstrip('/')}/api/emv/push-baseline",
@@ -37330,6 +37427,11 @@ def admin_panel():
                     <a href="/main-dashboard" class="btn" style="background: #6c757d; margin-top: 10px; text-decoration: none;">Go to Dashboard</a>
                 </div>
                 <script>
+                    // Detect /emv/ prefix when accessed through the platform proxy
+                    window.SYNEREX_EMV_BASE = (function() {
+                        var p = window.location.pathname;
+                        return p.startsWith('/emv') ? '/emv' : '';
+                    })();
                     // Clear stale tokens only if a session cookie exists
                     (function () {
                         try {
@@ -37357,12 +37459,13 @@ def admin_panel():
                         const role = 'administrator';
                         // Use default org_id of "admin" for admin panel login
                         const org_id = 'admin';
+                        const base = window.SYNEREX_EMV_BASE || '';
                         
                         try {
                             const controller = new AbortController();
                             const timeoutId = setTimeout(() => controller.abort(), 10000);
                             
-                            const response = await fetch('/api/auth/login', {
+                            const response = await fetch(base + '/api/auth/login', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ username, password, role, org_id }),
@@ -37384,10 +37487,10 @@ def admin_panel():
                             const result = JSON.parse(text);
                             
                             if (result.status === 'success') {
-                                // Set cookie only
+                                // Set cookie with correct path (works with and without /emv/ prefix)
                                 document.cookie = `session_token=${result.session_token}; path=/; max-age=86400; SameSite=Lax`;
-                                // Redirect to admin panel without query token
-                                window.location.href = `/admin-panel`;
+                                // Redirect to admin panel using the same base prefix
+                                window.location.href = base + '/admin-panel';
                             } else {
                                 throw new Error(result.error || 'Login failed');
                             }
@@ -37684,7 +37787,8 @@ def admin_panel():
                 logo_injection = f"""
                 <script {logo_marker}="true">
                 (function() {{
-                    var logoUrl = '/static/synerex_logo_white.png';
+                    var _base = (window.SYNEREX_EMV_BASE || '');
+                    var logoUrl = _base + '/static/synerex_logo_white.png';
                     var logoHtml = '<img src="' + logoUrl + '" alt="Synerex" style="height:36px; width:auto; display:block;" />';
 
                     // Prefer replacing the top-left vertical sidebar branding first

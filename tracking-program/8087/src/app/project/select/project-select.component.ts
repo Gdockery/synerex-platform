@@ -1,6 +1,6 @@
-import {Component} from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import {CurrentUserService} from "../../shared/user/currentUser.service";
-import {Router} from "@angular/router";
+import {Router, ActivatedRoute} from "@angular/router";
 import {DeviceService} from "../../electricityMeters/devices/device.service";
 
 @Component({
@@ -46,10 +46,14 @@ import {DeviceService} from "../../electricityMeters/devices/device.service";
     </div>
   `
 })
-export class ProjectSelectComponent {
+export class ProjectSelectComponent implements OnInit {
 
-  constructor(private userService: CurrentUserService, private router: Router, private deviceService: DeviceService) {
-
+  constructor(
+    private userService: CurrentUserService,
+    private router: Router,
+    private route: ActivatedRoute,
+    private deviceService: DeviceService
+  ) {
     userService.user.projects.forEach(function(project){
       let hasClient = window['BOOTSTRAP_DATA'].clients.find(client => { return client.id === project.client});
       if (hasClient) {
@@ -58,6 +62,19 @@ export class ProjectSelectComponent {
     });
   }
 
+  ngOnInit() {
+    const projectId = this.route.snapshot.queryParamMap.get('projectId');
+    const go = this.route.snapshot.queryParamMap.get('go') || 'energy-savings';
+    if (projectId && this.userService.user.projects) {
+      const proj = this.userService.user.projects.find(p => String(p.id) === String(projectId));
+      if (proj) {
+        this.userService.selectProject(proj.id);
+        const targetPath = go === 'emv-baseline' ? '/project/emv-baseline' : '/savings/' + go;
+        this.router.navigate([targetPath], { replaceUrl: true });
+        return;
+      }
+    }
+  }
 
   select(project) {
     if(this.isExpired(project)) {

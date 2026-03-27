@@ -214,7 +214,7 @@ normalized_kw_after = kw_after × adjustment_factor
 #### Compliance Standards
 - **ASHRAE Guideline 14**: Weather normalization documentation required
 - **IPMVP**: Baseline adjustment procedures mandated
-- **FEMP**: Federal guidelines for M&V protocols
+- **FEMP**: NIST Handbook 135, 2020 Edition (NIST GCR 20-023) / 10 CFR Part 436, Subpart A / FEMP Annual Supplement (year-specific discount rates) / FEMP M&V Guidelines 4.0 (2015)
 - **ISO 50001**: Energy management system requirements
 
 ## Professional Engineer Oversight
@@ -826,7 +826,7 @@ Performance-optimized indexes for fast audit queries:
 - 🔄 Additional standards (IEC 61850, IEEE 1547)
 - 🔄 Enhanced statistical validation
 - 🔄 Real-time compliance monitoring
-- 🔄 Additional calculation logging (ANSI C12.1/C12.20, IEC 61000 series, FEMP LCCA)
+- 🔄 Additional calculation logging (ANSI C12.1/C12.20, IEC 61000 series, FEMP LCCA Annual Supplement edition tracking)
 - 🔄 Weather data audit integration (table exists, needs full integration)
 
 ### Scoring Breakdown

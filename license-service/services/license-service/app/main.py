@@ -111,7 +111,18 @@ def check_session(request: Request):
     from .db import SessionLocal
     from .models.org import Organization
     from .models.user import User
-    
+    from .models.license import License
+
+    def _get_latest_license_id(db, org_id: str) -> str | None:
+        """Return the most recent non-revoked license_id for this org."""
+        lic = (
+            db.query(License)
+            .filter(License.org_id == org_id, License.revoked == False, License.suspended == False)
+            .order_by(License.issued_at.desc())
+            .first()
+        )
+        return lic.license_id if lic else None
+
     db = SessionLocal()
     try:
         # Check for user login session first
@@ -142,7 +153,9 @@ def check_session(request: Request):
                 "org_id": org.org_id,
                 "org_name": org.org_name,
                 "org_type": org.org_type,
-                "email": user.email
+                "email": user.email or org.email,
+                "license_id": _get_latest_license_id(db, org.org_id),
+                "role": user.role,
             }
             
             # Add PE-specific fields if org_type is 'pe'
@@ -153,18 +166,16 @@ def check_session(request: Request):
                 response["pe_license_state"] = org.pe_license_state
                 response["pe_linked_org_id"] = org.pe_linked_org_id
             
-            return response
+            return JSONResponse(content=response, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
         
         # Check for platform admin session (for Header dropdown: OEM vs Admin)
         admin_logged_in = request.session.get("admin_logged_in", False)
         if admin_logged_in:
             admin_username = request.session.get("admin_username", "Admin")
-            return {
-                "authenticated": True,
-                "user_type": "admin",
-                "username": admin_username,
-                "org_type": None,
-            }
+            return JSONResponse(
+                content={"authenticated": True, "user_type": "admin", "username": admin_username, "org_type": None},
+                headers={"Cache-Control": "no-store, no-cache, must-revalidate"}
+            )
         
         # Fallback: Check for org_id in session (legacy or admin sessions)
         org_id = request.session.get("org_id") or request.query_params.get("org_id")
@@ -190,7 +201,8 @@ def check_session(request: Request):
             "org_id": org.org_id,
             "org_name": org.org_name,
             "org_type": org.org_type,
-            "email": org.email
+            "email": org.email,
+            "license_id": _get_latest_license_id(db, org_id),
         }
         
         # Add PE-specific fields if org_type is 'pe'
@@ -201,7 +213,7 @@ def check_session(request: Request):
             response["pe_license_state"] = org.pe_license_state
             response["pe_linked_org_id"] = org.pe_linked_org_id
         
-        return response
+        return JSONResponse(content=response, headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
     finally:
         db.close()
 

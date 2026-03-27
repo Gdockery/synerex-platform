@@ -172,6 +172,12 @@
     </li>
 
     <li *ngIf="userService.user.selectedProject">
+      <a [routerLink]="['/project/power-quality']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-bolt"></span>
+        <span class="text">Power Quality</span>
+      </a>
+    </li>
+    <li *ngIf="userService.user.selectedProject">
       <a [routerLink]="['/project/emv-baseline']" [routerLinkActive]="['router-link-active']">
         <span class="icon ss-document"></span>
         <span class="text">EM&V Report</span>
@@ -194,6 +200,12 @@
           <a [routerLink]="['/electricity-meters']" [routerLinkActive]="['router-link-active']">
             <span class="icon ss-buildings"></span>
             <span class="text">Electricity Meters</span>
+          </a>
+        </li>
+        <li *ngIf="userService.user.selectedProject">
+          <a [routerLink]="['/project/power-quality']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-bolt"></span>
+            <span class="text">Power Quality</span>
           </a>
         </li>
         <li *ngIf="userService.user.selectedProject">

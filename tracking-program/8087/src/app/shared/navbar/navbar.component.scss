@@ -6,19 +6,19 @@
 
 .header {
   color: $primaryColor;
-  padding: 10px 20px;
-  float:left;
-  display: inline;
-  width: 50%;
+  padding: 8px 8px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   img {
     max-width: 100%;
-    filter: grayscale(100%);
   }
 }
 
 .logo-image {
-  max-height: 88px;
-  max-width: none;
+  max-height: 50px;
+  max-width: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -30,14 +30,22 @@ nav {
   height: 100%;
 	padding: 5px;
 	overflow: hidden;
+
+  > div:first-child {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    overflow: hidden;
+  }
 }
 
 .sidebarToggle {
-  float:right;
-  font-size: 16px;
+  float: none;
+  flex-shrink: 0;
+  font-size: 13px;
   color: $primaryColor6;
-  position:relative;
-  padding: 15px 15px 15px 15px;
+  position: relative;
+  padding: 15px;
 }
 
 nav ul {
@@ -54,11 +62,14 @@ nav li a {
   color: $primaryColor6;
   border-bottom: 1px solid $primaryColor9;
   padding: 15px 0 15px 10px;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 400;
   text-decoration: none;
   vertical-align: middle;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 nav a:hover {
@@ -131,7 +142,7 @@ nav ul li:hover ul li {
 
 .logo-fallback-text {
   color: #ffffff;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;

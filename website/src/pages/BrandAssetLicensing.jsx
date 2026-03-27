@@ -1,16 +1,11 @@
 export default function BrandAssetLicensing() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -26,7 +21,7 @@ export default function BrandAssetLicensing() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,27 +40,27 @@ export default function BrandAssetLicensing() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Logo Licensing</h3>
+            <h3 className="font-bold text-purple-200">Logo Licensing</h3>
             <p className="text-sm mt-2 text-gray-300">Authorized use of Synerex logos and visual identity elements in licensed products, packaging, and marketing materials with approved guidelines and quality standards.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Trademark Usage Rights</h3>
+            <h3 className="font-bold text-purple-200">Trademark Usage Rights</h3>
             <p className="text-sm mt-2 text-gray-300">Licensing of Synerex trademarks for use in product names, service offerings, and marketing communications with proper attribution and brand protection measures.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Visual Identity Elements</h3>
+            <h3 className="font-bold text-purple-200">Visual Identity Elements</h3>
             <p className="text-sm mt-2 text-gray-300">Access to Synerex visual identity elements including color palettes, typography, design patterns, and brand graphics for consistent brand representation.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Brand Guidelines</h3>
+            <h3 className="font-bold text-purple-200">Brand Guidelines</h3>
             <p className="text-sm mt-2 text-gray-300">Comprehensive brand guidelines and usage standards to ensure proper implementation of Synerex brand assets across all licensed applications and materials.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Quality Assurance</h3>
+            <h3 className="font-bold text-purple-200">Quality Assurance</h3>
             <p className="text-sm mt-2 text-gray-300">Quality control processes and approval workflows to maintain brand integrity and ensure all licensed use of Synerex brand assets meets established standards.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Usage Monitoring</h3>
+            <h3 className="font-bold text-purple-200">Usage Monitoring</h3>
             <p className="text-sm mt-2 text-gray-300">Ongoing monitoring and compliance tracking to ensure proper use of licensed brand assets and maintain brand consistency across all applications.</p>
           </div>
         </div>

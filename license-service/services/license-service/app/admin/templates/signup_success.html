@@ -226,12 +226,42 @@
         <h2>Next Steps</h2>
         <ol style="line-height: 1.8; color: #666;">
           <li><strong>Save your Serial Number:</strong> Copy the Serial Number above and store it securely</li>
+          {% if portal_url %}
+          <li><strong>Access your portal:</strong> Click the button below to go directly to your {{ portal_brand_name or program|upper }} portal</li>
+          <li><strong>Enter Serial Number:</strong> When prompted at login, enter your Software License Serial Number</li>
+          {% else %}
           <li><strong>Access your software:</strong> Go to the {{ program|upper }} software login page</li>
           <li><strong>Enter Serial Number:</strong> When prompted, enter your Software License Serial Number</li>
+          {% endif %}
           <li><strong>Start using:</strong> Once validated, you can begin using the {{ program|upper }} software</li>
         </ol>
       </div>
-      
+
+      {% if portal_url %}
+      <div style="margin-top: 28px; padding: 24px; border-radius: 10px; text-align: center;
+                  background: linear-gradient(135deg, {{ portal_primary_color or '#7c3aed' }}18, {{ portal_primary_color or '#7c3aed' }}08);
+                  border: 2px solid {{ portal_primary_color or '#7c3aed' }}44;">
+        {% if portal_logo_url %}
+        <img src="{{ portal_logo_url }}" alt="{{ portal_brand_name or 'Partner Portal' }}"
+             style="height:48px;max-width:160px;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;"/>
+        {% endif %}
+        <div style="font-size:15px;font-weight:600;color:#111827;margin-bottom:6px;">
+          Your {{ portal_brand_name or 'Partner' }} Portal is Ready
+        </div>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:18px;">
+          Use your license serial number when you log in for the first time.
+        </div>
+        <a href="{{ portal_url }}" target="_blank"
+           style="display:inline-block;padding:14px 36px;background:{{ portal_primary_color or '#7c3aed' }};
+                  color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;">
+          Access {{ portal_brand_name or 'My Portal' }} &rarr;
+        </a>
+        <div style="margin-top:12px;font-size:12px;color:#9ca3af;word-break:break-all;">
+          {{ portal_url }}
+        </div>
+      </div>
+      {% endif %}
+
       <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
         <div style="background: #e8f5e9; color: #2e7d32; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
           <strong>✓ Receipt Emailed</strong><br>

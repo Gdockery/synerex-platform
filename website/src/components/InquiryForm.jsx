@@ -44,8 +44,7 @@ export default function InquiryForm({ variant = "contact" }) {
       const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
 
@@ -136,7 +135,7 @@ export default function InquiryForm({ variant = "contact" }) {
         <button 
           type="submit" 
           disabled={submitting}
-          className="px-5 py-3 bg-purple-600 hover:bg-purple-400 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow"
+          className="px-5 py-3 bg-purple-500 hover:bg-purple-300 disabled:bg-gray-600 text-white font-semibold rounded-lg shadow"
         >
           {submitting ? "Sending..." : "Submit"}
         </button>

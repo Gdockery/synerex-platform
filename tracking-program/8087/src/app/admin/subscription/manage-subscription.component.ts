@@ -77,8 +77,12 @@ interface SubscriptionInfo {
       <div class="col-md-6" *ngIf="info.seat_limit > 0 && info.seats_available === 0">
         <div class="alert alert-warning" style="margin-top:0;">
           <span class="fa fa-exclamation-triangle"></span>
-          <strong> Seat limit reached.</strong><br/>
-          You've used all {{ info.seat_limit }} seats. Upgrade your plan to add more users.
+          <strong> All seats are in use.</strong><br/>
+          You've used all {{ info.seat_limit }} seats. To add more users, purchase additional seats from your account.
+          <br/><br/>
+          <a [href]="myAccountUrl" target="_blank" class="btn btn-sm btn-warning">
+            <span class="fa fa-plus-circle"></span> Add Additional Seats
+          </a>
         </div>
       </div>
     </div>
@@ -161,6 +165,7 @@ export class ManageSubscriptionComponent implements OnInit {
   meterCount: number = 1;
   upgrading = false;
   upgradeError: string = null;
+  myAccountUrl: string = window.location.origin.replace(':8087', ':8080') + '/my-account';
 
   constructor(private http: HttpClient, private userService: CurrentUserService) {}
 

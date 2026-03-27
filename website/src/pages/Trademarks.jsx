@@ -2,16 +2,10 @@ export default function Page(){
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
       <style>{`
-        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -27,7 +21,7 @@ export default function Page(){
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -60,7 +54,7 @@ export default function Page(){
           <p className="text-gray-300 mb-4">
             When referencing Synerex technology, communications should reflect its defining distinction:
           </p>
-          <p className="text-gray-300 mb-4 italic pl-4 border-l-4 border-purple-500">
+          <p className="text-gray-300 mb-4 italic pl-4 border-l-4 border-purple-400">
             Synerex delivers a network-wide solution that replaces fragmented, single-circuit approaches with a unified, system-level power optimization architecture.
           </p>
           <p className="text-gray-300 mb-4">Synerex marks must not be used in a manner that:</p>

@@ -28,9 +28,9 @@ import {EmvBaselineComponent} from "./emv/emv-baseline.component";
         { path: 'create', component: ProjectCreateComponent, data: {title: 'Create New Project'}},
         { path: 'create-from-bill', component: CreateFromBillWizardComponent, data: {title: 'Create Project from Bill'}},
         { path: 'edit/:id', component: ProjectEditComponent, data: {title: 'Edit Project'}},
-        { path: 'overview', component: ProjectOverviewComponent, data: {title: 'Project Overview'}},
-        { path: 'power-quality', component: PowerQualityComponent, data: {title: 'Power Quality'}},
-        { path: 'emv-baseline', component: EmvBaselineComponent, data: {title: 'EM&V Baseline'}},
+        { path: 'overview', component: ProjectOverviewComponent, data: {title: 'Project Overview'}, canActivate: [ProjectSelectedGuard]},
+        { path: 'power-quality', component: PowerQualityComponent, data: {title: 'Power Quality'}, canActivate: [ProjectSelectedGuard]},
+        { path: 'emv-baseline', component: EmvBaselineComponent, data: {title: 'EM&V Baseline'}, canActivate: [ProjectSelectedGuard]},
         { path: 'edit/:id', component: ProjectEditComponent, data: {title: 'Edit Project'}},
       ]}
     ])

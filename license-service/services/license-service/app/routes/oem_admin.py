@@ -65,6 +65,20 @@ def oem_admin_page(request: Request, db: Session = Depends(db_session)):
     base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
     oem_login_url = f"{base_url}{path_prefix}/auth/login?oem={org_id}"
 
+    # Check if OEM branding is configured in the Tracking program.
+    # Clients must see the OEM's logo — not Synerex defaults — so we warn if unset.
+    oem_branding_configured = False
+    try:
+        import urllib.request as _ur
+        import json as _json
+        _tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
+        _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org_id}"
+        with _ur.urlopen(_branding_url, timeout=3) as _resp:
+            _bdata = _json.loads(_resp.read().decode())
+            oem_branding_configured = bool(_bdata.get("brand_name"))
+    except Exception:
+        pass
+
     message = request.query_params.get("message", "").replace("+", " ")
     message_type = request.query_params.get("message_type", "success")
 
@@ -78,6 +92,7 @@ def oem_admin_page(request: Request, db: Session = Depends(db_session)):
             "path_prefix": path_prefix,
             "message": message,
             "message_type": message_type,
+            "oem_branding_configured": oem_branding_configured,
         },
     )
 

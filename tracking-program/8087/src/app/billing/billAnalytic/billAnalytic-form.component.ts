@@ -537,6 +537,11 @@ export class BillAnalyticFormComponent implements OnInit, OnChanges {
         return item.name;
       });
 
+      // Optimistically update in-memory state so the equipment form sees the full
+      // analytic data (kwPeak, kWPerUnit, etc.) immediately on navigation, without
+      // waiting for the async HTTP response from updateAnalytic.
+      this.currentUserService.user.selectedProject.electricBillAnalysis = analytic;
+
       this.billAnalyticService.updateAnalytic(analytic).subscribe(result => {});
 
       this.submitEvent.emit(analytic);

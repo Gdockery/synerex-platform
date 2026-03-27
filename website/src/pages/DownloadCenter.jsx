@@ -2,16 +2,11 @@ import DocCard from "../components/DocCard.jsx";
 import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function DownloadCenter(){
   return (<div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -27,7 +22,7 @@ export default function DownloadCenter(){
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Background Image */}
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
@@ -40,10 +35,10 @@ export default function DownloadCenter(){
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in relative" style={{ zIndex: 1 }}>
           <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-4 w-[13.2rem] md:w-[16.5rem] logo-glow" />
-          <h1 className="text-3xl font-bold text-purple-300 mb-6">Download Center</h1>
+          <h1 className="text-3xl font-bold text-purple-200 mb-6">Download Center</h1>
           <div className="max-w-4xl mx-auto">
             <p className="text-lg text-gray-200 mb-6">
-              <strong className="text-purple-300">SYN</strong>ergistic <strong className="text-purple-300">E</strong>nergy <strong className="text-purple-300">R</strong>esearch and <strong className="text-purple-300">EX</strong>ecution (<strong>SYNEREX</strong>) Download Center provides authorized access to technical documentation, engineering resources, and validated materials supporting ECBS technology, SYNEREX software, and associated licensing and deployment programs. Content is curated to support utility review, OEM integration, and engineering evaluation.
+              <strong className="text-purple-200">SYN</strong>ergistic <strong className="text-purple-200">E</strong>nergy <strong className="text-purple-200">R</strong>esearch and <strong className="text-purple-200">EX</strong>ecution (<strong>SYNEREX</strong>) Download Center provides authorized access to technical documentation, engineering resources, and validated materials supporting ECBS technology, SYNEREX software, and associated licensing and deployment programs. Content is curated to support utility review, OEM integration, and engineering evaluation.
             </p>
             <div className="text-lg text-gray-200 mb-6">
               <p className="mb-4">Downloadable resources may include:</p>

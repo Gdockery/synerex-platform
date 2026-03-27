@@ -57,7 +57,10 @@ import {DateTimeValidators} from "../../shared/validation/dateTime.validators";
         <button type="button" class="default-button green-button" (click)="updateData()">Submit</button>
       </div>
       <div class="col-md-12">
-        <bar-chart [beginAtZero]="true" style="height:300px;" #chart [title]="''"></bar-chart>
+        <bar-chart [beginAtZero]="true" style="height:300px;" #chart [title]="''"
+          [yAxisLabel]="type === 'kwh' ? 'kWh' : type === 'kwp' ? 'kW Peak' : type"
+          [xAxisLabel]="'Date'">
+        </bar-chart>
       </div>
     </div>
 

@@ -42,7 +42,7 @@ let moment = require('moment');
               You have entered bill analytics for all utility meters in project.
             </strong>
             <div>
-              <button *ngIf="!viewEquipments && (userService.user.role === 8 || userService.user.role === 7)" class="default-button green-button" [routerLink]="['/billing/bill-analytic/create']">Add Bill Analytic</button>
+              <button *ngIf="!viewEquipments && (userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7)" class="default-button green-button" [routerLink]="['/billing/bill-analytic/create']">Add Bill Analytic</button>
             </div>
             
           </div>
@@ -95,8 +95,8 @@ let moment = require('moment');
         </div>
 
         <div> 
-          <button *ngIf="viewEquipments && (userService.user.role === 8 || userService.user.role === 7)" class="default-button green-button" [routerLink]="['/billing/bill-analytic/equipments']">Please Confirm Equipment Totals</button>
-          <strong *ngIf="viewEquipments && (userService.user.role === 8 || userService.user.role === 7)">
+          <button *ngIf="viewEquipments && (userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7)" class="default-button green-button" [routerLink]="['/billing/bill-analytic/equipments']">Please Confirm Equipment Totals</button>
+          <strong *ngIf="viewEquipments && (userService.user.role === 9 || userService.user.role === 8 || userService.user.role === 7)">
               Your bill analytic & proposal will NOT be generated without confirming the total equipment list.
             </strong>
         </div>
@@ -132,8 +132,13 @@ export class ListBillAnalyticComponent implements OnInit {
     this.metersInProject = (project && project.reportFields) ? project.reportFields.numberOfMeters : 0;
     const electricBillAnalysis = (project && project.electricBillAnalysis) ? project.electricBillAnalysis : null;
     this.meterBills = electricBillAnalysis ? electricBillAnalysis.meterBills : null;
-    if (this.meterBills) {
+    if (this.meterBills && this.meterBills.length > 0) {
       this.recordCount = this.meterBills.length;
+      this.hasBill = true;
+    } else if (electricBillAnalysis && electricBillAnalysis.totalKwh) {
+      // Legacy flat format (no meterBills array) — treat as 1 completed bill
+      this.meterBills = [electricBillAnalysis];
+      this.recordCount = 1;
       this.hasBill = true;
     } else {
       this.meterBills = [];
@@ -141,7 +146,7 @@ export class ListBillAnalyticComponent implements OnInit {
     }
 
     this.billsNeeded = (this.metersInProject || 0) - this.recordCount;
-    if (this.billsNeeded == 0) { // if all bills analytics are entered
+    if (this.billsNeeded <= 0) { // if all bills analytics are entered (or more than needed)
       this.viewEquipments = true;
     }
   }

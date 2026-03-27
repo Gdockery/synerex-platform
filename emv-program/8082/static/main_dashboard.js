@@ -554,7 +554,11 @@ class MainDashboard {
         // Show/hide admin button based on user role
         let adminBtn = document.getElementById('admin-btn');
         
-        if (this.currentUser && this.currentUser.role === 'administrator') {
+        const _adminOrgType = localStorage.getItem('org_type') || '';
+        const _adminOrgId   = localStorage.getItem('org_id') || '';
+        const _isOemUser = (_adminOrgType === 'oem' || _adminOrgId.toUpperCase().startsWith('OEM-'));
+
+        if (this.currentUser && this.currentUser.role === 'administrator' && !_isOemUser) {
             // Create button if it doesn't exist
             if (!adminBtn) {
                 adminBtn = document.createElement('button');
@@ -617,7 +621,7 @@ class MainDashboard {
             trackingIntegrationContainer.style.display = _isOem ? '' : 'none';
         }
 
-        // "Saved Projects" section in analysis form — Synerex only
+        // "Saved Projects" section in analysis form — Synerex admin only
         const savedProjectsSection = document.getElementById('saved-projects-section');
         if (savedProjectsSection) {
             savedProjectsSection.style.display = _isSynerex ? '' : 'none';
@@ -952,14 +956,14 @@ class MainDashboard {
                             registeredPeCount.style.cursor = 'pointer';
                             registeredPeCount.title = 'Click to view registered PEs';
                             registeredPeCount.addEventListener('click', () => {
-                                window.location.href = '/pe-dashboard#registered';
+                                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#registered';
                             });
                             // Also make parent stat-card clickable
                             const registeredCard = registeredPeCount.closest('.stat-card');
                             if (registeredCard) {
                                 registeredCard.style.cursor = 'pointer';
                                 registeredCard.addEventListener('click', () => {
-                                    window.location.href = '/pe-dashboard#registered';
+                                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#registered';
                                 });
                             }
                         }
@@ -969,14 +973,14 @@ class MainDashboard {
                             activePeCount.style.cursor = 'pointer';
                             activePeCount.title = 'Click to view active PEs';
                             activePeCount.addEventListener('click', () => {
-                                window.location.href = '/pe-dashboard#active';
+                                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#active';
                             });
                             // Also make parent stat-card clickable
                             const activeCard = activePeCount.closest('.stat-card');
                             if (activeCard) {
                                 activeCard.style.cursor = 'pointer';
                                 activeCard.addEventListener('click', () => {
-                                    window.location.href = '/pe-dashboard#active';
+                                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#active';
                                 });
                             }
                         }
@@ -986,14 +990,14 @@ class MainDashboard {
                             peOversightLevel.style.cursor = 'pointer';
                             peOversightLevel.title = 'Click to view oversight details';
                             peOversightLevel.addEventListener('click', () => {
-                                window.location.href = '/pe-dashboard#oversight';
+                                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#oversight';
                             });
                             // Also make parent stat-card clickable
                             const oversightCard = peOversightLevel.closest('.stat-card');
                             if (oversightCard) {
                                 oversightCard.style.cursor = 'pointer';
                                 oversightCard.addEventListener('click', () => {
-                                    window.location.href = '/pe-dashboard#oversight';
+                                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#oversight';
                                 });
                             }
                         }
@@ -1144,14 +1148,14 @@ class MainDashboard {
                 this.showNotification('No CSV files with fingerprints found. Please upload and process files first.', 'warning');
                 // Fallback to upload interface if no files exist
                 setTimeout(() => {
-                    window.location.href = '/upload-interface';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/upload-interface';
                 }, 2000);
             }
         } catch (error) {
             console.error('Error loading files with fingerprints:', error);
             this.showNotification('Error loading files. Redirecting to upload interface...', 'error');
             setTimeout(() => {
-                window.location.href = '/upload-interface';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/upload-interface';
             }, 2000);
         }
     }
@@ -1447,7 +1451,7 @@ class MainDashboard {
                 // Both files selected, redirect to legacy interface
                 this.showNotification('Both files selected! Redirecting to analysis...', 'success');
                 setTimeout(() => {
-                    window.location.href = '/legacy';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/legacy';
                 }, 1500);
             } else {
                 // Still need another file, show selection modal again
@@ -1469,7 +1473,7 @@ class MainDashboard {
     showRawFilesList() {
         this.showNotification('Redirecting to raw files list...', 'info');
         setTimeout(() => {
-            window.location.href = '/raw-files-list';
+            window.location.href = (window.SYNEREX_EMV_BASE || '') + '/raw-files-list';
         }, 1000);
     }
     
@@ -1549,7 +1553,7 @@ class MainDashboard {
                                     `).join('')}
                                 </tbody>
                             </table>
-                            ${files.length > 50 ? `<div style="margin-top: 15px; text-align: center; color: #6c757d;">Showing first 50 of ${files.length} files. <a href="/raw-files-list" style="color: #007bff;">View all files</a></div>` : ''}
+                            ${files.length > 50 ? `<div style="margin-top: 15px; text-align: center; color: #6c757d;">Showing first 50 of ${files.length} files. <a href="${emvUrl('/raw-files-list')}" style="color: #007bff;">View all files</a></div>` : ''}
                         </div>
                     ` : `
                         <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px;">
@@ -1939,7 +1943,7 @@ class MainDashboard {
     showClippingInterface() {
         this.showNotification('Redirecting to clipping interface...', 'info');
         setTimeout(() => {
-            window.location.href = '/clipping-interface';
+            window.location.href = (window.SYNEREX_EMV_BASE || '') + '/clipping-interface';
         }, 1000);
     }
     
@@ -1947,7 +1951,13 @@ class MainDashboard {
         this.showNotification('Loading fingerprints viewer...', 'info');
         
         try {
-            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/fingerprints', { credentials: 'same-origin' });
+            const sessionToken = localStorage.getItem('session_token') || '';
+            const headers = {};
+            if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/fingerprints', {
+                credentials: 'same-origin',
+                headers: headers
+            });
             const data = await response.json();
             
             if (data.status === 'success') {
@@ -1962,176 +1972,195 @@ class MainDashboard {
     
     displayFingerprintsViewer(data) {
         const fingerprints = data.fingerprints || [];
-        const totalCount = data.total_count || 0;
+        const totalCount   = data.total_count  || 0;
 
-        // Create a modal to display the fingerprints
+        // Pre-compute verification: build set of verified hash prefixes from csv_fingerprint records
+        const verifiedHashPrefixes = new Set(
+            fingerprints
+                .filter(f => f.type === 'csv_fingerprint' && f.fingerprint)
+                .map(f => { const m = f.fingerprint.match(/_([a-f0-9]{8})$/i); return m ? m[1].toLowerCase() : null; })
+                .filter(Boolean)
+        );
+
+        function isFileVerified(fp) {
+            if (fp.type === 'csv_fingerprint') return true;
+            if (fp.file_path) {
+                // Normalize Windows backslashes before checking path
+                const normalizedPath = fp.file_path.replace(/\\/g, '/');
+                if (normalizedPath.includes('protected/verified')) return true;
+            }
+            if (fp.fingerprint && fp.fingerprint.length >= 8) {
+                return verifiedHashPrefixes.has(fp.fingerprint.substring(0, 8).toLowerCase());
+            }
+            return false;
+        }
+
+        // Summary counts
+        const verifiedCount    = fingerprints.filter(fp => isFileVerified(fp)).length;
+        const notVerifiedCount = fingerprints.length - verifiedCount;
+
+        // Build table rows as a plain string (no nested template literals)
+        let rowsHtml = '';
+        for (const fp of fingerprints) {
+            const verified = isFileVerified(fp);
+            const rowBg    = verified ? '#f0fdf4' : '#fff5f5';
+
+            const badge = verified
+                ? '<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 10px;background:#16a34a;color:#fff;border-radius:12px;font-size:0.78em;font-weight:700;white-space:nowrap;">&#10003; Verified</span>'
+                : '<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 10px;background:#dc2626;color:#fff;border-radius:12px;font-size:0.78em;font-weight:700;white-space:nowrap;">&#10007; Not Verified</span>';
+
+            const typeLabel = fp.type === 'raw_meter_data' ? 'Raw Data'
+                            : fp.type === 'project_file'   ? 'Project File'
+                            : 'Fingerprint Record';
+            const typeBg    = fp.type === 'raw_meter_data' ? '#e3f2fd'
+                            : fp.type === 'project_file'   ? '#fff3e0'
+                            : '#f0fdf4';
+            const typeColor = fp.type === 'raw_meter_data' ? '#1565c0'
+                            : fp.type === 'project_file'   ? '#e65100'
+                            : '#166534';
+
+            const shortFp   = fp.fingerprint ? fp.fingerprint.substring(0, 32) + '...' : 'No fingerprint';
+            const dateStr   = fp.created_at  ? new Date(fp.created_at).toLocaleDateString() : '';
+            const safeId    = String(fp.id || '').replace(/'/g, '');
+            const safeFp    = String(fp.fingerprint || '').replace(/'/g, '');
+            const safeName  = String(fp.file_name || '').replace(/'/g, '&#39;');
+
+            rowsHtml += `
+                <tr style="border-bottom:1px solid #dee2e6;background:${rowBg};">
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                      <span style="font-weight:600;color:#1e293b;">${fp.file_name || ''}</span>
+                      ${badge}
+                    </div>
+                  </td>
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <span style="padding:4px 8px;border-radius:4px;font-size:0.8em;font-weight:600;background:${typeBg};color:${typeColor};">${typeLabel}</span>
+                  </td>
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <div style="color:#6c757d;">${this.formatFileSize(fp.file_size || 0)}</div>
+                  </td>
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <div style="font-family:'Courier New',monospace;font-size:0.8em;color:#495057;background:#f8f9fa;padding:4px 8px;border-radius:4px;word-break:break-all;">${shortFp}</div>
+                  </td>
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <div style="color:#6c757d;font-size:0.9em;">${dateStr}</div>
+                  </td>
+                  <td style="padding:12px;border-bottom:1px solid #dee2e6;">
+                    <button onclick="showFullFingerprint('${safeId}','${safeFp}','${safeName}')"
+                            style="padding:4px 8px;background:#007bff;color:white;border:none;border-radius:4px;cursor:pointer;font-size:0.8em;">
+                      View Full
+                    </button>
+                  </td>
+                </tr>`;
+        }
+
+        const tableOrEmpty = fingerprints.length > 0
+            ? `<div style="background:#f8f9fa;padding:20px;border-radius:8px;">
+                 <h3 style="margin:0 0 15px 0;">File Integrity Fingerprints</h3>
+                 <div style="overflow-x:auto;">
+                   <table style="width:100%;border-collapse:collapse;background:white;border-radius:6px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,.1);">
+                     <thead style="background:#343a40;color:white;">
+                       <tr>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">File Name</th>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">Type</th>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">Size</th>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">Fingerprint</th>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">Created</th>
+                         <th style="padding:12px;text-align:left;border-bottom:1px solid #dee2e6;">Actions</th>
+                       </tr>
+                     </thead>
+                     <tbody>${rowsHtml}</tbody>
+                   </table>
+                 </div>
+               </div>`
+            : `<div style="text-align:center;padding:40px;background:#f8f9fa;border-radius:8px;">
+                 <h3 style="color:#6c757d;">No Fingerprints Found</h3>
+                 <p style="color:#6c757d;">No CSV files with fingerprints are currently available.</p>
+               </div>`;
+
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.display = 'block';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 1200px; max-height: 80vh; overflow-y: auto;">
-                <div class="modal-header">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
-                        <h2 style="margin: 0;"> CSV File Fingerprints</h2>
+            <div class="modal-content" style="max-width:1200px;max-height:80vh;overflow-y:auto;">
+              <div class="modal-header">
+                <div style="display:flex;align-items:center;gap:15px;">
+                  <img src="${emvUrl('/static/synerex_logo_transparent.png')}" alt="SYNEREX" style="height:40px;width:auto;">
+                  <h2 style="margin:0;">CSV File Fingerprints</h2>
+                </div>
+                <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+              </div>
+              <div class="modal-body">
+                <div style="margin-bottom:20px;padding:15px;background:#e3f2fd;border-radius:8px;">
+                  <h3 style="margin:0 0 10px 0;color:#1976d2;">Summary</h3>
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;">
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5em;font-weight:bold;color:#1976d2;">${totalCount}</div>
+                      <div style="color:#666;font-size:.9em;">Total Files</div>
                     </div>
-                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div style="margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
-                        <h3 style="margin: 0 0 10px 0; color: #1976d2;"> Summary</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-                            <div style="text-align: center;">
-                                <div style="font-size: 1.5em; font-weight: bold; color: #1976d2;">${totalCount}</div>
-                                <div style="color: #666; font-size: 0.9em;">Total Files</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 1.5em; font-weight: bold; color: #388e3c;">${fingerprints.filter(f => f.type === 'raw_meter_data').length}</div>
-                                <div style="color: #666; font-size: 0.9em;">Raw Meter Files</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 1.5em; font-weight: bold; color: #f57c00;">${fingerprints.filter(f => f.type === 'project_file').length}</div>
-                                <div style="color: #666; font-size: 0.9em;">Project Files</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 1.5em; font-weight: bold; color: #7b1fa2;">${fingerprints.filter(f => f.type === 'csv_fingerprint').length}</div>
-                                <div style="color: #666; font-size: 0.9em;">Verified / Fingerprint Records</div>
-                            </div>
-                        </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5em;font-weight:bold;color:#388e3c;">${fingerprints.filter(f => f.type === 'raw_meter_data').length}</div>
+                      <div style="color:#666;font-size:.9em;">Raw Meter Files</div>
                     </div>
-                    
-                    ${fingerprints.length > 0 ? `
-                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
-                            <h3 style="margin: 0 0 15px 0;"> File Integrity Fingerprints</h3>
-                            <div style="overflow-x: auto;">
-                                <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 6px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                    <thead style="background: #343a40; color: white;">
-                                        <tr>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">File Name</th>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Type</th>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Size</th>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Fingerprint</th>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Created</th>
-                                            <th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${fingerprints.map(fp => `
-                                            <tr style="border-bottom: 1px solid #dee2e6;">
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <div style="font-weight: 600; color: #495057;">${fp.file_name}</div>
-                                                </td>
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: 600; 
-                                                        background: ${fp.type === 'raw_meter_data' ? '#e3f2fd' : fp.type === 'project_file' ? '#fff3e0' : '#f3e5f5'}; 
-                                                        color: ${fp.type === 'raw_meter_data' ? '#1976d2' : fp.type === 'project_file' ? '#f57c00' : '#7b1fa2'};">
-                                                        ${fp.type === 'raw_meter_data' ? 'Raw Data' : fp.type === 'project_file' ? 'Project File' : 'Verified'}
-                                                    </span>
-                                                </td>
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <div style="color: #6c757d;">${this.formatFileSize(fp.file_size || 0)}</div>
-                                                </td>
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <div style="font-family: 'Courier New', monospace; font-size: 0.8em; color: #495057; 
-                                                        background: #f8f9fa; padding: 4px 8px; border-radius: 4px; word-break: break-all;">
-                                                        ${fp.fingerprint ? fp.fingerprint.substring(0, 32) + '...' : 'No fingerprint'}
-                                                    </div>
-                                                </td>
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <div style="color: #6c757d; font-size: 0.9em;">${new Date(fp.created_at).toLocaleDateString()}</div>
-                                                </td>
-                                                <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">
-                                                    <button onclick="showFullFingerprint('${fp.id}', '${fp.fingerprint}', '${fp.file_name}')" 
-                                                            style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
-                                                        View Full
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    ` : `
-                        <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px;">
-                            <div style="font-size: 3em; color: #6c757d; margin-bottom: 15px;"></div>
-                            <h3 style="color: #6c757d; margin-bottom: 10px;">No Fingerprints Found</h3>
-                            <p style="color: #6c757d;">No CSV files with fingerprints are currently available.</p>
-                        </div>
-                    `}
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5em;font-weight:bold;color:#f57c00;">${fingerprints.filter(f => f.type === 'project_file').length}</div>
+                      <div style="color:#666;font-size:.9em;">Project Files</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5em;font-weight:bold;color:#16a34a;">${verifiedCount}</div>
+                      <div style="color:#666;font-size:.9em;">&#10003; Verified</div>
+                    </div>
+                    <div style="text-align:center;">
+                      <div style="font-size:1.5em;font-weight:bold;color:#dc2626;">${notVerifiedCount}</div>
+                      <div style="color:#666;font-size:.9em;">&#10007; Not Verified</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Add the showFullFingerprint function to the global scope
-        window.showFullFingerprint = (id, fingerprint, fileName) => {
+                ${tableOrEmpty}
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
+              </div>
+            </div>`;
 
+        document.body.appendChild(modal);
+
+        window.showFullFingerprint = (id, fingerprint, fileName) => {
             const fullModal = document.createElement('div');
             fullModal.className = 'modal';
             fullModal.style.display = 'block';
             fullModal.innerHTML = `
-                <div class="modal-content" style="max-width: 800px;">
-                    <div class="modal-header">
-                        <h2> Full Fingerprint: ${fileName}</h2>
-                        <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
+                <div class="modal-content" style="max-width:800px;">
+                  <div class="modal-header">
+                    <h2>Full Fingerprint: ${fileName}</h2>
+                    <span class="close" onclick="this.closest('.modal').remove();document.body.classList.remove('modal-open');">&times;</span>
+                  </div>
+                  <div class="modal-body">
+                    <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+                      <strong>File ID:</strong> ${id} &nbsp; <strong>File Name:</strong> ${fileName}
                     </div>
-                    <div class="modal-body">
-                        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                            <h3 style="margin: 0 0 15px 0;">File Information</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <strong>File ID:</strong> ${id}
-                                </div>
-                                <div>
-                                    <strong>File Name:</strong> ${fileName}
-                                </div>
-                            </div>
+                    <div style="background:#fff;padding:20px;border-radius:8px;border:1px solid #dee2e6;">
+                      <h3 style="margin:0 0 15px 0;">Cryptographic Fingerprint</h3>
+                      <div style="background:#f8f9fa;padding:15px;border-radius:6px;border:1px solid #dee2e6;">
+                        <div style="font-family:'Courier New',monospace;font-size:.9em;color:#495057;word-break:break-all;line-height:1.4;">
+                          ${fingerprint || 'No fingerprint available'}
                         </div>
-                        
-                        <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #dee2e6;">
-                            <h3 style="margin: 0 0 15px 0;"> Cryptographic Fingerprint</h3>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
-                                <div style="font-family: 'Courier New', monospace; font-size: 0.9em; color: #495057; word-break: break-all; line-height: 1.4;">
-                                    ${fingerprint || 'No fingerprint available'}
-                                </div>
-                            </div>
-                            <div style="margin-top: 15px; padding: 10px; background: #e1f5fe; border-radius: 6px; border-left: 4px solid #0277bd;">
-                                <strong>ℹ️ About Fingerprints:</strong> This cryptographic hash ensures file integrity and prevents tampering. 
-                                Any modification to the file will result in a different fingerprint.
-                            </div>
-                        </div>
+                      </div>
                     </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${fingerprint}'); this.textContent='Copied!'">Copy Fingerprint</button>
-                        <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Close</button>
-                    </div>
-                </div>
-            `;
-            
+                  </div>
+                  <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${fingerprint}').then(()=>alert('Copied!'))">Copy</button>
+                    <button class="btn btn-primary" onclick="this.closest('.modal').remove();document.body.classList.remove('modal-open');">Close</button>
+                  </div>
+                </div>`;
             document.body.appendChild(fullModal);
-            
-            // Close modal when clicking outside
-            fullModal.addEventListener('click', (e) => {
-                if (e.target === fullModal) {
-                    fullModal.remove();
-                }
-            });
         };
-        
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
     }
-    
-    async showIntegrityVerification() {
+
+
+        async showIntegrityVerification() {
         this.showNotification('Starting integrity verification...', 'info');
         
         // First, get the list of files to show them in "Unverified" state
@@ -3438,7 +3467,7 @@ class MainDashboard {
                 setTimeout(() => {
                     console.log('🚀 Navigating to /legacy');
                     // Use window.location.href to navigate (was working before)
-                    window.location.href = '/legacy';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/legacy';
                 }, 1000);
             } else {
                 console.error('❌ No project in response:', result);
@@ -3560,7 +3589,7 @@ class MainDashboard {
             
             // Redirect to legacy interface
             setTimeout(() => {
-                window.location.href = '/legacy';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/legacy';
             }, 1000);
             
         } catch (error) {
@@ -3644,7 +3673,7 @@ class MainDashboard {
                 this.showNotification('Project created from template successfully!', 'success');
                 // Redirect to legacy interface to work with the new project
                 setTimeout(() => {
-                    window.location.href = '/legacy';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/legacy';
                 }, 1000);
             } else {
                 this.showNotification('Error creating project from template: ' + result.error, 'error');
@@ -3717,11 +3746,11 @@ class MainDashboard {
             console.log('Register New PE button clicked');
             this.showNotification('Opening PE registration...', 'info');
             setTimeout(() => {
-                window.location.href = '/pe-dashboard#register';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#register';
             }, 500);
         } catch (error) {
             console.error('Error in showRegisterPE:', error);
-            window.location.href = '/pe-dashboard#register';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#register';
         }
     }
     
@@ -3730,11 +3759,11 @@ class MainDashboard {
             console.log('PE Dashboard button clicked');
             this.showNotification('Opening PE dashboard...', 'info');
             setTimeout(() => {
-                window.location.href = '/pe-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard';
             }, 500);
         } catch (error) {
             console.error('Error in showPEDashboard:', error);
-            window.location.href = '/pe-dashboard';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard';
         }
     }
     
@@ -3743,32 +3772,32 @@ class MainDashboard {
             console.log('Verify Licenses button clicked');
             this.showNotification('Opening license verification...', 'info');
             setTimeout(() => {
-                window.location.href = '/pe-dashboard#verify';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#verify';
             }, 500);
         } catch (error) {
             console.error('Error in showLicenseVerification:', error);
-            window.location.href = '/pe-dashboard#verify';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/pe-dashboard#verify';
         }
     }
     
     showSystemStatus() {
         this.showNotification('Redirecting to system status...', 'info');
         setTimeout(() => {
-            window.location.href = '/system-status';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/system-status';
         }, 1000);
     }
     
     showAuditCompliance() {
         this.showNotification('Redirecting to audit compliance...', 'info');
         setTimeout(() => {
-            window.location.href = '/audit-compliance';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/audit-compliance';
         }, 1000);
     }
     
     showDocumentation() {
         this.showNotification('Redirecting to documentation...', 'info');
         setTimeout(() => {
-            window.location.href = '/documentation';
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + '/documentation';
         }, 1000);
     }
     
@@ -4620,7 +4649,7 @@ function openAdminPanel() {
         // Set cookie with session token
         document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
         // Navigate to admin panel
-        window.location.href = `/admin-panel?session_token=${encodeURIComponent(sessionToken)}`;
+        window.location.href = (window.SYNEREX_EMV_BASE||'') + `/admin-panel?session_token=${encodeURIComponent(sessionToken)}`;
         return;
     }
     
@@ -4651,7 +4680,7 @@ function openAdminPanel() {
             // Session is valid - set cookie and navigate
             document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
             console.log('Session validated, navigating to admin panel');
-            window.location.href = `/admin-panel?session_token=${encodeURIComponent(sessionToken)}`;
+            window.location.href = (window.SYNEREX_EMV_BASE||'') + `/admin-panel?session_token=${encodeURIComponent(sessionToken)}`;
         } else {
             console.error('Session validation failed:', result);
             const errorMsg = result.error || 'Session expired or insufficient privileges';

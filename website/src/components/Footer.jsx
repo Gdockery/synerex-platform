@@ -18,24 +18,24 @@ export default function Footer(){
           <div className="text-gray-300" style={{fontSize: '0.75em'}}>© {new Date().getFullYear()} Synerex Laboratories, LLC. All rights reserved.</div>
         </div>
         <div className="space-y-2">
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/oem">OEM / ODM</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/custom-engineering">Custom Engineering</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/trademarks">Trademarks</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/legal-resources">For Attorneys</a>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/oem">OEM / ODM</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/custom-engineering">Custom Engineering</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/trademarks">Trademarks</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/legal-resources">For Attorneys</a>
         </div>
         <div className="space-y-2">
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/downloads">Downloads</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/contact">Contact</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/licensing">Licensing</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/privacy-policy">Privacy Policy</a><br/>
-          <a className="hover:text-purple-400 font-bold text-gray-300" href="/copyright-notice">Copyright Notice</a>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/downloads">Downloads</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/contact">Contact</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/licensing">Licensing</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/privacy-policy">Privacy Policy</a><br/>
+          <a className="hover:text-purple-200 font-bold text-gray-300" href="/copyright-notice">Copyright Notice</a>
         </div>
       </div>
       {/* Synerex Admin: platform servicing link - separate from client admins, unique credentials */}
       <div className="max-w-7xl mx-auto px-3 pb-4 pt-2 border-t border-gray-800/50 text-center">
         <a
           href="/admin"
-          className="text-gray-500 hover:text-purple-400 text-xs transition-colors"
+          className="text-gray-500 hover:text-purple-200 text-xs transition-colors"
           title="Synerex platform administration and servicing"
         >
           Synerex Admin

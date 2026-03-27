@@ -4,16 +4,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function DeploymentOptions() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -29,7 +24,7 @@ export default function DeploymentOptions() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,42 +40,42 @@ export default function DeploymentOptions() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">On-Premise Deployment</h3>
+            <h3 className="font-bold text-purple-200 mb-3">On-Premise Deployment</h3>
             <p className="text-sm text-gray-300">Complete control with local installation on your infrastructure, ensuring data sovereignty and compliance requirements.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Cloud-Based Solutions</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Cloud-Based Solutions</h3>
             <p className="text-sm text-gray-300">Scalable cloud deployment with managed infrastructure, automatic updates, and global accessibility.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Hybrid Architecture</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Hybrid Architecture</h3>
             <p className="text-sm text-gray-300">Flexible hybrid deployment combining on-premise data collection with cloud-based analytics and storage.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Edge Computing</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Edge Computing</h3>
             <p className="text-sm text-gray-300">Local processing at the edge for real-time analysis and reduced latency in critical applications.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Containerized Deployment</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Containerized Deployment</h3>
             <p className="text-sm text-gray-300">Docker and Kubernetes support for easy deployment, scaling, and management across different environments.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Virtual Machine Support</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Virtual Machine Support</h3>
             <p className="text-sm text-gray-300">Full support for virtualized environments including VMware, Hyper-V, and cloud-based VMs.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Multi-Tenant Architecture</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Multi-Tenant Architecture</h3>
             <p className="text-sm text-gray-300">Secure multi-tenant deployment for service providers and organizations managing multiple sites.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">High Availability</h3>
+            <h3 className="font-bold text-purple-200 mb-3">High Availability</h3>
             <p className="text-sm text-gray-300">Redundant deployment options with failover capabilities and disaster recovery support.</p>
           </div>
         </div>
@@ -89,7 +84,7 @@ export default function DeploymentOptions() {
           <h2 className="text-2xl font-bold text-gray-300 mb-4">Deployment Models</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">On-Premise Benefits</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">On-Premise Benefits</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Complete data control and sovereignty</li>
                 <li>• Custom security and compliance</li>
@@ -99,7 +94,7 @@ export default function DeploymentOptions() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">Cloud Benefits</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Cloud Benefits</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Rapid deployment and scaling</li>
                 <li>• Automatic updates and maintenance</li>
@@ -112,7 +107,7 @@ export default function DeploymentOptions() {
         </div>
         
         <div className="mt-8 p-6 bg-gray-800 border border-gray-700 rounded-lg">
-          <h3 className="font-bold text-purple-400 mb-3">Licensing Models</h3>
+          <h3 className="font-bold text-purple-200 mb-3">Licensing Models</h3>
           <div className="grid md:grid-cols-3 gap-4">
             <div className="p-4 border border-gray-700 rounded-lg">
               <h4 className="font-semibold text-gray-300 mb-2">Perpetual License</h4>
@@ -130,7 +125,7 @@ export default function DeploymentOptions() {
         </div>
         
         <div className="mt-8 p-6 bg-gray-800 border border-gray-700 rounded-lg">
-          <h3 className="font-bold text-purple-400 mb-3">System Requirements</h3>
+          <h3 className="font-bold text-purple-200 mb-3">System Requirements</h3>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h4 className="font-semibold text-gray-300 mb-2">Minimum Requirements</h4>
@@ -158,7 +153,7 @@ export default function DeploymentOptions() {
         <div className="mt-8 text-center">
           <a 
             href="/real-time-analytics" 
-            className="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-400 transition-colors"
+            className="inline-flex items-center px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-300 transition-colors"
           >
             Learn More About Power Analysis
           </a>

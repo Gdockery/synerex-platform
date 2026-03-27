@@ -20,6 +20,7 @@ BILL_FIELDS = [
     "electricCompanyState", "electricCompanyZip",
     "accountNumber", "meterNumber", "voltage", "billReference", "billDate",
     "kwhRate", "kwRatePerTariff", "customerCharge", "taxAmount", "tariff",
+    "currencySymbol",
 ]
 
 
@@ -145,6 +146,7 @@ kwPeak: From "Peak Demand", "Demand (kW)", "KW", "Billing Demand". Peak kW. Numb
 voltage: From "Voltage", "Service Voltage" if stated (120, 208, 240, 277, 480).
 billReference: From "Bill Number", "Invoice #", "Reference".
 tariff: From "Rate", "Tariff", "Rate Schedule" if stated.
+currencySymbol: The currency symbol used for monetary amounts on this bill (e.g. "$", "€", "£"). Default to "$" if not explicitly shown.
 
 Also include "lineItems" as array of charge line items if present. Each item: name, type, cost, billingRate.
 
@@ -194,6 +196,7 @@ Return ONLY a valid JSON object with these exact fields — no extra text outsid
   "voltage": "",
   "billReference": "",
   "tariff": "",
+  "currencySymbol": "$",
   "lineItems": []
 }
 
@@ -214,6 +217,7 @@ kwPeak: Peak demand in kilowatts. Look for "Peak Demand", "Billing Demand", "kW"
 voltage: Service voltage if explicitly stated (e.g. 120, 208, 240, 277, 480).
 billReference: "Bill Number", "Invoice #", or "Reference Number".
 tariff: "Rate Schedule", "Rate", or "Tariff" code.
+currencySymbol: The currency symbol used for monetary amounts (e.g. "$", "€", "£"). Default to "$" if not explicitly visible.
 lineItems: Array of ALL individual charge line items from the charges/detail table. Each item must have:
   - "name": the exact label/description from the bill
   - "unit": the exact value from the "Unit" column for that row — typically "kWh", "kW", "Kw", "kwh", or "-" (dash means fixed/no unit)

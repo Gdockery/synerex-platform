@@ -2,14 +2,14 @@
 Device APIs: Meter, Gateway, Repeater, Switch.
 Ported from api/controllers/web/meter/, gateway/, repeater/, switch/.
 """
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from flask_login import current_user, login_required
 
 from app.extensions import db
 from app.helpers.decorators import license_required
 from app.models.gateway import Gateway
 from app.models.meter import Meter
-from app.models.project import project_user
+from app.models.project import project_user, Project
 from app.models.report_data import ReportData
 from app.models.repeater import Repeater
 from app.models.switch import Switch
@@ -848,3 +848,36 @@ def destroy_switch(sid):
     s.isDeleted = True
     db.session.commit()
     return jsonify({"meta": {}, "response": {"id": sid}})
+
+
+@device_bp.route("/api/meters/count", methods=["GET"])
+@login_required
+def get_meter_count():
+    """GET /api/meters/count
+    Returns the number of active (non-deleted) meters belonging to the
+    current user's org. Used by the website billing flow to pre-fill the
+    meter_count when selecting a Tracking plan.
+    """
+    # Resolve org_id: session first, then client record
+    org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id and getattr(current_user, "client", None):
+        try:
+            from app.models.client import Client as _Client
+            from app.db.request_session import get_session as _gs
+            _c = _gs().query(_Client).get(current_user.client)
+            if _c:
+                org_id = getattr(_c, "org_id", None)
+        except Exception:
+            pass
+
+    if not org_id:
+        return jsonify({"error": "org_id not found for current user"}), 400
+
+    count = (
+        Meter.query
+        .join(Project, Meter.project == Project.id)
+        .filter(Project.org_id == org_id, Meter.isDeleted == False)
+        .count()
+    )
+
+    return jsonify({"org_id": org_id, "meter_count": count})

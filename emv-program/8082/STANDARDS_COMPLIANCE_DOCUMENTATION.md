@@ -290,44 +290,6 @@ iec_61000_2_2_compliant = voltage_variation <= voltage_variation_limit
 
 ---
 
-### 7. ANSI C57.12.00 Compliance
-
-#### Standard Reference
-- **Title**: ANSI C57.12.00-2015 - General Requirements for Liquid-Immersed Distribution, Power, and Regulating Transformers
-- **Section**: 4.1 - General Requirements
-- **Application**: Transformer efficiency and performance requirements
-
-#### Calculation Methodology
-
-**Transformer Efficiency Calculation:**
-```python
-# Determine compliance based on power quality and load characteristics
-pf = power_factor
-kva = apparent_power
-thd = total_harmonic_distortion
-
-if pf > 0.85 and kva > 0 and thd < 10.0:
-    ansi_c57_12_00_compliant = True
-    # Show improvement after retrofit
-    if period == "after":
-        ansi_c57_12_00_efficiency = 0.98  # Improved efficiency after retrofit
-        ansi_c57_12_00_loss_percent = 2.0  # Reduced losses after retrofit
-    else:
-        ansi_c57_12_00_efficiency = 0.96  # Baseline efficiency before retrofit
-        ansi_c57_12_00_loss_percent = 4.0  # Baseline losses before retrofit
-else:
-    ansi_c57_12_00_compliant = False
-    ansi_c57_12_00_efficiency = 0.90  # Lower efficiency for non-compliant transformers
-    ansi_c57_12_00_loss_percent = 10.0  # Higher loss percentage
-```
-
-#### Audit Trail
-- Power quality factors used for compliance determination
-- Before/after efficiency improvement logic documented
-- ANSI C57.12.00 compliance criteria clearly stated
-
----
-
 ### 8. IEC 61000-4-30 Compliance
 
 #### Standard Reference
@@ -419,6 +381,60 @@ else:
 
 ---
 
+### 11. FEMP LCCA — Life-Cycle Cost Analysis Compliance
+
+#### Standard References
+- **Primary**: NIST Handbook 135, 2020 Edition — *Life-Cycle Costing Manual for the Federal Energy Management Program*, Fuller & Petersen (NIST GCR 20-023)
+- **Statutory Authority**: 10 CFR Part 436, Subpart A — *Methodology and Procedures for Life Cycle Cost Analyses*
+- **Discount Rates / UPV\* Factors**: FEMP Annual Supplement to NIST Handbook 135 (year-specific edition; updated annually by NIST/DOE)
+- **M&V Protocol**: FEMP M&V Guidelines 4.0 (2015) — *Measurement and Verification for Federal Energy Projects*
+- **Application**: Financial justification of energy efficiency investments; Savings-to-Investment Ratio (SIR) compliance
+
+#### Key Compliance Threshold
+Per NIST Handbook 135 Section 5.3 and 10 CFR 436 Subpart A, a project is cost-effective when:
+```
+SIR = Present Value of Energy Savings / Initial Investment Cost > 1.0
+```
+
+#### Calculation Methodology
+
+```python
+# SIR Calculation (NIST HB 135 Section 5.3 / 10 CFR 436 Subpart A)
+# Discount rate must reference the applicable FEMP Annual Supplement edition
+# Default: 3.0% real discount rate (verify against current-year Annual Supplement)
+
+pv_savings = sum(
+    annual_savings * ((1 + escalation_rate) ** year) / ((1 + discount_rate) ** year)
+    for year in range(1, analysis_period + 1)
+)
+
+sir = pv_savings / initial_cost  # SIR > 1.0 → cost-effective per NIST HB 135
+
+lcca_compliant = sir > 1.0
+```
+
+**Parameters governed by FEMP Annual Supplement (year-specific):**
+| Parameter | Default Used | Governing Source |
+|-----------|-------------|-----------------|
+| Real discount rate | 3.0% | FEMP Annual Supplement to NIST HB 135 (current year) |
+| Analysis period | 15 years | Configurable; NIST HB 135 recommends ≤ 25 years for energy projects |
+| Energy escalation rate | 2.0% | Configurable; compare with DOE/EIA Annual Energy Outlook projections |
+
+**Important**: The discount rate and UPV\* factors in the Annual Supplement change each year. Any analysis submitted to utilities or federal programs must cite the specific supplement edition year used (e.g., "FEMP Annual Supplement to NIST Handbook 135, FY2024 Edition").
+
+#### Additional Financial Metrics
+- **NPV** (Net Present Value): `NPV = PV_savings - initial_cost`; positive NPV required
+- **Simple Payback Period**: `payback = initial_cost / annual_savings`
+- **IRR / MIRR**: Internal Rate of Return and Modified IRR for sensitivity analysis
+
+#### Audit Trail
+- SIR value logged to `calculation_audit` table with inputs, formula, and standards reference
+- Discount rate, escalation rate, and analysis period recorded per session
+- LCCA compliance status (True/False/N/A) recorded in compliance results
+- Annual Supplement edition year should be recorded with each analysis session
+
+---
+
 ## Data Flow and Verification
 
 ### Input Data Requirements
@@ -442,7 +458,9 @@ else:
 9. **IEC 61000-2-2**: Voltage variation compliance
 10. **IEC 60034-30-1**: Motor efficiency class compliance
 11. **ANSI C12.1/C12.20**: Meter accuracy class compliance
-12. **ANSI C57.12.00**: Transformer efficiency compliance
+
+#### Financial Section (Life-Cycle Cost)
+13. **FEMP LCCA** — NIST Handbook 135 (2020 ed.) / 10 CFR Part 436 Subpart A: SIR > 1.0 compliance
 
 ### Audit Trail Features
 - All calculations timestamped
@@ -478,9 +496,9 @@ else:
 
 ---
 
-**Document Version**: 3.1  
-**Last Updated**: 2025-01-28  
-**Next Review**: 2026-01-28  
+**Document Version**: 3.2  
+**Last Updated**: 2026-03-12  
+**Next Review**: 2027-03-12  
 **Maintained By**: SYNEREX Development Team  
 **CSV Data Verification**: ✅ Verified - All calculations use CSV data (see STANDARDS_VERIFICATION_REPORT.md)
 
@@ -514,14 +532,12 @@ else:
 
 ### Performance Section Standards Added
 - **IEC 61000-2-2**: Voltage variation compliance with before/after improvement logic
-- **ANSI C57.12.00**: Transformer efficiency compliance with improvement tracking
 - **IEC 61000-4-30**: Class A instrument accuracy compliance
 - **IEC 61000-4-7**: Harmonic measurement methods compliance
 - **IEC 60034-30-1**: Motor efficiency class compliance with IE2→IE3 improvement
 
 ### Standards Compliance Fixes
 - Fixed IEC 61000-2-2 voltage variation degradation issue (now shows improvement)
-- Fixed ANSI C57.12.00 identical values issue (now shows efficiency improvement)
 - Enhanced IEEE 519-2014/2022 TDD limits documentation
 - All Performance section standards now show proper before/after improvement
 

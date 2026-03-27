@@ -30,7 +30,7 @@ body {
 
 /* Set up a default font and some padding to provide breathing room */
 body {
-  font-family: "Open Sans", sans-serif;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   font-size: $fontSize;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
@@ -118,10 +118,15 @@ a:hover {
 
 .page-content {
   width: 100%;
-	padding: 0;
-	padding-bottom: 2em;
+	padding: 0 0 2em 20px;
 	height:100%;
 	overflow: auto;
+
+  /* Add breathing room between toolbar and route page content */
+  > *:not(sd-toolbar) .container-fluid:first-child,
+  > *:not(sd-toolbar) > .container-fluid {
+    padding-top: 28px;
+  }
 }
 
 .white-box {

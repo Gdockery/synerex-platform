@@ -3,16 +3,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function PatentedTechnology() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -28,7 +23,7 @@ export default function PatentedTechnology() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -48,24 +43,24 @@ export default function PatentedTechnology() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="space-y-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <a href="/intellectual-properties-portfolio" className="hover:text-purple-400">
-              <h3 className="font-bold text-purple-400">Patent Portfolio</h3>
+            <a href="/intellectual-properties-portfolio" className="hover:text-purple-200">
+              <h3 className="font-bold text-purple-200">Patent Portfolio</h3>
             </a>
             <p className="text-sm mt-2 text-gray-300">US 12375324B2 - Advanced ECBS Technology covering electrical current balancing systems and methods.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-              <a href="/technology-benefits" className="hover:text-purple-400">
-                <h3 className="font-bold text-purple-400">Technology Benefits</h3>
+              <a href="/technology-benefits" className="hover:text-purple-200">
+                <h3 className="font-bold text-purple-200">Technology Benefits</h3>
               </a>
               <p className="text-sm mt-2 text-gray-300">Network-wide current balancing for improved power quality, stability, and efficiency across electrical facilities.</p>
             </div>
             <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-              <h3 className="font-bold text-purple-400">Implementation</h3>
+              <h3 className="font-bold text-purple-200">Implementation</h3>
               <p className="text-sm mt-2 text-gray-300">Full-scale deployment capabilities with real-time monitoring and control systems for industrial applications.</p>
             </div>
             <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-              <h3 className="font-bold text-purple-400">Licensing Opportunities</h3>
+              <h3 className="font-bold text-purple-200">Licensing Opportunities</h3>
               <p className="text-sm mt-2 text-gray-300">Patent licensing available for field-of-use flexibility and commercial implementation partnerships.</p>
             </div>
           </div>

@@ -288,9 +288,345 @@ def geocode_address(address):
         logger.error(f"Geocoding error for {address}: {e}")
         return None, None, None
 
-def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
-    """Fetch weather data from Open-Meteo Archive API
-    
+# ============================================================================
+# NOAA ASOS (Iowa Environmental Mesonet) — primary weather data source
+# Falls back to Open-Meteo ERA5 for international sites or when no station
+# is within MAX_ASOS_DISTANCE_KM of the project location.
+# ============================================================================
+
+MAX_ASOS_DISTANCE_KM = 75  # maximum acceptable station distance
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Return great-circle distance in km between two (lat, lon) pairs."""
+    import math
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def find_nearest_asos_station(lat, lon, max_distance_km=MAX_ASOS_DISTANCE_KM,
+                               state_hint=None):
+    """Find the nearest NOAA ASOS station using the Iowa Environmental Mesonet network GeoJSON.
+
+    Strategy:
+      1. Identify candidate US state(s) to search (from state_hint or by bounding box).
+      2. Query IEM /geojson/network.py?network={ST}_ASOS for each candidate state.
+      3. Return the station with minimum Haversine distance within max_distance_km.
+
+    Returns:
+        dict with keys: station_id, station_name, distance_km, lat, lon
+        or None if no station found within max_distance_km.
+    """
+    import math
+
+    # Map of approximate bounding boxes (min_lat, max_lat, min_lon, max_lon) per state
+    # Used to identify which state(s) to query without a geocode reverse call.
+    _STATE_BBOX = {
+        "AL": (30.2, 35.0, -88.5, -84.9), "AK": (51.2, 71.4, -179.9, -129.0),
+        "AZ": (31.3, 37.0, -114.8, -109.0), "AR": (33.0, 36.5, -94.6, -89.6),
+        "CA": (32.5, 42.0, -124.4, -114.1), "CO": (36.9, 41.0, -109.1, -102.0),
+        "CT": (41.0, 42.1, -73.7, -71.8), "DE": (38.4, 39.9, -75.8, -75.0),
+        "FL": (24.4, 31.1, -87.6, -79.9), "GA": (30.4, 35.0, -85.6, -80.8),
+        "HI": (18.9, 22.2, -160.3, -154.8), "ID": (41.9, 49.0, -117.2, -111.0),
+        "IL": (36.9, 42.5, -91.5, -87.0), "IN": (37.8, 41.8, -88.1, -84.8),
+        "IA": (40.4, 43.5, -96.6, -90.1), "KS": (36.9, 40.1, -102.1, -94.6),
+        "KY": (36.5, 39.1, -89.6, -81.9), "LA": (28.9, 33.0, -94.0, -88.8),
+        "ME": (43.0, 47.5, -71.1, -66.9), "MD": (37.9, 39.7, -79.5, -74.9),
+        "MA": (41.2, 42.9, -73.5, -69.9), "MI": (41.7, 48.3, -90.4, -82.4),
+        "MN": (43.5, 49.4, -97.2, -89.5), "MS": (30.2, 35.0, -91.7, -88.1),
+        "MO": (35.9, 40.6, -95.8, -89.1), "MT": (44.4, 49.0, -116.1, -104.1),
+        "NE": (40.0, 43.0, -104.1, -95.3), "NV": (35.0, 42.0, -120.0, -114.0),
+        "NH": (42.7, 45.3, -72.6, -70.6), "NJ": (38.9, 41.4, -75.6, -73.9),
+        "NM": (31.3, 37.0, -109.1, -103.0), "NY": (40.5, 45.0, -79.8, -71.9),
+        "NC": (33.8, 36.6, -84.3, -75.5), "ND": (45.9, 49.0, -104.1, -96.6),
+        "OH": (38.4, 42.3, -84.8, -80.5), "OK": (33.6, 37.0, -103.0, -94.4),
+        "OR": (41.9, 46.3, -124.6, -116.5), "PA": (39.7, 42.3, -80.5, -74.7),
+        "RI": (41.1, 42.0, -71.9, -71.1), "SC": (32.0, 35.2, -83.4, -78.5),
+        "SD": (42.5, 45.9, -104.1, -96.4), "TN": (34.9, 36.7, -90.3, -81.6),
+        "TX": (25.8, 36.5, -106.6, -93.5), "UT": (36.9, 42.0, -114.1, -109.0),
+        "VT": (42.7, 45.0, -73.4, -71.5), "VA": (36.5, 39.5, -83.7, -75.2),
+        "WA": (45.5, 49.0, -124.7, -116.9), "WV": (37.2, 40.6, -82.6, -77.7),
+        "WI": (42.5, 47.1, -92.9, -86.2), "WY": (41.0, 45.0, -111.1, -104.1),
+        "DC": (38.8, 39.0, -77.1, -76.9),
+    }
+
+    def _candidate_states(lat, lon):
+        """Return states whose bounding box contains (lat, lon), plus buffer."""
+        buf = 1.0  # degree buffer to catch border cases
+        found = []
+        for st, (min_lat, max_lat, min_lon, max_lon) in _STATE_BBOX.items():
+            if (min_lat - buf <= lat <= max_lat + buf and
+                    min_lon - buf <= lon <= max_lon + buf):
+                found.append(st)
+        return found
+
+    try:
+        candidates = [state_hint] if state_hint else _candidate_states(lat, lon)
+        if not candidates:
+            logger.warning(f"No US state bounding box matched ({lat}, {lon}) — skipping ASOS lookup")
+            return None
+
+        logger.info(f"Searching ASOS stations in candidate states: {candidates}")
+
+        best_station = None
+        best_dist    = float("inf")
+        iem_url      = "https://mesonet.agron.iastate.edu/geojson/network.py"
+
+        for state in candidates:
+            network = f"{state}_ASOS"
+            try:
+                resp = requests.get(iem_url, params={"network": network}, timeout=20)
+                if resp.status_code != 200:
+                    logger.warning(f"IEM network {network} returned {resp.status_code}")
+                    continue
+                data = resp.json()
+                for feature in data.get("features", []):
+                    coords = (feature.get("geometry") or {}).get("coordinates") or []
+                    if len(coords) < 2:
+                        continue
+                    slon_f, slat_f = float(coords[0]), float(coords[1])
+                    sid   = feature.get("id") or feature.get("properties", {}).get("stid") or ""
+                    sname = (feature.get("properties") or {}).get("sname") or sid
+                    if not sid:
+                        continue
+                    dist = _haversine_km(lat, lon, slat_f, slon_f)
+                    if dist < best_dist:
+                        best_dist    = dist
+                        best_station = {
+                            "station_id": sid,
+                            "station_name": sname,
+                            "distance_km": round(dist, 2),
+                            "lat": slat_f,
+                            "lon": slon_f,
+                        }
+            except Exception as e:
+                logger.warning(f"Error fetching {network} stations: {e}")
+                continue
+
+        if best_station is None:
+            logger.warning(f"No ASOS stations found in candidate states {candidates}")
+            return None
+
+        if best_dist > max_distance_km:
+            logger.warning(
+                f"Closest ASOS station {best_station['station_id']} is {best_dist:.1f} km "
+                f"— exceeds {max_distance_km} km threshold. Using Open-Meteo fallback."
+            )
+            return None
+
+        logger.info(
+            f"Nearest ASOS station: {best_station['station_id']} "
+            f"({best_station['station_name']}) at {best_dist:.1f} km"
+        )
+        return best_station
+
+    except Exception as e:
+        logger.error(f"find_nearest_asos_station error: {e}")
+        return None
+
+
+def fetch_asos_period_data(station_id, start_date, end_date):
+    """Download NOAA ASOS 5-minute observations from Iowa Environmental Mesonet.
+
+    Args:
+        station_id: ASOS station identifier (e.g. 'KORD')
+        start_date:  'YYYY-MM-DD'
+        end_date:    'YYYY-MM-DD'
+
+    Returns:
+        dict with same structure as _fetch_openmeteo_data:
+          temp_avg, humidity_avg, dewpoint_avg, wind_speed_avg, solar_radiation_avg,
+          days_count, hourly_data (list of per-observation dicts)
+        or dict with 'error' key on failure.
+    """
+    try:
+        from datetime import datetime as _dt
+        import csv
+        import io
+        import math
+
+        # IEM ASOS data download
+        # report_type=3 → ASOS/AWOS 5-minute
+        y1, m1, d1 = start_date.split("-")
+        y2, m2, d2 = end_date.split("-")
+
+        url = "https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py"
+        params = {
+            "station": station_id,
+            "data": ["tmpf", "dwpf", "relh", "sknt", "srad"],
+            "year1": y1, "month1": m1, "day1": d1,
+            "year2": y2, "month2": m2, "day2": d2,
+            "tz": "UTC",
+            "format": "comma",
+            "latlon": "no",
+            "direct": "no",
+            "report_type": "3",   # 5-minute observations
+        }
+
+        logger.info(f"Fetching ASOS data for station {station_id}: {start_date} to {end_date}")
+        resp = requests.get(url, params=params, timeout=60)
+        resp.raise_for_status()
+        raw = resp.text
+
+        if not raw or len(raw.strip()) < 50:
+            return {"error": f"ASOS returned empty data for station {station_id}"}
+
+        # Parse CSV — IEM prepends comment lines starting with '#'
+        lines = [ln for ln in raw.splitlines() if not ln.startswith("#") and ln.strip()]
+        if not lines:
+            return {"error": f"ASOS CSV has no data rows for {station_id}"}
+
+        reader = csv.DictReader(io.StringIO("\n".join(lines)))
+        headers = reader.fieldnames or []
+        logger.info(f"ASOS CSV headers: {headers}")
+
+        def _f2c(f):
+            """Fahrenheit to Celsius."""
+            try:
+                v = float(f)
+                return round((v - 32.0) * 5.0 / 9.0, 2)
+            except (TypeError, ValueError):
+                return None
+
+        def _kts2ms(kts):
+            """Knots to m/s."""
+            try:
+                return round(float(kts) * 0.514444, 2)
+            except (TypeError, ValueError):
+                return None
+
+        def _safe_float(v):
+            try:
+                f = float(v)
+                return None if math.isnan(f) else round(f, 2)
+            except (TypeError, ValueError):
+                return None
+
+        obs_list = []
+        for row in reader:
+            # valid column is UTC timestamp: "YYYY-MM-DD HH:MM"
+            valid_str = (row.get("valid") or row.get("time") or "").strip()
+            if not valid_str or valid_str.lower() in ("m", "trace", ""):
+                continue
+            try:
+                # Normalise to ISO-8601
+                ts = _dt.strptime(valid_str, "%Y-%m-%d %H:%M").strftime("%Y-%m-%dT%H:%M:00")
+            except ValueError:
+                continue
+
+            tmpf = row.get("tmpf") or row.get("temp")
+            dwpf = row.get("dwpf") or row.get("dwpt")
+            relh = row.get("relh") or row.get("rh")
+            sknt = row.get("sknt") or row.get("wind_speed")
+            srad = row.get("srad") or row.get("solar_radiation")
+
+            # Skip rows with missing temperature
+            if not tmpf or tmpf.strip() in ("M", ""):
+                continue
+
+            temp_c   = _f2c(tmpf)
+            dewp_c   = _f2c(dwpf) if dwpf and dwpf.strip() not in ("M", "") else None
+            humidity = _safe_float(relh) if relh and relh.strip() not in ("M", "") else None
+            wind_ms  = _kts2ms(sknt) if sknt and sknt.strip() not in ("M", "") else None
+            solar    = _safe_float(srad) if srad and srad.strip() not in ("M", "") else None
+
+            if temp_c is None:
+                continue
+
+            obs_list.append({
+                "timestamp": ts,
+                "time": ts,
+                "datetime": ts,
+                "temp_c": temp_c,
+                "temperature": temp_c,
+                "temp": temp_c,
+                "dewpoint_c": dewp_c,
+                "dewpoint": dewp_c,
+                "dew_point": dewp_c,
+                "humidity": humidity,
+                "relative_humidity": humidity,
+                "wind_speed": wind_ms,
+                "solar_radiation": solar,
+            })
+
+        if not obs_list:
+            return {"error": f"No valid ASOS observations parsed for {station_id} ({start_date} to {end_date})"}
+
+        logger.info(f"Parsed {len(obs_list)} ASOS 5-min observations for {station_id}")
+
+        # Aggregate averages
+        def _avg(lst, key):
+            vals = [o[key] for o in lst if o.get(key) is not None]
+            return round(sum(vals) / len(vals), 3) if vals else None
+
+        temp_avg     = _avg(obs_list, "temp_c")
+        humidity_avg = _avg(obs_list, "humidity")
+        dewpoint_avg = _avg(obs_list, "dewpoint_c")
+        wind_avg     = _avg(obs_list, "wind_speed")
+        solar_avg    = _avg(obs_list, "solar_radiation")
+
+        # Aggregate to hourly for timestamp-matching in ASHRAE regression
+        from collections import defaultdict
+        hourly_buckets = defaultdict(list)
+        for obs in obs_list:
+            hour_key = obs["timestamp"][:13]  # "YYYY-MM-DDTHH"
+            hourly_buckets[hour_key].append(obs)
+
+        hourly_data = []
+        for hour_key in sorted(hourly_buckets.keys()):
+            bucket = hourly_buckets[hour_key]
+            h_ts = hour_key + ":00:00"
+            hourly_data.append({
+                "timestamp": h_ts,
+                "time": h_ts,
+                "datetime": h_ts,
+                "temp_c": _avg(bucket, "temp_c"),
+                "temperature": _avg(bucket, "temp_c"),
+                "temp": _avg(bucket, "temp_c"),
+                "dewpoint_c": _avg(bucket, "dewpoint_c"),
+                "dewpoint": _avg(bucket, "dewpoint_c"),
+                "dew_point": _avg(bucket, "dewpoint_c"),
+                "humidity": _avg(bucket, "humidity"),
+                "relative_humidity": _avg(bucket, "humidity"),
+                "wind_speed": _avg(bucket, "wind_speed"),
+                "solar_radiation": _avg(bucket, "solar_radiation"),
+            })
+
+        # Estimate days from first/last observation
+        try:
+            first_ts = _dt.strptime(obs_list[0]["timestamp"][:10], "%Y-%m-%d")
+            last_ts  = _dt.strptime(obs_list[-1]["timestamp"][:10], "%Y-%m-%d")
+            days_count = max(1, (last_ts - first_ts).days + 1)
+        except Exception:
+            days_count = len(hourly_data) // 24 or 1
+
+        logger.info(f"ASOS aggregated: temp_avg={temp_avg}°C, humidity_avg={humidity_avg}%, "
+                    f"{len(hourly_data)} hourly points over ~{days_count} days")
+
+        return {
+            "temp_avg": temp_avg,
+            "humidity_avg": humidity_avg,
+            "dewpoint_avg": dewpoint_avg,
+            "wind_speed_avg": wind_avg,
+            "solar_radiation_avg": solar_avg,
+            "days_count": days_count,
+            "hourly_data": hourly_data,
+            "obs_count_5min": len(obs_list),
+            "data_source": "NOAA ASOS",
+        }
+
+    except Exception as e:
+        logger.error(f"fetch_asos_period_data error for {station_id}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {"error": str(e)}
+
+
+def _fetch_openmeteo_data(lat, lon, start_date, end_date, include_hourly=False):
+    """Fetch weather data from Open-Meteo ERA5 Archive API (fallback source).
+
     Args:
         lat: Latitude
         lon: Longitude
@@ -574,7 +910,8 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
                 result["hourly_data"] = hourly_data_list
                 logger.info(f"Added {len(hourly_data_list)} hourly data points to weather response")
             
-            logger.info(f"Weather data fetched for {start_date} to {end_date}: temp_avg={temp_avg}, humidity_avg={humidity_avg}, dewpoint_avg={dewpoint_avg}")
+            logger.info(f"Open-Meteo data fetched for {start_date} to {end_date}: temp_avg={temp_avg}, humidity_avg={humidity_avg}, dewpoint_avg={dewpoint_avg}")
+            result["data_source"] = "Open-Meteo (ERA5 Reanalysis)"
             return result
         else:
             # No daily data - calculate from hourly if available
@@ -598,8 +935,9 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
                     "dewpoint_avg": dewpoint_avg,
                     "wind_speed_avg": wind_speed_avg,
                     "solar_radiation_avg": solar_radiation_avg,
-                    "days_count": len(hourly_data_list) // 24,  # Approximate days from hourly data
-                    "hourly_data": hourly_data_list
+                    "days_count": len(hourly_data_list) // 24,
+                    "hourly_data": hourly_data_list,
+                    "data_source": "Open-Meteo (ERA5 Reanalysis)",
                 }
                 logger.info(f"Calculated weather averages from hourly data: {result}")
                 return result
@@ -608,8 +946,54 @@ def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False):
                 return {"error": "No weather data available for the specified period"}
             
     except Exception as e:
-        logger.error(f"Weather API error: {e}")
+        logger.error(f"Open-Meteo API error: {e}")
         return {"error": str(e)}
+
+
+def fetch_weather_data(lat, lon, start_date, end_date, include_hourly=False,
+                       asos_station=None):
+    """Orchestrator: try NOAA ASOS first (US sites), fall back to Open-Meteo ERA5.
+
+    Args:
+        lat, lon        : Project location coordinates
+        start_date      : 'YYYY-MM-DD'
+        end_date        : 'YYYY-MM-DD'
+        include_hourly  : Always True internally; kept for API compat
+        asos_station    : Pre-resolved station dict (from find_nearest_asos_station)
+                          or None to let this function search automatically.
+
+    Returns:
+        Same dict structure as _fetch_openmeteo_data, plus:
+          data_source  : "NOAA ASOS" | "Open-Meteo (ERA5 Reanalysis)"
+          asos_station : station dict or None
+    """
+    # Always fetch hourly data internally for timestamp matching
+    include_hourly = True
+
+    # ---- Try NOAA ASOS (US only) -----------------------------------------
+    if asos_station is not None or lat is not None:
+        station = asos_station
+        if station is None:
+            station = find_nearest_asos_station(lat, lon)
+
+        if station:
+            result = fetch_asos_period_data(station["station_id"], start_date, end_date)
+            if "error" not in result:
+                result["asos_station"] = station
+                result["data_source"] = "NOAA ASOS"
+                logger.info(f"Using NOAA ASOS data from {station['station_id']} "
+                            f"({station['station_name']}, {station['distance_km']} km)")
+                return result
+            else:
+                logger.warning(f"ASOS fetch failed ({result['error']}), falling back to Open-Meteo")
+        else:
+            logger.info("No ASOS station within range — using Open-Meteo ERA5 fallback")
+
+    # ---- Fall back to Open-Meteo ERA5 ------------------------------------
+    result = _fetch_openmeteo_data(lat, lon, start_date, end_date, include_hourly=True)
+    result["asos_station"] = None
+    result.setdefault("data_source", "Open-Meteo (ERA5 Reanalysis)")
+    return result
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -700,25 +1084,46 @@ def weather_batch():
         logger.info(f"Date conversion - Before: {before_start} -> {before_start_date}, {before_end} -> {before_end_date}")
         logger.info(f"Date conversion - After: {after_start} -> {after_start_date}, {after_end} -> {after_end_date}")
         
-        # Check if hourly data is requested (for ASHRAE regression)
-        # CRITICAL: Always request hourly data as fallback if daily data is missing
-        include_hourly = data.get('include_hourly', True)  # Default to True for fallback support
-        if not include_hourly:
-            logger.warning("include_hourly was False, forcing to True for fallback support")
-            include_hourly = True  # Force to True to ensure we can calculate from hourly if needed
-        
+        # Always use hourly data for ASHRAE regression timestamp matching
+        include_hourly = True
         logger.info(f"Weather batch - include_hourly: {include_hourly}")
         
+        # Extract state hint from US address for faster ASOS station lookup
+        _state_hint = None
+        if _is_us_address(address):
+            import re as _re
+            _sm = _re.search(r"\b([A-Z]{2})\b(?:\s+\d{5})?(?:\s*$|,)", address.upper())
+            if _sm:
+                _state_hint = _sm.group(1)
+                # Sanity: make sure it's a valid US state abbreviation
+                _valid_states = {"AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID",
+                    "IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT",
+                    "NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+                    "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY","DC"}
+                if _state_hint not in _valid_states:
+                    _state_hint = None
+
+        # Resolve ASOS station once for the project location (US only)
+        asos_station = None
+        if _is_us_address(address):
+            logger.info(f"US address detected — searching for nearest NOAA ASOS station (state_hint={_state_hint})")
+            asos_station = find_nearest_asos_station(lat, lon, state_hint=_state_hint)
+            if asos_station:
+                logger.info(f"Resolved ASOS station: {asos_station['station_id']} "
+                            f"({asos_station['station_name']}) at {asos_station['distance_km']} km")
+            else:
+                logger.warning("No ASOS station within range — will use Open-Meteo ERA5 for both periods")
+        else:
+            logger.info("Non-US address — using Open-Meteo ERA5 (ASOS is US-only)")
+        
         # Fetch weather data for both periods
-        # Log the date ranges to help debug timeout issues
         logger.info(f"Fetching before period: {before_start_date} to {before_end_date}")
         logger.info(f"Fetching after period: {after_start_date} to {after_end_date}")
         
-        # CRITICAL FIX: Always fetch with hourly data to ensure we have fallback
-        # This ensures we can always calculate from hourly data if daily is None
         try:
-            logger.info("Attempting to fetch before weather data (with hourly for fallback)...")
-            before_weather = fetch_weather_data(lat, lon, before_start_date, before_end_date, include_hourly=True)  # Always include hourly for fallback
+            logger.info("Attempting to fetch before weather data...")
+            before_weather = fetch_weather_data(lat, lon, before_start_date, before_end_date,
+                                                include_hourly=True, asos_station=asos_station)
             logger.info(f"Before weather data received: temp_avg={before_weather.get('temp_avg')}, humidity_avg={before_weather.get('humidity_avg')}")
             logger.info(f"Before weather hourly_data count: {len(before_weather.get('hourly_data', []))}")
             
@@ -760,8 +1165,9 @@ def weather_batch():
             before_weather = {"error": str(e)}
         
         try:
-            logger.info("Attempting to fetch after weather data (with hourly for fallback)...")
-            after_weather = fetch_weather_data(lat, lon, after_start_date, after_end_date, include_hourly=True)  # Always include hourly for fallback
+            logger.info("Attempting to fetch after weather data...")
+            after_weather = fetch_weather_data(lat, lon, after_start_date, after_end_date,
+                                               include_hourly=True, asos_station=asos_station)
             logger.info(f"After weather data received: temp_avg={after_weather.get('temp_avg')}, humidity_avg={after_weather.get('humidity_avg')}")
             logger.info(f"After weather hourly_data count: {len(after_weather.get('hourly_data', []))}")
             
@@ -888,6 +1294,10 @@ def weather_batch():
                     after_weather['solar_radiation_avg'] = sum(solar) / len(solar)
                     logger.info(f"Final fallback: Calculated solar_radiation_avg: {after_weather['solar_radiation_avg']:.2f}")
         
+        # Determine weather source label from actual fetched data
+        _data_source = before_weather.get("data_source") or after_weather.get("data_source") or "Open-Meteo (ERA5 Reanalysis)"
+        _resolved_station = before_weather.get("asos_station") or asos_station
+
         # Prepare response
         result = {
             "success": True,
@@ -904,7 +1314,15 @@ def weather_batch():
             "solar_radiation_before": before_weather.get("solar_radiation_avg"),
             "solar_radiation_after": after_weather.get("solar_radiation_avg"),
             "before_days": before_weather.get("days_count", 0),
-            "after_days": after_weather.get("days_count", 0)
+            "after_days": after_weather.get("days_count", 0),
+            # Weather source metadata
+            "weather_source": _data_source,
+            "asos_station_id": _resolved_station["station_id"] if _resolved_station else None,
+            "asos_station_name": _resolved_station["station_name"] if _resolved_station else None,
+            "asos_station_distance_km": _resolved_station["distance_km"] if _resolved_station else None,
+            # Raw 5-min observation count (ASOS only)
+            "obs_count_5min_before": before_weather.get("obs_count_5min"),
+            "obs_count_5min_after": after_weather.get("obs_count_5min"),
         }
         
         # Add hourly data if available

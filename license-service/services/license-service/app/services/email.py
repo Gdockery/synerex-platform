@@ -186,6 +186,14 @@ def send_license_receipt(license_id: str, db) -> bool:
     oem_logo_url = oem_branding.get("logo_url") or ""
     oem_website = oem_branding.get("website_url") or ""
 
+    # Build branded portal login URL so it appears in the receipt email
+    portal_login_url = ""
+    if sponsor_org_id:
+        _pub = (settings.website_url or "").rstrip("/")
+        if not _pub:
+            _pub = (settings.tracking_program_url or "http://localhost:8087").rstrip("/")
+        portal_login_url = f"{_pub}/auth/login?oem={sponsor_org_id}"
+
     # OEM logo block for email header
     logo_html = ""
     if oem_logo_url:
@@ -252,11 +260,21 @@ def send_license_receipt(license_id: str, db) -> bool:
 
     <div style="background:#f0fdf4;border:2px solid #4ade80;border-radius:8px;padding:20px;margin:20px 0;text-align:center;">
       <div style="font-weight:600;font-size:15px;color:#166534;margin-bottom:8px;">Quick Access</div>
+      {"" if not portal_login_url else f'''
+      <p style="font-size:14px;color:#374151;margin:8px 0;">Click below to go directly to your {brand_name} portal:</p>
+      <a href="{portal_login_url}"
+         style="display:inline-block;background:{primary_color};color:#fff;padding:13px 32px;text-decoration:none;border-radius:7px;font-weight:700;font-size:15px;margin:8px 0;">
+        Access {brand_name} Portal →
+      </a>
+      <p style="font-size:12px;color:#6b7280;margin:8px 0 0;">{portal_login_url}</p>
+      '''}
+      {"" if portal_login_url else f'''
       <p style="font-size:14px;color:#374151;margin:8px 0;">Click below to access your {order.program_id.upper()} program:</p>
       <a href="{settings.website_url or 'http://localhost:8080'}/license/access/{order.program_id}?license_id={license_rec.license_id}"
          style="display:inline-block;background:#16a34a;color:#fff;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:600;font-size:15px;margin:8px 0;">
         Access {order.program_id.upper()} Program →
       </a>
+      '''}
       <p style="font-size:12px;color:#6b7280;margin:8px 0 0;">You will be asked to enter your Serial Number to verify access.</p>
     </div>
 
@@ -555,4 +573,151 @@ Powered by Synerex Laboratories, LLC
         body_text=body_text,
         org_id=client_org_id,
         notification_type="client_admin_invitation" if not is_reset else "client_admin_credentials_reset",
+    )
+
+
+def send_client_invitation_email(
+    to_email: str,
+    client_org_name: str,
+    client_org_id: str,
+    oem_org_name: str,
+    registration_url: str,
+    sponsor_org_id: Optional[str] = None,
+    oem_branding: Optional[dict] = None,
+) -> bool:
+    """
+    Send a client invitation email so a pre-registered client can activate their account.
+    Called by the OEM after scanning the client's bill. The registration_url pre-fills the
+    signup form with the client's existing org_id so a duplicate org is not created.
+    """
+    branding = oem_branding or {}
+    brand_name = branding.get("brand_name") or oem_org_name or "Synerex"
+    primary_color = branding.get("primary_color") or "#7c3aed"
+    oem_logo_url = branding.get("logo_url") or ""
+
+    logo_html = ""
+    if oem_logo_url:
+        logo_html = (
+            f'<img src="{oem_logo_url}" alt="{brand_name}" '
+            f'style="max-height:56px;max-width:180px;margin-bottom:10px;'
+            f'display:block;margin-left:auto;margin-right:auto;" />'
+        )
+
+    subject = f"Your {brand_name} Account is Ready — Activate Your Subscription"
+
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/>
+<style>
+  body{{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;background:#f3f4f6;}}
+  .wrap{{max-width:600px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);}}
+  .hdr{{background:{primary_color};padding:28px 36px;text-align:center;}}
+  .hdr h1{{color:#fff;margin:8px 0 0;font-size:21px;font-weight:700;}}
+  .hdr p{{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}}
+  .body{{padding:32px 36px;}}
+  .info-box{{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin:20px 0;}}
+  .row{{margin:8px 0;font-size:14px;}}
+  .lbl{{font-weight:600;color:#6b7280;display:inline-block;min-width:150px;}}
+  .steps-box{{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:20px;margin:20px 0;}}
+  .steps-box .title{{font-weight:700;color:#5b21b6;font-size:14px;margin-bottom:12px;}}
+  .step{{margin:10px 0;font-size:14px;color:#374151;display:flex;gap:10px;align-items:flex-start;}}
+  .step-num{{background:{primary_color};color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px;}}
+  .btn-wrap{{text-align:center;margin:28px 0;}}
+  .btn{{display:inline-block;background:{primary_color};color:#fff;padding:14px 36px;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;}}
+  .note{{background:#fffbeb;border-left:4px solid #f59e0b;padding:14px 16px;margin:20px 0;color:#92400e;font-size:13px;border-radius:0 6px 6px 0;}}
+  .ftr{{background:#f9fafb;padding:20px 36px;text-align:center;border-top:1px solid #e5e7eb;}}
+  .powered{{font-size:12px;color:#9ca3af;margin:0;}}
+  .powered strong{{color:#7c3aed;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    {logo_html}
+    <h1>&#127881; Your Account is Ready</h1>
+    <p>Complete your {brand_name} subscription to get started</p>
+  </div>
+  <div class="body">
+    <p>Hello,</p>
+    <p><strong>{oem_org_name}</strong> has set up an account for <strong>{client_org_name}</strong>
+    on the {brand_name} platform. Your organization profile is already configured —
+    just click the button below to choose your plan and activate your subscription.</p>
+
+    <div class="info-box">
+      <div style="font-weight:600;font-size:15px;margin-bottom:12px;">Your Pre-Configured Account</div>
+      <div class="row"><span class="lbl">Organization:</span> {client_org_name}</div>
+      <div class="row"><span class="lbl">Account ID:</span> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;color:#5b21b6;">{client_org_id}</code></div>
+      <div class="row"><span class="lbl">Set up by:</span> {oem_org_name}</div>
+    </div>
+
+    <div class="btn-wrap">
+      <a href="{registration_url}" class="btn">Activate My Subscription &rarr;</a>
+    </div>
+
+    <div class="steps-box">
+      <div class="title">&#128204; What happens next</div>
+      <div class="step"><span class="step-num">1</span>
+        <span>Click the button above — your organization details will be pre-filled.</span></div>
+      <div class="step"><span class="step-num">2</span>
+        <span>Create your username and password.</span></div>
+      <div class="step"><span class="step-num">3</span>
+        <span>Choose your plan and complete payment.</span></div>
+      <div class="step"><span class="step-num">4</span>
+        <span>Your license activates immediately — log in and start using the platform.</span></div>
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> This invitation link is unique to your organization.
+      You can activate your account at any time — there is no expiry.
+      If you have questions, contact <strong>{oem_org_name}</strong> directly.
+    </div>
+
+    <p style="font-size:13px;color:#6b7280;margin-top:24px;">
+      If the button above does not work, copy and paste this link into your browser:<br/>
+      <a href="{registration_url}" style="color:{primary_color};word-break:break-all;">{registration_url}</a>
+    </p>
+  </div>
+  <div class="ftr">
+    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
+  </div>
+</div>
+</body>
+</html>"""
+
+    body_text = f"""YOUR {brand_name.upper()} ACCOUNT IS READY
+{'=' * 55}
+
+Hello,
+
+{oem_org_name} has set up an account for {client_org_name} on the {brand_name} platform.
+Your organization profile is already configured. Click the link below to choose
+your plan and activate your subscription.
+
+  Organization: {client_org_name}
+  Account ID:   {client_org_id}
+  Set up by:    {oem_org_name}
+
+ACTIVATE YOUR SUBSCRIPTION:
+  {registration_url}
+
+WHAT HAPPENS NEXT:
+  1. Visit the link above — your details will be pre-filled.
+  2. Create your username and password.
+  3. Choose your plan and complete payment.
+  4. Your license activates immediately.
+
+Note: This link does not expire. Activate your account whenever you are ready.
+
+{'=' * 55}
+Powered by Synerex Laboratories, LLC
+"""
+
+    return send_email(
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html,
+        body_text=body_text,
+        org_id=client_org_id,
+        notification_type="client_invitation",
     )

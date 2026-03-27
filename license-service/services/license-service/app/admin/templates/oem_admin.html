@@ -35,6 +35,11 @@
     .login-link-row { display: flex; gap: 0.5rem; align-items: center; }
     .login-link-row input { flex: 1; padding: 0.45rem 0.75rem; border: 1px solid #c3d0f7; border-radius: 5px; font-size: 0.85rem; background: white; color: #374151; }
     .actions-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .branding-warning { background: #fff7ed; border: 2px solid #f97316; border-radius: 8px; padding: 1.1rem 1.4rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 1rem; }
+    .branding-warning .icon { font-size: 1.5rem; flex-shrink: 0; }
+    .branding-warning .text h3 { color: #c2410c; font-size: 1rem; margin-bottom: 0.3rem; }
+    .branding-warning .text p { color: #92400e; font-size: 0.875rem; margin: 0; }
+    .btn-disabled { background: #d1d5db !important; color: #9ca3af !important; cursor: not-allowed !important; opacity: 0.7; }
   </style>
 </head>
 <body>
@@ -53,6 +58,22 @@
 
   {% if message %}
   <div class="alert {% if message_type == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ message }}</div>
+  {% endif %}
+
+  {% if not oem_branding_configured %}
+  <div class="branding-warning">
+    <div class="icon">&#9888;</div>
+    <div class="text">
+      <h3>OEM Branding Not Configured</h3>
+      <p>
+        Your brand name and logo have not been set up yet. Client invitations cannot be sent until branding is configured —
+        clients must see your brand, not Synerex defaults.
+        <strong><a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/profile" style="color:#c2410c;">
+          Set up your branding now &rarr;
+        </a></strong>
+      </p>
+    </div>
+  </div>
   {% endif %}
 
   <!-- Branded Client Admin Login Link -->
@@ -87,6 +108,17 @@
             <div class="actions-row">
               <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ c.org_id }}/create-admin" class="btn btn-green btn-sm">Set Up Admin</a>
               <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ c.org_id }}/edit" class="btn btn-sm">Edit Info</a>
+              {% if oem_branding_configured %}
+              <button class="btn btn-sm" style="background:#7c3aed;"
+                onclick="sendInvite('{{ c.org_id }}', '{{ c.org_name|replace("'", "\\'") }}', '{{ c.email or "" }}')">
+                &#9993; Send Invite
+              </button>
+              {% else %}
+              <button class="btn btn-sm btn-disabled" disabled
+                title="Set up your OEM branding first before sending invitations">
+                &#9993; Send Invite
+              </button>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -98,7 +130,93 @@
     {% endif %}
   </div>
 
+
+  <!-- Send Invitation Modal -->
+  <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:10px;padding:2rem;max-width:440px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.18);">
+      <h3 style="margin-bottom:1rem;color:#5b21b6;">&#9993; Send Activation Invitation</h3>
+      <p style="font-size:0.9rem;color:#374151;margin-bottom:1rem;">
+        Send an email to <strong id="inviteOrgName"></strong> with a unique link to activate their subscription.
+        Their organization profile is already configured — they just need to set a password and choose a plan.
+      </p>
+      <label style="display:block;font-size:0.85rem;font-weight:600;color:#4a5568;margin-bottom:0.3rem;">Recipient Email *</label>
+      <input type="email" id="inviteEmail" placeholder="client@example.com"
+        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;border-radius:5px;margin-bottom:1rem;"/>
+      <div id="inviteStatus" style="font-size:0.85rem;margin-bottom:0.75rem;"></div>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+        <button onclick="closeInviteModal()" style="padding:0.5rem 1.1rem;background:#e5e7eb;border:none;border-radius:5px;cursor:pointer;font-size:0.9rem;">Cancel</button>
+        <button id="inviteSendBtn" onclick="submitInvite()"
+          style="padding:0.5rem 1.25rem;background:#7c3aed;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.9rem;font-weight:600;">
+          Send Invitation
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    var _inviteOrgId = null;
+
+    function sendInvite(orgId, orgName, existingEmail) {
+      _inviteOrgId = orgId;
+      document.getElementById('inviteOrgName').textContent = orgName;
+      document.getElementById('inviteEmail').value = existingEmail || '';
+      document.getElementById('inviteStatus').textContent = '';
+      document.getElementById('inviteModal').style.display = 'flex';
+    }
+
+    function closeInviteModal() {
+      document.getElementById('inviteModal').style.display = 'none';
+      _inviteOrgId = null;
+    }
+
+    function submitInvite() {
+      var email = document.getElementById('inviteEmail').value.trim();
+      if (!email) {
+        document.getElementById('inviteStatus').innerHTML = '<span style="color:#b91c1c;">Please enter a recipient email.</span>';
+        return;
+      }
+      var btn = document.getElementById('inviteSendBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      document.getElementById('inviteStatus').textContent = '';
+
+      fetch('/api/orgs/' + _inviteOrgId + '/send-invitation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({to_email: email})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(r){
+        // Parse regardless of status so we can show the error message
+        return r.json().then(function(data){ return {status: r.status, data: data}; });
+      })
+      .then(function(result){
+        btn.disabled = false;
+        btn.textContent = 'Send Invitation';
+        var data = result.data;
+        if (result.status === 200 && data.ok) {
+          document.getElementById('inviteStatus').innerHTML =
+            '<span style="color:#166534;">&#10003; Invitation ' +
+            (data.email_sent ? 'sent to ' + email : 'logged (email not configured)') +
+            '</span>';
+          setTimeout(closeInviteModal, 2000);
+        } else if (result.status === 400 && data.detail) {
+          // Branding not configured or other validation error
+          document.getElementById('inviteStatus').innerHTML =
+            '<span style="color:#b91c1c;">&#9888; ' + data.detail + '</span>';
+        } else {
+          document.getElementById('inviteStatus').innerHTML =
+            '<span style="color:#b91c1c;">Error: ' + (data.detail || data.error || 'Unknown error') + '</span>';
+        }
+      })
+      .catch(function(err){
+        btn.disabled = false;
+        btn.textContent = 'Send Invitation';
+        document.getElementById('inviteStatus').innerHTML =
+          '<span style="color:#b91c1c;">Network error. Please try again.</span>';
+      });
+    }
+
     function copyLink() {
       var el = document.getElementById('oemLoginUrl');
       el.select();
@@ -115,5 +233,6 @@
       }
     }
   </script>
+
 </body>
 </html>

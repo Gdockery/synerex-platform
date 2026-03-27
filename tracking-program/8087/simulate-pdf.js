@@ -25,64 +25,99 @@ const fonts = {
 
 const printer = new PdfPrinter(fonts);
 
-// ─── Synthetic bill data (mirrors the shape expected by bill-analytic.js) ───
+// ─── Real bill data captured from Cloud Kitchen - Dallas project ─────────────
 const billData = {
-  clientName: 'Cloud Kitchen - Dallas LLC',
-  clientAddress: '1234 Commerce Street\nDallas, TX 75201',
-  location: 'Dallas, TX',
-  reference: 'CK-DAL-2026-001',
-  reportDate: 'March 13, 2026',
-  clientSupplier: 'Oncor Electric Delivery',
-  clientAccount: '1234567890-001',
-  auditedBy: 'J. Smith, CEM',
-  projectCurrency: 'USD',
-  version: '1.0',
-  billAnalysis: {
-    bill: '$4,812.44',
-    kwhConsumed: 18450,
-    kwhTotalRate: '$0.0952/kWh',
-    baselineKwh: 14200,
-    demand: 4250,
-    totalOverageCost: '$1,024.50',
-    demandChargeRate: '$12.75',
-    reference2Section1Charges: [
-      { name: 'Distribution Charge',         amount: '$1,204.30' },
-      { name: 'Transmission Charge',          amount: '$318.75'  },
-      { name: 'Nuclear Decommissioning',      amount: '$22.10'   },
+  "projectCurrency": "USD",
+  "date": "March 14, 2026",
+  "reportNumber": "",
+  "clientName": "Cloud Kitchen",
+  "clientAddress": "",
+  "clientAccount": "0000360366",
+  "clientSupplier": "Engie Resources",
+  "location": "",
+  "preparedFor": "Cloud Kitchen\n",
+  "preparedBy": "",
+  "auditedBy": "",
+  "attn": "Greg Dockery, CEO",
+  "estimatedSavingsPercent": "13.52",
+  "baselineSavingsPercent": "9.20",
+  "estimatedROI": 17,
+  "baselineROI": 26,
+  "recommendedUnits": 3,
+  "reference": "000036036620251117",
+  "reportDate": "March 14, 2026",
+  "version": "1",
+  "estimatedSavings": {
+    "totalCharges": "$3,297.70",
+    "monthEndCharge": "$3,297.68",
+    "customerCharge": "$0.00",
+    "totalSavings": "$303.28",
+    "bill": "$2,994.42",
+    "annualSavings": "$3,639.38",
+    "xecoEquipmentCost": "$7,128.00",
+    "partCost": "$2,630.00",
+    "projectManagementCost": "$0.00",
+    "meteringFee": "$799.00",
+    "shippingFee": "$49.00",
+    "discount": "-$0.00",
+    "totalCost": "$7,976.00",
+    "co2Reduction": 5.01,
+    "salesTax": 0
+  },
+  "billAnalysis": {
+    "bill": "$3,297.68",
+    "kwhConsumed": 25821,
+    "kwhTotalRate": 0.06145,
+    "demandChargeRate": "$12.00",
+    "baselineKwh": "6,759",
+    "demand": "19,062",
+    "totalOverageCost": "$1,171.35",
+    "totalCharges": "$3,297.70",
+    "totalReference2Section1Charges": "$1,235.28",
+    "reference2Section1Charges": [
+      { "name": "TRANSMISSION COST RECOVERY FACTOR", "amount": "$501.27" },
+      { "name": "DISTRIBUTION SYSTEM CHARGE",        "amount": "$701.58" },
+      { "name": "METERING CHARGE",                   "amount": "$21.30"  },
+      { "name": "CUSTOMER CHARGE",                   "amount": "$11.13"  }
     ],
-    totalReference2Section1Charges: '$1,545.15',
-    reference2Section2Charges: [
-      { name: 'Peak kW Demand',          amount: '$1,287.50' },
-      { name: 'On-Peak kW Demand',       amount: '$643.75'  },
-      { name: 'kVAR Reactive Demand',    amount: '$512.40'  },
-      { name: 'Power Factor Adjustment', amount: '-$184.20' },
-      { name: 'Fuel Charge',             amount: '$294.60'  },
-      { name: 'Franchise Fee',           amount: '$48.22'   },
+    "totalReference2Section2Charges": "$1,817.69",
+    "reference2Section2Charges": [
+      { "name": "CUSTOMER CHARGE",                     "amount": "$11.13"   },
+      { "name": "DISTRIBUTION COST RECOVERY FACTOR",   "amount": "$142.05"  },
+      { "name": "Energy Efficiency",                   "amount": "$5.76"    },
+      { "name": "Nuclear Decommission",                "amount": "$6.17"    },
+      { "name": "Fixed Energy Charge",                 "amount": "$1,581.02"},
+      { "name": "Ancillary Svcs",                      "amount": "$12.12"   },
+      { "name": "Gross Receipts Tax",                  "amount": "$59.44"   },
+      { "name": "",                                    "amount": ""         },
+      { "name": "",                                    "amount": ""         },
+      { "name": "",                                    "amount": ""         }
     ],
-    totalReference2Section2Charges: '$2,602.27',
-    reference3Charges: [
-      { name: 'Customer Service Charge', amount: '$28.50' },
-      { name: 'Metering Charge',         amount: '$14.25' },
-    ],
+    "reference3Charges": [
+      { "name": "Sales Tax State", "amount": "$195.04" },
+      { "name": "Sales Tax City",  "amount": "$60.82"  }
+    ]
   },
-  reference3: {
-    customerCharge: '$28.50',
-    totalAdditional: '$71.25',
-    totalCurrent: '$4,812.44',
+  "calculatedWaste": {
+    "kwhConsumed": "25,821",
+    "Kw15Min": "36",
+    "avgAmpDraw": "75",
+    "avgAmpDrawNum": 74.71354166666667,
+    "powerFactor": 26.18,
+    "reactiveKvarWaste": 73.82,
+    "reactiveKvarSupplyWasteAmps": 55,
+    "ampSavings": "22",
+    "kwSavings": "11",
+    "kwhSavings": "7,063"
   },
-  calculatedWaste: {
-    kwhConsumed: 18450,
-    Kw15Min: '92.3',
-    reactiveKvarWaste: '23.4',
-    reactiveKvarSupplyWasteAmps: '41.2',
-    avgAmpDraw: '186.4',
-    avgAmpDrawNum: 186.4,
-    powerFactor: '0.847',
+  "reference3": {
+    "customerCharge": "$0.00",
+    "totalAdditional": "$255.86",
+    "totalCurrent": "$3,297.70"
   },
-  supplySide: {
-    billedKw: '112.5',
-  },
-  baselineSavingsPercent: 18,
+  "supplySide": {
+    "billedKw": 137
+  }
 };
 
 // ─── Same constants as bill-analytic.js ──────────────────────────────────────
@@ -183,7 +218,7 @@ const docDefinition = {
     {
       margin: [0, 0, RIGHT_SAFETY, 0],
       table: {
-        widths: ['*', '*', '*', '*', '*', '*'],
+        widths: [95, 95, '*', '*', '*', '*'],
         body: [
           // Reference / Date / Supplier / Account / Energy Audit row
           [

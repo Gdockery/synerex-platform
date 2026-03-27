@@ -259,7 +259,7 @@ class UploadInterface {
     
     async downloadFile(fileId) {
         try {
-            const response = await fetch(`/api/original-files/${fileId}/download`);
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/'+fileId+'/download');
             if (response.ok) {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -286,7 +286,7 @@ class UploadInterface {
         }
         
         try {
-            const response = await fetch(`/api/original-files/${fileId}`, {
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/'+fileId, {
                 method: 'DELETE'
             });
             

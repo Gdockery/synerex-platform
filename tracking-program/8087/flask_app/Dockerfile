@@ -15,7 +15,8 @@ RUN npm run build
 FROM python:3.11-slim
 WORKDIR /app
 
-# Install Python deps
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
+
 COPY 8087/flask_app/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -28,12 +29,18 @@ COPY --from=angular-build /build/.tmp /app/8087/.tmp
 COPY 8087/assets /app/8087/assets
 COPY 8087/whitelabel /app/8087/whitelabel
 
+# Node api + scripts + node_modules for pdf-bridge (original Bill Analytic Report)
+COPY --from=angular-build /build/api /app/8087/api
+COPY --from=angular-build /build/scripts /app/8087/scripts
+COPY --from=angular-build /build/node_modules /app/8087/node_modules
+
 # Copy rollup and errands (siblings of 8087-flask)
 COPY 8087-rollup/ /app/8087-rollup/
 COPY 8087-errands/ /app/8087-errands/
 
 ENV PORT=8087
 ENV FLASK_ENV=production
+ENV PDF_BRIDGE_PATH=/app/8087/scripts/pdf-bridge.js
 EXPOSE 8087
 
 # Entrypoint runs migrations then exec's the command

@@ -89,16 +89,17 @@ public logoPath;
         this.refreshData();
       });   
     }
-    this.logoPath = '/images/client_company_logo/' + this.userService.user.client.id + '-client-logo';
+    const clientId = this.userService.user.client ? this.userService.user.client.id : null;
+    this.logoPath = clientId ? '/images/client_company_logo/' + clientId + '-client-logo' : '';
     this.client = {};
-    this.fetch();
+    if (clientId) this.fetch();
   }
 
   fetch() {
-    
-    this.apiService.get('/api/client/' + this.userService.user.client.id).subscribe(responseData =>{
+    const clientId = this.userService.user.client ? this.userService.user.client.id : null;
+    if (!clientId) return;
+    this.apiService.get('/api/client/' + clientId).subscribe(responseData =>{
       this.client = responseData.response;
-      
     });
   }
 

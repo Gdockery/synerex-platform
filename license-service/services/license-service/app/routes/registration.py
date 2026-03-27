@@ -169,8 +169,15 @@ def registration_page(
     return_url: Optional[str] = None,
     sponsor_org_id: Optional[str] = None,
     oem: Optional[str] = None,
+    org_id: Optional[str] = None,
+    db: Session = Depends(db_session),
 ):
-    """Display the registration form."""
+    """Display the registration form.
+
+    When org_id is supplied (e.g. from an OEM client-invitation link), the form
+    is pre-filled with the pre-registered organisation's details so the client
+    only needs to set credentials and choose a plan — no duplicate org is created.
+    """
     # Resolve OEM org_id from either param
     oem_logo_org_id = sponsor_org_id or oem or None
     brand_logo_url = None
@@ -187,6 +194,39 @@ def registration_page(
                 brand_name = _data.get("brand_name") or None
         except Exception:
             brand_logo_url = None
+
+    # Pre-fill from an existing org when the client arrives via an invitation link
+    prefill_org = None
+    if org_id:
+        existing = db.get(Organization, org_id.strip())
+        if existing:
+            prefill_org = {
+                "org_id": existing.org_id,
+                "org_name": existing.org_name,
+                "org_type": existing.org_type,
+                "email": existing.email or "",
+                "company_address": existing.company_address or "",
+                "company_city": existing.company_city or "",
+                "company_state": existing.company_state or "",
+                "company_zip": existing.company_zip or "",
+                "company_phone": existing.company_phone or "",
+                "sponsor_org_id": existing.sponsor_org_id or sponsor_org_id or "",
+            }
+            # Inherit sponsor branding from the pre-registered org if not already resolved
+            if not oem_logo_org_id and existing.sponsor_org_id:
+                oem_logo_org_id = existing.sponsor_org_id
+                try:
+                    import urllib.request as _ur2
+                    _tracking_url2 = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+                    _branding_url2 = f"{_tracking_url2}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}"
+                    with _ur2.urlopen(_branding_url2, timeout=3) as _resp2:
+                        import json as _json2
+                        _data2 = _json2.loads(_resp2.read().decode())
+                        brand_logo_url = _data2.get("logo_url") or brand_logo_url
+                        brand_name = _data2.get("brand_name") or brand_name
+                except Exception:
+                    pass
+
     return templates.TemplateResponse(
         "signup.html",
         {
@@ -197,9 +237,10 @@ def registration_page(
             "plan": plan,
             "return_url": return_url,
             "website_url": settings.website_url,
-            "sponsor_org_id": sponsor_org_id,
+            "sponsor_org_id": sponsor_org_id or (prefill_org or {}).get("sponsor_org_id") or "",
             "brand_logo_url": brand_logo_url,
             "brand_name": brand_name,
+            "prefill_org": prefill_org,
         }
     )
 
@@ -610,7 +651,34 @@ def payment_success(
     if license_rec and org.email:
         from ..services.email import send_license_receipt
         send_license_receipt(license_rec.license_id, db)
-    
+
+    # Resolve branded Tracking portal URL for the client
+    # Uses the org's sponsor_org_id to look up OEM branding and build the login URL
+    portal_url = None
+    portal_brand_name = None
+    portal_logo_url = None
+    portal_primary_color = "#7c3aed"
+    sponsor_id = getattr(org, "sponsor_org_id", None)
+    if sponsor_id:
+        try:
+            import urllib.request as _ur
+            import json as _json
+            _tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
+            _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={sponsor_id}"
+            with _ur.urlopen(_branding_url, timeout=3) as _resp:
+                _bdata = _json.loads(_resp.read().decode())
+                if isinstance(_bdata, dict) and _bdata.get("brand_name"):
+                    portal_brand_name = _bdata.get("brand_name")
+                    portal_logo_url = _bdata.get("logo_url")
+                    portal_primary_color = _bdata.get("primary_color") or portal_primary_color
+            # Build the branded portal login URL using the public-facing Tracking URL
+            _public_tracking = (getattr(settings, "website_url", None) or "").rstrip("/")
+            if not _public_tracking:
+                _public_tracking = (settings.tracking_program_url or "http://localhost:8087").rstrip("/")
+            portal_url = f"{_public_tracking}/auth/login?oem={sponsor_id}"
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         "signup_success.html",
         {
@@ -628,6 +696,10 @@ def payment_success(
             "currency": order.currency,
             "term_start": order.term_start,
             "term_end": order.term_end,
+            "portal_url": portal_url,
+            "portal_brand_name": portal_brand_name,
+            "portal_logo_url": portal_logo_url,
+            "portal_primary_color": portal_primary_color,
         }
     )
 
@@ -729,9 +801,16 @@ def register_submit(
     pe_license_state: Optional[str] = Form(None),
     agreement_accepted: Optional[str] = Form(None),  # Checkbox returns "on" if checked
     return_url: Optional[str] = Form(None),
+    # Pre-registered org claim: when set the org already exists (created by OEM at bill-scan time)
+    existing_org_id: Optional[str] = Form(None),
     db: Session = Depends(db_session)
 ):
-    """Handle registration submission for PE or Licensee."""
+    """Handle registration submission for PE or Licensee.
+
+    When existing_org_id is provided (client arriving via an OEM invitation link),
+    the organisation record already exists in the database.  We skip org creation
+    and just add the user account + update any missing contact fields.
+    """
     try:
         # Validate username format
         import re
@@ -798,49 +877,77 @@ def register_submit(
                     status_code=400
                 )
         
-        # Generate org_id
-        org_id = _generate_org_id(org_name, org_type)
-        
-        # Check if org_id already exists
-        if db.get(Organization, org_id):
-            return templates.TemplateResponse(
-                "signup.html",
-                {"request": request, "error": "Organization ID already exists. Please try again.", "success": None, "website_url": settings.website_url},
-                status_code=409
-            )
-        
-        # Create organization
-        org_data = {
-            "org_id": org_id,
-            "org_name": org_name,
-            "org_type": org_type,
-            "email": email.strip(),
-            # Company/Billing Address
-            "company_address": company_address.strip() if company_address else None,
-            "company_city": company_city.strip() if company_city else None,
-            "company_state": company_state.strip().upper() if company_state else None,
-            "company_zip": company_zip.strip() if company_zip else None,
-            "company_phone": company_phone.strip() if company_phone else None,
-            "company_cell": company_cell.strip() if company_cell else None,
-            # Physical Address
-            "physical_address": physical_address.strip() if physical_address else None,
-            "physical_city": physical_city.strip() if physical_city else None,
-            "physical_state": physical_state.strip().upper() if physical_state else None,
-            "physical_zip": physical_zip.strip() if physical_zip else None,
-            "physical_phone": physical_phone.strip() if physical_phone else None,
-            "physical_cell": physical_cell.strip() if physical_cell else None,
-        }
-        
-        if org_type == "pe":
-            org_data["pe_license_number"] = pe_license_number.strip() if pe_license_number else None
-            org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
-            org_data["pe_approval_status"] = "pending"
-        
-        org = Organization(**org_data)
-        db.add(org)
-        db.commit()
-        log_event(db, actor="self_service", action="org.create", ref_id=org_id, 
-                 detail={"org_type": org_type, "email": email, "pe_license_number": pe_license_number if org_type == "pe" else None})
+        # ------------------------------------------------------------------
+        # Org resolution: claim pre-existing org (invitation path) or create
+        # ------------------------------------------------------------------
+        claimed_org = None
+        if existing_org_id and existing_org_id.strip():
+            claimed_org = db.get(Organization, existing_org_id.strip())
+
+        if claimed_org:
+            # Client arrived via an OEM invitation link — org already exists.
+            # Update any missing contact/address fields from the form submission.
+            org = claimed_org
+            org_id = org.org_id
+            if not org.email and email:
+                org.email = email.strip()
+            if not org.company_address and company_address:
+                org.company_address = company_address.strip()
+            if not org.company_city and company_city:
+                org.company_city = company_city.strip()
+            if not org.company_state and company_state:
+                org.company_state = company_state.strip().upper()
+            if not org.company_zip and company_zip:
+                org.company_zip = company_zip.strip()
+            if not org.company_phone and company_phone:
+                org.company_phone = company_phone.strip()
+            if company_cell and not org.company_cell:
+                org.company_cell = company_cell.strip()
+            db.add(org)
+            db.flush()
+            log_event(db, actor="self_service", action="org.claimed", ref_id=org_id,
+                      detail={"email": email, "username": username})
+        else:
+            # Fresh registration — generate a new org_id and create the record.
+            org_id = _generate_org_id(org_name, org_type)
+
+            if db.get(Organization, org_id):
+                return templates.TemplateResponse(
+                    "signup.html",
+                    {"request": request, "error": "Organization ID already exists. Please try again.", "success": None, "website_url": settings.website_url},
+                    status_code=409
+                )
+
+            org_data = {
+                "org_id": org_id,
+                "org_name": org_name,
+                "org_type": org_type,
+                "email": email.strip(),
+                "company_address": company_address.strip() if company_address else None,
+                "company_city": company_city.strip() if company_city else None,
+                "company_state": company_state.strip().upper() if company_state else None,
+                "company_zip": company_zip.strip() if company_zip else None,
+                "company_phone": company_phone.strip() if company_phone else None,
+                "company_cell": company_cell.strip() if company_cell else None,
+                "physical_address": physical_address.strip() if physical_address else None,
+                "physical_city": physical_city.strip() if physical_city else None,
+                "physical_state": physical_state.strip().upper() if physical_state else None,
+                "physical_zip": physical_zip.strip() if physical_zip else None,
+                "physical_phone": physical_phone.strip() if physical_phone else None,
+                "physical_cell": physical_cell.strip() if physical_cell else None,
+            }
+
+            if org_type == "pe":
+                org_data["pe_license_number"] = pe_license_number.strip() if pe_license_number else None
+                org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
+                org_data["pe_approval_status"] = "pending"
+
+            org = Organization(**org_data)
+            db.add(org)
+            db.commit()
+            log_event(db, actor="self_service", action="org.create", ref_id=org_id,
+                      detail={"org_type": org_type, "email": email,
+                              "pe_license_number": pe_license_number if org_type == "pe" else None})
         
         # Create user account
         import bcrypt

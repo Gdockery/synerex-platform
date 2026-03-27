@@ -15,7 +15,7 @@ import {AdminProjectService} from "../../admin/project/admin-project.service";
 export class InvoiceComponent implements OnInit { 
 
   public links;
-  public vewOwnerManuals = false;
+  public viewOwnerManuals = false;
   public hasAnalytic = null;
   public reportFields;
   public depositInvoiceDate;
@@ -40,9 +40,7 @@ export class InvoiceComponent implements OnInit {
       this.links = links;
     });
     this.billAnalyticService.getAnalytic().subscribe((analytic:any) => {
-      this.billAnalyticService.getEquipment().subscribe((equipment:any) => {
-        this.hasAnalytic = !!analytic && !!equipment.items;
-      });
+      this.hasAnalytic = !!analytic;
     });
 
     this.form = this.formBuilder.group({

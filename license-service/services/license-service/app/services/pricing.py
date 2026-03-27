@@ -26,26 +26,29 @@ PRICING = {
     "tracking": {
         "basic": {
             "base_price": Decimal("495.00"),
-            "per_seat": Decimal("0.00"),
+            "per_seat": Decimal("99.00"),
             "per_meter": Decimal("750.00"),
             "annual": Decimal("495.00"),
+            "included_seats": 5,
             "max_users": 5,
             "description": "Read Only Version",
         },
         "pro": {
             "base_price": Decimal("950.00"),
-            "per_seat": Decimal("0.00"),
-            "per_meter": Decimal("795.00"),
+            "per_seat": Decimal("99.00"),
+            "per_meter": Decimal("750.00"),
             "annual": Decimal("950.00"),
+            "included_seats": 15,
             "max_users": 15,
             "description": "Equipment Scheduling",
         },
         "enterprise": {
             "base_price": Decimal("1495.00"),
-            "per_seat": Decimal("0.00"),
+            "per_seat": Decimal("99.00"),
             "per_meter": Decimal("750.00"),
             "annual": Decimal("1495.00"),
-            "max_users": None,  # Unlimited
+            "included_seats": 25,
+            "max_users": 25,
             "description": "Full Scheduling/Reporting",
         },
     },
@@ -106,8 +109,10 @@ def calculate_price(
     # Calculate base price
     base_price = pricing["base_price"]
     
-    # Calculate seat cost
-    seat_cost = pricing["per_seat"] * seat_count
+    # Calculate seat cost — only charge for seats above included_seats
+    included_seats = int(pricing.get("included_seats", 0))
+    extra_seats = max(0, seat_count - included_seats)
+    seat_cost = pricing["per_seat"] * extra_seats
     
     # Calculate meter cost
     meter_cost = pricing["per_meter"] * meter_count
@@ -134,6 +139,8 @@ def calculate_price(
             "plan": normalized_plan,
             "term_days": term_days,
             "seat_count": seat_count,
+            "included_seats": included_seats,
+            "extra_seats": extra_seats,
             "meter_count": meter_count,
             "base_price": str(base_price),
             "per_seat": str(pricing["per_seat"]),
@@ -168,6 +175,8 @@ def get_pricing_info(program_id: str, plan: str) -> Dict[str, Any]:
         "annual_price": str(pricing["annual"]),
         "per_seat": str(pricing["per_seat"]),
         "per_meter": str(pricing["per_meter"]),
+        "included_seats": int(pricing.get("included_seats", 0)),
+        "max_users": pricing.get("max_users"),
         "currency": "USD",
     }
 

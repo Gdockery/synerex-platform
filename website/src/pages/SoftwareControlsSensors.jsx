@@ -18,7 +18,7 @@ export default function SoftwareControlsSensors() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -37,27 +37,27 @@ export default function SoftwareControlsSensors() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Intelligent Sensor Networks</h3>
+            <h3 className="font-bold text-purple-200">Intelligent Sensor Networks</h3>
             <p className="text-sm mt-2 text-gray-300">Advanced sensor arrays that provide comprehensive monitoring of current, voltage, frequency, and power quality parameters across entire electrical networks with real-time data collection and analysis.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Adaptive Control Algorithms</h3>
+            <h3 className="font-bold text-purple-200">Adaptive Control Algorithms</h3>
             <p className="text-sm mt-2 text-gray-300">Smart software controls that automatically adjust system parameters based on real-time sensor data, optimizing power quality and system performance through machine learning and predictive analytics.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Real-Time Data Processing</h3>
+            <h3 className="font-bold text-purple-200">Real-Time Data Processing</h3>
             <p className="text-sm mt-2 text-gray-300">High-speed data processing systems that analyze sensor inputs in real-time, providing instant feedback and control adjustments to maintain optimal power quality conditions across all connected equipment.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Predictive Maintenance</h3>
+            <h3 className="font-bold text-purple-200">Predictive Maintenance</h3>
             <p className="text-sm mt-2 text-gray-300">Advanced analytics that predict equipment failures and maintenance needs based on sensor data patterns, enabling proactive maintenance scheduling and reducing unexpected downtime.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Remote Monitoring & Control</h3>
+            <h3 className="font-bold text-purple-200">Remote Monitoring & Control</h3>
             <p className="text-sm mt-2 text-gray-300">Cloud-based monitoring platforms that allow remote access to sensor data and control systems, enabling 24/7 monitoring and management from anywhere in the world.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Integration & Scalability</h3>
+            <h3 className="font-bold text-purple-200">Integration & Scalability</h3>
             <p className="text-sm mt-2 text-gray-300">Modular software architecture that seamlessly integrates with existing SCADA, BMS, and enterprise systems while supporting scalable expansion from single-site to multi-facility deployments.</p>
           </div>
         </div>

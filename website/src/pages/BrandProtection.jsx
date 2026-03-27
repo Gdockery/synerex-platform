@@ -1,16 +1,11 @@
 export default function BrandProtection() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -26,7 +21,7 @@ export default function BrandProtection() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,27 +40,27 @@ export default function BrandProtection() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Trademark Monitoring</h3>
+            <h3 className="font-bold text-purple-200">Trademark Monitoring</h3>
             <p className="text-sm mt-2 text-gray-300">Comprehensive monitoring and surveillance systems to detect unauthorized use of Synerex trademarks across all markets, channels, and platforms worldwide.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Infringement Detection</h3>
+            <h3 className="font-bold text-purple-200">Infringement Detection</h3>
             <p className="text-sm mt-2 text-gray-300">Advanced detection systems and legal expertise to identify trademark infringements, counterfeit products, and unauthorized brand usage in the marketplace.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Enforcement Actions</h3>
+            <h3 className="font-bold text-purple-200">Enforcement Actions</h3>
             <p className="text-sm mt-2 text-gray-300">Proactive enforcement measures including cease and desist notices, legal actions, and collaboration with law enforcement to protect Synerex brand assets.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Counterfeit Prevention</h3>
+            <h3 className="font-bold text-purple-200">Counterfeit Prevention</h3>
             <p className="text-sm mt-2 text-gray-300">Anti-counterfeiting measures and technologies to prevent the production and distribution of counterfeit Synerex products and protect brand reputation.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Legal Compliance</h3>
+            <h3 className="font-bold text-purple-200">Legal Compliance</h3>
             <p className="text-sm mt-2 text-gray-300">Comprehensive legal compliance programs to ensure proper trademark registration, maintenance, and protection across all relevant jurisdictions and markets.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Brand Integrity Management</h3>
+            <h3 className="font-bold text-purple-200">Brand Integrity Management</h3>
             <p className="text-sm mt-2 text-gray-300">Ongoing brand integrity management to maintain the value, reputation, and distinctiveness of Synerex trademarks in the competitive marketplace.</p>
           </div>
         </div>

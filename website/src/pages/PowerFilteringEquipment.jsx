@@ -1,16 +1,11 @@
 export default function PowerFilteringEquipment() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -26,7 +21,7 @@ export default function PowerFilteringEquipment() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,27 +40,27 @@ export default function PowerFilteringEquipment() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Advanced Power Filters</h3>
+            <h3 className="font-bold text-purple-200">Advanced Power Filters</h3>
             <p className="text-sm mt-2 text-gray-300">Specialized filtering equipment designed to eliminate harmonic distortion and maintain clean 60Hz power quality in industrial and commercial electrical systems.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Power Conditioning Units</h3>
+            <h3 className="font-bold text-purple-200">Power Conditioning Units</h3>
             <p className="text-sm mt-2 text-gray-300">Advanced power conditioning systems that stabilize voltage levels, reduce electrical noise, and ensure consistent power quality across all connected equipment.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Active Power Filters</h3>
+            <h3 className="font-bold text-purple-200">Active Power Filters</h3>
             <p className="text-sm mt-2 text-gray-300">Intelligent filtering systems that actively monitor and correct power quality issues in real-time, providing dynamic compensation for voltage fluctuations and harmonic distortion.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Passive Filter Networks</h3>
+            <h3 className="font-bold text-purple-200">Passive Filter Networks</h3>
             <p className="text-sm mt-2 text-gray-300">Reliable passive filtering solutions using capacitors, inductors, and resistors to provide cost-effective power quality improvement for standard industrial applications.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Frequency Conversion Systems</h3>
+            <h3 className="font-bold text-purple-200">Frequency Conversion Systems</h3>
             <p className="text-sm mt-2 text-gray-300">Advanced frequency conversion equipment that ensures optimal 60Hz operation while providing flexibility for international applications and specialized industrial requirements.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Custom PQ Software Tuning Solutions</h3>
+            <h3 className="font-bold text-purple-200">Custom PQ Software Tuning Solutions</h3>
             <p className="text-sm mt-2 text-gray-300">Tailored filtering equipment designed to meet specific power quality requirements, including custom frequency responses, power ratings, and environmental specifications.</p>
           </div>
         </div>

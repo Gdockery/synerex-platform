@@ -33,4 +33,8 @@ export class ProjectOverviewService {
     return this.apiRequestService.get('/api/meter/quality', this.apiRequestService.createRequestParams(params));
   }
 
+  getHarmonicsData(params): Observable<any> {
+    return this.apiRequestService.get('/api/meter/harmonics', this.apiRequestService.createRequestParams(params));
+  }
+
 }

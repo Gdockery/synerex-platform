@@ -1193,7 +1193,7 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // Add session token if available
     if (sessionToken) {
-      authHeaders['X-Session-Token'] = sessionToken;
+      authHeaders['Authorization'] = 'Bearer ' + sessionToken;
       console.log('🔑 Session token found, adding to request');
     } else {
       console.warn('[WARNING] No session token found - request may fail if authentication is required');
@@ -1725,6 +1725,94 @@ function saveProject() {
     console.log(`[SAVE] Explicitly ensured ${explicitFieldsAdded} Project Information fields are in payload`);
   }
 
+  // Explicitly collect Walk-Through: Conductor Builder fields (EMV-only, not in Tracking)
+  // Try multiple selectors; use element's actual id/name as payload key so loadProject can restore
+  const conductorBuilderSelectors = {
+    'wt_material': ['#wt_material', '[name="wt_material"]', '#conductor_material', '[name="conductor_material"]'],
+    'wt_length': ['#wt_length', '[name="wt_length"]', '#conductor_length', '[name="conductor_length"]', '[name="length_one_way"]'],
+    'wt_awg': ['#wt_awg', '[name="wt_awg"]', '#gauge_awg', '[name="gauge_awg"]', '[name="gauge_AWG"]'],
+    'wt_mm2': ['#wt_mm2', '[name="wt_mm2"]', '#cross_section', '[name="cross_section"]', '[name="cross-section"]'],
+    'wt_area_unit': ['#wt_area_unit', '[name="wt_area_unit"]', '#area_units', '[name="area_units"]'],
+    'length_units': ['#length_units', '[name="length_units"]', '#units', '[name="units"]'],
+    'wt_parallel': ['#wt_parallel', '[name="wt_parallel"]', '#conductors_parallel', '[name="conductors_parallel"]', '[name="conductors_in_parallel"]']
+  };
+  let conductorBuilderAdded = 0;
+  Object.keys(conductorBuilderSelectors).forEach(fieldKey => {
+    let field = null;
+    for (const sel of conductorBuilderSelectors[fieldKey]) {
+      try {
+        const el = document.querySelector(sel);
+        if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) {
+          field = el;
+          break;
+        }
+      } catch (e) { /* ignore invalid selector */ }
+    }
+    if (field) {
+      const fieldValue = field.value || '';
+      const payloadKey = (field.name && field.name.trim()) || (field.id && field.id.trim()) || fieldKey;
+      payload[payloadKey] = fieldValue;
+      if (!foundFields.includes(payloadKey)) {
+        foundFields.push(payloadKey);
+        conductorBuilderAdded++;
+        fieldCount++;
+      }
+    }
+  });
+  if (conductorBuilderAdded > 0) {
+    console.log(`[SAVE] Explicitly ensured ${conductorBuilderAdded} Conductor Builder fields are in payload`);
+  } else {
+    console.log('[SAVE] No Conductor Builder fields found (check HTML element ids/names in Walk-Through section)');
+  }
+
+  // Helper: get field value by id or name, add to payload if found
+  function ensureField(payloadKey, idOrName) {
+    const el = document.getElementById(idOrName) || document.querySelector('[name="' + idOrName + '"]');
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) {
+      const val = el.type === 'checkbox' ? el.checked : (el.value || '');
+      payload[payloadKey] = val;
+      if (!foundFields.includes(payloadKey)) { foundFields.push(payloadKey); fieldCount++; return 1; }
+    }
+    return 0;
+  }
+
+  // Equipment Configuration
+  let n = 0;
+  n += ensureField('equipment_type', 'equipment_type');
+  n += ensureField('equipment_type_other_desc', 'equipment_type_other_desc');
+  if (n > 0) console.log('[SAVE] Explicitly ensured Equipment Configuration fields');
+
+  // Billing Information
+  const billingKeys = ['project_cost', 'utility', 'utility_name', 'utility_program', 'tariff', 'account', 'energy_rate', 'demand_rate', 'capacity_rate', 'capacity_rate_per_kw', 'billing_model', 'billing_method', 'currency_code', 'tariff_type', 'seasonal_mode', 'kva_demand_rate', 'reactive_adder', 'reactive_rate_per_kvar', 'ncp_demand_rate', 'demand_rate_ncp', 'cp_demand_rate', 'demand_rate_cp', 'coincident_peak', 'coincident_peak_rate', 'target_pf', 'target_power_factor', 'discount_rate', 'escalation_rate', 'analysis_period', 'tou_on_peak', 'tou_on_peak_rate', 'tou_off_peak', 'tou_off_peak_rate', 'summer_fraction_pct', 'summer_on_peak', 'summer_on_peak_rate', 'summer_rate_on', 'summer_off_peak', 'summer_off_peak_rate', 'summer_rate_off', 'winter_on_peak', 'winter_on_peak_rate', 'winter_rate_on', 'winter_off_peak', 'winter_off_peak_rate', 'winter_rate_off', 'onpeak_fraction_pct', 'ratchet_percent', 'ratchet_ref_peak', 'ratchet_ref_kw', 'ratchet_reference_peak', 'last_month_bill_cost'];
+  n = 0;
+  billingKeys.forEach(k => { n += ensureField(k, k); });
+  if (n > 0) console.log('[SAVE] Explicitly ensured ' + n + ' Billing Information fields');
+
+  // CP/PLC Events
+  n = 0;
+  n += ensureField('cp_year', 'cp_year');
+  n += ensureField('cp_region', 'cp_region');
+  n += ensureField('cp_timestamps', 'cp_timestamps');
+  if (n > 0) console.log('[SAVE] Explicitly ensured CP/PLC Events fields');
+
+  // Conductor Configuration
+  const conductorKeys = ['conductor_scope', 'line_R_ref_ohm', 'conductor_R_ref_ohm', 'alpha_conductor', 'alpha_conductor_i2r', 'R_ref_temp_c', 'R_ref_temp_c_i2r', 'conductor_temp_rise_c', 'conductor_temp_rise_c_i2r', 'wire_temp_mode', 'wire_temp_mode_i2r', 'include_network_losses'];
+  n = 0;
+  conductorKeys.forEach(k => { n += ensureField(k, k); });
+  if (n > 0) console.log('[SAVE] Explicitly ensured ' + n + ' Conductor Configuration fields');
+
+  // Electrical Configuration
+  const electricalKeys = ['phases', 'voltage_nominal', 'voltage_type', 'xfmr_kva', 'xfmr_load_loss_w', 'xfmr_core_loss_w', 'xfmr_stray_fraction_pct', 'xfmr_impedance_pct', 'kh_stray_factor', 'harmonic_analysis_mode', 'il_demand_A'];
+  n = 0;
+  electricalKeys.forEach(k => { n += ensureField(k, k); });
+  if (n > 0) console.log('[SAVE] Explicitly ensured ' + n + ' Electrical Configuration fields');
+
+  // I²R & Eddy Parameters / Testing Parameters
+  const i2rKeys = ['isc_kA', 'il_A', 'test_period_before', 'test_period_after', 'test_duration', 'test_type', 'test_circuit', 'test_meter_spec', 'test_pk_load_percent', 'test_int_data'];
+  n = 0;
+  i2rKeys.forEach(k => { n += ensureField(k, k); });
+  if (n > 0) console.log('[SAVE] Explicitly ensured ' + n + ' I²R/Testing Parameters fields');
+
   console.log('[SAVE] Saving project:', projectName);
   console.log('[SAVE] Field count:', fieldCount);
   console.log('[SAVE] Payload keys:', Object.keys(payload).length);
@@ -1872,6 +1960,7 @@ function saveProject() {
         
         showNotification(`Project "${projectName}" saved successfully! (${fieldCount} fields saved)`);
         loadProjectList(); // Refresh the list
+        if (typeof window.loadOemEmvProjects === 'function') window.loadOemEmvProjects();
       } else {
         showNotification('Error saving project: ' + (data.error || 'Unknown error'));
       }
@@ -2298,9 +2387,9 @@ function fetchFileInfoAndRestore(fileId, fileType) {
     });
 }
 
-function loadProject() {
+function loadProject(selectOverride) {
   console.log('📂 loadProject() called from UI page');
-  const select = document.getElementById('projectList');
+  const select = selectOverride || document.getElementById('projectList');
   
   if (!select) {
     console.error('[ERROR] Project list select element not found');
@@ -2558,6 +2647,8 @@ function loadProject() {
         }
 
         showNotification(`Project loaded successfully! (${loadedCount} fields loaded)`);
+        var oemSel = document.getElementById('oem-emv-project-select');
+        if (oemSel && projectName) { oemSel.value = projectName; }
         
         // Automatically provide utility information if location is available
         setTimeout(() => {
@@ -3745,7 +3836,16 @@ function setupCPEventsAutoPopulation() {
 // -----------------------------------------------------------------------------
 // API base: when under /emv/ (proxy at 8080), use /emv prefix so /api/ reaches EMV
 function _trackingApiBase() {
-  return (window.location.pathname.startsWith && window.location.pathname.startsWith('/emv')) ? '/emv' : '';
+  // When on proxy port (8080 HTTP or 8443 HTTPS), EMV is always at /emv/
+  if (window.location.port === '8080' || window.location.port === '8443') return '/emv';
+  // Default ports (80/443) - port may be empty string
+  if (window.location.port === '80' || window.location.port === '443' || window.location.port === '') {
+    if (window.location.pathname.startsWith && window.location.pathname.startsWith('/emv')) return '/emv';
+  }
+  // When path starts with /emv (e.g. behind proxy with different port)
+  if (window.location.pathname.startsWith && window.location.pathname.startsWith('/emv')) return '/emv';
+  // Direct to EMV (e.g. :8082)
+  return '';
 }
 
 function setupTrackingIntegration() {
@@ -3784,14 +3884,38 @@ function setupTrackingIntegration() {
 
   container.innerHTML = [
     '<div style="margin-bottom:0.5em; font-weight:600;">Tracking Integration</div>',
+    '<div style="display:flex; flex-wrap:wrap; gap:0.5em; align-items:center; margin-bottom:0.5em;">',
+    '  <label>EMV Project: <select id="oem-emv-project-select" style="min-width:200px; padding:4px;"><option value="">-- Select project --</option></select></label>',
+    '  <button type="button" id="btn-oem-load-project" class="btn-secondary" style="padding:4px 10px;">Load</button>',
+    '</div>',
     '<div style="display:flex; flex-wrap:wrap; gap:0.5em; align-items:center;">',
     '  <label>Tracking Project: <select id="tracking-project-select" style="min-width:200px; padding:4px;"><option value="">-- Select project --</option></select></label>',
     '  <button type="button" id="btn-import-bill-analytic" class="btn-secondary" style="padding:4px 10px;">Import from Bill Analytic</button>',
     '</div>',
-    '<div id="tracking-status" style="margin-top:0.5em; font-size:0.85em; color:#666;"></div>'
+    '<div id="tracking-status" style="margin-top:0.5em; font-size:0.85em; color:#666;"></div>',
+    '<div style="display:flex; gap:8px; align-items:center; margin-top:0.6em; padding-top:0.6em; border-top:1px solid #ddd;">',
+    '  <button type="button" id="btn-oem-save" class="btn secondary" style="color:white !important;">Save</button>',
+    '  <button type="button" id="btn-oem-save-as" class="btn secondary" style="color:white !important;">Save As</button>',
+    '  <button type="button" id="btn-oem-delete" class="btn danger" style="color:white !important;">Delete</button>',
+    '</div>'
   ].join('');
 
+  var oemSaveBtn = document.getElementById('btn-oem-save');
+  var oemSaveAsBtn = document.getElementById('btn-oem-save-as');
+  var oemDeleteBtn = document.getElementById('btn-oem-delete');
+  if (oemSaveBtn) oemSaveBtn.addEventListener('click', function() {
+    if (typeof saveProject === 'function') { saveProject(); } else { showNotification('Save not available'); }
+  });
+  if (oemSaveAsBtn) oemSaveAsBtn.addEventListener('click', function() {
+    if (typeof saveAsProject === 'function') { saveAsProject(); } else { showNotification('Save As not available'); }
+  });
+  if (oemDeleteBtn) oemDeleteBtn.addEventListener('click', function() {
+    if (typeof deleteProject === 'function') { deleteProject(); } else { showNotification('Delete not available'); }
+  });
+
   const selectEl = document.getElementById('tracking-project-select');
+  const oemEmvSelect = document.getElementById('oem-emv-project-select');
+  const oemLoadBtn = document.getElementById('btn-oem-load-project');
   const importBtn = document.getElementById('btn-import-bill-analytic');
   const statusEl = document.getElementById('tracking-status');
 
@@ -3800,7 +3924,57 @@ function setupTrackingIntegration() {
     statusEl.style.color = isError ? '#c00' : '#666';
   }
 
-  async function loadProjects() {
+  async function loadOemEmvProjects() {
+    if (!oemEmvSelect) return;
+    try {
+      const token = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+      const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const resp = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
+        method: 'GET',
+        headers: headers,
+        cache: 'no-cache'
+      });
+      const data = resp.ok ? await resp.json().catch(function() { return []; }) : [];
+      const projects = Array.isArray(data) ? data : [];
+      oemEmvSelect.innerHTML = '<option value="">-- Select project --</option>';
+      projects.forEach(function(p) {
+        const projectId = p.id || p.project_id || p.ID;
+        const projectName = p.name || p.project_name || p.Name;
+        if (projectName && projectId) {
+          const opt = document.createElement('option');
+          opt.value = projectName;
+          opt.textContent = projectName;
+          opt.setAttribute('data-project-id', projectId);
+          oemEmvSelect.appendChild(opt);
+        }
+      });
+    } catch (e) {
+      console.warn('Could not load EMV projects for OEM:', e.message);
+    }
+  }
+
+  if (oemLoadBtn && oemEmvSelect) {
+    oemLoadBtn.addEventListener('click', function() {
+      const projectName = oemEmvSelect.value;
+      if (!projectName) {
+        setStatus('Please select an EMV project first.', true);
+        return;
+      }
+      setStatus('Loading project...');
+      loadProject(oemEmvSelect);
+    });
+    oemEmvSelect.addEventListener('change', function() {
+      const projectName = oemEmvSelect.value;
+      const projectNameField = document.getElementById('projectName');
+      if (projectNameField && projectName) projectNameField.value = projectName;
+    });
+  }
+
+  loadOemEmvProjects();
+  window.loadOemEmvProjects = loadOemEmvProjects;
+
+  async function loadTrackingProjects() {
     try {
       const base = _trackingApiBase();
       const urlParams = new URLSearchParams(window.location.search || '');
@@ -3857,7 +4031,7 @@ function setupTrackingIntegration() {
     }
   }
 
-  loadProjects();
+  loadTrackingProjects();
 
   importBtn.addEventListener('click', async function() {
     const opt = selectEl.options[selectEl.selectedIndex];
@@ -3882,17 +4056,17 @@ function setupTrackingIntegration() {
 
       // Full field map: reportFields key → list of element id/name candidates in EMV form
       const rfFieldMap = {
-        'company':             ['projectName', 'company'],
+        'company':             ['cp_company', 'projectName', 'company'],
         'cp_address':          ['cp_address'],
-        'cp_location':         ['cp_location'],
-        'cp_city_state':       ['cp_city_state'],
+        'cp_city':             ['cp_city', 'facility_city'],
+        'cp_state':            ['cp_state', 'facility_state'],
         'cp_zip':              ['cp_zip'],
-        'contact':             ['project_contact', 'contact'],
-        'phone':               ['project_phone', 'phone'],
-        'email':               ['project_email', 'email'],
+        'contact':             ['cp_contact', 'project_contact', 'contact'],
+        'phone':               ['cp_phone', 'project_phone', 'phone'],
+        'email':               ['cp_email', 'project_email', 'email'],
         'project_type':        ['project-type', 'project_type'],
         'facility_address':    ['facility_address'],
-        'location':            ['facility_city', 'location'],
+        'facility_city':       ['facility_city', 'location'],
         'facility_state':      ['facility_state'],
         'facility_zip':        ['facility_zip'],
         'project_cost':        ['project_cost'],
@@ -3900,15 +4074,15 @@ function setupTrackingIntegration() {
         'utility_name':        ['utility_name', 'electric_company', 'utility'],
         'utility_program':     ['utility_program', 'utility_program_name'],
         'tariff':              ['tariff', 'cp_tariff', 'rate_schedule'],
-        'account':             ['account', 'account_number'],
+        'account':             ['account', 'account_number', 'cp_account'],
         'energy_rate':         ['energy_rate'],
         'demand_rate':         ['demand_rate'],
-        'capacity_rate':       ['capacity_rate'],
+        'capacity_rate':       ['capacity_rate', 'capacity_rate_per_kw'],
         'billing_model':       ['billing_model'],
-        'kva_demand_rate':     ['kva_demand_rate'],
-        'reactive_adder':      ['reactive_adder'],
-        'ncp_demand_rate':     ['ncp_demand_rate'],
-        'cp_demand_rate':      ['cp_demand_rate'],
+        'kva_demand_rate':     ['kva_demand_rate', 'demand_rate_kva'],
+        'reactive_adder':      ['reactive_adder', 'reactive_rate_per_kvar'],
+        'ncp_demand_rate':     ['ncp_demand_rate', 'demand_rate_ncp'],
+        'cp_demand_rate':      ['cp_demand_rate', 'demand_rate_cp'],
         'coincident_peak':     ['coincident_peak', 'coincident_peak_rate'],
         'target_pf':           ['target_pf', 'target_power_factor'],
         'discount_rate':       ['discount_rate'],
@@ -3917,13 +4091,13 @@ function setupTrackingIntegration() {
         'tou_on_peak':         ['tou_on_peak', 'tou_on_peak_rate'],
         'tou_off_peak':        ['tou_off_peak', 'tou_off_peak_rate'],
         'summer_fraction_pct': ['summer_fraction_pct'],
-        'summer_on_peak':      ['summer_on_peak', 'summer_on_peak_rate'],
-        'summer_off_peak':     ['summer_off_peak', 'summer_off_peak_rate'],
-        'winter_on_peak':      ['winter_on_peak', 'winter_on_peak_rate'],
-        'winter_off_peak':     ['winter_off_peak', 'winter_off_peak_rate'],
+        'summer_on_peak':      ['summer_on_peak', 'summer_on_peak_rate', 'summer_rate_on'],
+        'summer_off_peak':     ['summer_off_peak', 'summer_off_peak_rate', 'summer_rate_off'],
+        'winter_on_peak':      ['winter_on_peak', 'winter_on_peak_rate', 'winter_rate_on'],
+        'winter_off_peak':     ['winter_off_peak', 'winter_off_peak_rate', 'winter_rate_off'],
         'onpeak_fraction_pct': ['onpeak_fraction_pct'],
         'ratchet_percent':     ['ratchet_percent'],
-        'ratchet_ref_peak':    ['ratchet_ref_peak', 'ratchet_reference_peak'],
+        'ratchet_ref_peak':    ['ratchet_ref_peak', 'ratchet_reference_peak', 'ratchet_ref_kw'],
       };
 
       // Bill analytic fields from electricBillAnalysis (scalar meter data)
@@ -4061,7 +4235,8 @@ async function handlePushToTracking() {
       offPeriod: { start: config.test_period_before || '', end: config.test_period_before || '' },
       onPeriod: { start: config.test_period_after || '', end: config.test_period_after || '' }
     };
-    const resp = await fetch((base || '') + '/api/tracking/push-baseline', {
+    const pushUrl = window.location.origin + (window.SYNEREX_EMV_BASE || base || '') + '/api/tracking/push-baseline';
+    const resp = await fetch(pushUrl, {
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify(payload),
@@ -4070,8 +4245,14 @@ async function handlePushToTracking() {
       let data;
       try { data = await resp.json(); } catch (_) { data = {}; }
       if (!resp.ok) throw new Error(data.error || 'Push failed (status ' + resp.status + ')');
-    const url = (data.response && data.response.reportUrl) ? (window.SYNEREX_TRACKING_URL || window.location.origin.replace('8082', '8087')) + data.response.reportUrl : '';
-    setStatus('Pushed successfully.' + (url ? ' Share link: ' + url : ''));
+    const origin = window.location.origin;
+    const isProxy = (origin.includes(':8080') || origin.includes(':8443'));
+    const trackingBase = (window.SYNEREX_TRACKING_URL || (isProxy ? origin + '/tracking' : origin.replace('8082', '8087'))).replace(/\/+$/, '');
+    const reportUrl = (data.response && data.response.reportUrl) ? trackingBase + data.response.reportUrl : '';
+    const viewInTrackingUrl = trackingBase + '/#/project/select?projectId=' + encodeURIComponent(params.projectId) + '&go=emv-baseline';
+    let msg = 'Pushed successfully. View in Tracking: ' + viewInTrackingUrl;
+    if (reportUrl) msg += ' Share report: ' + reportUrl;
+    setStatus(msg);
   } catch (e) {
     setStatus('Push failed: ' + e.message, true);
   }
@@ -4092,18 +4273,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const prefill = window.TRACKING_PREFILL;
     const fieldMap = {
       // Client Information
-      'company':              ['projectName', 'company'],
+      'company':              ['cp_company', 'projectName', 'company'],
       'cp_address':           ['cp_address'],
-      'cp_location':          ['cp_location'],
-      'cp_city_state':        ['cp_city_state'],
+      'cp_city':              ['cp_city', 'facility_city'],
+      'cp_state':             ['cp_state', 'facility_state'],
       'cp_zip':               ['cp_zip'],
-      'contact':              ['project_contact', 'contact'],
-      'phone':                ['project_phone', 'phone'],
-      'email':                ['project_email', 'email'],
+      'contact':              ['cp_contact', 'project_contact', 'contact'],
+      'phone':                ['cp_phone', 'project_phone', 'phone'],
+      'email':                ['cp_email', 'project_email', 'email'],
       // Project Information
       'project_type':         ['project-type', 'project_type'],
       'facility_address':     ['facility_address'],
-      'location':             ['facility_city', 'location'],
+      'facility_city':        ['facility_city', 'location'],
       'facility_state':       ['facility_state'],
       'facility_zip':         ['facility_zip'],
       // Billing Information
@@ -4112,15 +4293,15 @@ document.addEventListener('DOMContentLoaded', function() {
       'utility_name':         ['utility_name', 'electric_company', 'utility'],
       'utility_program':      ['utility_program', 'utility_program_name'],
       'tariff':               ['tariff', 'cp_tariff', 'rate_schedule'],
-      'account':              ['account', 'account_number'],
+      'account':              ['account', 'account_number', 'cp_account'],
       'energy_rate':          ['energy_rate'],
       'demand_rate':          ['demand_rate'],
-      'capacity_rate':        ['capacity_rate'],
+      'capacity_rate':        ['capacity_rate', 'capacity_rate_per_kw'],
       'billing_model':        ['billing_model'],
-      'kva_demand_rate':      ['kva_demand_rate'],
-      'reactive_adder':       ['reactive_adder'],
-      'ncp_demand_rate':      ['ncp_demand_rate'],
-      'cp_demand_rate':       ['cp_demand_rate'],
+      'kva_demand_rate':      ['kva_demand_rate', 'demand_rate_kva'],
+      'reactive_adder':       ['reactive_adder', 'reactive_rate_per_kvar'],
+      'ncp_demand_rate':      ['ncp_demand_rate', 'demand_rate_ncp'],
+      'cp_demand_rate':       ['cp_demand_rate', 'demand_rate_cp'],
       'coincident_peak':      ['coincident_peak', 'coincident_peak_rate'],
       'target_pf':            ['target_pf', 'target_power_factor'],
       'discount_rate':        ['discount_rate'],
@@ -4129,13 +4310,13 @@ document.addEventListener('DOMContentLoaded', function() {
       'tou_on_peak':          ['tou_on_peak', 'tou_on_peak_rate'],
       'tou_off_peak':         ['tou_off_peak', 'tou_off_peak_rate'],
       'summer_fraction_pct':  ['summer_fraction_pct'],
-      'summer_on_peak':       ['summer_on_peak', 'summer_on_peak_rate'],
-      'summer_off_peak':      ['summer_off_peak', 'summer_off_peak_rate'],
-      'winter_on_peak':       ['winter_on_peak', 'winter_on_peak_rate'],
-      'winter_off_peak':      ['winter_off_peak', 'winter_off_peak_rate'],
+      'summer_on_peak':       ['summer_on_peak', 'summer_on_peak_rate', 'summer_rate_on'],
+      'summer_off_peak':      ['summer_off_peak', 'summer_off_peak_rate', 'summer_rate_off'],
+      'winter_on_peak':       ['winter_on_peak', 'winter_on_peak_rate', 'winter_rate_on'],
+      'winter_off_peak':      ['winter_off_peak', 'winter_off_peak_rate', 'winter_rate_off'],
       'onpeak_fraction_pct':  ['onpeak_fraction_pct'],
       'ratchet_percent':      ['ratchet_percent'],
-      'ratchet_ref_peak':     ['ratchet_ref_peak', 'ratchet_reference_peak'],
+      'ratchet_ref_peak':     ['ratchet_ref_peak', 'ratchet_reference_peak', 'ratchet_ref_kw'],
     };
     let filled = 0;
     Object.keys(prefill).forEach(function(key) {
@@ -4290,7 +4471,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add cache-busting query parameter and cache control headers to prevent caching
         const cacheBust = Date.now();
-        const response = await fetch(`/api/analyze?_cb=${cacheBust}`, {
+        const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze?_cb='+cacheBust, {
           method: "POST",
           body: formData,
           cache: 'no-cache',
@@ -4545,7 +4726,13 @@ async function exportReport(r) {
     // Pass show_dollars based on checkbox - hide dollar amounts in export when unchecked
     const showDollarsCheckbox = document.getElementById('show_dollars_checkbox');
     const showDollars = showDollarsCheckbox ? showDollarsCheckbox.checked : true;
-    const reportUrl = '/api/serve-template-report' + (showDollars ? '' : '?show_dollars=false');
+    // Pass submission_mode from the selector (PE Review vs Utility Submission)
+    const submissionModeEl = document.getElementById('reportSubmissionMode');
+    const submissionMode = submissionModeEl ? submissionModeEl.value : 'pe_review';
+    const reportParams = new URLSearchParams();
+    if (!showDollars) reportParams.set('show_dollars', 'false');
+    reportParams.set('submission_mode', submissionMode);
+    const reportUrl = (window.SYNEREX_EMV_BASE||'')+'/api/serve-template-report?' + reportParams.toString();
     const response = await fetch(reportUrl, {
       method: 'GET',
       headers: {
@@ -4865,6 +5052,157 @@ async function exportEnvelopeReport(r) {
       btn.disabled = false;
       btn.textContent = "Export Envelope Report";
     }
+  }
+}
+
+// Generate M&V Plan pre-analysis (pre-installation, no analysis results needed)
+// Called from the top of the UI so the PE can review and sign before testing begins.
+async function generateMVPlanPreAnalysis() {
+  const btn      = document.getElementById("btnGenerateMVPlanEarly");
+  const statusEl = document.getElementById("mvPlanEarlyStatus");
+
+  if (btn) { btn.disabled = true; btn.textContent = "Generating…"; }
+  if (statusEl) statusEl.textContent = "Generating M&V Plan…";
+
+  try {
+    // Resolve project identity — works before any analysis is run
+    const projectName =
+      document.getElementById('projectName')?.value?.trim() ||
+      document.getElementById('cp_company')?.value?.trim() ||
+      window._currentProjectName || "";
+
+    const projectId =
+      window._currentProjectId ||
+      document.getElementById('projectList')?.value || "";
+
+    if (!projectName && !projectId) {
+      alert("Please load or save a project first, then generate the M&V Plan for PE review.");
+      return;
+    }
+
+    const payload = {};
+    if (projectId)   payload.project_id   = String(projectId);
+    if (projectName) payload.project_name = projectName;
+    // No analysis_results — pre-installation plan uses project config only
+
+    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const headers = { "Content-Type": "application/json" };
+    if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken.trim()}`;
+
+    const base = (typeof window.SYNEREX_EMV_BASE !== 'undefined' ? window.SYNEREX_EMV_BASE : '') || '';
+    const resp = await fetch(`${base}/api/mv-plan/generate`, {
+      method:  "POST",
+      headers,
+      body:    JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || `Server error ${resp.status}`);
+
+    const _earlyViewUrl = (window.SYNEREX_EMV_BASE || '') + data.view_url;
+    if (statusEl) {
+      statusEl.innerHTML =
+        `✔ <a href="${_earlyViewUrl}" target="_blank" style="color:#1a237e; font-weight:bold;">`
+        + `${data.plan_reference}</a> — send to PE for review &amp; sign-off`;
+    }
+    window.open(_earlyViewUrl, "_blank");
+
+  } catch (err) {
+    console.error("[M&V Plan Pre-Analysis]", err);
+    alert("Error generating M&V Plan: " + err.message);
+    if (statusEl) statusEl.textContent = "Error — see console.";
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Generate M&V Plan (Pre-Installation)"; }
+  }
+}
+
+// Generate M&V Plan document for the current project
+async function generateMVPlan(r) {
+  const btn       = document.getElementById("btnGenerateMVPlan");
+  const statusEl  = document.getElementById("mvPlanStatus");
+
+  if (btn) { btn.disabled = true; btn.textContent = "Generating M&V Plan..."; }
+  if (statusEl) statusEl.textContent = "Generating…";
+
+  try {
+    // Resolve project name — check every known location in priority order
+    const domName = document.getElementById('projectName')?.value?.trim() || "";
+
+    // Debug: log all possible name sources so we can see which one has data
+    console.log("[M&V Plan] name resolution:", {
+      domName,
+      r_project_name:            r?.project_name,
+      r_config_project_name:     r?.config?.project_name,
+      r_client_profile_project:  r?.client_profile?.project_name,
+      r_client_profile_company:  r?.client_profile?.company,
+      r_config_company:          r?.config?.company,
+      r_project_id:              r?.project_id,
+      r_config_project_id:       r?.config?.project_id,
+    });
+
+    const projectName = domName ||
+                        (r && r.project_name) ||
+                        (r && r.config && r.config.project_name) ||
+                        (r && r.client_profile && r.client_profile.project_name) ||
+                        (r && r.client_profile && r.client_profile.company) ||
+                        (r && r.config && r.config.company) ||
+                        "";
+    const projectId   = (r && r.project_id) ||
+                        (r && r.config && r.config.project_id) ||
+                        "";
+
+    console.log("[M&V Plan] resolved → projectName:", projectName, "| projectId:", projectId);
+
+    if (!projectName && !projectId) {
+      alert("No project name found. Please load a project before generating an M&V Plan.");
+      if (btn) { btn.disabled = false; btn.textContent = "Generate M&V Plan"; }
+      if (statusEl) statusEl.textContent = "";
+      return;
+    }
+
+    const payload = {};
+    if (projectId)   payload.project_id   = String(projectId);
+    if (projectName) payload.project_name = projectName;
+
+    // Include the full analysis results so the M&V Plan can embed actual
+    // measured/computed values (baseline PF, kW, THD, ASHRAE stats, etc.)
+    if (r && typeof r === 'object') {
+      payload.analysis_results = r;
+    }
+
+    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const mvHeaders = { "Content-Type": "application/json" };
+    if (sessionToken) mvHeaders["Authorization"] = `Bearer ${sessionToken.trim()}`;
+
+    const resp = await fetch((window.SYNEREX_EMV_BASE||'')+"/api/mv-plan/generate", {
+      method:  "POST",
+      headers: mvHeaders,
+      body:    JSON.stringify(payload)
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error || `Server error ${resp.status}`);
+    }
+
+    // Update status display
+    const _base = window.SYNEREX_EMV_BASE || '';
+    const _viewUrl = _base + data.view_url;
+    if (statusEl) {
+      statusEl.innerHTML = `✔ Plan generated: <a href="${_viewUrl}" target="_blank"
+        style="color:#1a237e; font-weight:bold;">${data.plan_reference}</a> — click to view / print`;
+    }
+
+    // Open in new tab
+    window.open(_viewUrl, "_blank");
+
+  } catch (err) {
+    console.error("M&V Plan generation error:", err);
+    alert("Error generating M&V Plan: " + err.message);
+    if (statusEl) statusEl.textContent = "Error — see console for details.";
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Generate M&V Plan"; }
   }
 }
 
@@ -5597,9 +5935,27 @@ async function viewEquipmentHealthReport(r) {
       const beforeComp = r?.before_compliance || window.complianceData?.before_compliance || {};
       const statistical = r?.statistical || window.complianceData?.statistical || {};
       
-      // Calculate compliance directly from values (more reliable than relying on flags)
-      // IEEE 519: THD must be ≤ 5.0%
-      const ieee519Compliant = thdAfter !== null && thdAfter <= 5.0;
+      // ── IEEE 519 compliance — mode-aware ──────────────────────────────────
+      // Determine harmonic analysis mode from results or project config select.
+      const harmonicMode = r?.power_quality?.harmonic_analysis_mode
+                        || document.querySelector("select[name='harmonic_analysis_mode']")?.value
+                        || 'thd_aggregate';
+      const isPerOrderMode = harmonicMode === 'per_order_spectrum';
+
+      // Per-order mode: must have individual_harmonics_compliant AND (tdd or thd) pass.
+      // THD-aggregate mode: aggregate THD ≤ 5% only — but we do NOT call this full compliance.
+      const thdAggPass = thdAfter !== null && thdAfter <= 5.0;
+      const perOrderPass = r?.power_quality?.individual_harmonics_compliant === true;
+      const tddAfter = r?.power_quality?.tdd_after ?? null;
+      const tddLimit = r?.power_quality?.ieee_tdd_limit ?? 5.0;
+      const tddPass = tddAfter !== null ? tddAfter <= tddLimit : null;
+
+      // ieee519Compliant: true only when per-order mode AND all checks pass
+      const ieee519Compliant = isPerOrderMode
+        ? (perOrderPass && (tddPass === null || tddPass === true))
+        : false;  // THD-aggregate cannot produce a definitive COMPLIANT result
+      // Soft pass flag for aggregate-only coloring (amber vs. red)
+      const ieee519ThdSoftPass = !isPerOrderMode && thdAggPass;
       
       // NEMA MG1: Voltage Unbalance must be ≤ 1.0%
       const nemaCompliant = voltageUnbalanceAfter !== null && voltageUnbalanceAfter <= 1.0;
@@ -5607,9 +5963,28 @@ async function viewEquipmentHealthReport(r) {
       // Power Factor: Must be ≥ 0.95
       const pfCompliant = pfAfter !== null && pfAfter >= 0.95;
       
+      // ── Measurement Period Duration (IPMVP §5.3 / ASHRAE 14-2023) ────────
+      // Pull from both before and after compliance objects; flag if either < 7 days
+      const beforePeriodDays  = beforeComp.measurement_period_days ?? null;
+      const afterPeriodDays   = afterComp.measurement_period_days  ?? null;
+      const ipmvpBeforePeriodOk  = beforeComp.ipmvp_period_compliant ?? (beforePeriodDays !== null ? beforePeriodDays >= 7 : null);
+      const ipmvpAfterPeriodOk   = afterComp.ipmvp_period_compliant  ?? (afterPeriodDays  !== null ? afterPeriodDays  >= 7 : null);
+      // The analysis is only period-compliant when BOTH periods meet the minimum
+      const periodDurationOk = ipmvpBeforePeriodOk && ipmvpAfterPeriodOk;
+      const minPeriodDays = (beforePeriodDays !== null && afterPeriodDays !== null)
+        ? Math.min(beforePeriodDays, afterPeriodDays)
+        : (beforePeriodDays ?? afterPeriodDays ?? null);
+      const beforePeriodWarning = beforeComp.period_duration_warning || null;
+      const afterPeriodWarning  = afterComp.period_duration_warning  || null;
+      const ashraeRegressionFeasible = afterComp.ashrae_regression_feasible ?? (afterPeriodDays !== null && afterPeriodDays >= 14);
+      const periodOverrideApplied = afterComp.ashrae_precision_period_override || beforeComp.ashrae_precision_period_override || false;
+
       // ASHRAE Guideline 14 - Relative Precision
+      // If period is insufficient, suppress the PASS label even if precision is good
       const ashraePrecision = afterComp.ashrae_precision_value || afterComp.ashrae_guideline_14?.relative_precision || null;
-      const ashraeCompliant = ashraePrecision !== null && ashraePrecision < 50.0;
+      const ashraePrecisionRaw = ashraePrecision !== null && ashraePrecision < 50.0;
+      // ashraeCompliant is false when period < 7 days (non-representative data)
+      const ashraeCompliant = periodDurationOk === false ? false : ashraePrecisionRaw;
       
       // ASHRAE Data Quality
       const completeness = afterComp.completeness_percent || afterComp.data_completeness_pct || afterComp.ashrae_data_quality?.completeness || null;
@@ -5617,8 +5992,10 @@ async function viewEquipmentHealthReport(r) {
       const dataQualityCompliant = completeness !== null && outliers !== null && completeness >= 95.0 && outliers <= 5.0;
       
       // IPMVP - Statistical Significance
+      // Suppress IPMVP statistical badge when period is non-compliant
       const pValue = statistical.p_value || null;
-      const ipmvpCompliant = pValue !== null && pValue < 0.05;
+      const ipmvpStatOk = pValue !== null && pValue < 0.05;
+      const ipmvpCompliant = periodDurationOk === false ? false : ipmvpStatOk;
       
       // ANSI C12.1 & C12.20 - Meter Accuracy
       const meterAccuracy = afterComp.ansi_c12_20_class_05_accuracy || afterComp.ansi_c12?.accuracy || null;
@@ -5718,16 +6095,53 @@ async function viewEquipmentHealthReport(r) {
                 </tr>
               </thead>
               <tbody>
-                <tr style="background: ${ieee519Compliant ? '#d4edda' : '#f8d7da'};">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE 519-2014/2022</strong><br/><span style="font-size: 12px; color: #666;">Harmonic Limits</span></td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">THD</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdBefore !== null ? thdBefore.toFixed(2) + '%' : 'N/A'}</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdAfter !== null ? thdAfter.toFixed(2) + '%' : 'N/A'}</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤5.0%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieee519Compliant ? '#28a745' : '#dc3545'};">${ieee519Compliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
-                </tr>
+                ${(function() {
+                  // IEEE 519 row — mode-conditional rendering
+                  if (isPerOrderMode) {
+                    // Full compliance badge: per-order limits + TDD
+                    const tddRow = tddAfter !== null
+                      ? `TDD: ${tddAfter.toFixed(2)}% / THD: ${thdAfter !== null ? thdAfter.toFixed(2) : 'N/A'}%`
+                      : `THD: ${thdAfter !== null ? thdAfter.toFixed(2) : 'N/A'}%`;
+                    const tddRowBefore = tddAfter !== null
+                      ? `TDD(est) / THD: ${thdBefore !== null ? thdBefore.toFixed(2) : 'N/A'}%`
+                      : `THD: ${thdBefore !== null ? thdBefore.toFixed(2) : 'N/A'}%`;
+                    const rowBg = ieee519Compliant ? '#d4edda' : '#f8d7da';
+                    const rowColor = ieee519Compliant ? '#28a745' : '#dc3545';
+                    const rowLabel = ieee519Compliant ? '[OK] PASS' : '[ERROR] FAIL';
+                    return `<tr style="background: ${rowBg};">
+                      <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE 519-2022</strong><br/><span style="font-size: 12px; color: #666;">Per-Order Limits + TDD</span></td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">TDD / Per-Order</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${tddRowBefore}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${tddRow}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">TDD ≤ limit; all orders ≤ Table 2</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rowColor};">${rowLabel}</td>
+                    </tr>`;
+                  } else {
+                    // THD-aggregate mode: amber/informational, NOT a definitive compliance call
+                    const rowBg  = ieee519ThdSoftPass ? '#fff3cd' : '#f8d7da';
+                    const rowCol = ieee519ThdSoftPass ? '#856404' : '#dc3545';
+                    const rowLbl = ieee519ThdSoftPass
+                      ? '[~] THD ≤5% — Aggregate Basis Only'
+                      : '[ERROR] THD > 5% — Aggregate Exceeds Limit';
+                    return `<tr style="background: ${rowBg};">
+                      <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE 519-2022</strong><br/><span style="font-size: 12px; color: #666;">Aggregate THD Only</span></td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">THD (aggregate)</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdBefore !== null ? thdBefore.toFixed(2) + '%' : 'N/A'}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdAfter !== null ? thdAfter.toFixed(2) + '%' : 'N/A'}</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤5.0% (agg.)</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rowCol};">${rowLbl}</td>
+                    </tr>
+                    <tr style="background: #fff3cd;">
+                      <td colspan="6" style="padding: 8px 12px; border: 1px solid #ddd; font-size: 12px; color: #856404;">
+                        &#9888; <strong>Not Utility-Submittable:</strong> Per-order limits (Table 2), K-factor derating (IEEE C57.110-2018), and TDD 
+                        require per-order harmonic spectrum data. Switch to <em>Per-Order Spectrum mode</em> in Project Settings 
+                        once the meter firmware upgrade is installed to obtain a definitive IEEE 519-2022 compliance determination.
+                      </td>
+                    </tr>`;
+                  }
+                })()}
                 <tr style="background: ${nemaCompliant ? '#d4edda' : '#f8d7da'};">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>NEMA MG1-2016</strong><br/><span style="font-size: 12px; color: #666;">Voltage Unbalance</span></td>
+                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>NEMA MG1-2024</strong><br/><span style="font-size: 12px; color: #666;">Voltage Unbalance</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Unbalance</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageUnbalanceBefore !== null ? voltageUnbalanceBefore.toFixed(2) + '%' : 'N/A'}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${voltageUnbalanceAfter !== null ? voltageUnbalanceAfter.toFixed(2) + '%' : 'N/A'}</td>
@@ -5775,13 +6189,63 @@ async function viewEquipmentHealthReport(r) {
                 </tr>
               </thead>
               <tbody>
+                ${(function() {
+                  // ── Measurement Period Duration row (IPMVP §5.3 / ASHRAE 14-2023) ──
+                  if (minPeriodDays === null && !beforePeriodWarning && !afterPeriodWarning) return '';
+                  let rowBg, rowColor, rowLabel;
+                  if (minPeriodDays === null) {
+                    rowBg = '#f8d7da'; rowColor = '#dc3545';
+                    rowLabel = '[ERROR] Period Unknown — Verify CSV Timestamps';
+                  } else if (minPeriodDays < 7) {
+                    rowBg = '#f8d7da'; rowColor = '#dc3545';
+                    rowLabel = `[ERROR] FAIL — ${minPeriodDays} day${minPeriodDays !== 1 ? 's' : ''} (min 7 required)`;
+                  } else if (minPeriodDays < 30) {
+                    rowBg = '#fff3cd'; rowColor = '#856404';
+                    rowLabel = `[~] MARGINAL — ${minPeriodDays} days (30+ recommended)`;
+                  } else {
+                    rowBg = '#d4edda'; rowColor = '#28a745';
+                    rowLabel = `[OK] PASS — ${minPeriodDays} days`;
+                  }
+                  const warn = beforePeriodWarning || afterPeriodWarning || '';
+                  return `<tr style="background: ${rowBg};">
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                      <strong>IPMVP §5.3 / ASHRAE 14-2023</strong><br/>
+                      <span style="font-size: 12px; color: #666;">Measurement Period Duration</span>
+                    </td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
+                      Min. period days<br/>
+                      <span style="font-size: 11px;">Before: ${beforePeriodDays ?? 'N/A'} d / After: ${afterPeriodDays ?? 'N/A'} d</span>
+                    </td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${minPeriodDays ?? 'N/A'} days</td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≥ 7 days<br/><span style="font-size:11px;">30+ preferred</span></td>
+                    <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rowColor};">${rowLabel}</td>
+                  </tr>
+                  ${warn && minPeriodDays !== null && minPeriodDays < 30 ? `
+                  <tr style="background: ${minPeriodDays < 7 ? '#f8d7da' : '#fff3cd'};">
+                    <td colspan="5" style="padding: 8px 12px; border: 1px solid #ddd; font-size: 12px; color: ${minPeriodDays < 7 ? '#721c24' : '#856404'};">
+                      ${minPeriodDays < 7
+                        ? '&#10060; <strong>Non-Compliant:</strong> '
+                        : '&#9888; <strong>Advisory:</strong> '}
+                      ${warn}
+                    </td>
+                  </tr>` : ''}
+                  `;
+                })()}
                 ${ashraePrecision !== null ? `
                 <tr style="background: ${ashraeCompliant ? '#d4edda' : '#f8d7da'};">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>ASHRAE Guideline 14</strong><br/><span style="font-size: 12px; color: #666;">Relative Precision</span></td>
+                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>ASHRAE Guideline 14</strong><br/><span style="font-size: 12px; color: #666;">Relative Precision${periodOverrideApplied ? ' ⚠' : ''}</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Precision @ 95% CL</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${(ashraePrecision != null && !isNaN(ashraePrecision) ? ashraePrecision.toFixed(1) : 'N/A')}%</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">< 50%</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ashraeCompliant ? '#28a745' : '#dc3545'};">${ashraeCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ashraeCompliant ? '#28a745' : '#dc3545'};">
+                    ${periodOverrideApplied
+                      ? '[ERROR] NOT VALID — Insufficient Measurement Period'
+                      : ashraeCompliant
+                        ? '[OK] PASS'
+                        : (periodDurationOk === false
+                            ? `[FAIL] FAIL — Insufficient Period (${minPeriodDays !== null ? minPeriodDays + ' day' + (minPeriodDays === 1 ? '' : 's') : 'unknown'} < 7-day minimum)`
+                            : '[FAIL] FAIL')}
+                  </td>
                 </tr>
                 ` : ''}
                 ${completeness !== null && outliers !== null ? `
@@ -5795,11 +6259,19 @@ async function viewEquipmentHealthReport(r) {
                 ` : ''}
                 ${pValue !== null ? `
                 <tr style="background: ${ipmvpCompliant ? '#d4edda' : '#f8d7da'};">
-                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>IPMVP</strong><br/><span style="font-size: 12px; color: #666;">Statistical Significance</span></td>
+                  <td style="padding: 10px; border: 1px solid #ddd;"><strong>IPMVP Vol. I</strong><br/><span style="font-size: 12px; color: #666;">Statistical Significance${periodOverrideApplied ? ' ⚠' : ''}</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">p-value</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${fmt(pValue, 4)}</td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">< 0.05</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ipmvpCompliant ? '#28a745' : '#dc3545'};">${ipmvpCompliant ? '[OK] PASS' : '[ERROR] FAIL'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ipmvpCompliant ? '#28a745' : '#dc3545'};">
+                    ${periodOverrideApplied
+                      ? '[ERROR] NOT VALID — Insufficient Measurement Period'
+                      : ipmvpCompliant
+                        ? '[OK] PASS'
+                        : (periodDurationOk === false
+                            ? `[FAIL] FAIL — Insufficient Period (${minPeriodDays !== null ? minPeriodDays + ' day' + (minPeriodDays === 1 ? '' : 's') : 'unknown'} < 7-day minimum)`
+                            : '[FAIL] FAIL')}
+                  </td>
                 </tr>
                 ` : ''}
                 ${(() => {
@@ -5944,7 +6416,7 @@ async function viewEquipmentHealthReport(r) {
             <p><strong>Power Quality Standards:</strong></p>
             <ul style="margin: 10px 0 0 0; padding-left: 20px;">
               <li><strong>IEEE 519-2014/2022:</strong> Reduces harmonic heating in motors and transformers, extending equipment life</li>
-              <li><strong>NEMA MG1-2016:</strong> Prevents excessive motor temperature rise (1% unbalance = 6-10% temp rise)</li>
+              <li><strong>NEMA MG1-2024:</strong> Prevents excessive motor temperature rise (1% unbalance = 6-10% temp rise)</li>
               <li><strong>Power Factor:</strong> Reduces reactive power losses and improves system efficiency</li>
               <li><strong>IEC 61000-2-2:</strong> Ensures voltage compatibility for connected equipment</li>
             </ul>
@@ -6541,78 +7013,74 @@ function applyRref() {
 }
 
 function calculateTestingParameters() {
-  // Get input values
-  const xfmrKva = parseFloat(document.querySelector("input[name='xfmr_kva']")?.value || "1");
-  const nominalVoltage = parseFloat(document.querySelector("input[name='voltage_nominal']")?.value || "1");
-  const voltageType = document.querySelector("select[name='voltage_type']")?.value || "LL";
-  const phases = parseInt(document.querySelector("select[name='phases']")?.value || "1");
-  const transformerImpedance = parseFloat(document.querySelector("input[name='xfmr_impedance_pct']")?.value || "1.0");
+  const xfmrKva           = parseFloat(document.querySelector("input[name='xfmr_kva']")?.value || "0");
+  const nominalVoltage    = parseFloat(document.querySelector("input[name='voltage_nominal']")?.value || "0");
+  const phases            = parseInt(document.querySelector("select[name='phases']")?.value || "3");
+  const xfmrImpedancePct  = parseFloat(document.querySelector("input[name='xfmr_impedance_pct']")?.value || "5.75");
+
+  const iscInput   = document.querySelector("input[name='isc_kA']");
+  const ilInput    = document.querySelector("input[name='il_A']");
+  const resultSpan = document.getElementById("testing_calc_result");
 
   if (!xfmrKva || !nominalVoltage) {
-    // Clear the fields if inputs are missing
-    const iscInput = document.querySelector("input[name='isc_kA']");
-    const ilInput = document.querySelector("input[name='il_A']");
-    const resultSpan = document.getElementById("testing_calc_result");
-
     if (iscInput) iscInput.value = "";
-    if (ilInput) ilInput.value = "";
-
     if (resultSpan) {
-      resultSpan.textContent = "Enter Transformer kVA and Nominal Voltage";
+      resultSpan.textContent = "Enter Transformer kVA and Nominal Voltage to calculate Isc";
       resultSpan.style.background = "#f59e0b";
       resultSpan.style.color = "white";
     }
     return;
   }
 
-  // Calculate Rated Current (for ISC calculation)
-  // For 1-phase: Rated Current = (kVA * 1) / (sqrt(1) * V_LL)
-  // For 1-phase: Rated Current = (kVA * 1) / V
-  let ratedCurrent_A;
-  if (phases === 1) {
-    // 1-phase calculation
-    ratedCurrent_A = (xfmrKva * 1) / (Math.sqrt(1) * nominalVoltage);
+  // Transformer rated current (secondary side)
+  // 3-phase: I_rated = (kVA x 1000) / (sqrt3 x V_LL)
+  // 1-phase: I_rated = (kVA x 1000) / V
+  const sqrt3 = Math.sqrt(3);
+  const ratedCurrent_A = (phases === 1)
+    ? (xfmrKva * 1000) / nominalVoltage
+    : (xfmrKva * 1000) / (sqrt3 * nominalVoltage);
+
+  // Short-circuit current at transformer secondary (facility PCC)
+  // Isc = I_rated / (Z_pct / 100) — converts % impedance to per-unit
+  const zPU    = xfmrImpedancePct / 100;
+  const isc_A  = ratedCurrent_A / zPU;
+  const isc_kA = isc_A / 1000;   // convert A to kA
+
+  // IL: use transformer rated current as the conservative upper-bound reference.
+  // The user should override this with the actual 15/30-min peak demand
+  // current from the meter data or utility demand bill (IEEE 519-2022 definition).
+  // Preserve any value the user has already typed in.
+  const existingIL = ilInput ? parseFloat(ilInput.value || "0") : 0;
+  const il_A = (existingIL > 0) ? existingIL : ratedCurrent_A;
+
+  // Always update ISC (auto-calculated from transformer data)
+  if (iscInput) iscInput.value = isc_kA.toFixed(2);
+
+  // Only write IL if the field is empty — don't overwrite a user entry
+  if (ilInput && existingIL === 0) ilInput.value = ratedCurrent_A.toFixed(0);
+
+  // ISC/IL ratio and TDD limit (IEEE 519-2022 Table 2)
+  const iscIlRatio = isc_A / il_A;
+  let tddLimit, tddCategory;
+  if (iscIlRatio >= 1000) {
+    tddLimit = "5.0%";  tddCategory = "ISC/IL ≥ 1000";
+  } else if (iscIlRatio >= 100) {
+    tddLimit = "8.0%";  tddCategory = "ISC/IL 100–1000";
+  } else if (iscIlRatio >= 20) {
+    tddLimit = "12.0%"; tddCategory = "ISC/IL 20–100";
   } else {
-    // 1-phase calculation
-    ratedCurrent_A = (xfmrKva * 1) / nominalVoltage;
+    tddLimit = "15.0%"; tddCategory = "ISC/IL < 20";
   }
-
-  // For ISC/IL ratio, use actual load current (1% of rated for typical loading)
-  // This gives a more realistic ISC/IL ratio
-  const il_A = ratedCurrent_A * 0.1; // 1% loading is typical for industrial facilities
-
-  // Calculate Short Circuit Current (Isc)
-  // Isc = Rated Current / (%Z / 1)
-  const isc_A = ratedCurrent_A / (transformerImpedance / 1);
-  const isc_kA = isc_A / 1;
-
-  // Update form fields
-  const iscInput = document.querySelector("input[name='isc_kA']");
-  const ilInput = document.querySelector("input[name='il_A']");
-  const resultSpan = document.getElementById("testing_calc_result");
-
-  if (iscInput) iscInput.value = isc_kA.toFixed(1);
-  if (ilInput) ilInput.value = il_A.toFixed(1);
 
   if (resultSpan) {
-    const iscIlRatio = (isc_A / il_A).toFixed(1);
-    resultSpan.textContent = `Calculated: Isc=${isc_kA.toFixed(1)}kA, IL=${il_A.toFixed(1)}A, ISC/IL=${iscIlRatio}`;
-    resultSpan.style.color = "#1";
+    resultSpan.textContent =
+      "Isc = " + isc_kA.toFixed(2) + " kA  |  " +
+      "IL = " + il_A.toFixed(0) + " A  |  " +
+      "ISC/IL = " + iscIlRatio.toFixed(1) + " (" + tddCategory + ")  →  " +
+      "IEEE 519 TDD limit = " + tddLimit;
+    resultSpan.style.background = "#e8f5e9";
+    resultSpan.style.color = "#1b5e20";
   }
-
-  // Calculate and display IEEE 519 TDD limit category (per IEEE 519-2014 Table 10.3)
-  const iscIlRatioForTdd = isc_A / il_A;
-  let tddLimit;
-  if (iscIlRatioForTdd >= 1000) {
-    tddLimit = "5.0%";   // ISC/IL >= 1000: TDD limit = 5.0%
-  } else if (iscIlRatioForTdd >= 100) {
-    tddLimit = "8.0%";   // ISC/IL 100-1000: TDD limit = 8.0%
-  } else if (iscIlRatioForTdd >= 20) {
-    tddLimit = "12.0%";  // ISC/IL 20-100: TDD limit = 12.0%
-  } else {
-    tddLimit = "15.0%";  // ISC/IL < 20: TDD limit = 15.0%
-  }
-
 }
 
 // *** FIX: This is the robust display function with the corrected HTML structure ***
@@ -6987,7 +7455,7 @@ function displayResults(r) {
 
   // Fix NEMA MG1 voltage unbalance values if they're "N/A" OR suspiciously high (> 1.0%)
   performanceCompliance.forEach(c => {
-    // Flexible matching for NEMA MG1 (could be "NEMA MG1", "NEMA MG1-2016", etc.)
+    // Flexible matching for NEMA MG1 (could be "NEMA MG1", "NEMA MG1-2024", etc.)
     const isNemaMg1 = c.standard && (
       c.standard.includes("NEMA MG1") || 
       c.standard === "NEMA MG1" ||
@@ -7347,7 +7815,7 @@ function displayResults(r) {
   html += `<strong>${beforeLabelDisplay}</strong> shows baseline compliance (typically non-compliant), `;
   html += `<strong>${afterLabelDisplay}</strong> shows post-retrofit compliance (should show improvement). `;
   html +=
-    `<strong>IEEE 519-2014/2022</strong> measures harmonic distortion reduction, <strong>NEMA MG1</strong> validates voltage unbalance, `;
+    `<strong>IEEE 519-2014/2022</strong> measures harmonic distortion reduction, <strong>NEMA MG1-2024</strong> validates voltage unbalance, `;
   html +=
     `<strong>IEC 61000-4-30</strong> validates measurement accuracy, <strong>IEC 61000-4-7</strong> ensures harmonic compliance, `;
   html +=
@@ -7355,7 +7823,7 @@ function displayResults(r) {
   html +=
     `<strong>ANSI C12.1 & C12.20</strong> verifies meter accuracy, <strong>ANSI C57.12.00</strong> validates transformer requirements, `;
   html +=
-    `<strong>IEC 62053</strong> ensures meter accuracy standards compliance, and <strong>ITIC/CBEMA</strong> validates power quality tolerance curves for IT equipment protection. `;
+    `<strong>IEC 62053-22:2020</strong> ensures meter accuracy standards compliance, <strong>IEC 60034-30-1:2014</strong> provides estimated motor efficiency class (IE1–IE4, with IE3+ required per EU Reg. 2019/1781 — note: estimated from input power data only), and <strong>ITIC/CBEMA</strong> validates power quality tolerance curves for IT equipment protection. `;
   html +=
     `<br><br><strong>Improvement Percentages:</strong> Positive percentages indicate measurable improvements in power quality, `;
   html +=
@@ -7661,7 +8129,7 @@ function displayResults(r) {
     const nemaAfterClass = (nemaAfterImbalance === "N/A" || nemaAfterCompliant === null) ? "na-status" : (nemaAfterCompliant ? 'compliant' : 'non-compliant');
     
     html += `<tr>
-                    <td>NEMA MG1</td>
+                    <td>NEMA MG1-2024</td>
                     <td>Voltage Unbalance < 1%</td>
                     <td class="${nemaBeforeClass}">${nemaBeforeStatus}</td>
                     <td class="${nemaAfterClass}">${nemaAfterStatus}</td>
@@ -7884,7 +8352,7 @@ function displayResults(r) {
                     <td class="value-cell">${typeof transformerAfterEfficiency === 'number' ? transformerAfterEfficiency.toFixed(1) + '%' : transformerAfterEfficiency}</td>
                 </tr>`;
 
-    // IEC 62053 - Meter Accuracy Standards
+    // IEC 62053-22:2020 - Meter Accuracy Standards
     const iec62053BeforeCompliant = (beforeComp && beforeComp.iec_62053_compliant) || false;
     const iec62053AfterCompliant = (afterCompData && afterCompData.iec_62053_compliant) || false;
     const iec62053BeforeClass = (beforeComp && beforeComp.iec_62053_accuracy_class) || "Unknown";
@@ -7892,12 +8360,41 @@ function displayResults(r) {
     const iec62053BeforeValue = (beforeComp && beforeComp.iec_62053_accuracy_value) || 0;
     const iec62053AfterValue = (afterCompData && afterCompData.iec_62053_accuracy_value) || 0;
     html += `<tr>
-                    <td>IEC 62053</td>
+                    <td>IEC 62053-22:2020</td>
                     <td>Meter Accuracy Standards (Class 0.1S-2)</td>
                     <td class="${iec62053BeforeCompliant ? 'compliant' : 'non-compliant'}">${iec62053BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="${iec62053AfterCompliant ? 'compliant' : 'non-compliant'}">${iec62053AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
                     <td class="value-cell">${iec62053BeforeClass} (${fmt(iec62053BeforeValue, 1)}%)</td>
                     <td class="value-cell">${iec62053AfterClass} (${fmt(iec62053AfterValue, 1)}%)</td>
+                </tr>`;
+
+    // IEC 60034-30-1:2014 - Motor Efficiency Classification (Estimated)
+    // NOTE: Values are estimated from electrical input data only.
+    // Certified IE class determination requires shaft power measurement per IEC 60034-2-1:2014.
+    const compStatus6003430 = (complianceStatus && complianceStatus['IEC 60034-30-1:2014']) || null;
+    const iec6003430Before = (compStatus6003430 && compStatus6003430.before) || null;
+    const iec6003430After  = (compStatus6003430 && compStatus6003430.after)  || null;
+    const iec6003430BeforeCompliant = (iec6003430Before && iec6003430Before.is_compliant) || false;
+    const iec6003430AfterCompliant  = (iec6003430After  && iec6003430After.is_compliant)  || false;
+    const iec6003430BeforeClass = (iec6003430Before && iec6003430Before.efficiency_class) || 'N/A';
+    const iec6003430AfterClass  = (iec6003430After  && iec6003430After.efficiency_class)  || 'N/A';
+    const iec6003430BeforeEff = (iec6003430Before && typeof iec6003430Before.efficiency_percent === 'number') ? iec6003430Before.efficiency_percent : null;
+    const iec6003430AfterEff  = (iec6003430After  && typeof iec6003430After.efficiency_percent  === 'number') ? iec6003430After.efficiency_percent  : null;
+    const iec6003430BeforeEstimated = (iec6003430Before && iec6003430Before.efficiency_is_estimated !== false);
+    const iec6003430AfterEstimated  = (iec6003430After  && iec6003430After.efficiency_is_estimated  !== false);
+    const iec6003430BeforeDisplay = iec6003430BeforeClass !== 'N/A'
+        ? `${iec6003430BeforeClass}${iec6003430BeforeEstimated ? '*' : ''} (${iec6003430BeforeEff !== null ? iec6003430BeforeEff.toFixed(1) + '%' : 'N/A'})`
+        : 'N/A';
+    const iec6003430AfterDisplay  = iec6003430AfterClass !== 'N/A'
+        ? `${iec6003430AfterClass}${iec6003430AfterEstimated ? '*' : ''} (${iec6003430AfterEff !== null ? iec6003430AfterEff.toFixed(1) + '%' : 'N/A'})`
+        : 'N/A';
+    html += `<tr>
+                    <td>IEC 60034-30-1:2014</td>
+                    <td>Motor Efficiency Class (IE3+ = compliant per EU Reg. 2019/1781)<br/><small style="color:#e65100;">* Estimated from input power data — certified classification requires shaft measurement per IEC 60034-2-1:2014</small></td>
+                    <td class="${iec6003430Before ? (iec6003430BeforeCompliant ? 'compliant' : 'non-compliant') : ''}">${iec6003430Before ? (iec6003430BeforeCompliant ? '[PASS] PASS' : '[FAIL] FAIL') : 'N/A'}</td>
+                    <td class="${iec6003430After ? (iec6003430AfterCompliant ? 'compliant' : 'non-compliant') : ''}">${iec6003430After ? (iec6003430AfterCompliant ? '[PASS] PASS' : '[FAIL] FAIL') : 'N/A'}</td>
+                    <td class="value-cell">${iec6003430BeforeDisplay}</td>
+                    <td class="value-cell">${iec6003430AfterDisplay}</td>
                 </tr>`;
 
     // ITIC/CBEMA - Power Quality Tolerance
@@ -7934,7 +8431,7 @@ function displayResults(r) {
 
     // ASHRAE Weather Normalization
     html += `<tr>
-                    <td>ASHRAE Guideline 14-2014 Weather Normalization</td>
+                    <td>ASHRAE Guideline 14-2023 Weather Normalization</td>
                     <td>Weather Normalization per Section 14.3 (Base: 18.3°C)</td>
                     <td class="compliant">[PASS] PASS</td>
                     <td class="compliant">[PASS] PASS</td>
@@ -8361,6 +8858,29 @@ function displayResults(r) {
       }
     }
 
+    // Auto-suggest IL from analysis mean current if the field is empty.
+    // IL = max demand current (IEEE 519-2022). Mean current is a reasonable
+    // lower bound; user should confirm against the meter peak demand reading.
+    (function() {
+      const ilInput = document.querySelector("input[name='il_A']");
+      if (!ilInput || parseFloat(ilInput.value || "0") > 0) return;
+      const meanBefore = parseFloat(powerQuality.current_before || 0);
+      const meanAfter  = parseFloat(powerQuality.current_after  || 0);
+      const suggested  = Math.max(meanBefore, meanAfter);
+      if (suggested > 0) {
+        ilInput.value = suggested.toFixed(0);
+        const resultSpan = document.getElementById("testing_calc_result");
+        if (resultSpan) {
+          resultSpan.textContent =
+            "IL auto-set from analysis (" + suggested.toFixed(0) + " A mean demand). " +
+            "Click “Calculate Testing Parameters” to update ISC/IL ratio, " +
+            "or enter the actual 15/30-min peak demand current for a more accurate limit.";
+          resultSpan.style.background = "#fff3cd";
+          resultSpan.style.color = "#856404";
+        }
+      }
+    })();
+
     // IEEE 519 normalized values
     if (powerQuality.normalized_kw_before && powerQuality.normalized_kw_after) {
       const normalized_kw_improvement = calcPercentImprovement(powerQuality.normalized_kw_before, powerQuality
@@ -8417,7 +8937,7 @@ function displayResults(r) {
       }
     }
 
-    // kW (Raw Data) - BEFORE normalization per ASHRAE Guideline 14-2014
+    // kW (Raw Data) - BEFORE normalization per ASHRAE Guideline 14-2023
     // Match the format from Detailed Breakdown section (2 decimal places)
     const kw_before_raw = powerQuality.kw_before;
     const kw_after_raw = powerQuality.kw_after;
@@ -8477,7 +8997,7 @@ function displayResults(r) {
       });
     }
 
-    // kVA (Raw Data) - BEFORE normalization per ASHRAE Guideline 14-2014
+    // kVA (Raw Data) - BEFORE normalization per ASHRAE Guideline 14-2023
     // Match the format from Detailed Breakdown section (2 decimal places)
     const kva_before_raw = powerQuality.kva_before;
     const kva_after_raw = powerQuality.kva_after;
@@ -8648,13 +9168,13 @@ function displayResults(r) {
     html += `<div style="margin-top: 2rem;"><h2>IEEE 519-2014/2022 Power Quality Analysis</h2>`;
     html += `<div class="compliance-note">`;
     html +=
-      `<strong>Standards-Compliant Electrical Parameter Analysis:</strong> These metrics follow IEEE 519-2014/2022, ASHRAE Guideline 14-2014, and IEC 61000-2-2 standards. `;
+      `<strong>Standards-Compliant Electrical Parameter Analysis:</strong> These metrics follow IEEE 519-2014/2022, ASHRAE Guideline 14-2023, and IEC 61000-2-2 standards. `;
     html +=
       `<strong>kW (Weather Normalized)</strong> shows ASHRAE weather-adjusted power savings, <strong>Volts (L-N)</strong> shows IEC 61000-2-2 voltage quality, `;
     html +=
       `<strong>THD</strong> shows IEEE 519 harmonic distortion reduction, and <strong>Voltage Unbalance</strong> shows IEEE 519 three-phase voltage balance improvement. `;
     html +=
-      `<em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2014 Section 14.3.</em>`;
+      `<em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2023.</em>`;
     html += `</div>`;
     html += `<table class="compliance-table">`;
     html +=
@@ -8694,7 +9214,7 @@ function displayResults(r) {
       const kw_percent = calcPercentImprovement(powerQualityNormalized.weather_normalized_kw_before,
         powerQualityNormalized.weather_normalized_kw_after, true);
       html += `<tr>
-                        <td><strong>kW (Weather Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>
+                        <td><strong>kW (Weather Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2023</small></td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.weather_normalized_kw_before).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.weather_normalized_kw_after).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center; color: ${kw_percent > 0 ? 'green' : 'red'}">${kw_percent ? kw_percent.toFixed(2) + '% reduction' : 'N/A'}</td>
@@ -8708,7 +9228,7 @@ function displayResults(r) {
       const fully_normalized_kw_percent = calcPercentImprovement(powerQualityNormalized.calculated_pf_normalized_kw_before,
         powerQualityNormalized.calculated_pf_normalized_kw_after, true);
       html += `<tr>
-                        <td><strong>kW (Fully Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Matches Step 3 & Step 4)</em></small></td>
+                        <td><strong>kW (Fully Normalized)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2023, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Matches Step 3 & Step 4)</em></small></td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.calculated_pf_normalized_kw_before).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center;">${Number(powerQualityNormalized.calculated_pf_normalized_kw_after).toFixed(2)} kW</td>
                         <td class="value-cell" style="text-align: center; color: ${fully_normalized_kw_percent > 0 ? 'green' : 'red'}">${fully_normalized_kw_percent ? fully_normalized_kw_percent.toFixed(2) + '% reduction' : 'N/A'}</td>
@@ -8978,7 +9498,7 @@ function displayResults(r) {
       
       // STEP 2: Weather Normalization
       html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #2196f3;">`;
-      html += `<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2014)</h4>`;
+      html += `<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2023)</h4>`;
       html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with equipment-specific sensitivity factors (3.6% per °C for temp, 2.16% per °C for dewpoint for chillers). <strong>Base Temperature:</strong> 18.3°C (65°F) per ASHRAE Guideline 14 standard for commercial applications.</p>`;
       
       if (hasWeatherNormalized) {
@@ -9073,7 +9593,7 @@ function displayResults(r) {
         if (baseTemp === null || baseTemp === undefined || isNaN(baseTemp)) {
           baseTempDisplay = 'Not available (baseline data required)';
         } else {
-          // Always show the base temperature value (should be 18.3°C per ASHRAE Guideline 14-2014 for commercial, or optimized from baseline data)
+          // Always show the base temperature value (should be 18.3°C per ASHRAE Guideline 14-2023 for commercial, or optimized from baseline data)
           const isOptimized = weatherNorm.base_temp_optimized && weatherNorm.optimized_base_temp != null;
           baseTempDisplay = `${baseTemp.toFixed(1)}°C${isOptimized ? ' (optimized from baseline data)' : ' (fixed at 18.3°C per ASHRAE Guideline 14 standard)'}`;
         }
@@ -9658,11 +10178,11 @@ function displayResults(r) {
         html += `<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>`;
         const totalNormKwBefore = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
         const totalNormKwAfter = pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A';
-        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwBefore + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>';
-        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)<br/><small style="color: #1976d2; font-style: italic;">(Uses values from IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwAfter + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Weather + PF normalized</td></tr>';
+        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Billing Demand Equivalent — Before (kW)<br/><small style="color: #666; font-style: italic;">Weather-normalized metered kW adjusted by utility tariff PF factor</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwBefore + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Utility rate schedule PF clause;<br/>IPMVP Vol. I (demand savings)</td></tr>';
+        html += '<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Billing Demand Equivalent — After (kW)<br/><small style="color: #666; font-style: italic;">Weather-normalized metered kW adjusted by utility tariff PF factor</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">' + totalNormKwAfter + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">Utility rate schedule PF clause;<br/>IPMVP Vol. I (demand savings)</td></tr>';
         const totalSavingsKwColor = (totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) && totalSavingsKwStep4 > 0) ? 'green' : 'red';
         const totalSavingsKwVal = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
-        html += '<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ' + totalSavingsKwColor + ';">' + totalSavingsKwVal + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">' + totalNormKwBefore + ' - ' + totalNormKwAfter + '</td></tr>';
+        html += '<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Billing Demand Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">Demand reduction on utility bill (tariff PF clause)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: ' + totalSavingsKwColor + ';">' + totalSavingsKwVal + '</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">' + totalNormKwBefore + ' − ' + totalNormKwAfter + '</td></tr>';
         
         // Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
         if (equipmentEnergySavingsKw != null && equipmentEnergySavingsPercent != null) {
@@ -9670,7 +10190,7 @@ function displayResults(r) {
           const eqPct = equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent) ? Number(equipmentEnergySavingsPercent).toFixed(2) : 'N/A';
           const wBefore = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
           const eqColor = (equipmentEnergySavingsPercent > 0) ? 'green' : 'red';
-          html += '<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: ' + eqColor + ';">' + eqPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">(' + eqKw + ' / ' + wBefore + ') × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>';
+          html += '<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Verified Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized metered kW reduction — includes all physical effects: I²R, eddy currents, harmonics, motor efficiency</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: ' + eqColor + ';">' + eqPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">(' + eqKw + ' / ' + wBefore + ') × 100<br/><small style="color: #666;">IPMVP Option B; ASHRAE Guideline 14-2023</small></td></tr>';
         }
         
         // Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
@@ -9679,7 +10199,7 @@ function displayResults(r) {
         // Use weather-normalized before as denominator (same as Weather Savings % and PF Contribution %)
         const wBeforeForTotal = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
         const totColor = (totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
-        html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (Weather Savings % + PF Contribution % = Total %)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + wBeforeForTotal + ') × 100<br/><small style="color: #666;">Weather Savings % + PF Contribution % = Total % (all use weather-normalized before)</small></td></tr>';
+        html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">🔋 Billing Demand Relief — Utility Tariff PF Clause (%)<br/><small style="color: #2e7d32; font-style: italic;">Demand charge reduction from PF improvement per utility tariff PF clause</small><br/><small style="color: #b71c1c; font-weight: bold;">⚠ Not additional energy savings — a separate financial benefit under the utility rate schedule</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + wBeforeForTotal + ') × 100<br/><small style="color: #666;"><em>Citation: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings).<br/>Do not add to energy savings %.</em></small></td></tr>';
         html += `</table>`;
         
         // Verification summary - Enhanced with detailed breakdown
@@ -9690,13 +10210,14 @@ function displayResults(r) {
         if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
           const equipEnergyColor = equipmentEnergySavingsPercent > 0 ? 'green' : 'red';
           const equipEnergyVal = Number(equipmentEnergySavingsPercent).toFixed(2);
-          html += '<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: ' + equipEnergyColor + '; font-size: 1.2em;">' + equipEnergyVal + '%</span></strong><br/>';
-          html += '<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>';
+          html += '<strong style="color: #1976d2; font-size: 1.1em;">⚡ Verified Energy Savings: <span style="color: ' + equipEnergyColor + '; font-size: 1.2em;">' + equipEnergyVal + '%</span></strong><br/>';
+          html += '<small style="color: #666;">Weather-normalized metered kW reduction — the revenue-grade meter captures all physical effects of the Xeco system: reduced I²R losses, reduced eddy current and copper losses, reduced harmonic losses, improved motor efficiency. Cited per IPMVP Option B; ASHRAE Guideline 14-2023.</small><br/><br/>';
         }
         const totalNormPctColor = (totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) && totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
         const totalNormPctVal = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
-        html += '<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: ' + totalNormPctColor + '; font-size: 1.2em;">' + totalNormPctVal + '%</span></strong><br/>';
-        html += `<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>`;
+        html += '<strong style="color: #2e7d32; font-size: 1.1em;">🔋 Billing Demand Relief (Utility Tariff PF Clause): <span style="color: ' + totalNormPctColor + '; font-size: 1.2em;">' + totalNormPctVal + '%</span></strong><br/>';
+        html += '<small style="color: #555;">The utility\'s tariff PF clause (Billed kW = Metered kW × Target PF ÷ Actual PF) reduces the demand charge when PF improves. This is a real, separate financial benefit — <strong>it must not be added to the Verified Energy Savings percentage above.</strong></small><br/>';
+        html += '<small style="color: #777; display: block; margin-top: 2px;"><em>Citation: Applicable utility rate schedule PF clause; IPMVP Volume I (demand savings). Not cited under ASHRAE Guideline 14-2023 or IEEE 519-2022 — those govern energy measurement, not tariff billing adjustments.</em></small><br/>';
         html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">`;
         html += `<strong>Detailed Calculation Breakdown:</strong><br/>`;
         html += `<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">`;
@@ -9707,7 +10228,7 @@ function displayResults(r) {
         const rawKwAfter = powerQualityNormalized.kw_after;
         const rawSavingsKw = rawKwBefore - rawKwAfter;
         const rawSavingsPercent = rawKwBefore > 0 ? (rawSavingsKw / rawKwBefore) * 100 : 0;
-        html += `<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Raw Meter Data</strong><br/><small style="color: #666;">No normalization</small></td>`;
+        html += `<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Metered Energy Savings</strong><br/><small style="color: #666;">ANSI C12.20 revenue-grade meter — captures I²R, eddy currents, harmonics, motor efficiency simultaneously</small></td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwBefore.toFixed(2)}</td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwAfter.toFixed(2)}</td>`;
         const rawSavingsKwColor2 = rawSavingsKw > 0 ? 'green' : 'red';
@@ -9721,7 +10242,7 @@ function displayResults(r) {
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
           const weatherSavingsKwStep4 = weatherBeforeForStep4 - weatherAfterForStep4;
           const weatherSavingsPercentStep4 = weatherBeforeForStep4 > 0 ? (weatherSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
-          html += `<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 2: Weather Normalized</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>`;
+          html += `<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 2: Weather Normalized (ASHRAE Adjustment)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2023 §5.3 (R² ≥ 0.75, CV-RMSE &lt; 15%, NMBE &lt; ±5%)</small></td>`;
           html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${weatherBeforeForStep4.toFixed(2)}</td>`;
           html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${weatherAfterForStep4.toFixed(2)}</td>`;
           const weatherSavingsKwStep4Color = weatherSavingsKwStep4 > 0 ? 'green' : 'red';
@@ -9733,7 +10254,7 @@ function displayResults(r) {
         }
         
         // Step 3: PF Normalized (Final)
-        html += `<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards<br/><em style="color: #1976d2;">(Uses values from IEEE 519 section)</em></small></td>`;
+        html += `<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: Billing Demand Equivalent (Utility Tariff PF Clause)</strong><br/><small style="color: #666;">Utility tariff PF clause: Billed kW = Metered kW × (Target PF ÷ Actual PF)<br/><em style="color: #b71c1c; font-weight: bold;">Not energy savings — a separate financial benefit under the utility rate schedule</em></small></td>`;
         const pfNormKwBeforeStep4 = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
         const pfNormKwAfterStep4 = pfNormalizedKwAfterStep4 != null && !isNaN(pfNormalizedKwAfterStep4) ? Number(pfNormalizedKwAfterStep4).toFixed(2) : 'N/A';
         html += '<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">' + pfNormKwBeforeStep4 + '</td>';
@@ -9748,22 +10269,22 @@ function displayResults(r) {
         
         // Explanation
         html += `<div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 3px; border-left: 3px solid #4caf50;">`;
-        html += `<strong style="color: #2e7d32;">[DATA] How the Final Result is Calculated:</strong><br/>`;
+        html += `<strong style="color: #2e7d32;">📊 How These Results Are Calculated:</strong><br/>`;
         html += `<ul style="margin: 5px 0; padding-left: 20px; color: #666; font-size: 0.9em;">`;
-        html += `<li><strong>Step 1:</strong> Raw meter data shows <strong>${rawSavingsPercent.toFixed(2)}%</strong> savings (${rawSavingsKw.toFixed(2)} kW)</li>`;
+        html += `<li><strong>Step 1 — Metered Energy Savings:</strong> The revenue-grade utility meter (ANSI C12.20) recorded a reduction from <strong>${rawKwBefore.toFixed(2)} kW</strong> to <strong>${rawKwAfter.toFixed(2)} kW</strong> (<strong>${rawSavingsPercent.toFixed(2)}%</strong>). This metered difference is the primary M&V result. It simultaneously captures all physical effects of the Xeco system: reduced I²R losses from lower reactive current, reduced eddy current and copper losses in transformer and motor windings, reduced harmonic-induced losses, and improved motor operating efficiency from better voltage regulation. Cited per IPMVP Volume I Option B; ANSI C12.20.</li>`;
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
           const weatherSavingsKwStep4 = weatherBeforeForStep4 - weatherAfterForStep4;
           const weatherSavingsPercentStep4 = weatherBeforeForStep4 > 0 ? (weatherSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
-          html += `<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>${weatherSavingsPercentStep4.toFixed(2)}%</strong> weather-normalized savings (${weatherSavingsKwStep4.toFixed(2)} kW)</li>`;
+          html += `<li><strong>Step 2 — Weather Adjustment (ASHRAE Guideline 14-2023):</strong> ASHRAE Guideline 14-2023 §5.3 regression analysis adjusts for ambient temperature differences between the before and after periods, isolating the equipment improvement from weather variation. Applied only when R² ≥ 0.75. Adjusted savings: <strong>${weatherSavingsPercentStep4.toFixed(2)}%</strong> (${weatherSavingsKwStep4.toFixed(2)} kW).</li>`;
         }
         const targetPFStep4Str = targetPFForStep4 != null && !isNaN(targetPFForStep4) ? (Number(targetPFForStep4) * 100).toFixed(0) : '95';
         const totalNormPctStep4Str = totalNormalizedPercentStep4.toFixed(2);
         const totalSavingsKwStep4Str = totalSavingsKwStep4.toFixed(2);
-        html += '<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF (' + targetPFStep4Str + '%) for utility billing → <strong>' + totalNormPctStep4Str + '%</strong> total utility billing impact (' + totalSavingsKwStep4Str + ' kW)</li>';
+        html += '<li><strong>Step 3 — Billing Demand Relief (Utility Tariff PF Clause):</strong> Because Xeco improves power factor toward the utility\'s target of ' + targetPFStep4Str + '%, the utility\'s billing demand multiplier (Billed kW = Metered kW × Target PF ÷ Actual PF) drops, reducing the demand charge on the bill. Billing demand equivalent: <strong>' + totalNormPctStep4Str + '%</strong> (' + totalSavingsKwStep4Str + ' kW). This is a real financial saving reported per the applicable utility rate schedule PF clause — it is separate from, and additional to, the metered energy savings in Steps 1–2. <em>Citation: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings).</em></li>';
         if (equipmentEnergySavingsPercent != null && !isNaN(equipmentEnergySavingsPercent)) {
-          html += `<li><strong>Equipment Energy Savings:</strong> <strong>${equipmentEnergySavingsPercent.toFixed(2)}%</strong> (${equipmentEnergySavingsKw.toFixed(2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>`;
+          html += `<li><strong>Verified Energy Savings (M&V Primary Result):</strong> <strong>${equipmentEnergySavingsPercent.toFixed(2)}%</strong> (${equipmentEnergySavingsKw.toFixed(2)} kW) — weather-normalized metered kW reduction. This is the IPMVP-defensible energy savings figure. The meter already captures the full physical benefit of PF improvement, including I²R, eddy current, and motor efficiency gains. <em>Citation: IPMVP Option B; ASHRAE Guideline 14-2023.</em></li>`;
         }
-        html += `<li><strong>Total Utility Billing Impact:</strong> <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> (${totalSavingsKwStep4.toFixed(2)} kW) - This includes both equipment energy savings and power factor correction benefits. This represents the true utility billing impact.</li>`;
+        html += `<li><strong>Billing Demand Relief (Tariff — reported separately):</strong> <strong>${totalNormalizedPercentStep4.toFixed(2)}%</strong> (${totalSavingsKwStep4.toFixed(2)} kW) — the demand charge reduction on the utility bill resulting from PF improvement under the utility's tariff PF clause (Billed kW = Metered kW × Target PF ÷ Actual PF). <strong>This figure is reported separately from Verified Energy Savings and must not be added to the energy savings percentage.</strong> <em>Citation: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings).</em></li>`;
         html += `</ul>`;
         html += `</div>`;
         html += `</div>`;
@@ -9920,7 +10441,7 @@ function displayResults(r) {
       value: calculatedNormalizedKwSavings !== null ? calculatedNormalizedKwSavings : r.executive_summary?.adjusted_kw_savings,
       unit: "kW",
       decimals: 2,
-      description: "Weather and power factor normalized power reduction per ASHRAE Guideline 14-2014 and IEEE 519 standards (PF-normalized savings from Step 4)",
+      description: "Weather and power factor normalized power reduction per ASHRAE Guideline 14-2023 and IEEE 519 standards (PF-normalized savings from Step 4)",
       showPercent: true
     },
     {
@@ -10272,11 +10793,11 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
         `${energyKwh} kWh<br/>$${energyDollars}` :
         `${energyKwh} kWh`;
       const descriptionCell = showDollars ?
-        `Weather and power factor normalized energy savings (ASHRAE Guideline 14-2014 + utility billing standard)<br/>
+        `Weather and power factor normalized energy savings (ASHRAE Guideline 14-2023 + utility billing standard)<br/>
                             <small>Base: ${baseKwh} kWh + Network: ${networkKwh} kWh<br/>
                             Rate: $${energyRate}/kWh<br/>
                             <em>Uses PF-normalized kW values from Step 4 normalization</em></small>` :
-        `Weather and power factor normalized energy savings (ASHRAE Guideline 14-2014 + utility billing standard)<br/>
+        `Weather and power factor normalized energy savings (ASHRAE Guideline 14-2023 + utility billing standard)<br/>
                             <small>Base: ${baseKwh} kWh + Network: ${networkKwh} kWh<br/>
                             <em>Uses PF-normalized kW values from Step 4 normalization</em></small>`;
 
@@ -11495,6 +12016,28 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     if (_el_btnGenerateUtilityPackage) _el_btnGenerateUtilityPackage.addEventListener("click", () => generateUtilitySubmissionPackage(r));
   }
 
+  // Enable M&V Plan generation button
+  const btnMVPlan = document.getElementById("btnGenerateMVPlan");
+  if (btnMVPlan) {
+    btnMVPlan.disabled = false;
+    btnMVPlan.replaceWith(btnMVPlan.cloneNode(true));
+    const _el_btnMVPlan = document.getElementById("btnGenerateMVPlan");
+    if (_el_btnMVPlan) _el_btnMVPlan.addEventListener("click", () => generateMVPlan(r));
+  }
+
+  // Show existing M&V Plan reference if already generated
+  const mvPlanStatus = document.getElementById("mvPlanStatus");
+  if (mvPlanStatus) {
+    const existingRef = (r && r.mv_plan_reference) || (r && r.config && r.config.mv_plan_reference);
+    const existingId  = (r && r.mv_plan_id) || (r && r.config && r.config.mv_plan_id);
+    const existingAt  = (r && r.mv_plan_generated_at) || (r && r.config && r.config.mv_plan_generated_at);
+    if (existingRef && existingId) {
+      const dateStr = existingAt ? new Date(existingAt).toLocaleDateString() : "";
+      mvPlanStatus.innerHTML = `✔ Plan on file: <a href="/api/mv-plan/${existingId}" target="_blank"
+        style="color:#1a237e; font-weight:bold;">${existingRef}</a> (${dateStr}) — click to view / print`;
+    }
+  }
+
   // Add Document Sync Console button after Utility Package button
   // Check if button already exists to avoid duplicates
   let btnDocumentSync = document.getElementById("btnCheckDocumentConsistency");
@@ -11582,7 +12125,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function applyAutoRegion() {
       try {
         const sel = document.getElementById("regionSelect");
-        const locEl = document.getElementById("cp_location");
+        const cityEl = document.getElementById("cp_city") || document.getElementById("facility_city") || document.querySelector('[name="facility_city"]');
+        const stateEl = document.getElementById("cp_state") || document.getElementById("facility_state") || document.querySelector('[name="facility_state"]');
         if (!sel) return;
         // If user has an explicit preference saved, keep it.
         const saved = (function() {
@@ -11596,8 +12140,10 @@ document.addEventListener("DOMContentLoaded", () => {
           sel.value = saved;
           return;
         }
-        // Otherwise infer from client profile location
-        const loc = locEl ? locEl.value : "";
+        // Otherwise infer from city/state
+        const city = cityEl ? cityEl.value : "";
+        const state = stateEl ? stateEl.value : "";
+        const loc = [city, state].filter(Boolean).join(", ");
         const inferred = inferRegionFromLocation(loc);
         if (inferred) sel.value = inferred;
       } catch (e) {
@@ -11609,17 +12155,21 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       applyAutoRegion();
     }
-    // Update when location changes (debounced)
+    // Update when city/state changes (debounced)
     (function() {
-      const locEl = document.getElementById("cp_location");
+      const cityEl = document.getElementById("cp_city") || document.getElementById("facility_city") || document.querySelector('[name="facility_city"]');
+      const stateEl = document.getElementById("cp_state") || document.getElementById("facility_state") || document.querySelector('[name="facility_state"]');
       const sel = document.getElementById("regionSelect");
-      if (!locEl || !sel) return;
+      if ((!cityEl && !stateEl) || !sel) return;
       let t = null;
 
       function onChange() {
         clearTimeout(t);
         t = setTimeout(() => {
-          const inferred = inferRegionFromLocation(locEl.value);
+          const city = cityEl ? cityEl.value : "";
+          const state = stateEl ? stateEl.value : "";
+          const loc = [city, state].filter(Boolean).join(", ");
+          const inferred = inferRegionFromLocation(loc);
           if (inferred) {
             sel.value = inferred;
             try {
@@ -11628,7 +12178,9 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }, 1);
       }
-      ["change", "blur", "keyup"].forEach(ev => locEl.addEventListener(ev, onChange));
+      [cityEl, stateEl].filter(Boolean).forEach(el => {
+        ["change", "blur", "keyup"].forEach(ev => el.addEventListener(ev, onChange));
+      });
     })();
   })();
   // Synerex: Region-based Field Kit downloads
@@ -12976,7 +13528,7 @@ function loadProjectData(projectId) {
     return;
   }
 
-  fetch(`/api/projects/${projectId}/data`)
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects/'+projectId+'/data')
     .then(response => response.json())
     .then(data => {
       if (data.error) {
@@ -13682,7 +14234,7 @@ function extractPeriodFromFileId(fileId, fileType) {
   console.log(`[DATA] Extracting period from ${fileType} file ID: ${fileId}`);
   
   // Fetch file content from the server
-  fetch(`/api/original-files/${fileId}/clipping`)
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/'+fileId+'/clipping')
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success' && data.raw_content) {
@@ -15434,3 +15986,158 @@ function createSankeyChart(flowData, container) {
     container.innerHTML = '<div style="padding: 20px; background: #f8d7da; border-radius: 4px; text-align: center; color: #721c24;">Error creating energy flow diagram: ' + error.message + '</div>';
   }
 }
+// ---------------------------------------------------------------------------
+// EMV Tariff Rate Lookup
+// Calls /api/tariff-lookup, then auto-populates billing fields on the form.
+// ---------------------------------------------------------------------------
+async function emvLookupTariffRates() {
+  const btn      = document.getElementById('emvTariffLookupBtn');
+  const statusEl = document.getElementById('emvTariffLookupStatus');
+  const msgEl    = document.getElementById('emvTariffLookupMsg');
+  const badgeEl  = document.getElementById('emvTariffLookupBadge');
+  const notesEl  = document.getElementById('emvTariffLookupNotes');
+
+  // Gather inputs from the form
+  const utility = (document.querySelector('[name="utility"]')  || {}).value || '';
+  const tariff  = (document.querySelector('[name="tariff"]')   || {}).value || '';
+  const state   = (document.querySelector('[name="facility_state"]') || document.querySelector('[name="cp_state"]') || document.getElementById('facility_state') || document.getElementById('cp_state') || {}).value || '';
+  const country = 'USA';   // Could be extended to a form field later
+  const sector  = 'Commercial';
+
+  if (!utility && !tariff && !state) {
+    alert('Please enter a Utility name, Tariff code, or State before looking up rates.');
+    return;
+  }
+
+  // Loading state
+  btn.disabled = true;
+  btn.innerHTML = '<span>&#9203;</span> Looking Up…';
+  statusEl.style.display = 'block';
+  msgEl.textContent = 'Querying rate databases…';
+  badgeEl.textContent = '';
+  badgeEl.style.background = '';
+  notesEl.style.display = 'none';
+
+  try {
+    const resp = await fetch((window.SYNEREX_EMV_BASE || '') + '/api/tariff-lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ utility, tariff, state, country, sector }),
+    });
+
+    const json = await resp.json();
+    if (!resp.ok) { throw new Error(json.error || 'Lookup failed'); }
+
+    const r = json.response || {};
+    const rates = r.rates || r.rate_data || r;
+
+    // Helper: set a field by name, skipping if blank/null
+    function setField(name, val) {
+      if (val == null || val === '' || val === undefined) return;
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) {
+        el.value = val;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
+
+    // Populate billing fields
+    if (rates.energy_rate          != null) setField('energy_rate',           parseFloat(rates.energy_rate).toFixed(6));
+    if (rates.demand_rate          != null) setField('demand_rate',            parseFloat(rates.demand_rate).toFixed(4));
+    if (rates.demand_rate_kva      != null) setField('demand_rate_kva',        parseFloat(rates.demand_rate_kva).toFixed(4));
+    if (rates.demand_rate_ncp      != null) setField('demand_rate_ncp',        parseFloat(rates.demand_rate_ncp).toFixed(4));
+    if (rates.demand_rate_cp       != null) setField('demand_rate_cp',         parseFloat(rates.demand_rate_cp).toFixed(4));
+    if (rates.capacity_rate_per_kw != null) setField('capacity_rate_per_kw',   parseFloat(rates.capacity_rate_per_kw).toFixed(4));
+    if (rates.tou_rate_on          != null) setField('tou_rate_on',            parseFloat(rates.tou_rate_on).toFixed(6));
+    if (rates.tou_rate_off         != null) setField('tou_rate_off',           parseFloat(rates.tou_rate_off).toFixed(6));
+    if (rates.tou_rate_on_seasonal != null) setField('tou_rate_on_seasonal',   parseFloat(rates.tou_rate_on_seasonal).toFixed(6));
+    if (rates.tou_rate_off_seasonal!= null) setField('tou_rate_off_seasonal',  parseFloat(rates.tou_rate_off_seasonal).toFixed(6));
+    if (rates.demand_rate_ncp_tou  != null) setField('demand_rate_ncp_tou',    parseFloat(rates.demand_rate_ncp_tou).toFixed(4));
+    if (rates.demand_rate_cp_tou   != null) setField('demand_rate_cp_tou',     parseFloat(rates.demand_rate_cp_tou).toFixed(4));
+
+    // Billing method
+    if (rates.billing_method) {
+      const sel = document.querySelector('[name="billing_method"]');
+      if (sel) {
+        const opt = Array.from(sel.options).find(o =>
+          o.value.toLowerCase() === rates.billing_method.toLowerCase()
+        );
+        if (opt) sel.value = opt.value;
+      }
+    }
+
+    // Status badge
+    const confidence = (r.confidence || rates.confidence || '').toLowerCase();
+    const source     = r.source || rates.source || 'unknown';
+    const notes      = r.notes  || rates.notes  || '';
+
+    const badgeColors = {
+      high:     { bg: '#16a34a', text: '#fff' },
+      medium:   { bg: '#d97706', text: '#fff' },
+      low:      { bg: '#9333ea', text: '#fff' },
+      very_low: { bg: '#6b7280', text: '#fff' },
+    };
+    const color = badgeColors[confidence] || badgeColors['low'];
+
+    msgEl.textContent = `Rates populated from: ${source}`;
+    badgeEl.textContent = confidence ? confidence.replace('_', ' ').toUpperCase() + ' CONFIDENCE' : 'ESTIMATED';
+    badgeEl.style.background = color.bg;
+    badgeEl.style.color = color.text;
+
+    if (notes) {
+      notesEl.textContent = notes;
+      notesEl.style.display = 'block';
+    }
+
+  } catch (err) {
+    statusEl.style.display = 'block';
+    msgEl.textContent = 'Error: ' + err.message;
+    msgEl.style.color = '#dc2626';
+    badgeEl.textContent = 'FAILED';
+    badgeEl.style.background = '#dc2626';
+    badgeEl.style.color = '#fff';
+    console.error('EMV tariff lookup error:', err);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>&#128269;</span> Look Up Tariff Rates';
+  }
+}
+
+// ── Harmonic Analysis Mode UI ────────────────────────────────────────────────
+// Called from the "Harmonic Analysis Mode" select in the Electrical Config form
+// and also during project config restore to set the correct initial UI state.
+function updateHarmonicModeUI(mode) {
+  const helpEl    = document.getElementById('harmonic_mode_help');
+  const specEl    = document.getElementById('harmonic_spectrum_fields');
+  const selectEl  = document.getElementById('harmonic_analysis_mode_select');
+
+  if (!helpEl || !specEl) return;
+
+  if (mode === 'per_order_spectrum') {
+    helpEl.style.background    = '#d4edda';
+    helpEl.style.borderColor   = '#28a745';
+    helpEl.style.color         = '#155724';
+    helpEl.innerHTML = '<strong>Per-Order Spectrum Mode:</strong> Full IEEE 519-2022 Table 2 compliance (per-order limits H3–H49), ' +
+      'TDD calculation (IEEE 519 Table 1), and K-factor derating (IEEE C57.110-2018) will be evaluated. ' +
+      'Ensure your CSV files contain individual harmonic columns (e.g. <code>h3_pct</code>, <code>h5_pct</code> … <code>h49_pct</code>). ' +
+      'The system will auto-detect these columns on upload.';
+    specEl.style.display = 'block';
+  } else {
+    helpEl.style.background    = '#fff3cd';
+    helpEl.style.borderColor   = '#ffc107';
+    helpEl.style.color         = '#856404';
+    helpEl.innerHTML = '<strong>THD-Aggregate Mode:</strong> IEEE 519 compliance is assessed on aggregate THD only (≤5.0%). ' +
+      'Per-order limits (IEEE 519 Table 2), K-factor derating (IEEE C57.110-2018), and TDD cannot be verified with this meter capability. ' +
+      'The compliance badge in reports will read <em>"THD ≤ 5% — Aggregate Basis Only"</em> rather than a definitive PASS/FAIL. ' +
+      'Switch to Per-Order Spectrum mode once the meter firmware upgrade is installed.';
+    specEl.style.display = 'none';
+  }
+}
+
+// Restore harmonic mode UI state when a project is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  const sel = document.getElementById('harmonic_analysis_mode_select');
+  if (sel) updateHarmonicModeUI(sel.value);
+});
+

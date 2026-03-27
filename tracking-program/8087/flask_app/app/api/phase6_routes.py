@@ -245,7 +245,11 @@ def list_meter_alert_events():
     if not project or not _user_has_project_access(project):
         return jsonify({"error": "Unauthorized"}), 404
     from app.models.meter_alert_event import MeterAlertEvent
-    events = MeterAlertEvent.query.join(MeterAlert).join(MeterAlertGroup).filter(MeterAlertGroup.project == project).order_by(MeterAlertEvent.createdAt.desc()).limit(100).all()
+    events = (MeterAlertEvent.query
+              .join(MeterAlertGroup, MeterAlertEvent.alertGroup == MeterAlertGroup.id)
+              .filter(MeterAlertGroup.project == project)
+              .order_by(MeterAlertEvent.createdAt.desc())
+              .limit(100).all())
     return jsonify({"meta": {}, "response": [{"id": e.id, "createdAt": e.createdAt} for e in events]})
 
 
@@ -359,7 +363,10 @@ def list_repeater_alert_events():
     if not project or not _user_has_project_access(project):
         return jsonify({"error": "Unauthorized"}), 404
     from app.models.repeater_alert_event import RepeaterAlertEvent
-    events = RepeaterAlertEvent.query.join(RepeaterAlert).join(RepeaterAlertGroup).filter(RepeaterAlertGroup.project == project).limit(100).all()
+    events = (RepeaterAlertEvent.query
+              .join(RepeaterAlertGroup, RepeaterAlertEvent.alertGroup == RepeaterAlertGroup.id)
+              .filter(RepeaterAlertGroup.project == project)
+              .limit(100).all())
     return jsonify({"meta": {}, "response": [{"id": e.id, "createdAt": getattr(e, "createdAt", None)} for e in events]})
 
 
@@ -453,7 +460,10 @@ def list_switch_alert_events():
     if not project or not _user_has_project_access(project):
         return jsonify({"error": "Unauthorized"}), 404
     from app.models.switch_alert_event import SwitchAlertEvent
-    events = SwitchAlertEvent.query.join(SwitchAlert).join(SwitchAlertGroup).filter(SwitchAlertGroup.project == project).limit(100).all()
+    events = (SwitchAlertEvent.query
+              .join(SwitchAlertGroup, SwitchAlertEvent.alertGroup == SwitchAlertGroup.id)
+              .filter(SwitchAlertGroup.project == project)
+              .limit(100).all())
     return jsonify({"meta": {}, "response": [{"id": e.id} for e in events]})
 
 
@@ -786,7 +796,15 @@ def create_user():
                 return jsonify({"error": seat_err or "Seat limit reached. Please upgrade your subscription."}), 402
             seat_license_id = lic_id
 
-    parts = full_name.split(None, 1)
+    # Enforce one Client Admin (role 2) per org — the first account is always the only admin.
+    if new_role == 2 and client_id:
+        existing_admin = User.query.filter_by(role=2, client=client_id, isDeleted=False).first()
+        if existing_admin:
+            return jsonify({
+                "error": f"This organization already has a Client Admin ({existing_admin.email}). "
+                         "Each organization may only have one admin account."
+            }), 409
+
     if len(parts) < 2:
         return jsonify({"error": "fullName must have first and last name"}), 400
     first_name, last_name = parts[0], parts[1]

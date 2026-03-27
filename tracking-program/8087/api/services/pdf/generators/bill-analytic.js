@@ -31,6 +31,15 @@ module.exports = function (printer) {
     return cells;
   }
 
+  // ─── safeName helper ────────────────────────────────────────────────────────
+  // Truncates charge names that exceed maxLen characters so they can never
+  // overflow a narrow colSpan:2 cell regardless of font size.
+  function safeName(name, maxLen) {
+    maxLen = maxLen || 38;
+    var s = (name == null ? '' : String(name));
+    return s.length > maxLen ? s.substring(0, maxLen - 1) + '\u2026' : s;
+  }
+
   return {
     generate: generate
   };
@@ -181,7 +190,7 @@ module.exports = function (printer) {
         },
         {
           absolutePosition: {x: 370, y: 50},
-          text: `Report No.: ${billData.reportNumber}-A`,
+          text: `Report No.: ${billData.reportNumber}`,
           style: {
             bold: true,
           }
@@ -564,7 +573,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 10, 0, 0],
-          text: `Report No.: ${billData.reportNumber}-A`,
+          text: `Report No.: ${billData.reportNumber}`,
           width: '*',
           style: {
             bold: true,
@@ -1746,7 +1755,7 @@ module.exports = function (printer) {
           pageBreak: 'after',
           margin: [0, 0, RIGHT_SAFETY, 0],
           table: {
-            widths: ['*', '*', '*', '*', '*', '*'],
+            widths: [95, 95, '*', '*', '*', '*'],
             body: [
               [
                 {
@@ -2534,7 +2543,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[0].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[0].name),
                   colSpan: 2
                 },
                 {
@@ -2587,7 +2596,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[1].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[1].name),
                   colSpan: 2
                 },
                 {
@@ -2638,7 +2647,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[2].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[2].name),
                   colSpan: 2
                 },
                 {
@@ -2692,7 +2701,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[3].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[3].name),
                   colSpan: 2
                 },
                 {
@@ -2738,7 +2747,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[4].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[4].name),
                   colSpan: 2
                 },
                 {
@@ -2791,7 +2800,7 @@ module.exports = function (printer) {
               [
                 {
                   border: [true, false, false, false],
-                  text: billData.billAnalysis.reference2Section2Charges[5].name,
+                  text: safeName(billData.billAnalysis.reference2Section2Charges[5].name),
                   colSpan: 2
                 },
                 {
@@ -3807,7 +3816,7 @@ module.exports = function (printer) {
         ...spanCell({
           border: [true, false, false, false],
           margin: [-3, -2, 0, -2],
-          text: charge.name,
+          text: safeName(charge.name),
         }, 2),
         {
           border: noBordersCell,
@@ -3830,7 +3839,7 @@ module.exports = function (printer) {
         {
           border: [true, false, false, false],
           margin: [0, 0, -2, 0],
-          text: charge.name,
+          text: safeName(charge.name),
         },
         {
           border: noBordersCell,

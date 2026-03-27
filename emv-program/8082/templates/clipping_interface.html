@@ -273,7 +273,7 @@
         <div class="dashboard-header">
             <div class="header-content">
                 <div class="logo-section">
-                    <img src="/static/synerex_logo.png" alt="Synerex Logo" class="logo">
+                    <img src="static/synerex_logo.png" alt="Synerex Logo" class="logo">
                     <h1>CSV Clipping Interface</h1>
                 </div>
                 <div class="header-actions">
@@ -507,7 +507,7 @@
             const backBtn = document.getElementById('back-to-dashboard');
             if (backBtn) {
                 backBtn.addEventListener('click', function() {
-                    window.location.href = '/main-dashboard';
+                    window.location.href = (window.SYNEREX_EMV_BASE || '') + '/main-dashboard';
                 });
             }
             
@@ -516,7 +516,7 @@
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function() {
                     localStorage.removeItem('session_token');
-                    window.location.href = '/main-dashboard';
+                    window.location.href = (window.SYNEREX_EMV_BASE || '') + '/main-dashboard';
                 });
             }
             
@@ -542,7 +542,11 @@
             filesList.innerHTML = '<div class="loading">Loading files...</div>';
             
             try {
-                const response = await fetch('/api/original-files');
+                const _base = window.SYNEREX_EMV_BASE || '';
+                const _tok  = localStorage.getItem('session_token') || sessionStorage.getItem('session_token') || '';
+                const response = await fetch(_base + '/api/original-files', {
+                    headers: _tok ? { 'Authorization': 'Bearer ' + _tok } : {}
+                });
                 const data = await response.json();
                 
                 if (data.files && data.files.length > 0) {
@@ -586,7 +590,11 @@
             csvContainer.innerHTML = '<div class="loading">Loading CSV data...</div>';
             
             try {
-                const response = await fetch('/api/original-files/' + fileId + '/clipping');
+                const _base2 = window.SYNEREX_EMV_BASE || '';
+                const _tok2  = localStorage.getItem('session_token') || sessionStorage.getItem('session_token') || '';
+                const response = await fetch(_base2 + '/api/original-files/' + fileId + '/clipping', {
+                    headers: _tok2 ? { 'Authorization': 'Bearer ' + _tok2 } : {}
+                });
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -857,7 +865,7 @@
                 }
                 
                 // Send to server
-                const response = await fetch(`/api/original-files/${currentFile.id}/apply-clipping`, {
+                const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/original-files/${currentFile.id}/apply-clipping`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

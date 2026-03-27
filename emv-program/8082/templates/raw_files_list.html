@@ -7,8 +7,8 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Raw Files List - Synerex</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main_dashboard.css') }}?v={{ cache_bust }}">
-    <link rel="icon" href="{{ url_for('static', filename='synerex_logo.png') }}" type="image/png">
+    <link rel="stylesheet" href="static/main_dashboard.css?v={{ cache_bust }}">
+    <link rel="icon" href="static/synerex_logo.png" type="image/png">
 </head>
 <body>
     <!-- Raw Files List Container -->
@@ -16,7 +16,7 @@
         <!-- Header -->
         <div class="dashboard-header">
             <div class="header-left">
-                <img src="{{ url_for('static', filename='synerex_logo.png') }}" alt="Synerex" class="logo">
+                <img src="static/synerex_logo.png" alt="Synerex" class="logo">
                 <h1>Raw Files List</h1>
             </div>
             <div class="header-right">
@@ -149,6 +149,6 @@
     </div>
 
     <!-- Scripts -->
-    <script src="{{ url_for('static', filename='raw_files_list.js') }}?v={{ cache_bust }}"></script>
+    <script src="static/raw_files_list.js?v={{ cache_bust }}"></script>
 </body>
 </html>

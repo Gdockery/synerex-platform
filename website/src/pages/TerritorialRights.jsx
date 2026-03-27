@@ -18,7 +18,7 @@ export default function TerritorialRights() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -37,27 +37,27 @@ export default function TerritorialRights() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Regional Licensing</h3>
+            <h3 className="font-bold text-purple-200">Regional Licensing</h3>
             <p className="text-sm mt-2 text-gray-300">Territorial licensing agreements for specific geographic regions, allowing licensees to use Synerex trademarks within defined boundaries while maintaining market exclusivity.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Global Licensing</h3>
+            <h3 className="font-bold text-purple-200">Global Licensing</h3>
             <p className="text-sm mt-2 text-gray-300">Worldwide licensing agreements that provide comprehensive territorial rights for global use of Synerex trademarks across all markets and jurisdictions.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Market-Specific Rights</h3>
+            <h3 className="font-bold text-purple-200">Market-Specific Rights</h3>
             <p className="text-sm mt-2 text-gray-300">Tailored territorial rights for specific markets, industries, or customer segments, allowing for focused licensing strategies and targeted brand expansion.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Exclusive Territories</h3>
+            <h3 className="font-bold text-purple-200">Exclusive Territories</h3>
             <p className="text-sm mt-2 text-gray-300">Exclusive territorial licensing agreements that grant sole rights to use Synerex trademarks within specific geographic areas or market segments.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Non-Exclusive Territories</h3>
+            <h3 className="font-bold text-purple-200">Non-Exclusive Territories</h3>
             <p className="text-sm mt-2 text-gray-300">Non-exclusive territorial rights that allow multiple licensees to use Synerex trademarks within the same geographic areas, fostering competition and market growth.</p>
           </div>
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-xl">
-            <h3 className="font-bold text-purple-400">Territory Expansion</h3>
+            <h3 className="font-bold text-purple-200">Territory Expansion</h3>
             <p className="text-sm mt-2 text-gray-300">Flexible agreements that allow for territory expansion and modification based on business growth, market opportunities, and licensee performance.</p>
           </div>
         </div>

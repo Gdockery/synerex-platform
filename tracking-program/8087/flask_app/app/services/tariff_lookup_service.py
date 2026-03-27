@@ -236,7 +236,7 @@ def _lookup_eia(state: str, sector: str = "commercial") -> dict | None:
         "frequency": "monthly",
         "data[0]": "price",
         "facets[stateid][]": state_abbrev,
-        "facets[sectorid][]": sector[:1].upper(),  # "C" commercial, "I" industrial
+        "facets[sectorid][]": {"commercial": "COM", "industrial": "IND", "residential": "RES"}.get(sector.lower(), "COM"),
         "sort[0][column]": "period",
         "sort[0][direction]": "desc",
         "length": 1,

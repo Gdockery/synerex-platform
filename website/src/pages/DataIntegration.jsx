@@ -4,16 +4,11 @@ import LicenseSeal from "../components/LicenseSeal.jsx";
 export default function DataIntegration() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans pt-16">
-      <style>{`        @keyframes gradientMove {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+      <style>{`
+50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .animated-gradient {
-          background-size: 400% 400%;
-          animation: gradientMove 15s ease infinite;
-        }
-        .fade-in {
+.fade-in {
           opacity: 0;
           transform: translateY(15px);
           animation: fadeIn 1.5s ease forwards;
@@ -29,7 +24,7 @@ export default function DataIntegration() {
         }
       `}</style>
       {/* Hero Section with Logo */}
-      <section className="relative from-gray-900 via-purple-900 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
+      <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-24 px-4 text-center text-white">
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
@@ -45,42 +40,42 @@ export default function DataIntegration() {
       <section className="max-w-7xl mx-auto px-4 py-12 fade-in">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">RESTful APIs</h3>
+            <h3 className="font-bold text-purple-200 mb-3">RESTful APIs</h3>
             <p className="text-sm text-gray-300">Comprehensive REST API for accessing power quality data, configuration management, and system control functions.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Database Connectivity</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Database Connectivity</h3>
             <p className="text-sm text-gray-300">Direct integration with popular databases including SQL Server, Oracle, MySQL, and PostgreSQL for data storage and retrieval.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">SCADA Integration</h3>
+            <h3 className="font-bold text-purple-200 mb-3">SCADA Integration</h3>
             <p className="text-sm text-gray-300">Seamless integration with SCADA systems using standard protocols including Modbus, DNP3, and OPC UA.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Data Export</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Data Export</h3>
             <p className="text-sm text-gray-300">Flexible data export capabilities in multiple formats including CSV, Excel, JSON, and XML for analysis and reporting.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Webhook Support</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Webhook Support</h3>
             <p className="text-sm text-gray-300">Real-time event notifications via webhooks for alerts, alarms, and system status changes.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Enterprise Systems</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Enterprise Systems</h3>
             <p className="text-sm text-gray-300">Integration with enterprise resource planning (ERP) and asset management systems for comprehensive data flow.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Cloud Platforms</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Cloud Platforms</h3>
             <p className="text-sm text-gray-300">Native integration with cloud platforms including AWS, Azure, and Google Cloud for scalable data processing.</p>
           </div>
           
           <div className="p-6 border border-gray-700 bg-gray-800 rounded-lg shadow-sm">
-            <h3 className="font-bold text-purple-400 mb-3">Automated Reports</h3>
+            <h3 className="font-bold text-purple-200 mb-3">Automated Reports</h3>
             <p className="text-sm text-gray-300">Scheduled and event-driven report generation with customizable templates and delivery options.</p>
           </div>
         </div>
@@ -89,7 +84,7 @@ export default function DataIntegration() {
           <h2 className="text-2xl font-bold text-gray-300 mb-4">Integration Protocols & Standards</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">Communication Protocols</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Communication Protocols</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• Modbus TCP/RTU</li>
                 <li>• DNP3 (Distributed Network Protocol)</li>
@@ -99,7 +94,7 @@ export default function DataIntegration() {
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold text-purple-400 mb-2">Data Formats</h3>
+              <h3 className="font-semibold text-purple-200 mb-2">Data Formats</h3>
               <ul className="text-sm text-gray-300 space-y-1">
                 <li>• JSON (JavaScript Object Notation)</li>
                 <li>• XML (eXtensible Markup Language)</li>
@@ -112,7 +107,7 @@ export default function DataIntegration() {
         </div>
         
         <div className="mt-8 p-6 bg-gray-800 border border-gray-700 rounded-lg">
-          <h3 className="font-bold text-purple-400 mb-3">Integration Use Cases</h3>
+          <h3 className="font-bold text-purple-200 mb-3">Integration Use Cases</h3>
           <div className="grid md:grid-cols-3 gap-4">
             <div className="p-4 border border-gray-700 rounded-lg">
               <h4 className="font-semibold text-gray-300 mb-2">Energy Management</h4>
@@ -132,7 +127,7 @@ export default function DataIntegration() {
         <div className="mt-8 text-center">
           <a 
             href="/real-time-analytics" 
-            className="inline-flex items-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-400 transition-colors"
+            className="inline-flex items-center px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-300 transition-colors"
           >
             Learn More About Power Analysis
           </a>

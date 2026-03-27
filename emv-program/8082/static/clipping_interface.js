@@ -54,10 +54,10 @@ class ClippingInterface {
         backBtn.addEventListener('click', () => {
             if (this.hasChanges) {
                 if (confirm('You have unsaved changes. Are you sure you want to leave?')) {
-                    window.location.href = '/main-dashboard';
+                    window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
                 }
             } else {
-                window.location.href = '/main-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
             }
         });
         
@@ -240,8 +240,11 @@ class ClippingInterface {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
             
+            const sessionToken = this.getSessionToken();
+            const authHeaders = sessionToken ? { 'Authorization': `Bearer ${sessionToken}` } : {};
             const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files', {
-                signal: controller.signal
+                signal: controller.signal,
+                headers: authHeaders
             });
             
             clearTimeout(timeoutId);
@@ -390,7 +393,10 @@ class ClippingInterface {
                 filesList.innerHTML = '<div class="loading" id="file-loading-indicator">Loading file content...</div>';
             }
             
-            const response = await fetch(`/api/original-files/${fileId}/clipping`);
+            const _tok = this.getSessionToken();
+            const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/original-files/${fileId}/clipping`, {
+                headers: _tok ? { 'Authorization': `Bearer ${_tok}` } : {}
+            });
             console.log('API response status:', response.status);
             
             if (!response.ok) {
@@ -1259,7 +1265,10 @@ class ClippingInterface {
     
     async loadCellAnnotations(fileId) {
         try {
-            const response = await fetch(`/api/csv-cell-annotations/${fileId}`);
+            const _tok = this.getSessionToken();
+            const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/csv-cell-annotations/${fileId}`, {
+                headers: _tok ? { 'Authorization': `Bearer ${_tok}` } : {}
+            });
             const data = await response.json();
             
             if (data.success && data.annotations) {
@@ -1438,7 +1447,7 @@ class ClippingInterface {
                 sessionToken: this.getSessionToken() ? 'Found' : 'Missing'
             });
             
-            const response = await fetch(`/api/original-files/${this.currentFile.id}/apply-clipping`, {
+            const response = await fetch(`${window.SYNEREX_EMV_BASE||''}/api/original-files/${this.currentFile.id}/apply-clipping`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1589,7 +1598,7 @@ class ClippingInterface {
             if (websiteUrl) {
                 window.location.href = `${websiteUrl}/`;
             } else {
-                window.location.href = '/main-dashboard';
+                window.location.href = (window.SYNEREX_EMV_BASE||'') + '/main-dashboard';
             }
         }
     }

@@ -1,84 +1,372 @@
+<!-- ====== SECTION A: Enhanced Live Snapshot Table ====== -->
 <div class="row content-box">
   <div class="col-md-5 pull-right">
-      <div class="form-group">
-        <label for="type">Select Meter</label>
-        <select type="text" class="form-control" id="selectedMeter" name="selectedMeter" [(ngModel)]="selectedMeter">
-          <option *ngFor="let meter of meters; let i = index" value="{{meter.id}}">{{meter.name}}</option>
-        </select>
-      </div>
-      <button type="button" class="default-button green-button pull-right" (click)="updateMeter()">View Meter</button>
+    <div class="form-group">
+      <label for="selectedMeter">Select Meter</label>
+      <select class="form-control" id="selectedMeter" [(ngModel)]="selectedMeter">
+        <option *ngFor="let meter of meters" value="{{meter.id}}">{{meter.name}}</option>
+      </select>
+    </div>
+    <button type="button" class="default-button green-button pull-right" (click)="updateMeter()">View Meter</button>
   </div>
   <div class="col-md-12">
     <div class="box">
       <ng-template #loadingState>Loading...</ng-template>
       <table *ngIf="realTimeData; else loadingState" class="table">
         <tr>
-          <th style="width: 50%;text-align:left">Real Time Power Quality Measurement</th>
-          <th>Phase 1</th>
-          <th>Phase 2</th>
-          <th>Phase 3</th>
+          <th style="width:40%;text-align:left">Real Time Power Quality Measurement</th>
+          <th>Phase 1 (L1)</th><th>Phase 2 (L2)</th><th>Phase 3 (L3)</th>
         </tr>
         <tr class="text-center">
-          <td style="text-align:left">Amp Load <strong>Current</strong></td>
-          <td>{{realTimeData.ampLoad1 | round}}</td>
-          <td>{{realTimeData.ampLoad2 | round}}</td>
-          <td>{{realTimeData.ampLoad3 | round}}</td>
+          <td style="text-align:left">Amp Load <strong>Current (A)</strong></td>
+          <td>{{realTimeData.ampLoad1 | round}}</td><td>{{realTimeData.ampLoad2 | round}}</td><td>{{realTimeData.ampLoad3 | round}}</td>
         </tr>
         <tr class="text-center">
-          <td style="text-align:left">Power Factor <strong>Efficiency</strong></td>
-          <td>{{realTimeData.powerFactor1 | round:2}}%</td>
-          <td>{{realTimeData.powerFactor2 | round:2}}%</td>
-          <td>{{realTimeData.powerFactor3 | round:2}}%</td>
+          <td style="text-align:left">Voltage <strong>Supply (V)</strong></td>
+          <td>{{realTimeData.voltage1 | round}}</td><td>{{realTimeData.voltage2 | round}}</td><td>{{realTimeData.voltage3 | round}}</td>
         </tr>
         <tr class="text-center">
-          <td style="text-align:left">kVAR Measure <strong>Reactive Energy</strong></td>
-          <td>{{realTimeData.kvar1 | round}}</td>
-          <td>{{realTimeData.kvar2 | round}}</td>
-          <td>{{realTimeData.kvar3 | round}}</td>
+          <td style="text-align:left">Active Power <strong>kW</strong></td>
+          <td>{{realTimeData.kw1 | round:2}}</td><td>{{realTimeData.kw2 | round:2}}</td><td>{{realTimeData.kw3 | round:2}}</td>
         </tr>
         <tr class="text-center">
-          <td style="text-align:left">Voltage <strong>Supply</strong></td>
-          <td>{{realTimeData.voltage1 | round}}</td>
-          <td>{{realTimeData.voltage2 | round}}</td>
-          <td>{{realTimeData.voltage3 | round}}</td>
+          <td style="text-align:left">Apparent Power <strong>kVA</strong></td>
+          <td>{{realTimeData.kva1 | round:2}}</td><td>{{realTimeData.kva2 | round:2}}</td><td>{{realTimeData.kva3 | round:2}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">kVAR <strong>Reactive Energy</strong></td>
+          <td>{{realTimeData.kvar1 | round}}</td><td>{{realTimeData.kvar2 | round}}</td><td>{{realTimeData.kvar3 | round}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Displacement PF <strong>(cos phi)</strong></td>
+          <td>{{realTimeData.powerFactor1 | round:3}}</td><td>{{realTimeData.powerFactor2 | round:3}}</td><td>{{realTimeData.powerFactor3 | round:3}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">True PF <strong>(incl. harmonics)</strong></td>
+          <td>{{realTimeData.truePf1 | round:3}}</td><td>{{realTimeData.truePf2 | round:3}}</td><td>{{realTimeData.truePf3 | round:3}}</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">THD <strong>Total Harmonic Distortion (%)</strong></td>
+          <td>{{realTimeData.thd1 | round:2}}%</td><td>{{realTimeData.thd2 | round:2}}%</td><td>{{realTimeData.thd3 | round:2}}%</td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Voltage Imbalance <strong>NEMA MG1 (%)</strong></td>
+          <td colspan="3" [class.text-danger]="realTimeData.voltImbalance > 2">
+            {{realTimeData.voltImbalance | round:2}}%
+            <span *ngIf="realTimeData.voltImbalance > 2" class="label label-danger" style="margin-left:8px">Exceeds 2% -- Motor Derating Required</span>
+          </td>
+        </tr>
+        <tr class="text-center">
+          <td style="text-align:left">Current Imbalance <strong>(%)</strong></td>
+          <td colspan="3" [class.text-danger]="realTimeData.ampImbalance > 10">
+            {{realTimeData.ampImbalance | round:2}}%
+            <span *ngIf="realTimeData.ampImbalance > 10" class="label label-danger" style="margin-left:8px">Exceeds 10%</span>
+          </td>
         </tr>
       </table>
     </div>
   </div>
 </div>
 
-<div class="row content-box">
-  <div class="col-md-5">
-    <h3></h3>
+<!-- ====== SECTION B: IEEE 519-2022 Live Compliance Banner ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded">
+  <div class="col-md-12">
+    <div [ngSwitch]="complianceBannerState">
+      <div *ngSwitchCase="'compliant'" style="background:#27ae60;color:#fff;padding:14px 20px;border-radius:6px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:12px;">
+        COMPLIANT -- IEEE 519-2022 (All measured harmonics within limits)
+      </div>
+      <div *ngSwitchCase="'non-compliant'" style="background:#e74c3c;color:#fff;padding:14px 20px;border-radius:6px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:12px;">
+        NON-COMPLIANT -- IEEE 519-2022 ({{complianceViolationCount}} violation{{complianceViolationCount !== 1 ? 's' : ''}} detected)
+      </div>
+      <div *ngSwitchCase="'insufficient'" style="background:#f39c12;color:#fff;padding:14px 20px;border-radius:6px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:12px;">
+        INSUFFICIENT DATA -- Harmonic register mapping pending (H3-H21 registers not yet mapped)
+      </div>
+    </div>
   </div>
+</div>
+
+<!-- ====== SECTION C: IEEE 519-2022 Compliance Detail Table ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded">
+  <div class="col-md-12">
+    <div class="box">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h4 style="margin:0">IEEE 519-2022 Individual Harmonic Compliance</h4>
+        <button class="default-button green-button" (click)="exportComplianceCsv()" [disabled]="!harmonicsData?.hasHarmonicData">Export CSV</button>
+      </div>
+      <div style="margin-bottom:12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <label style="margin:0;font-weight:600">ISC/IL Ratio:</label>
+        <select class="form-control" style="width:auto" [(ngModel)]="iscIlRatio" (change)="updateHarmonics()">
+          <option [value]="15">Less than 20 -- TDD limit 5%</option>
+          <option [value]="35">20 to 50 -- TDD limit 8%</option>
+          <option [value]="75">50 to 100 -- TDD limit 12%</option>
+          <option [value]="500">100 to 1000 -- TDD limit 15%</option>
+          <option [value]="9999">Greater than 1000 -- TDD limit 20%</option>
+        </select>
+        <span class="text-muted" style="font-size:12px">TDD Limit: <strong>{{harmonicsData?.ieee519?.tddLimit}}%</strong></span>
+      </div>
+      <div *ngIf="harmonicsData?.hasHarmonicData; else noHarmonicData">
+        <table class="table table-bordered table-sm" style="font-size:13px">
+          <thead style="background:#f5f5f5">
+            <tr>
+              <th>Order</th>
+              <th>L1 Amp (%)</th><th>L2 Amp (%)</th><th>L3 Amp (%)</th>
+              <th>IEEE Limit (%)</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of harmonicOrders"
+                [style.background]="isCompliant(order) ? 'rgba(39,174,96,0.06)' : 'rgba(231,76,60,0.08)'">
+              <td><strong>{{order}}</strong></td>
+              <td>{{safeGet(harmonicsData?.l1?.amp, order) | round:3}}</td>
+              <td>{{safeGet(harmonicsData?.l2?.amp, order) | round:3}}</td>
+              <td>{{safeGet(harmonicsData?.l3?.amp, order) | round:3}}</td>
+              <td>{{safeGet(harmonicsData?.ieee519?.individualLimits, order)}}</td>
+              <td>
+                <span [class]="isCompliant(order) ? 'label label-success' : 'label label-danger'">
+                  {{isCompliant(order) ? 'PASS' : 'FAIL'}}
+                </span>
+              </td>
+            </tr>
+            <tr style="background:#eef;font-weight:700">
+              <td>TDD</td>
+              <td colspan="3" class="text-center">Measured via THD proxy (individual register data pending)</td>
+              <td>{{harmonicsData?.ieee519?.tddLimit}}%</td>
+              <td>--</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noHarmonicData>
+        <div style="padding:20px;background:#fafafa;border:1px solid #ddd;border-radius:4px;text-align:center;color:#888">
+          <strong>No individual harmonic data available.</strong><br>
+          Awaiting Xeco Modbus register mapping for H3-H21. THD per phase is available in the Live Snapshot table above.
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION D: Engineering Metric Cards ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded && harmonicsData">
+  <div class="col-md-12"><h4>Engineering Metrics</h4></div>
+
+  <div class="col-md-4" *ngIf="harmonicsData.kFactor">
+    <div class="box" style="padding:16px">
+      <h5 style="margin-top:0;color:#2c3e50">K-Factor (IEEE C57.110)</h5>
+      <table class="table table-sm" style="margin-bottom:6px">
+        <tr><th>Phase</th><th>K-Factor</th><th>Recommendation</th></tr>
+        <tr *ngFor="let ph of ['l1','l2','l3']">
+          <td>{{ph.toUpperCase()}}</td>
+          <td><strong>{{harmonicsData.kFactor[ph] | round:2}}</strong></td>
+          <td style="font-size:11px;color:#666">{{safeGet(harmonicsData.kFactorLabel, ph)}}</td>
+        </tr>
+      </table>
+      <div style="font-size:11px;color:#888">K = sum(h^2 x Ih_pu^2). Higher K = more transformer derating required.</div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="box" style="padding:16px">
+      <h5 style="margin-top:0;color:#2c3e50">Estimated Neutral Current</h5>
+      <div style="font-size:36px;font-weight:700;color:#e67e22;margin:12px 0">
+        {{harmonicsData.neutralCurrentEst | round:1}} <span style="font-size:16px;font-weight:400">A</span>
+      </div>
+      <div style="font-size:12px;color:#888">
+        Triplen harmonics (H3 + H9 + H15 + H21) per phase.<br>
+        Formula: I_neutral approx 3 x sqrt(sum I_h_triplen squared)
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4" *ngIf="realTimeData">
+    <div class="box" style="padding:16px">
+      <h5 style="margin-top:0;color:#2c3e50">Phase Imbalance (NEMA MG1)</h5>
+      <div style="margin-bottom:10px">
+        <strong>Voltage Imbalance:</strong>
+        <span [class]="realTimeData.voltImbalance > 2 ? 'text-danger' : 'text-success'" style="font-size:22px;font-weight:700;margin-left:8px">
+          {{realTimeData.voltImbalance | round:2}}%
+        </span>
+        <span class="label label-danger" *ngIf="realTimeData.voltImbalance > 2" style="margin-left:6px">MOTOR DERATING</span>
+      </div>
+      <div>
+        <strong>Current Imbalance:</strong>
+        <span [class]="realTimeData.ampImbalance > 10 ? 'text-danger' : 'text-success'" style="font-size:22px;font-weight:700;margin-left:8px">
+          {{realTimeData.ampImbalance | round:2}}%
+        </span>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:8px">Thresholds: Voltage greater than 2%, Current greater than 10%</div>
+    </div>
+  </div>
+
+  <div class="col-md-4" *ngIf="realTimeData">
+    <div class="box" style="padding:16px">
+      <h5 style="margin-top:0;color:#2c3e50">True PF vs. Displacement PF</h5>
+      <table class="table table-sm">
+        <tr><th>Phase</th><th>Disp. PF</th><th>True PF</th></tr>
+        <tr>
+          <td>L1</td>
+          <td>{{realTimeData.powerFactor1 | round:3}}</td>
+          <td>{{realTimeData.truePf1 | round:3}}</td>
+        </tr>
+        <tr>
+          <td>L2</td>
+          <td>{{realTimeData.powerFactor2 | round:3}}</td>
+          <td>{{realTimeData.truePf2 | round:3}}</td>
+        </tr>
+        <tr>
+          <td>L3</td>
+          <td>{{realTimeData.powerFactor3 | round:3}}</td>
+          <td>{{realTimeData.truePf3 | round:3}}</td>
+        </tr>
+      </table>
+      <div style="font-size:11px;color:#888">True PF = DPF / sqrt(1 + (THD/100)^2)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION E: EMV Baseline Info Panel ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded">
+  <div class="col-md-12">
+    <div class="box" style="padding:16px;background:#f9f9f9">
+      <h5 style="margin-top:0;color:#2c3e50">Harmonic Baseline -- EMV Analysis (OFF Period)</h5>
+      <div *ngIf="hasBaseline; else noBaseline" style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+        <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:10px 16px">
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px">Baseline Source</div>
+          <div style="font-weight:700;color:#2c3e50">EMV Analysis -- OFF Period</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:10px 16px">
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px">Analysis Date</div>
+          <div style="font-weight:700;color:#2c3e50">{{harmonicsData?.baseline?.analysisDate || '--'}}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #ddd;border-radius:4px;padding:10px 16px">
+          <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px">OFF Period</div>
+          <div style="font-weight:700;color:#2c3e50">
+            {{harmonicsData?.baseline?.offPeriodStart}} -- {{harmonicsData?.baseline?.offPeriodEnd}}
+          </div>
+        </div>
+      </div>
+      <ng-template #noBaseline>
+        <div style="color:#e67e22;font-weight:600">
+          No EMV baseline established.
+          <span style="font-weight:400;color:#888;margin-left:8px">Run an EMV analysis with OFF-period data to enable before/after comparison.</span>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION F: Harmonic Reduction Summary ====== -->
+<div class="row content-box" *ngIf="hasBaselineComparison">
+  <div class="col-md-12">
+    <div class="box">
+      <h4>Harmonic Reduction Summary -- Baseline (EMV OFF Period) vs. Live</h4>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px">
+        <div *ngFor="let ph of ['l1','l2','l3']" style="flex:1;min-width:180px;background:#f0faf5;border:1px solid #27ae60;border-radius:6px;padding:14px;text-align:center">
+          <div style="font-size:13px;color:#666;margin-bottom:4px">THD Reduction ({{ph.toUpperCase()}})</div>
+          <div style="font-size:20px;font-weight:700;color:#2c3e50">
+            {{baselineThd(ph) | round:1}}% to {{liveThd(ph) | round:1}}%
+          </div>
+          <div style="font-size:18px;font-weight:700" [class.text-success]="deltaThd(ph) < 0" [class.text-danger]="deltaThd(ph) > 0">
+            {{deltaThd(ph) | round:1}}%
+          </div>
+        </div>
+      </div>
+      <div *ngIf="harmonicsData?.hasHarmonicData">
+        <table class="table table-bordered table-sm" style="font-size:12px">
+          <thead style="background:#f0f0f0">
+            <tr>
+              <th>Order</th>
+              <th>Base L1</th><th>Live L1</th><th>Delta L1</th>
+              <th>Base L2</th><th>Live L2</th><th>Delta L2</th>
+              <th>Base L3</th><th>Live L3</th><th>Delta L3</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of harmonicOrders">
+              <td><strong>{{order}}</strong></td>
+              <td>{{safeGet(harmonicsData?.baseline?.snapshot?.l1?.amp, order) | round:2}}</td>
+              <td>{{safeGet(harmonicsData?.l1?.amp, order) | round:2}}</td>
+              <td [class.text-success]="delta(order,'l1') < 0" [class.text-danger]="delta(order,'l1') > 0">{{delta(order,'l1') | round:2}}</td>
+              <td>{{safeGet(harmonicsData?.baseline?.snapshot?.l2?.amp, order) | round:2}}</td>
+              <td>{{safeGet(harmonicsData?.l2?.amp, order) | round:2}}</td>
+              <td [class.text-success]="delta(order,'l2') < 0" [class.text-danger]="delta(order,'l2') > 0">{{delta(order,'l2') | round:2}}</td>
+              <td>{{safeGet(harmonicsData?.baseline?.snapshot?.l3?.amp, order) | round:2}}</td>
+              <td>{{safeGet(harmonicsData?.l3?.amp, order) | round:2}}</td>
+              <td [class.text-success]="delta(order,'l3') < 0" [class.text-danger]="delta(order,'l3') > 0">{{delta(order,'l3') | round:2}}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:#888">Values in % of fundamental. Negative delta = reduction (improvement).</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION G: Harmonic Spectrum Bar Chart ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded">
+  <div class="col-md-12">
+    <div class="box">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+        <h4 style="margin:0">Harmonic Spectrum (% of Fundamental)</h4>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="btn-group">
+            <button *ngFor="let ph of ['l1','l2','l3']" type="button"
+                    [class]="'btn btn-sm ' + (selectedHarmonicPhase===ph ? 'btn-primary' : 'btn-default')"
+                    (click)="selectedHarmonicPhase=ph; updateSpectrumChart()">
+              {{ph.toUpperCase()}}
+            </button>
+          </div>
+          <div class="btn-group">
+            <button type="button" [class]="'btn btn-sm ' + (selectedHarmonicType==='amp' ? 'btn-primary' : 'btn-default')"
+                    (click)="selectedHarmonicType='amp'; updateSpectrumChart()">Current</button>
+            <button type="button" [class]="'btn btn-sm ' + (selectedHarmonicType==='volt' ? 'btn-primary' : 'btn-default')"
+                    (click)="selectedHarmonicType='volt'; updateSpectrumChart()">Voltage</button>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="!harmonicsData?.hasHarmonicData" style="padding:16px;text-align:center;color:#888;background:#fafafa;border:1px solid #eee;border-radius:4px">
+        Individual harmonic data not yet available. Chart will populate when H3-H21 register mapping is confirmed.
+      </div>
+      <bar-chart #spectrumChart [beginAtZero]="true" style="height:280px;display:block" [limitValue]="ieee519TddLimit"></bar-chart>
+      <div style="font-size:11px;color:#888;margin-top:8px">
+        Green bars = within IEEE limit. Red bars = exceeds limit. Gray bars = EMV baseline. Red dashed line = IEEE 519 TDD limit.
+        Auto-refreshes every 60 seconds.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION H: Historical Power Quality Chart + Harmonic Trend ====== -->
+<div class="row content-box">
+  <div class="col-md-5"><h3></h3></div>
   <form [formGroup]="dateForm" novalidate>
     <div class="col-md-2">
       <div class="form-group">
-        <label for="dateTo">From</label>
-          <my-date-picker name="mydate" [options]="datePickerOptions" formControlName="dateFrom"></my-date-picker>
-            <div *ngIf="dateForm.controls.dateFrom.hasError('invalidBeforeDateField') && (dateForm.controls.dateFrom.dirty || dateForm.controls.dateFrom.touched)" class="alert alert-danger">
-              From date must be before to date.
-            </div>
+        <label>From</label>
+        <my-date-picker [options]="datePickerOptions" formControlName="dateFrom"></my-date-picker>
+        <div *ngIf="dateForm.controls.dateFrom.hasError('invalidBeforeDateField') && dateForm.controls.dateFrom.dirty" class="alert alert-danger">From date must be before to date.</div>
       </div>
     </div>
     <div class="col-md-2">
       <div class="form-group">
-        <label for="dateTo">To</label>
-        <my-date-picker name="dateTo" [options]="datePickerOptions" formControlName="dateTo"></my-date-picker>
-          <div *ngIf="dateForm.controls.dateTo.hasError('invalidAfterDateField') && (dateForm.controls.dateTo.dirty || dateForm.controls.dateTo.touched)" class="alert alert-danger">A date must be provided.</div>
+        <label>To</label>
+        <my-date-picker [options]="datePickerOptions" formControlName="dateTo"></my-date-picker>
+        <div *ngIf="dateForm.controls.dateTo.hasError('invalidAfterDateField') && dateForm.controls.dateTo.dirty" class="alert alert-danger">A date must be provided.</div>
       </div>
     </div>
   </form>
   <div class="col-md-2">
     <div class="form-group">
-      <label for="type">Type</label>
-      <select type="text" class="form-control" id="type" name="type" [(ngModel)]="type">
-        <option value='kw'>Kw</option>
-        <option value='kva'>Kva</option>
-        <option value='voltage'>Voltage</option>
-        <option value='amperage'>Amperage</option>
-        <option value='kvar'>Kvar</option>
-        <option value='pf'>Pf</option>
+      <label>Type</label>
+      <select class="form-control" [(ngModel)]="type">
+        <option value="kw">kW</option>
+        <option value="kva">kVA</option>
+        <option value="voltage">Voltage</option>
+        <option value="amperage">Amperage</option>
+        <option value="kvar">kVAR</option>
+        <option value="pf">Power Factor</option>
+        <option value="voltthd">Voltage THD</option>
+        <option value="ampthd">Current THD</option>
       </select>
     </div>
   </div>
@@ -89,6 +377,122 @@
   <div class="col-md-12">
     <snapshot-line-chart [beginAtZero]="false" style="height:400px;" #chart></snapshot-line-chart>
   </div>
-
 </div>
 
+<!-- Harmonic Trend Chart -->
+<div class="row content-box" *ngIf="harmonicsLoaded">
+  <div class="col-md-12">
+    <div class="box">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+        <h4 style="margin:0">Historical Harmonic Trend</h4>
+        <select class="form-control" style="width:auto" [(ngModel)]="selectedHarmonicOrder" (change)="updateHarmonicTrend()">
+          <option *ngFor="let o of harmonicOrders" [value]="o">{{o}}</option>
+        </select>
+        <div class="btn-group">
+          <button type="button" [class]="'btn btn-sm ' + (selectedHarmonicType==='amp' ? 'btn-primary' : 'btn-default')"
+                  (click)="selectedHarmonicType='amp'; updateHarmonicTrend()">Current</button>
+          <button type="button" [class]="'btn btn-sm ' + (selectedHarmonicType==='volt' ? 'btn-primary' : 'btn-default')"
+                  (click)="selectedHarmonicType='volt'; updateHarmonicTrend()">Voltage</button>
+        </div>
+        <button class="default-button green-button" (click)="updateHarmonicTrend()">Load</button>
+      </div>
+      <snapshot-line-chart [beginAtZero]="true" style="height:300px;" #trendChart></snapshot-line-chart>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION I: Reconstructed Waveform Chart ====== -->
+<div class="row content-box" *ngIf="harmonicsLoaded && harmonicsData?.hasHarmonicData">
+  <div class="col-md-12">
+    <div class="box">
+      <h4>Reconstructed AC Waveform (H3-H21 harmonics superimposed)</h4>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">
+        Synthesized from measured harmonic percentages. Solid lines = Live. Dashed lines = EMV Baseline (OFF period).
+        A clean sinusoid indicates low harmonic distortion.
+      </div>
+      <snapshot-line-chart [beginAtZero]="false" style="height:320px;" #waveformChart></snapshot-line-chart>
+      <div style="font-size:11px;color:#888;margin-top:4px">Y-axis: per-unit (1.0 = fundamental peak). X-axis: one full AC cycle (0 to 360 degrees).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== SECTION J: Three-Phase Phasor Diagram ====== -->
+<div class="row content-box" *ngIf="realTimeData">
+  <div class="col-md-12">
+    <div class="box">
+      <h4>Three-Phase Phasor Diagram</h4>
+      <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+        <div>
+          <svg width="320" height="320" viewBox="0 0 320 320" style="border:1px solid #eee;border-radius:50%;background:#fafafa">
+            <defs>
+              <marker id="arrowV" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#3498db"/>
+              </marker>
+              <marker id="arrowI" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L8,3 z" fill="#e74c3c"/>
+              </marker>
+              <marker id="arrowIB" markerWidth="6" markerHeight="6" refX="5" refY="2.5" orient="auto">
+                <path d="M0,0 L0,5 L6,2.5 z" fill="#bbb"/>
+              </marker>
+            </defs>
+            <circle cx="160" cy="160" r="95" stroke="#ddd" fill="none" stroke-dasharray="4,3"/>
+            <line x1="65" y1="160" x2="255" y2="160" stroke="#eee" stroke-width="1"/>
+            <line x1="160" y1="65" x2="160" y2="255" stroke="#eee" stroke-width="1"/>
+            <line *ngFor="let p of baselinePhasorPoints"
+                  x1="160" y1="160" [attr.x2]="p.iTip.x" [attr.y2]="p.iTip.y"
+                  stroke="#bbb" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arrowIB)"/>
+            <line *ngFor="let p of phasorPoints"
+                  x1="160" y1="160" [attr.x2]="p.vTip.x" [attr.y2]="p.vTip.y"
+                  stroke="#3498db" stroke-width="2.5" marker-end="url(#arrowV)"/>
+            <line *ngFor="let p of phasorPoints"
+                  x1="160" y1="160" [attr.x2]="p.iTip.x" [attr.y2]="p.iTip.y"
+                  stroke="#e74c3c" stroke-width="2" marker-end="url(#arrowI)"/>
+            <text x="258" y="158" style="font-size:12px;font-weight:700;fill:#3498db">L1</text>
+            <text x="72"  y="68"  style="font-size:12px;font-weight:700;fill:#e67e22">L2</text>
+            <text x="72"  y="268" style="font-size:12px;font-weight:700;fill:#2ecc71">L3</text>
+            <text *ngFor="let p of phasorPoints"
+                  [attr.x]="p.vTip.x + 4" [attr.y]="p.vTip.y - 4"
+                  style="font-size:10px;fill:#3498db">{{p.voltLabel}}</text>
+            <text *ngFor="let p of phasorPoints"
+                  [attr.x]="p.iTip.x + 4" [attr.y]="p.iTip.y + 10"
+                  style="font-size:10px;fill:#e74c3c">{{p.angleLabel}} lag</text>
+          </svg>
+          <div style="font-size:11px;color:#888;margin-top:8px;text-align:center">
+            Blue solid = Voltage. Red solid = Current (Live). Gray dashed = Current (Baseline).
+          </div>
+        </div>
+        <div style="flex:1;min-width:200px">
+          <table class="table table-sm table-bordered" style="font-size:13px" *ngIf="realTimeData">
+            <thead style="background:#f5f5f5">
+              <tr><th>Phase</th><th>V (V)</th><th>I (A)</th><th>Disp. PF</th><th>True PF</th><th>Lag Angle</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>L1</strong></td>
+                <td>{{realTimeData.voltage1 | round:1}}</td><td>{{realTimeData.ampLoad1 | round:1}}</td>
+                <td>{{realTimeData.powerFactor1 | round:3}}</td><td>{{realTimeData.truePf1 | round:3}}</td>
+                <td>{{phasorPoints[0]?.angleLabel}}</td>
+              </tr>
+              <tr>
+                <td><strong>L2</strong></td>
+                <td>{{realTimeData.voltage2 | round:1}}</td><td>{{realTimeData.ampLoad2 | round:1}}</td>
+                <td>{{realTimeData.powerFactor2 | round:3}}</td><td>{{realTimeData.truePf2 | round:3}}</td>
+                <td>{{phasorPoints[1]?.angleLabel}}</td>
+              </tr>
+              <tr>
+                <td><strong>L3</strong></td>
+                <td>{{realTimeData.voltage3 | round:1}}</td><td>{{realTimeData.ampLoad3 | round:1}}</td>
+                <td>{{realTimeData.powerFactor3 | round:3}}</td><td>{{realTimeData.truePf3 | round:3}}</td>
+                <td>{{phasorPoints[2]?.angleLabel}}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:12px;color:#888">
+            Phase angle = arccos(Displacement PF). Current phasors lag voltage for typical inductive industrial loads.<br>
+            Reference: L1 = 0 degrees, L2 = minus 120 degrees, L3 = plus 120 degrees (balanced system).
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

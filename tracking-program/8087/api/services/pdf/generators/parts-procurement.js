@@ -13,7 +13,7 @@ module.exports = function (printer) {
   };
 
   function generate (data, pmGraph, brandName) {
-    brandName = brandName || 'Xeco'; // Default fallback
+    brandName = brandName || 'Synerex'; // Default fallback
 
 
     let docDefinition = {

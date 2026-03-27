@@ -118,7 +118,7 @@ module.exports = function (printer) {
         },
         {
           absolutePosition: {x: 370, y: 50},
-          text: `Proposal No.: ${clientProposalData.proposalNumber}`,
+          text: `Proposal No.: ${clientProposalData.proposalNumber}-P`,
           style: {
             bold: true,
           }
@@ -149,8 +149,8 @@ module.exports = function (printer) {
         },
         //-------------------Page 2-------------------
         {
-          image: indexLogoPath || logoPath,
-          width: 160
+          image: logoPath,
+          width: 80
         },
         {
           margin: [0, 40, 0, 0],
@@ -162,7 +162,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 10, 0, 0],
-          text: `Proposal No.: ${clientProposalData.proposalNumber}`,
+          text: `Proposal No.: ${clientProposalData.proposalNumber}-P`,
           style: {
             bold: true,
             fontSize: 10,
@@ -415,7 +415,7 @@ module.exports = function (printer) {
           },
           stack: [
                 {
-                  text: brandName + ' Energy Corporation' + ' is honored to present ' + clientProposalData.clientName + ' with this proposal for installation of the' +
+                  text: brandName + ' is honored to present ' + clientProposalData.clientName + ' with this proposal for installation of the' +
                 ' most comprehensive electricity management system (EMS) solution on the market today. We have designed the proposed' +
                 ` solution to reduce the electricity consumption as recorded during ${clientProposalData.billDate} by meter ${clientProposalData.meterNumber} installed by` +
                 ` ${clientProposalData.electricCompanyName} at the ${clientProposalData.clientAddress} location.`,
@@ -1163,7 +1163,7 @@ module.exports = function (printer) {
         },
         {
           margin: [0, 15, 0, 0],
-          text: brandName.toUpperCase() + ' Energy Corporation' + ' has created a highly productive electricity management solution by integrating our' + 
+          text: brandName.toUpperCase() + ' has created a highly productive electricity management solution by integrating our' + 
                 ' proprietary XECO Power System (XPS) hardware technology with a comprehensive reporting system in order to' + 
                 ' provide users with ‘real-time’ access to data that measures the increase in electricity consumption efficiency and' + 
                 ' calculated the cost reductions for commercial and industrial facilities worldwide. Based on over twenty years of' + 
@@ -3095,7 +3095,7 @@ module.exports = function (printer) {
               width: '*',
               stack: [
                 {
-                  text: brandName.toUpperCase() + ' Energy Corporation',
+                  text: brandName.toUpperCase(),
                   style: {
                     bold: true
                   }

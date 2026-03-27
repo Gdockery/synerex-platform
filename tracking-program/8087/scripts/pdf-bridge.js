@@ -35,6 +35,7 @@ function resolvePath(name) {
 
 const generators = {
   billAnalytic: require('../api/services/pdf/generators/bill-analytic.js')(printer),
+  proposal: require('../api/services/pdf/generators/client-proposal.js')(printer),
   costSavings: require('../api/services/pdf/generators/monthly-energy-savings.js')(printer),
   lsPotential: require('../api/services/pdf/generators/ls-potential.js')(printer),
   co2Savings: require('../api/services/pdf/generators/co2.js')(printer),
@@ -64,6 +65,14 @@ function main() {
       console.error('Invalid JSON input:', e.message);
       process.exit(1);
     }
+    // Debug: dump full payload to disk so layout issues can be reproduced offline
+    if (kind === 'billAnalytic') {
+      try {
+        const dumpPath = path.join(__dirname, '../.tmp/pdf_debug_payload.json');
+        fs.mkdirSync(path.dirname(dumpPath), { recursive: true });
+        fs.writeFileSync(dumpPath, JSON.stringify({ data, paths }, null, 2));
+      } catch (_) {}
+    }
     const gen = generators[kind];
     let logoPath = paths.logo || resolvePath('logo.png');
     let coverPath = paths.cover || resolvePath('bill-cover.png');
@@ -71,7 +80,33 @@ function main() {
     try {
       switch (kind) {
         case 'billAnalytic':
-          stream = gen.generate(data, coverPath || logoPath, logoPath, paths.exclusive || resolvePath('exclusive.png'));
+          stream = gen.generate(data, coverPath || logoPath, logoPath, paths.exclusive || resolvePath('exclusive.png'), data.brandName || 'Synerex');
+          break;
+        case 'proposal':
+          stream = gen.generate(
+            data,
+            paths.cover      || resolvePath('proposal-cover.png') || coverPath,
+            logoPath,
+            paths.indexLogo  || resolvePath('synerex-logo-white.png') || resolvePath('index-logo.png') || logoPath,
+            paths.calcEnergy || resolvePath('calculated-energy-savings.png'),
+            paths.effGains   || resolvePath('efficiency-gains.png'),
+            paths.redCurve   || resolvePath('advancing-red-curve.png'),
+            paths.elecBill   || resolvePath('electric-service-bill.png'),
+            paths.calc       || resolvePath('calculation.png'),
+            paths.pmEngineers|| resolvePath('project-managers-engineers.png'),
+            paths.etlLogo    || resolvePath('etl-logo.png'),
+            paths.clients    || resolvePath('xeco-clients.png'),
+            paths.installMap || resolvePath('installation-map.png'),
+            paths.insurance  || resolvePath('insurance-coverage.png'),
+            paths.signature  || resolvePath('signature.png'),
+            paths.pqComp     || resolvePath('power-quality-comparison.png'),
+            paths.pqWith     || resolvePath('power-quality-with-xeco.png'),
+            paths.pqWithout  || resolvePath('power-quality-without-xeco.png'),
+            paths.portal     || resolvePath('xeco-realtime-portal.png'),
+            paths.pqImprove  || resolvePath('power-quality-improvement.png'),
+            paths.pqCost     || resolvePath('power-quality-cost.png'),
+            data.brandName   || 'Synerex'
+          );
           break;
         case 'costSavings':
         case 'lsPotential':
@@ -83,7 +118,7 @@ function main() {
             paths.graphic || resolvePath('graphic.png'));
           break;
         case 'partsProcurement':
-          stream = gen.generate(data, paths.graph || resolvePath('parts-procurement-graph.png'), paths.brandName || 'Xeco');
+          stream = gen.generate(data, paths.graph || resolvePath('parts-procurement-graph.png'), data.brandName || 'Synerex');
           break;
         case 'shippingDocuments':
           stream = gen.generate(data, logoPath);

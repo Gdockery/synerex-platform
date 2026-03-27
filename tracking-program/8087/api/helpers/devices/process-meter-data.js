@@ -169,6 +169,21 @@ module.exports = {
            'l2THD': 9002,
            'l3THD': 9003,
            'totalTHD': { fn: 'avg', registers: [9001, 9002, 9003] },
+           // Individual harmonic registers H3-H21 per phase (amp % of fundamental)
+           // PLACEHOLDER: Register addresses below are reserved but unconfirmed.
+           // Update with actual Xeco Modbus register addresses when available from Xeco documentation.
+           // 'l1AmpH3': null, 'l1AmpH5': null, 'l1AmpH7': null, 'l1AmpH9': null, 'l1AmpH11': null,
+           // 'l1AmpH13': null, 'l1AmpH15': null, 'l1AmpH17': null, 'l1AmpH19': null, 'l1AmpH21': null,
+           // 'l2AmpH3': null, 'l2AmpH5': null, 'l2AmpH7': null, 'l2AmpH9': null, 'l2AmpH11': null,
+           // 'l2AmpH13': null, 'l2AmpH15': null, 'l2AmpH17': null, 'l2AmpH19': null, 'l2AmpH21': null,
+           // 'l3AmpH3': null, 'l3AmpH5': null, 'l3AmpH7': null, 'l3AmpH9': null, 'l3AmpH11': null,
+           // 'l3AmpH13': null, 'l3AmpH15': null, 'l3AmpH17': null, 'l3AmpH19': null, 'l3AmpH21': null,
+           // 'l1VoltH3': null, 'l1VoltH5': null, 'l1VoltH7': null, 'l1VoltH9': null, 'l1VoltH11': null,
+           // 'l1VoltH13': null, 'l1VoltH15': null, 'l1VoltH17': null, 'l1VoltH19': null, 'l1VoltH21': null,
+           // 'l2VoltH3': null, 'l2VoltH5': null, 'l2VoltH7': null, 'l2VoltH9': null, 'l2VoltH11': null,
+           // 'l2VoltH13': null, 'l2VoltH15': null, 'l2VoltH17': null, 'l2VoltH19': null, 'l2VoltH21': null,
+           // 'l3VoltH3': null, 'l3VoltH5': null, 'l3VoltH7': null, 'l3VoltH9': null, 'l3VoltH11': null,
+           // 'l3VoltH13': null, 'l3VoltH15': null, 'l3VoltH17': null, 'l3VoltH19': null, 'l3VoltH21': null,
           },
 
           function(source, modelField) {
@@ -229,6 +244,8 @@ module.exports = {
            'l3THD': 2330,
            'totalTHD': { fn: 'avg', registers: [2326, 2328, 2330] },
            'outputAmp': { fn: 'sum', registers: [3040, 3041, 3042] },
+           // Individual harmonic registers H3-H21 — PLACEHOLDER awaiting Xeco register spec
+           // 'l1AmpH3': null, 'l1AmpH5': null, 'l2AmpH3': null, 'l2AmpH5': null, ...
           },
 
           function(source, modelField) {
@@ -284,6 +301,8 @@ module.exports = {
            'l2THD': 2328,
            'l3THD': 2330,
            'totalTHD': { fn: 'avg', registers: [2326, 2328, 2330] },
+           // Individual harmonic registers H3-H21 — PLACEHOLDER awaiting Xeco register spec
+           // 'l1AmpH3': null, 'l1AmpH5': null, 'l2AmpH3': null, 'l2AmpH5': null, ...
           },
 
           function(source, modelField) {

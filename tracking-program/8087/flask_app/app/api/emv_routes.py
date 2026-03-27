@@ -222,7 +222,68 @@ def emv_project_bill_analytic():
     if not _is_emv_api_key_request() and not _user_has_project_access(sess, project_id):
         return jsonify({"error": "Access denied"}), 403
     eba = (p.electricBillAnalysis or {}) if hasattr(p, "electricBillAnalysis") else {}
-    rf = (p.reportFields or {}) if hasattr(p, "reportFields") else {}
+    rf = dict(p.reportFields or {}) if hasattr(p, "reportFields") else {}
+    # Legacy: migrate cp_city_state to cp_city, cp_state
+    if rf.get("cp_city_state") and not (rf.get("cp_city") or rf.get("cp_state")):
+        parts = str(rf["cp_city_state"]).split(",", 1)
+        if parts:
+            rf["cp_city"] = parts[0].strip() if parts[0].strip() else rf.get("cp_city")
+        if len(parts) > 1 and parts[1].strip():
+            rf["cp_state"] = parts[1].strip()
+
+    # Populate Client Information from Client model (and fallbacks) when reportFields lacks them.
+    # This ensures EMV Import gets company, address, contact, etc. without manual "Send to EMV".
+    def _v(*vals):
+        """First non-empty string from vals."""
+        for v in vals:
+            s = (v or "").strip() if v is not None else ""
+            if s:
+                return s
+        return ""
+
+    if p.client:
+        c = sess.query(Client).filter_by(id=p.client, isDeleted=False).first()
+        if c:
+            # electricBillAnalysis may have serviceAddress, serviceCity, etc. from bill scan
+            eba_flat = eba
+            if isinstance(eba, dict) and eba.get("meterBills"):
+                mb = eba["meterBills"][0] if eba["meterBills"] else {}
+                eba_flat = {**eba, **(mb if isinstance(mb, dict) else {})}
+            else:
+                eba_flat = eba or {}
+
+            defaults = {}
+            if not rf.get("company"):
+                defaults["company"] = _v(c.legalName, c.name, p.name)
+            if not rf.get("cp_address"):
+                defaults["cp_address"] = _v(c.address, eba_flat.get("serviceAddress"))
+            if not rf.get("cp_city"):
+                defaults["cp_city"] = _v(c.city, eba_flat.get("serviceCity"))
+            if not rf.get("cp_state"):
+                defaults["cp_state"] = _v(c.state, eba_flat.get("serviceState"))
+            if not rf.get("cp_zip"):
+                defaults["cp_zip"] = _v(c.zip, eba_flat.get("serviceZip"))
+            if not rf.get("contact"):
+                defaults["contact"] = _v(c.contactName, c.managerName)
+            if not rf.get("phone"):
+                defaults["phone"] = _v(c.contactPhone, c.managerPhone, c.financePhone)
+            if not rf.get("email"):
+                defaults["email"] = _v(c.managerEmail, c.financeEmail)
+            if not rf.get("facility_address") and (p.location or c.address or eba_flat.get("serviceAddress")):
+                defaults["facility_address"] = _v(p.location, c.address, eba_flat.get("serviceAddress"))
+            if not rf.get("facility_city"):
+                defaults["facility_city"] = _v(c.city, eba_flat.get("serviceCity"), p.location)
+            if not rf.get("facility_state"):
+                defaults["facility_state"] = _v(c.state, eba_flat.get("serviceState"))
+            if not rf.get("facility_zip"):
+                defaults["facility_zip"] = _v(c.zip, eba_flat.get("serviceZip"))
+            if not rf.get("project_cost") and p.totalCost is not None:
+                defaults["project_cost"] = str(p.totalCost)
+            # Merge: Client defaults first, then non-empty rf overrides. Empty rf values must NOT
+            # overwrite our defaults (e.g. reportFields.company="" would otherwise blank out Client name).
+            rf_overrides = {k: v for k, v in rf.items() if v}
+            rf = {k: v for k, v in {**defaults, **rf_overrides}.items() if v}
+
     return jsonify({
         "meta": {},
         "response": {
@@ -257,7 +318,10 @@ def emv_save_prefill():
     except (ValueError, TypeError):
         return jsonify({"error": "Invalid projectId"}), 400
     sess = get_session()
-    # Allow OEM users to save prefill for their sponsored clients' projects
+    # Authorize: check user has access to this project (handles admin, project members, OEM)
+    if not _is_emv_api_key_request() and not _user_has_project_access(sess, project_id):
+        return jsonify({"error": "Access denied"}), 403
+    # For API key requests from OEM, restrict to sponsored projects
     if _is_emv_api_key_request() and org_id and org_id != "admin":
         org_type = _resolve_org_type(org_id)
         if org_type == "oem":
@@ -272,14 +336,12 @@ def emv_save_prefill():
                 )
             )
         else:
-            q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
+            q = sess.query(Project).filter_by(id=project_id, isDeleted=False)
     else:
-        q = sess.query(Project).filter_by(id=project_id, isDeleted=False).filter(Project.org_id == org_id)
+        q = sess.query(Project).filter_by(id=project_id, isDeleted=False)
     p = q.first()
     if not p:
         return jsonify({"error": "Project not found"}), 404
-    if not _is_emv_api_key_request() and not _user_has_project_access(sess, project_id):
-        return jsonify({"error": "Access denied"}), 403
     existing = dict(p.reportFields or {})
     existing.update({k: v for k, v in fields.items() if v is not None and v != ""})
     p.reportFields = existing
@@ -328,7 +390,10 @@ def emv_push_baseline():
             pass
     p = q.first()
     if not p:
-        return jsonify({"error": "Project not found"}), 404
+        return jsonify({
+            "error": "Project not found",
+            "detail": f"No project with id={project_id_arg} found for org_id={org_id}. Check project exists and org_id matches.",
+        }), 404
     if not _is_emv_api_key_request() and not _user_has_project_access(sess, project_id):
         return jsonify({"error": "Access denied"}), 403
 
@@ -341,6 +406,7 @@ def emv_push_baseline():
     analysis_date = data.get("analysisDate")
     off_period = data.get("offPeriod") or {}
     on_period = data.get("onPeriod") or {}
+    harmonic_baseline = data.get("harmonicBaseline")  # optional JSON dict from EMV OFF-period
 
     now_ms = int(__import__("time").time() * 1000)
     share_token = secrets.token_urlsafe(32)
@@ -361,6 +427,7 @@ def emv_push_baseline():
         off_period_end=off_period.get("end") if isinstance(off_period, dict) else None,
         on_period_start=on_period.get("start") if isinstance(on_period, dict) else None,
         on_period_end=on_period.get("end") if isinstance(on_period, dict) else None,
+        harmonic_baseline=harmonic_baseline if isinstance(harmonic_baseline, dict) else None,
         createdAt=now_ms,
         updatedAt=now_ms,
     )

@@ -206,3 +206,93 @@ def org_summary(org_id: str, db: Session = Depends(db_session)):
             "api_keys": len(keys)
         }
     }
+
+
+class SendInvitationRequest(BaseModel):
+    """Request body for sending a client activation/invitation email."""
+    to_email: str = Field(..., description="Recipient email address for the invitation.")
+    oem_org_name: Optional[str] = Field(None, description="OEM brand name shown in the email. Defaults to org sponsor name.")
+
+
+@router.post("/orgs/{org_id}/send-invitation")
+def send_org_invitation(
+    org_id: str,
+    body: SendInvitationRequest,
+    db: Session = Depends(db_session),
+):
+    """Send a client activation email for a pre-registered organisation.
+
+    Builds a unique registration URL that pre-fills the signup form with the
+    org's existing details so the client does not create a duplicate record.
+    Logs a ``client_invitation`` notification regardless of email delivery.
+    """
+    from ..config import settings as _settings
+    from ..services.email import send_client_invitation_email
+    from ..models.notification import Notification, NotificationStatus
+    import urllib.request as _ur
+    import json as _json
+    from datetime import datetime as _dt
+
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    # Build the invitation URL pointing to the pre-filled registration page
+    base_url = (_settings.website_url or "http://localhost:8000").rstrip("/")
+    root_pfx = (getattr(_settings, "root_path", None) or "").rstrip("/")
+    invite_url = (
+        f"{base_url}{root_pfx}/license/register"
+        f"?org_id={org.org_id}"
+        + (f"&sponsor_org_id={org.sponsor_org_id}" if org.sponsor_org_id else "")
+    )
+
+    # Resolve OEM branding from sponsor
+    oem_branding: dict = {}
+    oem_org_name = body.oem_org_name or "Synerex"
+    sponsor_id = org.sponsor_org_id
+    if sponsor_id:
+        try:
+            tracking_url = (getattr(_settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            with _ur.urlopen(f"{tracking_url}/api/whitelabel/oem-branding-by-org?org_id={sponsor_id}", timeout=3) as _resp:
+                _data = _json.loads(_resp.read())
+                if isinstance(_data, dict) and _data.get("brand_name"):
+                    oem_branding = _data
+                    if not body.oem_org_name:
+                        oem_org_name = _data.get("brand_name") or oem_org_name
+        except Exception:
+            pass
+
+    # Guard: require OEM branding to be configured before sending invitations.
+    # Clients must never see the Synerex default — the OEM logo and brand name are mandatory.
+    if not oem_branding.get("brand_name"):
+        raise HTTPException(
+            400,
+            "OEM branding is not configured. Please set up your brand name and logo in "
+            "the OEM Profile page before sending client invitations."
+        )
+
+    sent = send_client_invitation_email(
+        to_email=body.to_email,
+        client_org_name=org.org_name,
+        client_org_id=org.org_id,
+        oem_org_name=oem_org_name,
+        registration_url=invite_url,
+        sponsor_org_id=sponsor_id,
+        oem_branding=oem_branding,
+    )
+
+    log_event(
+        db,
+        actor="oem",
+        action="org.invitation_sent",
+        ref_id=org_id,
+        detail={"to_email": body.to_email, "sent": sent, "invite_url": invite_url},
+    )
+
+    return {
+        "ok": True,
+        "org_id": org_id,
+        "to_email": body.to_email,
+        "invite_url": invite_url,
+        "email_sent": sent,
+    }

@@ -44,6 +44,7 @@ def create_app(config_class=Config):
             logging.getLogger(name).setLevel(getattr(logging, log_level))
 
     app = Flask(__name__)
+    app.url_map.strict_slashes = False
     app.config.from_object(config_class)
 
     # Flask-Session: Redis when REDIS_URL set, else filesystem
@@ -230,6 +231,29 @@ def create_app(config_class=Config):
         from app.db_migrations import add_emv_analysis_table, add_active_emv_analysis_to_project
         add_emv_analysis_table()
         add_active_emv_analysis_to_project()
+
+    @app.cli.command("backfill-document-token")
+    def backfill_document_token():
+        """Backfill documentShareToken for projects with NULL. Run: flask backfill-document-token"""
+        from app.db_migrations import backfill_project_document_share_token
+        backfill_project_document_share_token()
+
+    @app.cli.command("harmonic-columns-migrate")
+    def harmonic_columns_migrate():
+        """Add 60 individual harmonic columns (l1AmpH3-l3VoltH21) to meterdata table. Run: flask harmonic-columns-migrate"""
+        from app.db_migrations import add_harmonic_columns, add_emv_harmonic_baseline_column
+        r1 = add_harmonic_columns()
+        r2 = add_emv_harmonic_baseline_column()
+        print(f"harmonic-columns-migrate: meterdata={r1}, emv_baseline={r2}")
+
+    @app.cli.command("schema-sync")
+    def schema_sync():
+        """Add all columns present in models but missing from MySQL. Safe to re-run. Run: flask schema-sync"""
+        from app.db_migrations import add_missing_model_columns
+        results = add_missing_model_columns()
+        added = [k for k, v in results.items() if v == "added"]
+        errors = [k for k, v in results.items() if "error" in str(v)]
+        print(f"schema-sync: {len(added)} added, {len(errors)} errors")
 
     @app.cli.command("org-db-init")
     def org_db_init():

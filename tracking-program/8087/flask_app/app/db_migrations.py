@@ -3,10 +3,13 @@ Database migrations for the Tracking Program.
 Run via: flask user-logo-migrate
 Or: python scripts/add_user_logo_column.py
 """
+import secrets
+
 from sqlalchemy import or_, text
 
 from app.extensions import db
 from app.models.client import Client
+from app.models.project import Project
 
 
 def add_user_logo_column():
@@ -171,6 +174,32 @@ def add_project_slug_column():
         return "ok"
     except Exception as e:
         print(f"add_project_slug backfill: {e}")
+        return "error"
+
+
+def backfill_project_document_share_token():
+    """Backfill documentShareToken for projects that have NULL or empty. Required for PDF generation."""
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri:
+        return "skipped"
+    try:
+        projects = Project.query.filter(
+            or_(
+                Project.documentShareToken.is_(None),
+                Project.documentShareToken == "",
+            ),
+            Project.isDeleted == False,
+        ).all()
+        for p in projects:
+            p.documentShareToken = secrets.token_urlsafe(32)
+        if projects:
+            db.session.commit()
+            print(f"Backfilled documentShareToken for {len(projects)} project(s).")
+        return "ok"
+    except Exception as e:
+        db.session.rollback()
+        print(f"backfill_project_document_share_token: {e}")
         return "error"
 
 
@@ -558,6 +587,42 @@ def add_emv_analysis_table():
         return "error"
 
 
+def alter_emv_analysis_report_html_to_mediumtext():
+    """Alter report_html to MEDIUMTEXT (16MB) with utf8mb4. HTML reports can exceed 64KB and contain Unicode (e.g. ≥)."""
+    from flask import current_app
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+    try:
+        db.session.execute(text(
+            "ALTER TABLE emv_analysis MODIFY COLUMN report_html MEDIUMTEXT "
+            "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        ))
+        db.session.commit()
+        print("Altered emv_analysis.report_html to MEDIUMTEXT.")
+        return "ok"
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        # Check if already MEDIUMTEXT (e.g. re-run)
+        try:
+            r = db.session.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'emv_analysis' AND COLUMN_NAME = 'report_html'"
+            ))
+            row = r.fetchone()
+            if row and "mediumtext" in (row[0] or "").lower():
+                print("emv_analysis.report_html already MEDIUMTEXT.")
+                return "ok"
+        except Exception:
+            pass
+        print(f"alter_emv_analysis_report_html_to_mediumtext: {e}")
+        return "error"
+
+
 def assign_all_admins_to_all_projects():
     """
     Ensure every Synerex admin (role 8) is assigned to every project.
@@ -733,3 +798,110 @@ def ensure_client_admin_user():
     db.session.commit()
     print(f"Created Client Admin user ({CLIENT_ADMIN_EMAIL}) for testing.")
     return "ok"
+
+
+def add_harmonic_columns():
+    """Add 60 individual harmonic order columns (l1AmpH3–l3VoltH21) to meterdata table."""
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+    HARMONIC_ORDERS = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+    errors = []
+    for phase in [1, 2, 3]:
+        for col_type in ["Amp", "Volt"]:
+            for order in HARMONIC_ORDERS:
+                col = f"l{phase}{col_type}H{order}"
+                sql = f"ALTER TABLE meterdata ADD COLUMN `{col}` FLOAT NULL"
+                try:
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                except Exception as e:
+                    err = str(e).lower()
+                    if "duplicate column" in err or "already exists" in err:
+                        pass
+                    else:
+                        errors.append(f"{col}: {e}")
+    if errors:
+        print(f"add_harmonic_columns errors: {errors[:3]}")
+        return "error"
+    print("add_harmonic_columns: added/verified 60 harmonic columns on meterdata.")
+    return "ok"
+
+
+def add_emv_harmonic_baseline_column():
+    """Add harmonic_baseline JSON column to emv_analysis for EMV OFF-period harmonic storage."""
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+    sql = "ALTER TABLE emv_analysis ADD COLUMN `harmonic_baseline` JSON NULL"
+    try:
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("Added harmonic_baseline column to emv_analysis table.")
+        return "ok"
+    except Exception as e:
+        err = str(e).lower()
+        if "duplicate column" in err or "already exists" in err:
+            print("emv_analysis.harmonic_baseline column already exists.")
+            return "ok"
+        print(f"add_emv_harmonic_baseline_column: {e}")
+        return "error"
+
+
+def add_missing_model_columns():
+    """
+    Catch-all migration: adds all columns present in SQLAlchemy models but missing
+    from the MySQL database. Safe to run multiple times (skips existing columns).
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    COLUMN_DDLS = [
+        # meteralertgroup
+        ("meteralertgroup", "note",       "ALTER TABLE `meteralertgroup` ADD COLUMN `note` VARCHAR(255) NULL"),
+        ("meteralertgroup", "isDeleted",  "ALTER TABLE `meteralertgroup` ADD COLUMN `isDeleted` TINYINT(1) NOT NULL DEFAULT 0"),
+        # repeateralertgroup
+        ("repeateralertgroup", "note",      "ALTER TABLE `repeateralertgroup` ADD COLUMN `note` VARCHAR(255) NULL"),
+        ("repeateralertgroup", "isDeleted", "ALTER TABLE `repeateralertgroup` ADD COLUMN `isDeleted` TINYINT(1) NOT NULL DEFAULT 0"),
+        # switchalertgroup
+        ("switchalertgroup", "note",      "ALTER TABLE `switchalertgroup` ADD COLUMN `note` VARCHAR(255) NULL"),
+        ("switchalertgroup", "isDeleted", "ALTER TABLE `switchalertgroup` ADD COLUMN `isDeleted` TINYINT(1) NOT NULL DEFAULT 0"),
+        # meterdata
+        ("meterdata", "outputAmp", "ALTER TABLE `meterdata` ADD COLUMN `outputAmp` FLOAT NULL"),
+        # repeater
+        ("repeater", "deviceId",                "ALTER TABLE `repeater` ADD COLUMN `deviceId` VARCHAR(255) NULL"),
+        ("repeater", "gateway",                 "ALTER TABLE `repeater` ADD COLUMN `gateway` VARCHAR(255) NULL"),
+        ("repeater", "isOn",                    "ALTER TABLE `repeater` ADD COLUMN `isOn` TINYINT(1) NULL"),
+        ("repeater", "meshLastCommunicatedAt",  "ALTER TABLE `repeater` ADD COLUMN `meshLastCommunicatedAt` FLOAT NULL"),
+        # switch
+        ("switch", "ampLoad",       "ALTER TABLE `switch` ADD COLUMN `ampLoad` FLOAT NULL"),
+        ("switch", "isOn",          "ALTER TABLE `switch` ADD COLUMN `isOn` TINYINT(1) NULL"),
+        ("switch", "originalHours", "ALTER TABLE `switch` ADD COLUMN `originalHours` FLOAT NULL"),
+        ("switch", "pf",            "ALTER TABLE `switch` ADD COLUMN `pf` FLOAT NULL"),
+        ("switch", "voltage",       "ALTER TABLE `switch` ADD COLUMN `voltage` FLOAT NULL"),
+        # switchcommand
+        ("switchcommand", "deviceType",           "ALTER TABLE `switchcommand` ADD COLUMN `deviceType` INT NULL"),
+        ("switchcommand", "executedBySwitchIds",  "ALTER TABLE `switchcommand` ADD COLUMN `executedBySwitchIds` JSON NULL"),
+    ]
+
+    results = {}
+    for table, col, sql in COLUMN_DDLS:
+        key = f"{table}.{col}"
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"Added {key}.")
+            results[key] = "added"
+        except Exception as e:
+            err = str(e).lower()
+            if "duplicate column" in err or "already exists" in err or "1060" in err:
+                print(f"{key} already exists.")
+                results[key] = "exists"
+            else:
+                print(f"ERROR {key}: {e}")
+                results[key] = f"error: {e}"
+    return results
