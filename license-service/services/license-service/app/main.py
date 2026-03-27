@@ -1,3 +1,7 @@
+import atexit
+import logging
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -7,6 +11,47 @@ from starlette.requests import Request
 from pathlib import Path
 from .config import settings
 from .db import Base, engine
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Background lifecycle scheduler — runs daily at 08:00 UTC
+# Sends expiration reminders and suspends licenses past their grace period.
+# ---------------------------------------------------------------------------
+def _run_lifecycle_tasks() -> None:
+    """Nightly job: send expiration reminders and handle expired licenses."""
+    from .db import SessionLocal
+    from .services.lifecycle import send_expiration_reminders, handle_expired_licenses
+    db = SessionLocal()
+    try:
+        reminded = send_expiration_reminders(db)
+        handled = handle_expired_licenses(db)
+        logger.info("[LIFECYCLE] Scheduled run complete — reminders sent: %d, expired handled: %d", reminded, handled)
+    except Exception as exc:
+        logger.error("[LIFECYCLE] Scheduled task error: %s", exc, exc_info=True)
+    finally:
+        db.close()
+
+
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+
+    _scheduler = BackgroundScheduler(timezone="UTC", daemon=True)
+    _scheduler.add_job(
+        _run_lifecycle_tasks,
+        trigger="cron",
+        hour=8,
+        minute=0,
+        id="daily_lifecycle",
+        replace_existing=True,
+        misfire_grace_time=3600,  # allow up to 1-hour delay before skipping
+    )
+    _scheduler.start()
+    atexit.register(lambda: _scheduler.shutdown(wait=False))
+    logger.info("[LIFECYCLE] Scheduler started — daily lifecycle job at 08:00 UTC")
+except ImportError:
+    logger.warning("[LIFECYCLE] APScheduler not installed — lifecycle tasks will not run automatically")
 # Import all models to ensure they're registered
 from .models import (
     org, license as license_model, authorization, api_key,

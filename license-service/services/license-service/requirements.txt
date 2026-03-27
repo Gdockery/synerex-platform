@@ -26,3 +26,4 @@ stripe==10.0.0  # Payment processing
 paypalrestsdk==1.13.3  # PayPal integration
 alembic==1.13.0  # Database migrations
 openpyxl==3.1.2  # Excel export support
+APScheduler==3.10.4  # Background scheduler for lifecycle tasks
