@@ -267,33 +267,51 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
 def pe_registrations_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     """Page to view and manage PE registrations."""
     try:
-        status_filter = request.query_params.get("status", "").strip()  # pending, approved, rejected
-        
-        query = db.query(Organization).filter(Organization.org_type == "pe")
-        
-        if status_filter in ("pending", "approved", "rejected"):
-            query = query.filter(Organization.pe_approval_status == status_filter)
-            query = query.order_by(Organization.org_id.asc())
-        elif status_filter == "":
-            # Default: show pending first (including None), then sort by org_id
-            # Handle None values explicitly - treat None as "pending" for sorting
-            # Use coalesce to convert None to "pending" for sorting
-            query = query.order_by(
-                case(
-                    (func.coalesce(Organization.pe_approval_status, "pending") == "pending", 1),
-                    (func.coalesce(Organization.pe_approval_status, "pending") == "approved", 2),
-                    (func.coalesce(Organization.pe_approval_status, "pending") == "rejected", 3),
-                    else_=4
-                ),
-                Organization.org_id.asc()  # Secondary sort by org_id
+        status_filter = request.query_params.get("status", "").strip()
+        search = request.query_params.get("search", "").strip()
+        try:
+            page = max(1, int(request.query_params.get("page", 1)))
+        except ValueError:
+            page = 1
+        per_page = 20
+
+        base_query = db.query(Organization).filter(Organization.org_type == "pe")
+
+        # Search across name, email, contact, PE license number, and state
+        if search:
+            like = f"%{search}%"
+            base_query = base_query.filter(
+                or_(
+                    Organization.org_name.ilike(like),
+                    Organization.email.ilike(like),
+                    Organization.contact_name.ilike(like),
+                    Organization.pe_license_number.ilike(like),
+                    Organization.pe_license_state.ilike(like),
+                )
             )
-        else:
-            # Invalid status filter, just sort by org_id
-            query = query.order_by(Organization.org_id.asc())
+
+        if status_filter in ("pending", "approved", "rejected"):
+            base_query = base_query.filter(Organization.pe_approval_status == status_filter)
+        elif status_filter == "":
+            pass  # no status filter
         
-        pe_orgs = query.all()
-        
-        # Count by status - handle None values explicitly
+        # Always show pending first, then alphabetically
+        ordered = base_query.order_by(
+            case(
+                (func.coalesce(Organization.pe_approval_status, "pending") == "pending", 1),
+                (func.coalesce(Organization.pe_approval_status, "pending") == "approved", 2),
+                (func.coalesce(Organization.pe_approval_status, "pending") == "rejected", 3),
+                else_=4
+            ),
+            Organization.org_name.asc()
+        )
+
+        total = ordered.count()
+        total_pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, total_pages)
+        pe_orgs = ordered.offset((page - 1) * per_page).limit(per_page).all()
+
+        # Counts always reflect unfiltered totals (ignoring search/status filter)
         pending_count = db.query(Organization).filter(
             Organization.org_type == "pe",
             or_(
@@ -309,14 +327,19 @@ def pe_registrations_page(request: Request, _=Depends(require_admin), db: Sessio
             Organization.org_type == "pe",
             Organization.pe_approval_status == "rejected"
         ).count()
-        
+
         return templates.TemplateResponse("pe_registrations.html", {
             "request": request,
             "pe_orgs": pe_orgs,
             "status_filter": status_filter,
+            "search": search,
             "pending_count": pending_count,
             "approved_count": approved_count,
-            "rejected_count": rejected_count
+            "rejected_count": rejected_count,
+            "page": page,
+            "total_pages": total_pages,
+            "total": total,
+            "per_page": per_page,
         })
     except Exception as e:
         import traceback
