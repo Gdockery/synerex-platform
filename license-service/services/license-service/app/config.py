@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     
     # Payment gateway settings
     stripe_secret_key: Optional[str] = None
+    stripe_publishable_key: Optional[str] = None
     stripe_webhook_secret: Optional[str] = None
     paypal_client_id: Optional[str] = None
     paypal_client_secret: Optional[str] = None

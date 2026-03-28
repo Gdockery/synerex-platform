@@ -910,3 +910,42 @@ def hide_data_rows(tid):
         test.reportData = result
         db.session.commit()
     return jsonify({"meta": {}, "response": result or {}})
+
+
+@phase11_bp.route("/api/switch/test-schedules", methods=["POST"])
+@login_required
+@license_required
+def test_schedules():
+    """POST /api/switch/test-schedules - dry-run listing of pending schedules for the project."""
+    from app.models.schedule import Schedule
+    data = request.get_json() or {}
+    project_id = data.get("project") or request.args.get("project", type=int)
+    if not project_id or not _user_has_project_access(int(project_id)):
+        return jsonify({"error": "Unauthorized"}), 404
+    schedules = Schedule.query.filter_by(project=int(project_id), isDeleted=False, isCompleted=False).all()
+    return jsonify({"meta": {}, "response": {"scheduleCount": len(schedules), "schedules": [{"id": s.id} for s in schedules]}})
+
+
+@phase11_bp.route("/api/switch/command", methods=["POST"])
+@login_required
+@license_required
+def send_switch_command():
+    """POST /api/switch/command - dispatch an immediate on/off command to a switch."""
+    from app.models.switch import Switch
+    from app.models.project import Project
+    data = request.get_json() or {}
+    project_id = data.get("project")
+    switch_id = data.get("switch") or data.get("id")
+    command_type = data.get("type") or data.get("command")
+    if not project_id or not _user_has_project_access(int(project_id)):
+        return jsonify({"error": "Unauthorized"}), 404
+    sw = Switch.query.filter_by(id=switch_id, project=int(project_id), isDeleted=False).first()
+    if not sw:
+        return jsonify({"error": "Switch not found"}), 404
+    project = Project.query.get(int(project_id))
+    try:
+        from app.services.device_service import send_switch_command as _send
+        _send(getattr(project, "slug", str(project_id)), str(switch_id), command_type or "toggle")
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    return jsonify({"meta": {}, "response": {"ok": True, "switch": switch_id, "command": command_type}})

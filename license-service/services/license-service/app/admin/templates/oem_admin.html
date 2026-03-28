@@ -51,6 +51,8 @@
     <h1>{{ oem_org.org_name }} — Partner Admin Panel</h1>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/register" class="btn btn-green">+ Register Customer</a>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/client-approvals" class="btn btn-secondary">Client Approvals</a>
+      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/users" class="btn btn-secondary">OEM Users</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/profile" class="btn btn-secondary">My Profile</a>
       <a href="/my-account" class="btn btn-secondary">My Account</a>
     </div>

@@ -133,6 +133,11 @@ var webpackConfig = {
       path.resolve(__dirname, 'src')
     ),
 
+    // Embed NODE_ENV so Angular's enableProdMode() check works in the browser bundle
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+    }),
+
   ]
 
 };

@@ -17,12 +17,19 @@ from sqlalchemy import case, or_, func
 
 from ..config import settings
 from ..db import SessionLocal
+
+
+def _admin_redirect(path: str, status_code: int = 303) -> RedirectResponse:
+    """Build a RedirectResponse for an admin path, prepending the root_path prefix."""
+    root = (settings.root_path or "").rstrip("/")
+    return RedirectResponse(f"{root}{path}", status_code=status_code)
 from ..models.org import Organization
 from ..models.api_key import ApiKey
 from ..models.authorization import ProgramAuthorization
 from ..models.license import License
 from ..models.audit import AuditEvent
 from ..models.billing import BillingOrder
+from ..models.user import User
 from ..auth.api_keys import create_api_key, _hash_key  # internal use for key creation
 from ..routes.auth import _normalize_return_url
 from ..templates_loader import load_template
@@ -107,7 +114,7 @@ def api_tracking_restart(request: Request, _=Depends(require_admin)):
 
 def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse:
     return_url_param = f'?return_url={return_url}' if return_url else ''
-    back_href = "/admin"
+    back_href = (settings.root_path or "").rstrip("/") + "/admin"
     return HTMLResponse(f"""
     <html>
     <head>
@@ -212,6 +219,16 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
         "api_keys": db.query(ApiKey).count(),
         "authorizations": db.query(ProgramAuthorization).count(),
         "licenses": db.query(License).count(),
+        "users_total": db.query(User).count(),
+        "users_inactive": db.query(User).filter(User.is_active == False).count(),
+        "pending_oem_approvals": db.query(Organization).filter(
+            Organization.org_type == "oem",
+            Organization.approval_status == "pending",
+        ).count(),
+        "pending_pe_registrations": db.query(Organization).filter(
+            Organization.org_type == "pe",
+            Organization.pe_approval_status == "pending",
+        ).count(),
     }
     try:
         html = templates.get_template("dashboard.html").render({"request": request, "counts": counts})
@@ -423,6 +440,133 @@ def sync_pe_to_emv(org: Organization):
     except requests.exceptions.RequestException as e:
         raise Exception(f"Failed to sync to EMV: {str(e)}")
 
+
+# ── OEM Approval Queue ────────────────────────────────────────────────────────
+
+@router.get("/oem-approvals", response_class=HTMLResponse)
+def oem_approvals_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Synerex Admin: list OEM orgs awaiting approval."""
+    from ..models.user import User as _User
+    from sqlalchemy import or_
+    status_filter = request.query_params.get("status", "").strip()
+
+    query = db.query(Organization).filter(Organization.org_type == "oem")
+    if status_filter in ("pending", "approved", "rejected"):
+        query = query.filter(Organization.approval_status == status_filter)
+    else:
+        # Default: show pending first
+        from sqlalchemy import case, func
+        query = query.order_by(
+            case(
+                (func.coalesce(Organization.approval_status, "pending") == "pending", 1),
+                (func.coalesce(Organization.approval_status, "pending") == "approved", 2),
+                (func.coalesce(Organization.approval_status, "pending") == "rejected", 3),
+                else_=4,
+            )
+        )
+
+    orgs = query.all()
+
+    # Attach admin user to each org
+    oems_with_admin = []
+    for o in orgs:
+        admin_user = db.query(_User).filter(_User.org_id == o.org_id, _User.role == "oem_admin").first()
+        oems_with_admin.append({"org": o, "admin": admin_user})
+
+    pending_count = db.query(Organization).filter(
+        Organization.org_type == "oem",
+        or_(Organization.approval_status == "pending", Organization.approval_status.is_(None))
+    ).count()
+    approved_count = db.query(Organization).filter(
+        Organization.org_type == "oem",
+        Organization.approval_status == "approved"
+    ).count()
+    rejected_count = db.query(Organization).filter(
+        Organization.org_type == "oem",
+        Organization.approval_status == "rejected"
+    ).count()
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("oem_approvals.html", {
+        "request": request,
+        "oems_with_admin": oems_with_admin,
+        "status_filter": status_filter,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "rejected_count": rejected_count,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/oem-approvals/{org_id}/approve", response_class=RedirectResponse)
+def approve_oem(request: Request, org_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Approve an OEM — activates their admin account and sends invitation email."""
+    from ..models.user import User as _User
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "oem":
+        raise HTTPException(404, "OEM organization not found")
+
+    if org.approval_status == "approved":
+        return _admin_redirect(f"/admin/oem-approvals?message=OEM+already+approved&message_type=info")
+
+    org.approval_status = "approved"
+    # Activate all OEM admin users for this org
+    oem_users = db.query(_User).filter(_User.org_id == org_id, _User.role == "oem_admin").all()
+    for u in oem_users:
+        u.is_active = True
+    db.commit()
+
+    log_event(db, actor="admin", action="oem.approve", ref_id=org_id, detail={"org_name": org.org_name})
+
+    # Send invitation email to each OEM admin (best-effort)
+    for u in oem_users:
+        try:
+            from ..services.email import send_oem_invitation_email as _send_oem_invite
+            from ..config import settings as _settings
+            base = (_settings.website_url or "http://localhost:8080").rstrip("/")
+            pfx = (_settings.root_path or "").rstrip("/")
+            _login_url = f"{base}{pfx}/auth/login?oem={org_id}"
+            _send_oem_invite(
+                to_email=u.email, org_name=org.org_name, org_id=org_id,
+                temp_password="(use your configured password)",
+                login_url=_login_url, is_reset=False,
+            )
+        except Exception as _e:
+            print(f"[EMAIL] OEM approval email failed for {u.email}: {_e}")
+
+    return _admin_redirect(f"/admin/oem-approvals?message=OEM+{org.org_name}+approved+and+activated&message_type=success")
+
+
+@router.post("/oem-approvals/{org_id}/reject", response_class=RedirectResponse)
+def reject_oem(
+    request: Request,
+    org_id: str,
+    reason: str = Form(None),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Reject an OEM application — keeps their account inactive."""
+    from ..models.user import User as _User
+
+    org = db.get(Organization, org_id)
+    if not org or org.org_type != "oem":
+        raise HTTPException(404, "OEM organization not found")
+
+    org.approval_status = "rejected"
+    org.approval_note = reason or ""
+    # Ensure all OEM admin users are deactivated
+    for u in db.query(_User).filter(_User.org_id == org_id, _User.role == "oem_admin").all():
+        u.is_active = False
+    db.commit()
+
+    log_event(db, actor="admin", action="oem.reject", ref_id=org_id, detail={"reason": reason, "org_name": org.org_name})
+    return _admin_redirect(f"/admin/oem-approvals?message=OEM+{org.org_name}+rejected&message_type=success")
+
+
 @router.get("/orgs", response_class=HTMLResponse)
 def orgs_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     search = request.query_params.get("search", "").strip()
@@ -476,7 +620,7 @@ def orgs_create(request: Request, org_id: str = Form(...), org_name: str = Form(
     db.add(Organization(org_id=org_id, org_name=org_name, org_type=org_type))
     db.commit()
     log_event(db, actor="admin", action="org.create", ref_id=org_id, detail={"org_name": org_name, "org_type": org_type})
-    return RedirectResponse("/admin/orgs", status_code=303)
+    return _admin_redirect("/admin/orgs")
 
 @router.get("/orgs/{org_id}", response_class=HTMLResponse)
 def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(require_admin), db: Session = Depends(db_session)):
@@ -571,7 +715,11 @@ def org_setup_oem(
     _=Depends(require_admin),
     db: Session = Depends(db_session),
 ):
-    """Create or reset OEM admin login credentials."""
+    """Create or reset OEM admin login credentials.
+    New OEMs are created with is_active=False and approval_status='pending'
+    until Synerex Admin explicitly approves them.
+    Resets on an existing account preserve the current approval_status.
+    """
     import bcrypt as _bcrypt
     from ..models.user import User as _User
 
@@ -590,13 +738,13 @@ def org_setup_oem(
 
     existing = db.query(_User).filter(_User.org_id == org_id, _User.role == "oem_admin").first()
     if existing:
+        # Credential reset — preserve existing approval state
         existing.username = email
         existing.email = email
         existing.password_hash = hashed
-        existing.is_active = True
+        # Keep is_active as-is (don't re-lock an already-approved OEM)
         db.commit()
         log_event(db, actor="admin", action="oem.credentials.reset", ref_id=org_id, detail={"email": email})
-        # Send credential reset email (best-effort)
         try:
             from ..services.email import send_oem_invitation_email as _send_oem_invite
             from ..config import settings as _settings
@@ -610,7 +758,7 @@ def org_setup_oem(
         except Exception as _e:
             print(f"[EMAIL] OEM reset email failed: {_e}")
         return RedirectResponse(
-            f"{detail_url}?oem_message=OEM+login+updated+for+{email}+—+invitation+email+sent&oem_message_type=success",
+            f"{detail_url}?oem_message=OEM+credentials+updated+for+{email}&oem_message_type=success",
             status_code=303
         )
     else:
@@ -620,32 +768,22 @@ def org_setup_oem(
                 f"{detail_url}?oem_message=Email+already+in+use+by+another+account&oem_message_type=error",
                 status_code=303
             )
+        # New OEM Admin — start as inactive/pending until Synerex approves
         new_user = _User(
             username=email,
             email=email,
             password_hash=hashed,
             org_id=org_id,
             role="oem_admin",
-            is_active=True,
+            is_active=False,
         )
         db.add(new_user)
+        # Mark org as pending approval
+        org.approval_status = "pending"
         db.commit()
-        log_event(db, actor="admin", action="oem.credentials.create", ref_id=org_id, detail={"email": email})
-        # Send invitation email (best-effort)
-        try:
-            from ..services.email import send_oem_invitation_email as _send_oem_invite
-            from ..config import settings as _settings
-            base = (_settings.website_url or "http://localhost:8080").rstrip("/")
-            pfx = (_settings.root_path or "").rstrip("/")
-            _login_url = f"{base}{pfx}/auth/login?oem={org_id}"
-            _send_oem_invite(
-                to_email=email, org_name=org.org_name, org_id=org_id,
-                temp_password=password, login_url=_login_url, is_reset=False,
-            )
-        except Exception as _e:
-            print(f"[EMAIL] OEM invitation email failed: {_e}")
+        log_event(db, actor="admin", action="oem.credentials.create", ref_id=org_id, detail={"email": email, "approval_status": "pending"})
         return RedirectResponse(
-            f"{detail_url}?oem_message=OEM+login+created+for+{email}+—+invitation+email+sent&oem_message_type=success",
+            f"{detail_url}?oem_message=OEM+credentials+created+for+{email}.+Approve+the+OEM+to+activate+their+account.&oem_message_type=info",
             status_code=303
         )
 
@@ -722,7 +860,129 @@ def org_delete(org_id: str, request: Request, _=Depends(require_admin), db: Sess
     db.delete(org)
     db.commit()
     log_event(db, actor="admin", action="org.delete", ref_id=org_id, detail={})
-    return RedirectResponse("/admin/orgs?message=Organization+deleted+successfully&message_type=success", status_code=303)
+    return _admin_redirect("/admin/orgs?message=Organization+deleted+successfully&message_type=success")
+
+
+# ── Users ──────────────────────────────────────────────────────────────────────
+
+@router.get("/users", response_class=HTMLResponse)
+def users_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Admin: list all user accounts across the platform with search/filter."""
+    search = request.query_params.get("search", "").strip()
+    role_filter = request.query_params.get("role", "").strip()
+    org_type_filter = request.query_params.get("org_type", "").strip()
+    status_filter = request.query_params.get("status", "").strip()  # active | inactive | all
+
+    query = db.query(User).join(Organization, User.org_id == Organization.org_id, isouter=True)
+
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.username.ilike(like),
+                User.email.ilike(like),
+                User.org_id.ilike(like),
+                Organization.org_name.ilike(like),
+            )
+        )
+    if role_filter:
+        query = query.filter(User.role == role_filter)
+    if org_type_filter:
+        query = query.filter(Organization.org_type == org_type_filter)
+    if status_filter == "active":
+        query = query.filter(User.is_active == True)
+    elif status_filter == "inactive":
+        query = query.filter(User.is_active == False)
+
+    users = query.order_by(Organization.org_name, User.role, User.username).all()
+
+    # Build org map for display
+    org_ids = {u.org_id for u in users}
+    orgs = {o.org_id: o for o in db.query(Organization).filter(Organization.org_id.in_(org_ids)).all()}
+
+    total_count = db.query(User).count()
+    active_count = db.query(User).filter(User.is_active == True).count()
+    inactive_count = db.query(User).filter(User.is_active == False).count()
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("users.html", {
+        "request": request,
+        "users": users,
+        "orgs": orgs,
+        "search": search,
+        "role_filter": role_filter,
+        "org_type_filter": org_type_filter,
+        "status_filter": status_filter,
+        "total_count": total_count,
+        "active_count": active_count,
+        "inactive_count": inactive_count,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/users/{username}/deactivate", response_class=RedirectResponse)
+def user_deactivate(username: str, request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Deactivate a user account (blocks login immediately)."""
+    user = db.get(User, username)
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.is_active = False
+    db.commit()
+    log_event(db, actor="admin", action="user.deactivate", ref_id=username,
+              detail={"org_id": user.org_id, "role": user.role, "email": user.email})
+    back = request.query_params.get("back", "/admin/users")
+    return RedirectResponse(f"{back}?message=User+{username}+deactivated&message_type=success", status_code=303)
+
+
+@router.post("/users/{username}/activate", response_class=RedirectResponse)
+def user_activate(username: str, request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    """Re-activate a user account."""
+    user = db.get(User, username)
+    if not user:
+        raise HTTPException(404, "User not found")
+
+    # Also ensure the org is approved before re-activating
+    org = db.get(Organization, user.org_id)
+    if org and org.org_type in ("oem", "customer") and org.approval_status == "rejected":
+        return RedirectResponse(
+            f"/admin/users?message=Cannot+activate+user+—+org+{user.org_id}+is+rejected&message_type=error",
+            status_code=303,
+        )
+
+    user.is_active = True
+    db.commit()
+    log_event(db, actor="admin", action="user.activate", ref_id=username,
+              detail={"org_id": user.org_id, "role": user.role, "email": user.email})
+    back = request.query_params.get("back", "/admin/users")
+    return RedirectResponse(f"{back}?message=User+{username}+activated&message_type=success", status_code=303)
+
+
+@router.post("/users/{username}/reset-password", response_class=RedirectResponse)
+def user_reset_password(
+    username: str,
+    request: Request,
+    new_password: str = Form(...),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Admin password reset for any user account."""
+    import bcrypt as _bcrypt
+    user = db.get(User, username)
+    if not user:
+        raise HTTPException(404, "User not found")
+    if len(new_password) < 6:
+        back = request.query_params.get("back", "/admin/users")
+        return RedirectResponse(f"{back}?message=Password+must+be+at+least+6+characters&message_type=error", status_code=303)
+    user.password_hash = _bcrypt.hashpw(new_password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+    db.commit()
+    log_event(db, actor="admin", action="user.password_reset", ref_id=username,
+              detail={"org_id": user.org_id, "role": user.role})
+    back = request.query_params.get("back", "/admin/users")
+    return RedirectResponse(f"{back}?message=Password+reset+for+{username}&message_type=success", status_code=303)
+
 
 # ---- API Keys ----
 @router.get("/api-keys", response_class=HTMLResponse)
@@ -753,7 +1013,7 @@ def api_keys_disable(key_id: str, request: Request, _=Depends(require_admin), db
         raise HTTPException(404, "Not found")
     rec.is_active = False
     db.commit()
-    return RedirectResponse("/admin/api-keys", status_code=303)
+    return _admin_redirect("/admin/api-keys")
 
 # ---- Templates (read-only, from repo) ----
 # Path: services/license-service/app/admin/ui.py
@@ -945,7 +1205,7 @@ def authorizations_create(
     db.add(auth)
     db.commit()
     log_event(db, actor="admin", action="authorization.create", ref_id=authorization_id, detail={"program_id": program_id, "org_id": org_id, "template_id": template_id, "auto_generated": not authorization_id.startswith("AUTH-")})
-    return RedirectResponse("/admin/authorizations", status_code=303)
+    return _admin_redirect("/admin/authorizations")
 
 @router.get("/authorizations/{authorization_id}", response_class=HTMLResponse)
 def authorization_detail(authorization_id: str, request: Request, tab: str = "overview", _=Depends(require_admin), db: Session = Depends(db_session)):

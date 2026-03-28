@@ -63,7 +63,13 @@
       </div>
       {% else %}
       <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc" autocomplete="off"/></div>
-      <div class="row"><label>Account type *</label><select name="org_type" required><option value="customer">Customer / Licensee</option><option value="pe">Licensed PE</option></select></div>
+      <!-- Customer self-registration is blocked; only PE and OEM-invited customers may register here -->
+      <div class="row"><label>Account type *</label>
+        <select name="org_type" required>
+          <option value="pe">Licensed PE / Engineer</option>
+        </select>
+        <p style="font-size:0.78rem;color:#6b7280;margin-top:0.25rem;">Customer (Licensee) accounts must be set up by your OEM sponsor. Contact your OEM partner to get access.</p>
+      </div>
       {% endif %}
       <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe" autocomplete="off"/></div>
       <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"/></div>

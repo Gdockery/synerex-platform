@@ -190,6 +190,21 @@ def client_login_submit(
 
         if not password_valid:
             return _error_redirect("Invalid username or password")
+
+        # Enforce approval gate — OEM and Customer orgs must be approved
+        try:
+            org = db.get(Organization, user.org_id)
+            if org and org.org_type in ("oem", "customer"):
+                status = org.approval_status
+                if status == "rejected":
+                    return _error_redirect("This account has been rejected. Please contact Synerex.")
+                if status == "pending":
+                    if org.org_type == "oem":
+                        return _error_redirect("Your OEM account is pending approval by Synerex. You will be notified when it is approved.")
+                    else:
+                        return _error_redirect("Your organization is pending approval. Please contact your OEM sponsor.")
+        except Exception:
+            pass  # Never block login due to an unexpected error in this check
         
         # Set session
         request.session["user_logged_in"] = True

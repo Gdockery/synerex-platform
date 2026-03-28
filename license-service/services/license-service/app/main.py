@@ -68,6 +68,7 @@ from .routes.audit_api import router as audit_api_router
 from .routes.downloads import router as downloads_router
 from .routes.billing import router as billing_router
 from .routes.registration import router as registration_router
+from .routes.stripe_payments import router as stripe_payments_router
 from .routes.oem_admin import router as oem_admin_router
 from .routes.auth import router as auth_router
 from .routes.templates import router as templates_router
@@ -127,6 +128,7 @@ def unauthorized_handler(request: Request, exc: HTTPException):
     return HTMLResponse(content=f"<h1>401 Unauthorized</h1><p>{exc.detail}</p>", status_code=401)
 
 app.include_router(registration_router)
+app.include_router(stripe_payments_router)
 app.include_router(oem_admin_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
@@ -271,30 +273,6 @@ def root():
 def health():
     return {"ok": True}
 
-@app.get("/api/debug/eft-config")
-def debug_eft_config():
-    """Debug endpoint to check EFT config values."""
-    import sys
-    import os
-    # Force fresh read
-    from .config import Settings
-    fresh_settings = Settings()
-    return {
-        "settings_object_id": id(settings),
-        "fresh_settings_id": id(fresh_settings),
-        "eft_bank_name": settings.eft_bank_name,
-        "eft_account_name": settings.eft_account_name,
-        "eft_routing_number": settings.eft_routing_number,
-        "eft_account_number": settings.eft_account_number,
-        "eft_swift_code": settings.eft_swift_code,
-        "fresh_eft_bank_name": fresh_settings.eft_bank_name,
-        "fresh_eft_routing_number": fresh_settings.eft_routing_number,
-        "fresh_eft_account_number": fresh_settings.eft_account_number,
-        "env_EFT_BANK_NAME": os.getenv("EFT_BANK_NAME"),
-        "env_EFT_ROUTING_NUMBER": os.getenv("EFT_ROUTING_NUMBER"),
-        "env_EFT_ACCOUNT_NUMBER": os.getenv("EFT_ACCOUNT_NUMBER"),
-        "config_file_path": str(Path(__file__).parent / "config.py"),
-    }
 
 @app.post("/api/server/restart")
 def api_server_restart(request: Request):

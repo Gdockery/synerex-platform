@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OEM Users — {{ oem_org.org_name }}</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #1a202c; }
+    .header { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); color: white; padding: 1.25rem 2rem; display:flex; justify-content:space-between; align-items:center; }
+    .header h1 { font-size: 1.2rem; font-weight: 700; }
+    .header a { color: rgba(255,255,255,0.8); text-decoration:none; font-size:0.9rem; }
+    .header a:hover { color: white; }
+    .content { padding: 2rem; max-width: 900px; margin: 0 auto; }
+    .card { background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 2rem; }
+    .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; }
+    .card-header h2 { font-size: 1rem; font-weight: 700; }
+    .card-body { padding: 1.5rem; }
+    .alert { padding: 0.85rem 1.1rem; border-radius: 6px; margin-bottom: 1.5rem; font-weight: 500; font-size:0.9rem; }
+    .alert-success { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .alert-error   { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background:#f8fafc; text-align:left; padding:0.65rem 1rem; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; color:#718096; border-bottom:1px solid #e2e8f0; }
+    td { padding: 0.75rem 1rem; border-bottom: 1px solid #f0f4f8; font-size:0.9rem; vertical-align:middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafbff; }
+    .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+    .dot-active { background: #38a169; }
+    .dot-inactive { background: #e53e3e; }
+    .btn { display:inline-block; padding:0.4rem 1rem; border-radius:6px; font-size:0.85rem; font-weight:600; border:none; cursor:pointer; text-decoration:none; }
+    .btn-primary { background:#7c3aed; color:white; }
+    .btn-primary:hover { background:#6d28d9; }
+    .btn-danger { background:#e53e3e; color:white; }
+    .btn-danger:hover { background:#c53030; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr auto; gap:0.75rem; align-items:end; }
+    .form-group label { display:block; font-size:0.82rem; font-weight:600; color:#4a5568; margin-bottom:0.3rem; }
+    .form-group input { width:100%; padding:0.5rem 0.75rem; border:1px solid #e2e8f0; border-radius:6px; font-size:0.9rem; }
+    .form-group input:focus { outline:none; border-color:#7c3aed; box-shadow:0 0 0 2px rgba(124,58,237,0.1); }
+    .empty { padding:2rem; text-align:center; color:#718096; font-style:italic; }
+    .back-nav { display:flex; gap:1rem; margin-bottom:1.5rem; }
+    .back-nav a { font-size:0.87rem; color:#7c3aed; text-decoration:none; }
+    .back-nav a:hover { text-decoration:underline; }
+    .info-box { background:#ede9fe; border:1px solid #c4b5fd; border-radius:8px; padding:1rem 1.25rem; margin-bottom:1.5rem; font-size:0.87rem; color:#4c1d95; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>OEM Users — {{ oem_org.org_name }}</h1>
+    <a href="{{ path_prefix }}/oem-admin">← OEM Dashboard</a>
+  </div>
+  <div class="content">
+    {% if message %}
+    <div class="alert alert-{{ message_type or 'success' }}">{{ message }}</div>
+    {% endif %}
+
+    <div class="info-box">
+      <strong>OEM Users</strong> are internal staff accounts within your OEM organization.
+      They can log in to the Synerex portal but cannot manage clients or customers.
+      Use the form below to create sub-accounts for your team members.
+    </div>
+
+    <!-- Create User Form -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Add OEM User</h2>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{{ path_prefix }}/oem-admin/users/create">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Email / Username</label>
+              <input type="email" name="email" required placeholder="user@example.com" />
+            </div>
+            <div class="form-group">
+              <label>Temporary Password</label>
+              <input type="password" name="password" required placeholder="Min. 6 characters" minlength="6" />
+            </div>
+            <div>
+              <button type="submit" class="btn btn-primary">Create User</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Existing Users -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Current OEM Users</h2>
+        <span style="font-size:0.85rem; color:#718096;">{{ oem_users|length }} user{{ 's' if oem_users|length != 1 else '' }}</span>
+      </div>
+      {% if oem_users %}
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in oem_users %}
+          <tr>
+            <td>{{ u.email }}</td>
+            <td>
+              <span class="status-dot {{ 'dot-active' if u.is_active else 'dot-inactive' }}"></span>
+              {{ 'Active' if u.is_active else 'Inactive' }}
+            </td>
+            <td>
+              <form method="post" action="{{ path_prefix }}/oem-admin/users/delete" style="display:inline;">
+                <input type="hidden" name="target_username" value="{{ u.username }}" />
+                <button type="submit" class="btn btn-danger" onclick="return confirm('Remove {{ u.email }}?')">Remove</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No OEM Users created yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>

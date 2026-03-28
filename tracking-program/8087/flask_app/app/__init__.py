@@ -152,15 +152,18 @@ def create_app(config_class=Config):
 
     @app.errorhandler(500)
     def handle_500(e):
-        """Log 500 errors with full traceback for debugging."""
+        """Log 500 errors server-side only; return a generic message to the client."""
         import traceback
         import sys
-        app.logger.error("500 Internal Server Error: %s", e)
         tb_str = "".join(traceback.format_exception(type(e), e, e.__traceback__)) if e else traceback.format_exc()
+        app.logger.error("500 Internal Server Error: %s\n%s", e, tb_str)
         print(tb_str, flush=True)
         sys.stdout.flush()
-        from flask import render_template_string
-        return render_template_string("<h1>500 Internal Server Error</h1><pre>{{ tb }}</pre>", tb=tb_str), 500
+        from flask import jsonify
+        if (request.accept_mimetypes.accept_json and
+                not request.accept_mimetypes.accept_html):
+            return jsonify({"error": "Internal server error"}), 500
+        return "<h1>500 Internal Server Error</h1><p>An unexpected error occurred. Please try again.</p>", 500
 
     @app.before_request
     def update_last_active_at():

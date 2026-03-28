@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8"/>
     <title>Complete Payment - {% if oem_branding and oem_branding.brand_name %}{{ oem_branding.brand_name }}{% else %}Synerex Platform{% endif %}</title>
+    {% if stripe_enabled %}
+    <script src="https://js.stripe.com/v3/"></script>
+    {% endif %}
     <style>
       .nav-header {
         position: fixed; top: 0; left: 0; right: 0; z-index: 50;
@@ -79,6 +82,21 @@
         letter-spacing: 0.05em; display: block; margin-bottom: 6px;
       }
       .powered-by-footer img { height: 22px; width: auto; opacity: 0.55; filter: grayscale(30%); }
+      /* Stripe card element */
+      #stripe-card-section {
+        display: none; margin-top: 1rem; padding-top: 0.5rem;
+      }
+      #stripe-card-element {
+        border: 1px solid #ccc; border-radius: 4px; padding: 12px; background: #fff;
+      }
+      #stripe-card-errors {
+        color: #b00020; margin-top: 6px; font-size: 0.9rem; min-height: 1.2em;
+      }
+      .stripe-lock {
+        display: flex; align-items: center; gap: 6px;
+        font-size: 0.8rem; color: #555; margin-top: 8px;
+      }
+      .stripe-lock svg { width: 14px; height: 14px; flex-shrink: 0; }
     </style>
   </head>
   <body>
@@ -165,6 +183,7 @@
         Please ensure all information is correct before proceeding.
       </div>
 
+      <!-- Regular form — hidden when Stripe is active -->
       <form method="post" action="/license/register/payment/process" id="paymentForm">
         <input type="hidden" name="order_id" value="{{ order.order_id }}">
         {% if return_url %}
@@ -176,19 +195,30 @@
 
           {% if stripe_enabled %}
           <div class="payment-method" onclick="selectPayment('stripe')">
-            <input type="radio" name="payment_method" value="stripe" id="stripe" required>
+            <input type="radio" name="payment_method" value="stripe" id="stripe">
             <label for="stripe" style="cursor: pointer; font-weight: 500;">
-              Credit/Debit Card (Stripe)
+              Credit / Debit Card
             </label>
             <p style="color: #666; font-size: 0.9rem; margin: 0.5rem 0 0 1.75rem;">
-              Secure payment processing via Stripe
+              Visa, Mastercard, Amex &mdash; secured by Stripe
             </p>
+            <!-- Stripe Elements card input — shown when Stripe is selected -->
+            <div id="stripe-card-section">
+              <div id="stripe-card-element"></div>
+              <div id="stripe-card-errors"></div>
+              <div class="stripe-lock">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Your card information is encrypted and never stored on our servers.
+              </div>
+            </div>
           </div>
           {% endif %}
 
           {% if paypal_enabled %}
           <div class="payment-method" onclick="selectPayment('paypal')">
-            <input type="radio" name="payment_method" value="paypal" id="paypal" required>
+            <input type="radio" name="payment_method" value="paypal" id="paypal">
             <label for="paypal" style="cursor: pointer; font-weight: 500;">
               PayPal
             </label>
@@ -199,7 +229,7 @@
           {% endif %}
 
           <div class="payment-method" onclick="selectPayment('eft')">
-            <input type="radio" name="payment_method" value="eft" id="eft" required>
+            <input type="radio" name="payment_method" value="eft" id="eft">
             <label for="eft" style="cursor: pointer; font-weight: 500;">
               Electronic Funds Transfer (EFT)
             </label>
@@ -214,7 +244,7 @@
             Clicking "Complete Payment" will simulate a successful payment.
           </div>
           <div class="payment-method" onclick="selectPayment('demo')">
-            <input type="radio" name="payment_method" value="demo" id="demo" checked required>
+            <input type="radio" name="payment_method" value="demo" id="demo" checked>
             <label for="demo" style="cursor: pointer; font-weight: 500;">
               Demo Payment (No actual charge)
             </label>
@@ -225,8 +255,10 @@
           {% endif %}
         </div>
 
+        <div id="form-error" class="error" style="display:none;"></div>
+
         <button type="submit" class="btn" id="submitBtn">
-          Complete Payment - ${{ order.amount_total }} {{ order.currency }}
+          Complete Payment &mdash; ${{ order.amount_total }} {{ order.currency }}
         </button>
       </form>
 
@@ -242,35 +274,124 @@
     </div>
 
     <script>
+      // ── Payment method selector ──────────────────────────────────────────
       function selectPayment(method) {
-        document.getElementById(method).checked = true;
-        document.querySelectorAll('.payment-method').forEach(el => {
+        var radio = document.getElementById(method);
+        if (radio) radio.checked = true;
+        document.querySelectorAll('.payment-method').forEach(function(el) {
           el.classList.remove('selected');
         });
-        event.currentTarget.classList.add('selected');
+        if (event && event.currentTarget) event.currentTarget.classList.add('selected');
+
+        // Show/hide Stripe card section
+        var cardSection = document.getElementById('stripe-card-section');
+        if (cardSection) {
+          cardSection.style.display = (method === 'stripe') ? 'block' : 'none';
+        }
       }
 
-      let isSubmitting = false;
+      // ── Stripe Elements setup ────────────────────────────────────────────
+      {% if stripe_enabled and stripe_publishable_key %}
+      var STRIPE_PK = {{ stripe_publishable_key | tojson }};
+      var ORDER_ID  = {{ order.order_id | tojson }};
+      var stripe = Stripe(STRIPE_PK);
+      var elements = stripe.elements();
+      var cardElement = elements.create('card', {
+        style: {
+          base: { fontSize: '16px', color: '#2d3748', '::placeholder': { color: '#a0aec0' } },
+          invalid: { color: '#b00020' }
+        }
+      });
+      cardElement.mount('#stripe-card-element');
+      cardElement.on('change', function(event) {
+        var displayError = document.getElementById('stripe-card-errors');
+        displayError.textContent = event.error ? event.error.message : '';
+      });
+      {% endif %}
+
+      // ── Form submission ──────────────────────────────────────────────────
+      var isSubmitting = false;
       document.getElementById('paymentForm').addEventListener('submit', function(e) {
         if (isSubmitting) { e.preventDefault(); return false; }
-        const selectedMethod = document.querySelector('input[name="payment_method"]:checked');
+
+        var selectedMethod = document.querySelector('input[name="payment_method"]:checked');
         if (!selectedMethod) {
           e.preventDefault();
-          alert('Please select a payment method');
+          showFormError('Please select a payment method.');
           return false;
         }
+
+        var method = selectedMethod.value;
+
+        {% if stripe_enabled and stripe_publishable_key %}
+        if (method === 'stripe') {
+          e.preventDefault();
+          handleStripePayment();
+          return false;
+        }
+        {% endif %}
+
+        // For non-Stripe methods, normal form submit
         isSubmitting = true;
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = true;
-        btn.textContent = 'Processing Payment...';
-        setTimeout(function() {
-          if (isSubmitting) {
-            isSubmitting = false;
-            btn.disabled = false;
-            btn.textContent = 'Complete Payment - ${{ order.amount_total }} {{ order.currency }}';
-          }
-        }, 10000);
+        setSubmitting(true);
       });
+
+      function showFormError(msg) {
+        var el = document.getElementById('form-error');
+        el.textContent = msg;
+        el.style.display = 'block';
+        window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 80);
+      }
+      function hideFormError() {
+        var el = document.getElementById('form-error');
+        el.style.display = 'none';
+        el.textContent = '';
+      }
+      function setSubmitting(on) {
+        var btn = document.getElementById('submitBtn');
+        btn.disabled = on;
+        btn.textContent = on
+          ? 'Processing...'
+          : 'Complete Payment \u2014 ${{ order.amount_total }} {{ order.currency }}';
+      }
+
+      {% if stripe_enabled and stripe_publishable_key %}
+      function handleStripePayment() {
+        hideFormError();
+        isSubmitting = true;
+        setSubmitting(true);
+
+        // 1. Create PaymentIntent on server
+        fetch('/license/register/payment/stripe/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order_id: ORDER_ID })
+        })
+        .then(function(r) {
+          if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || 'Server error'); });
+          return r.json();
+        })
+        .then(function(data) {
+          // 2. Confirm card payment with Stripe.js
+          return stripe.confirmCardPayment(data.client_secret, {
+            payment_method: { card: cardElement }
+          });
+        })
+        .then(function(result) {
+          if (result.error) {
+            throw new Error(result.error.message);
+          }
+          // 3. Payment succeeded — redirect to pending/success page
+          //    Stripe webhook will issue the license asynchronously
+          window.location.href = '/license/register/payment-pending?order_id=' + ORDER_ID;
+        })
+        .catch(function(err) {
+          isSubmitting = false;
+          setSubmitting(false);
+          showFormError(err.message || 'Payment failed. Please try again.');
+        });
+      }
+      {% endif %}
     </script>
   </body>
 </html>

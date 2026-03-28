@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="margin-bottom:1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+  <div>
+    <h2 style="color:var(--purple-hi); font-size:1.4rem; font-weight:700; margin-bottom:0.2rem;">User Accounts</h2>
+    <p style="color:var(--text-dim); font-size:0.85rem;">
+      {{ total_count }} total &nbsp;·&nbsp;
+      <span style="color:#86efac;">{{ active_count }} active</span> &nbsp;·&nbsp;
+      <span style="color:#f87171;">{{ inactive_count }} inactive</span>
+    </p>
+  </div>
+</div>
+
+{% if message %}
+<div style="padding:0.8rem 1rem; border-radius:6px; margin-bottom:1.25rem; font-weight:500; font-size:0.88rem;
+  {% if message_type == 'error' %}background:#7f1d1d; color:#fca5a5; border:1px solid #b91c1c;
+  {% elif message_type == 'info' %}background:#1e3a5f; color:#93c5fd; border:1px solid #2563eb;
+  {% else %}background:#14532d; color:#86efac; border:1px solid #16a34a;{% endif %}">
+  {{ message }}
+</div>
+{% endif %}
+
+<!-- Filters -->
+<form method="get" style="background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.5rem; display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
+  <div style="flex:2; min-width:180px;">
+    <label style="display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:0.3rem;">Search</label>
+    <input type="text" name="search" value="{{ search }}" placeholder="Email, username, org name…"
+      style="width:100%; padding:0.45rem 0.75rem; background:var(--input-bg,#0f172a); border:1px solid var(--border); border-radius:6px; color:var(--text-base); font-size:0.88rem;"/>
+  </div>
+  <div style="flex:1; min-width:130px;">
+    <label style="display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:0.3rem;">Role</label>
+    <select name="role" style="width:100%; padding:0.45rem 0.75rem; background:var(--input-bg,#0f172a); border:1px solid var(--border); border-radius:6px; color:var(--text-base); font-size:0.88rem;">
+      <option value="" {% if not role_filter %}selected{% endif %}>All roles</option>
+      <option value="oem_admin" {% if role_filter=='oem_admin' %}selected{% endif %}>OEM Admin</option>
+      <option value="oem_user" {% if role_filter=='oem_user' %}selected{% endif %}>OEM User</option>
+      <option value="customer_admin" {% if role_filter=='customer_admin' %}selected{% endif %}>Client Admin</option>
+      <option value="customer_viewer" {% if role_filter=='customer_viewer' %}selected{% endif %}>Client User</option>
+    </select>
+  </div>
+  <div style="flex:1; min-width:130px;">
+    <label style="display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:0.3rem;">Org Type</label>
+    <select name="org_type" style="width:100%; padding:0.45rem 0.75rem; background:var(--input-bg,#0f172a); border:1px solid var(--border); border-radius:6px; color:var(--text-base); font-size:0.88rem;">
+      <option value="" {% if not org_type_filter %}selected{% endif %}>All types</option>
+      <option value="oem" {% if org_type_filter=='oem' %}selected{% endif %}>OEM</option>
+      <option value="customer" {% if org_type_filter=='customer' %}selected{% endif %}>Customer</option>
+      <option value="pe" {% if org_type_filter=='pe' %}selected{% endif %}>Licensed PE</option>
+    </select>
+  </div>
+  <div style="flex:1; min-width:120px;">
+    <label style="display:block; font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin-bottom:0.3rem;">Status</label>
+    <select name="status" style="width:100%; padding:0.45rem 0.75rem; background:var(--input-bg,#0f172a); border:1px solid var(--border); border-radius:6px; color:var(--text-base); font-size:0.88rem;">
+      <option value="" {% if not status_filter %}selected{% endif %}>All</option>
+      <option value="active" {% if status_filter=='active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status_filter=='inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </div>
+  <div>
+    <button type="submit" class="btn btn-primary" style="padding:0.48rem 1.1rem; font-size:0.88rem;">Filter</button>
+    {% if search or role_filter or org_type_filter or status_filter %}
+    <a href="?" class="btn btn-secondary" style="padding:0.48rem 1rem; font-size:0.88rem; margin-left:0.4rem;">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+<!-- Reset Password Modal -->
+<div id="reset-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:50; align-items:center; justify-content:center;">
+  <div style="background:#1e1b2e; border:1px solid var(--border); border-radius:12px; padding:1.75rem; width:100%; max-width:420px; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+    <h3 style="color:var(--purple-hi); font-size:1rem; font-weight:700; margin-bottom:1rem;">Reset Password</h3>
+    <p style="font-size:0.85rem; color:var(--text-dim); margin-bottom:1rem;">Setting new password for: <strong id="reset-username-label" style="color:var(--text-base);"></strong></p>
+    <form id="reset-form" method="post">
+      <input type="hidden" name="back" value="/admin/users?{% if search %}search={{ search }}&{% endif %}{% if role_filter %}role={{ role_filter }}&{% endif %}{% if org_type_filter %}org_type={{ org_type_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}{% endif %}"/>
+      <div style="margin-bottom:1rem;">
+        <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-dim); margin-bottom:0.35rem;">New Password (min 6 chars)</label>
+        <input type="password" name="new_password" required minlength="6" id="reset-pw-input"
+          style="width:100%; padding:0.5rem 0.75rem; background:#0f172a; border:1px solid var(--border); border-radius:6px; color:var(--text-base); font-size:0.9rem;"/>
+      </div>
+      <div style="display:flex; gap:0.75rem; justify-content:flex-end;">
+        <button type="button" onclick="closeResetModal()" class="btn btn-secondary">Cancel</button>
+        <button type="submit" class="btn btn-primary">Reset Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Users Table -->
+{% if users %}
+<div style="overflow-x:auto;">
+<table style="width:100%; border-collapse:collapse; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; overflow:hidden;">
+  <thead>
+    <tr>
+      <th style="text-align:left; padding:0.7rem 1rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">User / Email</th>
+      <th style="text-align:left; padding:0.7rem 1rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">Organization</th>
+      <th style="text-align:left; padding:0.7rem 1rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">Role</th>
+      <th style="text-align:left; padding:0.7rem 1rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">Status</th>
+      <th style="text-align:right; padding:0.7rem 1rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); border-bottom:1px solid var(--border); background:rgba(255,255,255,0.03);">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set current_back = '/admin/users' %}
+    {% for u in users %}
+    {% set org = orgs.get(u.org_id) %}
+    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(124,58,237,0.04)'" onmouseout="this.style.background=''">
+      <td style="padding:0.75rem 1rem; vertical-align:middle;">
+        <div style="font-weight:600; color:var(--text-base); font-size:0.9rem;">{{ u.email }}</div>
+        {% if u.username != u.email %}
+        <div style="font-size:0.78rem; color:var(--text-dim); font-family:monospace; margin-top:1px;">{{ u.username }}</div>
+        {% endif %}
+      </td>
+      <td style="padding:0.75rem 1rem; vertical-align:middle;">
+        {% if org %}
+        <a href="/admin/orgs/{{ org.org_id }}" style="color:var(--purple-hi); text-decoration:none; font-size:0.88rem; font-weight:500;">{{ org.org_name }}</a>
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-top:1px; text-transform:uppercase; letter-spacing:0.04em;">
+          {{ org.org_type }}
+          {% if org.approval_status == 'pending' %}<span style="color:#fbbf24;"> · pending approval</span>{% endif %}
+          {% if org.approval_status == 'rejected' %}<span style="color:#f87171;"> · rejected</span>{% endif %}
+        </div>
+        {% else %}
+        <span style="color:var(--text-dim); font-size:0.85rem; font-style:italic;">{{ u.org_id }}</span>
+        {% endif %}
+      </td>
+      <td style="padding:0.75rem 1rem; vertical-align:middle;">
+        {% set role = u.role or 'none' %}
+        {% if role == 'oem_admin' %}
+          <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:700; background:#3b0764; color:#c4b5fd; border:1px solid #6d28d9;">OEM Admin</span>
+        {% elif role == 'oem_user' %}
+          <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:700; background:#312e81; color:#a5b4fc; border:1px solid #4338ca;">OEM User</span>
+        {% elif role == 'customer_admin' %}
+          <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:700; background:#0c4a6e; color:#7dd3fc; border:1px solid #0369a1;">Client Admin</span>
+        {% elif role == 'customer_viewer' %}
+          <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:700; background:#0f3460; color:#93c5fd; border:1px solid #1d4ed8;">Client User</span>
+        {% else %}
+          <span style="display:inline-block; padding:2px 8px; border-radius:9999px; font-size:0.75rem; font-weight:700; background:#1f2937; color:#9ca3af; border:1px solid #374151;">{{ role }}</span>
+        {% endif %}
+      </td>
+      <td style="padding:0.75rem 1rem; vertical-align:middle;">
+        {% if u.is_active %}
+          <span style="display:inline-flex; align-items:center; gap:5px; font-size:0.82rem; color:#86efac;">
+            <span style="width:7px; height:7px; border-radius:50%; background:#22c55e; display:inline-block;"></span> Active
+          </span>
+        {% else %}
+          <span style="display:inline-flex; align-items:center; gap:5px; font-size:0.82rem; color:#f87171;">
+            <span style="width:7px; height:7px; border-radius:50%; background:#ef4444; display:inline-block;"></span> Inactive
+          </span>
+        {% endif %}
+      </td>
+      <td style="padding:0.75rem 1rem; vertical-align:middle; text-align:right;">
+        <div style="display:inline-flex; gap:0.4rem; align-items:center;">
+          <!-- Reset Password -->
+          <button type="button"
+            onclick="openResetModal('{{ u.username }}', '{{ u.email }}')"
+            style="padding:3px 10px; border-radius:5px; font-size:0.78rem; font-weight:600; border:1px solid #374151; background:#1f2937; color:#d1d5db; cursor:pointer;"
+            title="Reset password">
+            Reset PW
+          </button>
+          <!-- Activate / Deactivate -->
+          {% if u.is_active %}
+          <form method="post" action="/admin/users/{{ u.username }}/deactivate?back=/admin/users{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
+            <button type="submit"
+              onclick="return confirm('Deactivate {{ u.email }}? They will be unable to log in immediately.')"
+              style="padding:3px 10px; border-radius:5px; font-size:0.78rem; font-weight:600; border:1px solid #b91c1c; background:#7f1d1d; color:#fca5a5; cursor:pointer;">
+              Deactivate
+            </button>
+          </form>
+          {% else %}
+          <form method="post" action="/admin/users/{{ u.username }}/activate?back=/admin/users{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
+            <button type="submit"
+              onclick="return confirm('Activate {{ u.email }}?')"
+              style="padding:3px 10px; border-radius:5px; font-size:0.78rem; font-weight:600; border:1px solid #16a34a; background:#14532d; color:#86efac; cursor:pointer;">
+              Activate
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p style="font-size:0.8rem; color:var(--text-dim); margin-top:0.75rem;">{{ users|length }} result{{ 's' if users|length != 1 else '' }} shown</p>
+{% else %}
+<div style="text-align:center; padding:3rem; color:var(--text-dim); background:var(--card-bg); border:1px solid var(--border); border-radius:10px;">
+  <p style="font-size:1rem; margin-bottom:0.5rem;">No users found.</p>
+  {% if search or role_filter or org_type_filter or status_filter %}
+  <a href="?" style="color:var(--purple-hi); font-size:0.9rem;">Clear filters</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+function openResetModal(username, email) {
+  document.getElementById('reset-username-label').textContent = email || username;
+  document.getElementById('reset-form').action = '/admin/users/' + encodeURIComponent(username) + '/reset-password';
+  document.getElementById('reset-pw-input').value = '';
+  var modal = document.getElementById('reset-modal');
+  modal.style.display = 'flex';
+  setTimeout(function(){ document.getElementById('reset-pw-input').focus(); }, 50);
+}
+function closeResetModal() {
+  document.getElementById('reset-modal').style.display = 'none';
+}
+document.getElementById('reset-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeResetModal();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeResetModal();
+});
+</script>
+
+{% endblock %}

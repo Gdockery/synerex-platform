@@ -12,7 +12,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    role: Mapped[str | None] = mapped_column(String(64), nullable=True)  # customer_admin | customer_viewer | oem_admin | None
+    role: Mapped[str | None] = mapped_column(String(64), nullable=True)  # customer_admin | customer_viewer | oem_admin | oem_user | None
     
     # Relationship
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")

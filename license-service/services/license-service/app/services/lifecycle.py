@@ -146,7 +146,7 @@ def auto_renew_license(license_id: str, db) -> Optional[License]:
     org = db.get(Organization, lic.org_id)
     template = load_template(auth.program_id, auth.template_id)
     
-    PRIV = load_private_key(Path(__file__).resolve().parents[3] / "keys" / "issuer_private.key")
+    PRIV = load_private_key(Path(__file__).resolve().parents[2] / "keys" / "issuer_private.key")
     new_license_id = f"SYX-LIC-{datetime.utcnow().year}-{int(datetime.utcnow().timestamp())}"
     
     program_env = {

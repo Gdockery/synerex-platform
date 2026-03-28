@@ -53,7 +53,8 @@ export default function Home() {
       <section className="relative from-gray-900 via-purple-950 to-gray-900 bg-gradient-to-br pt-32 pb-32 px-4 text-center text-white overflow-hidden">
         <video autoPlay loop muted playsInline preload="auto"
           className="absolute inset-0 w-full h-full object-cover z-0">
-          <source src="/videos/background_720p.mp4" type="video/mp4" />
+          <source src="/videos/background_720p.webm" type="video/webm" />
+          <source src="/videos/background_1080p.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60 z-[1]" />
         <div className="relative fade-in z-[2]">

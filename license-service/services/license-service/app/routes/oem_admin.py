@@ -402,11 +402,300 @@ def oem_create_admin_submit(
             password_hash=hashed,
             org_id=org_id,
             role="customer_admin",
-            is_active=True,
+            is_active=False,  # inactive until OEM approves after payment
         )
         db.add(new_admin)
+        # Mark the customer org as pending OEM approval
+        customer.approval_status = "pending"
         db.commit()
         return RedirectResponse(
-            f"{create_url}?message=Client+Admin+{email}+created+successfully&message_type=success",
+            f"{create_url}?message=Client+Admin+{email}+created.+Approve+after+payment+is+received.&message_type=info",
             status_code=303
         )
+
+
+# ── OEM Users (oem_user sub-accounts) ────────────────────────────────────────
+
+def _require_oem_admin(request: Request, db: Session):
+    """Return (oem_org, username) or raise a 303 redirect if not an approved OEM admin."""
+    if not _is_user_logged_in(request):
+        raise HTTPException(303, headers={"Location": f"{path_prefix}/auth/login"})
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    org = db.get(Organization, org_id) if org_id else None
+    if not user or user.role != "oem_admin" or not org or org.org_type != "oem":
+        raise HTTPException(403, "OEM Admin access required")
+    return org, user
+
+
+@router.get("/users", response_class=HTMLResponse)
+def oem_users_page(request: Request, db: Session = Depends(db_session)):
+    """OEM Admin: manage OEM User sub-accounts within this OEM organization."""
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login?return_url={path_prefix}/oem-admin/users", status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, org_id) if org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    oem_users = (
+        db.query(User)
+        .filter(User.org_id == org_id, User.role == "oem_user")
+        .order_by(User.email)
+        .all()
+    )
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("oem_users.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "oem_users": oem_users,
+        "path_prefix": path_prefix,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/users/create", response_class=RedirectResponse)
+def oem_user_create(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Create an OEM User sub-account within this OEM organization."""
+    users_url = f"{path_prefix}/oem-admin/users" if path_prefix else "/oem-admin/users"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, org_id) if org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    if len(password) < 6:
+        return RedirectResponse(f"{users_url}?message=Password+must+be+at+least+6+characters&message_type=error", status_code=303)
+
+    taken = db.query(User).filter((User.username == email) | (User.email == email)).first()
+    if taken:
+        return RedirectResponse(f"{users_url}?message=Email+already+in+use+by+another+account&message_type=error", status_code=303)
+
+    hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    new_user = User(
+        username=email,
+        email=email,
+        password_hash=hashed,
+        org_id=org_id,
+        role="oem_user",
+        is_active=True,
+    )
+    db.add(new_user)
+    db.commit()
+
+    return RedirectResponse(f"{users_url}?message=OEM+User+{email}+created&message_type=success", status_code=303)
+
+
+@router.post("/users/delete", response_class=RedirectResponse)
+def oem_user_delete(
+    request: Request,
+    target_username: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Deactivate an OEM User sub-account."""
+    users_url = f"{path_prefix}/oem-admin/users" if path_prefix else "/oem-admin/users"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, org_id) if org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    target = db.query(User).filter(
+        User.username == target_username,
+        User.org_id == org_id,
+        User.role == "oem_user",
+    ).first()
+    if not target:
+        return RedirectResponse(f"{users_url}?message=User+not+found&message_type=error", status_code=303)
+
+    target.is_active = False
+    db.commit()
+    return RedirectResponse(f"{users_url}?message=OEM+User+{target_username}+removed&message_type=success", status_code=303)
+
+
+# ── Client Approval Queue (OEM Admin) ─────────────────────────────────────────
+
+@router.get("/client-approvals", response_class=HTMLResponse)
+def oem_client_approvals_page(request: Request, db: Session = Depends(db_session)):
+    """OEM Admin: list sponsored customer orgs awaiting approval after payment."""
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login?return_url={path_prefix}/oem-admin/client-approvals", status_code=303)
+
+    org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, org_id) if org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    from sqlalchemy import or_
+    status_filter = request.query_params.get("status", "").strip()
+
+    query = db.query(Organization).filter(
+        Organization.org_type == "customer",
+        Organization.sponsor_org_id == org_id,
+    )
+    if status_filter in ("pending", "approved", "rejected"):
+        query = query.filter(Organization.approval_status == status_filter)
+    else:
+        from sqlalchemy import case as _case, func as _func
+        query = query.order_by(
+            _case(
+                (_func.coalesce(Organization.approval_status, "pending") == "pending", 1),
+                (_func.coalesce(Organization.approval_status, "pending") == "approved", 2),
+                (_func.coalesce(Organization.approval_status, "pending") == "rejected", 3),
+                else_=4,
+            )
+        )
+
+    customers = query.all()
+
+    # Attach admin user and latest paid order to each customer
+    from ..models.billing import BillingOrder
+    clients_data = []
+    for c in customers:
+        admin_user = db.query(User).filter(User.org_id == c.org_id, User.role == "customer_admin").first()
+        latest_order = (
+            db.query(BillingOrder)
+            .filter(BillingOrder.org_id == c.org_id, BillingOrder.status == "paid")
+            .order_by(BillingOrder.paid_at.desc())
+            .first()
+        )
+        clients_data.append({"org": c, "admin": admin_user, "paid_order": latest_order})
+
+    pending_count = db.query(Organization).filter(
+        Organization.org_type == "customer",
+        Organization.sponsor_org_id == org_id,
+        or_(Organization.approval_status == "pending", Organization.approval_status.is_(None)),
+    ).count()
+
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("oem_client_approvals.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "clients_data": clients_data,
+        "status_filter": status_filter,
+        "pending_count": pending_count,
+        "path_prefix": path_prefix,
+        "message": message,
+        "message_type": message_type,
+    })
+
+
+@router.post("/client-approvals/{org_id}/approve", response_class=RedirectResponse)
+def oem_client_approve(
+    org_id: str,
+    request: Request,
+    db: Session = Depends(db_session),
+):
+    """OEM Admin: approve a client org after payment — activates their Client Admin."""
+    approvals_url = f"{path_prefix}/oem-admin/client-approvals" if path_prefix else "/oem-admin/client-approvals"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    customer = _get_customer_for_oem(db, oem_org_id, org_id)
+    if not customer:
+        return RedirectResponse(f"{approvals_url}?message=Client+not+found&message_type=error", status_code=303)
+
+    customer.approval_status = "approved"
+    # Activate all customer_admin users for this org
+    admin_users = db.query(User).filter(User.org_id == org_id, User.role == "customer_admin").all()
+    for u in admin_users:
+        u.is_active = True
+    db.commit()
+
+    # Send invitation email (best-effort)
+    for u in admin_users:
+        try:
+            from ..services.email import send_client_admin_invitation_email as _send
+            from ..config import settings as _settings
+            base = (_settings.website_url or "http://localhost:8080").rstrip("/")
+            pfx = (_settings.root_path or "").rstrip("/")
+            _client_portal_url = f"{base}{pfx}/auth/client-portal"
+            _oem_login_url = f"{base}{pfx}/auth/login?client={org_id}"
+            _send(
+                to_email=u.email,
+                client_org_name=customer.org_name,
+                client_org_id=org_id,
+                oem_org_name=oem_org.org_name,
+                temp_password="(use your configured password)",
+                oem_login_url=_oem_login_url,
+                client_portal_url=_client_portal_url,
+                is_reset=False,
+            )
+        except Exception as _e:
+            print(f"[EMAIL] Client approval email failed for {u.email}: {_e}")
+
+    return RedirectResponse(
+        f"{approvals_url}?message=Client+{customer.org_name}+approved+and+activated&message_type=success",
+        status_code=303
+    )
+
+
+@router.post("/client-approvals/{org_id}/reject", response_class=RedirectResponse)
+def oem_client_reject(
+    org_id: str,
+    request: Request,
+    reason: str = Form(None),
+    db: Session = Depends(db_session),
+):
+    """OEM Admin: reject a client org (keeps admin account inactive)."""
+    approvals_url = f"{path_prefix}/oem-admin/client-approvals" if path_prefix else "/oem-admin/client-approvals"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    customer = _get_customer_for_oem(db, oem_org_id, org_id)
+    if not customer:
+        return RedirectResponse(f"{approvals_url}?message=Client+not+found&message_type=error", status_code=303)
+
+    customer.approval_status = "rejected"
+    customer.approval_note = reason or ""
+    for u in db.query(User).filter(User.org_id == org_id, User.role == "customer_admin").all():
+        u.is_active = False
+    db.commit()
+
+    return RedirectResponse(
+        f"{approvals_url}?message=Client+{customer.org_name}+rejected&message_type=success",
+        status_code=303
+    )

@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { createNDA, processWebhook } from './services/docusignService.js';
 import { generateSOWPDF } from './services/pdfService.js';
 import { sendSOWEmail, sendConfirmationEmail, sendContactEmail, sendContactConfirmation } from './services/emailService.js';
 import pdfRoutes from './routes/pdf.js';
@@ -40,47 +39,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// DocuSign NDA endpoint
-app.post('/api/docusign/createNDA', async (req, res) => {
-  try {
-    const { counterpartyName, counterpartyEmail, company, message } = req.body;
-    
-    // Validate required fields
-    if (!counterpartyName || !counterpartyEmail) {
-      return res.status(400).json({
-        error: 'Missing required fields: counterpartyName and counterpartyEmail are required'
-      });
-    }
-
-    // Create NDA via DocuSign
-    const result = await createNDA({
-      counterpartyName,
-      counterpartyEmail,
-      company: company || '',
-      message: message || ''
-    });
-
-    res.json({
-      success: true,
-      envelopeId: result.envelopeId,
-      message: 'NDA request sent successfully'
-    });
-
-  } catch (error) {
-    console.error('Error creating NDA:', error);
-    res.status(500).json({
-      error: 'Failed to create NDA',
-      message: error.message
-    });
-  }
-});
-
 // Contact form submission endpoint
 app.post('/api/contact', async (req, res) => {
   try {
     const contactData = req.body;
     
-    // Log the contact form submission
     console.log('Contact form submission received:', {
       name: contactData.name,
       email: contactData.email,
@@ -94,11 +57,9 @@ app.post('/api/contact', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Send email notification to Synerex
     const emailResult = await sendContactEmail(contactData);
     console.log('Contact email sent:', emailResult.messageId);
 
-    // Send confirmation email to the sender
     const confirmationResult = await sendContactConfirmation(contactData);
     if (confirmationResult.success) {
       console.log('Confirmation email sent to sender:', confirmationResult.messageId);
@@ -125,7 +86,6 @@ app.post('/submit-sow', async (req, res) => {
     const sowData = req.body;
     const referenceId = `SOW-${Date.now()}`;
     
-    // Log the SOW submission
     console.log('SOW Submission received:', {
       projectName: sowData.projectName,
       licensee: sowData.licensee,
@@ -135,25 +95,19 @@ app.post('/submit-sow', async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Generate PDF
     console.log('Generating PDF...');
     const pdfResult = await generateSOWPDF(sowData);
     console.log('PDF generated:', pdfResult.fileName);
 
-    // Send email with PDF attachment
     console.log('Sending email...');
     const emailResult = await sendSOWEmail(sowData, pdfResult.filePath, pdfResult.buffer);
     console.log('Email sent:', emailResult.messageId);
 
-    // Send confirmation email to licensee (if email provided)
     const confirmationResult = await sendConfirmationEmail(sowData, referenceId);
     if (confirmationResult.success) {
       console.log('Confirmation email sent:', confirmationResult.messageId);
     }
 
-    // TODO: Save to database
-    // TODO: Integrate with CRM system
-    
     res.json({
       success: true,
       message: 'SOW submitted successfully and PDF generated',
@@ -168,31 +122,6 @@ app.post('/submit-sow', async (req, res) => {
     console.error('Error processing SOW submission:', error);
     res.status(500).json({
       error: 'Failed to submit SOW',
-      message: error.message
-    });
-  }
-});
-
-// DocuSign webhook endpoint
-app.post('/api/docusign/webhook', async (req, res) => {
-  try {
-    const webhookData = req.body;
-    
-    console.log('DocuSign webhook received:', webhookData);
-    
-    // Process the webhook
-    const result = await processWebhook(webhookData);
-    
-    res.json({
-      success: true,
-      message: 'Webhook processed successfully',
-      result
-    });
-
-  } catch (error) {
-    console.error('Error processing DocuSign webhook:', error);
-    res.status(500).json({
-      error: 'Failed to process webhook',
       message: error.message
     });
   }
@@ -219,8 +148,7 @@ app.use('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Synerex Backend Server running on port ${PORT}`);
   console.log("Health check: /health");
-  console.log("NDA endpoint: /api/docusign/createNDA");
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 export default app;

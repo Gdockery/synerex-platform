@@ -305,6 +305,7 @@ def payment_page(
             "org": org,
             "pricing_info": pricing_info,
             "stripe_enabled": bool(settings.stripe_secret_key),
+            "stripe_publishable_key": settings.stripe_publishable_key or "",
             "paypal_enabled": bool(settings.paypal_client_id),
             "return_url": return_url,
             "website_url": settings.website_url,
@@ -852,6 +853,22 @@ def register_submit(
                 {"request": request, "error": "Registration type must be 'pe' or 'customer'", "success": None, "website_url": settings.website_url},
                 status_code=400
             )
+
+        # Authorization gate: Customer registrations are only permitted when an OEM
+        # has already created the org and invited the user (existing_org_id supplied).
+        # Unauthenticated public self-registration for customer orgs is blocked.
+        if org_type == "customer" and not (existing_org_id and existing_org_id.strip()):
+            return templates.TemplateResponse(
+                "signup.html",
+                {
+                    "request": request,
+                    "error": "Customer registration requires an invitation from an authorized OEM partner. "
+                             "Please contact your OEM sponsor to have your account set up.",
+                    "success": None,
+                    "website_url": settings.website_url,
+                },
+                status_code=403
+            )
         
         # Validate agreement acceptance
         if not agreement_accepted or agreement_accepted != "on":
@@ -1008,6 +1025,14 @@ def register_api(
         # Validate org_type
         if org_type not in ("pe", "customer"):
             raise HTTPException(400, "org_type must be 'pe' or 'customer'")
+
+        # Customer registrations via the API require OEM sponsorship — block unauthenticated calls
+        if org_type == "customer":
+            raise HTTPException(
+                403,
+                "Customer organizations must be set up by an authorized OEM partner. "
+                "Direct API registration for customer orgs is not permitted."
+            )
         
         # Validate PE-specific fields if PE registration
         if org_type == "pe":

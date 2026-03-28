@@ -347,7 +347,14 @@ def send_password_reset_email():
     user.resetPasswordToken = token
     sess.commit()
 
-    base_url = current_app.config.get("TRACKING_BASE_URL", "http://localhost:8087")
+    # Use public website URL if available; fall back to the configured base URL
+    base_url = (
+        current_app.config.get("TRACKING_PUBLIC_WEBSITE_URL")
+        or current_app.config.get("TRACKING_BASE_URL", "http://localhost:8087")
+    )
+    app_root = current_app.config.get("APPLICATION_ROOT", "")
+    if app_root and not base_url.rstrip("/").endswith(app_root.rstrip("/")):
+        base_url = base_url.rstrip("/") + app_root
     reset_link = f"{base_url}/reset-password?t={token}"
 
     mail_server = current_app.config.get("MAIL_SERVER")

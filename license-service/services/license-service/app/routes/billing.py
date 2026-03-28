@@ -217,29 +217,38 @@ def mark_paid_and_issue(order_id: str, body: Dict[str, Any] = {}, db: Session = 
     if payment.status != "completed":
         raise HTTPException(400, f"Payment status is '{payment.status}', not 'completed'. Payment must be verified and cleared before issuing license.")
 
-    # ensure authorization exists and is active for the term
-    auth = ProgramAuthorization(
-        authorization_id=body.get("authorization_id") or f"AUTH-{order_id}",
-        org_id=order.org_id,
-        program_id=order.program_id,
-        plan=order.plan,
-        status="active",
-        starts_at=order.term_start,
-        ends_at=order.term_end,
-        seat_limit=order.seat_count,
-        meter_limit=order.meter_count,
-    )
-    # If auth exists, reuse
-    existing = db.get(ProgramAuthorization, auth.authorization_id)
+    import json as _json
+    auth_id = body.get("authorization_id") or f"AUTH-{order_id}"
+    # If auth exists, reuse and update; otherwise create a new one
+    existing = db.get(ProgramAuthorization, auth_id)
     if existing:
         auth = existing
         auth.status = "active"
-        auth.starts_at = order.term_start
-        auth.ends_at = order.term_end
-        auth.seat_limit = order.seat_count
-        auth.meter_limit = order.meter_count
+        auth.starts_at = str(order.term_start)
+        auth.ends_at = str(order.term_end)
+        # Merge updated limits into constraints_json
+        try:
+            constraints = _json.loads(auth.constraints_json or "{}")
+        except (ValueError, TypeError):
+            constraints = {}
+        constraints.update({"seat_limit": order.seat_count, "meter_limit": order.meter_count, "plan": order.plan})
+        auth.constraints_json = _json.dumps(constraints)
         db.commit()
     else:
+        constraints = _json.dumps({"seat_limit": order.seat_count, "meter_limit": order.meter_count, "plan": order.plan})
+        auth = ProgramAuthorization(
+            authorization_id=auth_id,
+            org_id=order.org_id,
+            program_id=order.program_id,
+            template_id=body.get("template_id") or f"{order.program_id}-standard",
+            status="active",
+            starts_at=str(order.term_start),
+            ends_at=str(order.term_end),
+            scope_json=_json.dumps({"org_id": order.org_id}),
+            constraints_json=constraints,
+            bindings_override_json="{}",
+            issued_by=body.get("issued_by") or "billing_mark_paid",
+        )
         db.add(auth)
         db.commit()
 

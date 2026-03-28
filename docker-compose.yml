@@ -12,6 +12,8 @@ services:
     depends_on:
       website:
         condition: service_healthy
+      website-backend:
+        condition: service_healthy
       license-service:
         condition: service_healthy
       emv-program:
@@ -58,7 +60,7 @@ services:
     env_file:
       - ./emv-program/8082/.env
     environment:
-      EMV_BASE_URL: http://localhost:8080/emv
+      EMV_BASE_URL: http://proxy:80/emv
       EMV_DB_HOST: mysql-emv
       EMV_DB_PORT: "3306"
       TRACKING_PROGRAM_URL: http://tracking-program:8087
@@ -132,11 +134,11 @@ services:
       TRACKING_DB_URL: mysql://tracking_user:TrackingPass123@mysql-tracking:3306/tracking
       PDF_BRIDGE_PATH: /app/8087/scripts/pdf-bridge.js
       LICENSE_SERVICE_URL: http://license-service:8000
-      LICENSE_SERVICE_PUBLIC_URL: http://localhost:8080/license
+      LICENSE_SERVICE_PUBLIC_URL: http://100.91.109.59:8080/license
       TRACKING_BASE_URL: http://proxy:80/tracking
       TRACKING_PUBLIC_WEBSITE_URL: ""
       REDIS_URL: redis://redis:6379/1
-      OLLAMA_LOCAL_URL: http://192.168.1.14:11434
+      OLLAMA_LOCAL_URL: http://100.106.19.30:11434
       OLLAMA_BILL_VISION_MODEL: qwen2.5vl:32b
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
@@ -204,6 +206,23 @@ services:
     command: >
       sh -c "while true; do sleep 300; wget -qO- --post-data= http://tracking-errands:1340/check-alerts 2>/dev/null || true; done"
     restart: unless-stopped
+  website-backend:
+    build:
+      context: ./website/backend
+    env_file:
+      - ./website/backend/.env
+    environment:
+      PORT: "3001"
+      NODE_ENV: production
+      FRONTEND_URL: "http://100.91.109.59:8080,http://100.91.109.59:5173,http://100.91.109.59:8443"
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
   website:
     build:
       context: ./website
