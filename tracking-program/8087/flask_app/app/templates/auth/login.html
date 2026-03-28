@@ -2,10 +2,18 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{% if portal_title %}{{ portal_title }}{% else %}Tracking Sign In{% endif %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if portal_title %}{{ portal_title }}{% else %}Synerex Tracking Portal{% endif %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="css/login.css">
+    {% if oem_primary_color %}
+    <style>
+      .btn-signin { background: {{ oem_primary_color }} !important; box-shadow: 0 4px 18px {{ oem_primary_color }}55 !important; }
+      .input-field:focus { border-color: {{ oem_primary_color }}99 !important; box-shadow: 0 0 0 3px {{ oem_primary_color }}22 !important; }
+    </style>
+    {% endif %}
 </head>
 <body>
 <script src="scripts/jquery-3.7.1.min.js"></script>
@@ -17,69 +25,86 @@ $(function() {
         if (isWaiting) return;
         isWaiting = true;
         $('.error').hide();
-        $.post(base + '/login', { email: $('#inputEmail').val(), password: $('#inputPassword').val(), terms: $('#termsAndConditions').is(':checked') ? 'accept' : '' })
-            .done(function() { window.location = base + '/'; })
-            .fail(function(err) {
-                isWaiting = false;
-                var msg = (err.responseJSON && err.responseJSON.error) || "";
-                if (msg) {
-                    $('.error').show().html(msg);
-                } else if (err.status === 404) {
-                    $('.error').show().html('Unrecognized email address/password combination.');
-                } else if (err.status === 400) {
-                    $('.error').show().html('Please make sure you\'ve entered a valid email address and password.');
-                } else {
-                    $('.error').show().html('Unknown error occurred, please try again.');
-                }
-            });
+        $.post(base + '/login', {
+            email: $('#inputEmail').val(),
+            password: $('#inputPassword').val(),
+            terms: $('#termsAndConditions').is(':checked') ? 'accept' : ''
+        })
+        .done(function() { window.location = base + '/'; })
+        .fail(function(err) {
+            isWaiting = false;
+            var msg = (err.responseJSON && err.responseJSON.error) || '';
+            if (msg) {
+                $('.error').show().html(msg);
+            } else if (err.status === 404) {
+                $('.error').show().html('Unrecognized email address or password.');
+            } else if (err.status === 400) {
+                $('.error').show().html('Please enter a valid email address and password.');
+            } else {
+                $('.error').show().html('Unknown error occurred, please try again.');
+            }
+        });
         return false;
     });
     if (location.href.match('expired')) {
-        $('.error').show().html('Session Expired. Login Again.');
+        $('.error').show().html('Session expired. Please sign in again.');
     }
     if (location.href.match('error=terms')) {
-        $('.error').show().html('Please accept the terms and conditions to sign in.');
+        $('.error').show().html('Please accept the Terms &amp; Conditions to sign in.');
     }
 });
 </script>
-<link rel="stylesheet" type="text/css" href="css/font-awesome.css">
-<link rel="stylesheet" type="text/css" href="css/public-screens.css">
-<link rel="stylesheet" type="text/css" href="css/login.css">
-{% if oem_primary_color %}
-<style>
-  .btn-signin { background-color: {{ oem_primary_color }} !important; border-color: {{ oem_primary_color }} !important; }
-</style>
-{% endif %}
-<div class="login-container">
-  <div class="logo-container">
-    <div class="row1">
-      {% if oem_logo_url %}
-        <img id="profile-img" class="logo-image" src="{{ oem_logo_url }}" style="max-height:80px; max-width:240px; object-fit:contain;" />
-      {% else %}
-        <img id="profile-img" class="logo-image" src="images/logo-big1.png" />
-      {% endif %}
-    </div>
-    <div class="row2">
-      {% if brand_name %}{{ brand_name }} Portal{% else %}EMV Energy &amp; Cost Analysis Portal{% endif %}
+
+<div class="login-page">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="login-brand">
+    {% if oem_logo_url %}
+      <img src="{{ oem_logo_url }}" alt="Logo" class="brand-logo oem-logo">
+    {% else %}
+      <img src="images/synerex_logo_white.png" alt="Synerex" class="brand-logo">
+    {% endif %}
+    <div class="brand-tagline">
+      {% if brand_name %}{{ brand_name }} Portal{% else %}Tracking Portal{% endif %}
     </div>
   </div>
-  <form class="form-container" data-purpose="login" autocomplete="off">
-    <span id="reauth-email" class="reauth-email"></span>
-    <input type="email" id="inputEmail" class="form-control" placeholder="Email Address" required autofocus autocomplete="off">
-    <input type="password" id="inputPassword" class="form-control" placeholder="Password" required autocomplete="new-password">
-    <span class="error"></span>
-    <br>
-    <div>
-      <input type="checkbox" id="termsAndConditions" class="form-control" name="terms" value="accept" checked
-          oninvalid="this.setCustomValidity('Please read and accept our terms & conditions to use the portal')"
-          onchange="this.setCustomValidity('')">
-      <label for="termsAndConditions"><a href="terms"><strong>I Accept Terms &amp; Conditions</strong></a></label>
+
+  <div class="login-card">
+    <h2 class="card-title">Sign In</h2>
+
+    <form data-purpose="login" autocomplete="off">
+      <span id="reauth-email" class="reauth-email"></span>
+      <div class="input-wrap">
+        <input type="email" id="inputEmail" class="input-field" placeholder="Email address" required autofocus autocomplete="off">
+      </div>
+      <div class="input-wrap">
+        <input type="password" id="inputPassword" class="input-field" placeholder="Password" required autocomplete="new-password">
+      </div>
+
+      <span class="error"></span>
+
+      <div class="terms-row">
+        <input type="checkbox" id="termsAndConditions" name="terms" value="accept" checked
+            oninvalid="this.setCustomValidity('Please accept our Terms &amp; Conditions to continue')"
+            onchange="this.setCustomValidity('')">
+        <label for="termsAndConditions">
+          I accept the <a href="terms">Terms &amp; Conditions</a>
+        </label>
+      </div>
+
+      <button type="submit" class="btn-signin">Sign In</button>
+    </form>
+
+    <div class="card-footer">
+      <a href="forgot-password">Forgot your password?</a>
     </div>
-    <button class="btn btn-signin btn-green btn-submit">Sign in</button>
-    <br>
-    <a href="forgot-password" class="bottom-link"><strong>Forgot password?</strong></a>
-  </form>
+  </div>
+
+  <p class="login-copyright">&copy; 2025 Synerex Laboratories LLC. All rights reserved.</p>
 </div>
+
 {% include "legal/_footer.html" %}
 </body>
 </html>
