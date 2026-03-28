@@ -1,110 +1,440 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% if portal_title %}{{ portal_title }}{% else %}Synerex Tracking Portal{% endif %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" type="text/css" href="css/login.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if portal_title %}{{ portal_title }}{% else %}Synerex Tracking Portal{% endif %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Hard reset scoped to this page only */
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      overflow-x: hidden;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* ── Full-screen background ── */
+    .lp-root {
+      min-height: 100vh;
+      width: 100%;
+      background: linear-gradient(160deg, #060e20 0%, #081a0e 40%, #060d1a 70%, #040b06 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── SVG background layer ── */
+    .lp-bg-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Animated glow orbs ── */
+    .lp-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .lp-orb-1 { width: 380px; height: 380px; background: rgba(22,110,60,0.22); top: -80px; left: -100px; animation: lp-float 12s ease-in-out infinite; }
+    .lp-orb-2 { width: 280px; height: 280px; background: rgba(20,60,140,0.20); bottom: -60px; right: -60px; animation: lp-float 10s ease-in-out infinite 3s; }
+
+    @keyframes lp-float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-20px); }
+    }
+
+    /* ── Content wrapper (sits above SVG/orbs) ── */
+    .lp-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    /* ── Brand / logo ── */
+    .lp-brand {
+      text-align: center;
+      margin-bottom: 1.75rem;
+    }
+    .lp-logo {
+      display: block;
+      height: 46px;
+      width: auto;
+      max-width: 220px;
+      margin: 0 auto 0.65rem;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+    }
+    .lp-oem-logo {
+      height: auto;
+      max-height: 56px;
+      max-width: 180px;
+      object-fit: contain;
+    }
+    .lp-tagline {
+      color: rgba(255,255,255,0.45);
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ── Card ── */
+    .lp-card {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.11);
+      border-radius: 18px;
+      padding: 2.25rem 2rem 2rem;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+
+    .lp-card h2 {
+      margin: 0 0 1.5rem;
+      color: #fff;
+      font-size: 1.3rem;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Inputs ── */
+    .lp-field {
+      margin-bottom: 0.85rem;
+    }
+    .lp-input {
+      display: block;
+      width: 100%;
+      padding: 0.8rem 1rem;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 0.93rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .lp-input::placeholder { color: rgba(255,255,255,0.33); }
+    .lp-input:focus {
+      border-color: rgba(26,185,110,0.65);
+      box-shadow: 0 0 0 3px rgba(26,185,110,0.12);
+    }
+
+    /* ── Terms ── */
+    .lp-terms {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.6rem 0 1rem;
+    }
+    .lp-terms input[type="checkbox"] {
+      width: 15px; height: 15px;
+      flex-shrink: 0;
+      accent-color: #18b870;
+      cursor: pointer;
+    }
+    .lp-terms label {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.55);
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .lp-terms label a { color: rgba(26,195,115,0.9); text-decoration: none; }
+    .lp-terms label a:hover { text-decoration: underline; }
+
+    /* ── Error ── */
+    .lp-error {
+      display: none;
+      color: #ff7070;
+      font-size: 0.83rem;
+      text-align: center;
+      margin-bottom: 0.7rem;
+      padding: 0.55rem 0.7rem;
+      background: rgba(255,70,70,0.09);
+      border-radius: 8px;
+      border: 1px solid rgba(255,70,70,0.18);
+    }
+
+    /* ── Button ── */
+    .lp-btn {
+      display: block;
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, #1bc07a, #158c58);
+      color: #fff;
+      font-size: 0.97rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 4px 20px rgba(27,192,122,0.3);
+    }
+    .lp-btn:hover  { opacity: 0.87; transform: translateY(-1px); }
+    .lp-btn:active { opacity: 1;    transform: translateY(0); }
+
+    /* ── Forgot link ── */
+    .lp-forgot {
+      text-align: center;
+      margin-top: 1.1rem;
+    }
+    .lp-forgot a {
+      color: rgba(255,255,255,0.38);
+      font-size: 0.83rem;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .lp-forgot a:hover { color: rgba(255,255,255,0.75); }
+
+    /* ── Copyright ── */
+    .lp-copy {
+      position: relative;
+      z-index: 1;
+      margin-top: 1.75rem;
+      color: rgba(255,255,255,0.18);
+      font-size: 0.72rem;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
     {% if oem_primary_color %}
-    <style>
-      .btn-signin { background: {{ oem_primary_color }} !important; box-shadow: 0 4px 18px {{ oem_primary_color }}55 !important; }
-      .input-field:focus { border-color: {{ oem_primary_color }}99 !important; box-shadow: 0 0 0 3px {{ oem_primary_color }}22 !important; }
-    </style>
+    .lp-btn { background: {{ oem_primary_color }} !important; box-shadow: 0 4px 20px {{ oem_primary_color }}44 !important; }
+    .lp-input:focus { border-color: {{ oem_primary_color }}99 !important; box-shadow: 0 0 0 3px {{ oem_primary_color }}20 !important; }
     {% endif %}
+  </style>
 </head>
 <body>
 <script src="scripts/jquery-3.7.1.min.js"></script>
-<script type="text/javascript">
+<script>
 $(function() {
-    var base = (location.pathname.match(/^(.+)\/login/) || ['',''])[1] || '';
-    var isWaiting;
-    $('form[data-purpose="login"]').on('submit', function() {
-        if (isWaiting) return;
-        isWaiting = true;
-        $('.error').hide();
-        $.post(base + '/login', {
-            email: $('#inputEmail').val(),
-            password: $('#inputPassword').val(),
-            terms: $('#termsAndConditions').is(':checked') ? 'accept' : ''
-        })
-        .done(function() { window.location = base + '/'; })
-        .fail(function(err) {
-            isWaiting = false;
-            var msg = (err.responseJSON && err.responseJSON.error) || '';
-            if (msg) {
-                $('.error').show().html(msg);
-            } else if (err.status === 404) {
-                $('.error').show().html('Unrecognized email address or password.');
-            } else if (err.status === 400) {
-                $('.error').show().html('Please enter a valid email address and password.');
-            } else {
-                $('.error').show().html('Unknown error occurred, please try again.');
-            }
-        });
-        return false;
+  var base = (location.pathname.match(/^(.+)\/login/) || ['',''])[1] || '';
+  var waiting = false;
+  $('form[data-purpose="login"]').on('submit', function() {
+    if (waiting) return false;
+    waiting = true;
+    $('.lp-error').hide();
+    $.post(base + '/login', {
+      email: $('#lpEmail').val(),
+      password: $('#lpPassword').val(),
+      terms: $('#lpTerms').is(':checked') ? 'accept' : ''
+    })
+    .done(function() { window.location = base + '/'; })
+    .fail(function(err) {
+      waiting = false;
+      var msg = (err.responseJSON && err.responseJSON.error) || '';
+      if (msg)                  { $('.lp-error').show().html(msg); }
+      else if (err.status===404){ $('.lp-error').show().html('Unrecognized email address or password.'); }
+      else if (err.status===400){ $('.lp-error').show().html('Please enter a valid email address and password.'); }
+      else                      { $('.lp-error').show().html('An unexpected error occurred. Please try again.'); }
     });
-    if (location.href.match('expired')) {
-        $('.error').show().html('Session expired. Please sign in again.');
-    }
-    if (location.href.match('error=terms')) {
-        $('.error').show().html('Please accept the Terms &amp; Conditions to sign in.');
-    }
+    return false;
+  });
+  if (location.href.match('expired'))    { $('.lp-error').show().html('Session expired. Please sign in again.'); }
+  if (location.href.match('error=terms')){ $('.lp-error').show().html('Please accept the Terms &amp; Conditions to sign in.'); }
 });
 </script>
 
-<div class="login-page">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
+<div class="lp-root">
 
-  <div class="login-brand">
-    {% if oem_logo_url %}
-      <img src="{{ oem_logo_url }}" alt="Logo" class="brand-logo oem-logo">
-    {% else %}
-      <img src="images/synerex_logo_white.png" alt="Synerex" class="brand-logo">
-    {% endif %}
-    <div class="brand-tagline">
-      {% if brand_name %}{{ brand_name }} Portal{% else %}Tracking Portal{% endif %}
+  <!-- ── Electricity / metering SVG background ── -->
+  <svg class="lp-bg-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <style>
+        .svg-wire { stroke: rgba(26,185,110,0.18); stroke-width: 1.5; fill: none; }
+        .svg-wire-dim { stroke: rgba(255,255,255,0.06); stroke-width: 1; fill: none; }
+        .svg-node { fill: rgba(26,185,110,0.35); }
+        .svg-node-dim { fill: rgba(255,255,255,0.08); }
+        .svg-bolt { fill: rgba(255,220,60,0.22); }
+        .svg-wave { stroke: rgba(26,185,110,0.15); stroke-width: 2; fill: none; }
+        @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+        @keyframes dash  { to { stroke-dashoffset: -60; } }
+        .svg-live { animation: pulse 3s ease-in-out infinite; }
+        .svg-flow { stroke-dasharray: 10 8; animation: dash 2.5s linear infinite; }
+      </style>
+      <!-- Glow filter -->
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- Grid background lines -->
+    <line x1="0" y1="150" x2="1440" y2="150" class="svg-wire-dim"/>
+    <line x1="0" y1="300" x2="1440" y2="300" class="svg-wire-dim"/>
+    <line x1="0" y1="450" x2="1440" y2="450" class="svg-wire-dim"/>
+    <line x1="0" y1="600" x2="1440" y2="600" class="svg-wire-dim"/>
+    <line x1="0" y1="750" x2="1440" y2="750" class="svg-wire-dim"/>
+    <line x1="200" y1="0" x2="200" y2="900" class="svg-wire-dim"/>
+    <line x1="450" y1="0" x2="450" y2="900" class="svg-wire-dim"/>
+    <line x1="700" y1="0" x2="700" y2="900" class="svg-wire-dim"/>
+    <line x1="950" y1="0" x2="950" y2="900" class="svg-wire-dim"/>
+    <line x1="1200" y1="0" x2="1200" y2="900" class="svg-wire-dim"/>
+
+    <!-- AC Waveform (bottom-left) -->
+    <path d="M 30 780
+             C 60 780, 70 730, 100 730
+             C 130 730, 140 780, 170 780
+             C 200 780, 210 730, 240 730
+             C 270 730, 280 780, 310 780
+             C 340 780, 350 730, 380 730
+             C 410 730, 420 780, 450 780
+             C 480 780, 490 730, 520 730
+             C 550 730, 560 780, 590 780
+             C 620 780, 630 730, 660 730"
+          class="svg-wave svg-flow" style="animation-duration:3s"/>
+
+    <!-- AC Waveform (top-right, smaller) -->
+    <path d="M 900 120
+             C 920 120, 928 95, 948 95
+             C 968 95, 976 120, 996 120
+             C 1016 120, 1024 95, 1044 95
+             C 1064 95, 1072 120, 1092 120
+             C 1112 120, 1120 95, 1140 95
+             C 1160 95, 1168 120, 1188 120
+             C 1208 120, 1216 95, 1236 95
+             C 1256 95, 1264 120, 1284 120
+             C 1304 120, 1312 95, 1332 95
+             C 1352 95, 1360 120, 1380 120"
+          class="svg-wave" style="opacity:0.7; animation-duration:4s" />
+
+    <!-- Power transmission lines (left side) -->
+    <line x1="60" y1="0"   x2="60"  y2="680" class="svg-wire svg-flow" style="animation-duration:4s"/>
+    <line x1="100" y1="0"  x2="100" y2="680" class="svg-wire svg-flow" style="animation-duration:5s; animation-delay:0.5s"/>
+    <line x1="140" y1="0"  x2="140" y2="680" class="svg-wire" style="opacity:0.5"/>
+
+    <!-- Crossbars on tower (left) -->
+    <line x1="30"  y1="80"  x2="170" y2="80"  class="svg-wire"/>
+    <line x1="40"  y1="180" x2="160" y2="180" class="svg-wire"/>
+    <line x1="45"  y1="280" x2="155" y2="280" class="svg-wire"/>
+    <line x1="50"  y1="380" x2="150" y2="380" class="svg-wire"/>
+    <circle cx="30"  cy="80"  r="4" class="svg-node svg-live"/>
+    <circle cx="170" cy="80"  r="4" class="svg-node svg-live" style="animation-delay:0.5s"/>
+    <circle cx="40"  cy="180" r="3" class="svg-node"/>
+    <circle cx="160" cy="180" r="3" class="svg-node"/>
+    <circle cx="45"  cy="280" r="3" class="svg-node"/>
+    <circle cx="155" cy="280" r="3" class="svg-node"/>
+
+    <!-- Power transmission lines (right side) -->
+    <line x1="1300" y1="0"   x2="1300" y2="650" class="svg-wire svg-flow" style="animation-duration:4.5s; animation-delay:1s"/>
+    <line x1="1340" y1="0"   x2="1340" y2="650" class="svg-wire svg-flow" style="animation-duration:3.5s"/>
+    <line x1="1380" y1="0"   x2="1380" y2="650" class="svg-wire" style="opacity:0.5"/>
+    <line x1="1270" y1="90"  x2="1410" y2="90"  class="svg-wire"/>
+    <line x1="1275" y1="200" x2="1405" y2="200" class="svg-wire"/>
+    <line x1="1280" y1="320" x2="1400" y2="320" class="svg-wire"/>
+    <circle cx="1270" cy="90"  r="4" class="svg-node svg-live" style="animation-delay:1s"/>
+    <circle cx="1410" cy="90"  r="4" class="svg-node svg-live" style="animation-delay:1.5s"/>
+    <circle cx="1275" cy="200" r="3" class="svg-node"/>
+    <circle cx="1405" cy="200" r="3" class="svg-node"/>
+
+    <!-- Smart meter box (bottom right) -->
+    <rect x="1060" y="700" width="90" height="130" rx="6" stroke="rgba(26,185,110,0.3)" stroke-width="1.5" fill="rgba(26,185,110,0.05)"/>
+    <rect x="1075" y="715" width="60" height="35" rx="3" stroke="rgba(26,185,110,0.4)" stroke-width="1" fill="rgba(26,185,110,0.08)"/>
+    <!-- Meter display lines -->
+    <line x1="1082" y1="726" x2="1128" y2="726" stroke="rgba(26,185,110,0.5)" stroke-width="1"/>
+    <line x1="1082" y1="733" x2="1128" y2="733" stroke="rgba(26,185,110,0.35)" stroke-width="1"/>
+    <line x1="1082" y1="740" x2="1115" y2="740" stroke="rgba(26,185,110,0.35)" stroke-width="1"/>
+    <!-- Meter terminals -->
+    <circle cx="1090" cy="762" r="5" class="svg-node"/>
+    <circle cx="1105" cy="762" r="5" class="svg-node"/>
+    <circle cx="1120" cy="762" r="5" class="svg-node"/>
+    <!-- Meter wire connections -->
+    <line x1="1090" y1="762" x2="1090" y2="830" class="svg-wire svg-flow" style="animation-duration:2s"/>
+    <line x1="1120" y1="762" x2="1120" y2="830" class="svg-wire svg-flow" style="animation-duration:2s; animation-delay:0.4s"/>
+    <line x1="1060" y1="780" x2="1030" y2="780" class="svg-wire"/>
+    <line x1="1150" y1="780" x2="1180" y2="780" class="svg-wire"/>
+
+    <!-- Circuit node clusters (bottom left) -->
+    <circle cx="300" cy="820" r="5" class="svg-node svg-live" style="animation-delay:0.8s"/>
+    <circle cx="360" cy="820" r="5" class="svg-node svg-live" style="animation-delay:1.2s"/>
+    <line x1="305" y1="820" x2="355" y2="820" class="svg-wire svg-flow" style="animation-duration:2.2s"/>
+    <line x1="300" y1="820" x2="300" y2="860" class="svg-wire"/>
+    <line x1="360" y1="820" x2="360" y2="860" class="svg-wire"/>
+    <rect x="275" y="860" width="50" height="30" rx="3" stroke="rgba(26,185,110,0.3)" stroke-width="1" fill="rgba(26,185,110,0.04)"/>
+    <rect x="335" y="860" width="50" height="30" rx="3" stroke="rgba(26,185,110,0.3)" stroke-width="1" fill="rgba(26,185,110,0.04)"/>
+
+    <!-- Lightning bolt (upper center-left) -->
+    <polygon points="220,50 200,110 215,110 195,170 230,100 213,100 235,50"
+             class="svg-bolt svg-live" style="animation-delay:0.3s" filter="url(#glow)"/>
+
+    <!-- Lightning bolt (lower right area) -->
+    <polygon points="820,820 804,870 816,870 800,920 828,862 815,862 832,820"
+             class="svg-bolt svg-live" style="animation-delay:1.5s" filter="url(#glow)"/>
+
+    <!-- Scattered connection nodes -->
+    <circle cx="500" cy="200" r="3" class="svg-node-dim"/>
+    <circle cx="620" cy="350" r="3" class="svg-node-dim"/>
+    <circle cx="750" cy="180" r="3" class="svg-node-dim"/>
+    <circle cx="850" cy="320" r="3" class="svg-node-dim"/>
+    <line x1="500" y1="200" x2="620" y2="350" class="svg-wire-dim"/>
+    <line x1="620" y1="350" x2="750" y2="180" class="svg-wire-dim"/>
+    <line x1="750" y1="180" x2="850" y2="320" class="svg-wire-dim"/>
+  </svg>
+
+  <!-- Glow orbs -->
+  <div class="lp-orb lp-orb-1"></div>
+  <div class="lp-orb lp-orb-2"></div>
+
+  <!-- Main content -->
+  <div class="lp-content">
+    <div class="lp-brand">
+      {% if oem_logo_url %}
+        <img src="{{ oem_logo_url }}" alt="Logo" class="lp-logo lp-oem-logo">
+      {% else %}
+        <img src="images/synerex_logo_white.png" alt="Synerex" class="lp-logo">
+      {% endif %}
+      <div class="lp-tagline">{% if brand_name %}{{ brand_name }} Portal{% else %}Tracking Portal{% endif %}</div>
     </div>
+
+    <div class="lp-card">
+      <h2>Sign In</h2>
+
+      <form data-purpose="login" autocomplete="off">
+        <span id="lpReauth" style="display:block;color:rgba(255,255,255,0.5);font-size:0.83rem;text-align:center;margin-bottom:0.6rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        <div class="lp-field">
+          <input type="email" id="lpEmail" class="lp-input" placeholder="Email address" required autofocus autocomplete="off">
+        </div>
+        <div class="lp-field">
+          <input type="password" id="lpPassword" class="lp-input" placeholder="Password" required autocomplete="new-password">
+        </div>
+
+        <span class="lp-error"></span>
+
+        <div class="lp-terms">
+          <input type="checkbox" id="lpTerms" name="terms" value="accept" checked
+              oninvalid="this.setCustomValidity('Please accept our Terms &amp; Conditions to continue')"
+              onchange="this.setCustomValidity('')">
+          <label for="lpTerms">I accept the <a href="terms">Terms &amp; Conditions</a></label>
+        </div>
+
+        <button type="submit" class="lp-btn">Sign In</button>
+      </form>
+
+      <div class="lp-forgot">
+        <a href="forgot-password">Forgot your password?</a>
+      </div>
+    </div>
+
+    <p class="lp-copy">&copy; 2025 Synerex Laboratories LLC. All rights reserved.</p>
   </div>
 
-  <div class="login-card">
-    <h2 class="card-title">Sign In</h2>
-
-    <form data-purpose="login" autocomplete="off">
-      <span id="reauth-email" class="reauth-email"></span>
-      <div class="input-wrap">
-        <input type="email" id="inputEmail" class="input-field" placeholder="Email address" required autofocus autocomplete="off">
-      </div>
-      <div class="input-wrap">
-        <input type="password" id="inputPassword" class="input-field" placeholder="Password" required autocomplete="new-password">
-      </div>
-
-      <span class="error"></span>
-
-      <div class="terms-row">
-        <input type="checkbox" id="termsAndConditions" name="terms" value="accept" checked
-            oninvalid="this.setCustomValidity('Please accept our Terms &amp; Conditions to continue')"
-            onchange="this.setCustomValidity('')">
-        <label for="termsAndConditions">
-          I accept the <a href="terms">Terms &amp; Conditions</a>
-        </label>
-      </div>
-
-      <button type="submit" class="btn-signin">Sign In</button>
-    </form>
-
-    <div class="card-footer">
-      <a href="forgot-password">Forgot your password?</a>
-    </div>
-  </div>
-
-  <p class="login-copyright">&copy; 2025 Synerex Laboratories LLC. All rights reserved.</p>
 </div>
-
-{% include "legal/_footer.html" %}
 </body>
 </html>
