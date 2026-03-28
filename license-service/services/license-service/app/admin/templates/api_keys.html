@@ -15,8 +15,13 @@ api_key: {{ issued.api_key }}</pre>
   <form method="post" action="{{ admin_url('api-keys/issue') }}" style="margin-bottom: 2rem;">
     <div class="row">
       <div class="form-group">
-        <label for="org_id">Organization ID</label>
-        <input type="text" id="org_id" name="org_id" required placeholder="e.g., OEM-ACME-001">
+        <label for="org_id">Organization</label>
+        <select id="org_id" name="org_id" required>
+          <option value="">— Select Organization —</option>
+          {% for o in all_orgs %}
+          <option value="{{ o.org_id }}">{{ o.org_name }} ({{ o.org_type }})</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="form-group">
         <label for="scopes_csv">Scopes (comma-separated)</label>

@@ -988,14 +988,16 @@ def user_reset_password(
 @router.get("/api-keys", response_class=HTMLResponse)
 def api_keys_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     keys = db.query(ApiKey).order_by(ApiKey.key_id.desc()).limit(500).all()
-    return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "issued": None, "error": None})
+    all_orgs = db.query(Organization).order_by(Organization.org_name).all()
+    return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "all_orgs": all_orgs, "issued": None, "error": None})
 
 @router.post("/api-keys/issue")
 def api_keys_issue(request: Request, org_id: str = Form(...), scopes_csv: str = Form(...), _=Depends(require_admin), db: Session = Depends(db_session)):
     org = db.get(Organization, org_id)
     if not org:
         keys = db.query(ApiKey).order_by(ApiKey.key_id.desc()).limit(500).all()
-        return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "issued": None, "error": "Organization not found"}, status_code=404)
+        all_orgs = db.query(Organization).order_by(Organization.org_name).all()
+        return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "all_orgs": all_orgs, "issued": None, "error": "Organization not found"}, status_code=404)
 
     raw, key_hash = create_api_key(prefix="syx")
     key_id = f"KEY-{int(datetime.utcnow().timestamp())}"
@@ -1003,8 +1005,8 @@ def api_keys_issue(request: Request, org_id: str = Form(...), scopes_csv: str = 
     db.add(rec); db.commit()
 
     keys = db.query(ApiKey).order_by(ApiKey.key_id.desc()).limit(500).all()
-    # raw shown once
-    return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "issued": {"key_id": key_id, "api_key": raw}, "error": None})
+    all_orgs = db.query(Organization).order_by(Organization.org_name).all()
+    return templates.TemplateResponse("api_keys.html", {"request": request, "keys": keys, "all_orgs": all_orgs, "issued": {"key_id": key_id, "api_key": raw}, "error": None})
 
 @router.post("/api-keys/{key_id}/disable")
 def api_keys_disable(key_id: str, request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
@@ -1092,26 +1094,29 @@ def template_detail(program_id: str, filename: str, request: Request, _=Depends(
 @router.get("/authorizations", response_class=HTMLResponse)
 def authorizations_page(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
     search = request.query_params.get("search", "").strip()
+    org_filter = request.query_params.get("org_id", "").strip()
     program_filter = request.query_params.get("program", "").strip()
     status_filter = request.query_params.get("status", "").strip()
-    
+
     query = db.query(ProgramAuthorization)
-    
-    if search:
+
+    if org_filter:
+        query = query.filter(ProgramAuthorization.org_id == org_filter)
+    elif search:
         query = query.filter(
             (ProgramAuthorization.authorization_id.ilike(f"%{search}%")) |
             (ProgramAuthorization.org_id.ilike(f"%{search}%")) |
             (ProgramAuthorization.template_id.ilike(f"%{search}%"))
         )
-    
+
     if program_filter and program_filter in ("emv", "tracking"):
         query = query.filter(ProgramAuthorization.program_id == program_filter)
-    
+
     if status_filter and status_filter in ("active", "suspended", "terminated"):
         query = query.filter(ProgramAuthorization.status == status_filter)
-    
+
     authzs = query.order_by(ProgramAuthorization.authorization_id.desc()).limit(500).all()
-    
+
     # Get stats for each authorization
     authzs_with_stats = []
     for auth in authzs:
@@ -1121,25 +1126,30 @@ def authorizations_page(request: Request, _=Depends(require_admin), db: Session 
             License.revoked == False,
             License.suspended == False
         ).count()
-        
+
         authzs_with_stats.append({
             "auth": auth,
             "licenses_count": licenses_count,
             "licenses_active": licenses_active,
         })
-    
+
+    all_orgs = db.query(Organization).order_by(Organization.org_name).all()
+
     return templates.TemplateResponse("authorizations.html", {
         "request": request,
         "authzs_with_stats": authzs_with_stats,
         "search": search,
+        "org_filter": org_filter,
         "program_filter": program_filter,
         "status_filter": status_filter,
+        "all_orgs": all_orgs,
         "error": None,
     })
 
 @router.get("/authorizations/new", response_class=HTMLResponse)
-def authorizations_new(request: Request, _=Depends(require_admin)):
-    return templates.TemplateResponse("authorization_new.html", {"request": request})
+def authorizations_new(request: Request, _=Depends(require_admin), db: Session = Depends(db_session)):
+    all_orgs = db.query(Organization).order_by(Organization.org_name).all()
+    return templates.TemplateResponse("authorization_new.html", {"request": request, "all_orgs": all_orgs})
 
 @router.post("/authorizations")
 def authorizations_create(

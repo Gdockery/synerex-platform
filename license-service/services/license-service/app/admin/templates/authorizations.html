@@ -10,11 +10,18 @@
   <div class="error" style="margin-bottom: 1.5rem;">{{ error }}</div>
   {% endif %}
 
-  <!-- Search and Filter -->
+  <!-- Filters -->
   <form method="get" action="{{ admin_url('authorizations') }}" style="margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-    <div class="form-group" style="flex: 1; min-width: 200px;">
-      <label for="search">Search</label>
-      <input type="text" id="search" name="search" value="{{ search }}" placeholder="Search by ID, org, or template...">
+    <div class="form-group" style="flex: 2; min-width: 220px;">
+      <label for="org_id">Filter by Organization</label>
+      <select id="org_id" name="org_id">
+        <option value="">All Organizations</option>
+        {% for o in all_orgs %}
+        <option value="{{ o.org_id }}" {% if org_filter == o.org_id %}selected{% endif %}>
+          {{ o.org_name }} ({{ o.org_type }})
+        </option>
+        {% endfor %}
+      </select>
     </div>
     <div class="form-group" style="min-width: 150px;">
       <label for="program">Filter by Program</label>
@@ -34,8 +41,8 @@
       </select>
     </div>
     <div class="form-group" style="display: flex; align-items: flex-end;">
-      <button type="submit" class="btn">🔍 Search</button>
-      {% if search or program_filter or status_filter %}
+      <button type="submit" class="btn">Filter</button>
+      {% if org_filter or program_filter or status_filter %}
       <a href="{{ admin_url('authorizations') }}" class="btn btn-secondary" style="margin-left: 0.5rem;">Clear</a>
       {% endif %}
     </div>
@@ -60,12 +67,30 @@
       </div>
       <div class="row">
         <div class="form-group">
-          <label for="org_id">Organization ID</label>
-          <input type="text" id="org_id" name="org_id" required placeholder="e.g., OEM-ACME-001">
+          <label for="org_id">Organization</label>
+          <select id="org_id" name="org_id" required>
+            <option value="">— Select Organization —</option>
+            {% for o in all_orgs %}
+            <option value="{{ o.org_id }}">{{ o.org_name }} ({{ o.org_type }})</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="form-group">
-          <label for="template_id">Template ID</label>
-          <input type="text" id="template_id" name="template_id" placeholder="emv_pro / tracking_pro" required>
+          <label for="template_id">Template</label>
+          <select id="template_id" name="template_id" required>
+            <optgroup label="EM&amp;V">
+              <option value="emv_baseline">emv_baseline — Baseline</option>
+              <option value="emv_pro">emv_pro — Pro</option>
+              <option value="emv_enterprise">emv_enterprise — Enterprise</option>
+              <option value="emv_single_report">emv_single_report — Single Report</option>
+              <option value="emv_annual">emv_annual — Annual</option>
+            </optgroup>
+            <optgroup label="Tracking">
+              <option value="tracking_basic">tracking_basic — Basic</option>
+              <option value="tracking_pro">tracking_pro — Pro</option>
+              <option value="tracking_enterprise">tracking_enterprise — Enterprise</option>
+            </optgroup>
+          </select>
         </div>
       </div>
       <div class="row">
@@ -164,7 +189,7 @@
   </div>
   {% else %}
   <p style="color: #718096; padding: 2rem; text-align: center;">
-    {% if search or program_filter or status_filter %}
+    {% if org_filter or program_filter or status_filter %}
     No authorizations found matching your search criteria.
     {% else %}
     No authorizations found. <a href="{{ admin_url('authorizations/new') }}" style="color: #667eea;">Create one</a> to get started.
