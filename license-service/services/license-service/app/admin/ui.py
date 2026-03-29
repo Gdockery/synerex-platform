@@ -120,27 +120,83 @@ def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse
     <head>
         <title>Admin Login - Synerex Platform</title>
         <style>
-            body {{ font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }}
-            h1 {{ color: #1976d2; }}
-            .error {{ color: #b00020; background: #ffebee; padding: 12px; border-radius: 4px; margin-bottom: 20px; }}
-            input {{ width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }}
-            button {{ background: #1976d2; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; width: 100%; }}
-            button:hover {{ background: #1565c0; }}
-            .back-link {{ display: inline-block; margin-top: 16px; color: #1976d2; text-decoration: none; }}
-            .back-link:hover {{ text-decoration: underline; }}
+            *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+            body {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: linear-gradient(135deg, #f0f4ff 0%, #e8f5e9 100%);
+                padding: 1.5rem;
+            }}
+            .login-box {{
+                background: #ffffff;
+                border-radius: 14px;
+                box-shadow: 0 4px 30px rgba(0,0,0,0.10);
+                padding: 2.5rem 2rem 2rem;
+                width: 100%;
+                max-width: 380px;
+            }}
+            .logo-wrap {{
+                text-align: center;
+                margin-bottom: 1.5rem;
+            }}
+            .logo-wrap img {{
+                height: 48px;
+                width: auto;
+            }}
+            .login-subtitle {{
+                text-align: center;
+                font-size: 0.78rem;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: #90a4ae;
+                font-weight: 600;
+                margin-top: 0.4rem;
+                margin-bottom: 1.75rem;
+            }}
+            .error {{ color: #b00020; background: #ffebee; padding: 10px 12px; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.9rem; }}
+            label {{ display: block; font-size: 0.82rem; font-weight: 600; color: #546e7a; margin-bottom: 0.3rem; }}
+            .field {{ margin-bottom: 1rem; }}
+            input[type=text], input[type=password] {{
+                width: 100%; padding: 0.7rem 0.9rem;
+                border: 1px solid #cfd8dc; border-radius: 8px;
+                font-size: 0.95rem; outline: none;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }}
+            input[type=text]:focus, input[type=password]:focus {{
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+            }}
+            button {{
+                display: block; width: 100%; padding: 0.8rem;
+                background: linear-gradient(135deg, #667eea, #4a5fc0);
+                color: white; font-size: 0.97rem; font-weight: 600;
+                border: none; border-radius: 8px; cursor: pointer;
+                margin-top: 0.5rem;
+                transition: opacity 0.2s, transform 0.15s;
+                box-shadow: 0 4px 14px rgba(102,126,234,0.35);
+            }}
+            button:hover  {{ opacity: 0.88; transform: translateY(-1px); }}
+            button:active {{ opacity: 1;    transform: translateY(0); }}
+            .back-link {{ display: block; text-align: center; margin-top: 1.25rem; color: #90a4ae; text-decoration: none; font-size: 0.83rem; transition: color 0.2s; }}
+            .back-link:hover {{ color: #667eea; }}
         </style>
     </head>
     <body>
-        <h1>Admin Login</h1>
+      <div class="login-box">
+        <div class="logo-wrap">
+          <img src="{settings.root_path}/static/synerex_logo_color.png" alt="Synerex">
+        </div>
+        <div class="login-subtitle">Platform Administration</div>
         {f'<div class="error">{error}</div>' if error else ''}
         <form method="post" action="{settings.root_path}/admin/login{return_url_param}">
-            <label>Username:</label><br/>
-            <input name="username" required /><br/><br/>
-            <label>Password:</label><br/>
-            <input name="password" type="password" required /><br/><br/>
-            <button type="submit">Login</button>
+            <div class="field"><label>Username</label><input name="username" type="text" required /></div>
+            <div class="field"><label>Password</label><input name="password" type="password" required /></div>
+            <button type="submit">Sign In</button>
         </form>
-        <a id="back-link" class="back-link" href="{back_href}">← Synerex Admin</a>
+        <a id="back-link" class="back-link" href="{back_href}">← Back to Synerex Admin</a>
         <script>
           (function () {{
             var link = document.getElementById('back-link');
@@ -155,6 +211,7 @@ def _render_admin_login_html(error: str | None, return_url: str) -> HTMLResponse
             }});
           }})();
         </script>
+      </div>
     </body>
     </html>
     """)
