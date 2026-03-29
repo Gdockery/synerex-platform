@@ -1947,6 +1947,80 @@ def serve_files(path):
 # Subscription management endpoints (proxy to license service)
 # ---------------------------------------------------------------------------
 
+@web_bp.route("/api/company-settings", methods=["GET"])
+@login_required
+def get_company_settings():
+    """GET /api/company-settings — return platform company settings (xeco singleton row)."""
+    from app.models.xeco import Xeco
+    sess = get_session()
+    row = sess.query(Xeco).first()
+    if row is None:
+        return jsonify({"response": {
+            "name": "", "billingEmail": "", "billingPhone": "",
+            "address": "", "city": "", "state": "", "zip": "", "country": "",
+            "taxId": "", "carbonCreditRate": 0, "xecoManagerCostPercent": 0,
+        }})
+    return jsonify({"response": {
+        "name": row.name or "",
+        "billingEmail": row.billingEmail or "",
+        "billingPhone": row.billingPhone or "",
+        "address": row.address or "",
+        "city": row.city or "",
+        "state": row.state or "",
+        "zip": row.zip or "",
+        "country": row.country or "",
+        "taxId": row.taxId or "",
+        "carbonCreditRate": row.carbonCreditRate or 0,
+        "xecoManagerCostPercent": row.xecoManagerCostPercent or 0,
+    }})
+
+
+@web_bp.route("/api/company-settings", methods=["PUT"])
+@login_required
+def update_company_settings():
+    """PUT /api/company-settings — update platform company settings."""
+    from app.models.xeco import Xeco
+    import time
+    data = request.get_json(silent=True) or {}
+    if not data.get("name", "").strip():
+        return jsonify({"error": "Company name is required."}), 400
+    sess = get_session()
+    row = sess.query(Xeco).first()
+    now_ms = int(time.time() * 1000)
+    if row is None:
+        row = Xeco(
+            name=data.get("name", "").strip(),
+            billingEmail=data.get("billingEmail", ""),
+            billingPhone=data.get("billingPhone", ""),
+            address=data.get("address", ""),
+            city=data.get("city", ""),
+            state=data.get("state", ""),
+            zip=data.get("zip", ""),
+            country=data.get("country", ""),
+            taxId=data.get("taxId", ""),
+            carbonCreditRate=float(data.get("carbonCreditRate") or 0),
+            xecoManagerCostPercent=float(data.get("xecoManagerCostPercent") or 0),
+            createdAt=now_ms,
+            updatedAt=now_ms,
+        )
+        sess.add(row)
+    else:
+        row.name = data.get("name", row.name).strip()
+        row.billingEmail = data.get("billingEmail", row.billingEmail)
+        row.billingPhone = data.get("billingPhone", row.billingPhone)
+        row.address = data.get("address", row.address)
+        row.city = data.get("city", row.city)
+        row.state = data.get("state", row.state)
+        row.zip = data.get("zip", row.zip)
+        row.country = data.get("country", row.country)
+        row.taxId = data.get("taxId", row.taxId)
+        row.carbonCreditRate = float(data.get("carbonCreditRate") or row.carbonCreditRate or 0)
+        row.xecoManagerCostPercent = float(data.get("xecoManagerCostPercent") or row.xecoManagerCostPercent or 0)
+        row.updatedAt = now_ms
+    sess.commit()
+    return jsonify({"ok": True})
+
+
 @web_bp.route("/api/subscription", methods=["GET"])
 @login_required
 @license_required
