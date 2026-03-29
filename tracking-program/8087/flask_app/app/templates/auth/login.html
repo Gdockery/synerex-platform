@@ -400,7 +400,7 @@ $(function() {
       {% else %}
         <img src="images/synerex_logo_white.png" alt="Synerex" class="lp-logo">
       {% endif %}
-      <div class="lp-tagline">{% if brand_name %}{{ brand_name }} Portal{% else %}Tracking Portal{% endif %}</div>
+      <div class="lp-tagline">{% if brand_name and brand_name != "Synerex" %}{{ brand_name }} Portal{% else %}Energy Tracking Portal{% endif %}</div>
     </div>
 
     <div class="lp-card">
