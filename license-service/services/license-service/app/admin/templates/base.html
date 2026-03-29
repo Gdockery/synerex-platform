@@ -341,7 +341,9 @@
         </div>
         <div class="user-actions">
           <a href="/admin" class="btn btn-secondary btn-small">&#8592; Synerex Admin</a>
-          <a href="{{ admin_url('logout') }}" class="btn btn-secondary btn-small">Logout</a>
+          <form method="post" action="{{ admin_url('logout') }}" style="display:inline;">
+            <button type="submit" class="btn btn-secondary btn-small">Logout</button>
+          </form>
         </div>
       </div>
     </div>
