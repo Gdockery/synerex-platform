@@ -25,7 +25,7 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
         <div class="box">
           <table>
             <tr>
-              <td width="50%">XECO Equipment Models</td>
+              <td width="50%">Synerex Equipment Models</td>
               <td>Qty</td>
               <td>Price Each</td>
               <td class="text-right">Cost</td>

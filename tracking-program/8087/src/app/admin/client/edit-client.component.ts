@@ -104,7 +104,7 @@ export class ClientEditComponent implements OnInit {
       valuesToSet: this.form.value
     }).subscribe(responseData =>{
       this.syncingSubmit = false;
-      this.router.navigate(['/xeco-administrator/client/list']);
+      this.router.navigate(['/synerex-administrator/client/list']);
     });
   }
 
@@ -113,7 +113,7 @@ export class ClientEditComponent implements OnInit {
       this.archivingClient = true;
       this.apiService.delete('/api/client/'+this.selectedClientId).subscribe(responseData => {
         this.archivingClient = false;
-        this.router.navigate(['/xeco-administrator/client/list']);
+        this.router.navigate(['/synerex-administrator/client/list']);
       });
     }
   }

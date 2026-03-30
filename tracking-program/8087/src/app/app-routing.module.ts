@@ -7,7 +7,7 @@ import { MyAccountComponent } from './my-account/my-account.component';
 import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
 
 
-// Client-side routing for XECO Web Portal single page app.
+// Client-side routing for Synerex Web Portal single page app.
 @NgModule({
   imports: [
     RouterModule.forRoot([
@@ -27,7 +27,7 @@ import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
 
       // Outer screens
       // ====================================================================================
-      { path: 'xeco-administrator', loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule)},
+      { path: 'synerex-administrator', loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule)},
       { path: 'welcome', component: WelcomeComponent, data: {title: 'Welcome'}},
       { path: 'maintenance', component: MaintenanceComponent, data: {title: 'Welcome'}},
 

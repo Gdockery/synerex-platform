@@ -457,7 +457,7 @@
 
     <div class="row">
       <div class="col-md-12 text-right">
-        <a class="btn btn-default cancel-btn" *ngIf="userService.user.role==8" [routerLink]="['/xeco-administrator/project/list']">Cancel</a>
+        <a class="btn btn-default cancel-btn" *ngIf="userService.user.role==8" [routerLink]="['/synerex-administrator/project/list']">Cancel</a>
         <a class="btn btn-default cancel-btn" *ngIf="userService.user.role != 8" [routerLink]="['/project/select']">Cancel</a>
         <button type="button" class="btn btn-primary" (click)="submitCreateProjectForm()">Create project</button>
       </div>
@@ -466,7 +466,7 @@
   <div class="success" [hidden]="!projectCreated">
     <h4>Success!</h4>
     <p>A new project has been created: <strong>{{newProject && newProject.name ? newProject.name : ''}}</strong>.
-    <button class="btn btn-primary pull-right" [routerLink]="['/xeco-administrator/project/list']">View Projects</button>
+    <button class="btn btn-primary pull-right" [routerLink]="['/synerex-administrator/project/list']">View Projects</button>
   </div>
 
 </div>

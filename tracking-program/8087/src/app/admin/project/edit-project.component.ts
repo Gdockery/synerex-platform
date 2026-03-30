@@ -191,7 +191,7 @@ export class ProjectEditComponent implements OnInit {
         this.syncingSubmit = false;
         this.projectCreated = true;
         if (this.userService.user.role == 8) {
-          this.router.navigate(['/xeco-administrator/project/list']);
+          this.router.navigate(['/synerex-administrator/project/list']);
         } else {
           this.router.navigate(['/project/select']);
         }
@@ -215,7 +215,7 @@ export class ProjectEditComponent implements OnInit {
          this.archivingProject = false;
           var projectOnWindow = _.find(this.userService.user.projects, project => { return project.id == this.selectedProjectId});
           projectOnWindow.isDeleted = true;
-          this.router.navigate(['/xeco-administrator/project/list']);
+          this.router.navigate(['/synerex-administrator/project/list']);
       });
     }
 

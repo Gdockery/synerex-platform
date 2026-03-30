@@ -22,7 +22,7 @@ export class RouterTitleService {
       mergeMap(route => route.data),)
       .subscribe(data => {
         let title = data['title'] || "";
-        this.title.setTitle('Xeco Energy - ' + title);
+        this.title.setTitle('Synerex - ' + title);
         this.subnavService.setTitle(title);
       });
   }

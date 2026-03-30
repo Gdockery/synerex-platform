@@ -19,7 +19,7 @@ var _ = require('lodash');
       </div>
       <div [class]="syncingUser ? 'invisible' : ''">
         <h4 [hidden]="!isNameFormHidden || !isEmailFormHidden || !isPasswordFormHidden">
-          <a class="back-btn" [routerLink]="['/xeco-administrator/user/list']"><span class="ss-navigateleft"></span></a>
+          <a class="back-btn" [routerLink]="['/synerex-administrator/user/list']"><span class="ss-navigateleft"></span></a>
           {{user.fullName}}
           <button *ngIf="!user.isDeleted" class="btn btn-primary pull-right" (click)="clickChangeNameButton()">Rename</button>
         </h4>

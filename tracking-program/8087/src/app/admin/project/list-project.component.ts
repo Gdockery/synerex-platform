@@ -12,9 +12,9 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
     <div class="container-fluid">
       <div style="display: flex; justify-content: space-between; align-items: center; position: relative;">
         <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">{{pageTitle}}</h3>
-        <button *ngIf="canManageProjects" class="btn btn-primary" style="flex-shrink: 0; position: absolute; right: 0;" [routerLink]="['/xeco-administrator/project/create']" [queryParams]="selectedClientId ? {clientId: selectedClientId} : {}">Add new project</button>
+        <button *ngIf="canManageProjects" class="btn btn-primary" style="flex-shrink: 0; position: absolute; right: 0;" [routerLink]="['/synerex-administrator/project/create']" [queryParams]="selectedClientId ? {clientId: selectedClientId} : {}">Add new project</button>
       </div>
-      <p *ngIf="selectedClientId"><a [routerLink]="['/xeco-administrator/client/list']">&larr; Back to clients</a> &nbsp;|&nbsp; {{pageDescription}} &nbsp;|&nbsp; <a *ngIf="canManageProjects" [routerLink]="['/xeco-administrator/project/create']" [queryParams]="{clientId: selectedClientId}">Add new project</a></p>
+      <p *ngIf="selectedClientId"><a [routerLink]="['/synerex-administrator/client/list']">&larr; Back to clients</a> &nbsp;|&nbsp; {{pageDescription}} &nbsp;|&nbsp; <a *ngIf="canManageProjects" [routerLink]="['/synerex-administrator/project/create']" [queryParams]="{clientId: selectedClientId}">Add new project</a></p>
       <p *ngIf="!selectedClientId">To explore or edit one of the projects below, just give it a click.</p>
       <p-dataTable tableStyleClass="table dataTable table-striped table-bordered" [value]="projects" [lazy]="true" [paginator]="true" [rows]="perPage"
                    [totalRecords]="recordCount" (onLazyLoad)="fetch($event)">
@@ -24,7 +24,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
         <p-column field="slug" header="Slug"></p-column>
         <p-column field="" header="" [filterMatchMode]="'contains'" [style]="{'width': (canManageProjects || canViewOwnProjects) ? '140px' : '90px'}" styleClass="text-center">
           <ng-template let-row="rowData" pTemplate="body">
-            <a *ngIf="canManageProjects" class="btn btn-sm btn-primary" [routerLink]="['/xeco-administrator/project/edit', row.id]"><span class="button-icon ss-write"></span></a>&nbsp;
+            <a *ngIf="canManageProjects" class="btn btn-sm btn-primary" [routerLink]="['/synerex-administrator/project/edit', row.id]"><span class="button-icon ss-write"></span></a>&nbsp;
             <a *ngIf="canManageProjects || canViewOwnProjects" href="#" (click)="goToProject($event, row)" class="btn btn-sm btn-info">View&nbsp;<span class="button-icon ss-navigateright"></span></a>
           </ng-template>
         </p-column>

@@ -24,19 +24,19 @@ import {CompanySettingsComponent} from "./company/company-settings.component";
           { path: 'create', component: ClientCreateComponent, data: {title: 'Admin - Create Client'}},
           { path: 'edit/:id', component: ClientEditComponent, data: {title: 'Admin - Edit Client'}},
           { path: 'projects/:clientId', component: ProjectListComponent, data: {title: 'Client-Projects'}},
-          { path: '', redirectTo:'/xeco-administrator/client/list' , pathMatch: 'full'}
+          { path: '', redirectTo:'/synerex-administrator/client/list' , pathMatch: 'full'}
         ]},
         { path: 'project', data: {title: 'Admin - Projects'}, children: [
           { path: 'list', component: ProjectListComponent, data: {title: 'Admin - Projects'}},
           { path: 'create', component: ProjectCreateComponent, data: {title: 'Admin - Create Project'}},
           { path: 'edit/:id', component: ProjectEditComponent, data: {title: 'Admin - Edit Project'}},
-          { path: '', redirectTo:'/xeco-administrator/project/list' , pathMatch: 'full'}
+          { path: '', redirectTo:'/synerex-administrator/project/list' , pathMatch: 'full'}
         ]},
         { path: 'user', data: {title: 'Admin - User'}, children: [
           { path: 'list', component: UserListComponent, data: {title: 'Admin - Users'}},
           { path: 'create', component: CreateUserComponent, data: {title: 'Admin - Create User'}},
           { path: 'edit/:id', component: EditUserComponent, data: {title: 'Admin - Edit User'}},
-          { path: '', redirectTo:'/xeco-administrator/user/list' , pathMatch: 'full'}
+          { path: '', redirectTo:'/synerex-administrator/user/list' , pathMatch: 'full'}
         ]},
         { path: 'advanced', component: AdvancedOptionsComponent },
         { path: 'branding', component: OemBrandingComponent, data: {title: 'Brand Settings'} },

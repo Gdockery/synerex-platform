@@ -7,7 +7,7 @@ import { WhitelabelService } from "../../shared/services/whitelabel.service";
   template: `
     <div class="container-fluid">
       <h3>{{brandName}} Portal User Management
-        <button class="btn btn-primary pull-right" [routerLink]="['/xeco-administrator/user/create']">Add new user</button>
+        <button class="btn btn-primary pull-right" [routerLink]="['/synerex-administrator/user/create']">Add new user</button>
       </h3>
       <p>To archive an existing user, or to edit their account information, click one of their icons below.</p>
       <div *ngIf="syncingUsers" class="row">
@@ -27,7 +27,7 @@ import { WhitelabelService } from "../../shared/services/whitelabel.service";
           </p-column>
           <p-column field="" header="" [filterMatchMode]="'contains'" [style]="{'width':'40px'}" styleClass="text-center">
             <ng-template let-row="rowData" pTemplate="body">
-              <a *ngIf="!(row.role === 8 && row.id === currentUserService.user.id)" class="ss-navigateright" [routerLink]="['/xeco-administrator/user/edit', row.id]"></a>
+              <a *ngIf="!(row.role === 8 && row.id === currentUserService.user.id)" class="ss-navigateright" [routerLink]="['/synerex-administrator/user/edit', row.id]"></a>
             </ng-template>
           </p-column>
         </p-dataTable>

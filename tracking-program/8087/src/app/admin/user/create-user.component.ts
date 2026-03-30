@@ -84,7 +84,7 @@ var _ = require('lodash');
 
         <div class="row">
           <div class="col-md-12 text-right">
-            <a class="btn btn-default cancel-btn" [routerLink]="['/xeco-administrator/user/list']">Cancel</a>
+            <a class="btn btn-default cancel-btn" [routerLink]="['/synerex-administrator/user/list']">Cancel</a>
             <button type="submit" class="btn btn-primary">
               <span [hidden]="syncing">Add user</span>
               <span [hidden]="!syncing">Adding...</span>
@@ -109,7 +109,7 @@ var _ = require('lodash');
           <p><small>(If you lose these credentials, just edit this user to set a new password or email address.)</small></p>
         </div>
         <div class="clearfix">
-          <a [routerLink]="['/xeco-administrator/user/list']" class="btn btn-lg btn-info pull-right">Done</a>
+          <a [routerLink]="['/synerex-administrator/user/list']" class="btn btn-lg btn-info pull-right">Done</a>
         </div>
       </div>
     </div>
@@ -255,7 +255,7 @@ export class CreateUserComponent implements OnInit {
         this.syncing = false;
         if (error.code == 402) {
           // Seat limit reached — show actionable popup
-          const myAccountUrl = window.location.origin.replace(':8087', ':8080') + '/my-account';
+          const myAccountUrl = (window['SYNEREX_MY_ACCOUNT_URL'] || window.location.origin) + '/my-account';
           const msg = (error.error && error.error.error)
             ? error.error.error
             : 'All user seats are in use.';

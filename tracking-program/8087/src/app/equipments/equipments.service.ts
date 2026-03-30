@@ -16,7 +16,7 @@ export class EquipmentsService extends BaseApiCrudService {
   }
 
   getSwitchSchedule(inputParams:any = {}): Observable<any> {
-    return this.apiRequestService.get('/api/switch/' + this.userService.user.selectedProject.id + '/get-schedule', this.apiRequestService.createRequestParams(inputParams));
+    return this.apiRequestService.get('/api/switch/equipment/get-schedule', this.apiRequestService.createRequestParams(inputParams));
   }
 
   getUsageData(inputParams:any = {}): Observable<any> {

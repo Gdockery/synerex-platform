@@ -35,7 +35,7 @@ export class EquipmentScheduleService extends BaseApiCrudService {
   }
 
   deleteSchedule(scheduleId): Observable<any> {
-    let response = this.apiRequestService.put('/api/switch/equipment/delete-schedule', {id: scheduleId});
+    let response = this.apiRequestService.put('/api/switch/delete-schedule', {id: scheduleId});
     response.subscribe(response => {
       
     });
@@ -43,7 +43,7 @@ export class EquipmentScheduleService extends BaseApiCrudService {
   }
 
   testSchedules(): Observable<any> {
-    return this.apiRequestService.post('/api/switch/equipment/test-schedules');
+    return this.apiRequestService.post('/api/switch/test-schedules');
   }
   
 

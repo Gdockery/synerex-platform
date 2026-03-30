@@ -8,22 +8,22 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
     <div class="container-fluid">
       <div class="clearfix" style="margin-bottom: 1.5em; padding: 0.5em 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em; position: relative;">
         <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">Manage {{brandName}}'s Clients</h3>
-        <a *ngIf="canAddClient" class="btn btn-primary" style="flex-shrink: 0; position: absolute; right: 0;" [routerLink]="['/xeco-administrator/client/create']">Add new client</a>
+        <a *ngIf="canAddClient" class="btn btn-primary" style="flex-shrink: 0; position: absolute; right: 0;" [routerLink]="['/synerex-administrator/client/create']">Add new client</a>
       </div>
       <p>Click a client to add a new project for them. Use "View Projects" to see existing projects.</p>
       <p-dataTable tableStyleClass="table dataTable table-striped table-bordered" [value]="clients" [lazy]="true" [paginator]="true" [rows]="perPage"
                    [totalRecords]="recordCount" (onLazyLoad)="fetch($event)">
         <p-column field="name" header="Client" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'">
           <ng-template let-row="rowData" pTemplate="body">
-            <a [routerLink]="['/xeco-administrator/project/create']" [queryParams]="{clientId: row.id}">{{row.name}}</a>
+            <a [routerLink]="['/synerex-administrator/project/create']" [queryParams]="{clientId: row.id}">{{row.name}}</a>
           </ng-template>
         </p-column>
         <p-column field="contactName" header="Contact" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="country" header="Country" [sortable]="true" [filter]="true" [filterMatchMode]="'contains'"></p-column>
         <p-column field="" header="" [style]="{'width':'180px'}" styleClass="text-center">
           <ng-template let-row="rowData" pTemplate="body">
-            <a *ngIf="canManageClients" class="btn btn-sm btn-primary" [routerLink]="['/xeco-administrator/client/edit', row.id]"><span class="button-icon ss-write"></span></a>&nbsp;
-            <a *ngIf="canManageClients" class="btn btn-sm btn-primary" [routerLink]="['/xeco-administrator/client/projects', row.id]">View Projects&nbsp;<span class="button-icon ss-navigateright"></span></a>&nbsp;
+            <a *ngIf="canManageClients" class="btn btn-sm btn-primary" [routerLink]="['/synerex-administrator/client/edit', row.id]"><span class="button-icon ss-write"></span></a>&nbsp;
+            <a *ngIf="canManageClients" class="btn btn-sm btn-primary" [routerLink]="['/synerex-administrator/client/projects', row.id]">View Projects&nbsp;<span class="button-icon ss-navigateright"></span></a>&nbsp;
           </ng-template>
         </p-column>
       </p-dataTable>

@@ -15,7 +15,7 @@ from app.helpers.decorators import license_required, remote_maintainer
 from app.models.project import Project, project_user
 from app.models.service_plan import ServicePlan
 from app.models.user import User
-from app.models.xeco import Xeco
+from app.models.xeco import CompanySettings
 
 phase9_bp = Blueprint("phase9", __name__, url_prefix="")
 
@@ -298,7 +298,7 @@ def xeco_update():
     if set(values.keys()) & reserved:
         return jsonify({"error": "Cannot set reserved keys"}), 400
 
-    xeco_attrs = {"billingEmail", "billingPhone", "address", "city", "state", "zip", "carbonCreditRate", "xecoManagerCostPercent"}
+    xeco_attrs = {"billingEmail", "billingPhone", "address", "city", "state", "zip", "carbonCreditRate", "managerCostPercent"}
     unrecognized = set(values.keys()) - xeco_attrs
     if unrecognized:
         return jsonify({"error": f"Unrecognized properties: {unrecognized}"}), 400

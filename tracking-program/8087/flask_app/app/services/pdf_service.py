@@ -78,8 +78,8 @@ def generate_pdf(project, document_kind, **kwargs):
 
     if document_kind in ("proposal", "selectedProposal"):
         client = _get_project_client(project)
-        xeco_manager = _get_xeco_manager(project)
-        proposal_data = data_mappers.map_proposal_data(project, client, xeco_manager)
+        company_manager = _get_company_manager(project)
+        proposal_data = data_mappers.map_proposal_data(project, client, company_manager)
         brand_name = _get_brand_name(project)
         proposal_data["brandName"] = brand_name
         logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("logo.png")
@@ -325,11 +325,11 @@ def _get_project_client(project):
 
 def _get_xeco():
     """Get first Xeco config."""
-    from app.models.xeco import Xeco
-    return Xeco.query.first()
+    from app.models.xeco import CompanySettings
+    return CompanySettings.query.first()
 
 
-def _get_xeco_manager(project):
+def _get_company_manager(project):
     """Get xecoManager User for project."""
     from app.models.user import User
     xid = getattr(project, "xecoManager", None)
@@ -407,9 +407,9 @@ def _build_bill_analytic_data(project, meters_to_report=None):
     """Build bill analytic data for the original multi-page report."""
     from app.services.pdf.bill_analytic_data_mapper import map_bill_analytic_data
     client = _get_project_client(project)
-    xeco_manager = _get_xeco_manager(project)
+    company_manager = _get_company_manager(project)
     try:
-        return map_bill_analytic_data(project, client, xeco_manager, meters_to_report)
+        return map_bill_analytic_data(project, client, company_manager, meters_to_report)
     except Exception:
         from app.services.bill_analytic_calculations import calculate
         eba = (project.electricBillAnalysis or {}) if hasattr(project, "electricBillAnalysis") else {}

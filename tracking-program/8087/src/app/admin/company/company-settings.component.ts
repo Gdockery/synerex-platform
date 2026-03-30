@@ -102,7 +102,7 @@ import {HttpClient} from '@angular/common/http';
         <div class="col-md-3">
           <div class="form-group">
             <label>Manager Cost (%)</label>
-            <input type="number" class="form-control" [(ngModel)]="form.xecoManagerCostPercent"
+            <input type="number" class="form-control" [(ngModel)]="form.managerCostPercent"
                    placeholder="e.g. 10" step="0.1"/>
             <p class="help-block">Percentage used for project manager cost calculations.</p>
           </div>
@@ -151,7 +151,7 @@ export class CompanySettingsComponent implements OnInit {
     country: '',
     taxId: '',
     carbonCreditRate: 0,
-    xecoManagerCostPercent: 0,
+    managerCostPercent: 0,
   };
 
   constructor(private http: HttpClient) {}
