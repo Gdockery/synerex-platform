@@ -31,36 +31,112 @@
   </form>
 
   <!-- Create Form (Collapsible) -->
-  <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-    <h4 style="margin-top: 0;">Create New Organization</h4>
+  <div id="createForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: var(--bg-card2); border-radius: 8px; border: 1px solid var(--border-lt);">
+    <h4 style="margin-top: 0; color: var(--purple-hi); margin-bottom: 1.25rem;">Create New Organization</h4>
     <form method="post" action="{{ admin_url('orgs') }}">
+
       <div class="row">
         <div class="form-group">
-          <label for="org_id">Organization ID</label>
-          <input type="text" id="org_id" name="org_id" required placeholder="e.g., OEM-ACME-001">
-        </div>
-        <div class="form-group">
-          <label for="org_name">Organization Name</label>
-          <input type="text" id="org_name" name="org_name" required placeholder="e.g., ACME Power Solutions">
-        </div>
-      </div>
-      <div class="row">
-        <div class="form-group">
-          <label for="org_type">Organization Type</label>
-          <select id="org_type" name="org_type" required>
-            <option value="">Select type...</option>
+          <label for="co_org_type">Organization Type *</label>
+          <select id="co_org_type" name="org_type" required onchange="coUpdateType(this.value)">
+            <option value="">— Select type —</option>
             <option value="oem">OEM (Original Equipment Manufacturer)</option>
-            <option value="customer">Licensee</option>
+            <option value="customer">Licensee / Customer</option>
             <option value="pe">Licensed PE (Professional Engineer)</option>
           </select>
         </div>
-        <div class="form-group" style="display: flex; align-items: flex-end;">
-          <button class="btn" type="submit">Create Organization</button>
+        <div class="form-group">
+          <label for="co_org_name">Organization Name *</label>
+          <input type="text" id="co_org_name" name="org_name" required placeholder="e.g., ACME Power Solutions" oninput="coGenId()">
         </div>
+      </div>
+
+      <div class="form-group">
+        <label for="co_org_id">Organization ID <span style="font-weight:400;color:var(--text-dim)">(auto-generated — edit if needed)</span></label>
+        <input type="text" id="co_org_id" name="org_id" placeholder="Auto-generated from name" style="font-family:monospace;">
+        <div class="small">Leave blank to auto-generate, e.g. OEM-ACME-POWER-001</div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_email">Contact Email *</label>
+          <input type="email" id="co_email" name="email" required placeholder="contact@company.com">
+        </div>
+        <div class="form-group">
+          <label for="co_phone">Company Phone *</label>
+          <input type="tel" id="co_phone" name="company_phone" required placeholder="555-123-4567">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="co_address">Company Address *</label>
+        <input type="text" id="co_address" name="company_address" required placeholder="123 Main Street">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_city">City *</label>
+          <input type="text" id="co_city" name="company_city" required placeholder="City">
+        </div>
+        <div class="form-group">
+          <label for="co_state">State *</label>
+          <input type="text" id="co_state" name="company_state" required placeholder="TX" maxlength="2" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+          <label for="co_zip">ZIP *</label>
+          <input type="text" id="co_zip" name="company_zip" required placeholder="75201">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_cell">Company Cell (optional)</label>
+          <input type="tel" id="co_cell" name="company_cell" placeholder="555-123-4568">
+        </div>
+      </div>
+
+      <!-- PE-only fields -->
+      <div id="co_pe_fields" style="display:none;">
+        <div class="row">
+          <div class="form-group">
+            <label for="co_pe_license">PE License Number *</label>
+            <input type="text" id="co_pe_license" name="pe_license_number" placeholder="e.g., PE-TX-12345">
+          </div>
+          <div class="form-group">
+            <label for="co_pe_state">PE License State *</label>
+            <input type="text" id="co_pe_state" name="pe_license_state" placeholder="TX" maxlength="2" style="text-transform:uppercase;">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; align-items: center;">
+        <button class="btn" type="submit">✓ Create Organization</button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('createForm').style.display='none'">Cancel</button>
+        <span id="co_id_preview" style="font-size:0.8rem; color:var(--text-dim); font-family:monospace;"></span>
       </div>
     </form>
   </div>
 </div>
+
+<script>
+function coGenId(){
+  var nameEl = document.getElementById('co_org_id');
+  var typeEl = document.getElementById('co_org_type');
+  var orgName = document.getElementById('co_org_name').value;
+  var orgType = typeEl.value || 'ORG';
+  if(!orgName.trim()){ nameEl.placeholder='Auto-generated from name'; document.getElementById('co_id_preview').textContent=''; return; }
+  var clean = orgName.replace(/[^a-zA-Z0-9\s-]/g,'').trim().replace(/\s+/g,'-').toUpperCase().substring(0,20);
+  var preview = orgType.toUpperCase() + '-' + clean;
+  document.getElementById('co_id_preview').textContent = 'Preview: ' + preview;
+  if(!nameEl.value){ nameEl.placeholder = preview; }
+}
+function coUpdateType(val){
+  coGenId();
+  var pe = document.getElementById('co_pe_fields');
+  pe.style.display = (val === 'pe') ? 'block' : 'none';
+  pe.querySelectorAll('input').forEach(function(i){ i.required = (val === 'pe'); });
+}
+</script>
 
 <div class="card">
   <h3 style="margin-bottom: 1.5rem;">All Organizations ({{ orgs_with_stats|length }})</h3>

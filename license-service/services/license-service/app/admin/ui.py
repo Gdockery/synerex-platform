@@ -692,15 +692,82 @@ def orgs_page(request: Request, _=Depends(require_admin), db: Session = Depends(
     })
 
 @router.post("/orgs")
-def orgs_create(request: Request, org_id: str = Form(...), org_name: str = Form(...), org_type: str = Form(...), _=Depends(require_admin), db: Session = Depends(db_session)):
+def orgs_create(
+    request: Request,
+    org_name: str = Form(...),
+    org_type: str = Form(...),
+    org_id: str = Form(None),
+    email: str = Form(None),
+    company_address: str = Form(None),
+    company_city: str = Form(None),
+    company_state: str = Form(None),
+    company_zip: str = Form(None),
+    company_phone: str = Form(None),
+    company_cell: str = Form(None),
+    physical_address: str = Form(None),
+    physical_city: str = Form(None),
+    physical_state: str = Form(None),
+    physical_zip: str = Form(None),
+    physical_phone: str = Form(None),
+    pe_license_number: str = Form(None),
+    pe_license_state: str = Form(None),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
     if org_type not in ("oem", "customer", "pe"):
         raise HTTPException(400, "org_type must be oem, customer, or pe")
+
+    # Auto-generate org_id if not provided
+    if not org_id or not org_id.strip():
+        import re as _re
+        clean = _re.sub(r'[^a-zA-Z0-9\s-]', '', org_name)
+        clean = _re.sub(r'\s+', '-', clean.strip()).upper()
+        base_id = f"{org_type.upper()}-{clean[:20]}"
+        org_id = base_id
+        counter = 1
+        while db.get(Organization, org_id):
+            org_id = f"{base_id}-{counter:03d}"
+            counter += 1
+    else:
+        org_id = org_id.strip()
+
     if db.get(Organization, org_id):
-        return templates.TemplateResponse("orgs.html", {"request": request, "orgs_with_stats": [], "error": "org_id already exists"}, status_code=409)
-    db.add(Organization(org_id=org_id, org_name=org_name, org_type=org_type))
+        orgs = db.query(Organization).all()
+        return templates.TemplateResponse("orgs.html", {
+            "request": request,
+            "orgs_with_stats": [],
+            "error": f"org_id '{org_id}' already exists",
+            "search": "", "type_filter": "",
+        }, status_code=409)
+
+    org_data = {
+        "org_id": org_id,
+        "org_name": org_name.strip(),
+        "org_type": org_type,
+        "email": email.strip() if email else None,
+        "company_address": company_address.strip() if company_address else None,
+        "company_city": company_city.strip() if company_city else None,
+        "company_state": company_state.strip().upper() if company_state else None,
+        "company_zip": company_zip.strip() if company_zip else None,
+        "company_phone": company_phone.strip() if company_phone else None,
+        "company_cell": company_cell.strip() if company_cell else None,
+        "physical_address": physical_address.strip() if physical_address else None,
+        "physical_city": physical_city.strip() if physical_city else None,
+        "physical_state": physical_state.strip().upper() if physical_state else None,
+        "physical_zip": physical_zip.strip() if physical_zip else None,
+        "physical_phone": physical_phone.strip() if physical_phone else None,
+    }
+    if org_type == "oem":
+        org_data["approval_status"] = "approved"  # Admin-created OEMs are pre-approved
+    if org_type == "pe" and pe_license_number:
+        org_data["pe_license_number"] = pe_license_number.strip()
+        org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
+        org_data["pe_approval_status"] = "approved"
+
+    db.add(Organization(**org_data))
     db.commit()
     log_event(db, actor="admin", action="org.create", ref_id=org_id, detail={"org_name": org_name, "org_type": org_type})
-    return _admin_redirect("/admin/orgs")
+    return _admin_redirect(f"/admin/orgs/{org_id}")
 
 @router.get("/orgs/{org_id}", response_class=HTMLResponse)
 def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(require_admin), db: Session = Depends(db_session)):
