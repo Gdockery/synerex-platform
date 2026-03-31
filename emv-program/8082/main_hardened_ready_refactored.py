@@ -22180,6 +22180,7 @@ def main_dashboard():
             f"Rendering main dashboard with cache_bust: {context['cache_bust']}"
         )
         result = render_template("main_dashboard.html", **context)
+        license_service_url = os.environ.get("LICENSE_SERVICE_URL", "http://license-service:8000")
         config_script = (
             f"<script>window.SYNEREX_WEBSITE_URL = '{website_url}';"
             # Auto-detect base path: if page URL starts with /emv use /emv prefix,
@@ -22187,7 +22188,8 @@ def main_dashboard():
             f"window.SYNEREX_EMV_BASE = (function(){{"
             f"var p = window.location.pathname;"
             f"return p.startsWith('/emv') ? '/emv' : '';"
-            f"}})();</script>"
+            f"}})();"
+            f"window.SYNEREX_LICENSE_SERVICE_URL = '{website_url}/license';</script>"
         )
         if "</head>" in result:
             result = result.replace("</head>", config_script + "\n</head>", 1)
