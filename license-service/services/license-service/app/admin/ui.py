@@ -2283,6 +2283,37 @@ def eft_verify_payment(
     )
 
 
+@router.get("/api/nav-data")
+def nav_data(_=Depends(require_admin), db: Session = Depends(db_session)):
+    """Lightweight JSON endpoint powering the admin nav hover dropdowns."""
+    from fastapi.responses import JSONResponse
+    from ..models.user import User as _User
+
+    orgs = db.query(Organization).order_by(Organization.org_name).limit(20).all()
+    users = db.query(_User).order_by(_User.username).limit(20).all()
+    pending_oems = (
+        db.query(Organization)
+        .filter(Organization.org_type == "oem",
+                Organization.approval_status == "pending")
+        .order_by(Organization.org_name).all()
+    )
+    pending_pes = (
+        db.query(Organization)
+        .filter(Organization.org_type == "pe",
+                Organization.pe_approval_status.in_(["pending", None]))
+        .filter(Organization.pe_approval_status != "approved")
+        .order_by(Organization.org_name).limit(20).all()
+    )
+
+    return JSONResponse({
+        "orgs": [{"id": o.org_id, "name": o.org_name, "type": o.org_type} for o in orgs],
+        "users": [{"username": u.username, "email": u.email or "", "org_id": u.org_id or "", "role": u.role or ""} for u in users],
+        "oem_approvals": [{"id": o.org_id, "name": o.org_name, "status": o.approval_status or "pending"} for o in pending_oems],
+        "pe_registrations": [{"id": o.org_id, "name": o.org_name, "status": o.pe_approval_status or "pending",
+                               "license": o.pe_license_number or "", "state": o.pe_license_state or ""} for o in pending_pes],
+    })
+
+
 @router.get("/billing/invoice/{invoice_id}/download")
 def download_invoice_pdf(invoice_id: str, _=Depends(require_admin), db: Session = Depends(db_session)):
     """Download the PDF for an invoice."""

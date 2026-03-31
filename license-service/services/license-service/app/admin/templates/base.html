@@ -120,6 +120,50 @@
         text-decoration: none;
       }
 
+      /* Nav dropdowns */
+      .nav-item { position: relative; display: inline-block; }
+      .nav-item > a { display: inline-block; padding: 0.85rem 1.1rem; color: var(--text-dim);
+        text-decoration: none; font-weight: 500; font-size: 0.875rem;
+        border-bottom: 3px solid transparent; white-space: nowrap;
+        transition: color 0.15s, border-color 0.15s; }
+      .nav-item > a:hover, .nav-item:hover > a {
+        color: var(--purple-hi); border-bottom-color: var(--purple-mid); }
+      .nav-dropdown {
+        display: none; position: absolute; top: 100%; left: 0; min-width: 260px;
+        background: var(--bg-card); border: 1px solid var(--border-lt);
+        border-radius: 0 0 8px 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        z-index: 200; max-height: 380px; overflow-y: auto; }
+      .nav-item:hover .nav-dropdown { display: block; }
+      .nav-dropdown-header {
+        padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--purple-hi); background: var(--bg-dark);
+        border-bottom: 1px solid var(--border); display: flex;
+        justify-content: space-between; align-items: center; }
+      .nav-dropdown a {
+        display: block; padding: 0.6rem 1rem; color: var(--text-muted);
+        font-size: 0.82rem; border-bottom: 1px solid var(--border);
+        border-bottom-width: 0; text-decoration: none; transition: background 0.1s; }
+      .nav-dropdown a:hover { background: rgba(124,58,237,0.12); color: var(--purple-hi); }
+      .nav-dropdown .dd-item { border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .nav-dropdown .dd-item:last-child { border-bottom: none; }
+      .nav-dropdown .dd-sub { font-size: 0.72rem; color: var(--text-faint); margin-top: 1px; }
+      .nav-dropdown .dd-badge {
+        display: inline-block; padding: 1px 6px; border-radius: 9999px;
+        font-size: 0.68rem; font-weight: 700; margin-left: 6px; }
+      .dd-badge-oem  { background: rgba(37,99,235,0.25); color: #93c5fd; }
+      .dd-badge-pe   { background: rgba(217,119,6,0.25); color: #fcd34d; }
+      .dd-badge-cust { background: rgba(22,163,74,0.25); color: #86efac; }
+      .dd-badge-pend { background: rgba(220,38,38,0.25); color: #fca5a5; }
+      .dd-badge-appr { background: rgba(22,163,74,0.25); color: #86efac; }
+      .nav-dropdown .dd-loading, .nav-dropdown .dd-empty {
+        padding: 1rem; font-size: 0.82rem; color: var(--text-faint); text-align: center; }
+      .nav-dropdown .dd-view-all {
+        display: block; padding: 0.6rem 1rem; text-align: center;
+        font-size: 0.78rem; font-weight: 600; color: var(--purple-mid);
+        background: var(--bg-dark); border-top: 1px solid var(--border); }
+      .nav-dropdown .dd-view-all:hover { color: var(--purple-hi); background: rgba(124,58,237,0.1); }
+
       /* Container */
       .container {
         max-width: 1400px;
@@ -351,10 +395,51 @@
     <div class="nav-container">
       <nav>
         <a href="{{ admin_url('') }}">Dashboard</a>
-        <a href="{{ admin_url('orgs') }}">Organizations</a>
-        <a href="{{ admin_url('users') }}">Users</a>
-        <a href="{{ admin_url('oem-approvals') }}">OEM Approvals</a>
-        <a href="{{ admin_url('pe-registrations') }}">PE Registrations</a>
+
+        <div class="nav-item" data-dd="orgs">
+          <a href="{{ admin_url('orgs') }}">Organizations ▾</a>
+          <div class="nav-dropdown" id="dd-orgs">
+            <div class="nav-dropdown-header">
+              Organizations
+              <a href="{{ admin_url('orgs') }}" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a>
+            </div>
+            <div class="dd-loading">Loading…</div>
+          </div>
+        </div>
+
+        <div class="nav-item" data-dd="users">
+          <a href="{{ admin_url('users') }}">Users ▾</a>
+          <div class="nav-dropdown" id="dd-users">
+            <div class="nav-dropdown-header">
+              Users
+              <a href="{{ admin_url('users') }}" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a>
+            </div>
+            <div class="dd-loading">Loading…</div>
+          </div>
+        </div>
+
+        <div class="nav-item" data-dd="oem_approvals">
+          <a href="{{ admin_url('oem-approvals') }}">OEM Approvals ▾</a>
+          <div class="nav-dropdown" id="dd-oem_approvals">
+            <div class="nav-dropdown-header">
+              OEM Approval Queue
+              <a href="{{ admin_url('oem-approvals') }}" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a>
+            </div>
+            <div class="dd-loading">Loading…</div>
+          </div>
+        </div>
+
+        <div class="nav-item" data-dd="pe_registrations">
+          <a href="{{ admin_url('pe-registrations') }}">PE Registrations ▾</a>
+          <div class="nav-dropdown" id="dd-pe_registrations">
+            <div class="nav-dropdown-header">
+              PE Registration Queue
+              <a href="{{ admin_url('pe-registrations') }}" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a>
+            </div>
+            <div class="dd-loading">Loading…</div>
+          </div>
+        </div>
+
         <a href="{{ admin_url('api-keys') }}">API Keys</a>
         <a href="{{ admin_url('templates') }}">Software Versions</a>
         <a href="{{ admin_url('authorizations') }}">Authorizations</a>
@@ -363,6 +448,92 @@
         <a href="{{ admin_base ~ '/docs' }}">API Docs</a>
       </nav>
     </div>
+
+    <script>
+    (function(){
+      var navData = null;
+      var loaded = false;
+      var adminBase = "{{ admin_url('') }}".replace(/\/$/, "");
+
+      function typeBadge(t){
+        if(t==="oem") return '<span class="dd-badge dd-badge-oem">OEM</span>';
+        if(t==="pe")  return '<span class="dd-badge dd-badge-pe">PE</span>';
+        return '<span class="dd-badge dd-badge-cust">Licensee</span>';
+      }
+      function statusBadge(s){
+        if(s==="approved") return '<span class="dd-badge dd-badge-appr">Approved</span>';
+        return '<span class="dd-badge dd-badge-pend">Pending</span>';
+      }
+
+      function renderDropdowns(data){
+        // Orgs
+        var orgsEl = document.querySelector("#dd-orgs .dd-loading") || document.querySelector("#dd-orgs");
+        var orgsHtml = "";
+        if(data.orgs && data.orgs.length){
+          data.orgs.forEach(function(o){
+            orgsHtml += '<div class="dd-item"><a href="'+adminBase+'/orgs/'+o.id+'">'+
+              '<div>'+o.name+typeBadge(o.type)+'</div>'+
+              '<div class="dd-sub">'+o.id+'</div></a></div>';
+          });
+          orgsHtml += '<a class="dd-view-all" href="'+adminBase+'/orgs">View all organizations →</a>';
+        } else { orgsHtml = '<div class="dd-empty">No organizations found</div>'; }
+        var ddOrgs = document.getElementById("dd-orgs");
+        if(ddOrgs){ ddOrgs.innerHTML = '<div class="nav-dropdown-header">Organizations <a href="'+adminBase+'/orgs" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a></div>'+orgsHtml; }
+
+        // Users
+        var usersHtml = "";
+        if(data.users && data.users.length){
+          data.users.forEach(function(u){
+            usersHtml += '<div class="dd-item"><a href="'+adminBase+'/users/'+u.username+'">'+
+              '<div>'+u.username+(u.role?'<span class="dd-badge" style="background:rgba(124,58,237,0.2);color:var(--purple-hi);margin-left:6px;">'+u.role+'</span>':"")+'</div>'+
+              '<div class="dd-sub">'+u.email+(u.org_id?' · '+u.org_id:"")+'</div></a></div>';
+          });
+          usersHtml += '<a class="dd-view-all" href="'+adminBase+'/users">View all users →</a>';
+        } else { usersHtml = '<div class="dd-empty">No users found</div>'; }
+        var ddUsers = document.getElementById("dd-users");
+        if(ddUsers){ ddUsers.innerHTML = '<div class="nav-dropdown-header">Users <a href="'+adminBase+'/users" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a></div>'+usersHtml; }
+
+        // OEM Approvals
+        var oemHtml = "";
+        if(data.oem_approvals && data.oem_approvals.length){
+          data.oem_approvals.forEach(function(o){
+            oemHtml += '<div class="dd-item"><a href="'+adminBase+'/oem-approvals">'+
+              '<div>'+o.name+statusBadge(o.status)+'</div>'+
+              '<div class="dd-sub">'+o.id+'</div></a></div>';
+          });
+          oemHtml += '<a class="dd-view-all" href="'+adminBase+'/oem-approvals">View full queue →</a>';
+        } else { oemHtml = '<div class="dd-empty">No pending OEM approvals</div>'; }
+        var ddOem = document.getElementById("dd-oem_approvals");
+        if(ddOem){ ddOem.innerHTML = '<div class="nav-dropdown-header">OEM Approval Queue <a href="'+adminBase+'/oem-approvals" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a></div>'+oemHtml; }
+
+        // PE Registrations
+        var peHtml = "";
+        if(data.pe_registrations && data.pe_registrations.length){
+          data.pe_registrations.forEach(function(p){
+            peHtml += '<div class="dd-item"><a href="'+adminBase+'/pe-registrations">'+
+              '<div>'+p.name+statusBadge(p.status)+'</div>'+
+              '<div class="dd-sub">'+p.id+(p.license?' · '+p.license+(p.state?' ('+p.state+')':'')':'')+'</div></a></div>';
+          });
+          peHtml += '<a class="dd-view-all" href="'+adminBase+'/pe-registrations">View full queue →</a>';
+        } else { peHtml = '<div class="dd-empty">No pending PE registrations</div>'; }
+        var ddPe = document.getElementById("dd-pe_registrations");
+        if(ddPe){ ddPe.innerHTML = '<div class="nav-dropdown-header">PE Registration Queue <a href="'+adminBase+'/pe-registrations" style="font-weight:400;color:var(--purple-mid);font-size:0.72rem;">View all →</a></div>'+peHtml; }
+      }
+
+      function loadNavData(){
+        if(loaded) return;
+        loaded = true;
+        fetch(adminBase + "/api/nav-data", {credentials:"include"})
+          .then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(data){ if(data) renderDropdowns(data); })
+          .catch(function(){});
+      }
+
+      document.querySelectorAll(".nav-item").forEach(function(el){
+        el.addEventListener("mouseenter", loadNavData, {once: true});
+      });
+    })();
+    </script>
 
     <div class="container">
       {% block content %}{% endblock %}
