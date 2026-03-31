@@ -63,12 +63,13 @@
       </div>
       {% else %}
       <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc" autocomplete="off"/></div>
-      <!-- Customer self-registration is blocked; only PE and OEM-invited customers may register here -->
       <div class="row"><label>Account type *</label>
-        <select name="org_type" required>
-          <option value="pe">Licensed PE / Engineer</option>
+        <select name="org_type" id="org_type_select" required onchange="updateOrgTypeHints(this.value)">
+          <option value="">— Select account type —</option>
+          <option value="oem">OEM / Original Equipment Manufacturer</option>
+          <option value="pe">Licensed PE / Professional Engineer</option>
         </select>
-        <p style="font-size:0.78rem;color:#6b7280;margin-top:0.25rem;">Customer (Licensee) accounts must be set up by your OEM sponsor. Contact your OEM partner to get access.</p>
+        <p id="org_type_hint" style="font-size:0.78rem;color:#6b7280;margin-top:0.25rem;">OEM accounts are reviewed and approved by Synerex Admin before activation. PE accounts are verified against your license number.</p>
       </div>
       {% endif %}
       <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe" autocomplete="off"/></div>
@@ -98,14 +99,26 @@
     <div style="margin-top: 1rem;"><a href="javascript:history.back()" class="back-btn">&#8592; Back</a></div>
   </div>
   <script>
-  (function(){
-    var s=document.querySelector('select[name="org_type"]');
+  function updateOrgTypeHints(val){
+    var hint=document.getElementById('org_type_hint');
+    if(hint){
+      if(val==='oem') hint.textContent='OEM accounts require Synerex Admin approval before activation. You will receive an email once reviewed.';
+      else if(val==='pe') hint.textContent='Licensed PE accounts require verification of your PE license number and state before approval.';
+      else hint.textContent='OEM accounts are reviewed and approved by Synerex Admin before activation. PE accounts are verified against your license number.';
+    }
     var pe=document.getElementById('pe-fields');
     var st=document.getElementById('pe-state-row');
-    if(s&&pe&&st){
-      function t(){ var show=s.value==='pe'; pe.style.display=show?'block':'none'; st.style.display=show?'block':'none'; pe.querySelector('input').required=show; st.querySelector('input').required=show; }
-      s.addEventListener('change',t); t();
+    if(pe&&st){
+      var show=val==='pe';
+      pe.style.display=show?'block':'none';
+      st.style.display=show?'block':'none';
+      pe.querySelector('input').required=show;
+      st.querySelector('input').required=show;
     }
+  }
+  (function(){
+    var s=document.getElementById('org_type_select');
+    if(s){ s.addEventListener('change',function(){ updateOrgTypeHints(s.value); }); updateOrgTypeHints(s.value); }
   })();
   </script>
 </body>

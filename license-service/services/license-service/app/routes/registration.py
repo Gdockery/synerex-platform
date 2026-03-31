@@ -847,10 +847,10 @@ def register_submit(
             )
         
         # Validate org_type
-        if org_type not in ("pe", "customer"):
+        if org_type not in ("pe", "customer", "oem"):
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Registration type must be 'pe' or 'customer'", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Registration type must be 'oem', 'pe', or 'customer'", "success": None, "website_url": settings.website_url},
                 status_code=400
             )
 
@@ -958,6 +958,8 @@ def register_submit(
                 org_data["pe_license_number"] = pe_license_number.strip() if pe_license_number else None
                 org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None
                 org_data["pe_approval_status"] = "pending"
+            elif org_type == "oem":
+                org_data["approval_status"] = "pending"
 
             org = Organization(**org_data)
             db.add(org)
@@ -966,7 +968,7 @@ def register_submit(
                       detail={"org_type": org_type, "email": email,
                               "pe_license_number": pe_license_number if org_type == "pe" else None})
         
-        # Create user account
+        # Create user account — OEM users start inactive until admin approval
         import bcrypt
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         user = User(
@@ -974,14 +976,15 @@ def register_submit(
             password_hash=password_hash,
             org_id=org_id,
             email=email,
-            is_active=True
+            role="oem_admin" if org_type == "oem" else "user",
+            is_active=(org_type != "oem"),
         )
         db.add(user)
         db.commit()
         log_event(db, actor="self_service", action="user.create", ref_id=username, 
                  detail={"org_id": org_id, "email": email})
         
-        # For PE registration, skip billing/license creation - just show success message
+        # For PE or OEM registration, show pending approval message
         if org_type == "pe":
             return templates.TemplateResponse(
                 "signup.html",
@@ -989,6 +992,16 @@ def register_submit(
                     "request": request,
                     "error": None,
                     "success": f"Licensed PE registration submitted successfully! Your registration is pending admin approval. You will be notified via email at {email} once your registration is reviewed.",
+                    "website_url": settings.website_url
+                }
+            )
+        if org_type == "oem":
+            return templates.TemplateResponse(
+                "signup.html",
+                {
+                    "request": request,
+                    "error": None,
+                    "success": f"OEM registration submitted successfully! Your application is now pending Synerex Admin review and approval. You will receive an email at {email} once your account has been activated.",
                     "website_url": settings.website_url
                 }
             )
@@ -1023,8 +1036,8 @@ def register_api(
     """API endpoint for PE or Licensee registration."""
     try:
         # Validate org_type
-        if org_type not in ("pe", "customer"):
-            raise HTTPException(400, "org_type must be 'pe' or 'customer'")
+        if org_type not in ("pe", "customer", "oem"):
+            raise HTTPException(400, "org_type must be 'oem', 'pe', or 'customer'")
 
         # Customer registrations via the API require OEM sponsorship — block unauthenticated calls
         if org_type == "customer":
