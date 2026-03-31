@@ -59,14 +59,35 @@
 
       <div class="row">
         <div class="form-group">
+          <label for="co_contact_name">Primary Contact Name *</label>
+          <input type="text" id="co_contact_name" name="contact_name" required placeholder="Jane Smith">
+        </div>
+        <div class="form-group">
           <label for="co_email">Contact Email *</label>
           <input type="email" id="co_email" name="email" required placeholder="contact@company.com">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_billing_email">Billing Email (optional)</label>
+          <input type="email" id="co_billing_email" name="billing_email" placeholder="billing@company.com">
         </div>
         <div class="form-group">
           <label for="co_phone">Company Phone *</label>
           <input type="tel" id="co_phone" name="company_phone" required placeholder="555-123-4567">
         </div>
       </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_cell">Company Cell (optional)</label>
+          <input type="tel" id="co_cell" name="company_cell" placeholder="555-123-4568">
+        </div>
+      </div>
+
+      <hr style="border-color:var(--border); margin: 1rem 0;">
+      <div style="font-size:0.8rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.75rem;">Mailing Address</div>
 
       <div class="form-group">
         <label for="co_address">Company Address *</label>
@@ -88,10 +109,37 @@
         </div>
       </div>
 
+      <hr style="border-color:var(--border); margin: 1rem 0;">
+      <div style="font-size:0.8rem; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.75rem;">Physical Address <span style="font-weight:400;">(if different from mailing)</span></div>
+
+      <div class="form-group">
+        <label for="co_phys_address">Physical Address (optional)</label>
+        <input type="text" id="co_phys_address" name="physical_address" placeholder="456 Industrial Blvd">
+      </div>
+
       <div class="row">
         <div class="form-group">
-          <label for="co_cell">Company Cell (optional)</label>
-          <input type="tel" id="co_cell" name="company_cell" placeholder="555-123-4568">
+          <label for="co_phys_city">City</label>
+          <input type="text" id="co_phys_city" name="physical_city" placeholder="City">
+        </div>
+        <div class="form-group">
+          <label for="co_phys_state">State</label>
+          <input type="text" id="co_phys_state" name="physical_state" placeholder="TX" maxlength="2" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+          <label for="co_phys_zip">ZIP</label>
+          <input type="text" id="co_phys_zip" name="physical_zip" placeholder="75201">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="co_phys_phone">Physical Phone (optional)</label>
+          <input type="tel" id="co_phys_phone" name="physical_phone" placeholder="555-123-4567">
+        </div>
+        <div class="form-group">
+          <label for="co_phys_cell">Physical Cell (optional)</label>
+          <input type="tel" id="co_phys_cell" name="physical_cell" placeholder="555-123-4568">
         </div>
       </div>
 

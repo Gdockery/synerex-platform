@@ -697,7 +697,9 @@ def orgs_create(
     org_name: str = Form(...),
     org_type: str = Form(...),
     org_id: str = Form(None),
+    contact_name: str = Form(None),
     email: str = Form(None),
+    billing_email: str = Form(None),
     company_address: str = Form(None),
     company_city: str = Form(None),
     company_state: str = Form(None),
@@ -709,6 +711,7 @@ def orgs_create(
     physical_state: str = Form(None),
     physical_zip: str = Form(None),
     physical_phone: str = Form(None),
+    physical_cell: str = Form(None),
     pe_license_number: str = Form(None),
     pe_license_state: str = Form(None),
     _=Depends(require_admin),
@@ -744,7 +747,9 @@ def orgs_create(
         "org_id": org_id,
         "org_name": org_name.strip(),
         "org_type": org_type,
+        "contact_name": contact_name.strip() if contact_name else None,
         "email": email.strip() if email else None,
+        "billing_email": billing_email.strip() if billing_email else None,
         "company_address": company_address.strip() if company_address else None,
         "company_city": company_city.strip() if company_city else None,
         "company_state": company_state.strip().upper() if company_state else None,
@@ -756,6 +761,7 @@ def orgs_create(
         "physical_state": physical_state.strip().upper() if physical_state else None,
         "physical_zip": physical_zip.strip() if physical_zip else None,
         "physical_phone": physical_phone.strip() if physical_phone else None,
+        "physical_cell": physical_cell.strip() if physical_cell else None,
     }
     if org_type == "oem":
         org_data["approval_status"] = "approved"  # Admin-created OEMs are pre-approved
