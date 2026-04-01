@@ -19,6 +19,22 @@ function RedirectToTracking() {
   );
 }
 
+/**
+ * Redirects /admin (and any sub-paths) to the License Service admin panel.
+ * All Synerex Admin access must go through the License Service's server-side
+ * session authentication — not a separate React-managed localStorage token.
+ */
+function RedirectToLicenseAdmin() {
+  useEffect(() => {
+    window.location.replace("/license/admin");
+  }, []);
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-[50vh]">
+      <span className="text-gray-400 text-sm">Redirecting to Admin…</span>
+    </div>
+  );
+}
+
 const Home = lazy(()=>import("./pages/Home.jsx"));
 const About = lazy(()=>import("./pages/About.jsx"));
 const Software = lazy(()=>import("./pages/Software.jsx"));
@@ -79,8 +95,8 @@ const ThankYou = lazy(()=>import("./pages/ThankYou.jsx"));
 const LicenseSuccess = lazy(()=>import("./pages/LicenseSuccess.jsx"));
 const MyAccount = lazy(()=>import("./pages/MyAccount.jsx"));
 const ComprehensiveEnergySavingsTesting = lazy(()=>import("./pages/ComprehensiveEnergySavingsTesting.jsx"));
-const EMVProgram = lazy(()=>import("./pages/EMVProgram.jsx"));
 const AdminDashboard = lazy(()=>import("./pages/AdminDashboard.jsx"));
+const EMVProgram = lazy(()=>import("./pages/EMVProgram.jsx"));
 
 export default function App(){
   return (

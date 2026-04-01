@@ -108,6 +108,15 @@ def safe_get(data, *keys, default=None):
     except:
         return default
 
+def safe_float(value, default=0):
+    """Safely convert a value to float, returning default on failure."""
+    if value is None or value == 'N/A' or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
 def format_number(value, decimals=2):
     """Safely format a number with specified decimal places"""
     try:
@@ -3444,36 +3453,54 @@ def generate_exact_template_html(r):
         # For values outside standard classes, show the actual value
         ansi_c12_class_description = f"Meter Accuracy Class {ansi_c12_accuracy:.2f}"
     
-    # IEEE C57.110-2018: K-factor derating check — populate when per-order spectrum present
-    _k_factor_val = power_quality.get('k_factor') if isinstance(power_quality, dict) else None
-    if _k_factor_val is not None:
-        # Interpret K-factor against common K-rated transformer categories
-        # K=1 (standard), K=4, K=13, K=20 are standard ANSI/IEEE K-ratings.
-        # A standard K=1 transformer should not serve loads with K-factor > 1.
-        if _k_factor_val <= 1.0:
-            _kf_rating = "K=1 (Standard transformer adequate)"
-            _kf_class = "pass"
+    # IEEE C57.110-2018: K-factor derating check — show before/after comparison.
+    # The stored k_factor is computed from the before (Xeco OFF) spectrum.
+    # The after K-factor is estimated from after-THD using the THD approximation.
+    _k_factor_before = power_quality.get('k_factor') if isinstance(power_quality, dict) else None
+    _thd_b_c57 = safe_float(power_quality.get('thd_before', 0) if isinstance(power_quality, dict) else 0, 0)
+    _thd_a_c57 = safe_float(power_quality.get('thd_after',  0) if isinstance(power_quality, dict) else 0, 0)
+
+    # Estimate after K-factor from after-THD (5th harmonic dominant, K = THD² × h²)
+    _k_factor_after = ((_thd_a_c57 / 100.0) ** 2) * 25.0 if _thd_a_c57 > 0 else None
+
+    def _kf_label(kf):
+        if kf is None:
+            return "—", "not-evaluated"
+        if kf <= 1.0:
+            return "K=1 ✔ Standard transformer adequate", "pass"
+        elif kf <= 4.0:
+            return f"K=4 rated transformer required", "warn"
+        elif kf <= 13.0:
+            return f"K=13 rated transformer required", "warn"
+        else:
+            return f"K=20+ rated transformer required", "fail"
+
+    if _k_factor_before is not None or _k_factor_after is not None:
+        _kf_b = _k_factor_before if _k_factor_before is not None else ((_thd_b_c57 / 100.0) ** 2) * 25.0
+        _kf_a = _k_factor_after if _k_factor_after is not None else 0.0
+        _lbl_b, _ = _kf_label(_kf_b)
+        _lbl_a, _kf_a_class = _kf_label(_kf_a if _kf_a > 0 else None)
+
+        # Compliance status is based on AFTER (Xeco ON) condition
+        if _kf_a <= 1.0:
             ieee_c57_110_status = "PASS"
-        elif _k_factor_val <= 4.0:
-            _kf_rating = "K=4 rated transformer required"
-            _kf_class = "warn"
-            ieee_c57_110_status = "REVIEW"
-        elif _k_factor_val <= 13.0:
-            _kf_rating = "K=13 rated transformer required"
-            _kf_class = "warn"
+        elif _kf_a <= 13.0:
             ieee_c57_110_status = "REVIEW"
         else:
-            _kf_rating = "K=20 (or higher) rated transformer required"
-            _kf_class = "fail"
             ieee_c57_110_status = "FAIL"
+
+        _kf_source = "per-order harmonic spectrum" if _k_factor_before is not None else "THD approximation (h=5 dominant)"
         ieee_c57_110_value = (
-            f"K-factor = {_k_factor_val:.3f} — {_kf_rating}. "
-            f"Computed from per-order harmonic spectrum per IEEE C57.110-2018 §5 "
+            f"Before (Xeco OFF): K \u2248 {_kf_b:.2f} \u2014 {_lbl_b}. "
+            f"After (Xeco ON): K \u2248 {_kf_a:.3f} \u2014 {_lbl_a}. "
+            f"Transformer stress reduced by {(1 - _kf_a / max(_kf_b, 0.001)) * 100:.0f}%. "
+            f"K-factor computed via {_kf_source} per IEEE C57.110-2018 \u00a75 "
             f"(K = \u03a3[I\u2095/I\u2081]\u00b2 \u00d7 h\u00b2). "
-            f"A licensed electrical engineer must confirm transformer nameplate K-rating meets or exceeds this value."
+            f"A licensed electrical engineer should confirm the installed transformer nameplate K-rating "
+            f"meets or exceeds the pre-installation requirement."
         )
     else:
-        # No per-order data — fall back to advisory note
+        # No THD or per-order data — cannot evaluate
         ieee_c57_110_status = "NOT EVALUATED"
         ieee_c57_110_value = (
             "K-factor derating check not performed — per-order harmonic current spectrum (h=1,3,5,7,11,13\u2026) "
@@ -3638,7 +3665,7 @@ def generate_exact_template_html(r):
     # When ASHRAE relative precision fails but IPMVP statistical significance
     # passes, insert an explanatory note clarifying they measure different things.
     # Without this, a reviewer sees an apparent contradiction and loses confidence.
-    _d3_ashrae_fail  = not bool(ashrae_compliant)
+    _d3_ashrae_fail  = not bool(after_ashrae_compliant)
     _d3_ipmvp_pass   = bool(after_ipmvp_compliant)
     if _d3_ashrae_fail and _d3_ipmvp_pass:
         _d3_note = (
@@ -3792,7 +3819,7 @@ def generate_exact_template_html(r):
     _wn = safe_get(r, "weather_normalization", default={})
     wn_norm_applied   = safe_get(_wn, "normalization_applied")
     wn_ashrae_r2_pass = safe_get(_wn, "ashrae_compliant")          # True when R² ≥ 0.75
-    _rp_pass = bool(ashrae_compliant)  # relative_precision < 50% AND period ≥ min days
+    _rp_pass = bool(after_ashrae_compliant)  # relative_precision < 50% AND period ≥ min days
 
     # Status label
     if wn_norm_applied is True and wn_ashrae_r2_pass is True and _rp_pass:
@@ -4799,8 +4826,13 @@ def generate_exact_template_html(r):
                 # Calculate short circuit current
                 isc_A = rated_current / xfmr_impedance_pct
                 isc_kA = isc_A / 1000
-                # Use 10% of rated current as typical load current
-                il_A = rated_current * 0.1
+                # IL = maximum demand load current (IEEE 519-2022 §2.23).
+                # Prefer metered avg current; fall back to 60% of rated current
+                # (conservative commercial loading per ASHRAE 90.1 / CBECS 2018).
+                _avg_amp_tpl = safe_float(
+                    (before_data.get("avgAmp", {}).get("mean", 0) if isinstance(before_data, dict) else 0), 0
+                )
+                il_A = _avg_amp_tpl if _avg_amp_tpl > 0 else (rated_current * 0.60)
                 ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A if il_A > 0 else 0
             else:
                 ieee_519_isc_il_ratio = 0
@@ -9276,6 +9308,33 @@ def generate_exact_template_html(r):
                 )
                 _banner_html = _banner_html.rstrip('</div>') + _fin_caveat + '</div>'
 
+            # Wrap banner in a full-page container. The <style> block with
+            # @media print and !important is required because inline styles cannot
+            # target print media, and min-height:100vh is ignored by print engines.
+            _banner_html = (
+                '<style>'
+                '@media print {'
+                '  .synerex-blocking-page {'
+                '    page-break-after: always !important;'
+                '    break-after: page !important;'
+                '  }'
+                '}'
+                '</style>'
+                '<div class="synerex-blocking-page" style="'
+                'page-break-after: always;'
+                'break-after: page;'
+                'min-height: 100vh;'
+                'padding: 60px 48px 48px 48px;'
+                'background: #ffffff;'
+                'box-sizing: border-box;'
+                'display: flex;'
+                'flex-direction: column;'
+                'justify-content: center;'
+                '">'
+                + _banner_html
+                + '</div>'
+            )
+
             # Inject immediately after <body> tag so it is the very first thing seen
             if '<body' in template_content:
                 # Find end of opening <body ...> tag
@@ -9706,7 +9765,7 @@ def _build_blocking_banner(flags: list) -> str:
         f'A PE stamp does not override these requirements without a documented waiver for each issue.</div>'
     ) if blocking else ""
     return (
-        f'<div style="page-break-after:avoid;margin:0 0 24px 0;padding:16px 20px;'
+        f'<div style="page-break-inside:avoid;margin:0 0 24px 0;padding:16px 20px;'
         f'background:{header_bg};border:2.5px solid {header_color};border-radius:6px;'
         f'font-family:Arial,sans-serif;">'
         f'<div style="font-size:1.15em;font-weight:bold;color:{header_color};">{header_title}</div>'

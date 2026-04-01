@@ -1545,13 +1545,24 @@ function saveProject() {
     window.prepareFeedersForSubmission();
   }
 
-  // Prepare transformers data
+  // Prepare transformers data — directly read table rows before collecting form data
   try {
+    const xfmrsBody = document.getElementById('xfmrs_body');
     const transformersTa = document.getElementById('transformers_json');
-    if (transformersTa) {
-      // Trigger the transformers data collection
-      const event = new Event('change');
-      transformersTa.dispatchEvent(event);
+    if (xfmrsBody && transformersTa) {
+      const rows = Array.from(xfmrsBody.querySelectorAll('tr'));
+      const list = rows.map(r => ({
+        name: r.querySelector('[data-k=name]')?.value || null,
+        kva: parseFloat(r.querySelector('[data-k=kva]')?.value || '0'),
+        voltage: parseFloat(r.querySelector('[data-k=voltage]')?.value || '0'),
+        vtype: r.querySelector('[data-k=vtype]')?.value || 'LL',
+        load_loss_kw: parseFloat(r.querySelector('[data-k=load_loss_kw]')?.value || '0'),
+        stray_pct: parseFloat(r.querySelector('[data-k=stray_pct]')?.value || '20'),
+        core_kw: parseFloat(r.querySelector('[data-k=core_kw]')?.value || '0'),
+        kh: parseFloat(r.querySelector('[data-k=kh]')?.value || '0.5')
+      }));
+      transformersTa.value = JSON.stringify(list);
+      console.log(`[SAVE] Collected ${list.length} transformer row(s) into transformers_json`);
     }
   } catch (e) {
     console.error('Error preparing transformers data:', e);

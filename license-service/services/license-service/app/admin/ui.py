@@ -93,6 +93,31 @@ def api_login(request: Request, body: dict = Body(...)):
     )
 
 
+@router.get("/api/check-auth")
+def api_check_auth(request: Request):
+    """
+    Lightweight session check used by the website frontend to decide whether
+    to show the 'Synerex Admin' footer link.
+
+    Returns 200 only for the full platform admin role (access to ALL orgs).
+    OEM admins and Client admins use a separate 'user_logged_in' session key
+    and will always receive 401 here.  Restricted platform roles such as
+    'customer_support' and 'fraud_prevention' also receive 401 — the footer
+    link is reserved for the Synerex master admin only.
+    """
+    if not bool(request.session.get("admin_logged_in")):
+        return JSONResponse(status_code=401, content={"authenticated": False})
+
+    # Only the full 'admin' role can see the Synerex Admin button.
+    # The master admin (from config) has no explicit role stored; any session
+    # without a role or with role == 'admin' is the platform owner.
+    role = request.session.get("admin_role", "admin")
+    if role != "admin":
+        return JSONResponse(status_code=403, content={"authenticated": False})
+
+    return JSONResponse({"authenticated": True})
+
+
 @router.post("/api/tracking-restart")
 def api_tracking_restart(request: Request, _=Depends(require_admin)):
     """Proxy restart request to Tracking program. Admin Panel calls this (same-origin with License Service)."""
@@ -245,20 +270,18 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     if username == settings.admin_username and password == settings.admin_password:
         request.session["admin_logged_in"] = True
         request.session["admin_username"] = username
-        
-        # If return_url is provided (from website), redirect there with token
+
+        # If an explicit return_url was supplied honour it (e.g. /admin from
+        # the React unified dashboard that bounced the user here to log in).
         if return_url:
             return_url = _normalize_return_url(return_url)
-            import uuid
-            from ..auth.admin_tokens import store_admin_token
-            session_token = str(uuid.uuid4())
-            store_admin_token(session_token)
-            request.session["session_token"] = session_token
-            separator = "&" if "?" in return_url else "?"
-            return RedirectResponse(f"{return_url}{separator}token={session_token}", status_code=303)
-        
-        # Otherwise, redirect to License Service admin dashboard (use root_path so we stay on same host:port)
-        return RedirectResponse(f"{settings.root_path}/admin", status_code=303)
+            return RedirectResponse(return_url, status_code=303)
+
+        # Default: redirect to the React unified Synerex Admin Dashboard which
+        # provides access to all programs (EMV, Tracking, License, services).
+        # The dashboard verifies the session via /license/admin/api/check-auth.
+        website_origin = (settings.website_url or "").rstrip("/")
+        return RedirectResponse(f"{website_origin}/admin", status_code=303)
     try:
         return templates.TemplateResponse("login.html", {"request": request, "error": "Invalid credentials", "return_url": return_url}, status_code=401)
     except Exception:

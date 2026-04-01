@@ -1,4 +1,17 @@
+import { useState, useEffect } from "react";
+
 export default function Footer(){
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check whether the browser already holds a valid License Service admin
+    // session cookie. The link is only rendered when authenticated so that
+    // the admin entry-point is not visible to regular visitors.
+    fetch("/license/admin/api/check-auth", { credentials: "include" })
+      .then(res => { if (res.ok) setIsAdmin(true); })
+      .catch(() => {});
+  }, []);
+
   return (
     <footer className="mt-auto border-t border-gray-800 bg-gray-950">
       <div className="max-w-7xl mx-auto px-3 py-10 grid md:grid-cols-3 gap-6 text-sm">
@@ -31,16 +44,17 @@ export default function Footer(){
           <a className="hover:text-purple-200 font-bold text-gray-300" href="/copyright-notice">Copyright Notice</a>
         </div>
       </div>
-      {/* Synerex Admin: platform servicing link - separate from client admins, unique credentials */}
-      <div className="max-w-7xl mx-auto px-3 pb-4 pt-2 border-t border-gray-800/50 text-center">
-        <a
-          href="/admin"
-          className="text-gray-500 hover:text-purple-200 text-xs transition-colors"
-          title="Synerex platform administration and servicing"
-        >
-          Synerex Admin
-        </a>
-      </div>
+      {isAdmin && (
+        <div className="max-w-7xl mx-auto px-3 pb-4 pt-2 border-t border-gray-800/50 text-center">
+          <a
+            href="/admin"
+            className="text-gray-500 hover:text-purple-200 text-xs transition-colors"
+            title="Synerex platform administration and servicing"
+          >
+            Synerex Admin
+          </a>
+        </div>
+      )}
     </footer>
   );
 }

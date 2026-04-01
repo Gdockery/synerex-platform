@@ -6608,6 +6608,8 @@ def analyze():
                                "project_cost", "phases", "voltage_nominal", "onpeak_fraction_pct",
                                "summer_fraction_pct", "ratchet_percent", "line_R_ref_ohm",
                                "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w",
+                               "xfmr_impedance_pct", "xfmr_stray_fraction_pct",
+                               "isc_kA", "il_A",
                                "confidence_level", "relative_precision", "data_quality_threshold",
                                "discount_rate", "analysis_period", "escalation_rate",
                                "thermal_settling_exclusion_hours"]:
@@ -6631,6 +6633,8 @@ def analyze():
                     "project_cost", "phases", "voltage_nominal", "onpeak_fraction_pct",
                     "summer_fraction_pct", "ratchet_percent", "line_R_ref_ohm",
                     "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w",
+                    "xfmr_impedance_pct", "xfmr_stray_fraction_pct",
+                    "isc_kA", "il_A",
                     "confidence_level", "relative_precision", "data_quality_threshold",
                     "discount_rate", "analysis_period", "escalation_rate",
                     "thermal_settling_exclusion_hours",
@@ -6849,7 +6853,7 @@ def analyze():
                 val = cfg_raw.get(key)
                 if val is not None:
                     # Check if this field might be causing a type error
-                    if isinstance(val, str) and key in ["energy_rate", "demand_rate", "operating_hours", "phases", "line_R_ref_ohm", "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w"]:
+                    if isinstance(val, str) and key in ["energy_rate", "demand_rate", "operating_hours", "phases", "line_R_ref_ohm", "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w", "xfmr_impedance_pct", "xfmr_stray_fraction_pct", "isc_kA", "il_A"]:
                         try:
                             float(val)
                         except (ValueError, TypeError):
@@ -7161,7 +7165,7 @@ def analyze():
             # Check config and data for type mismatches
             if not variable_names:
                 # Check config values that should be numeric but might be strings
-                for key in ["energy_rate", "demand_rate", "operating_hours", "phases", "line_R_ref_ohm", "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w"]:
+                for key in ["energy_rate", "demand_rate", "operating_hours", "phases", "line_R_ref_ohm", "xfmr_kva", "xfmr_load_loss_w", "xfmr_core_loss_w", "xfmr_impedance_pct", "xfmr_stray_fraction_pct", "isc_kA", "il_A"]:
                     val = cfg.get(key)
                     if val is not None and isinstance(val, str):
                         try:

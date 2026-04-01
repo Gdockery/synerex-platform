@@ -18,9 +18,6 @@ export default function AdminDashboard() {
   const [loadingServices, setLoadingServices] = useState(true);
   const [servicesError, setServicesError] = useState(null);
   const [serviceActions, setServiceActions] = useState({}); // Track actions in progress
-  const [showLoginForm, setShowLoginForm] = useState(false);
-  const [loginError, setLoginError] = useState(null);
-  const [loginLoading, setLoginLoading] = useState(false);
   const navigate = useNavigate();
   const serviceIntervalRef = useRef(null);
   const POLL_INTERVAL_MS = 60000; // 60s - reduce load; pause when tab hidden via visibilitychange
@@ -61,25 +58,31 @@ export default function AdminDashboard() {
   };
   
   useEffect(() => {
-    // Check for token in URL (from login redirect) and store in localStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
-    
-    if (token) {
-      localStorage.setItem('session_token', token);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    
-    const tokenFromStorage = localStorage.getItem('session_token');
-    
-    if (tokenFromStorage) {
-      setIsAdmin(true);
-      setIsAuthenticated(true);
-      loadStats();
-      loadServices();
-    } else {
-      setShowLoginForm(true);
-    }
+    // Verify session via License Service server-side cookie.
+    // If not authenticated, redirect to the License Service admin login
+    // with return_url so we come back here after successful login.
+    fetch(`${LICENSE_SERVICE_URL}/admin/api/check-auth`, { credentials: 'include' })
+      .then(res => {
+        if (res.ok) {
+          setIsAdmin(true);
+          setIsAuthenticated(true);
+          loadStats();
+          loadServices();
+        } else {
+          // Not authenticated — redirect to License Service login
+          const returnUrl = window.location.origin + '/admin';
+          window.location.replace(
+            `${LICENSE_SERVICE_URL}/admin/login?return_url=${encodeURIComponent(returnUrl)}`
+          );
+        }
+      })
+      .catch(() => {
+        // Network error — redirect to login
+        const returnUrl = window.location.origin + '/admin';
+        window.location.replace(
+          `${LICENSE_SERVICE_URL}/admin/login?return_url=${encodeURIComponent(returnUrl)}`
+        );
+      });
   }, []);
 
   // Polling + visibility when authenticated (covers both token-from-storage and login-form flows)
@@ -265,7 +268,7 @@ export default function AdminDashboard() {
       console.error("Failed to logout:", err);
     } finally {
       localStorage.removeItem("session_token");
-      window.location.href = "/admin";
+      window.location.href = `${LICENSE_SERVICE_URL}/admin/login`;
     }
   };
   
@@ -705,76 +708,16 @@ export default function AdminDashboard() {
     }
   };
   
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const username = form.username?.value?.trim() || "";
-    const password = form.password?.value || "";
-    setLoginError(null);
-    setLoginLoading(true);
-    try {
-      const res = await fetch(`${LICENSE_SERVICE_URL}/admin/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, password }) });
-      const data = await res.json();
-      if (data.success && data.token) {
-        localStorage.setItem("session_token", data.token);
-        setShowLoginForm(false);
-        setIsAdmin(true);
-        setIsAuthenticated(true);
-        loadStats();
-        loadServices();
-      } else {
-        setLoginError(data.error || "Invalid credentials");
-      }
-    } catch (err) {
-      setLoginError(err.message || "Login failed");
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  if (showLoginForm && !isAuthenticated) {
+  if (!isAuthenticated || !isAdmin) {
+    // Show a brief loading state while the check-auth fetch is in flight.
+    // If not authenticated the useEffect will redirect to the License Service login.
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-100" style={{
+      <div className="min-h-screen flex items-center justify-center" style={{
         background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a8a 50%, #1e1b4b 100%)'
       }}>
-        <LicenseSeal />
-        <div className="bg-gray-900/90 rounded-xl p-8 w-full max-w-md border border-gray-700 shadow-xl">
-          <div className="flex flex-col items-center mb-6">
-            <img src="/images/synerex_logo.PNG" alt="Synerex" className="h-12 mb-3" />
-            <h1 className="text-2xl font-bold text-center text-white">Admin Login</h1>
-          </div>
-          <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="off">
-            {loginError && (
-              <div className="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm">
-                {loginError}
-              </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Username</label>
-              <input name="username" type="text" required autoComplete="off"
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">Password</label>
-              <input name="password" type="password" required autoComplete="new-password"
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:ring-2 focus:ring-purple-500" />
-            </div>
-            <button type="submit" disabled={loginLoading}
-              className="w-full py-2 px-4 bg-purple-500 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold rounded transition-colors">
-              {loginLoading ? "Logging in…" : "Login"}
-            </button>
-          </form>
-        </div>
+        <span className="text-gray-400 text-sm">Verifying session…</span>
       </div>
     );
-  }
-
-  if (!isAuthenticated || !isAdmin) {
-    return null;
   }
   
   return (

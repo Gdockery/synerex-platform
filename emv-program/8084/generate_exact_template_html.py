@@ -108,6 +108,15 @@ def safe_get(data, *keys, default=None):
     except:
         return default
 
+def safe_float(value, default=0):
+    """Safely convert a value to float, returning default on failure."""
+    if value is None or value == 'N/A' or value == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
 def format_number(value, decimals=2):
     """Safely format a number with specified decimal places"""
     try:
@@ -3638,7 +3647,7 @@ def generate_exact_template_html(r):
     # When ASHRAE relative precision fails but IPMVP statistical significance
     # passes, insert an explanatory note clarifying they measure different things.
     # Without this, a reviewer sees an apparent contradiction and loses confidence.
-    _d3_ashrae_fail  = not bool(ashrae_compliant)
+    _d3_ashrae_fail  = not bool(after_ashrae_compliant)
     _d3_ipmvp_pass   = bool(after_ipmvp_compliant)
     if _d3_ashrae_fail and _d3_ipmvp_pass:
         _d3_note = (
@@ -3792,7 +3801,7 @@ def generate_exact_template_html(r):
     _wn = safe_get(r, "weather_normalization", default={})
     wn_norm_applied   = safe_get(_wn, "normalization_applied")
     wn_ashrae_r2_pass = safe_get(_wn, "ashrae_compliant")          # True when R² ≥ 0.75
-    _rp_pass = bool(ashrae_compliant)  # relative_precision < 50% AND period ≥ min days
+    _rp_pass = bool(after_ashrae_compliant)  # relative_precision < 50% AND period ≥ min days
 
     # Status label
     if wn_norm_applied is True and wn_ashrae_r2_pass is True and _rp_pass:
@@ -9276,6 +9285,33 @@ def generate_exact_template_html(r):
                 )
                 _banner_html = _banner_html.rstrip('</div>') + _fin_caveat + '</div>'
 
+            # Wrap banner in a full-page container. The <style> block with
+            # @media print and !important is required because inline styles cannot
+            # target print media, and min-height:100vh is ignored by print engines.
+            _banner_html = (
+                '<style>'
+                '@media print {'
+                '  .synerex-blocking-page {'
+                '    page-break-after: always !important;'
+                '    break-after: page !important;'
+                '  }'
+                '}'
+                '</style>'
+                '<div class="synerex-blocking-page" style="'
+                'page-break-after: always;'
+                'break-after: page;'
+                'min-height: 100vh;'
+                'padding: 60px 48px 48px 48px;'
+                'background: #ffffff;'
+                'box-sizing: border-box;'
+                'display: flex;'
+                'flex-direction: column;'
+                'justify-content: center;'
+                '">'
+                + _banner_html
+                + '</div>'
+            )
+
             # Inject immediately after <body> tag so it is the very first thing seen
             if '<body' in template_content:
                 # Find end of opening <body ...> tag
@@ -9706,7 +9742,7 @@ def _build_blocking_banner(flags: list) -> str:
         f'A PE stamp does not override these requirements without a documented waiver for each issue.</div>'
     ) if blocking else ""
     return (
-        f'<div style="page-break-after:avoid;margin:0 0 24px 0;padding:16px 20px;'
+        f'<div style="page-break-inside:avoid;margin:0 0 24px 0;padding:16px 20px;'
         f'background:{header_bg};border:2.5px solid {header_color};border-radius:6px;'
         f'font-family:Arial,sans-serif;">'
         f'<div style="font-size:1.15em;font-weight:bold;color:{header_color};">{header_title}</div>'

@@ -2955,6 +2955,7 @@ CONFIG_DEFAULTS = {
     "xfmr_load_loss_w": 0.0,
     "xfmr_core_loss_w": 0.0,
     "xfmr_stray_fraction_pct": 20.0,
+    "xfmr_impedance_pct": 5.75,
     "kh_stray_factor": 0.5,
     # Electrical configuration
     "phases": 3,
@@ -14301,29 +14302,61 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
         # 5. IEEE 519-2014/2022 Compliance — TDD < IEEE 519 Limit (ISC/IL)
         # IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3:
         # TDD limits INCREASE with ISC/IL (stiffer grid → more lenient limit).
-        isc_kA = config.get("isc_kA", 0)
-        il_A = config.get("il_A", 0)
+        isc_kA = float(config.get("isc_kA", 0) or 0)
+        il_A   = float(config.get("il_A",   0) or 0)
+        isc_il_ratio = 0.0
+        _isc_il_source = "not calculated"
+
         if isc_kA > 0 and il_A > 0:
+            # Direct user-supplied values — most accurate
             isc_il_ratio = (isc_kA * 1000) / il_A
-            # Correct IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3 limits
-            if isc_il_ratio >= 1000:
-                ieee_tdd_limit = 20.0  # ISC/IL > 1000: TDD limit = 20.0%
-            elif isc_il_ratio >= 100:
-                ieee_tdd_limit = 15.0  # ISC/IL 100–1000: TDD limit = 15.0%
-            elif isc_il_ratio >= 50:
-                ieee_tdd_limit = 12.0  # ISC/IL 50–100: TDD limit = 12.0%
-            elif isc_il_ratio >= 20:
-                ieee_tdd_limit = 8.0   # ISC/IL 20–50: TDD limit = 8.0%
-            else:
-                ieee_tdd_limit = 5.0   # ISC/IL < 20: TDD limit = 5.0%
+            _isc_il_source = "user-supplied isc_kA / il_A"
         else:
-            ieee_tdd_limit = 5.0  # Default: most conservative limit (no ISC/IL data)
+            # Estimate ISC/IL from transformer nameplate data when direct values absent.
+            # ISC  = transformer rated current / (%Z/100)  [short-circuit current at PCC]
+            # IL   = maximum demand load current — use metered avgAmp if available,
+            #        otherwise fall back to 60% of transformer rated current (typical
+            #        commercial loading factor per ASHRAE 90.1 / CBECS 2018).
+            _xfmr_kva  = float(config.get("xfmr_kva", 0) or 0)
+            _v_nom     = float(config.get("voltage_nominal", 480) or 480)
+            _z_pct     = float(config.get("xfmr_impedance_pct", 5.75) or 5.75) / 100.0
+            _phases    = int(config.get("phases", 3) or 3)
+
+            if _xfmr_kva > 0 and _v_nom > 0 and _z_pct > 0:
+                _rated_A = (_xfmr_kva * 1000) / ((_v_nom * 1.732) if _phases == 3 else _v_nom)
+                _isc_A   = _rated_A / _z_pct
+                _isc_kA_est = _isc_A / 1000.0
+
+                # Use metered average current as IL if available; else 60% of rated
+                avg_amp_est = float(data.get("avgAmp", {}).get("mean", 0) or 0)
+                _il_A_est = avg_amp_est if avg_amp_est > 0 else (_rated_A * 0.60)
+
+                isc_kA = _isc_kA_est
+                il_A   = _il_A_est
+                isc_il_ratio = (_isc_A / _il_A_est) if _il_A_est > 0 else 0.0
+                _isc_il_source = (
+                    f"estimated from xfmr_kva={_xfmr_kva} kVA, Z={_z_pct*100:.2f}%, "
+                    f"IL={'metered avgAmp' if avg_amp_est > 0 else '60% rated'}"
+                )
+
+        # IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3 TDD limits
+        if isc_il_ratio >= 1000:
+            ieee_tdd_limit = 20.0
+        elif isc_il_ratio >= 100:
+            ieee_tdd_limit = 15.0
+        elif isc_il_ratio >= 50:
+            ieee_tdd_limit = 12.0
+        elif isc_il_ratio >= 20:
+            ieee_tdd_limit = 8.0
+        elif isc_il_ratio > 0:
+            ieee_tdd_limit = 5.0
+        else:
+            ieee_tdd_limit = 5.0  # Conservative default when no data at all
 
         # IEEE 519 requires TDD = √(ΣIₕ²) / I_L (maximum demand load current).
         # The CSV avgTHD column is THD = √(ΣIₕ²) / I₁ (instantaneous fundamental).
-        # When il_A is entered, scale THD → TDD by the loading ratio (I₁_mean / I_L).
-        # This is conservative (I₁_mean ≤ I_L) and correctly reduces THD to TDD.
-        avg_amp = data.get("avgAmp", {}).get("mean", 0)
+        # When il_A is known, scale THD → TDD by the loading ratio (I₁_mean / I_L).
+        avg_amp = float(data.get("avgAmp", {}).get("mean", 0) or 0)
         if il_A > 0 and avg_amp > 0 and avg_amp < il_A:
             tdd = thd * (avg_amp / il_A)
         else:
@@ -14343,7 +14376,8 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                     "isc_kA": isc_kA,
                     "il_A": il_A,
                     "avg_amp": avg_amp,
-                    "isc_il_ratio": isc_il_ratio if (isc_kA > 0 and il_A > 0) else 0,
+                    "isc_il_ratio": isc_il_ratio,
+                    "isc_il_source": _isc_il_source,
                     "period": period
                 },
                 output_values={
@@ -15513,15 +15547,26 @@ def perform_comprehensive_analysis(
                 # Calculate short-circuit current (ISC = Rated Current / Impedance)
                 isc_kA = (rated_current / transformer_impedance) / 1000  # Convert to kA
 
-                # For ISC/IL ratio calculation, use rated current (not actual load current)
-                # This gives a more realistic ISC/IL ratio for IEEE 519 compliance
-                il_A = rated_current
+                # IL = maximum demand load current (IEEE 519-2022 §2.23).
+                # Prefer actual metered average current from the before period; fall
+                # back to 60 % of transformer rated current (conservative commercial
+                # loading per ASHRAE 90.1 / CBECS 2018) rather than 100 % rated,
+                # which over-suppresses the ISC/IL ratio and forces the 5 % limit.
+                _avg_amp_pq = 0.0
+                try:
+                    _avg_amp_pq = float(
+                        (before_data or {}).get("avgAmp", {}).get("mean", 0) or 0
+                    )
+                except Exception:
+                    _avg_amp_pq = 0.0
+                il_A = _avg_amp_pq if _avg_amp_pq > 0 else (rated_current * 0.60)
 
                 logger.info(
                     f"Power quality analysis - Auto-calculated ISC/IL: transformer_kva={transformer_kva}, voltage={voltage_nominal}, impedance={transformer_impedance*100:.1f}%"
                 )
                 logger.info(
-                    f"Power quality analysis - Auto-calculated: rated_current={rated_current:.1f}A, isc_kA={isc_kA:.1f}kA, il_A={il_A:.1f}A"
+                    f"Power quality analysis - Auto-calculated: rated_current={rated_current:.1f}A, isc_kA={isc_kA:.1f}kA, "
+                    f"il_A={il_A:.1f}A (source: {'metered avg' if _avg_amp_pq > 0 else '60% rated'})"
                 )
             else:
                 logger.warning(
