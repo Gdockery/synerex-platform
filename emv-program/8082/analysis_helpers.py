@@ -309,41 +309,67 @@ def cross_check_document_consistency(results_data):
         "weather_adjustment_factor"
     ]
 
-    # Check for missing critical values (include current value and location so UI shows where to fix)
-    for metric in critical_metrics:
-        current_val = metrics.get(metric)
-        if current_val == 0.0 or current_val is None:
-            location = METRIC_LOCATION.get(metric, "Analysis Results or input form")
-            correct_msg = f"Enter a non-zero value in \"{location}\", then re-run analysis."
-            discrepancies.append({
-                "metric": metric,
-                "issue": "Missing or zero value",
-                "severity": "HIGH",
-                "document_impact": "All documents",
-                "current_value": current_val if current_val is not None else "Missing",
-                "correct_value": correct_msg,
-                "location": location,
-            })
-    
-    # Verify weather adjustment factor calculation (include actual vs expected for UI)
-    if metrics["normalized_kw_after"] > 0 and metrics["kw_after_avg"] > 0:
-        expected_factor = metrics["normalized_kw_after"] / metrics["kw_after_avg"] if metrics["kw_after_avg"] > 0 else 0
-        actual_factor = metrics["weather_adjustment_factor"]
-        if abs(expected_factor - actual_factor) > 0.001:  # 0.1% tolerance for rounding
-            discrepancies.append({
-                "metric": "weather_adjustment_factor",
-                "issue": f"Factor mismatch: expected {expected_factor:.6f}, got {actual_factor:.6f}",
-                "severity": "HIGH",
-                "document_impact": "Analysis, Audit, Utility Submission",
-                "current_value": actual_factor,
-                "correct_value": round(expected_factor, 6),
-                "location": METRIC_LOCATION.get("weather_adjustment_factor", "Weather Normalization Settings"),
-            })
+    # Detect whether weather normalization was applicable for this project.
+    # normalization_applied=False is set explicitly by the analysis engine when
+    # temperature differences are too small, no weather data is available, or
+    # the project type does not require weather normalization.
+    # None means the key is absent (analysis not run yet) — treat conservatively.
+    _wn_applied = weather_normalization.get("normalization_applied", None)
+    weather_norm_skipped = _wn_applied is False
+
+    if weather_norm_skipped:
+        # Weather normalization is not applicable — record an informational note
+        # but do NOT raise a HIGH/MEDIUM discrepancy that would cause a FAILED status.
+        _wn_reason = weather_normalization.get("reason") or weather_normalization.get("skip_reason") or \
+                     "Temperature difference between periods is below the ASHRAE Guideline 14 threshold, or no weather data available."
+        discrepancies.append({
+            "metric": "weather_normalization",
+            "issue": f"Weather normalization not applicable for this project — {_wn_reason}",
+            "severity": "INFO",
+            "document_impact": "None — weather normalization was not required",
+            "current_value": "N/A",
+            "correct_value": "N/A",
+            "location": "Weather Normalization Settings",
+        })
+    else:
+        # Check for missing critical weather-normalized values
+        for metric in critical_metrics:
+            current_val = metrics.get(metric)
+            if current_val == 0.0 or current_val is None:
+                location = METRIC_LOCATION.get(metric, "Analysis Results or input form")
+                correct_msg = f"Enter a non-zero value in \"{location}\", then re-run analysis."
+                discrepancies.append({
+                    "metric": metric,
+                    "issue": "Missing or zero value",
+                    "severity": "HIGH",
+                    "document_impact": "All documents",
+                    "current_value": current_val if current_val is not None else "Missing",
+                    "correct_value": correct_msg,
+                    "location": location,
+                })
+
+        # Verify weather adjustment factor calculation
+        if metrics["normalized_kw_after"] > 0 and metrics["kw_after_avg"] > 0:
+            expected_factor = metrics["normalized_kw_after"] / metrics["kw_after_avg"] if metrics["kw_after_avg"] > 0 else 0
+            actual_factor = metrics["weather_adjustment_factor"]
+            if abs(expected_factor - actual_factor) > 0.001:  # 0.1% tolerance for rounding
+                discrepancies.append({
+                    "metric": "weather_adjustment_factor",
+                    "issue": f"Factor mismatch: expected {expected_factor:.6f}, got {actual_factor:.6f}",
+                    "severity": "HIGH",
+                    "document_impact": "Analysis, Audit, Utility Submission",
+                    "current_value": actual_factor,
+                    "correct_value": round(expected_factor, 6),
+                    "location": METRIC_LOCATION.get("weather_adjustment_factor", "Weather Normalization Settings"),
+                })
     
     # Determine tie-out status
     high_severity_count = sum(1 for d in discrepancies if d.get("severity") == "HIGH")
     medium_severity_count = sum(1 for d in discrepancies if d.get("severity") == "MEDIUM")
-    
+    info_count = sum(1 for d in discrepancies if d.get("severity") == "INFO")
+    # Only count actual issues (not INFO notes) toward the status decision
+    real_discrepancy_count = sum(1 for d in discrepancies if d.get("severity") not in ("INFO",))
+
     if high_severity_count > 0:
         consistency_status = "FAILED - DOES NOT TIE OUT"
         tie_out_status = "FAILED"
@@ -352,7 +378,7 @@ def cross_check_document_consistency(results_data):
         consistency_status = "WARNING - REVIEW REQUIRED"
         tie_out_status = "WARNING"
         audit_compliance = "WARNING"
-    elif len(discrepancies) > 0:
+    elif real_discrepancy_count > 0:
         consistency_status = "MINOR ISSUES"
         tie_out_status = "PASSED_WITH_WARNINGS"
         audit_compliance = "PASSED_WITH_WARNINGS"
@@ -380,11 +406,13 @@ def cross_check_document_consistency(results_data):
         "audit_compliance": audit_compliance,
         "metrics": metrics,
         "discrepancies": discrepancies,
+        "weather_normalization_applicable": not weather_norm_skipped,
         "summary": {
             "total_metrics_checked": len(metrics),
-            "discrepancies_found": len(discrepancies),
+            "discrepancies_found": real_discrepancy_count,
             "high_severity": high_severity_count,
-            "medium_severity": medium_severity_count
+            "medium_severity": medium_severity_count,
+            "info_notes": info_count,
         },
         "timestamp": datetime.now().isoformat(),
         "project_name": project_name or None

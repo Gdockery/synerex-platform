@@ -2583,8 +2583,17 @@ function loadProject(selectOverride) {
           if (input) {
             if (input.type === 'checkbox') {
               input.checked = Boolean(projectData[key]);
+              // Fire change so inline handlers (manual_mode, show_dollars, etc.) update conditional sections
+              input.dispatchEvent(new Event('change', { bubbles: true }));
             } else if (input.type !== 'file') {
               input.value = projectData[key] || '';
+              // Dispatch change so onchange handlers and conditional UI sections
+              // (show/hide logic for weather, billing, manual mode, harmonics, etc.)
+              // all fire correctly after programmatic value restoration.
+              if (input.type === 'date' || input.type === 'tel' ||
+                  input.tagName === 'SELECT') {
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+              }
             }
             loadedCount++;
             loadedFields.push(key);
@@ -2655,6 +2664,12 @@ function loadProject(selectOverride) {
         }
         if (typeof window.updateCpProfilesDisplay === 'function') {
           window.updateCpProfilesDisplay();
+        }
+
+        // Recalculate IEEE 519 testing parameters now that transformer fields are restored.
+        // This overwrites any stale il_A / isc_kA values that were saved in the project.
+        if (typeof calculateTestingParameters === 'function') {
+          calculateTestingParameters();
         }
 
         showNotification(`Project loaded successfully! (${loadedCount} fields loaded)`);
@@ -5655,7 +5670,7 @@ async function viewEquipmentHealthReport(r) {
               <div style="padding: 10px; background: #f8f9fa; border-radius: 4px;">
                 <strong>Harmonic THD:</strong><br/>
                 <span style="font-size: 18px;">${Number(eq.harmonic_thd).toFixed(2)}%</span>
-                ${eq.harmonic_thd > 5.0 ? '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Elevated</span>' : ''}
+                ${eq.harmonic_thd > (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '<span style="color: #dc3545; margin-left: 5px;">[WARNING] Elevated</span>' : ''}
               </div>
               ` : ''}
               ${eq.power_factor !== null && eq.power_factor !== undefined && !isNaN(eq.power_factor) ? `
@@ -5741,19 +5756,19 @@ async function viewEquipmentHealthReport(r) {
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${thdBefore > 5 ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${thdBefore > (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${thdAfter > 5 ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${thdAfter > (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(thdImprovement) > 0 ? '#28a745' : '#dc3545'};">${(function() { var thd = parseFloat(thdImprovement); return thd > 0 ? '+' : ''; })()}${thdImprovement}%</div>
               </div>
             </div>
-            <div style="margin-top: 10px; padding: 10px; background: ${thdAfter <= 5 ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
-              <strong>IEEE 519 Compliance:</strong> ${thdAfter <= 5 ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: 5.0% for general systems)
+            <div style="margin-top: 10px; padding: 10px; background: ${thdAfter <= (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
+              <strong>IEEE 519 Compliance:</strong> ${thdAfter <= (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: ${(r?.power_quality?.ieee_tdd_limit ?? 5.0).toFixed(1)}% based on ISC/IL ratio)
             </div>
           </div>
         `;
@@ -5954,11 +5969,11 @@ async function viewEquipmentHealthReport(r) {
       const isPerOrderMode = harmonicMode === 'per_order_spectrum';
 
       // Per-order mode: must have individual_harmonics_compliant AND (tdd or thd) pass.
-      // THD-aggregate mode: aggregate THD ≤ 5% only — but we do NOT call this full compliance.
-      const thdAggPass = thdAfter !== null && thdAfter <= 5.0;
+      // THD-aggregate mode: aggregate THD ≤ ieee_tdd_limit — but we do NOT call this full compliance.
+      const tddLimit = r?.power_quality?.ieee_tdd_limit ?? 5.0;
+      const thdAggPass = thdAfter !== null && thdAfter <= tddLimit;
       const perOrderPass = r?.power_quality?.individual_harmonics_compliant === true;
       const tddAfter = r?.power_quality?.tdd_after ?? null;
-      const tddLimit = r?.power_quality?.ieee_tdd_limit ?? 5.0;
       const tddPass = tddAfter !== null ? tddAfter <= tddLimit : null;
 
       // ieee519Compliant: true only when per-order mode AND all checks pass
@@ -6128,25 +6143,25 @@ async function viewEquipmentHealthReport(r) {
                       <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rowColor};">${rowLabel}</td>
                     </tr>`;
                   } else {
-                    // THD-aggregate mode: amber/informational, NOT a definitive compliance call
-                    const rowBg  = ieee519ThdSoftPass ? '#fff3cd' : '#f8d7da';
-                    const rowCol = ieee519ThdSoftPass ? '#856404' : '#dc3545';
+                    // THD-aggregate mode: green when within ISC/IL limit, red when exceeding it
+                    const rowBg  = ieee519ThdSoftPass ? '#d4edda' : '#f8d7da';
+                    const rowCol = ieee519ThdSoftPass ? '#28a745' : '#dc3545';
                     const rowLbl = ieee519ThdSoftPass
-                      ? '[~] THD ≤5% — Aggregate Basis Only'
-                      : '[ERROR] THD > 5% — Aggregate Exceeds Limit';
+                      ? `[OK] THD ≤${tddLimit.toFixed(1)}% — Within ISC/IL Limit`
+                      : `[ERROR] THD > ${tddLimit.toFixed(1)}% — Exceeds ISC/IL Limit`;
                     return `<tr style="background: ${rowBg};">
                       <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE 519-2022</strong><br/><span style="font-size: 12px; color: #666;">Aggregate THD Only</span></td>
                       <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">THD (aggregate)</td>
                       <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdBefore !== null ? thdBefore.toFixed(2) + '%' : 'N/A'}</td>
                       <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${thdAfter !== null ? thdAfter.toFixed(2) + '%' : 'N/A'}</td>
-                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤5.0% (agg.)</td>
+                      <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≤${tddLimit.toFixed(1)}% (ISC/IL)</td>
                       <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${rowCol};">${rowLbl}</td>
                     </tr>
-                    <tr style="background: #fff3cd;">
-                      <td colspan="6" style="padding: 8px 12px; border: 1px solid #ddd; font-size: 12px; color: #856404;">
-                        &#9888; <strong>Not Utility-Submittable:</strong> Per-order limits (Table 2), K-factor derating (IEEE C57.110-2018), and TDD 
-                        require per-order harmonic spectrum data. Switch to <em>Per-Order Spectrum mode</em> in Project Settings 
-                        once the meter firmware upgrade is installed to obtain a definitive IEEE 519-2022 compliance determination.
+                    <tr style="background: #e8f5e9;">
+                      <td colspan="6" style="padding: 8px 12px; border: 1px solid #ddd; font-size: 12px; color: #2e7d32;">
+                        &#8505; <strong>Note:</strong> Aggregate THD is within the ISC/IL-based TDD limit (${tddLimit.toFixed(1)}%). 
+                        For a fully itemised IEEE 519-2022 per-order harmonic assessment (Table 2 individual limits + K-factor derating per IEEE C57.110-2018), 
+                        export per-order harmonic spectrum data (H3%, H5%, H7%…) from the meter and switch to <em>Per-Order Spectrum mode</em> in Project Settings.
                       </td>
                     </tr>`;
                   }
@@ -6410,11 +6425,11 @@ async function viewEquipmentHealthReport(r) {
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">FFT-based analysis</td>
                 </tr>
                 ` : ''}
-                <tr style="background: ${ieeeC57Applied ? '#d4edda' : '#f8d7da'};">
+                <tr style="background: ${ieeeC57Applied ? '#d4edda' : '#fff3cd'};">
                   <td style="padding: 10px; border: 1px solid #ddd;"><strong>IEEE C57.110-2018</strong><br/><span style="font-size: 12px; color: #666;">Transformer Loss Calculation</span></td>
                   <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">Methodology Applied</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieeeC57Applied ? '#28a745' : '#dc3545'};">${ieeeC57Applied ? '[OK] PASS' : '[ERROR] FAIL'}</td>
-                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${ieeeC57Method}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ${ieeeC57Applied ? '#28a745' : '#856404'};">${ieeeC57Applied ? '[OK] PASS' : '[~] Estimated'}</td>
+                  <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${ieeeC57Method}${!ieeeC57Applied ? ' — K-factor derating requires per-order spectrum' : ''}</td>
                 </tr>
               </tbody>
             </table>
@@ -7057,40 +7072,61 @@ function calculateTestingParameters() {
   const isc_A  = ratedCurrent_A / zPU;
   const isc_kA = isc_A / 1000;   // convert A to kA
 
-  // IL: use transformer rated current as the conservative upper-bound reference.
-  // The user should override this with the actual 15/30-min peak demand
-  // current from the meter data or utility demand bill (IEEE 519-2022 definition).
-  // Preserve any value the user has already typed in.
+  // IL: IEEE 519-2022 defines IL as the maximum demand load current.
+  // Priority: (1) plausible user entry, (2) cached peak from last analysis, (3) transformer rated current.
+  // "Plausible" = at least 5% of the transformer rated current (avoids passing through stale defaults like 1 A).
   const existingIL = ilInput ? parseFloat(ilInput.value || "0") : 0;
-  const il_A = (existingIL > 0) ? existingIL : ratedCurrent_A;
+  const cachedIL   = window._ilAutoFromAnalysis || 0;
+  const ilPlausible = ratedCurrent_A > 0 && existingIL >= ratedCurrent_A * 0.05;
+  let il_A;
+  if (existingIL > 0 && ilPlausible) {
+    // User has entered a reasonable value — respect it
+    il_A = existingIL;
+  } else if (cachedIL > 0) {
+    // Stale/missing field — use peak demand from last analysis run
+    il_A = cachedIL;
+    if (ilInput) ilInput.value = cachedIL.toFixed(0);
+  } else {
+    // No analysis data yet — fall back to transformer rated current
+    il_A = ratedCurrent_A;
+    if (ilInput) ilInput.value = ratedCurrent_A.toFixed(0);
+  }
 
   // Always update ISC (auto-calculated from transformer data)
   if (iscInput) iscInput.value = isc_kA.toFixed(2);
-
-  // Only write IL if the field is empty — don't overwrite a user entry
-  if (ilInput && existingIL === 0) ilInput.value = ratedCurrent_A.toFixed(0);
+  // IL field is already written above in all three branches
 
   // ISC/IL ratio and TDD limit (IEEE 519-2022 Table 2)
   const iscIlRatio = isc_A / il_A;
   let tddLimit, tddCategory;
   if (iscIlRatio >= 1000) {
-    tddLimit = "5.0%";  tddCategory = "ISC/IL ≥ 1000";
+    tddLimit = "20.0%"; tddCategory = "ISC/IL ≥ 1000";
   } else if (iscIlRatio >= 100) {
-    tddLimit = "8.0%";  tddCategory = "ISC/IL 100–1000";
+    tddLimit = "15.0%"; tddCategory = "ISC/IL 100–1000";
+  } else if (iscIlRatio >= 50) {
+    tddLimit = "12.0%"; tddCategory = "ISC/IL 50–100";
   } else if (iscIlRatio >= 20) {
-    tddLimit = "12.0%"; tddCategory = "ISC/IL 20–100";
+    tddLimit = "8.0%";  tddCategory = "ISC/IL 20–50";
   } else {
-    tddLimit = "15.0%"; tddCategory = "ISC/IL < 20";
+    tddLimit = "5.0%";  tddCategory = "ISC/IL < 20";
   }
 
   if (resultSpan) {
+    // Warn only if the user has manually entered an implausibly small IL value
+    // (i.e. it survived the plausibility check above, meaning existingIL was >= 5% rated,
+    // but it still looks very low — e.g. rated current calculation not yet available).
+    const ilWarning = (ilPlausible && ratedCurrent_A > 0 && il_A < ratedCurrent_A * 0.05)
+      ? `  ⚠️ IL (${il_A.toFixed(1)} A) is very low vs transformer rated current (${ratedCurrent_A.toFixed(0)} A) — please verify the IL field reflects your actual 15/30-min peak demand current.`
+      : "";
+
     resultSpan.textContent =
       "Isc = " + isc_kA.toFixed(2) + " kA  |  " +
       "IL = " + il_A.toFixed(0) + " A  |  " +
       "ISC/IL = " + iscIlRatio.toFixed(1) + " (" + tddCategory + ")  →  " +
-      "IEEE 519 TDD limit = " + tddLimit;
-    resultSpan.style.background = "#e8f5e9";
-    resultSpan.style.color = "#1b5e20";
+      "IEEE 519 TDD limit = " + tddLimit +
+      ilWarning;
+    resultSpan.style.background = ilWarning ? "#fff3cd" : "#e8f5e9";
+    resultSpan.style.color      = ilWarning ? "#7c4a00" : "#1b5e20";
   }
 }
 
@@ -7730,8 +7766,8 @@ function displayResults(r) {
   html += `<tr>
                 <td>IEEE C57.110</td>
                 <td>Transformer Loss Calculation</td>
-                <td class="${ieeeC57Applied ? 'compliant' : 'non-compliant'}">${ieeeC57Applied ? '[PASS] PASS' : '[FAIL] FAIL'}</td>
-                <td class="value-cell">${ieeeC57Method}</td>
+                <td class="${ieeeC57Applied ? 'compliant' : 'estimated'}">${ieeeC57Applied ? '[PASS] PASS' : '[~] Estimated'}</td>
+                <td class="value-cell">${ieeeC57Method}${!ieeeC57Applied ? ' — K-factor derating requires per-order spectrum' : ''}</td>
             </tr>`;
 
   // ISO 50001 - Energy Management Systems
@@ -8869,21 +8905,28 @@ function displayResults(r) {
       }
     }
 
-    // Auto-suggest IL from analysis mean current if the field is empty.
-    // IL = max demand current (IEEE 519-2022). Mean current is a reasonable
-    // lower bound; user should confirm against the meter peak demand reading.
+    // Auto-populate IL from peak demand current in analysis results.
+    // IEEE 519-2022 defines IL as the maximum demand load current (peak 15/30-min interval),
+    // so we use current_before_peak / current_after_peak when available, falling back to mean.
+    // We always update the field so stale/default values (e.g. 1 A) get replaced.
     (function() {
       const ilInput = document.querySelector("input[name='il_A']");
-      if (!ilInput || parseFloat(ilInput.value || "0") > 0) return;
+      if (!ilInput) return;
+      const peakBefore = parseFloat(powerQuality.current_before_peak || 0);
+      const peakAfter  = parseFloat(powerQuality.current_after_peak  || 0);
       const meanBefore = parseFloat(powerQuality.current_before || 0);
       const meanAfter  = parseFloat(powerQuality.current_after  || 0);
-      const suggested  = Math.max(meanBefore, meanAfter);
+      const peakSuggested = Math.max(peakBefore, peakAfter);
+      const meanSuggested = Math.max(meanBefore, meanAfter);
+      const suggested = peakSuggested > 0 ? peakSuggested : meanSuggested;
       if (suggested > 0) {
         ilInput.value = suggested.toFixed(0);
+        window._ilAutoFromAnalysis = suggested;
         const resultSpan = document.getElementById("testing_calc_result");
         if (resultSpan) {
+          const sourceLabel = peakSuggested > 0 ? "peak demand" : "mean demand";
           resultSpan.textContent =
-            "IL auto-set from analysis (" + suggested.toFixed(0) + " A mean demand). " +
+            "IL auto-set from analysis (" + suggested.toFixed(0) + " A " + sourceLabel + "). " +
             "Click “Calculate Testing Parameters” to update ISC/IL ratio, " +
             "or enter the actual 15/30-min peak demand current for a more accurate limit.";
           resultSpan.style.background = "#fff3cd";
@@ -12079,7 +12122,7 @@ Stray/eddy components increase with harmonic order; when used, we weight by h².
     btnDocumentSync.disabled = false;
     btnDocumentSync.onclick = function() {
       // Navigate to Document Sync Console in the same window
-      window.location.href = '/document-sync-console';
+      window.location.href = (window.SYNEREX_EMV_BASE || '') + '/document-sync-console';
     };
   }
 
@@ -16138,10 +16181,9 @@ function updateHarmonicModeUI(mode) {
     helpEl.style.background    = '#fff3cd';
     helpEl.style.borderColor   = '#ffc107';
     helpEl.style.color         = '#856404';
-    helpEl.innerHTML = '<strong>THD-Aggregate Mode:</strong> IEEE 519 compliance is assessed on aggregate THD only (≤5.0%). ' +
-      'Per-order limits (IEEE 519 Table 2), K-factor derating (IEEE C57.110-2018), and TDD cannot be verified with this meter capability. ' +
-      'The compliance badge in reports will read <em>"THD ≤ 5% — Aggregate Basis Only"</em> rather than a definitive PASS/FAIL. ' +
-      'Switch to Per-Order Spectrum mode once the meter firmware upgrade is installed.';
+    helpEl.innerHTML = '<strong>THD-Aggregate Mode:</strong> IEEE 519 compliance is assessed using aggregate THD against the ISC/IL-based TDD limit. ' +
+      'For a fully itemised per-order assessment (IEEE 519 Table 2 individual limits + K-factor derating per IEEE C57.110-2018), ' +
+      'export per-order harmonic spectrum data (H3%, H5%, H7%…) from the meter and switch to <em>Per-Order Spectrum mode</em> in Project Settings.';
     specEl.style.display = 'none';
   }
 }

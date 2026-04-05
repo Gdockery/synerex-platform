@@ -301,6 +301,23 @@
           </select>
           <div class="help">Controls how rates & totals are displayed</div>
         </div>
+        <div class="field">
+          <label>Facility / Project Type</label>
+          <select name="project_type" id="project-type">
+            <option value="" selected>-- Select type --</option>
+            <option value="manufacturing">Manufacturing</option>
+            <option value="cold_storage">Cold Storage / Refrigeration</option>
+            <option value="data_center">Data Center</option>
+            <option value="healthcare">Healthcare</option>
+            <option value="hospitality">Hospitality</option>
+            <option value="commercial">Commercial / Office</option>
+            <option value="industrial">Industrial</option>
+            <option value="food_beverage">Food &amp; Beverage</option>
+            <option value="warehouse">Warehouse / Distribution</option>
+            <option value="other">Other</option>
+          </select>
+          <div class="help">Facility type used in audit reports and compliance documentation</div>
+        </div>
       </div>
     </div>
 
@@ -1423,8 +1440,8 @@
             <input type="number" name="alpha_conductor_i2r" value="0.00393" step="0.00001" />
           </div>
           <div>
-            <label for="wire_temp_mode">Wire Temperature Mode</label>
-            <select name="wire_temp_mode_i2r" id="wire_temp_mode">
+            <label for="wire_temp_mode_i2r_select">Wire Temperature Mode</label>
+            <select name="wire_temp_mode_i2r" id="wire_temp_mode_i2r_select">
               <option value="ambient_rise" selected>Ambient + Fixed Rise (default)</option>
               <option value="fixed_60">Conservative Audit: Fixed 60 °C</option>
             </select>

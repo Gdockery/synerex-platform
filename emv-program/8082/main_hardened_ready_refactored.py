@@ -2261,7 +2261,7 @@ class WeatherServiceClient:
                     response = self.session.post(
                         f"{self.weather_service_url}/weather/batch", 
                         json=payload, 
-                        timeout=30
+                        timeout=120
                     )
                     response.raise_for_status()
                     break
@@ -36433,7 +36433,9 @@ def stage_utility_package():
     try:
         org_id = get_current_org_id(request)
         if not org_id:
-            return jsonify({"error": "Organization ID required. Please log in again."}), 401
+            # No session token — use a default org so the tool still works for
+            # unauthenticated / direct-access users of the legacy interface.
+            org_id = "default"
         data = request.get_json(silent=True) or {}
         results_data = data.get("results_data") or getattr(app, "_latest_analysis_results", None)
         if not results_data:
@@ -36470,7 +36472,7 @@ def download_staged_utility():
     try:
         org_id = get_current_org_id(request)
         if not org_id:
-            return jsonify({"error": "Organization ID required."}), 401
+            org_id = "default"
         _ensure_staging_storage()
         path = app._staged_utility_paths.get(org_id)
         if not path or not os.path.exists(path):
@@ -37690,7 +37692,8 @@ def admin_panel():
                 return r
 
             # Add Document Sync Console button - place it right after Force Data Sync button
-            document_sync_button = '<a href="/document-sync-console" class="admin-button" style="text-decoration: none; display: inline-block; background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 10px 20px; border-radius: 5px; margin: 5px; font-weight: bold;">📊 Document Sync Console</a>'
+            _sb = _static_base() or ""
+            document_sync_button = f'<a href="{_sb}/document-sync-console" class="admin-button" style="text-decoration: none; display: inline-block; background: linear-gradient(135deg, #1a237e, #283593); color: white; padding: 10px 20px; border-radius: 5px; margin: 5px; font-weight: bold;">📊 Document Sync Console</a>'
             
             # Try to find and insert right after Force Data Sync button
             # Look for the exact button pattern
@@ -37983,7 +37986,8 @@ def admin_panel():
                                 setRestartBusy(true);
                                 const urlParams = new URLSearchParams(window.location.search);
                                 const sessionToken = urlParams.get('session_token');
-                                const restartUrl = sessionToken ? '/admin/restart-all-services?session_token=' + encodeURIComponent(sessionToken) : '/admin/restart-all-services';
+                                const _emvBase = window.location.pathname.startsWith('/emv') ? '/emv' : '';
+                                const restartUrl = sessionToken ? _emvBase + '/admin/restart-all-services?session_token=' + encodeURIComponent(sessionToken) : _emvBase + '/admin/restart-all-services';
                                 const headers = {{ 'Content-Type': 'application/json' }};
                                 if (sessionToken) headers['X-Session-Token'] = sessionToken;
                                 const r = await fetch(restartUrl, {{
@@ -38419,7 +38423,7 @@ def system_status_page():
         <div class="status-section">
             <h2>📊 Document Sync Console</h2>
             <p>Verify and sync HTML Reports, Audit documents, and Utility Submission documents to ensure consistency across all documents.</p>
-            <button class="btn-status" onclick="window.location.href='/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
+            <button class="btn-status" onclick="window.location.href=(window.SYNEREX_EMV_BASE||'')+'/document-sync-console'" style="background: linear-gradient(135deg, #1a237e, #283593);">Open Document Sync Console</button>
         </div>
 
         <div class="status-section">
@@ -38576,6 +38580,7 @@ def document_sync_console():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Sync Console - SYNEREX</title>
     <link rel="stylesheet" href="{{ static_base }}/static/main_dashboard.css?v={{ cache_bust }}">
+    <script>window.SYNEREX_EMV_BASE = '{{ static_base }}';</script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -38706,6 +38711,10 @@ def document_sync_console():
             background: #6c757d;
             color: white;
         }
+        .badge-info {
+            background: #2196f3;
+            color: white;
+        }
         .metrics-table {
             width: 100%;
             border-collapse: collapse;
@@ -38739,6 +38748,10 @@ def document_sync_console():
         .discrepancy-item.medium {
             background: #fff3cd;
             border-left-color: #ffc107;
+        }
+        .discrepancy-item.info {
+            background: #e3f2fd;
+            border-left-color: #2196f3;
         }
         .loading {
             display: inline-block;
@@ -38929,14 +38942,14 @@ def document_sync_console():
             <button class="btn-secondary" id="btnStageUtility" onclick="stageUtilityPackage()" title="Generate Utility package to staging for review, then download via button below">
                 📦 Stage Utility for Review
             </button>
-            <a class="btn-secondary" id="btnDownloadStagedUtility" href="/api/download-staged-utility" style="display: none;" download>⬇ Download Staged Utility Zip</a>
-            <button class="btn-secondary" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='/main-dashboard'; }">
+            <a class="btn-secondary" id="btnDownloadStagedUtility" href="{{ static_base }}/api/download-staged-utility" style="display: none;" download>⬇ Download Staged Utility Zip</a>
+            <button class="btn-secondary" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{{ static_base }}/main-dashboard'; }">
                 ← Back
             </button>
-            <button class="btn-secondary" onclick="window.location.href='/documentation'" style="background: #007bff;">
+            <button class="btn-secondary" onclick="window.location.href='{{ static_base }}/documentation'" style="background: #007bff;">
                 📖 Documentation
             </button>
-            <button class="btn-secondary" onclick="window.location.href='/system-status'" style="background: #17a2b8;">
+            <button class="btn-secondary" onclick="window.location.href='{{ static_base }}/system-status'" style="background: #17a2b8;">
                 📊 System Status
             </button>
             <div id="loadingIndicator" class="hidden" style="margin-top: 15px;">
@@ -38997,6 +39010,8 @@ def document_sync_console():
             <h2 class="section-title">Discrepancies Found</h2>
             <div id="discrepanciesList"></div>
         </div>
+
+        <div id="infoNotesSection" style="display:none;"></div>
     </div>
 
     <script>
@@ -39095,7 +39110,7 @@ def document_sync_console():
                 if (fieldTarget && fieldTarget.fieldId && fieldTarget.section === 'input') {
                     actions.push({
                         text: `✏️ Go to ${fieldTarget.label}`,
-                        url: "/legacy",
+                        url: "{{ static_base }}/legacy",
                         action: "goToField",
                         fieldId: fieldTarget.fieldId,
                         fieldName: fieldTarget.fieldName,
@@ -39104,7 +39119,7 @@ def document_sync_console():
                 } else if (fieldTarget && fieldTarget.fieldId && fieldTarget.section === 'file') {
                     actions.push({
                         text: `📁 Go to ${fieldTarget.label}`,
-                        url: "/legacy",
+                        url: "{{ static_base }}/legacy",
                         action: "goToField",
                         fieldId: fieldTarget.fieldId,
                         fieldName: fieldTarget.fieldName,
@@ -39115,7 +39130,7 @@ def document_sync_console():
                 // Always add "Go to Analysis Results" button (use /legacy so analysis is visible)
                 actions.push({
                     text: "📊 Go to Analysis Results",
-                    url: "/legacy",
+                    url: "{{ static_base }}/legacy",
                     action: "scrollToResults",
                     primary: fieldTarget && !fieldTarget.fieldId ? true : false
                 });
@@ -39125,7 +39140,7 @@ def document_sync_console():
                     if (docStatus.clientReport) {
                         actions.push({
                             text: "📄 Regenerate HTML Report",
-                            url: "/legacy",
+                            url: "{{ static_base }}/legacy",
                             action: "regenerateHTML",
                             primary: false
                         });
@@ -39133,7 +39148,7 @@ def document_sync_console():
                     if (docStatus.audit) {
                         actions.push({
                             text: "📋 Regenerate Audit Package",
-                            url: "/legacy",
+                            url: "{{ static_base }}/legacy",
                             action: "regenerateAudit",
                             primary: false
                         });
@@ -39141,7 +39156,7 @@ def document_sync_console():
                     if (docStatus.utility) {
                         actions.push({
                             text: "📦 Regenerate Utility Package",
-                            url: "/legacy",
+                            url: "{{ static_base }}/legacy",
                             action: "regenerateUtility",
                             primary: false
                         });
@@ -39152,7 +39167,7 @@ def document_sync_console():
                 if (needsAnalysis) {
                     actions.push({
                         text: "🔄 Re-run Analysis",
-                        url: "/legacy",
+                        url: "{{ static_base }}/legacy",
                         action: "rerunAnalysis",
                         primary: false
                     });
@@ -39252,7 +39267,7 @@ def document_sync_console():
 
             try {
                 // Call the cross-check consistency API
-                const response = await fetch('/api/cross-check-consistency', {
+                const response = await fetch('{{ static_base }}/api/cross-check-consistency', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -39315,6 +39330,7 @@ def document_sync_console():
 
                 // Display summary (null-safe)
                 const summary = data.summary || {};
+                const infoNotesCount = summary.info_notes != null ? summary.info_notes : (data.discrepancies || []).filter(function(d) { return (d.severity || '').toUpperCase() === 'INFO'; }).length;
                 resultsContent.innerHTML += '<div class="info-box" style="margin-top: 15px;">' +
                     '<h4>Summary</h4>' +
                     '<ul>' +
@@ -39322,6 +39338,7 @@ def document_sync_console():
                     '<li><strong>Discrepancies Found:</strong> ' + (summary.discrepancies_found != null ? summary.discrepancies_found : 0) + '</li>' +
                     '<li><strong>High Severity Issues:</strong> ' + (summary.high_severity != null ? summary.high_severity : 0) + '</li>' +
                     '<li><strong>Medium Severity Issues:</strong> ' + (summary.medium_severity != null ? summary.medium_severity : 0) + '</li>' +
+                    (infoNotesCount > 0 ? ('<li><strong>Informational Notes:</strong> ' + infoNotesCount + '</li>') : '') +
                     '</ul>' +
                     '</div>';
 
@@ -39333,18 +39350,30 @@ def document_sync_console():
                     
                     for (const [metric, value] of Object.entries(data.metrics)) {
                         const row = document.createElement('tr');
-                        const formattedMetric = (metric || '').replace(/_/g, ' ').replace(/\\b\\w/g, function(l) { return l.toUpperCase(); });
+                        const formattedMetric = (metric || '').replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
                         let formattedValue = 'N/A';
+                        let metricOk = true;
                         if (value != null && value !== '') {
                             if (typeof value === 'number' && !Number.isNaN(value)) {
                                 formattedValue = value.toFixed(4);
+                                metricOk = value !== 0;
                             } else {
                                 formattedValue = String(value);
                             }
+                        } else {
+                            metricOk = false;
                         }
+                        // Check if this metric appears in discrepancies
+                        const inDiscrepancy = (data.discrepancies || []).some(function(d) {
+                            return d.severity !== 'INFO' && (d.metric || '').toLowerCase() === metric.toLowerCase();
+                        });
+                        if (inDiscrepancy) metricOk = false;
+                        const statusBadge = metricOk
+                            ? '<span class="status-badge badge-passed">✓</span>'
+                            : (formattedValue === 'N/A' ? '<span class="status-badge badge-error">Missing</span>' : '<span class="status-badge badge-warning">⚠</span>');
                         row.innerHTML = '<td>' + formattedMetric + '</td>' +
                             '<td>' + formattedValue + '</td>' +
-                            '<td><span class="status-badge badge-passed">✓</span></td>';
+                            '<td>' + statusBadge + '</td>';
                         metricsTableBody.appendChild(row);
                     }
                 }
@@ -39409,8 +39438,11 @@ def document_sync_console():
                     diagnosticsSection.classList.add('hidden');
                 }
 
-                // Display discrepancies if any
-                if (data.discrepancies && data.discrepancies.length > 0) {
+                // Display discrepancies if any (excluding INFO notes)
+                const realDiscrepancies = (data.discrepancies || []).filter(function(d) { return (d.severity || '').toUpperCase() !== 'INFO'; });
+                const infoNotes = (data.discrepancies || []).filter(function(d) { return (d.severity || '').toUpperCase() === 'INFO'; });
+
+                if (realDiscrepancies.length > 0) {
                     discrepanciesSection.classList.remove('hidden');
                     const discrepanciesList = document.getElementById('discrepanciesList');
                     discrepanciesList.innerHTML = '';
@@ -39422,7 +39454,7 @@ def document_sync_console():
                     
                     const checkMark = String.fromCharCode(10003);
                     const xMark = String.fromCharCode(10007);
-                    data.discrepancies.forEach(discrepancy => {
+                    realDiscrepancies.forEach(discrepancy => {
                         const severity = discrepancy.severity || 'MEDIUM';
                         const item = document.createElement('div');
                         item.className = 'discrepancy-item ' + severity.toLowerCase();
@@ -39504,6 +39536,23 @@ def document_sync_console():
                     discrepanciesSection.classList.add('hidden');
                 }
 
+                // Display INFO notes separately (e.g. weather normalization not applicable)
+                const infoNotesContainer = document.getElementById('infoNotesSection');
+                if (infoNotes.length > 0) {
+                    let notesHtml = '';
+                    infoNotes.forEach(function(note) {
+                        const safeMetric = String(note.metric || 'Note').replace(/</g, '&lt;');
+                        const safeIssue = String(note.issue || '').replace(/</g, '&lt;');
+                        notesHtml += '<div class="discrepancy-item info"><h4>ℹ️ ' + safeMetric + '</h4><p>' + safeIssue + '</p></div>';
+                    });
+                    if (infoNotesContainer) {
+                        infoNotesContainer.innerHTML = '<h2 class="section-title" style="margin-top:20px;">ℹ️ Informational Notes</h2>' + notesHtml;
+                        infoNotesContainer.style.display = '';
+                    }
+                } else {
+                    if (infoNotesContainer) infoNotesContainer.style.display = 'none';
+                }
+
                 // Update context section with project name after successful check
                 const contextMessage = document.getElementById('contextMessage');
                 const contextContent = document.getElementById('contextContent');
@@ -39561,11 +39610,12 @@ def document_sync_console():
             const contextContent = document.getElementById('contextContent');
             if (!contextMessage || !contextContent) return;
             try {
-                const response = await fetch('/api/cross-check-context', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                const response = await fetch('{{ static_base }}/api/cross-check-context', { method: 'GET', headers: { 'Content-Type': 'application/json' } });
                 const ctx = await response.json();
-                if (ctx.has_results && ctx.project_name) {
+                if (ctx.has_results) {
                     contextContent.className = 'info-box success-box';
-                    contextMessage.textContent = 'Current project: ' + ctx.project_name + '. Click "Check Document Consistency" to verify.';
+                    const label = ctx.project_name ? ('Current project: ' + ctx.project_name) : 'Analysis loaded (no project name set)';
+                    contextMessage.textContent = label + '. Click "Check Document Consistency" to verify.';
                 } else {
                     contextContent.className = 'info-box';
                     contextMessage.textContent = 'No analysis loaded. Run an analysis from the Main Dashboard or Legacy interface first, then return here to check document consistency.';
@@ -39586,16 +39636,17 @@ def document_sync_console():
             msgEl.className = 'info-box';
             msgEl.textContent = 'Staging utility package...';
             try {
-                const response = await fetch('/api/stage-utility-package', {
+                const response = await fetch('{{ static_base }}/api/stage-utility-package', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({})
                 });
                 const data = await response.json();
                 if (data.ok) {
                     msgEl.className = 'success-box';
                     msgEl.textContent = data.message || 'Utility package staged. Use "Download Staged Utility Zip" below.';
-                    if (downloadBtn) { downloadBtn.style.display = 'inline-block'; downloadBtn.href = '/api/download-staged-utility'; }
+                    if (downloadBtn) { downloadBtn.style.display = 'inline-block'; downloadBtn.href = '{{ static_base }}/api/download-staged-utility'; }
                 } else {
                     msgEl.className = 'error-box';
                     msgEl.textContent = data.error || 'Staging failed.';
@@ -39662,6 +39713,7 @@ def document_sync_console():
 </html>
         """,
             cache_bust=cache_bust,
+            static_base=static_base,
         )
     except Exception as e:
         logger.error(f"Error rendering document sync console: {e}")

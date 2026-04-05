@@ -91,9 +91,11 @@ import requests
 from template_helpers import TemplateProcessor
 from analysis_helpers import (
     safe_float, validate_analysis_inputs, normalize_analysis_config,
-    extract_report_data, process_attribution_data, 
+    extract_report_data, process_attribution_data,
     calculate_executive_summary, calculate_power_quality_metrics,
-    calculate_data_quality_metrics, cross_check_document_consistency
+    calculate_data_quality_metrics, cross_check_document_consistency,
+    cross_check_document_level, build_comparison_table,
+    build_consistency_diagnostics,
 )
 
 # Excel export functionality
@@ -149,7 +151,9 @@ if EMV_DB_URL and _emv_db_port:
     EMV_DB_URL = re.sub(r":\d+(?=/)", ":" + str(_emv_db_port), EMV_DB_URL, count=1)
 USE_MYSQL = bool(EMV_DB_URL)
 
-# Weather Service Client
+def _sql_now():
+    """Return current-timestamp SQL expression compatible with both SQLite and MySQL."""
+    return "NOW()" if USE_MYSQL else "datetime('now')"
 class WeatherServiceClient:
     """Client for communicating with the weather service on port 8200"""
 
@@ -1797,6 +1801,9 @@ def _normalize_sql_for_mysql(sql: str) -> str:
     if "sqlite_master" in sql:
         return ""
     sql = sql.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "INT AUTO_INCREMENT PRIMARY KEY")
+    # MySQL disallows DEFAULT values on TEXT/BLOB columns; convert to VARCHAR(255)
+    import re as _re
+    sql = _re.sub(r"\bTEXT(\s+NOT\s+NULL)?\s+(DEFAULT\s+'[^']*')", r"VARCHAR(255)\1 \2", sql, flags=_re.IGNORECASE)
     return sql
 
 
@@ -1806,7 +1813,6 @@ ORG_TABLES = {
     "feeders_data",
     "raw_meter_data",
     "project_files",
-    "users",
     "user_activity",
     "data_modifications",
     "analysis_sessions",
@@ -1817,11 +1823,38 @@ ORG_TABLES = {
     "pe_certifications",
     "pe_verification_documents",
     "pe_review_workflow",
-    "equipment_health_monitoring",
     "html_reports",
     "csv_fingerprints",
     "csv_cell_annotations",
 }
+
+
+class _DictRow:
+    """Wrapper around a MySQL DictCursor row that supports both key and integer access."""
+    def __init__(self, row):
+        self._row = row
+        self._keys = list(row.keys()) if row else []
+        self._vals = list(row.values()) if row else []
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._vals[key]
+        return self._row[key]
+
+    def __iter__(self):
+        return iter(self._vals)
+
+    def keys(self):
+        return self._keys
+
+    def get(self, key, default=None):
+        return self._row.get(key, default)
+
+    def __repr__(self):
+        return repr(self._row)
+
+    def __bool__(self):
+        return bool(self._row)
 
 
 class MySQLCursor:
@@ -1888,9 +1921,17 @@ class MySQLCursor:
         sql_lower = sql.lower()
         if " where " in sql_lower:
             sql = re.sub(r"\bwhere\b", "WHERE", sql, flags=re.IGNORECASE)
-            sql += f" AND {insertion}"
+            # Insert AND org_id filter before ORDER BY / GROUP BY / LIMIT if present,
+            # otherwise append to end
+            for keyword in [" order by ", " group by ", " limit "]:
+                idx = sql_lower.find(keyword)
+                if idx != -1:
+                    sql = sql[:idx] + f" AND {insertion}" + sql[idx:]
+                    break
+            else:
+                sql += f" AND {insertion}"
         else:
-            # insert before ORDER BY / GROUP BY / LIMIT if present
+            # No WHERE clause — insert before ORDER BY / GROUP BY / LIMIT if present
             for keyword in [" order by ", " group by ", " limit "]:
                 idx = sql_lower.find(keyword)
                 if idx != -1:
@@ -1907,8 +1948,19 @@ class MySQLCursor:
             return None
         if params is not None:
             normalized = normalized.replace("?", "%s")
+        # Strip unsupported IF NOT EXISTS from CREATE INDEX for MySQL
+        import re as _re
+        normalized = _re.sub(r"(?i)CREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+", "CREATE INDEX ", normalized)
         normalized, params = self._inject_org_id(normalized, params)
-        return self._cursor.execute(normalized, params)
+        try:
+            return self._cursor.execute(normalized, params)
+        except Exception as _ex:
+            import pymysql as _pymysql
+            # 1061 = ER_DUP_KEYNAME (index already exists) — safe to ignore for idempotent DDL
+            # 1170 = BLOB/TEXT column used in key spec without key length — skip performance-only index
+            if isinstance(_ex, _pymysql.err.OperationalError) and _ex.args[0] in (1061, 1170):
+                return None
+            raise
 
     def executemany(self, sql, seq):
         normalized = _normalize_sql_for_mysql(sql)
@@ -1918,13 +1970,16 @@ class MySQLCursor:
         return self._cursor.executemany(normalized, seq)
 
     def fetchone(self):
-        return self._cursor.fetchone()
+        row = self._cursor.fetchone()
+        return _DictRow(row) if row is not None else None
 
     def fetchall(self):
-        return self._cursor.fetchall()
+        rows = self._cursor.fetchall()
+        return [_DictRow(r) for r in rows] if rows else []
 
     def fetchmany(self, size=None):
-        return self._cursor.fetchmany(size)
+        rows = self._cursor.fetchmany(size)
+        return [_DictRow(r) for r in rows] if rows else []
 
     @property
     def lastrowid(self):
@@ -1933,6 +1988,10 @@ class MySQLCursor:
     @property
     def rowcount(self):
         return self._cursor.rowcount
+
+    @property
+    def description(self):
+        return self._cursor.description
 
 
 class MySQLConnection:
@@ -2010,8 +2069,16 @@ def ensure_org_id_columns(conn):
             continue
         if not column_exists(conn, table_name, "org_id"):
             conn.execute(
-                f"ALTER TABLE {table_name} ADD COLUMN org_id VARCHAR(255) NOT NULL DEFAULT 'default'"
+                f"ALTER TABLE {table_name} ADD COLUMN org_id VARCHAR(255) NOT NULL DEFAULT 'admin'"
             )
+        else:
+            # Migrate any rows that got the old 'default' org_id to 'admin'
+            try:
+                conn.execute(
+                    f"UPDATE {table_name} SET org_id = 'admin' WHERE org_id = 'default'"
+                )
+            except Exception:
+                pass
         cursor = conn.execute(
             "SELECT 1 FROM information_schema.statistics WHERE table_schema=%s AND table_name=%s AND index_name=%s LIMIT 1",
             (conn.database, table_name, f"idx_{table_name}_org_id"),
@@ -2075,7 +2142,7 @@ def get_db_connection(org_id=None, use_sessions_db=False):
     conn = None
     try:
         if USE_MYSQL:
-            org_value = org_id if org_id else ("default" if not use_sessions_db else None)
+            org_value = org_id if org_id else ("admin" if not use_sessions_db else None)
             conn = MySQLConnection(EMV_DB_URL, org_id=org_value)
             if not use_sessions_db:
                 ensure_org_id_columns(conn)
@@ -2116,8 +2183,8 @@ def get_db_connection(org_id=None, use_sessions_db=False):
 
 def init_database():
     """Initialize the database with required tables."""
-    if not ENABLE_SQLITE:
-        logger.info("SQLite persistence disabled")
+    if not ENABLE_SQLITE and not USE_MYSQL:
+        logger.info("SQLite persistence disabled and no MySQL configured — skipping DB init")
         return
 
     # Protect the database file if protection system is available
@@ -14327,8 +14394,16 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 _isc_A   = _rated_A / _z_pct
                 _isc_kA_est = _isc_A / 1000.0
 
-                # Use metered average current as IL if available; else 60% of rated
-                avg_amp_est = float(data.get("avgAmp", {}).get("mean", 0) or 0)
+                # Use metered peak demand current as IL if available;
+                # IEEE 519-2022 defines IL as the maximum demand load current
+                # (highest 15/30-min interval average). Fall back to mean if
+                # values list is absent, then to 60% of rated as last resort.
+                _amp_data_est = data.get("avgAmp", {}) if isinstance(data.get("avgAmp"), dict) else {}
+                _amp_vals_est = _amp_data_est.get("values", [])
+                if _amp_vals_est:
+                    avg_amp_est = float(max(_amp_vals_est))
+                else:
+                    avg_amp_est = float(_amp_data_est.get("mean", 0) or 0)
                 _il_A_est = avg_amp_est if avg_amp_est > 0 else (_rated_A * 0.60)
 
                 isc_kA = _isc_kA_est
@@ -15850,6 +15925,15 @@ def perform_comprehensive_analysis(
     power_quality_results["kvar_after"] = kvar_after
     power_quality_results["current_before"] = current_before
     power_quality_results["current_after"] = current_after
+
+    # Peak demand current for IEEE 519-2022 IL (maximum demand load current).
+    # IEEE 519 requires IL = peak 15/30-min interval current, not the mean.
+    _amp_b_vals = before_data.get("avgAmp", {}).get("values", []) if isinstance(before_data.get("avgAmp"), dict) else []
+    _amp_a_vals = after_data.get("avgAmp",  {}).get("values", []) if isinstance(after_data.get("avgAmp"),  dict) else []
+    current_before_peak = float(max(_amp_b_vals)) if _amp_b_vals else current_before
+    current_after_peak  = float(max(_amp_a_vals)) if _amp_a_vals else current_after
+    power_quality_results["current_before_peak"] = current_before_peak
+    power_quality_results["current_after_peak"]  = current_after_peak
 
     # Calculate IEEE 519-2014/2022 compliant normalized values including system losses
     # This accounts for I²R losses, eddy current losses, and harmonic losses
@@ -27273,6 +27357,861 @@ def generate_esg_case_study_report():
         return jsonify({"error": f"Failed to generate ESG Case Study Report: {str(e)}"}), 500
 
 
+def calculate_motor_failure_risk(power_quality_data, compliance_data, config=None, ieee_tdd_limit=5.0):
+    """
+    Calculate motor failure risk based on power quality metrics.
+    Based on NEMA MG1-2016, IEEE 519, IEEE 141-1993.
+
+    ieee_tdd_limit: the facility-specific IEEE 519 TDD limit (e.g. 8.0 for ISC/IL 20-50).
+    Thermal-stress scoring baseline and recommendations use this limit so that a site
+    operating within its correct IEEE 519 tier is not penalised as if on the 5% tier.
+    """
+    try:
+        voltage_unbalance = power_quality_data.get('voltage_unbalance_after', 0)
+        if isinstance(voltage_unbalance, str) and voltage_unbalance != 'N/A':
+            try:
+                voltage_unbalance = float(voltage_unbalance.replace('%', ''))
+            except Exception:
+                voltage_unbalance = 0
+        elif not isinstance(voltage_unbalance, (int, float)):
+            voltage_unbalance = 0
+
+        thd = power_quality_data.get('thd_after', 0)
+        if isinstance(thd, str) and thd != 'N/A':
+            try:
+                thd = float(thd.replace('%', ''))
+            except Exception:
+                thd = 0
+        elif not isinstance(thd, (int, float)):
+            thd = 0
+
+        power_factor = power_quality_data.get('power_factor_after', 0.95)
+        if isinstance(power_factor, str) and power_factor != 'N/A':
+            try:
+                power_factor = float(power_factor)
+            except Exception:
+                power_factor = 0.95
+        elif not isinstance(power_factor, (int, float)):
+            power_factor = 0.95
+
+        if voltage_unbalance <= 1.0:
+            unbalance_factor = 0
+        elif voltage_unbalance <= 2.0:
+            unbalance_factor = (voltage_unbalance - 1.0) * 20
+        elif voltage_unbalance <= 3.0:
+            unbalance_factor = 20 + (voltage_unbalance - 2.0) * 30
+        else:
+            unbalance_factor = 50 + (voltage_unbalance - 3.0) * 16.67
+        unbalance_factor = min(100, max(0, unbalance_factor))
+
+        if thd <= ieee_tdd_limit:
+            harmonic_factor = 0
+        elif thd <= ieee_tdd_limit + 5.0:
+            harmonic_factor = (thd - ieee_tdd_limit) * 10
+        elif thd <= ieee_tdd_limit + 10.0:
+            harmonic_factor = 50 + (thd - (ieee_tdd_limit + 5.0)) * 8
+        else:
+            harmonic_factor = 90 + (thd - (ieee_tdd_limit + 10.0)) * 2
+        harmonic_factor = min(100, max(0, harmonic_factor))
+
+        pf_target = 0.95
+        if power_factor >= pf_target:
+            pf_factor = 0
+        elif power_factor >= 0.85:
+            pf_factor = (pf_target - power_factor) * 20
+        elif power_factor >= 0.75:
+            pf_factor = 20 + (0.85 - power_factor) * 40
+        else:
+            pf_factor = 60 + (0.75 - power_factor) * 80
+        pf_factor = min(100, max(0, pf_factor))
+
+        current_unbalance = 0
+        current_unbalance_factor = 0
+
+        failure_risk_score = (
+            unbalance_factor * 0.35 +
+            harmonic_factor * 0.30 +
+            pf_factor * 0.20 +
+            current_unbalance_factor * 0.15
+        )
+        failure_probability = failure_risk_score / 100.0
+
+        base_life_days = 3650
+        if failure_risk_score < 25:
+            estimated_days = None
+            health_status = "healthy"
+        elif failure_risk_score < 50:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.5))
+            health_status = "healthy"
+        elif failure_risk_score < 75:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.7))
+            health_status = "warning"
+        else:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.9))
+            health_status = "critical"
+
+        recommendations = []
+        if voltage_unbalance > 1.0:
+            recommendations.append(f"Voltage unbalance ({voltage_unbalance:.2f}%) exceeds NEMA MG1 limit (1%). Balance loads or check supply.")
+        if thd > ieee_tdd_limit:
+            recommendations.append(f"Harmonic distortion ({thd:.2f}%) exceeds IEEE 519 limit ({ieee_tdd_limit:.0f}%). Consider harmonic filters to reduce heating.")
+        if power_factor < 0.90:
+            recommendations.append(f"Power factor ({power_factor:.3f}) is low. Check for winding degradation or mechanical issues.")
+        if failure_risk_score >= 75:
+            recommendations.append("CRITICAL: Schedule immediate maintenance inspection. Equipment failure risk is high.")
+        elif failure_risk_score >= 50:
+            recommendations.append("WARNING: Schedule maintenance within 30 days. Monitor equipment closely.")
+        elif not recommendations:
+            recommendations.append("Equipment operating within normal parameters. Continue routine maintenance.")
+
+        return {
+            'equipment_type': 'motor',
+            'voltage_unbalance': voltage_unbalance,
+            'harmonic_thd': thd,
+            'power_factor': power_factor,
+            'current_unbalance': current_unbalance,
+            'failure_risk_score': round(failure_risk_score, 1),
+            'failure_probability': round(failure_probability, 3),
+            'estimated_time_to_failure_days': estimated_days,
+            'health_status': health_status,
+            'recommendations': recommendations,
+            'factors': {
+                'voltage_unbalance_factor': round(unbalance_factor, 1),
+                'harmonic_factor': round(harmonic_factor, 1),
+                'power_factor_factor': round(pf_factor, 1),
+                'current_unbalance_factor': round(current_unbalance_factor, 1)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error calculating motor failure risk: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {'equipment_type': 'motor', 'error': str(e), 'health_status': 'unknown'}
+
+
+def calculate_transformer_failure_risk(power_quality_data, compliance_data, network_losses=None, config=None, ieee_tdd_limit=5.0):
+    """
+    Calculate transformer failure risk based on power quality and loading metrics.
+    Based on IEEE C57.110-2018, IEEE C57.91-2011, NEMA TP-1.
+
+    ieee_tdd_limit: the facility-specific IEEE 519 TDD limit (e.g. 8.0 for ISC/IL 20-50).
+    Harmonic scoring and recommendations use this limit so that a site within its correct
+    IEEE 519 tier is not flagged as failing on a more conservative default.
+    """
+    try:
+        thd = power_quality_data.get('thd_after', 0)
+        if isinstance(thd, str) and thd != 'N/A':
+            try:
+                thd = float(thd.replace('%', ''))
+            except Exception:
+                thd = 0
+        elif not isinstance(thd, (int, float)):
+            thd = 0
+
+        voltage_deviation = 0
+        loading_percentage = 0
+        if config and network_losses and isinstance(network_losses, dict):
+            xfmr_kva = config.get('xfmr_kva', 0)
+            if isinstance(xfmr_kva, str):
+                try:
+                    xfmr_kva = float(xfmr_kva)
+                except (ValueError, TypeError):
+                    xfmr_kva = 0
+            nominal_voltage = config.get('voltage_nominal', 480)
+            if isinstance(nominal_voltage, str):
+                try:
+                    nominal_voltage = float(nominal_voltage)
+                except (ValueError, TypeError):
+                    nominal_voltage = 480
+            system_phases = config.get('phases', 3)
+            if isinstance(system_phases, str):
+                try:
+                    system_phases = int(system_phases)
+                except (ValueError, TypeError):
+                    system_phases = 3
+            actual_current = 0.0
+            if "I_rms_after" in network_losses:
+                actual_current = network_losses.get("I_rms_after", 0.0)
+            elif isinstance(power_quality_data, dict) and "current_after" in power_quality_data:
+                actual_current = power_quality_data.get("current_after", 0.0)
+            elif "I_rms_before" in network_losses:
+                actual_current = network_losses.get("I_rms_before", 0.0)
+            elif isinstance(power_quality_data, dict) and "current_before" in power_quality_data:
+                actual_current = power_quality_data.get("current_before", 0.0)
+            if isinstance(actual_current, str):
+                try:
+                    actual_current = float(actual_current)
+                except (ValueError, TypeError):
+                    actual_current = 0.0
+            if xfmr_kva > 0 and nominal_voltage > 0:
+                rated_current = (xfmr_kva * 1000) / (nominal_voltage * (1.732 if system_phases == 3 else 1))
+                loading_percentage = (actual_current / rated_current * 100) if rated_current > 0 else 0
+
+        if thd <= ieee_tdd_limit:
+            harmonic_factor = 0
+        elif thd <= ieee_tdd_limit + 5.0:
+            harmonic_factor = (thd - ieee_tdd_limit) * 12
+        elif thd <= ieee_tdd_limit + 10.0:
+            harmonic_factor = 60 + (thd - (ieee_tdd_limit + 5.0)) * 6
+        else:
+            harmonic_factor = 90 + (thd - (ieee_tdd_limit + 10.0)) * 2
+        harmonic_factor = min(100, max(0, harmonic_factor))
+
+        if loading_percentage <= 80:
+            loading_factor = 0
+        elif loading_percentage <= 100:
+            loading_factor = (loading_percentage - 80) * 2.5
+        elif loading_percentage <= 120:
+            loading_factor = 50 + (loading_percentage - 100) * 2.5
+        else:
+            loading_factor = 100
+        loading_factor = min(100, max(0, loading_factor))
+
+        if abs(voltage_deviation) <= 2.0:
+            voltage_factor = 0
+        elif abs(voltage_deviation) <= 5.0:
+            voltage_factor = abs(voltage_deviation - 2.0) * 10
+        elif abs(voltage_deviation) <= 10.0:
+            voltage_factor = 30 + (abs(voltage_deviation) - 5.0) * 14
+        else:
+            voltage_factor = 100
+        voltage_factor = min(100, max(0, voltage_factor))
+
+        temperature_rise = 0
+        temp_factor = 0
+
+        failure_risk_score = (
+            loading_factor * 0.30 +
+            harmonic_factor * 0.30 +
+            temp_factor * 0.25 +
+            voltage_factor * 0.15
+        )
+        failure_probability = failure_risk_score / 100.0
+
+        base_life_days = 5475
+        if failure_risk_score < 25:
+            estimated_days = None
+            health_status = "healthy"
+        elif failure_risk_score < 50:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.5))
+            health_status = "healthy"
+        elif failure_risk_score < 75:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.7))
+            health_status = "warning"
+        else:
+            estimated_days = int(base_life_days * (1 - failure_probability * 0.9))
+            health_status = "critical"
+
+        recommendations = []
+        if loading_percentage > 100:
+            recommendations.append(f"CRITICAL: Transformer overloaded ({loading_percentage:.1f}%). Reduce load immediately.")
+        elif loading_percentage > 80:
+            recommendations.append(f"WARNING: Transformer loading ({loading_percentage:.1f}%) is high. Monitor closely.")
+        if thd > ieee_tdd_limit:
+            recommendations.append(f"Harmonic distortion ({thd:.2f}%) exceeds IEEE 519 limit ({ieee_tdd_limit:.0f}%). Increases eddy current losses. Consider harmonic filters.")
+        if abs(voltage_deviation) > 5.0:
+            recommendations.append(f"Voltage deviation ({voltage_deviation:.1f}%) is significant. Check supply voltage.")
+        if failure_risk_score >= 75:
+            recommendations.append("CRITICAL: Schedule immediate transformer inspection. Failure risk is high.")
+        elif failure_risk_score >= 50:
+            recommendations.append("WARNING: Schedule maintenance within 60 days. Monitor transformer temperature.")
+        elif not recommendations:
+            recommendations.append("Transformer operating within normal parameters. Continue routine maintenance.")
+
+        return {
+            'equipment_type': 'transformer',
+            'harmonic_thd': thd,
+            'loading_percentage': loading_percentage,
+            'voltage_deviation': voltage_deviation,
+            'temperature_rise_estimate': temperature_rise,
+            'failure_risk_score': round(failure_risk_score, 1),
+            'failure_probability': round(failure_probability, 3),
+            'estimated_time_to_failure_days': estimated_days,
+            'health_status': health_status,
+            'recommendations': recommendations,
+            'factors': {
+                'loading_factor': round(loading_factor, 1),
+                'harmonic_factor': round(harmonic_factor, 1),
+                'temperature_factor': round(temp_factor, 1),
+                'voltage_factor': round(voltage_factor, 1)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error calculating transformer failure risk: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {'equipment_type': 'transformer', 'error': str(e), 'health_status': 'unknown'}
+
+
+def analyze_equipment_health_from_results(results_data, project_id=None):
+    """
+    Analyze equipment health from analysis results and optionally store in database.
+    """
+    try:
+        power_quality = results_data.get('power_quality', {})
+        if isinstance(power_quality, list):
+            power_quality = {}
+        compliance_status = results_data.get('compliance_status', {})
+        if isinstance(compliance_status, list):
+            compliance_status = {}
+        network_losses = results_data.get('network_losses', {})
+        if isinstance(network_losses, list):
+            network_losses = {}
+        config = results_data.get('config', {})
+        if isinstance(config, list):
+            config = {}
+        analysis_session_id = results_data.get('analysis_session_id')
+
+        equipment_health_records = []
+
+        ieee_tdd_limit = power_quality.get('ieee_tdd_limit', 5.0)
+        if not isinstance(ieee_tdd_limit, (int, float)) or ieee_tdd_limit <= 0:
+            ieee_tdd_limit = 5.0
+
+        motor_health = calculate_motor_failure_risk(power_quality, compliance_status, config, ieee_tdd_limit=ieee_tdd_limit)
+        if motor_health and 'error' not in motor_health:
+            motor_health['equipment_name'] = 'System Motors (Aggregate)'
+            motor_health['equipment_id'] = f"MOTOR_SYS_{analysis_session_id or 'UNKNOWN'}"
+            equipment_health_records.append(motor_health)
+
+        transformer_health = calculate_transformer_failure_risk(
+            power_quality, compliance_status, network_losses, config, ieee_tdd_limit=ieee_tdd_limit
+        )
+        if transformer_health and 'error' not in transformer_health:
+            transformer_health['equipment_name'] = 'System Transformers (Aggregate)'
+            transformer_health['equipment_id'] = f"XFMR_SYS_{analysis_session_id or 'UNKNOWN'}"
+            equipment_health_records.append(transformer_health)
+
+        if project_id and equipment_health_records:
+            with get_db_connection() as conn:
+                if conn:
+                    ph = "%s" if USE_MYSQL else "?"
+                    cursor = conn.cursor()
+                    for health_record in equipment_health_records:
+                        cursor.execute(f"""
+                            INSERT INTO equipment_health_monitoring (
+                                project_id, equipment_type, equipment_name, equipment_id,
+                                analysis_session_id, voltage_unbalance, harmonic_thd,
+                                current_unbalance, power_factor, loading_percentage,
+                                voltage_deviation, temperature_rise_estimate,
+                                failure_risk_score, failure_probability,
+                                estimated_time_to_failure_days, health_status,
+                                recommendations, equipment_specs
+                            ) VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph},{ph})
+                        """, (
+                            project_id,
+                            health_record.get('equipment_type'),
+                            health_record.get('equipment_name'),
+                            health_record.get('equipment_id'),
+                            analysis_session_id,
+                            health_record.get('voltage_unbalance'),
+                            health_record.get('harmonic_thd'),
+                            health_record.get('current_unbalance', 0),
+                            health_record.get('power_factor'),
+                            health_record.get('loading_percentage', 0),
+                            health_record.get('voltage_deviation', 0),
+                            health_record.get('temperature_rise_estimate', 0),
+                            health_record.get('failure_risk_score'),
+                            health_record.get('failure_probability'),
+                            health_record.get('estimated_time_to_failure_days'),
+                            health_record.get('health_status'),
+                            '; '.join(health_record.get('recommendations', [])),
+                            json.dumps(health_record.get('factors', {}))
+                        ))
+                    conn.commit()
+                    logger.info(f"Stored {len(equipment_health_records)} equipment health records")
+
+        return equipment_health_records
+
+    except Exception as e:
+        logger.error(f"Error analyzing equipment health: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return []
+
+
+@app.route("/api/equipment/analyze-health", methods=["POST"])
+@api_guard
+def analyze_equipment_health():
+    """Analyze equipment health from analysis results"""
+    try:
+        results_data = request.get_json()
+        if not results_data:
+            return jsonify({"error": "No results data provided"}), 400
+
+        project_id = results_data.get('project_id')
+        if not project_id and results_data.get('project_name'):
+            with get_db_connection() as conn:
+                if conn:
+                    ph = "%s" if USE_MYSQL else "?"
+                    cursor = conn.cursor()
+                    cursor.execute(f"SELECT id FROM projects WHERE name = {ph}", (results_data.get('project_name'),))
+                    row = cursor.fetchone()
+                    if row:
+                        project_id = row[0]
+
+        equipment_health = analyze_equipment_health_from_results(results_data, project_id)
+
+        return jsonify({
+            "success": True,
+            "equipment_health": equipment_health,
+            "count": len(equipment_health)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error analyzing equipment health: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/equipment/health-report", methods=["GET"])
+@api_guard
+def get_equipment_health_report():
+    """Get equipment health report, filterable by project_id, equipment_type, health_status, limit"""
+    try:
+        project_id = request.args.get('project_id', type=int)
+        equipment_type = request.args.get('equipment_type')
+        health_status = request.args.get('health_status')
+        limit = request.args.get('limit', 100, type=int)
+
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+
+            ph = "%s" if USE_MYSQL else "?"
+            query = """
+                SELECT id, project_id, equipment_type, equipment_name, equipment_id,
+                       analysis_session_id, voltage_unbalance, harmonic_thd,
+                       current_unbalance, power_factor, loading_percentage,
+                       voltage_deviation, temperature_rise_estimate,
+                       failure_risk_score, failure_probability,
+                       estimated_time_to_failure_days, health_status,
+                       recommendations, equipment_specs, created_at
+                FROM equipment_health_monitoring
+                WHERE 1=1
+            """
+            params = []
+            if project_id:
+                query += f" AND project_id = {ph}"
+                params.append(project_id)
+            if equipment_type:
+                query += f" AND equipment_type = {ph}"
+                params.append(equipment_type)
+            if health_status:
+                query += f" AND health_status = {ph}"
+                params.append(health_status)
+            query += f" ORDER BY failure_risk_score DESC, created_at DESC LIMIT {ph}"
+            params.append(limit)
+
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+
+            equipment_list = []
+            for row in rows:
+                equipment_list.append({
+                    'id': row[0], 'project_id': row[1], 'equipment_type': row[2],
+                    'equipment_name': row[3], 'equipment_id': row[4],
+                    'analysis_session_id': row[5], 'voltage_unbalance': row[6],
+                    'harmonic_thd': row[7], 'current_unbalance': row[8],
+                    'power_factor': row[9], 'loading_percentage': row[10],
+                    'voltage_deviation': row[11], 'temperature_rise_estimate': row[12],
+                    'failure_risk_score': row[13], 'failure_probability': row[14],
+                    'estimated_time_to_failure_days': row[15], 'health_status': row[16],
+                    'recommendations': row[17],
+                    'equipment_specs': json.loads(row[18]) if row[18] else {},
+                    'created_at': row[19]
+                })
+
+            return jsonify({"success": True, "equipment": equipment_list, "count": len(equipment_list)}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting equipment health report: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/equipment/<int:equipment_id>/failure-prediction", methods=["GET"])
+@api_guard
+def get_equipment_failure_prediction(equipment_id):
+    """Get failure prediction for specific equipment by DB row ID"""
+    try:
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+            ph = "%s" if USE_MYSQL else "?"
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                SELECT id, equipment_type, equipment_name, failure_risk_score,
+                       failure_probability, estimated_time_to_failure_days,
+                       health_status, recommendations, equipment_specs, created_at
+                FROM equipment_health_monitoring WHERE id = {ph}
+            """, (equipment_id,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({"error": "Equipment not found"}), 404
+            return jsonify({"success": True, "equipment": {
+                'id': row[0], 'equipment_type': row[1], 'equipment_name': row[2],
+                'failure_risk_score': row[3], 'failure_probability': row[4],
+                'estimated_time_to_failure_days': row[5], 'health_status': row[6],
+                'recommendations': row[7],
+                'equipment_specs': json.loads(row[8]) if row[8] else {},
+                'created_at': row[9]
+            }}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting equipment failure prediction: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/projects/<int:project_id>/equipment-health", methods=["GET"])
+@api_guard
+def get_project_equipment_health(project_id):
+    """Get all equipment health records for a specific project"""
+    try:
+        with get_db_connection() as conn:
+            if conn is None:
+                return jsonify({"error": "Database not available"}), 500
+            ph = "%s" if USE_MYSQL else "?"
+            cursor = conn.cursor()
+            cursor.execute(f"""
+                SELECT id, equipment_type, equipment_name, equipment_id,
+                       analysis_session_id, failure_risk_score, failure_probability,
+                       estimated_time_to_failure_days, health_status, recommendations, created_at
+                FROM equipment_health_monitoring
+                WHERE project_id = {ph}
+                ORDER BY failure_risk_score DESC, created_at DESC
+            """, (project_id,))
+            rows = cursor.fetchall()
+            equipment_list = [
+                {'id': r[0], 'equipment_type': r[1], 'equipment_name': r[2],
+                 'equipment_id': r[3], 'analysis_session_id': r[4],
+                 'failure_risk_score': r[5], 'failure_probability': r[6],
+                 'estimated_time_to_failure_days': r[7], 'health_status': r[8],
+                 'recommendations': r[9], 'created_at': r[10]}
+                for r in rows
+            ]
+            return jsonify({"success": True, "project_id": project_id,
+                            "equipment": equipment_list, "count": len(equipment_list)}), 200
+
+    except Exception as e:
+        logger.error(f"Error getting project equipment health: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+
+def generate_equipment_health_pdf(equipment_health_records, results_data=None):
+    """
+    Generate a comprehensive PDF for equipment health and predictive failure analysis.
+    Based on NEMA MG1, IEEE 519, IEEE C57.110, IEEE C57.91, IEEE 141.
+    """
+    try:
+        if not PDF_AVAILABLE:
+            raise ImportError("reportlab is not available")
+
+        from io import BytesIO
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+        def _sf(value, default='N/A'):
+            if value is None or value == 'N/A' or value == '':
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        story = []
+        styles = getSampleStyleSheet()
+
+        add_logo_to_pdf_story(story, width=2*inch)
+
+        title_style = ParagraphStyle('EHTitle', parent=styles['Title'], fontSize=20,
+                                     textColor=colors.HexColor('#1a237e'), spaceAfter=20, alignment=1)
+        heading_style = ParagraphStyle('EHHeading', parent=styles['Heading1'], fontSize=14,
+                                       textColor=colors.HexColor('#1a237e'), spaceAfter=12, spaceBefore=12)
+        subheading_style = ParagraphStyle('EHSubHeading', parent=styles['Heading2'], fontSize=12,
+                                          textColor=colors.HexColor('#1a237e'), spaceAfter=8, spaceBefore=8)
+
+        story.append(Paragraph("SYNEREX Comprehensive Equipment Health & Predictive Failure Analysis", title_style))
+        story.append(Spacer(1, 0.2*inch))
+
+        meta_data = [['Generated', datetime.now().strftime('%Y-%m-%d %H:%M:%S')]]
+        if results_data:
+            config = results_data.get('config', {}) if isinstance(results_data.get('config'), dict) else {}
+            client_profile = results_data.get('client_profile', {}) or config
+            if isinstance(client_profile, list):
+                client_profile = {}
+            project_name = (config.get('project_name') or
+                            (client_profile.get('project_name') if isinstance(client_profile, dict) else None) or
+                            (client_profile.get('projectName') if isinstance(client_profile, dict) else None))
+            if project_name:
+                meta_data.append(['Project Name', project_name])
+            if isinstance(client_profile, dict):
+                if client_profile.get('company'):
+                    meta_data.append(['Company', client_profile['company']])
+                if client_profile.get('facility_address'):
+                    meta_data.append(['Facility', client_profile['facility_address']])
+                addr_parts = [client_profile.get(k) for k in
+                              ('facility_address', 'facility_city', 'facility_state', 'facility_zip')
+                              if client_profile.get(k)]
+                if addr_parts:
+                    meta_data.append(['Location', ', '.join(addr_parts)])
+                meta_data.append(['Analysis Date', datetime.now().strftime('%B %d, %Y')])
+
+        meta_table = Table(meta_data, colWidths=[2*inch, 4*inch])
+        meta_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        story.append(meta_table)
+        story.append(Spacer(1, 0.3*inch))
+
+        story.append(Paragraph("Executive Summary", heading_style))
+        story.append(Paragraph(
+            "This report provides predictive failure analysis for inductive equipment based on power quality metrics. "
+            "Analysis uses NEMA MG1, IEEE 519, IEEE C57.110, IEEE C57.91, and IEEE 141.",
+            styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+
+        if equipment_health_records:
+            healthy = sum(1 for e in equipment_health_records if e.get('health_status') == 'healthy')
+            warning = sum(1 for e in equipment_health_records if e.get('health_status') == 'warning')
+            critical = sum(1 for e in equipment_health_records if e.get('health_status') == 'critical')
+            total = len(equipment_health_records)
+            avg_risk = sum(_safe_float(e.get('failure_risk_score', 0)) for e in equipment_health_records) / total
+
+            stats_table = Table([
+                ['Total Equipment Monitored', str(total)],
+                ['Healthy Equipment', f"{healthy} ({healthy/total*100:.1f}%)"],
+                ['Warning Status', f"{warning} ({warning/total*100:.1f}%)"],
+                ['Critical Status', f"{critical} ({critical/total*100:.1f}%)"],
+                ['Average Risk Score', f"{avg_risk:.1f}/100"],
+            ], colWidths=[3*inch, 3*inch])
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.beige),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(stats_table)
+            story.append(Spacer(1, 0.3*inch))
+
+            # Summary table
+            story.append(Paragraph("Equipment Health Summary", heading_style))
+            summary_data = [['Equipment', 'Type', 'Health Status', 'Risk Score', 'Failure Prob.', 'Time to Failure']]
+            for eq in equipment_health_records:
+                rs = _safe_float(eq.get('failure_risk_score', 0))
+                fp = _safe_float(eq.get('failure_probability', 0))
+                ttf = eq.get('estimated_time_to_failure_days')
+                summary_data.append([
+                    eq.get('equipment_name', 'Unknown'),
+                    eq.get('equipment_type', 'Unknown').title(),
+                    eq.get('health_status', 'unknown').title(),
+                    f"{rs:.1f}/100",
+                    f"{fp:.1%}",
+                    f"{_safe_float(ttf):.0f} days" if ttf else "N/A"
+                ])
+            sum_table = Table(summary_data, colWidths=[2*inch, 1*inch, 1*inch, 1*inch, 1*inch, 1.5*inch])
+            sum_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 8),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            story.append(sum_table)
+            story.append(Spacer(1, 0.3*inch))
+
+        # Detailed per-equipment sections
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Equipment Analysis", heading_style))
+        for eq in equipment_health_records:
+            story.append(Spacer(1, 0.2*inch))
+            story.append(Paragraph(f"Equipment: {eq.get('equipment_name', 'Unknown')}", subheading_style))
+            det = [
+                ['Equipment Type', eq.get('equipment_type', 'Unknown').title()],
+                ['Health Status', eq.get('health_status', 'unknown').title()],
+                ['Failure Risk Score', f"{_safe_float(eq.get('failure_risk_score', 0)):.1f}/100"],
+                ['Failure Probability', f"{_safe_float(eq.get('failure_probability', 0)):.1%}"],
+            ]
+            ttf = eq.get('estimated_time_to_failure_days')
+            if ttf:
+                det.append(['Estimated Time to Failure', f"{_safe_float(ttf):.0f} days"])
+            det_table = Table(det, colWidths=[2*inch, 4*inch])
+            det_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            story.append(det_table)
+            story.append(Spacer(1, 0.15*inch))
+
+            metrics_data = []
+            vu = _safe_float(eq.get('voltage_unbalance'))
+            if vu and vu != 0:
+                metrics_data.append(['Voltage Unbalance', f"{vu:.2f}%", 'NEMA MG1: ≤1.0%'])
+            thd = _safe_float(eq.get('harmonic_thd'))
+            if thd and thd != 0:
+                metrics_data.append(['Harmonic THD', f"{thd:.2f}%", 'IEEE 519: ≤5.0%'])
+            pf = _safe_float(eq.get('power_factor'))
+            if pf and pf != 0:
+                metrics_data.append(['Power Factor', f"{pf:.3f}", 'Target: ≥0.95'])
+            lp = _safe_float(eq.get('loading_percentage'))
+            if lp and lp > 0:
+                metrics_data.append(['Loading Percentage', f"{lp:.1f}%", 'Optimal: ≤80%'])
+            if metrics_data:
+                story.append(Paragraph("Power Quality Metrics", styles['Heading3']))
+                mt = Table(metrics_data, colWidths=[2*inch, 1.5*inch, 2.5*inch])
+                mt.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.lightgrey),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 9),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                story.append(mt)
+                story.append(Spacer(1, 0.15*inch))
+
+            factors = eq.get('factors', {})
+            if factors:
+                story.append(Paragraph("Risk Factor Breakdown", styles['Heading3']))
+                fd = [['Factor', 'Contribution']] + [
+                    [k.replace('_', ' ').title(), f"{v:.1f}/100"] for k, v in factors.items()
+                ]
+                ft = Table(fd, colWidths=[3*inch, 3*inch])
+                ft.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a237e')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 9),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 1), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ]))
+                story.append(ft)
+                story.append(Spacer(1, 0.15*inch))
+
+            recs = eq.get('recommendations', [])
+            if recs:
+                story.append(Paragraph("Maintenance Recommendations", styles['Heading3']))
+                for rec in recs:
+                    if isinstance(rec, str):
+                        story.append(Paragraph(f"• {rec}", styles['Normal']))
+                story.append(Spacer(1, 0.15*inch))
+
+        # Standards reference
+        story.append(PageBreak())
+        story.append(Paragraph("Standards References & Methodology", heading_style))
+        story.append(Paragraph(
+            "<b>NEMA MG1-2016:</b> Motor voltage unbalance limits (1% max).<br/><br/>"
+            "<b>IEEE 519-2014/2022:</b> Harmonic distortion limits — THD causes additional I²R losses.<br/><br/>"
+            "<b>IEEE C57.110-2018:</b> Transformer harmonic loss calculations.<br/><br/>"
+            "<b>IEEE C57.91-2011:</b> Transformer loading guidelines and aging acceleration.<br/><br/>"
+            "<b>IEEE 141-1993:</b> Motor derating for voltage unbalance.<br/><br/>"
+            "<b>Risk Score:</b> Weighted: voltage unbalance (35%), harmonics (30%), power factor (20%), current unbalance (15%).",
+            styles['Normal']))
+        story.append(Spacer(1, 0.2*inch))
+        story.append(Paragraph(
+            f"<i>Generated {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — SYNEREX Power Analysis System</i>",
+            styles['Normal']))
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+
+    except Exception as e:
+        logger.error(f"Error generating equipment health PDF: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        raise
+
+
+@app.route("/api/equipment/generate-health-pdf", methods=["POST"])
+@api_guard
+def generate_equipment_health_pdf_endpoint():
+    """Generate equipment health PDF report"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        equipment_health = data.get('equipment_health', [])
+        results_data = data.get('results_data', {})
+        if not equipment_health:
+            return jsonify({"error": "No equipment health data provided"}), 400
+        if not PDF_AVAILABLE:
+            return jsonify({"error": "PDF generation not available — reportlab library not installed"}), 503
+
+        pdf_buffer = generate_equipment_health_pdf(equipment_health, results_data)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"Equipment_Health_Report_{timestamp}.pdf"
+        return (
+            pdf_buffer.getvalue(), 200,
+            {"Content-Type": "application/pdf",
+             "Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating equipment health PDF: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"error": f"Failed to generate equipment health PDF: {str(e)}"}), 500
+
+
+@app.route("/api/tariff-lookup", methods=["POST"])
+def emv_tariff_lookup():
+    """
+    POST /api/tariff-lookup
+    Looks up utility rate structure from NREL URDB (US), EIA API, Ollama AI, or static fallback.
+    Body: { utility, tariff, state, country, sector }
+    """
+    try:
+        from tariff_lookup_service import lookup_tariff_rates
+    except ImportError:
+        import sys as _sys
+        _sys.path.insert(0, os.path.dirname(__file__))
+        from tariff_lookup_service import lookup_tariff_rates
+
+    data    = request.get_json() or {}
+    utility = (data.get("utility") or "").strip()
+    tariff  = (data.get("tariff")  or "").strip()
+    state   = (data.get("state")   or "").strip()
+    country = (data.get("country") or "USA").strip()
+    sector  = (data.get("sector")  or "Commercial").strip()
+
+    if not utility and not tariff and not state:
+        return jsonify({"error": "At least one of utility, tariff, or state is required"}), 400
+
+    try:
+        result = lookup_tariff_rates(
+            utility=utility, tariff=tariff,
+            state=state, country=country, sector=sector,
+        )
+        return jsonify({"meta": {}, "response": result})
+    except Exception as exc:
+        logger.exception("EMV tariff lookup failed")
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/serve-template-report", methods=["GET", "POST"])
 def serve_template_report():
     """Serve the template HTML report with actual analysis data"""
@@ -27523,7 +28462,7 @@ def serve_template_report():
                 
                 # CRITICAL: Update stored analysis results with current data that includes current_improvement_pct
                 # This ensures when 8084 calls /api/analysis/results, it gets the complete data structure
-                app._latest_analysis_results = combined_data
+                _set_latest_analysis_results(combined_data)
                 # Also store form_data separately so get_analysis_results() can use it
                 if form_data:
                     app._latest_form_data = form_data
@@ -27531,10 +28470,33 @@ def serve_template_report():
                 logger.info(f"🔧 CONFIG DEBUG: Line 21240 - combined_data.config keys: {list(combined_data.get('config', {}).keys())}")
                 logger.info(f"🔧 CONFIG DEBUG: Line 21241 - combined_data.client_profile keys: {list(combined_data.get('client_profile', {}).keys())}")
                 
-                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=10)
+                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=60)
                 if response.status_code == 200:
+                    html_content = response.text
+
+                    # Save the report to disk so reports/ folder stays in sync with what the user sees
+                    try:
+                        _project_name = (
+                            combined_data.get("project_name")
+                            or combined_data.get("config", {}).get("project_name")
+                            or combined_data.get("client_profile", {}).get("project_name")
+                            or combined_data.get("company")
+                            or "HTML_Export"
+                        )
+                        _ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        _safe = re.sub(r"[^A-Za-z0-9_\-]+", "_", _project_name).strip("_") or "client"
+                        _fname = f"{_safe}_Client_HTML_Report_{_ts}.html"
+                        _rdir = Path(__file__).parent / "reports" / _safe
+                        _rdir.mkdir(parents=True, exist_ok=True)
+                        _fpath = _rdir / _fname
+                        with open(_fpath, "w", encoding="utf-8") as _f:
+                            _f.write(html_content)
+                        logger.info(f"Client HTML Report saved to disk: {_fpath}")
+                    except Exception as _save_err:
+                        logger.warning(f"Could not save Client HTML Report to disk: {_save_err}")
+
                     return Response(
-                        response.text,
+                        html_content,
                         mimetype="text/html",
                         headers={
                             "Content-Type": "text/html; charset=utf-8",
@@ -27567,31 +28529,83 @@ def serve_template_report():
         return jsonify({"error": f"Failed to serve template: {str(e)}"}), 500
 
 
+def _layman_error_html(title, message, hint=""):
+    """Return a user-friendly HTML error page for the Executive Summary popup."""
+    hint_block = f'<p style="margin-top:16px;font-size:14px;color:#856404;background:#fff3cd;padding:12px 16px;border-radius:8px;">{hint}</p>' if hint else ''
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>{title}</title>
+<style>
+  body{{font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}}
+  .box{{background:#fff;border-radius:12px;padding:40px 48px;max-width:520px;box-shadow:0 4px 24px rgba(0,0,0,.10);text-align:center;}}
+  h1{{color:#1a3a5c;font-size:22px;margin-bottom:12px;}}
+  p{{color:#495057;font-size:15px;line-height:1.6;}}
+  .icon{{font-size:56px;margin-bottom:16px;}}
+  .btn{{display:inline-block;margin-top:24px;padding:10px 28px;background:#0d6efd;color:#fff;border-radius:8px;font-size:14px;text-decoration:none;cursor:pointer;}}
+  .btn:hover{{background:#0a58ca;}}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="icon">📊</div>
+  <h1>{title}</h1>
+  <p>{message}</p>
+  {hint_block}
+  <a class="btn" onclick="window.close()">Close Window</a>
+</div>
+</body>
+</html>"""
+
+
 @app.route("/api/serve-layman-report", methods=["GET", "POST"])
 def serve_layman_report():
     """Serve the layman-friendly executive summary report"""
+    def _html_response(html):
+        return Response(html, mimetype='text/html', headers={
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache', 'Expires': '0'
+        })
+
     try:
-        # Forward request to 8084 service for layman report generation
         response = requests.get(f"{HTML_REPORT_URL}/generate-layman", timeout=30)
         if response.status_code == 200:
-            html_content = response.text
-            return Response(
-                html_content,
-                mimetype='text/html',
-                headers={
-                    'Content-Type': 'text/html; charset=utf-8',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
+            return _html_response(response.text)
+        elif response.status_code == 404:
+            return _html_response(_layman_error_html(
+                "No Analysis Results Available",
+                "The Executive Summary Report requires an Engineering Analysis to be run first.",
+                "Go back to the Engineering Analysis tab, load your project files, and click "
+                "<strong>Run Analysis</strong>. Then click <strong>Executive Summary Report</strong> again."
+            ))
         else:
-            return jsonify({"error": "Could not generate layman report", "status": response.status_code}), 500
+            err_detail = ""
+            try:
+                err_detail = response.json().get("error", "")
+            except Exception:
+                pass
+            logger.error(f"HTML report service returned {response.status_code}: {err_detail}")
+            return _html_response(_layman_error_html(
+                "Could Not Generate Report",
+                f"The report service returned an unexpected error (HTTP {response.status_code}).",
+                err_detail or "Please try again or contact your system administrator."
+            ))
+    except requests.exceptions.Timeout:
+        logger.error("Timeout waiting for HTML report service /generate-layman")
+        return _html_response(_layman_error_html(
+            "Report Service Timeout",
+            "The report service took too long to respond.",
+            "The report may be very large. Please try again in a moment."
+        ))
     except Exception as e:
         logger.error(f"Error serving layman report: {e}")
         import traceback
         logger.error(traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        return _html_response(_layman_error_html(
+            "Unexpected Error",
+            f"An error occurred while generating the Executive Summary: {e}",
+            "Please check the server logs or contact your system administrator."
+        ))
 
 
 @app.route("/api/pe/register", methods=["POST"])
@@ -28656,7 +29670,7 @@ def get_analysis_results():
                                 stored_pq[key] = client_pq[key]
                         
                         logger.info(f"Updated stored results with client-calculated power_quality values")
-                        app._latest_analysis_results = stored_results
+                        _set_latest_analysis_results(stored_results)
                 
                 return jsonify({"success": True, "message": "Results updated"}), 200
         
@@ -29751,7 +30765,7 @@ def analyze():
         results["config"] = cfg
         results["client_profile"] = cfg.get("client_profile", {})
 
-        app._latest_analysis_results = results
+        _set_latest_analysis_results(results)
 
         # DEBUG: Log final results storage
         if "power_quality" in results:
@@ -30465,7 +31479,17 @@ def legacy_index():
     ctx["show_dollars"] = True
 
     # Add cache busting headers to force browser refresh
-    response = make_response(safe_render_template_string(INDEX_TEMPLATE_CONTENT, **ctx))
+    rendered = safe_render_template_string(INDEX_TEMPLATE_CONTENT, **ctx)
+
+    # Inject SYNEREX_EMV_BASE so JS API calls use the correct /emv/ prefix
+    _emv_base_script = ("<script>window.SYNEREX_EMV_BASE=(function(){"
+                        "var p=window.location.pathname;"
+                        "return p.startsWith('/emv')?'/emv':'';"
+                        "})();</script>")
+    if "</head>" in rendered:
+        rendered = rendered.replace("</head>", _emv_base_script + "\n</head>", 1)
+
+    response = make_response(rendered)
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -35559,11 +36583,11 @@ def admin_panel():
 
             cursor = conn.cursor()
             cursor.execute(
-                """
+                f"""
                 SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state, s.expires_at
                 FROM users u
                 JOIN user_sessions s ON u.id = s.user_id
-                WHERE s.session_token = ? AND s.expires_at > datetime('now')
+                WHERE s.session_token = ? AND s.expires_at > {_sql_now()}
             """,
                 (session_token,),
             )
@@ -43392,13 +44416,19 @@ def report():
 @api_guard
 def get_projects():
     """Get list of all projects."""
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
         start_time = time.time()
-        
-        with get_db_connection() as conn:
+        org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
+        with get_db_connection(org_id=org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
@@ -43509,7 +44539,7 @@ def projects_load():
                     project_id = None
 
         # Try database first if available
-        if ENABLE_SQLITE:
+        if ENABLE_SQLITE or USE_MYSQL:
             try:
                 with get_db_connection() as conn:
                     if conn is not None:
@@ -43636,12 +44666,12 @@ def projects_load():
                                 stored_results = None
                                 if "results" in data and isinstance(data["results"], dict):
                                     stored_results = data["results"]
-                                    app._latest_analysis_results = stored_results
+                                    _set_latest_analysis_results(stored_results)
                                     logger.info(f"Stored project '{name}' results in _latest_analysis_results (with corrected kWh)")
                                 elif "energy" in data and "power_quality" in data:
                                     # Results are at top level
                                     stored_results = data
-                                    app._latest_analysis_results = stored_results
+                                    _set_latest_analysis_results(stored_results)
                                     logger.info(f"Stored project '{name}' results in _latest_analysis_results (with corrected kWh)")
                                 
                                 # CRITICAL: Force sync executive_summary.annual_kwh_savings with financial_debug.delta_kwh_annual
@@ -43785,12 +44815,12 @@ def projects_load():
             stored_results = None
             if "results" in data and isinstance(data["results"], dict):
                 stored_results = data["results"]
-                app._latest_analysis_results = stored_results
+                _set_latest_analysis_results(stored_results)
                 logger.info(f"Stored project '{name}' results in _latest_analysis_results (with corrected kWh)")
             elif "energy" in data and "power_quality" in data:
                 # Results are at top level
                 stored_results = data
-                app._latest_analysis_results = stored_results
+                _set_latest_analysis_results(stored_results)
                 logger.info(f"Stored project '{name}' results in _latest_analysis_results (with corrected kWh)")
             
             # CRITICAL: Force sync executive_summary.annual_kwh_savings with financial_debug.delta_kwh_annual
@@ -43842,7 +44872,7 @@ def projects_load():
 @api_guard
 def create_project():
     """Create a new project."""
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
@@ -43922,7 +44952,7 @@ def projects_save():
                     saved_path = _safe_save_upload(before_file, "before")
                     
                     # Save to database and get file ID
-                    if ENABLE_SQLITE:
+                    if ENABLE_SQLITE or USE_MYSQL:
                         with get_db_connection() as conn:
                             if conn is not None:
                                 cursor = conn.cursor()
@@ -43961,7 +44991,7 @@ def projects_save():
                     saved_path = _safe_save_upload(after_file, "after")
                     
                     # Save to database and get file ID
-                    if ENABLE_SQLITE:
+                    if ENABLE_SQLITE or USE_MYSQL:
                         with get_db_connection() as conn:
                             if conn is not None:
                                 cursor = conn.cursor()
@@ -44019,7 +45049,7 @@ def projects_save():
             return jsonify({"error": "No project data provided"}), 400
 
         # Try database first if available
-        if ENABLE_SQLITE:
+        if ENABLE_SQLITE or USE_MYSQL:
             try:
                 with get_db_connection() as conn:
                     if conn is not None:
@@ -44041,34 +45071,34 @@ def projects_save():
                             if project_row:
                                 logger.info(f"💾 Found project by name: ID {project_row[0]}, name '{project_row[1]}'")
 
+                        data_json = json.dumps({"payload": payload_str if payload_str else json.dumps(project_data)})
+
                         if not project_row:
-                            # Create new project if it doesn't exist
-                            data_json = json.dumps({"payload": payload_str if payload_str else json.dumps(project_data)})
+                            # Create new project
                             cursor.execute(
-                                """
+                                f"""
                                 INSERT INTO projects (name, description, data, created_at, updated_at)
-                                VALUES (?, ?, ?, datetime('now'), datetime('now'))
-                            """,
+                                VALUES (?, ?, ?, {_sql_now()}, {_sql_now()})
+                                """,
                                 (name, "", data_json),
-                        )
-                        conn.commit()
-                        new_project_id = cursor.lastrowid
-                        logger.info(f"✅ Created new project '{name}' (ID: {new_project_id}) with {len(project_data)} fields")
-                        return jsonify({
+                            )
+                            conn.commit()
+                            new_project_id = cursor.lastrowid
+                            logger.info(f"✅ Created new project '{name}' (ID: {new_project_id}) with {len(project_data)} fields")
+                            return jsonify({
                                 "ok": True,
                                 "method": "database",
                                 "field_count": len(project_data),
                                 "project_id": new_project_id,
                             })
-                    else:
-                        # Update existing project
+                        else:
+                            # Update existing project
                             project_id_to_update = project_row[0]
                             actual_name = project_row[1]
-                            data_json = json.dumps({"payload": payload_str if payload_str else json.dumps(project_data)})
                             cursor.execute(
-                                """
-                                UPDATE projects SET data = ?, updated_at = datetime('now') WHERE id = ?
-                            """,
+                                f"""
+                                UPDATE projects SET data = ?, updated_at = {_sql_now()} WHERE id = ?
+                                """,
                                 (data_json, project_id_to_update),
                             )
                             conn.commit()
@@ -44123,7 +45153,7 @@ def projects_archive():
             return jsonify({"error": "Missing project_name"}), 400
 
         # Try database first if available
-        if ENABLE_SQLITE:
+        if ENABLE_SQLITE or USE_MYSQL:
             try:
                 with get_db_connection(org_id=org_id) as conn:
                     if conn is not None:
@@ -44153,7 +45183,7 @@ def projects_archive():
 
                             # Archive the project by updating its status
                             cursor = conn.execute(
-                                "UPDATE projects SET archived = 1, archived_at = datetime('now') WHERE name = ? COLLATE NOCASE",
+                                f"UPDATE projects SET archived = 1, archived_at = {_sql_now()} WHERE name = ? COLLATE NOCASE",
                                 (name,),
                             )
                             conn.commit()
@@ -44194,7 +45224,7 @@ def projects_archive():
 @api_guard
 def get_project_data(project_id):
     """Get aggregated data for a specific project."""
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
@@ -44269,7 +45299,7 @@ def get_project_data(project_id):
 @api_guard
 def upload_feeders_csv():
     """Upload feeders CSV data to a project."""
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
@@ -44433,7 +45463,7 @@ def upload_feeders_csv():
 @api_guard
 def upload_transformers_csv():
     """Upload transformers CSV data to a project."""
-    if not ENABLE_SQLITE:
+    if not ENABLE_SQLITE and not USE_MYSQL:
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
@@ -44841,9 +45871,9 @@ def register_user():
 
             # Insert new user
             cursor.execute(
-                """
+                f"""
                 INSERT INTO users (full_name, email, username, password_hash, role, pe_license_number, state, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, ?, {_sql_now()})
             """,
                 (
                     full_name,
@@ -44878,9 +45908,8 @@ def login_user():
         data = request.get_json()
         username = data.get("username")
         password = data.get("password")
-        role = data.get("role")
 
-        if not all([username, password, role]):
+        if not all([username, password]):
             return jsonify({"status": "error", "error": "Missing required fields"}), 400
 
         with get_db_connection() as conn:
@@ -44897,14 +45926,14 @@ def login_user():
 
             password_hash = hashlib.sha256(password.encode()).hexdigest()
 
-            # Find user
+            # Find user by username + password only (role is stored in DB, not provided by user)
             cursor.execute(
                 """
                 SELECT id, full_name, email, username, role, pe_license_number, state
                 FROM users 
-                WHERE username = ? AND password_hash = ? AND role = ?
+                WHERE username = ? AND password_hash = ?
             """,
-                (username, password_hash, role),
+                (username, password_hash),
             )
 
             user = cursor.fetchone()
@@ -44919,9 +45948,9 @@ def login_user():
 
             # Store session
             cursor.execute(
-                """
+                f"""
                 INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
-                VALUES (?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, {_sql_now()})
             """,
                 (user[0], session_token, expires_at.isoformat()),
             )
@@ -44963,11 +45992,11 @@ def validate_user_session(session_token):
 
         # Find valid session
         cursor.execute(
-            """
+            f"""
             SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state
             FROM user_sessions s
             JOIN users u ON s.user_id = u.id
-            WHERE s.session_token = ? AND s.expires_at > datetime('now')
+            WHERE s.session_token = ? AND s.expires_at > {_sql_now()}
         """,
             (session_token,),
         )
@@ -45044,6 +46073,15 @@ def main_dashboard():
         # Get system statistics
         stats = get_dashboard_statistics()
 
+        # Build static_url helper so the template can resolve /emv/static/ paths
+        _emv_path = ""
+        if EMV_BASE_URL:
+            from urllib.parse import urlparse as _urlparse
+            _emv_path = (_urlparse(EMV_BASE_URL).path or "").rstrip("/")
+
+        def static_url(filename):
+            return f"{_emv_path}/static/{filename}" if _emv_path else f"/static/{filename}"
+
         context = {
             "version": "3.1",
             "cache_bust": int(time.time()),
@@ -45051,6 +46089,9 @@ def main_dashboard():
             "synerex_logo_url": "static/synerex_logo_transparent.png",
             "synerex_logo_main_url": "static/synerex_logo_transparent.png",
             "synerex_logo_other_url": "static/synerex_logo_transparent.png",
+            "website_url": WEBSITE_URL or "",
+            "static_url": static_url,
+            "static_base": _emv_path,
         }
 
         logger.info(
@@ -45060,7 +46101,8 @@ def main_dashboard():
         config_script = (
             f"<script>window.SYNEREX_LICENSE_SERVICE_URL = '{LICENSE_SERVICE_URL}';"
             f"window.SYNEREX_WEBSITE_URL = '{WEBSITE_URL}';"
-            f"window.OLLAMA_AI_URL = '{os.getenv('OLLAMA_AI_URL')}';</script>"
+            f"window.OLLAMA_AI_URL = '{os.getenv('OLLAMA_AI_URL')}';"
+            f"window.SYNEREX_EMV_BASE=(function(){{var p=window.location.pathname;return p.startsWith('/emv')?'/emv':'';}})()</script>"
         )
         if "</head>" in result:
             result = result.replace("</head>", config_script + "\n</head>", 1)
@@ -47122,10 +48164,10 @@ def apply_clipping_to_original_file(file_id):
 
             # Store modification record in database
             cursor.execute(
-                """
+                f"""
                 INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
                                               fingerprint_before, fingerprint_after, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, {_sql_now()})
             """,
                 (
                     file_id,
@@ -48014,10 +49056,10 @@ def get_pe_stats():
             # Count active PEs (logged in recently)
             try:
                 cursor.execute(
-                    """
+                    f"""
                     SELECT COUNT(DISTINCT s.user_id) FROM user_sessions s
                     JOIN users u ON s.user_id = u.id
-                    WHERE s.expires_at > datetime('now') AND u.role = 'pe'
+                    WHERE s.expires_at > {_sql_now()} AND u.role = 'pe'
                 """
                 )
                 active_pes = cursor.fetchone()[0]
@@ -48963,7 +50005,7 @@ def admin_stop_all_services():
 def admin_users_list():
     """Get list of all users for admin panel"""
     try:
-        if not ENABLE_SQLITE:
+        if not ENABLE_SQLITE and not USE_MYSQL:
             return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
 
         with get_db_connection() as conn:
@@ -49004,7 +50046,7 @@ def admin_users_list():
 def admin_users_add():
     """Add a new user"""
     try:
-        if not ENABLE_SQLITE:
+        if not ENABLE_SQLITE and not USE_MYSQL:
             return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
 
         data = request.get_json()
@@ -49060,7 +50102,7 @@ def admin_users_add():
 def admin_users_edit():
     """Edit an existing user"""
     try:
-        if not ENABLE_SQLITE:
+        if not ENABLE_SQLITE and not USE_MYSQL:
             return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
 
         data = request.get_json()
@@ -49134,7 +50176,7 @@ def admin_users_edit():
 def admin_users_delete():
     """Delete a user"""
     try:
-        if not ENABLE_SQLITE:
+        if not ENABLE_SQLITE and not USE_MYSQL:
             return jsonify({"success": False, "error": "SQLite persistence not enabled"}), 400
 
         data = request.get_json()
@@ -49344,6 +50386,343 @@ def kill_processes_on_port(port):
                 print(f"[WARNING] Could not kill process {pid}: {e}")
     except Exception as e:
         print(f"[WARNING] Could not kill processes on port {port}: {e}")
+
+
+
+
+# =============================================================================
+# ROUTE BRIDGE
+# Register routes that only exist in main_hardened_ready_refactored so that
+# fixed.py's single Flask app instance serves every URL.
+#
+# =============================================================================
+# Helpers: persist latest analysis results so they survive server restarts.
+# The cache file is written whenever results are stored in memory and is used
+# as a fallback by cross_check_context / cross_check_consistency.
+# =============================================================================
+
+_ANALYSIS_RESULTS_CACHE = Path(__file__).parent / "files" / "_last_analysis_cache.json"
+
+
+def _set_latest_analysis_results(data):
+    """Store analysis results in app memory and write a JSON backup to disk."""
+    app._latest_analysis_results = data
+    if data and isinstance(data, dict):
+        try:
+            _ANALYSIS_RESULTS_CACHE.parent.mkdir(parents=True, exist_ok=True)
+            _ANALYSIS_RESULTS_CACHE.write_text(
+                json.dumps(data, default=str, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception as _e:
+            logger.debug(f"[CACHE] Could not persist analysis results: {_e}")
+
+
+def _load_cached_analysis_results():
+    """Load analysis results from the on-disk backup (used after server restart)."""
+    try:
+        if _ANALYSIS_RESULTS_CACHE.exists():
+            raw = _ANALYSIS_RESULTS_CACHE.read_text(encoding="utf-8")
+            data = json.loads(raw)
+            if isinstance(data, dict) and data:
+                logger.info("[CACHE] Restored analysis results from disk cache")
+                app._latest_analysis_results = data
+                return data
+    except Exception as _e:
+        logger.debug(f"[CACHE] Could not load analysis results from disk: {_e}")
+    return None
+
+
+# cross_check_context and cross_check_consistency are re-implemented as thin
+# wrappers below because the refactored versions read from refactored's own
+# `app` state. Analysis results are stored on *this* app, so the wrappers
+# reference this module's app._latest_analysis_results directly.
+# =============================================================================
+
+# In-memory map of staged utility paths keyed by org_id (mirrors refactored's
+# _staged_utility_paths but lives on this app instance).
+if not hasattr(app, "_staged_utility_paths"):
+    app._staged_utility_paths = {}
+
+
+@app.route("/api/stage-utility-package", methods=["POST"])
+def stage_utility_package_wrapper():
+    """Native wrapper for stage_utility_package — reads analysis results from this app."""
+    try:
+        import main_hardened_ready_refactored as _ref
+        from flask import request as _req, jsonify as _jsn
+
+        # Resolve org_id; fall back to "default" for unauthenticated access.
+        try:
+            org_id = _ref.get_current_org_id(_req) or "default"
+        except Exception:
+            org_id = "default"
+
+        # Prefer results_data from POST body, then this app's memory, then disk cache.
+        data = _req.get_json(silent=True) or {}
+        results_data = (
+            data.get("results_data")
+            or getattr(app, "_latest_analysis_results", None)
+            or _load_cached_analysis_results()
+        )
+        if not results_data:
+            return _jsn({"error": "No results data available. Run an analysis first."}), 400
+
+        # Delegate zip generation to the refactored helper.
+        results_data = dict(results_data)
+        results_data["_org_id"] = org_id
+        zip_buffer = _ref.generate_utility_submission_package(results_data)
+
+        staging_dir = Path(__file__).parent / "results" / "staging"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        from datetime import datetime as _dt
+        timestamp = _dt.now().strftime("%Y%m%d_%H%M%S")
+        staging_path = staging_dir / f"org_{org_id}_utility_{timestamp}.zip"
+        with open(staging_path, "wb") as _f:
+            _f.write(zip_buffer.getvalue())
+        app._staged_utility_paths[org_id] = str(staging_path)
+        logger.info(f"[STAGE] Staged utility package for org {org_id}: {staging_path.name}")
+        return _jsn({"ok": True, "message": "Utility package staged for review.", "filename": staging_path.name}), 200
+    except Exception as e:
+        logger.error(f"[STAGE] stage_utility_package_wrapper failed: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/download-staged-utility", methods=["GET"])
+def download_staged_utility_wrapper():
+    """Native wrapper for download_staged_utility — reads staging paths from this app."""
+    try:
+        import main_hardened_ready_refactored as _ref
+        from flask import request as _req, send_file as _sf
+
+        try:
+            org_id = _ref.get_current_org_id(_req) or "default"
+        except Exception:
+            org_id = "default"
+
+        path = app._staged_utility_paths.get(org_id)
+        if not path or not os.path.exists(path):
+            return jsonify({"error": "No staged utility package found. Stage first from Document Sync Console."}), 404
+        return _sf(path, as_attachment=True, download_name=os.path.basename(path), mimetype="application/zip")
+    except Exception as e:
+        logger.error(f"[STAGE] download_staged_utility_wrapper failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/cross-check-context", methods=["GET"])
+def cross_check_context():
+    """Return current context for Document Sync Console."""
+    try:
+        results = getattr(app, "_latest_analysis_results", None)
+        if not results or not isinstance(results, dict):
+            results = _load_cached_analysis_results()
+        if not results or not isinstance(results, dict):
+            return jsonify({"has_results": False, "project_name": None}), 200
+        project_name = (
+            results.get("project_name")
+            or (results.get("config") or {}).get("project_name")
+            or (results.get("client_profile") or {}).get("project_name")
+            or (results.get("config") or {}).get("cp_company")
+        )
+        if project_name and not isinstance(project_name, str):
+            project_name = str(project_name)
+        elif project_name:
+            project_name = project_name.strip() or None
+        return jsonify({"has_results": True, "project_name": project_name or None}), 200
+    except Exception as e:
+        logger.warning(f"Error getting cross-check context: {e}")
+        return jsonify({"has_results": False, "project_name": None}), 200
+
+
+@app.route("/api/cross-check-consistency", methods=["GET", "POST"])
+def cross_check_consistency():
+    """Document consistency cross-check — reads from this app's _latest_analysis_results."""
+    try:
+        if request.method == "POST":
+            data = request.get_json()
+            results_data = data.get("results_data") if data else None
+        else:
+            results_data = getattr(app, "_latest_analysis_results", None)
+            if not results_data:
+                results_data = _load_cached_analysis_results()
+
+        if not results_data:
+            return jsonify({
+                "success": False,
+                "error": "No results data available. Please run an analysis first.",
+                "consistency_status": "ERROR",
+                "tie_out_status": "FAILED",
+                "audit_compliance": "FAILED",
+            }), 400
+
+        cross_check_result = cross_check_document_consistency(results_data)
+
+        html_content = None
+        html_report_path = None
+        analysis_session_id = results_data.get("analysis_session_id") if isinstance(results_data, dict) else None
+        if analysis_session_id:
+            try:
+                with get_db_connection() as conn:
+                    if conn:
+                        cursor = conn.cursor()
+                        for col in ("file_path", "report_path"):
+                            try:
+                                cursor.execute(f"""
+                                    SELECT {col} FROM html_reports
+                                    WHERE analysis_session_id = ?
+                                    ORDER BY created_at DESC LIMIT 1
+                                """, (analysis_session_id,))
+                                row = cursor.fetchone()
+                                if row and row[0]:
+                                    from pathlib import Path as _Path
+                                    report_path = _Path(__file__).parent / row[0]
+                                    if report_path.exists():
+                                        html_content = report_path.read_text(encoding="utf-8", errors="replace")
+                                        html_report_path = str(report_path.name)
+                                        break
+                            except Exception:
+                                continue
+            except Exception as e:
+                logger.warning(f"CROSS-CHECK: Could not load HTML report: {e}")
+
+        doc_level = cross_check_document_level(results_data, html_content=html_content)
+        if doc_level:
+            cross_check_result["discrepancies"] = cross_check_result.get("discrepancies", []) + doc_level
+            summary = cross_check_result.get("summary", {})
+            summary["discrepancies_found"] = summary.get("discrepancies_found", 0) + len(doc_level)
+            high = sum(1 for d in doc_level if d.get("severity") == "HIGH")
+            med  = sum(1 for d in doc_level if d.get("severity") == "MEDIUM")
+            summary["high_severity"]   = summary.get("high_severity", 0) + high
+            summary["medium_severity"] = summary.get("medium_severity", 0) + med
+            if high > 0 and cross_check_result.get("tie_out_status") == "PASSED":
+                cross_check_result["tie_out_status"]       = "FAILED"
+                cross_check_result["consistency_status"]   = "FAILED - DOCUMENT VALUES DO NOT MATCH SOURCE"
+                cross_check_result["audit_compliance"]     = "FAILED"
+
+        cross_check_result["comparison_table"] = build_comparison_table(results_data, html_content=html_content)
+        cross_check_result["diagnostics"]      = build_consistency_diagnostics(
+            results_data, html_content=html_content, html_report_path=html_report_path
+        )
+        return jsonify({"success": True, **cross_check_result}), 200
+
+    except Exception as e:
+        logger.error(f"Error in cross-check consistency: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            "success": False,
+            "error": f"Cross-check failed: {str(e)}",
+            "consistency_status": "ERROR",
+            "tie_out_status": "FAILED",
+            "audit_compliance": "FAILED",
+        }), 500
+
+
+def _register_refactored_routes():
+    """Bridge all routes that exist only in main_hardened_ready_refactored."""
+    try:
+        import main_hardened_ready_refactored as _ref
+
+        _bridge = [
+            ("/admin/api/documentation",                       _ref.admin_api_documentation,                 ["GET"]),
+            ("/admin/api/rate-limits",                         _ref.admin_api_rate_limits,                   ["GET"]),
+            ("/admin/api/test-endpoints",                      _ref.admin_api_test_endpoints,                ["POST"]),
+            ("/admin/compliance/audit-trail",                  _ref.admin_compliance_audit_trail,            ["GET"]),
+            ("/admin/compliance/check",                        _ref.admin_compliance_check,                  ["GET"]),
+            ("/admin/compliance/report",                       _ref.admin_compliance_report,                 ["POST"]),
+            ("/admin/database/backup",                         _ref.admin_backup_database,                   ["POST"]),
+            ("/admin/database/cleanup",                        _ref.admin_cleanup_old_data,                  ["POST"]),
+            ("/admin/database/integrity",                      _ref.admin_check_integrity,                   ["POST"]),
+            ("/admin/database/optimize",                       _ref.admin_optimize_database,                 ["POST"]),
+            ("/admin/emergency/emergency-export",              _ref.admin_emergency_export,                  ["POST"]),
+            ("/admin/emergency/force-data-sync",               _ref.admin_emergency_force_data_sync,         ["POST"]),
+            ("/admin/emergency/recover-deleted-data",          _ref.admin_emergency_recover_deleted_data,    ["POST"]),
+            ("/admin/emergency/reset-services",                _ref.admin_emergency_reset_services,          ["POST"]),
+            ("/admin/emergency/restart",                       _ref.admin_emergency_restart,                 ["POST"]),
+            ("/admin/emergency/restore-backup",                _ref.admin_emergency_restore_backup,          ["POST"]),
+            ("/admin/engineering/test-metrics",                _ref.admin_engineering_test_metrics,          ["GET", "POST"]),
+            ("/admin/license-service/start",                   _ref.admin_license_service_start,             ["POST"]),
+            ("/admin/license-service/stop",                    _ref.admin_license_service_stop,              ["POST"]),
+            ("/admin/proxy/tracking-restart",                  _ref.admin_proxy_tracking_restart,            ["POST"]),
+            ("/admin/security/check",                          _ref.admin_security_check,                    ["GET"]),
+            ("/admin/security/logs",                           _ref.admin_security_logs,                     ["GET"]),
+            ("/admin/security/threat-scan",                    _ref.admin_security_threat_scan,              ["POST"]),
+            ("/admin/system/diagnostics",                      _ref.admin_system_diagnostics,                ["GET"]),
+            ("/admin/system/disk-space",                       _ref.admin_system_disk_space,                 ["GET"]),
+            ("/admin/system/emergency-shutdown",               _ref.admin_system_emergency_shutdown,         ["POST"]),
+            ("/admin/system/memory-usage",                     _ref.admin_system_memory_usage,               ["GET"]),
+            ("/admin/system/schedule-maintenance",             _ref.admin_system_schedule_maintenance,       ["POST"]),
+            ("/api/account/licensed-programs",                 _ref.get_licensed_programs,                   ["GET"]),
+            ("/api/auth/logout",                               _ref.logout_user,                             ["POST"]),
+            ("/api/auth/organizations",                        _ref.list_organizations,                      ["GET"]),
+            ("/api/auth/verify-jwt",                           _ref.verify_user_jwt,                         ["POST"]),
+            ("/api/debug/financial",                           _ref.debug_financial,                         ["GET"]),
+            ("/api/debug/fingerprints-context",                _ref.debug_fingerprints_context,              ["GET"]),
+            ("/api/download-staged-utility",                   _ref.download_staged_utility,                 ["GET"]),
+            ("/api/mv-plan/<plan_id>",                         _ref.mv_plan_view,                            ["GET"]),
+            ("/api/mv-plan/<plan_id>/sign",                    _ref.mv_plan_sign,                            ["POST"]),
+            ("/api/mv-plan/generate",                         _ref.mv_plan_generate,                        ["POST"]),
+            ("/api/oem-customers",                             _ref.get_oem_customers,                       ["GET"]),
+            ("/api/orgs/sync",                                 _ref.sync_org_from_license,                   ["POST"]),
+            ("/api/pe/assign-reviewer",                        _ref.assign_pe_reviewer,                      ["POST"]),
+            ("/api/pe/check",                                  _ref.check_pe_registration,                   ["GET"]),
+            ("/api/pe/documents/<int:doc_id>/download",        _ref.download_pe_document,                    ["GET"]),
+            ("/api/pe/documents/<int:doc_id>/view",            _ref.view_pe_document,                        ["GET"]),
+            ("/api/pe/documents/<int:pe_id>",                  _ref.get_pe_documents,                        ["GET"]),
+            ("/api/pe/projects",                               _ref.list_all_projects_for_pe,                ["GET"]),
+            ("/api/pe/review-checklist/<analysis_session_id>", _ref.download_pe_review_checklist,           ["GET"]),
+            ("/api/pe/review/list",                            _ref.list_pe_review_workflows,                ["GET"]),
+            ("/api/pe/review/transition",                      _ref.transition_pe_review,                    ["POST"]),
+            ("/api/pe/review/workflow",                        _ref.get_pe_review_workflow_endpoint,         ["GET"]),
+            ("/api/pe/scheduler-status",                       _ref.get_pe_scheduler_status,                 ["GET"]),
+            ("/api/pe/self-register",                          _ref.pe_self_register,                        ["POST"]),
+            ("/api/pe/verify-all",                             _ref.trigger_manual_pe_verification,          ["POST"]),
+            ("/api/pe/verify/<int:pe_id>",                     _ref.verify_pe_license,                       ["POST"]),
+            ("/api/profiles",                                  _ref.api_profiles,                            ["GET", "POST"]),
+            ("/api/profiles/<client_id>/clone",                _ref.api_profile_clone,                       ["POST"]),
+            ("/api/projects/debug-raw/<int:project_id>",       _ref.debug_project_raw,                       ["GET"]),
+            ("/api/projects/debug/<int:project_id>",           _ref.debug_project,                           ["GET"]),
+            ("/api/projects/find-cloud-kitchen",               _ref.find_cloud_kitchen_with_data,            ["GET"]),
+            ("/api/projects/search/<path:search_term>",        _ref.search_projects,                         ["GET"]),
+            ("/api/reports/<int:report_id>/view",              _ref.view_html_report,                        ["GET"]),
+            ("/api/stage-utility-package",                     _ref.stage_utility_package,                   ["POST"]),
+            ("/api/validate",                                  _ref.validate_data,                           ["POST"]),
+            ("/api/weather",                                   _ref.fetch_weather,                           ["POST"]),
+            ("/cold-storage",                                  _ref.cold_storage_analysis,                   ["GET"]),
+            ("/data-center",                                   _ref.data_center_analysis,                    ["GET"]),
+            ("/document-sync-console",                         _ref.document_sync_console,                   ["GET"]),
+            ("/emv/api/tracking/push-baseline",                _ref.tracking_push_baseline,                  ["POST"]),
+            ("/field-forms/<facility_type>_field_form.pdf",    _ref.serve_field_form,                        ["GET"]),
+            ("/find-cloud-kitchen",                            _ref.find_cloud_kitchen_page,                 ["GET"]),
+            ("/healthcare",                                    _ref.healthcare_analysis,                     ["GET"]),
+            ("/hospitality",                                   _ref.hospitality_analysis,                    ["GET"]),
+            ("/logout",                                        _ref.logout_redirect,                         ["GET"]),
+            ("/manufacturing",                                 _ref.manufacturing_analysis,                  ["GET"]),
+            ("/my-account",                                    _ref.my_account_page,                         ["GET"]),
+            ("/pe/self-register",                              _ref.pe_self_register_page,                   ["GET"]),
+            ("/sso",                                           _ref.sso_login,                               ["GET"]),
+        ]
+
+        bridged = 0
+        for path, fn, methods in _bridge:
+            try:
+                app.add_url_rule(path, endpoint=fn.__name__, view_func=fn, methods=methods)
+                bridged += 1
+            except AssertionError:
+                pass  # already registered
+            except Exception as e:
+                logger.warning(f"[BRIDGE] Could not register {path}: {e}")
+
+        logger.info(f"[BRIDGE] Registered {bridged}/{len(_bridge)} routes from refactored module")
+
+    except Exception as e:
+        logger.error(f"[BRIDGE] Failed to bridge routes from refactored module: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
+_register_refactored_routes()
 
 
 if __name__ == "__main__":
