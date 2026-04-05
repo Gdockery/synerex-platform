@@ -291,13 +291,127 @@ class ServiceManager:
             service_status.running = False
             return False
     
+    @staticmethod
+    def _find_pids_on_port(port: int):
+        """Find PIDs listening on a port by parsing /proc/net/tcp (works across PID namespaces)."""
+        import glob as _glob
+        pids = []
+        hex_port = f"{port:04X}"
+        inodes = set()
+        for proto_file in ('/proc/net/tcp', '/proc/net/tcp6'):
+            try:
+                with open(proto_file) as f:
+                    for line in f.readlines()[1:]:
+                        parts = line.split()
+                        if len(parts) > 9 and parts[3] == '0A':  # 0A = LISTEN
+                            local_addr = parts[1]
+                            local_port = local_addr.split(':')[1]
+                            if local_port.upper() == hex_port:
+                                inodes.add(parts[9])
+            except Exception:
+                pass
+        if not inodes:
+            # Fallback: scan /proc/*/cmdline for known service script names
+            return pids
+        my_pid = os.getpid()
+        for pid_dir in os.listdir('/proc'):
+            if not pid_dir.isdigit():
+                continue
+            pid = int(pid_dir)
+            if pid == my_pid:
+                continue
+            fd_dir = f'/proc/{pid_dir}/fd'
+            try:
+                for fd in os.listdir(fd_dir):
+                    try:
+                        link = os.readlink(f'{fd_dir}/{fd}')
+                        if 'socket:[' in link:
+                            inode = link.split('[')[1].rstrip(']')
+                            if inode in inodes and pid not in pids:
+                                pids.append(pid)
+                    except (OSError, ValueError, IndexError):
+                        pass
+            except (OSError, PermissionError):
+                pass
+        return pids
+
+    @staticmethod
+    def _find_pids_by_cmdline(script_name: str):
+        """Find PIDs whose cmdline ends with the given script filename."""
+        pids = []
+        my_pid = os.getpid()
+        for pid_dir in os.listdir('/proc'):
+            if not pid_dir.isdigit():
+                continue
+            pid = int(pid_dir)
+            if pid == my_pid:
+                continue
+            try:
+                with open(f'/proc/{pid_dir}/cmdline', 'rb') as f:
+                    cmdline = f.read().replace(b'\x00', b' ').decode(errors='replace').strip()
+                # Match only if the script_name appears as a standalone argument
+                args = cmdline.split()
+                if any(arg == script_name or arg.endswith('/' + script_name) for arg in args):
+                    pids.append(pid)
+            except Exception:
+                pass
+        return pids
+
     def _stop_service(self, service_id: str) -> bool:
         """Stop a single service"""
         service_status = self.services[service_id]
         
         try:
             if not service_status.running:
-                print(f"INFO: {service_status.name} is not running")
+                # Even if we think it's not running, check port and kill if occupied
+                port = service_status.port
+                # Try HTTP shutdown endpoint first (works across user boundaries)
+                try:
+                    import urllib.request as _urllib
+                    req = _urllib.Request(
+                        f'http://{SERVICE_MANAGER_HOST}:{port}/shutdown',
+                        data=b'{}', method='POST'
+                    )
+                    req.add_header('Content-Type', 'application/json')
+                    with _urllib.urlopen(req, timeout=3):
+                        pass
+                    print(f"INFO: Sent HTTP /shutdown to {service_status.name} on port {port}")
+                    time.sleep(2)  # Give time to shut down
+                except Exception as _e:
+                    print(f"DEBUG: HTTP shutdown not available for {service_status.name}: {_e}")
+                # Check if port is now free
+                import socket as _sock
+                test = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+                test.settimeout(1)
+                still_up = test.connect_ex((SERVICE_MANAGER_HOST, port)) == 0
+                test.close()
+                if not still_up:
+                    print(f"INFO: {service_status.name} port {port} is now free after HTTP shutdown")
+                    service_status.running = False
+                    service_status.pid = None
+                    return True
+                pids = self._find_pids_on_port(port)
+                # If fd-based scan returned nothing (permission issue), try cmdline match
+                if not pids:
+                    svc_cfg = self.config.get('services', {}).get(service_id, {})
+                    script = svc_cfg.get('script', '')
+                    if script:
+                        pids = self._find_pids_by_cmdline(script)
+                if not pids:
+                    print(f"INFO: {service_status.name} is not running and port {port} is free")
+                    return True
+                print(f"INFO: {service_status.name} flagged as not running but port {port} is occupied — killing PIDs {pids}")
+                for pid in pids:
+                    try:
+                        os.kill(pid, signal.SIGTERM)
+                        time.sleep(1)
+                        try:
+                            os.kill(pid, 0)
+                            os.kill(pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    except (ProcessLookupError, PermissionError) as e:
+                        print(f"Could not kill PID {pid}: {e}")
                 return True
             
             # Find and kill the process
@@ -330,8 +444,8 @@ class ServiceManager:
                 port_in_use = False
                 for proc in psutil.process_iter(['pid', 'name']):
                     try:
-                        if proc.info['name'] == 'python.exe':
-                            connections = proc.net_connections()
+                        if proc.info['name'] in ('python.exe', 'python', 'python3'):
+                            connections = proc.connections()
                             for conn in connections:
                                 if conn.laddr.port == service_status.port:
                                     print(f"Found process {proc.pid} using port {service_status.port}, terminating...")
@@ -349,6 +463,29 @@ class ServiceManager:
                     except (psutil.AccessDenied, psutil.NoSuchProcess):
                         continue
                 
+                # Fallback: use /proc/net/tcp to find PIDs across PID namespaces
+                if not port_in_use:
+                    fallback_pids = self._find_pids_on_port(service_status.port)
+                    # If fd-based scan returned nothing (permission issue), try cmdline match
+                    if not fallback_pids:
+                        svc_cfg = self.config.get('services', {}).get(service_id, {})
+                        script = svc_cfg.get('script', '')
+                        if script:
+                            fallback_pids = self._find_pids_by_cmdline(script)
+                    for pid in fallback_pids:
+                        try:
+                            print(f"[fallback] Killing PID {pid} on port {service_status.port}")
+                            os.kill(pid, signal.SIGTERM)
+                            time.sleep(1)
+                            try:
+                                os.kill(pid, 0)  # Check if still alive
+                                os.kill(pid, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass  # Already gone
+                            port_in_use = True
+                        except (ProcessLookupError, PermissionError) as e:
+                            print(f"[fallback] Could not kill PID {pid}: {e}")
+
                 if not port_in_use:
                     break
                 
@@ -763,6 +900,46 @@ def restart_service(service_id):
                 'success': False,
                 'message': f'Service {service_id} not found'
             }), 404
+
+        # If the service is managed by Docker, use docker restart instead
+        service_config = service_manager.config['services'].get(service_id, {})
+        docker_container = service_config.get('docker_container')
+        if docker_container:
+            print(f"INFO: {service_id} is Docker-managed (container: {docker_container}), using docker restart")
+            try:
+                result = subprocess.run(
+                    ['docker', 'restart', docker_container],
+                    capture_output=True, text=True, timeout=60
+                )
+                if result.returncode == 0:
+                    # Wait briefly for the container to come back up
+                    time.sleep(3)
+                    healthy = service_manager._is_service_healthy(service_id)
+                    return jsonify({
+                        'success': True,
+                        'message': f'{service_id} restarted via Docker successfully',
+                        'healthy': healthy,
+                        'container': docker_container
+                    })
+                else:
+                    error_msg = result.stderr.strip() or f'docker restart exited with code {result.returncode}'
+                    return jsonify({
+                        'success': False,
+                        'message': f'docker restart failed for {docker_container}',
+                        'error': error_msg
+                    }), 500
+            except subprocess.TimeoutExpired:
+                return jsonify({
+                    'success': False,
+                    'message': f'docker restart timed out for {docker_container}',
+                    'error': 'timeout after 60s'
+                }), 500
+            except FileNotFoundError:
+                return jsonify({
+                    'success': False,
+                    'message': 'docker command not found in PATH',
+                    'error': 'docker binary not available inside service manager container'
+                }), 500
 
         # Stop the service first
         stop_result = service_manager._stop_service(service_id)

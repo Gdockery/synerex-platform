@@ -81,22 +81,17 @@ def generate_report():
         # Apply show_dollars from query param: "false", "0", "off" = hide dollar amounts in export
         show_dollars_param = request.args.get("show_dollars", "true")
         show_dollars = str(show_dollars_param).lower() not in ("false", "0", "off")
-        # Apply submission_mode from query param so blocking gate uses correct thresholds
+        # Apply submission_mode from query param so blocking-flag thresholds are correct
         submission_mode_param = request.args.get("submission_mode", "pe_review")
         if isinstance(results, dict):
             results = dict(results)
             config = results.get("config") or {}
             config = dict(config)
             config["show_dollars"] = show_dollars
-            # Inject submission_mode so _detect_blocking_flags applies 30-day minimum,
-            # MV_PLAN_MISSING, and IEEE 519 TDD escalation for utility submissions.
-            if "submission_mode" not in config or not config.get("submission_mode"):
-                config["submission_mode"] = submission_mode_param
+            config["submission_mode"] = submission_mode_param
             results["config"] = config
             results["submission_mode"] = submission_mode_param
-            results["report_type"] = submission_mode_param
             print(f"8084 Service: show_dollars={show_dollars} (from param={show_dollars_param})")
-            print(f"8084 Service: submission_mode={submission_mode_param}")
         
         # Generate the HTML report using the exact template function
         print("8084 Service: Calling generate_exact_template_html...")
@@ -158,27 +153,6 @@ def generate_report():
             print(f"[WARN] FORCED REPLACEMENT: Removed all remaining {len(unique_vars)} template variables")
         else:
             print("[OK] All template variables successfully replaced")
-        
-        # Section integrity validation — catch missing sections early
-        _required_sections = [
-            'Statistical Significance',
-            'Engineering Results',
-            'Load Factor Analysis',
-            'Raw Meter Test Data',
-            'Bill-Weighted Savings',
-            'Main Results Summary',
-            'Network Envelope Analysis',
-        ]
-        _missing = [s for s in _required_sections if s not in html_content]
-        _size_kb = len(html_content.encode('utf-8')) / 1024
-        print(f"[VALIDATE] Report size: {_size_kb:.0f} KB")
-        if _missing:
-            print(f"[WARN] SECTION INTEGRITY FAILURE — Missing sections: {_missing}")
-            print(f"[WARN] This usually means the analysis data was incomplete when the report was generated.")
-            print(f"[WARN] Power quality keys: {list(results.get('power_quality', {}).keys())[:20] if isinstance(results, dict) else 'N/A'}")
-            print(f"[WARN] Statistical keys: {list(results.get('statistical', {}).keys())[:20] if isinstance(results, dict) else 'N/A'}")
-        else:
-            print(f"[VALIDATE] All {len(_required_sections)} required sections present — report is complete")
         
         # FORCE CORRECT SIGN: Fix IEEE kW improvement sign if negative
         if 'ieee_kw_normalized_improvement_pct' in results.get('power_quality', {}):

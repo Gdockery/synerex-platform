@@ -4,6 +4,7 @@ services:
     port: 8082
     script: "main_hardened_ready_refactored.py"
     directory: "8082"
+    docker_container: "synerex-platform_emv-program_1"
     dependencies: ["weather"]  # Ensure weather service starts before main app
     health_endpoint: "/health"
     startup_timeout: 30
@@ -22,6 +23,7 @@ services:
     port: 8084
     script: "html_report_service.py"
     directory: "8084"
+    docker_container: "synerex-platform_html-report-service_1"
     dependencies: ["main_app"]
     health_endpoint: "/health"
     startup_timeout: 20
@@ -79,6 +81,7 @@ services:
     runtime: "uvicorn"
     script: "app.main:app"
     directory: "../license-service/services/license-service"
+    docker_container: "synerex-platform_license-service_1"
     dependencies: []
     health_endpoint: "/health"
     startup_timeout: 30
@@ -89,6 +92,7 @@ services:
     runtime: "npm"
     command: "run dev"
     directory: "../website"
+    docker_container: "synerex-platform_website_1"
     dependencies: []
     health_endpoint: "/"
     startup_timeout: 30
@@ -99,6 +103,7 @@ services:
     runtime: "python"
     script: "run.py"
     directory: "../tracking-program/8087/flask_app"
+    docker_container: "synerex-platform_tracking-program_1"
     dependencies: ["license_service"]
     health_endpoint: "/health"
     startup_timeout: 60

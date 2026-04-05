@@ -109,6 +109,10 @@ services:
     image: python:3.11-slim
     working_dir: /app
     network_mode: "host"
+    pid: "host"
+    cap_add:
+      - SYS_PTRACE
+      - DAC_READ_SEARCH
     env_file:
       - ./emv-program/8082/.env
     environment:
@@ -116,10 +120,12 @@ services:
       OLLAMA_EMBED_MODEL: nomic-embed-text
     volumes:
       - ./emv-program:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     command: >
       sh -c "pip install --no-cache-dir -r /app/8082/requirements.txt &&
+             apt-get update -qq && apt-get install -y -qq docker.io &&
              (python /app/8082/ollama_ai_backend.py &) &&
-             python /app/service_manager_daemon.py"
+             python -u /app/service_manager_daemon.py"
     restart: unless-stopped
   tracking-program:
     image: synerex-platform_tracking:latest

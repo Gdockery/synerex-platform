@@ -10,4 +10,4 @@ COPY . /app
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8082
 
-CMD ["python", "main_hardened_ready_refactored.py"]
+CMD ["python", "main_hardened_ready_fixed.py"]

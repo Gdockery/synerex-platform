@@ -344,10 +344,9 @@ class MainDashboard {
     async login() {
         const username = (document.getElementById('username').value || '').trim();
         const password = (document.getElementById('password').value || '');
-        const role = (document.getElementById('user-role').value || '').trim();
 
-        if (!username || !password || !role) {
-            this.showNotification('Please fill in all fields', 'error');
+        if (!username || !password) {
+            this.showNotification('Please enter your username and password', 'error');
             return;
         }
         
@@ -355,7 +354,7 @@ class MainDashboard {
         this.clearAllSpinners();
         
         try {
-            console.log('🔐 Login attempt:', { username, role });
+            console.log('🔐 Login attempt:', { username });
             this.setLoading(true);
             
             // Add timeout controller to prevent infinite spinner
@@ -375,7 +374,7 @@ class MainDashboard {
                 const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, role }),
+                    body: JSON.stringify({ username, password }),
                     signal: controller.signal
                 });
                 

@@ -24,6 +24,12 @@ except Exception as e:
     logger.warning(f"Failed to initialize CORS (non-critical): {e}")
     # Continue without CORS if it fails - service can still work
 
+# In-memory caches to avoid redundant external API calls within a session.
+# Keys: normalized address string → (lat, lon, location_name)
+_geocode_cache = {}
+# Keys: (rounded_lat, rounded_lon) → station dict or None
+_asos_station_cache = {}
+
 def _is_us_address(address):
     """Return True if address appears to be in the USA; False for international (e.g. Brazil)."""
     if not address or not isinstance(address, str):
@@ -95,6 +101,12 @@ def _parse_international_address(address):
 
 def geocode_address(address):
     """Geocode address to get coordinates using Open-Meteo Geocoding API with fallbacks"""
+    cache_key = address.strip().lower() if address else ""
+    if cache_key in _geocode_cache:
+        cached = _geocode_cache[cache_key]
+        logger.info(f"Geocode cache hit for '{address}': {cached}")
+        return cached
+
     try:
         import re
         import time
@@ -319,6 +331,13 @@ def find_nearest_asos_station(lat, lon, max_distance_km=MAX_ASOS_DISTANCE_KM,
         dict with keys: station_id, station_name, distance_km, lat, lon
         or None if no station found within max_distance_km.
     """
+    # Cache key: round to 2 decimal places (~1 km resolution) so nearby addresses reuse the same station
+    _cache_key = (round(lat, 2), round(lon, 2))
+    if _cache_key in _asos_station_cache:
+        cached = _asos_station_cache[_cache_key]
+        logger.info(f"ASOS station cache hit for ({lat:.4f}, {lon:.4f}): {cached}")
+        return cached
+
     import math
 
     # Map of approximate bounding boxes (min_lat, max_lat, min_lon, max_lon) per state
@@ -407,6 +426,7 @@ def find_nearest_asos_station(lat, lon, max_distance_km=MAX_ASOS_DISTANCE_KM,
 
         if best_station is None:
             logger.warning(f"No ASOS stations found in candidate states {candidates}")
+            _asos_station_cache[_cache_key] = None
             return None
 
         if best_dist > max_distance_km:
@@ -414,12 +434,14 @@ def find_nearest_asos_station(lat, lon, max_distance_km=MAX_ASOS_DISTANCE_KM,
                 f"Closest ASOS station {best_station['station_id']} is {best_dist:.1f} km "
                 f"— exceeds {max_distance_km} km threshold. Using Open-Meteo fallback."
             )
+            _asos_station_cache[_cache_key] = None
             return None
 
         logger.info(
             f"Nearest ASOS station: {best_station['station_id']} "
             f"({best_station['station_name']}) at {best_dist:.1f} km"
         )
+        _asos_station_cache[_cache_key] = best_station
         return best_station
 
     except Exception as e:
@@ -1006,6 +1028,17 @@ def health_check():
         logger.error(traceback.format_exc())
         return jsonify({"status": "error", "service": "weather-service", "error": str(e)}), 500
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """Graceful shutdown endpoint for service manager integration."""
+    import threading
+    def _do_shutdown():
+        import time, os, signal
+        time.sleep(0.3)
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=_do_shutdown, daemon=True).start()
+    return jsonify({"status": "shutting_down"}), 200
+
 @app.route('/weather/batch', methods=['POST'])
 def weather_batch():
     """Fetch weather data for before and after periods"""
@@ -1023,10 +1056,12 @@ def weather_batch():
         if not address:
             return jsonify({"success": False, "error": "Address is required"})
         
-        # Geocode the address
+        # Geocode the address (result cached inside geocode_address on success)
         lat, lon, location_name = geocode_address(address)
         if lat is None or lon is None:
             return jsonify({"success": False, "error": f"Could not geocode address: {address}"})
+        # Store successful geocode in cache for future requests in this session
+        _geocode_cache[address.strip().lower()] = (lat, lon, location_name)
         
         # Extract date part from datetime strings and convert to YYYY-MM-DD format for Open-Meteo API
         def convert_date_format(date_str):
