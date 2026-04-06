@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Seed the Cloud Kitchen client for HarmoniQ (OEM-HARMONIQ).
-Cloud Kitchen is a customer of HarmoniQ - HarmoniQ OEM users see it on the clients list.
+Seed the Test Client placeholder for an OEM org.
+Test Client is a placeholder customer used for development and demo purposes.
 
 Usage (from tracking-program/8087/flask_app):
     python scripts/seed_cloud_kitchen.py [org_id]
@@ -20,39 +20,44 @@ from app.db.request_session import get_session
 from app.models.client import Client
 
 
-def seed_cloud_kitchen(org_id: str = "OEM-HARMONIQ"):
-    """Create Cloud Kitchen client for the given org if it doesn't exist."""
+def seed_test_client(org_id: str = "OEM-HARMONIQ"):
+    """Create Test Client placeholder for the given org if it doesn't exist."""
     app = create_app()
     with app.app_context():
         sess = get_session()
         existing = sess.query(Client).filter(
             Client.org_id == org_id,
-            Client.name.ilike("%Cloud Kitchen%"),
+            Client.name.ilike("%Test Client%"),
             Client.isDeleted == False,
         ).first()
         if existing:
-            print(f"[OK] Cloud Kitchen already exists: id={existing.id} name={existing.name!r} org_id={org_id}")
+            print(f"[OK] Test Client already exists: id={existing.id} name={existing.name!r} org_id={org_id}")
             return existing.id
 
         c = Client(
-            name="Cloud Kitchen",
+            name="Test Client",
             org_id=org_id,
             isDeleted=False,
         )
         sess.add(c)
         sess.commit()
-        print(f"[OK] Created Cloud Kitchen client: id={c.id} org_id={org_id}")
+        print(f"[OK] Created Test Client: id={c.id} org_id={org_id}")
         return c.id
+
+
+# Keep backward-compatible alias
+def seed_cloud_kitchen(org_id: str = "OEM-HARMONIQ"):
+    return seed_test_client(org_id)
 
 
 def main():
     org_id = sys.argv[1] if len(sys.argv) > 1 else "OEM-HARMONIQ"
     print(f"\n{'='*60}")
-    print("Seed Cloud Kitchen for HarmoniQ")
+    print("Seed Test Client placeholder")
     print(f"{'='*60}\n")
     print(f"Org ID: {org_id}\n")
-    seed_cloud_kitchen(org_id)
-    print("\nHarmoniQ OEM users will see Cloud Kitchen on the clients list.")
+    seed_test_client(org_id)
+    print("\nOEM users will see Test Client on the clients list.")
 
 
 if __name__ == "__main__":

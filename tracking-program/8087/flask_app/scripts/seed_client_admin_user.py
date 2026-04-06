@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Seed a Client Admin user for testing the Tracking program.
-Creates Cloud Kitchen client if needed, then creates a Client Admin (role 2) with a known password.
+Creates Test Client if needed, then creates a Client Admin (role 2) with a known password.
 
 Usage (from tracking-program/8087/flask_app):
     python scripts/seed_client_admin_user.py [email] [password]
@@ -33,20 +33,20 @@ DEFAULT_PASSWORD = "client123"
 
 
 def seed_client_admin(email: str = DEFAULT_EMAIL, password: str = DEFAULT_PASSWORD):
-    """Create or update Client Admin user for testing. Uses Cloud Kitchen as client."""
+    """Create or update Client Admin user for testing. Uses Test Client as client."""
     app = create_app()
     with app.app_context():
         sess = get_session()
 
-        # Get or create Cloud Kitchen client (legacy org_id or sponsor_org_id)
+        # Get or create Test Client
         client = sess.query(Client).filter(
             Client.isDeleted == False,
-            Client.name.ilike("%Cloud Kitchen%"),
+            Client.name.ilike("%Test Client%"),
         ).first()
         if not client:
             # Create a test client with org_id for License check
             client = Client(
-                name="Cloud Kitchen",
+                name="Test Client",
                 org_id="OEM-HARMONIQ",
                 isDeleted=False,
             )
@@ -97,7 +97,7 @@ def main():
     print("Seed Client Admin User for Testing")
     print(f"{'='*60}\n")
     print(f"Email: {email}")
-    print(f"Client: Cloud Kitchen (created if missing)\n")
+    print(f"Client: Test Client (created if missing)\n")
 
     seed_client_admin(email, password)
 

@@ -705,99 +705,17 @@ CLIENT_ADMIN_PASSWORD = "client123"
 
 
 def ensure_client_admin_user():
-    """Create Client Admin user (role 2) for testing if missing. Uses Cloud Kitchen as client."""
-    from app.models.user import User
-    from app.models.client import Client
-    from flask import current_app
-
-    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if ":memory:" in uri:
-        return "skipped"
-    existing = db.session.query(User).filter_by(email=CLIENT_ADMIN_EMAIL, isDeleted=False).first()
-    if existing:
-        return "ok"
-    # Get or create Cloud Kitchen client
-    client = db.session.query(Client).filter(
-        Client.isDeleted == False,
-        Client.name.ilike("%Cloud Kitchen%"),
-    ).first()
-    if not client:
-        client = Client(name="Cloud Kitchen", org_id="OEM-HARMONIQ", isDeleted=False)
-        db.session.add(client)
-        db.session.flush()
-    import bcrypt
-    hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
-    u = User(
-        firstName="Client",
-        lastName="Admin",
-        email=CLIENT_ADMIN_EMAIL,
-        hashedPassword=hashed,
-        role=2,  # Client Admin
-        client=client.id,
-        isDeleted=False,
-    )
-    db.session.add(u)
-    db.session.commit()
-    print(f"Created Client Admin user ({CLIENT_ADMIN_EMAIL}) for testing.")
-    return "ok"
+    """Disabled — Test Client placeholder seeding is disabled for production use."""
+    return "disabled"
 
 
 CLIENT_ADMIN_EMAIL = "clientadmin@example.com"
 CLIENT_ADMIN_PASSWORD = "client123"
 
 
-def ensure_client_admin_user():
-    """Create Client Admin user (role 2) for testing if missing. Uses Cloud Kitchen as client."""
-    from app.models.user import User
-    from app.models.client import Client
-    from flask import current_app
-
-    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if ":memory:" in uri:
-        return "skipped"
-
-    # Get or create Cloud Kitchen client
-    client = db.session.query(Client).filter(
-        Client.isDeleted == False,
-        Client.name.ilike("%Cloud Kitchen%"),
-    ).first()
-    if not client:
-        client = Client(
-            name="Cloud Kitchen",
-            org_id="OEM-HARMONIQ",
-            isDeleted=False,
-        )
-        db.session.add(client)
-        db.session.flush()
-        db.session.commit()
-        print("Created Cloud Kitchen client for Client Admin seed.")
-
-    existing = db.session.query(User).filter_by(email=CLIENT_ADMIN_EMAIL, isDeleted=False).first()
-    if existing:
-        existing.client = client.id
-        existing.role = 2
-        import bcrypt
-        hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
-        existing.hashedPassword = hashed
-        existing.resetPasswordToken = ""
-        db.session.commit()
-        return "ok"
-
-    import bcrypt
-    hashed = bcrypt.hashpw(CLIENT_ADMIN_PASSWORD.encode(), bcrypt.gensalt(rounds=8)).decode("utf-8")
-    u = User(
-        firstName="Client",
-        lastName="Admin",
-        email=CLIENT_ADMIN_EMAIL,
-        hashedPassword=hashed,
-        role=2,  # Client Admin
-        client=client.id,
-        isDeleted=False,
-    )
-    db.session.add(u)
-    db.session.commit()
-    print(f"Created Client Admin user ({CLIENT_ADMIN_EMAIL}) for testing.")
-    return "ok"
+def ensure_client_admin_user():  # noqa: F811 — intentional override of above stub
+    """Disabled — Test Client placeholder seeding is disabled for production use."""
+    return "disabled"
 
 
 def add_harmonic_columns():

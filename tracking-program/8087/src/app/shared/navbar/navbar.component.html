@@ -2,7 +2,7 @@
 
   <div>
     <div [routerLink]="['/welcome']" class="header">
-      <img *ngIf="!logoFailed" class="logo-image" [src]="logoUrl" [style.filter]="logoUseInvert ? 'brightness(0) invert(1)' : 'none'" (error)="onLogoError()" />
+      <img *ngIf="!logoFailed" class="logo-image" [src]="logoUrl" [class.logo-invert]="logoUseInvert" (error)="onLogoError()" />
       <span *ngIf="logoFailed && logoFallbackText" class="logo-fallback-text">{{ logoFallbackText }}</span>
       <img *ngIf="logoFailed && !logoFallbackText" class="logo-image" src="/images/synerex_logo_white.png" style="filter: brightness(0) invert(1);" />
     </div>
@@ -273,7 +273,7 @@
     <li>
       <a *ngIf="myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
         <span class="icon ss-settings"></span>
-        <span class="text">My Account</span>
+        <span class="text">Tracking Account</span>
       </a>
       <a *ngIf="!myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
         <span class="icon ss-settings"></span>
