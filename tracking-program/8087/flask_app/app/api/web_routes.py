@@ -1801,7 +1801,7 @@ def upload_oem_logo():
     logo_type = request.form.get("logo_type", "color").strip().lower()
     if logo_type not in ("color", "white"):
         logo_type = "color"
-    storage = Path(current_app.config.get("STORAGE_PATH", current_app.root_path)).parent
+    storage = Path(current_app.config.get("STORAGE_LOCAL_PATH", current_app.root_path))
     upload_dir = storage / "images" / "oem_logo"
     upload_dir.mkdir(parents=True, exist_ok=True)
     safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
@@ -1953,7 +1953,7 @@ def serve_static(path):
     if prefix == "images":
         # OEM logo: /images/oem_logo/{org_id}
         if path.startswith("oem_logo/"):
-            storage = Path(current_app.config.get("STORAGE_PATH", current_app.root_path)).parent
+            storage = Path(current_app.config.get("STORAGE_LOCAL_PATH", current_app.root_path))
             oem_dir = storage / "images" / "oem_logo"
             oem_file = oem_dir / path[len("oem_logo/"):]
             if oem_file.exists() and oem_file.is_file():
