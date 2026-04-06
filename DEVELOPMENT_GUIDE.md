@@ -52,7 +52,9 @@ npm run build
 **To apply Flask (Python) changes (dev):**
 ```bash
 docker restart synerex-platform_tracking-program_1
-# No rebuild needed — Flask code is mounted from host
+# No rebuild needed — Flask code is mounted from host.
+# Restart IS required — Flask loads all modules once at startup
+# and does not hot-reload in production mode.
 ```
 
 **When a Docker rebuild IS required:**

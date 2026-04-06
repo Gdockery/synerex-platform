@@ -313,9 +313,15 @@ def cross_check_document_consistency(results_data):
     # normalization_applied=False is set explicitly by the analysis engine when
     # temperature differences are too small, no weather data is available, or
     # the project type does not require weather normalization.
-    # None means the key is absent (analysis not run yet) — treat conservatively.
+    # We also treat an empty/absent weather_normalization dict, or string "false"/"no"/"0",
+    # as "not applicable" — the analysis engine may store the flag in various forms.
     _wn_applied = weather_normalization.get("normalization_applied", None)
-    weather_norm_skipped = _wn_applied is False
+    weather_norm_skipped = (
+        not weather_normalization                               # empty dict → not run
+        or _wn_applied is False                                 # explicit Python False
+        or _wn_applied == 0                                     # numeric 0
+        or str(_wn_applied).strip().lower() in ('false', 'no', '0', 'none', '')
+    )
 
     if weather_norm_skipped:
         # Weather normalization is not applicable — record an informational note
