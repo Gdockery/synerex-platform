@@ -211,7 +211,7 @@ def _serve_spa():
     xeco = sess.query(CompanySettings).first()
     try:
         clients_q = sess.query(Client).filter_by(isDeleted=False).all()
-        # OEM users (9, 10): only their org's clients, excluding OEM's own client (e.g. HarmoniQ)
+        # OEM users (9, 10): only their org's clients, excluding OEM's own client record
         if user.role in (9, 10):
             org_id_bootstrap = session.get("orgId") or (session.get("user") or {}).get("orgId")
             if not org_id_bootstrap and user.client:
@@ -276,8 +276,8 @@ def _serve_spa():
             public_emv = f"{scheme}://{host}/emv".rstrip("/")
         emv_url = public_emv
 
-    # OEM display name: for OEM users (role 9, 10), use their client's name (e.g. "HarmoniQ")
-    # Strip "Oem " / "OEM " prefix for display (e.g. "Oem Harmoniq" -> "Harmoniq")
+    # OEM display name: for OEM users (role 9, 10), use their client's name.
+    # Strip "Oem " / "OEM " prefix for display (e.g. "Oem Acme" -> "Acme")
     oem_display_name = None
     if user.role in (9, 10) and user.client:
         oem_client = sess.query(Client).get(user.client)
@@ -1318,7 +1318,7 @@ def list_clients():
                 Client.sponsor_org_id == org_id,
             )
         )
-        # Exclude OEM's own client record (e.g. HarmoniQ) - only show their customers
+        # Exclude OEM's own client record - only show their customers
         if user and user.client:
             base = base.filter(Client.id != user.client)
     elif role == 7 and user and user.client:

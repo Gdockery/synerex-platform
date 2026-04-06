@@ -200,7 +200,7 @@ def _get_oem_smtp_for_current_user():
                 if b.brand_name:
                     cfg["brand_name"] = b.brand_name
                     # Use OEM brand name as the email display name so clients see
-                    # "HarmoniQ Energy <noreply@synerexlabs.com>" not just the address
+                    # "Acme Energy <noreply@synerexlabs.com>" not just the address
                     cfg["from_name"] = b.smtp_from_name or b.brand_name
                 if b.support_email:
                     cfg["support_email"] = b.support_email

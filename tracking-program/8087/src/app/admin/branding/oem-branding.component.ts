@@ -91,7 +91,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
           <div class="form-group">
             <label>Brand / Company Name <span class="text-danger">*</span></label>
             <input type="text" class="form-control" [(ngModel)]="form.brand_name"
-                   placeholder="e.g. Harmoniq Energy Solutions"/>
+                   placeholder="e.g. Acme Energy Solutions"/>
             <p class="help-block">Shown in page titles, nav, and emails.</p>
           </div>
         </div>
@@ -99,7 +99,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
           <div class="form-group">
             <label>Portal Title</label>
             <input type="text" class="form-control" [(ngModel)]="form.portal_title"
-                   placeholder="e.g. Harmoniq Energy Portal"/>
+                   placeholder="e.g. Acme Energy Portal"/>
             <p class="help-block">Browser tab title your clients see.</p>
           </div>
         </div>

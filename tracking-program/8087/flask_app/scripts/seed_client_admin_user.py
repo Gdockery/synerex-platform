@@ -47,7 +47,7 @@ def seed_client_admin(email: str = DEFAULT_EMAIL, password: str = DEFAULT_PASSWO
             # Create a test client with org_id for License check
             client = Client(
                 name="Test Client",
-                org_id="OEM-HARMONIQ",
+                org_id="OEM-DEMO",
                 isDeleted=False,
             )
             sess.add(client)

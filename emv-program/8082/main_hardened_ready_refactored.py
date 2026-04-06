@@ -37358,7 +37358,7 @@ def logout_redirect():
     Must serve HTML that clears client-side storage; server cannot clear localStorage."""
     return_url = request.args.get("return_url", "/")
     cookie_path = _static_base() or "/"
-    # Serve HTML that clears localStorage/sessionStorage (prevents stale xctadmin showing after login as harmoniqadmin)
+    # Serve HTML that clears localStorage/sessionStorage (prevents stale session data after switching users)
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Logging out...</title></head>
 <body>
@@ -38901,7 +38901,10 @@ def document_sync_console():
 </head>
 <body>
     <div class="console-container">
-        <div class="console-header">
+        <div class="console-header" style="position: relative;">
+            <button onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{{ static_base }}/legacy'; }" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.5); padding:8px 18px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; backdrop-filter:blur(4px); transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                ← Back
+            </button>
             <h1>
                 <span>📊</span>
                 Document Sync Console
@@ -38943,9 +38946,6 @@ def document_sync_console():
                 📦 Stage Utility for Review
             </button>
             <a class="btn-secondary" id="btnDownloadStagedUtility" href="{{ static_base }}/api/download-staged-utility" style="display: none;" download>⬇ Download Staged Utility Zip</a>
-            <button class="btn-secondary" onclick="if (window.history.length > 1) { window.history.back(); } else { window.location.href='{{ static_base }}/main-dashboard'; }">
-                ← Back
-            </button>
             <button class="btn-secondary" onclick="window.location.href='{{ static_base }}/documentation'" style="background: #007bff;">
                 📖 Documentation
             </button>
@@ -39011,7 +39011,7 @@ def document_sync_console():
             <div id="discrepanciesList"></div>
         </div>
 
-        <div id="infoNotesSection" style="display:none;"></div>
+        <div class="console-section" id="infoNotesSection" style="display:none;"></div>
     </div>
 
     <script>
@@ -39274,7 +39274,12 @@ def document_sync_console():
                     }
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (_) {
+                    throw new Error('Server returned an unexpected response (status ' + response.status + '). Please try again.');
+                }
 
                 // Hide loading
                 loadingIndicator.classList.add('hidden');
@@ -39295,19 +39300,36 @@ def document_sync_console():
                     return;
                 }
 
-                // Update document status cards
+                // Update document status cards independently based on which documents have issues
                 const tieOutStatus = data.tie_out_status || 'UNKNOWN';
                 const consistencyStatus = data.consistency_status || 'UNKNOWN';
-                
-                if (tieOutStatus === 'PASSED') {
-                    updateDocumentStatus('passed', 'passed', 'passed');
-                } else if (tieOutStatus === 'FAILED') {
-                    updateDocumentStatus('failed', 'failed', 'failed');
-                } else if (tieOutStatus === 'WARNING' || tieOutStatus === 'PASSED_WITH_WARNINGS') {
-                    updateDocumentStatus('warning', 'warning', 'warning');
-                } else {
-                    updateDocumentStatus('error', 'error', 'error');
+
+                const htmlDiscrepancies  = (data.discrepancies || []).filter(function(d) {
+                    if ((d.severity || '').toUpperCase() === 'INFO') return false;
+                    const imp = (d.document_impact || '').toLowerCase();
+                    return imp.includes('all') || imp.includes('html') || imp.includes('report') || imp.includes('analysis') || imp.includes('client');
+                });
+                const auditDiscrepancies = (data.discrepancies || []).filter(function(d) {
+                    if ((d.severity || '').toUpperCase() === 'INFO') return false;
+                    const imp = (d.document_impact || '').toLowerCase();
+                    return imp.includes('all') || imp.includes('audit');
+                });
+                const utilityDiscrepancies = (data.discrepancies || []).filter(function(d) {
+                    if ((d.severity || '').toUpperCase() === 'INFO') return false;
+                    const imp = (d.document_impact || '').toLowerCase();
+                    return imp.includes('all') || imp.includes('utility') || imp.includes('submission');
+                });
+
+                function docCardStatus(discList) {
+                    if (!discList.length) return tieOutStatus === 'PASSED' ? 'passed' : 'passed';
+                    const hasHigh = discList.some(function(d) { return (d.severity || '').toUpperCase() === 'HIGH'; });
+                    return hasHigh ? 'failed' : 'warning';
                 }
+                updateDocumentStatus(
+                    docCardStatus(htmlDiscrepancies),
+                    docCardStatus(auditDiscrepancies),
+                    docCardStatus(utilityDiscrepancies)
+                );
 
                 // Display main results
                 let statusClass = 'error-box';
@@ -39353,10 +39375,12 @@ def document_sync_console():
                         const formattedMetric = (metric || '').replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
                         let formattedValue = 'N/A';
                         let metricOk = true;
+                        // Metrics where 0 is a valid/expected result — don't flag as warning
+                        const zeroIsValid = new Set(['nmbe', 'voltage_unbalance_before', 'voltage_unbalance_after', 'p_value']);
                         if (value != null && value !== '') {
                             if (typeof value === 'number' && !Number.isNaN(value)) {
                                 formattedValue = value.toFixed(4);
-                                metricOk = value !== 0;
+                                metricOk = value !== 0 || zeroIsValid.has(metric);
                             } else {
                                 formattedValue = String(value);
                             }
@@ -39631,6 +39655,19 @@ def document_sync_console():
             const msgEl = document.getElementById('stageUtilityMessage');
             const downloadBtn = document.getElementById('btnDownloadStagedUtility');
             if (!btn || !msgEl) return;
+
+            // Quick pre-flight: check if analysis has been run
+            try {
+                const ctxResp = await fetch('{{ static_base }}/api/cross-check-context', { method: 'GET' });
+                const ctx = await ctxResp.json();
+                if (!ctx.has_results) {
+                    msgEl.classList.remove('hidden');
+                    msgEl.className = 'error-box';
+                    msgEl.textContent = 'No analysis loaded. Run an analysis from the Legacy interface first, then return here to stage the utility package.';
+                    return;
+                }
+            } catch (_) { /* continue even if pre-flight fails */ }
+
             btn.disabled = true;
             msgEl.classList.remove('hidden');
             msgEl.className = 'info-box';

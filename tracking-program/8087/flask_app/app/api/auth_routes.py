@@ -64,7 +64,7 @@ def show_login_page():
         else ("Tracking User Sign In" if role == "user" else "Tracking Sign In")
     )
     base_path = current_app.config.get("APPLICATION_ROOT", "") or ""
-    # Load OEM branding if a sponsor token is present (e.g. ?oem=OEM-HARMONIQ)
+    # Load OEM branding if a sponsor token is present (e.g. ?oem=OEM-ACME)
     oem_logo_url = None
     oem_primary_color = None
     portal_title = None

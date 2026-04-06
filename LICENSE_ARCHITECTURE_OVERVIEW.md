@@ -87,13 +87,13 @@
 ```
 OEM Admin (role 9)
 │
-├── Client Organization 1 (org_id: CUSTOMER-A, sponsor_org_id: OEM-HARMONIQ)
+├── Client Organization 1 (org_id: CUSTOMER-A, sponsor_org_id: OEM-ACME)
 │   ├── Client Admin (role 2) – manages this org
 │   ├── Project / Location 1
 │   ├── Project / Location 2
 │   └── Project / Location 3
 │
-├── Client Organization 2 (org_id: CUSTOMER-B, sponsor_org_id: OEM-HARMONIQ)
+├── Client Organization 2 (org_id: CUSTOMER-B, sponsor_org_id: OEM-ACME)
 │   ├── Client Admin (role 2)
 │   └── Project / Location 1
 │

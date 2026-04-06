@@ -47,7 +47,7 @@ export class ClientListComponent implements OnInit {
     const role = Number(currentUserService.user.role);
     this.canManageClients = role === 7 || role === 8 || role === 9 || role === 10;
     this.canAddClient = role === 8 || role === 9 || role === 10;
-    // OEM users (9, 10): use OEM display name from bootstrap (e.g. "HarmoniQ")
+    // OEM users (9, 10): use OEM display name from bootstrap
     const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
     const oemName = bootstrap['oemDisplayName'];
     if (oemName) {
