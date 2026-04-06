@@ -387,37 +387,100 @@ def send_password_reset_email():
         base_url = base_url.rstrip("/") + app_root
     reset_link = f"{base_url}/reset-password?t={token}"
 
-    mail_server = current_app.config.get("MAIL_SERVER")
-    if mail_server and current_app.config.get("MAIL_USERNAME"):
-        try:
-            import smtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
+    # Resolve OEM branding + SMTP config (falls back to platform SMTP if OEM SMTP not set)
+    try:
+        from app.api.phase6_routes import _get_oem_smtp_for_current_user, _send_email_via_smtp
+        smtp_cfg = _get_oem_smtp_for_current_user()
+    except Exception:
+        smtp_cfg = {
+            "server": current_app.config.get("MAIL_SERVER", ""),
+            "port": current_app.config.get("MAIL_PORT", 587),
+            "use_tls": current_app.config.get("MAIL_USE_TLS", True),
+            "username": current_app.config.get("MAIL_USERNAME", ""),
+            "password": current_app.config.get("MAIL_PASSWORD", ""),
+            "from_address": current_app.config.get("MAIL_FROM", "noreply@tracking.local"),
+            "from_name": None,
+            "brand_name": "Synerex",
+            "logo_url": "",
+            "primary_color": "#1a73e8",
+            "support_email": "",
+        }
+        from app.api.phase6_routes import _send_email_via_smtp
 
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = "Reset your password"
-            msg["From"] = current_app.config.get("MAIL_FROM", "noreply@tracking.local")
-            msg["To"] = email
-            text = f"Click the link below to reset your password:\n\n{reset_link}\n\nIf you did not request this, please ignore this email."
-            html = f"<p>Click the link below to reset your password:</p><p><a href=\"{reset_link}\">{reset_link}</a></p><p>If you did not request this, please ignore this email.</p>"
-            msg.attach(MIMEText(text, "plain"))
-            msg.attach(MIMEText(html, "html"))
+    brand_name = smtp_cfg.get("brand_name") or "Synerex"
+    logo_url = smtp_cfg.get("logo_url") or ""
+    primary_color = smtp_cfg.get("primary_color") or "#1a73e8"
 
-            port = current_app.config.get("MAIL_PORT", 587)
-            use_tls = current_app.config.get("MAIL_USE_TLS", True)
-            with smtplib.SMTP(mail_server, port) as server:
-                if use_tls:
-                    server.starttls()
-                if current_app.config.get("MAIL_USERNAME") and current_app.config.get("MAIL_PASSWORD"):
-                    server.login(current_app.config["MAIL_USERNAME"], current_app.config["MAIL_PASSWORD"])
-                server.sendmail(msg["From"], email, msg.as_string())
-            current_app.logger.info("Password reset email sent to %s", email)
-        except Exception as e:
-            current_app.logger.exception("Failed to send password reset email: %s", e)
-            if current_app.config.get("ENV") == "development":
-                current_app.logger.info("RESET PASSWORD LINK (fallback): %s", reset_link)
-    elif current_app.config.get("ENV") == "development":
-        current_app.logger.info("RESET PASSWORD LINK (no mail config): %s", reset_link)
+    text = (
+        f"Hi,\n\nClick the link below to reset your {brand_name} portal password:\n\n"
+        f"{reset_link}\n\nIf you did not request this, please ignore this email.\n\n"
+        f"— The {brand_name} Team"
+    )
+
+    logo_html = (
+        f'<img src="{logo_url}" alt="{brand_name}" '
+        f'style="max-height:60px; max-width:220px; display:block; margin:0 auto 16px auto;">'
+        if logo_url else
+        f'<div style="font-size:1.4em; font-weight:bold; color:white; '
+        f'text-align:center; padding:8px 0;">{brand_name}</div>'
+    )
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0; padding:0; background:#f4f4f4; font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4; padding:30px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:{primary_color}; padding:28px 32px; text-align:center;">
+            {logo_html}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <h2 style="margin:0 0 16px 0; color:#222; font-size:1.3em;">Reset Your Password</h2>
+            <p style="color:#444; line-height:1.6;">
+              We received a request to reset your <strong>{brand_name}</strong> portal password.
+              Click the button below to choose a new password.
+            </p>
+            <div style="text-align:center; margin:28px 0;">
+              <a href="{reset_link}"
+                 style="background:{primary_color}; color:#ffffff; text-decoration:none;
+                        padding:14px 32px; border-radius:6px; font-size:1em;
+                        font-weight:bold; display:inline-block;">
+                Reset My Password
+              </a>
+            </div>
+            <p style="color:#888; font-size:0.85em; line-height:1.5;">
+              Or copy and paste this link:<br>
+              <a href="{reset_link}" style="color:{primary_color}; word-break:break-all;">{reset_link}</a>
+            </p>
+            <p style="color:#aaa; font-size:0.82em;">
+              If you did not request a password reset, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f8f8; padding:16px 40px; text-align:center;
+                     border-top:1px solid #eee; color:#aaa; font-size:0.8em;">
+            &copy; {brand_name}. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    _send_email_via_smtp(
+        smtp_cfg=smtp_cfg,
+        to_address=email,
+        subject=f"Reset your {brand_name} portal password",
+        body_text=text,
+        body_html=html,
+        log_label=f"Password reset email to {email}",
+        fallback_invite_link=reset_link,
+    )
 
     return {"status": "success"}
 

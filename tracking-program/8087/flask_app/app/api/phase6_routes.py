@@ -38,54 +38,244 @@ metercsv_meter = db.Table(
 
 
 def _send_invite_email(user, token, subject="Welcome to the Energy Portal"):
-    """Send invite email when user is created without password."""
+    """Send invite email when user is created without password.
+
+    Always routes through the platform SMTP (MAIL_SERVER env var) or the OEM's
+    own SMTP if configured. The email body is fully branded with the OEM's logo,
+    color, and name so the client never sees 'Synerex'.
+    """
     email_host = current_app.config.get("EMAIL_HOST", "").strip()
     if email_host:
         base_url = email_host.rstrip("/")
     else:
         base_url = current_app.config.get("TRACKING_BASE_URL", "http://localhost:8087").rstrip("/")
     invite_link = f"{base_url}/invite/accept?token={token}"
-    brand_name = "Xeco"  # Fallback; could use whitelabel from request hostname
-    try:
-        from app.api.web_routes import _get_brand_name
-        brand_name = _get_brand_name()
-    except Exception:
-        pass
+
+    # Resolve OEM branding + SMTP in one call
+    smtp_cfg = _get_oem_smtp_for_current_user()
+    brand_name = smtp_cfg.get("brand_name") or "Synerex"
+    logo_url   = smtp_cfg.get("logo_url") or ""
+    primary_color = smtp_cfg.get("primary_color") or "#1a73e8"
+    support_email = smtp_cfg.get("support_email") or ""
+
     subject_full = subject.replace("the Energy Portal", f"{brand_name} Energy Portal")
-    body = f"""Hi {user.firstName},
 
-You've been invited to join the {brand_name} Energy Portal!
+    # Plain-text fallback
+    body_text = (
+        f"Hi {user.firstName},\n\n"
+        f"You've been invited to join the {brand_name} Energy Portal!\n\n"
+        f"Click the link below to set up your account and choose your password:\n\n"
+        f"{invite_link}\n\n"
+        f"If you have any questions, please contact your {brand_name} representative"
+        + (f" at {support_email}" if support_email else "") + ".\n\n"
+        f"Welcome aboard!\n"
+        f"The {brand_name} Team"
+    )
 
-Click the link below to set up your account and choose your password:
+    # Branded HTML email
+    logo_html = (
+        f'<img src="{logo_url}" alt="{brand_name}" '
+        f'style="max-height:60px; max-width:220px; display:block; margin:0 auto 16px auto;">'
+        if logo_url else
+        f'<div style="font-size:1.4em; font-weight:bold; color:white; '
+        f'text-align:center; padding:8px 0;">{brand_name}</div>'
+    )
+    support_line = (
+        f'<p style="color:#555; font-size:0.9em;">Questions? Contact us at '
+        f'<a href="mailto:{support_email}" style="color:{primary_color};">{support_email}</a></p>'
+        if support_email else ""
+    )
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0; padding:0; background:#f4f4f4; font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4; padding:30px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <!-- Header with brand color and logo -->
+        <tr>
+          <td style="background:{primary_color}; padding:28px 32px; text-align:center;">
+            {logo_html}
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:32px 40px;">
+            <h2 style="margin:0 0 16px 0; color:#222; font-size:1.3em;">
+              Welcome to the {brand_name} Energy Portal!
+            </h2>
+            <p style="color:#444; line-height:1.6;">Hi {user.firstName},</p>
+            <p style="color:#444; line-height:1.6;">
+              You've been invited to join the <strong>{brand_name}</strong> Energy Portal.
+              Click the button below to set up your account and choose your password.
+            </p>
+            <div style="text-align:center; margin:28px 0;">
+              <a href="{invite_link}"
+                 style="background:{primary_color}; color:#ffffff; text-decoration:none;
+                        padding:14px 32px; border-radius:6px; font-size:1em;
+                        font-weight:bold; display:inline-block;">
+                Set Up My Account
+              </a>
+            </div>
+            <p style="color:#888; font-size:0.85em; line-height:1.5;">
+              Or copy and paste this link into your browser:<br>
+              <a href="{invite_link}" style="color:{primary_color}; word-break:break-all;">{invite_link}</a>
+            </p>
+            {support_line}
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8f8f8; padding:16px 40px; text-align:center;
+                     border-top:1px solid #eee; color:#aaa; font-size:0.8em;">
+            &copy; {brand_name}. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
 
-{invite_link}
+    _send_email_via_smtp(
+        smtp_cfg=smtp_cfg,
+        to_address=user.email,
+        subject=subject_full,
+        body_text=body_text,
+        body_html=body_html,
+        log_label=f"Invite email to {user.email}",
+        fallback_invite_link=invite_link,
+    )
 
-If you have any questions, please contact your {brand_name} Energy representative.
 
-Welcome aboard!
-The {brand_name} Team"""
-    mail_server = current_app.config.get("MAIL_SERVER")
-    if mail_server and current_app.config.get("MAIL_USERNAME"):
-        try:
-            import smtplib
-            from email.mime.text import MIMEText
-            msg = MIMEText(body, "plain")
-            msg["Subject"] = subject_full
-            msg["From"] = current_app.config.get("MAIL_FROM", "noreply@tracking.local")
-            msg["To"] = user.email
-            with smtplib.SMTP(mail_server, current_app.config.get("MAIL_PORT", 587)) as s:
-                if current_app.config.get("MAIL_USE_TLS", True):
-                    s.starttls()
-                s.login(
-                    current_app.config["MAIL_USERNAME"],
-                    current_app.config.get("MAIL_PASSWORD", ""),
-                )
-                s.sendmail(msg["From"], [user.email], msg.as_string())
-            current_app.logger.info("Invite email sent to %s", user.email)
-        except Exception as e:
-            current_app.logger.exception("Failed to send invite email: %s", e)
-    elif current_app.config.get("ENV") == "development":
-        current_app.logger.info("INVITE LINK (no mail config): %s", invite_link)
+def _get_oem_smtp_for_current_user():
+    """Return SMTP config + branding dict for the currently-logged-in user's OEM org.
+
+    Always starts with platform-level MAIL_SERVER (the Synerex SMTP) so a single
+    SMTP account powers all OEM emails. The OEM's brand_name is set as the From
+    display name so clients see the OEM's name, not Synerex.
+
+    If the OEM has configured their own SMTP credentials in Branding Settings those
+    will be used instead (fully white-labeled sending address).
+
+    Returns a dict with keys:
+      server, port, use_tls, username, password, from_address, from_name,
+      brand_name, logo_url, primary_color, support_email
+    """
+    cfg = {
+        "server":       current_app.config.get("MAIL_SERVER", ""),
+        "port":         current_app.config.get("MAIL_PORT", 587),
+        "use_tls":      current_app.config.get("MAIL_USE_TLS", True),
+        "username":     current_app.config.get("MAIL_USERNAME", ""),
+        "password":     current_app.config.get("MAIL_PASSWORD", ""),
+        "from_address": current_app.config.get("MAIL_FROM", "noreply@tracking.local"),
+        "from_name":    None,       # Set to OEM brand name below
+        "brand_name":   "Synerex",
+        "logo_url":     "",
+        "primary_color": "#1a73e8",
+        "support_email": "",
+    }
+    try:
+        from flask_login import current_user as _cu
+        from app.db.request_session import get_session as _gs
+        from app.models.oem_branding import OemBranding
+        from flask import session as _sess
+        from flask import request as _req
+
+        # Determine org_id from session or user record
+        org_id = (
+            _sess.get("orgId")
+            or (_sess.get("user") or {}).get("orgId")
+            or (_sess.get("user") or {}).get("org_id")
+        )
+        if not org_id and _cu.is_authenticated and _cu.client:
+            from app.models.client import Client as _C
+            _c = _gs().query(_C).get(_cu.client)
+            if _c:
+                org_id = getattr(_c, "org_id", None)
+
+        if org_id:
+            b = _gs().query(OemBranding).filter_by(org_id=org_id).first()
+            if b:
+                if b.brand_name:
+                    cfg["brand_name"] = b.brand_name
+                    # Use OEM brand name as the email display name so clients see
+                    # "HarmoniQ Energy <noreply@synerexlabs.com>" not just the address
+                    cfg["from_name"] = b.smtp_from_name or b.brand_name
+                if b.support_email:
+                    cfg["support_email"] = b.support_email
+                if b.primary_color:
+                    cfg["primary_color"] = b.primary_color
+                if b.logo_path:
+                    safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
+                    # Build absolute logo URL using the request host
+                    try:
+                        base = _req.host_url.rstrip("/")
+                        app_root = current_app.config.get("APPLICATION_ROOT", "").rstrip("/")
+                        cfg["logo_url"] = f"{base}{app_root}/images/oem_logo/{safe_org}"
+                    except Exception:
+                        cfg["logo_url"] = ""
+
+                # Override SMTP only if the OEM has set their own credentials
+                if b.smtp_server and b.smtp_username and b.smtp_password:
+                    cfg["server"]       = b.smtp_server
+                    cfg["port"]         = b.smtp_port or 587
+                    cfg["use_tls"]      = b.smtp_use_tls if b.smtp_use_tls is not None else True
+                    cfg["username"]     = b.smtp_username
+                    cfg["password"]     = b.smtp_password
+                    cfg["from_address"] = b.smtp_from_address or b.smtp_username
+                    if b.smtp_from_name:
+                        cfg["from_name"] = b.smtp_from_name
+    except Exception as _e:
+        current_app.logger.debug("Could not resolve OEM SMTP/branding config: %s", _e)
+    return cfg
+
+
+def _send_email_via_smtp(smtp_cfg, to_address, subject, body_text, body_html=None,
+                          log_label="Email", fallback_invite_link=None):
+    """Low-level helper: send an email using the given smtp_cfg dict.
+
+    If SMTP is not configured, logs the invite link (dev mode) or silently skips.
+    """
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    server = smtp_cfg.get("server", "")
+    username = smtp_cfg.get("username", "")
+    password = smtp_cfg.get("password", "")
+    from_addr = smtp_cfg.get("from_address") or username or "noreply@tracking.local"
+    from_name = smtp_cfg.get("from_name")
+    from_header = f"{from_name} <{from_addr}>" if from_name else from_addr
+
+    if not server or not username:
+        if fallback_invite_link:
+            current_app.logger.info("%s — no SMTP configured: %s", log_label, fallback_invite_link)
+        return
+
+    try:
+        if body_html:
+            msg = MIMEMultipart("alternative")
+            msg.attach(MIMEText(body_text, "plain"))
+            msg.attach(MIMEText(body_html, "html"))
+        else:
+            msg = MIMEText(body_text, "plain")
+
+        msg["Subject"] = subject
+        msg["From"] = from_header
+        msg["To"] = to_address
+
+        port = smtp_cfg.get("port", 587)
+        use_tls = smtp_cfg.get("use_tls", True)
+        with smtplib.SMTP(server, port) as s:
+            if use_tls:
+                s.starttls()
+            if password:
+                s.login(username, password)
+            s.sendmail(from_addr, [to_address], msg.as_string())
+        current_app.logger.info("%s sent successfully via %s", log_label, server)
+    except Exception as e:
+        current_app.logger.exception("Failed to send %s: %s", log_label, e)
 
 
 def _user_has_project_access(project_id):

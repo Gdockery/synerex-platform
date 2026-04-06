@@ -1603,6 +1603,14 @@ def get_oem_branding():
                 "support_email": b.support_email,
                 "website_url": b.website_url,
                 "portal_title": b.portal_title,
+                "smtp_server": b.smtp_server,
+                "smtp_port": b.smtp_port,
+                "smtp_use_tls": b.smtp_use_tls if b.smtp_use_tls is not None else True,
+                "smtp_username": b.smtp_username,
+                # Never return the password — only indicate whether one is stored
+                "smtp_password_set": bool(b.smtp_password),
+                "smtp_from_address": b.smtp_from_address,
+                "smtp_from_name": b.smtp_from_name,
             }})
         return jsonify({"response": {"org_id": org_id}})
     except Exception as e:
@@ -1647,9 +1655,117 @@ def save_oem_branding():
             b.website_url = data["website_url"]
         if "portal_title" in data:
             b.portal_title = data["portal_title"]
+        # SMTP fields — password only updated when explicitly provided (non-empty)
+        if "smtp_server" in data:
+            b.smtp_server = data["smtp_server"] or None
+        if "smtp_port" in data:
+            try:
+                b.smtp_port = int(data["smtp_port"]) if data["smtp_port"] else None
+            except (ValueError, TypeError):
+                pass
+        if "smtp_use_tls" in data:
+            b.smtp_use_tls = bool(data["smtp_use_tls"])
+        if "smtp_username" in data:
+            b.smtp_username = data["smtp_username"] or None
+        if data.get("smtp_password"):
+            b.smtp_password = data["smtp_password"]
+        if "smtp_from_address" in data:
+            b.smtp_from_address = data["smtp_from_address"] or None
+        if "smtp_from_name" in data:
+            b.smtp_from_name = data["smtp_from_name"] or None
         sess.commit()
         return jsonify({"response": "saved"})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@web_bp.route("/api/whitelabel/oem-branding-test-email", methods=["POST"])
+@login_required
+def test_oem_branding_email():
+    """POST /api/whitelabel/oem-branding-test-email - send a branded test email to the logged-in user.
+
+    Uses the OEM's own SMTP if configured, otherwise the platform SMTP.
+    Either way the email is fully branded with the OEM's logo and colors.
+    """
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"error": "Forbidden"}), 403
+    try:
+        from app.api.phase6_routes import _get_oem_smtp_for_current_user, _send_email_via_smtp
+        smtp_cfg = _get_oem_smtp_for_current_user()
+    except Exception as e:
+        return jsonify({"error": f"Could not resolve email config: {e}"}), 500
+
+    if not smtp_cfg.get("server") or not smtp_cfg.get("username"):
+        return jsonify({"error": "No SMTP server configured. Add MAIL_SERVER and MAIL_USERNAME to the platform environment, or enter your own SMTP credentials in Email Settings."}), 400
+
+    brand_name    = smtp_cfg.get("brand_name") or "Synerex"
+    logo_url      = smtp_cfg.get("logo_url") or ""
+    primary_color = smtp_cfg.get("primary_color") or "#1a73e8"
+    from_addr     = smtp_cfg.get("from_address") or smtp_cfg.get("username", "")
+
+    logo_html = (
+        f'<img src="{logo_url}" alt="{brand_name}" '
+        f'style="max-height:60px; max-width:220px; display:block; margin:0 auto 16px auto;">'
+        if logo_url else
+        f'<div style="font-size:1.4em; font-weight:bold; color:white; '
+        f'text-align:center; padding:8px 0;">{brand_name}</div>'
+    )
+
+    text_body = (
+        f"Hi,\n\nThis is a test confirming {brand_name}'s email is working.\n\n"
+        f"Your clients will receive branded emails from: {from_addr}\n\n"
+        f"— The {brand_name} Team"
+    )
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0; padding:0; background:#f4f4f4; font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4; padding:30px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:{primary_color}; padding:28px 32px; text-align:center;">
+            {logo_html}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <h2 style="margin:0 0 16px 0; color:#222;">Email Test — Looks Good!</h2>
+            <p style="color:#444; line-height:1.6;">
+              This is a test confirming that <strong>{brand_name}</strong>'s email delivery is
+              working correctly. Your clients will receive beautifully branded emails that look
+              just like this — with your logo and colors.
+            </p>
+            <p style="color:#555; font-size:0.9em; margin-top:20px;">
+              Emails are sent from: <strong>{from_addr}</strong>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f8f8; padding:16px 40px; text-align:center;
+                     border-top:1px solid #eee; color:#aaa; font-size:0.8em;">
+            &copy; {brand_name}. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    try:
+        _send_email_via_smtp(
+            smtp_cfg=smtp_cfg,
+            to_address=current_user.email,
+            subject=f"Email test — {brand_name} branding is working!",
+            body_text=text_body,
+            body_html=html_body,
+            log_label=f"OEM test email to {current_user.email}",
+        )
+        return jsonify({"status": "success"})
+    except Exception as e:
+        current_app.logger.exception("OEM test email failed: %s", e)
         return jsonify({"error": str(e)}), 500
 
 

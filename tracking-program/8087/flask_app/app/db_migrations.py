@@ -804,6 +804,14 @@ def add_missing_model_columns():
         # switchcommand
         ("switchcommand", "deviceType",           "ALTER TABLE `switchcommand` ADD COLUMN `deviceType` INT NULL"),
         ("switchcommand", "executedBySwitchIds",  "ALTER TABLE `switchcommand` ADD COLUMN `executedBySwitchIds` JSON NULL"),
+        # oem_branding — per-OEM SMTP for white-label email sending
+        ("oem_branding", "smtp_server",       "ALTER TABLE `oem_branding` ADD COLUMN `smtp_server` VARCHAR(255) NULL"),
+        ("oem_branding", "smtp_port",         "ALTER TABLE `oem_branding` ADD COLUMN `smtp_port` INT NULL"),
+        ("oem_branding", "smtp_username",     "ALTER TABLE `oem_branding` ADD COLUMN `smtp_username` VARCHAR(255) NULL"),
+        ("oem_branding", "smtp_password",     "ALTER TABLE `oem_branding` ADD COLUMN `smtp_password` VARCHAR(512) NULL"),
+        ("oem_branding", "smtp_from_address", "ALTER TABLE `oem_branding` ADD COLUMN `smtp_from_address` VARCHAR(255) NULL"),
+        ("oem_branding", "smtp_from_name",    "ALTER TABLE `oem_branding` ADD COLUMN `smtp_from_name` VARCHAR(255) NULL"),
+        ("oem_branding", "smtp_use_tls",      "ALTER TABLE `oem_branding` ADD COLUMN `smtp_use_tls` TINYINT(1) NOT NULL DEFAULT 1"),
     ]
 
     results = {}

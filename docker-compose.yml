@@ -148,6 +148,15 @@ services:
       OLLAMA_BILL_VISION_MODEL: qwen2.5vl:32b
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
+      # Platform-level SMTP — used when Synerex Admin sends emails (e.g. invite links).
+      # OEM Admins override this with their own SMTP via the Branding Settings page.
+      # Fill in with a real SMTP provider before going to production.
+      MAIL_SERVER: ${MAIL_SERVER:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@synerexlabs.com}
+      EMAIL_HOST: http://100.91.109.59:8080/tracking
     depends_on:
       mysql-tracking:
         condition: service_healthy
