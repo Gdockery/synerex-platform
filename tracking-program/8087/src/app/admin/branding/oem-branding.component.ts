@@ -160,98 +160,13 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
 
       <hr/>
 
-      <!-- Email / SMTP Settings -->
-      <h4>Email Settings</h4>
-      <p class="text-muted">
-        Configure your own email server so invite and password-reset emails are sent <strong>from your company</strong>,
-        not from Synerex. Your clients will never see "Synerex" in their inbox.
-        Leave blank to disable outbound email (passwords must be set manually).
-      </p>
-
-      <div class="row">
-        <div class="col-md-4">
-          <div class="form-group">
-            <label>SMTP Server</label>
-            <input type="text" class="form-control" [(ngModel)]="form.smtp_server"
-                   placeholder="e.g. smtp.gmail.com"/>
-            <p class="help-block">Your email provider's outgoing mail server.</p>
-          </div>
-        </div>
-        <div class="col-md-2">
-          <div class="form-group">
-            <label>SMTP Port</label>
-            <input type="number" class="form-control" [(ngModel)]="form.smtp_port"
-                   placeholder="587"/>
-            <p class="help-block">Usually 587 (TLS) or 465 (SSL).</p>
-          </div>
-        </div>
-        <div class="col-md-2" style="padding-top: 2.1em;">
-          <div class="form-group">
-            <div class="checkbox">
-              <label>
-                <input type="checkbox" [(ngModel)]="form.smtp_use_tls"/> Use TLS (recommended)
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-md-4">
-          <div class="form-group">
-            <label>SMTP Username</label>
-            <input type="text" class="form-control" [(ngModel)]="form.smtp_username"
-                   placeholder="noreply@yourcompany.com"
-                   autocomplete="new-password"/>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-group">
-            <label>SMTP Password</label>
-            <input type="password" class="form-control" [(ngModel)]="form.smtp_password"
-                   placeholder="Leave blank to keep existing password"
-                   autocomplete="new-password"/>
-            <p class="help-block">For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank">App Password</a>.</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-md-4">
-          <div class="form-group">
-            <label>"From" Email Address</label>
-            <input type="email" class="form-control" [(ngModel)]="form.smtp_from_address"
-                   placeholder="Defaults to SMTP username"/>
-            <p class="help-block">The address clients see as the sender.</p>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="form-group">
-            <label>"From" Display Name</label>
-            <input type="text" class="form-control" [(ngModel)]="form.smtp_from_name"
-                   placeholder="Defaults to your Brand Name"/>
-            <p class="help-block">e.g. "HarmoniQ Energy Team"</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="row" style="margin-bottom: 1em;">
-        <div class="col-md-12">
-          <button class="btn btn-default" (click)="testEmail()" [disabled]="testingEmail || !form.smtp_server">
-            <span *ngIf="testingEmail"><span class="glyphicon glyphicon-refresh"></span> Sending test...</span>
-            <span *ngIf="!testingEmail"><span class="glyphicon glyphicon-envelope"></span> Send Test Email to {{currentUserEmail}}</span>
-          </button>
-          <span *ngIf="testEmailMsg" [class]="testEmailSuccess ? 'text-success' : 'text-danger'" style="margin-left: 1em;">{{testEmailMsg}}</span>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top: 0.5em;">
-        <div class="col-md-12 text-right">
-          <button class="btn btn-primary btn-lg" (click)="saveSettings()" [disabled]="saving">
-            <span *ngIf="saving"><span class="glyphicon glyphicon-refresh"></span> Saving...</span>
-            <span *ngIf="!saving"><span class="glyphicon glyphicon-floppy-disk"></span> Save All Settings</span>
-          </button>
-        </div>
+      <!-- Email delivery note -->
+      <div class="alert alert-info" style="margin-top: 1em;">
+        <span class="glyphicon glyphicon-envelope" style="margin-right: 0.5em;"></span>
+        <strong>Email Delivery:</strong>
+        Invite and password-reset emails are sent automatically by Synerex using your
+        <strong>{{form.brand_name || 'brand name'}}</strong> and logo — your clients will only see your brand,
+        not Synerex, in any email they receive.
       </div>
 
       <hr/>
