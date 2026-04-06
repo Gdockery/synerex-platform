@@ -1595,11 +1595,12 @@ def get_oem_branding():
         b = get_session().query(OemBranding).filter_by(org_id=org_id).first()
         if b:
             safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in org_id)
+            app_root = current_app.config.get("APPLICATION_ROOT", "") or ""
             return jsonify({"response": {
                 "org_id": b.org_id,
                 "brand_name": b.brand_name,
-                "logo_url": f"/images/oem_logo/{safe_org}" if b.logo_path else None,
-                "white_logo_url": f"/images/oem_logo/{safe_org}_white" if b.white_logo_path else None,
+                "logo_url": f"{app_root}/images/oem_logo/{safe_org}" if b.logo_path else None,
+                "white_logo_url": f"{app_root}/images/oem_logo/{safe_org}_white" if b.white_logo_path else None,
                 "primary_color": b.primary_color,
                 "secondary_color": b.secondary_color,
                 "support_email": b.support_email,
@@ -1822,7 +1823,8 @@ def upload_oem_logo():
         sess.commit()
     except Exception:
         pass
-    serve_url = f"/images/oem_logo/{filename}"
+    app_root = current_app.config.get("APPLICATION_ROOT", "") or ""
+    serve_url = f"{app_root}/images/oem_logo/{filename}"
     return jsonify({"response": serve_url, "logo_url": serve_url, "logo_type": logo_type})
 
 
