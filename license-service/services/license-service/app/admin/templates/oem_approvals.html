@@ -46,7 +46,7 @@
 <body>
   <div class="header">
     <h1>OEM Approval Queue</h1>
-    <a href="/admin">← Admin Dashboard</a>
+    <a href="{{ admin_url('') }}">← Admin Dashboard</a>
   </div>
 
   <div class="content">
@@ -111,14 +111,14 @@
           <td style="font-size:0.82rem; color:#718096; max-width:180px;">{{ org.approval_note or '—' }}</td>
           <td>
             <div class="actions">
-              <a href="/admin/orgs/{{ org.org_id }}" class="btn btn-detail">Details</a>
+              <a href="{{ admin_url('orgs/' ~ org.org_id) }}" class="btn btn-detail">Details</a>
               {% if org.approval_status != 'approved' and admin %}
-              <form method="post" action="/admin/oem-approvals/{{ org.org_id }}/approve" style="display:inline;">
+              <form method="post" action="{{ admin_url('oem-approvals/' ~ org.org_id ~ '/approve') }}" style="display:inline;">
                 <button type="submit" class="btn btn-approve" onclick="return confirm('Approve {{ org.org_name }} and activate their account?')">Approve</button>
               </form>
               {% endif %}
               {% if org.approval_status != 'rejected' %}
-              <form method="post" action="/admin/oem-approvals/{{ org.org_id }}/reject" style="display:inline;">
+              <form method="post" action="{{ admin_url('oem-approvals/' ~ org.org_id ~ '/reject') }}" style="display:inline;">
                 <input type="text" name="reason" placeholder="Reason (optional)" />
                 <button type="submit" class="btn btn-reject" onclick="return confirm('Reject {{ org.org_name }}?')">Reject</button>
               </form>

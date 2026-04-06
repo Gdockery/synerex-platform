@@ -141,9 +141,35 @@ def login():
         claims = verify_credentials(email, password, license_service_url=license_url) if license_url else None
         if not claims:
             return _login_fail()
-        # If no local user, we can't log them in to the tracking app (no tracking record)
+        # If no local Tracking user, auto-provision one for OEM/admin org types (just-in-time provisioning)
         if not user:
-            return _login_fail()
+            org_type = claims.get("org_type") or ""
+            if org_type in ("oem", "admin"):
+                try:
+                    org_name = claims.get("org_name") or email.split("@")[0]
+                    name_parts = org_name.split(" ", 1)
+                    first = name_parts[0]
+                    last = name_parts[1] if len(name_parts) > 1 else ""
+                    new_user = User(
+                        firstName=first,
+                        lastName=last,
+                        email=email,
+                        hashedPassword=None,
+                        role=9,   # OEM Admin
+                        isDeleted=False,
+                        client=None,
+                    )
+                    sess.add(new_user)
+                    sess.commit()
+                    sess.refresh(new_user)
+                    user = new_user
+                    current_app.logger.info("JIT provisioned Tracking user for OEM %s (org_id=%s)", email, claims.get("org_id"))
+                except Exception as _jit_err:
+                    sess.rollback()
+                    current_app.logger.error("JIT provisioning failed for %s: %s", email, _jit_err)
+                    return _login_fail()
+            else:
+                return _login_fail()
 
     login_user(user, remember=True)
     session["userId"] = user.id
@@ -157,6 +183,10 @@ def login():
         "clientName": _get_client_name(user),
     }
     _set_org_id_in_session(user)
+    # For JIT-provisioned users (client=None), inject org_id directly from License Service claims
+    if not session.get("orgId") and not local_ok and claims and claims.get("org_id"):
+        session["orgId"] = claims["org_id"]
+        session.setdefault("user", {})["orgId"] = claims["org_id"]
 
     # Enforce seat limit — non-admin users consume a seat on the org's active license
     if getattr(user, "role", None) != 8:

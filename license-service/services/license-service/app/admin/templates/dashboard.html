@@ -28,7 +28,7 @@
     <div style="font-size: 2.75rem; font-weight: 800; color: var(--text-base); line-height: 1;">{{ counts.licenses }}</div>
   </div>
 
-  <a href="/admin/users" style="text-decoration:none;">
+  <a href="{{ admin_url('users') }}" style="text-decoration:none;">
   <div style="background: linear-gradient(135deg, #1e3359, #0c1a3d); border: 1px solid #1e40af; border-radius: 10px; padding: 1.5rem;">
     <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #93c5fd; opacity: 0.8; margin-bottom: 0.5rem;">Users</div>
     <div style="font-size: 2.75rem; font-weight: 800; color: #93c5fd; line-height: 1;">{{ counts.users_total }}</div>
@@ -46,7 +46,7 @@
   <h3 style="color: var(--text-dim); font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem;">Pending Approvals</h3>
   <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
     {% if counts.pending_oem_approvals > 0 %}
-    <a href="/admin/oem-approvals?status=pending" style="text-decoration:none;">
+    <a href="{{ admin_url('oem-approvals?status=pending') }}" style="text-decoration:none;">
       <div style="background: linear-gradient(135deg, #78350f, #451a03); border: 1px solid #d97706; border-radius: 10px; padding: 1.25rem; display:flex; align-items:center; gap:1rem;">
         <div style="font-size:2rem; font-weight:800; color:#fcd34d; min-width:2.5rem; text-align:center;">{{ counts.pending_oem_approvals }}</div>
         <div>
@@ -57,7 +57,7 @@
     </a>
     {% endif %}
     {% if counts.pending_pe_registrations > 0 %}
-    <a href="/admin/pe-registrations?status=pending" style="text-decoration:none;">
+    <a href="{{ admin_url('pe-registrations?status=pending') }}" style="text-decoration:none;">
       <div style="background: linear-gradient(135deg, #1e3a5f, #172554); border: 1px solid #3b82f6; border-radius: 10px; padding: 1.25rem; display:flex; align-items:center; gap:1rem;">
         <div style="font-size:2rem; font-weight:800; color:#93c5fd; min-width:2.5rem; text-align:center;">{{ counts.pending_pe_registrations }}</div>
         <div>

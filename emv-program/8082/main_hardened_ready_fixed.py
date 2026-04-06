@@ -154,6 +154,23 @@ USE_MYSQL = bool(EMV_DB_URL)
 def _sql_now():
     """Return current-timestamp SQL expression compatible with both SQLite and MySQL."""
     return "NOW()" if USE_MYSQL else "datetime('now')"
+
+
+def _derive_org_type(org_id: str) -> str:
+    """Derive org_type from org_id without a License Service call.
+
+    Rules:
+    - org_id == 'admin'                 → 'admin'  (Synerex built-in admin org)
+    - org_id starts with 'OEM-' (upper) → 'oem'
+    - anything else                     → 'client'
+    """
+    if not org_id:
+        return ""
+    if org_id == "admin":
+        return "admin"
+    if org_id.upper().startswith("OEM-"):
+        return "oem"
+    return "client"
 class WeatherServiceClient:
     """Client for communicating with the weather service on port 8200"""
 
@@ -1856,6 +1873,9 @@ class _DictRow:
     def __bool__(self):
         return bool(self._row)
 
+    def __len__(self):
+        return len(self._vals)
+
 
 class MySQLCursor:
     def __init__(self, cursor, org_id=None):
@@ -2886,7 +2906,15 @@ def static_or_data_uri(preferred_path: str, fallback_svg: str = None) -> str:
         root = BASE_DIR
         full = root / preferred_path.lstrip("/")
         if full.exists():
-            return "/" + preferred_path.lstrip("/")
+            # Prepend the proxy base path (e.g. /emv) so the browser requests
+            # /emv/static/... which Nginx routes correctly to this container.
+            try:
+                base = (os.getenv("EMV_BASE_URL") or "").rstrip("/")
+                from urllib.parse import urlparse as _urlparse
+                _path_prefix = (_urlparse(base).path or "").rstrip("/") if base else ""
+            except Exception:
+                _path_prefix = ""
+            return _path_prefix + "/" + preferred_path.lstrip("/")
     except Exception:
         pass
         # No SVG fallback allowed - return empty string if file not found
@@ -45903,64 +45931,166 @@ def register_user():
 
 @app.route("/api/auth/login", methods=["POST"])
 def login_user():
-    """Login user and create session"""
+    """Login user and create session.
+
+    Supports JIT provisioning: if the user doesn't exist locally, credentials are
+    verified against the License Service and a local user record is created on the fly.
+    Accepts either the canonical username OR the email address as the login identifier.
+    """
     try:
+        import hashlib, uuid as _uuid_mod, requests as _req_lib
+
         data = request.get_json()
-        username = data.get("username")
-        password = data.get("password")
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
 
         if not all([username, password]):
             return jsonify({"status": "error", "error": "Missing required fields"}), 400
 
-        with get_db_connection() as conn:
-            if conn is None:
-                return (
-                    jsonify({"status": "error", "error": "Database not available"}),
-                    500,
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+
+        # --- Step 1: Try License Service credential verification (best-effort) ---
+        ls_verified = False
+        ls_org_id = None
+        ls_org_type = None
+        ls_canonical_username = None
+        ls_email = None
+        ls_role = None
+        try:
+            _ls_url = os.getenv("LICENSE_SERVICE_URL", LICENSE_SERVICE_URL or "")
+            if _ls_url:
+                _ls_resp = _req_lib.post(
+                    f"{_ls_url.rstrip('/')}/auth/api/verify-credentials",
+                    json={"username": username, "password": password},
+                    timeout=5,
                 )
+                if _ls_resp.status_code == 200:
+                    _ls_data = _ls_resp.json()
+                    if _ls_data.get("valid"):
+                        ls_verified = True
+                        ls_org_id = (_ls_data.get("org_id") or "").strip() or None
+                        ls_org_type = _ls_data.get("org_type")
+                        ls_canonical_username = _ls_data.get("username") or username
+                        ls_email = _ls_data.get("email") or username
+                        _roles = _ls_data.get("roles") or []
+                        if "administrator" in _roles or "admin" in _roles or "oem_admin" in _roles:
+                            ls_role = "administrator"
+                        elif "engineer" in _roles or "oem_engineer" in _roles:
+                            ls_role = "engineer"
+                        else:
+                            ls_role = "user"
+        except Exception as _ls_err:
+            logger.debug("License Service credential check failed for '%s': %s", username, _ls_err)
+
+        # --- Step 2: Determine which org_id to use for the DB connection ---
+        # Prefer the org_id from the License Service; fall back to 'admin' for built-in users.
+        effective_org_id = ls_org_id if ls_org_id else "admin"
+
+        with get_db_connection(org_id=effective_org_id) as conn:
+            if conn is None:
+                return jsonify({"status": "error", "error": "Database not available"}), 500
 
             cursor = conn.cursor()
 
-            # Hash password for comparison
-            import hashlib
-
-            password_hash = hashlib.sha256(password.encode()).hexdigest()
-
-            # Find user by username + password only (role is stored in DB, not provided by user)
+            # --- Step 3: Look up user by username OR email, matching password hash ---
+            # The submitted identifier may be an email while the stored username is different (e.g. after SSO).
             cursor.execute(
                 """
                 SELECT id, full_name, email, username, role, pe_license_number, state
-                FROM users 
-                WHERE username = ? AND password_hash = ?
-            """,
-                (username, password_hash),
+                FROM users
+                WHERE (username = ? OR email = ?) AND password_hash = ?
+                """,
+                (username, username, password_hash),
             )
-
             user = cursor.fetchone()
+
+            # --- Step 4: JIT provisioning for OEM / License Service users ---
+            if not user and ls_verified and ls_org_id:
+                # Also try looking up by the canonical username with the stored password hash
+                # (covers cases where SSO created the user with a random password)
+                cursor.execute(
+                    "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ?",
+                    (ls_canonical_username,),
+                )
+                existing = cursor.fetchone()
+                if existing:
+                    # Update the password hash so the user can log in directly from now on
+                    try:
+                        cursor.execute(
+                            "UPDATE users SET password_hash = ? WHERE username = ?",
+                            (password_hash, ls_canonical_username),
+                        )
+                        conn.commit()
+                        user = existing
+                    except Exception as _upd_err:
+                        logger.warning("Could not update password hash for '%s': %s", ls_canonical_username, _upd_err)
+                else:
+                    # Insert a brand-new user record
+                    _upsert_role = ls_role or "user"
+                    _upsert_email = ls_email if ls_email and "@" in ls_email else f"{ls_canonical_username}@synerex.com"
+                    try:
+                        if USE_MYSQL:
+                            cursor.execute(
+                                """
+                                INSERT INTO users (username, email, full_name, password_hash, role, status, org_id)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash),
+                                    role=VALUES(role), status='active', org_id=VALUES(org_id)
+                                """,
+                                (ls_canonical_username, _upsert_email, ls_canonical_username,
+                                 password_hash, _upsert_role, "active", ls_org_id),
+                            )
+                        else:
+                            cursor.execute(
+                                """
+                                INSERT OR REPLACE INTO users
+                                    (username, email, full_name, password_hash, role, status, org_id)
+                                VALUES (?, ?, ?, ?, ?, 'active', ?)
+                                """,
+                                (ls_canonical_username, _upsert_email, ls_canonical_username,
+                                 password_hash, _upsert_role, ls_org_id),
+                            )
+                        conn.commit()
+                        logger.info("JIT-provisioned EMV user '%s' for org '%s'", ls_canonical_username, ls_org_id)
+                    except Exception as _ins_err:
+                        logger.warning("Could not JIT-provision user '%s': %s", ls_canonical_username, _ins_err)
+                        try:
+                            conn.rollback()
+                        except Exception:
+                            pass
+                    # Re-fetch after upsert
+                    try:
+                        cursor.execute(
+                            "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ?",
+                            (ls_canonical_username,),
+                        )
+                        user = cursor.fetchone()
+                    except Exception as _ref_err:
+                        logger.warning("Re-fetch after JIT upsert failed for '%s': %s", ls_canonical_username, _ref_err)
+
             if not user:
+                logger.warning("Login failed for identifier '%s' (ls_verified=%s)", username, ls_verified)
                 return jsonify({"status": "error", "error": "Invalid credentials"}), 401
 
-            # Create session token
-            import uuid
-
-            session_token = str(uuid.uuid4())
+            # --- Step 5: Create session ---
+            session_token = str(_uuid_mod.uuid4())
             expires_at = datetime.now() + timedelta(hours=24)
 
-            # Store session
             cursor.execute(
                 f"""
                 INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
                 VALUES (?, ?, ?, {_sql_now()})
-            """,
+                """,
                 (user[0], session_token, expires_at.isoformat()),
             )
-
             conn.commit()
 
             return jsonify(
                 {
                     "status": "success",
                     "session_token": session_token,
+                    "org_id": effective_org_id or None,
+                    "org_type": ls_org_type or _derive_org_type(effective_org_id),
                     "user": {
                         "id": user[0],
                         "full_name": user[1],
@@ -45993,7 +46123,7 @@ def validate_user_session(session_token):
         # Find valid session
         cursor.execute(
             f"""
-            SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state
+            SELECT u.id, u.full_name, u.email, u.username, u.role, u.pe_license_number, u.state, u.org_id
             FROM user_sessions s
             JOIN users u ON s.user_id = u.id
             WHERE s.session_token = ? AND s.expires_at > {_sql_now()}
@@ -46007,6 +46137,12 @@ def validate_user_session(session_token):
             return None
 
         logger.info(f"Valid session found for user: {user[3]}")
+        # Support both tuple (SQLite) and _DictRow (MySQL DictCursor) results
+        try:
+            _org_id = user["org_id"] if hasattr(user, "get") else (user[7] if len(user) > 7 else None)
+        except Exception:
+            _org_id = None
+        _org_type = _derive_org_type(_org_id)
         return {
             "id": user[0],
             "full_name": user[1],
@@ -46015,6 +46151,8 @@ def validate_user_session(session_token):
             "role": user[4],
             "pe_license_number": user[5],
             "state": user[6],
+            "org_id": _org_id,
+            "org_type": _org_type,
         }
 
 
@@ -46054,6 +46192,8 @@ def validate_session():
                     "pe_license_number": user["pe_license_number"],
                     "state": user["state"],
                 },
+                "org_id": user.get("org_id"),
+                "org_type": user.get("org_type"),
             }
         )
     except Exception as e:

@@ -56,6 +56,10 @@ def license_required(f):
         if user_role in ("admin", "administrator", "superadmin") or role == 8:
             return f(*args, **kwargs)
 
+        # OEM Admin bypass (role=9) — OEM partners have direct access; no purchased license needed
+        if role == 9:
+            return f(*args, **kwargs)
+
         org_id = request.headers.get("x-org-id")
         if not org_id and current_user.is_authenticated:
             # Try Bearer token - verify via License Service

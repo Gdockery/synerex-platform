@@ -22,7 +22,6 @@ import {ClientService} from "./client/client.service";
 import {AdminProjectService} from "./project/admin-project.service";
 import {UserService} from "../shared/user/user.service";
 import {DeviceService} from "../electricityMeters/devices/device.service";
-import { HttpClientModule } from '@angular/common/http';
 import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
 import {EnergySavingsService} from "../savings/energySavings.service";
 import {OemBrandingComponent} from "./branding/oem-branding.component";
@@ -42,7 +41,6 @@ import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
     DataTableModule,
     TextMaskModule,
     DropdownModule,
-    HttpClientModule,
     FileUploadModule,
   ],
   declarations: [

@@ -305,6 +305,14 @@ class MainDashboard {
                     if (result.status === 'success') {
                         console.log('✅ Session valid, showing dashboard');
                         this.currentUser = result.user;
+                        // Persist org_id and org_type so role-based UI (e.g. Admin button) works
+                        // on every page load, not just right after login.
+                        if (result.org_id) {
+                            localStorage.setItem('org_id', result.org_id);
+                        }
+                        if (result.org_type) {
+                            localStorage.setItem('org_type', result.org_type);
+                        }
                         this.clearAllSpinners(); // Clear spinners before showing dashboard
                         this.showAuthenticatedDashboard();
                         // Load stats in background - don't block

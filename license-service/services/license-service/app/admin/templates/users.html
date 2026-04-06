@@ -109,7 +109,7 @@
       </td>
       <td style="padding:0.75rem 1rem; vertical-align:middle;">
         {% if org %}
-        <a href="/admin/orgs/{{ org.org_id }}" style="color:var(--purple-hi); text-decoration:none; font-size:0.88rem; font-weight:500;">{{ org.org_name }}</a>
+        <a href="{{ admin_url('orgs/' ~ org.org_id) }}" style="color:var(--purple-hi); text-decoration:none; font-size:0.88rem; font-weight:500;">{{ org.org_name }}</a>
         <div style="font-size:0.75rem; color:var(--text-dim); margin-top:1px; text-transform:uppercase; letter-spacing:0.04em;">
           {{ org.org_type }}
           {% if org.approval_status == 'pending' %}<span style="color:#fbbf24;"> · pending approval</span>{% endif %}
@@ -155,7 +155,7 @@
           </button>
           <!-- Activate / Deactivate -->
           {% if u.is_active %}
-          <form method="post" action="/admin/users/{{ u.username }}/deactivate?back=/admin/users{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
+          <form method="post" action="{{ admin_url('users/' ~ u.username ~ '/deactivate') }}?back={{ admin_url('users') }}{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
             <button type="submit"
               onclick="return confirm('Deactivate {{ u.email }}? They will be unable to log in immediately.')"
               style="padding:3px 10px; border-radius:5px; font-size:0.78rem; font-weight:600; border:1px solid #b91c1c; background:#7f1d1d; color:#fca5a5; cursor:pointer;">
@@ -163,7 +163,7 @@
             </button>
           </form>
           {% else %}
-          <form method="post" action="/admin/users/{{ u.username }}/activate?back=/admin/users{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
+          <form method="post" action="{{ admin_url('users/' ~ u.username ~ '/activate') }}?back={{ admin_url('users') }}{% if search or role_filter or org_type_filter or status_filter %}?search={{ search }}&role={{ role_filter }}&org_type={{ org_type_filter }}&status={{ status_filter }}{% endif %}" style="display:inline;">
             <button type="submit"
               onclick="return confirm('Activate {{ u.email }}?')"
               style="padding:3px 10px; border-radius:5px; font-size:0.78rem; font-weight:600; border:1px solid #16a34a; background:#14532d; color:#86efac; cursor:pointer;">
@@ -191,7 +191,7 @@
 <script>
 function openResetModal(username, email) {
   document.getElementById('reset-username-label').textContent = email || username;
-  document.getElementById('reset-form').action = '/admin/users/' + encodeURIComponent(username) + '/reset-password';
+  document.getElementById('reset-form').action = '{{ admin_base }}/admin/users/' + encodeURIComponent(username) + '/reset-password';
   document.getElementById('reset-pw-input').value = '';
   var modal = document.getElementById('reset-modal');
   modal.style.display = 'flex';

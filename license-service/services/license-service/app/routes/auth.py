@@ -176,6 +176,9 @@ def client_login_submit(
     
     try:
         user = db.get(User, username)
+        # Fall back to email lookup (accounts created via admin panel use a username != email)
+        if not user:
+            user = db.query(User).filter(User.email == username).first()
         if not user or not user.is_active:
             return _error_redirect("Invalid username or password")
 
@@ -206,9 +209,11 @@ def client_login_submit(
         except Exception:
             pass  # Never block login due to an unexpected error in this check
         
-        # Set session
+        # Set session — always use the canonical username (PK), not the raw form input
+        # (user may have logged in with their email address instead of their username)
+        canonical_username = user.username
         request.session["user_logged_in"] = True
-        request.session["username"] = username
+        request.session["username"] = canonical_username
         request.session["org_id"] = user.org_id
 
         # Generate user JWT for SSO (stored in session for now)
@@ -217,7 +222,7 @@ def client_login_submit(
             org_type = org.org_type if org else None
             user_token = generate_user_token(
                 org_id=user.org_id,
-                username=username,
+                username=canonical_username,
                 email=user.email,
                 roles=["user"],
             )
@@ -239,7 +244,7 @@ def client_login_submit(
         except Exception:
             user_roles = []
         jwt_token = generate_user_token(
-            username=username,
+            username=canonical_username,
             org_id=user.org_id,
             roles=user_roles
         )

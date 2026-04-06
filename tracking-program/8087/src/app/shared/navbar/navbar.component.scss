@@ -149,3 +149,7 @@ nav ul li:hover ul li {
   padding: 0 8px;
 }
 
+
+.logo-invert {
+  filter: brightness(0) invert(1);
+}

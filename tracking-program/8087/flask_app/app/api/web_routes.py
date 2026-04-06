@@ -645,11 +645,6 @@ def list_projects():
             # Prefer legalName for display; name may be "Client - {address}" from create-from-bill
             if c:
                 display_name = c.legalName if c.legalName else c.name
-                # When name is "Client - {address}" and org is OEM-HARMONIQ, use "Cloud Kitchen"
-                if not c.legalName and c.name and c.name.startswith("Client - "):
-                    org_id = getattr(c, "org_id", None) or ""
-                    if org_id == "OEM-HARMONIQ":
-                        display_name = "Cloud Kitchen"
             else:
                 display_name = "(deleted)"
             row["client"] = {"id": c.id, "name": display_name} if c else {"id": p.client, "name": "(deleted)"}
@@ -1351,23 +1346,11 @@ def list_clients():
     else:
         base = base.order_by(Client.name)
 
-    # Cloud Kitchen: only one per org - deduplicate when multiple exist (HarmoniQ etc.)
+    # Apply pagination
     all_clients = base.all()
-    seen_cloud_kitchen_org = {}
-    deduped = []
-    for c in all_clients:
-        org = getattr(c, "org_id", None) or ""
-        if c.name and "Cloud Kitchen" in c.name:
-            if org in seen_cloud_kitchen_org:
-                if c.id != seen_cloud_kitchen_org[org]:
-                    continue
-            else:
-                seen_cloud_kitchen_org[org] = c.id
-        deduped.append(c)
-
-    total = len(deduped)
+    total = len(all_clients)
     offset = (page - 1) * page_size
-    clients = deduped[offset : offset + page_size]
+    clients = all_clients[offset : offset + page_size]
 
     records = [
         {
@@ -1414,28 +1397,6 @@ def create_client():
         return jsonify({"error": "name required"}), 400
     vals.setdefault("createdBy", current_user.id)
     vals.setdefault("isDeleted", False)
-
-    # Cloud Kitchen: only one per OEM org (legacy: org_id; new: sponsor_org_id)
-    client_name = (vals.get("name") or "").strip()
-    if "Cloud Kitchen" in client_name:
-        user = sess.query(User).get(current_user.id)
-        org_id_for_check = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
-        if not org_id_for_check and user and user.client:
-            oem_client = sess.query(Client).get(user.client)
-            if oem_client:
-                org_id_for_check = getattr(oem_client, "org_id", None)
-        if org_id_for_check:
-            # Legacy: org_id match; new: sponsor_org_id match
-            existing = sess.query(Client).filter(
-                Client.isDeleted == False,
-                Client.name.ilike("%Cloud Kitchen%"),
-                or_(
-                    Client.org_id == org_id_for_check,
-                    Client.sponsor_org_id == org_id_for_check,
-                ),
-            ).first()
-            if existing:
-                return jsonify({"error": "This organization already has a Cloud Kitchen client. Only one Cloud Kitchen is allowed per organization."}), 400
 
     c = Client()
     # Ensure org in License registry (create or adopt) - org_id available to all programs
@@ -1626,7 +1587,7 @@ def get_oem_branding():
         except Exception:
             pass
     if not org_id:
-        return jsonify({"error": "No org_id"}), 400
+        return jsonify({"response": {}}), 200
     try:
         from app.models.oem_branding import OemBranding
         b = get_session().query(OemBranding).filter_by(org_id=org_id).first()

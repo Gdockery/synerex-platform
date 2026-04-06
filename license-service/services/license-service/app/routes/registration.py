@@ -227,6 +227,7 @@ def registration_page(
                 except Exception:
                     pass
 
+    path_prefix = (settings.root_path or "").rstrip("/")
     return templates.TemplateResponse(
         "signup.html",
         {
@@ -241,6 +242,7 @@ def registration_page(
             "brand_logo_url": brand_logo_url,
             "brand_name": brand_name,
             "prefill_org": prefill_org,
+            "path_prefix": path_prefix,
         }
     )
 
@@ -261,7 +263,7 @@ def payment_page(
     if not order:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -276,7 +278,7 @@ def payment_page(
     if not org:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -328,7 +330,7 @@ def process_payment(
         if not order:
             return templates.TemplateResponse(
                 "payment.html",
-                {"request": request, "error": "Order not found", "order": None, "org": None, "website_url": settings.website_url},
+                {"request": request, "error": "Order not found", "order": None, "org": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=404
             )
         
@@ -358,7 +360,7 @@ def process_payment(
         if not template_id:
             return templates.TemplateResponse(
                 "payment.html",
-                {"request": request, "error": f"Invalid plan '{order.plan}' for program '{order.program_id}'", "order": order, "org": db.get(Organization, order.org_id), "website_url": settings.website_url},
+                {"request": request, "error": f"Invalid plan '{order.plan}' for program '{order.program_id}'", "order": order, "org": db.get(Organization, order.org_id), "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
         
@@ -465,7 +467,7 @@ def process_payment(
             if not org:
                 return templates.TemplateResponse(
                     "payment.html",
-                    {"request": request, "error": "Organization not found", "order": order, "org": None, "website_url": settings.website_url},
+                    {"request": request, "error": "Organization not found", "order": order, "org": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                     status_code=404
                 )
             
@@ -559,7 +561,7 @@ def process_payment(
         print(traceback.format_exc())
         return templates.TemplateResponse(
             "payment.html",
-            {"request": request, "error": error_msg, "order": order if 'order' in locals() else None, "org": None, "website_url": settings.website_url},
+            {"request": request, "error": error_msg, "order": order if 'order' in locals() else None, "org": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=500
         )
 
@@ -570,7 +572,7 @@ def eft_instructions(request: Request, order_id: str, db: Session = Depends(db_s
     if not order:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -578,7 +580,7 @@ def eft_instructions(request: Request, order_id: str, db: Session = Depends(db_s
     if not org:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -621,7 +623,7 @@ def payment_success(
     if not order_id:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Order ID required", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Order ID required", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=400
         )
     
@@ -629,7 +631,7 @@ def payment_success(
     if not order:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Order not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -637,7 +639,7 @@ def payment_success(
     if not org:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -722,7 +724,7 @@ def resend_receipt(
     if not order_id and not license_id:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Either order_id or license_id is required", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Either order_id or license_id is required", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=400
         )
     
@@ -739,7 +741,7 @@ def resend_receipt(
     if not license_rec:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "License not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "License not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -747,7 +749,7 @@ def resend_receipt(
     if not org:
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": "Organization not found", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=404
         )
     
@@ -818,7 +820,7 @@ def register_submit(
         if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Username must be 3-20 characters and contain only letters, numbers, and underscores", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Username must be 3-20 characters and contain only letters, numbers, and underscores", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
         
@@ -826,7 +828,7 @@ def register_submit(
         if len(password) < 8:
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Password must be at least 8 characters long", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Password must be at least 8 characters long", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
         
@@ -834,7 +836,7 @@ def register_submit(
         if password != password_confirm:
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Passwords do not match", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Passwords do not match", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
         
@@ -842,7 +844,7 @@ def register_submit(
         if db.get(User, username):
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Username already exists. Please choose a different username.", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Username already exists. Please choose a different username.", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=409
             )
         
@@ -850,7 +852,7 @@ def register_submit(
         if org_type not in ("pe", "customer", "oem"):
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": "Registration type must be 'oem', 'pe', or 'customer'", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": "Registration type must be 'oem', 'pe', or 'customer'", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
 
@@ -875,7 +877,7 @@ def register_submit(
             agreement_type = "Licensed PE Registration Agreement" if org_type == "pe" else "Software License Agreement"
             return templates.TemplateResponse(
                 "signup.html",
-                {"request": request, "error": f"You must accept the {agreement_type} to proceed.", "success": None, "website_url": settings.website_url},
+                {"request": request, "error": f"You must accept the {agreement_type} to proceed.", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                 status_code=400
             )
         
@@ -884,13 +886,13 @@ def register_submit(
             if not pe_license_number or not pe_license_number.strip():
                 return templates.TemplateResponse(
                     "signup.html",
-                    {"request": request, "error": "PE License Number is required", "success": None, "website_url": settings.website_url},
+                    {"request": request, "error": "PE License Number is required", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                     status_code=400
                 )
             if not pe_license_state or not pe_license_state.strip():
                 return templates.TemplateResponse(
                     "signup.html",
-                    {"request": request, "error": "PE License State is required", "success": None, "website_url": settings.website_url},
+                    {"request": request, "error": "PE License State is required", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                     status_code=400
                 )
         
@@ -931,7 +933,7 @@ def register_submit(
             if db.get(Organization, org_id):
                 return templates.TemplateResponse(
                     "signup.html",
-                    {"request": request, "error": "Organization ID already exists. Please try again.", "success": None, "website_url": settings.website_url},
+                    {"request": request, "error": "Organization ID already exists. Please try again.", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
                     status_code=409
                 )
 
@@ -992,7 +994,7 @@ def register_submit(
                     "request": request,
                     "error": None,
                     "success": f"Licensed PE registration submitted successfully! Your registration is pending admin approval. You will be notified via email at {email} once your registration is reviewed.",
-                    "website_url": settings.website_url
+                    "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")
                 }
             )
         if org_type == "oem":
@@ -1002,7 +1004,7 @@ def register_submit(
                     "request": request,
                     "error": None,
                     "success": f"OEM registration submitted successfully! Your application is now pending Synerex Admin review and approval. You will receive an email at {email} once your account has been activated.",
-                    "website_url": settings.website_url
+                    "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")
                 }
             )
         
@@ -1018,7 +1020,7 @@ def register_submit(
         db.rollback()
         return templates.TemplateResponse(
             "signup.html",
-            {"request": request, "error": f"Registration failed: {str(e)}", "success": None, "website_url": settings.website_url},
+            {"request": request, "error": f"Registration failed: {str(e)}", "success": None, "website_url": settings.website_url, "path_prefix": (settings.root_path or "").rstrip("/")},
             status_code=500
         )
 
