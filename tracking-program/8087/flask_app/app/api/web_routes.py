@@ -1578,6 +1578,8 @@ def get_brand_name():
 def get_oem_branding():
     """GET /api/whitelabel/oem-branding - get full branding for logged-in OEM user."""
     org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id:
+        org_id = getattr(current_user, "org_id", None)
     if not org_id and current_user.client:
         try:
             from app.models.client import Client as _Client
@@ -1625,6 +1627,8 @@ def save_oem_branding():
     if role not in (8, 9, 10):
         return jsonify({"error": "Forbidden"}), 403
     org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id:
+        org_id = getattr(current_user, "org_id", None)
     if not org_id and current_user.client:
         try:
             from app.models.client import Client as _Client
@@ -1779,6 +1783,8 @@ def upload_oem_logo():
     if role not in (8, 9, 10):
         return jsonify({"error": "Forbidden"}), 403
     org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+    if not org_id:
+        org_id = getattr(current_user, "org_id", None)
     if not org_id and current_user.client:
         try:
             from app.models.client import Client as _Client
