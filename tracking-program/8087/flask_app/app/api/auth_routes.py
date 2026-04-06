@@ -136,6 +136,7 @@ def login():
         except (ValueError, TypeError):
             local_ok = False
 
+    claims = None
     if not local_ok:
         license_url = current_app.config.get("LICENSE_SERVICE_URL")
         claims = verify_credentials(email, password, license_service_url=license_url) if license_url else None
@@ -158,6 +159,7 @@ def login():
                         role=9,   # OEM Admin
                         isDeleted=False,
                         client=None,
+                        org_id=claims.get("org_id"),
                     )
                     sess.add(new_user)
                     sess.commit()
@@ -170,6 +172,14 @@ def login():
                     return _login_fail()
             else:
                 return _login_fail()
+        # For existing OEM users whose org_id may not be stored yet, persist it now
+        elif claims.get("org_id") and not getattr(user, "org_id", None):
+            try:
+                user.org_id = claims["org_id"]
+                sess.commit()
+                current_app.logger.info("Backfilled org_id=%s for existing user %s", claims["org_id"], email)
+            except Exception:
+                sess.rollback()
 
     login_user(user, remember=True)
     session["userId"] = user.id
@@ -183,10 +193,12 @@ def login():
         "clientName": _get_client_name(user),
     }
     _set_org_id_in_session(user)
-    # For JIT-provisioned users (client=None), inject org_id directly from License Service claims
-    if not session.get("orgId") and not local_ok and claims and claims.get("org_id"):
-        session["orgId"] = claims["org_id"]
-        session.setdefault("user", {})["orgId"] = claims["org_id"]
+    # For OEM users (client=None), inject org_id from user record or License Service claims
+    if not session.get("orgId"):
+        oem_org = getattr(user, "org_id", None) or (claims.get("org_id") if claims else None)
+        if oem_org:
+            session["orgId"] = oem_org
+            session.setdefault("user", {})["orgId"] = oem_org
 
     # Enforce seat limit — non-admin users consume a seat on the org's active license
     if getattr(user, "role", None) != 8:
@@ -236,9 +248,19 @@ def _login_fail():
 
 
 def _set_org_id_in_session(user):
-    """Set session['orgId'] and session['user']['orgId'] from user's client.org_id when available."""
-    if not user or not user.client:
-        logger.debug("org_id: user has no client, skipping session orgId")
+    """Set session['orgId'] and session['user']['orgId'] from user record or client.org_id."""
+    if not user:
+        return
+    # First: use org_id stored directly on the user (OEM/JIT users have no client)
+    org_id = getattr(user, "org_id", None)
+    if org_id:
+        session["orgId"] = org_id
+        session.setdefault("user", {})["orgId"] = org_id
+        logger.info("org_id: set session orgId=%s from user.org_id for user=%s", org_id, user.id)
+        return
+    # Fallback: derive from client record (local client-linked users)
+    if not user.client:
+        logger.debug("org_id: user has no client or org_id, skipping session orgId")
         return
     sess = get_session()
     client = sess.query(Client).get(user.client)

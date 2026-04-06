@@ -32,3 +32,4 @@ class User(UserMixin, BaseModel):
     client = db.Column(db.Integer, db.ForeignKey("client.id"))
     defaultProject = db.Column(db.Integer, nullable=True)  # FK to project.id
     userLogo = db.Column(db.Boolean, default=False)  # True if user has uploaded logo
+    org_id = db.Column(db.String(255), nullable=True, index=True)  # OEM org_id from License Service (e.g. OEM-XCT)
