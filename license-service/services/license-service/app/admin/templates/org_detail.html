@@ -174,6 +174,46 @@
     </div>
     {% endif %}
 
+
+    {% if org.org_type == 'customer' %}
+    <!-- Customer Activation Panel -->
+    <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+      <h4 style="margin: 0 0 0.25rem 0; color: #166534; font-size: 1rem;">&#9989; Client Subscription Activation</h4>
+      <p style="color: #6b7280; font-size: 0.875rem; margin: 0 0 1.25rem 0;">
+        Once the client has paid offline (e.g. during installation), use this panel to activate their subscription, issue a license, and send them their login credentials.
+      </p>
+      {% if customer_active_license %}
+      <div style="background: #dcfce7; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.875rem;">
+        <strong style="color: #166534;">&#10003; Active license:</strong>
+        {{ customer_active_license.license_id }}
+        &mdash; expires <strong>{{ customer_active_license.expires_at.strftime('%b %d, %Y') if customer_active_license.expires_at else 'N/A' }}</strong>
+      </div>
+      {% else %}
+      {% if activation_message %}
+      <div style="background: {% if activation_message_type == 'error' %}#fef2f2{% else %}#f0fdf4{% endif %}; border: 1px solid {% if activation_message_type == 'error' %}#fecaca{% else %}#86efac{% endif %}; color: {% if activation_message_type == 'error' %}#b91c1c{% else %}#166534{% endif %}; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.875rem; font-weight: 500;">
+        {{ activation_message }}
+      </div>
+      {% endif %}
+      <form method="post" action="{{ admin_url('orgs/' ~ org.org_id ~ '/activate-customer') }}" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;" onsubmit="return confirm('Activate this client with the selected plan? This will issue a 12-month license.');">
+        <div style="flex: 1; min-width: 200px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #374151; margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.04em;">Select Plan</label>
+          <select name="plan" required style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #86efac; border-radius: 6px; font-size: 0.9rem; box-sizing: border-box;">
+            <option value="">-- Choose a plan --</option>
+            <option value="basic">Basic — $495/mo (read-only, 5 users)</option>
+            <option value="pro">Pro — $995/mo (full access, 15 users)</option>
+            <option value="enterprise">Enterprise — $1,995/mo (unlimited)</option>
+          </select>
+        </div>
+        <button type="submit" style="padding: 0.55rem 1.25rem; background: #16a34a; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+          &#128275; Activate &amp; Issue License
+        </button>
+      </form>
+      <p style="color: #9ca3af; font-size: 0.78rem; margin-top: 0.6rem;">
+        This creates a 12-month license from today, marks the order as paid (offline), activates the Client Admin user, and sends them a welcome email.
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
     <div style="background: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; border-radius: 6px; margin-bottom: 2rem;">
       <strong style="color: #e65100;">Quick Actions:</strong>
       <div style="display: flex; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap;">

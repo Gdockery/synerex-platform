@@ -310,6 +310,12 @@ def dashboard(request: Request, _=Depends(require_admin), db: Session = Depends(
             Organization.pe_approval_status == "pending",
         ).count(),
     }
+    # OEM billing count (try/except in case table hasn't been migrated yet)
+    try:
+        from ..models.oem_invoice import OemInvoice as _OemInvoice
+        counts["pending_oem_billing"] = db.query(_OemInvoice).filter(_OemInvoice.status == "pending").count()
+    except Exception:
+        counts["pending_oem_billing"] = 0
     try:
         html = templates.get_template("dashboard.html").render({"request": request, "counts": counts})
         admin_url_val = f"{settings.root_path.rstrip('/')}/admin"
@@ -841,6 +847,16 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         root_pfx = (settings.root_path or "").rstrip("/")
         oem_login_url = f"{base_url}{root_pfx}/auth/login?oem={org_id}"
 
+    # For customer orgs: check for an active license and surface activation controls
+    customer_active_license = None
+    activation_message = request.query_params.get("message", "").replace("+", " ")
+    activation_message_type = request.query_params.get("message_type", "success")
+    if org.org_type == "customer":
+        customer_active_license = db.query(License).filter(
+            License.org_id == org_id,
+            License.revoked == False,
+        ).order_by(License.issued_at.desc()).first()
+
     # Build billing helpers for the billing tab
     from ..models.payment import Payment as _Payment, Invoice as _Invoice
     order_ids = [o.order_id for o in billing_orders]
@@ -877,6 +893,9 @@ def org_detail(org_id: str, request: Request, tab: str = "overview", _=Depends(r
         "oem_login_url": oem_login_url,
         "oem_setup_message": oem_setup_message,
         "oem_setup_message_type": oem_setup_message_type,
+        "customer_active_license": customer_active_license,
+        "activation_message": activation_message,
+        "activation_message_type": activation_message_type,
         "order_gateways": order_gateways,
         "order_invoices": order_invoices,
         "path_prefix": path_prefix,
@@ -1037,6 +1056,315 @@ def org_delete(org_id: str, request: Request, _=Depends(require_admin), db: Sess
     db.commit()
     log_event(db, actor="admin", action="org.delete", ref_id=org_id, detail={})
     return _admin_redirect("/admin/orgs?message=Organization+deleted+successfully&message_type=success")
+
+
+@router.post("/orgs/{org_id}/activate-customer")
+def activate_customer(
+    org_id: str,
+    request: Request,
+    plan: str = Form(...),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Manually activate a customer org: create offline BillingOrder, issue license, activate admin user."""
+    from datetime import date, timedelta
+    from ..models.billing import BillingOrder
+    from ..models.payment import Payment
+    from ..services.pricing import calculate_price
+    from ..licensing.issuer import issue_license_record
+    from ..templates_loader import load_template
+    from ..licensing import build_license_payload, sign_license
+
+    org = db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    if plan not in ("basic", "pro", "enterprise"):
+        return _admin_redirect(f"/admin/orgs/{org_id}?message=Invalid+plan+selected&message_type=error")
+
+    try:
+        pricing = calculate_price("tracking", plan, term_days=365)
+        amount_total = str(pricing["amount_total"])
+        currency = pricing.get("currency", "USD")
+    except Exception:
+        amount_total = "0.00"
+        currency = "USD"
+
+    today = date.today()
+    term_start = today.isoformat()
+    term_end = (today + timedelta(days=365)).isoformat()
+
+    # Create BillingOrder marked as paid (offline payment)
+    order_id = f"ORD-OFFLINE-{org_id}-{int(datetime.utcnow().timestamp())}"
+    order = BillingOrder(
+        order_id=order_id,
+        org_id=org_id,
+        program_id="tracking",
+        plan=plan,
+        term_start=term_start,
+        term_end=term_end,
+        amount_total=amount_total,
+        currency=currency,
+        status="paid",
+        paid_at=datetime.utcnow(),
+        notes="Offline first-year payment. Manually activated by Synerex Admin.",
+    )
+    db.add(order)
+
+    # Create ProgramAuthorization
+    template_mapping = {"basic": "tracking_basic", "pro": "tracking_pro", "enterprise": "tracking_enterprise"}
+    template_id = template_mapping[plan]
+    auth_id = f"AUTH-TRACKING-{org_id}-{order_id}"
+    existing_auth = db.get(ProgramAuthorization, auth_id)
+    if not existing_auth:
+        auth = ProgramAuthorization(
+            authorization_id=auth_id,
+            program_id="tracking",
+            org_id=org_id,
+            template_id=template_id,
+            status="active",
+            starts_at=term_start,
+            ends_at=term_end,
+            scope_json="{}",
+            constraints_json="{}",
+            bindings_override_json="{}",
+            issued_by="synerex_admin_manual",
+        )
+        db.add(auth)
+        db.commit()
+    else:
+        auth = existing_auth
+
+    # Issue license
+    license_template = load_template("tracking", template_id)
+    license_id_str = f"SYX-LIC-{datetime.utcnow().year}-{int(datetime.utcnow().timestamp())}"
+    license_payload = build_license_payload(
+        license_id=license_id_str,
+        issuer=settings.issuer_name,
+        org={"org_id": org.org_id, "org_name": org.org_name, "org_type": org.org_type},
+        term_start=term_start,
+        term_end=term_end,
+        program={
+            "program_id": "tracking",
+            "authorization_id": auth_id,
+            "status": "active",
+            "policy_version": license_template.get("policy_version", "2026.01"),
+        },
+        template=license_template,
+    )
+    license_rec, _ = issue_license_record(db, authorization=auth, license_payload=license_payload)
+
+    # Link license to order + approve org
+    order.license_id = license_rec.license_id
+    org.approval_status = "approved"
+
+    # Activate the Client Admin user
+    client_user = db.query(User).filter(User.org_id == org_id).first()
+    if client_user and not client_user.is_active:
+        client_user.is_active = True
+
+    db.commit()
+    log_event(db, actor="synerex_admin", action="customer.activated", ref_id=org_id,
+              detail={"plan": plan, "order_id": order_id, "license_id": license_rec.license_id})
+
+    # Send activation email (best-effort)
+    try:
+        from ..services.email import send_account_activated_email
+        send_account_activated_email(org_id, license_rec.license_id, db)
+    except Exception:
+        pass
+
+    # Create OEM platform-fee invoice if this client belongs to an OEM sponsor
+    oem_invoice_note = ""
+    if org.sponsor_org_id:
+        try:
+            _create_oem_invoice(
+                db,
+                oem_org_id=org.sponsor_org_id,
+                client_org_id=org_id,
+                license_id=license_rec.license_id,
+                plan=plan,
+                event_type="activation",
+            )
+            oem_invoice_note = "+OEM+invoice+created."
+        except Exception:
+            pass
+
+    return _admin_redirect(
+        f"/admin/orgs/{org_id}?tab=billing&message=Customer+activated+with+{plan}+plan.+License+issued+and+activation+email+sent.{oem_invoice_note}&message_type=success"
+    )
+
+
+
+# ── OEM Billing ────────────────────────────────────────────────────────────────
+
+# Default platform fees Synerex charges OEMs per client per year (USD)
+_OEM_PLATFORM_FEES = {
+    "basic": "2400.00",
+    "pro": "4800.00",
+    "enterprise": "9600.00",
+}
+
+
+def _create_oem_invoice(
+    db: Session,
+    oem_org_id: str,
+    client_org_id: str,
+    license_id: str,
+    plan: str,
+    event_type: str = "activation",
+):
+    """Create an OEM platform-fee invoice. Called after client activation or renewal."""
+    from ..models.oem_invoice import OemInvoice
+
+    amount = _OEM_PLATFORM_FEES.get(plan, "0.00")
+    invoice_id = f"INV-OEM-{oem_org_id}-{client_org_id}-{int(datetime.utcnow().timestamp())}"
+    inv = OemInvoice(
+        invoice_id=invoice_id,
+        oem_org_id=oem_org_id,
+        client_org_id=client_org_id,
+        license_id=license_id,
+        plan=plan,
+        event_type=event_type,
+        amount=amount,
+        currency="USD",
+        status="pending",
+    )
+    db.add(inv)
+    db.commit()
+    log_event(db, actor="synerex_admin", action="oem_invoice.created", ref_id=invoice_id,
+              detail={"oem_org_id": oem_org_id, "client_org_id": client_org_id, "plan": plan, "amount": amount})
+    return inv
+
+
+@router.get("/oem-billing", response_class=HTMLResponse)
+def oem_billing_overview(
+    request: Request,
+    status: Optional[str] = None,
+    oem_id: Optional[str] = None,
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Synerex Admin: overview of all OEM platform-fee invoices."""
+    from ..models.oem_invoice import OemInvoice
+    from decimal import Decimal
+
+    query = db.query(OemInvoice)
+    if status:
+        query = query.filter(OemInvoice.status == status)
+    if oem_id:
+        query = query.filter(OemInvoice.oem_org_id == oem_id)
+    invoices = query.order_by(OemInvoice.created_at.desc()).all()
+
+    # Group by OEM
+    oem_ids = list({inv.oem_org_id for inv in invoices})
+    oem_orgs = {o.org_id: o for o in db.query(Organization).filter(Organization.org_id.in_(oem_ids)).all()}
+    client_ids = list({inv.client_org_id for inv in invoices})
+    client_orgs = {o.org_id: o for o in db.query(Organization).filter(Organization.org_id.in_(client_ids)).all()}
+
+    grouped: dict = {}
+    for inv in invoices:
+        oid = inv.oem_org_id
+        if oid not in grouped:
+            grouped[oid] = {
+                "oem_name": (oem_orgs.get(oid) or Organization()).org_name or oid,
+                "invoices": [],
+                "pending_total": Decimal("0"),
+            }
+        grouped[oid]["invoices"].append({
+            "invoice_id": inv.invoice_id,
+            "client_org_id": inv.client_org_id,
+            "client_name": (client_orgs.get(inv.client_org_id) or Organization()).org_name,
+            "plan": inv.plan,
+            "event_type": inv.event_type,
+            "amount": inv.amount,
+            "status": inv.status,
+            "paid_at": inv.paid_at,
+            "created_at": inv.created_at,
+            "notes": inv.notes,
+        })
+        if inv.status == "pending":
+            grouped[oid]["pending_total"] += Decimal(inv.amount or "0")
+
+    # Format pending totals
+    for g in grouped.values():
+        g["pending_total"] = f"{g['pending_total']:.2f}"
+
+    # Summary totals
+    all_invoices = db.query(OemInvoice).all()
+    pending_sum = sum(Decimal(i.amount or "0") for i in all_invoices if i.status == "pending")
+    paid_sum = sum(Decimal(i.amount or "0") for i in all_invoices if i.status == "paid")
+    all_oems = db.query(Organization).filter(Organization.org_type == "oem").order_by(Organization.org_name).all()
+
+    flash_message = request.query_params.get("message", "").replace("+", " ")
+    flash_type = request.query_params.get("message_type", "success")
+    path_prefix = (settings.root_path or "").rstrip("/")
+
+    return templates.TemplateResponse("oem_billing_overview.html", {
+        "request": request,
+        "grouped_invoices": grouped,
+        "totals": {
+            "total_count": len(all_invoices),
+            "pending_amount": f"{pending_sum:.2f}",
+            "paid_amount": f"{paid_sum:.2f}",
+            "oem_count": len(all_oems),
+        },
+        "all_oems": all_oems,
+        "status_filter": status,
+        "oem_filter": oem_id,
+        "flash_message": flash_message,
+        "flash_type": flash_type,
+        "path_prefix": path_prefix,
+    })
+
+
+@router.post("/oem-billing/{invoice_id}/mark-paid")
+def oem_billing_mark_paid(
+    invoice_id: str,
+    request: Request,
+    payment_ref: str = Form(default=""),
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Mark an OEM invoice as paid."""
+    from ..models.oem_invoice import OemInvoice
+
+    inv = db.get(OemInvoice, invoice_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+
+    inv.status = "paid"
+    inv.paid_at = datetime.utcnow()
+    if payment_ref.strip():
+        inv.notes = payment_ref.strip()
+    db.commit()
+    log_event(db, actor="synerex_admin", action="oem_invoice.paid", ref_id=invoice_id,
+              detail={"oem_org_id": inv.oem_org_id, "amount": inv.amount, "ref": payment_ref})
+
+    return _admin_redirect(f"/admin/oem-billing?message=Invoice+{invoice_id}+marked+as+paid&message_type=success")
+
+
+@router.post("/oem-billing/{invoice_id}/waive")
+def oem_billing_waive(
+    invoice_id: str,
+    request: Request,
+    _=Depends(require_admin),
+    db: Session = Depends(db_session),
+):
+    """Waive an OEM invoice (e.g. promotional / internal)."""
+    from ..models.oem_invoice import OemInvoice
+
+    inv = db.get(OemInvoice, invoice_id)
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+
+    inv.status = "waived"
+    inv.paid_at = datetime.utcnow()
+    db.commit()
+    log_event(db, actor="synerex_admin", action="oem_invoice.waived", ref_id=invoice_id,
+              detail={"oem_org_id": inv.oem_org_id})
+
+    return _admin_redirect(f"/admin/oem-billing?message=Invoice+{invoice_id}+waived&message_type=success")
 
 
 # ── Users ──────────────────────────────────────────────────────────────────────

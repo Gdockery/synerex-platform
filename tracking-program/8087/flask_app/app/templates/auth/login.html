@@ -249,6 +249,11 @@ $(function() {
   });
   if (location.href.match('expired'))    { $('.lp-error').show().html('Session expired. Please sign in again.'); }
   if (location.href.match('error=terms')){ $('.lp-error').show().html('Please accept the Terms &amp; Conditions to sign in.'); }
+  if (location.href.match('error=seat_limit')){ $('.lp-error').show().html('Seat limit reached. Please contact your administrator.'); }
+  if (location.href.match('error=license_expired')){
+    var licenseUrl = window.location.origin + '/license/register/renew';
+    $('.lp-error').show().html('Your subscription has expired. <a href="' + licenseUrl + '" style="color:#7c3aed;font-weight:700;">Renew your subscription &rarr;</a>');
+  }
 });
 </script>
 

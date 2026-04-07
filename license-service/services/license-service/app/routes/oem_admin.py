@@ -742,3 +742,204 @@ def oem_client_reject(
         f"{approvals_url}?message=Client+{customer.org_name}+rejected&message_type=success",
         status_code=303
     )
+
+
+@router.get("/billing", response_class=HTMLResponse)
+def oem_billing_page(request: Request, db: Session = Depends(db_session)):
+    """OEM Admin: view their platform-fee billing statement from Synerex."""
+    from decimal import Decimal
+    from ..models.oem_invoice import OemInvoice
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    branding = _fetch_oem_branding(oem_org_id)
+
+    invoices_raw = db.query(OemInvoice).filter(
+        OemInvoice.oem_org_id == oem_org_id
+    ).order_by(OemInvoice.created_at.desc()).all()
+
+    client_ids = list({inv.client_org_id for inv in invoices_raw})
+    client_orgs = {o.org_id: o for o in db.query(Organization).filter(Organization.org_id.in_(client_ids)).all()} if client_ids else {}
+
+    invoices = [
+        {
+            "invoice_id": inv.invoice_id,
+            "client_org_id": inv.client_org_id,
+            "client_name": (client_orgs.get(inv.client_org_id) or Organization()).org_name,
+            "plan": inv.plan,
+            "event_type": inv.event_type,
+            "amount": inv.amount,
+            "status": inv.status,
+            "paid_at": inv.paid_at,
+            "created_at": inv.created_at,
+            "notes": inv.notes,
+        }
+        for inv in invoices_raw
+    ]
+
+    pending_sum = sum(Decimal(i.amount or "0") for i in invoices_raw if i.status == "pending")
+    paid_sum = sum(Decimal(i.amount or "0") for i in invoices_raw if i.status == "paid")
+
+    return templates.TemplateResponse("oem_billing_statement.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "invoices": invoices,
+        "totals": {
+            "total_count": len(invoices),
+            "pending_amount": f"{pending_sum:.2f}",
+            "paid_amount": f"{paid_sum:.2f}",
+            "client_count": len(client_ids),
+        },
+        "brand_name": branding.get("brand_name") or oem_org.org_name,
+        "brand_logo_url": branding.get("brand_logo_url"),
+        "primary_color": branding.get("primary_color", "#667eea"),
+        "path_prefix": path_prefix,
+    })
+
+
+@router.get("/payment-method", response_class=HTMLResponse)
+def oem_payment_method_page(request: Request, db: Session = Depends(db_session)):
+    """OEM Admin: view/update saved Stripe payment method."""
+    from fastapi.responses import JSONResponse as _JSONResponse
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    branding = _fetch_oem_branding(oem_org_id)
+
+    has_payment_method = False
+    card_brand = card_last4 = card_exp = ""
+    if oem_org.stripe_customer_id and settings.stripe_secret_key:
+        try:
+            import stripe as _stripe
+            _stripe.api_key = settings.stripe_secret_key
+            payment_methods = _stripe.PaymentMethod.list(
+                customer=oem_org.stripe_customer_id, type="card"
+            )
+            if payment_methods.data:
+                pm = payment_methods.data[0]
+                has_payment_method = True
+                card_brand = pm.card.brand
+                card_last4 = pm.card.last4
+                card_exp = f"{pm.card.exp_month:02d}/{pm.card.exp_year}"
+        except Exception:
+            pass
+
+    flash_message = request.query_params.get("message", "").replace("+", " ")
+    flash_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("oem_payment_method.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "has_payment_method": has_payment_method,
+        "card_brand": card_brand,
+        "card_last4": card_last4,
+        "card_exp": card_exp,
+        "publishable_key": settings.stripe_publishable_key or "",
+        "brand_name": branding.get("brand_name") or oem_org.org_name,
+        "brand_logo_url": branding.get("brand_logo_url"),
+        "flash_message": flash_message,
+        "flash_type": flash_type,
+        "path_prefix": path_prefix,
+    })
+
+
+@router.post("/payment-method/create-setup-intent")
+async def oem_create_setup_intent(request: Request, db: Session = Depends(db_session)):
+    """Create a Stripe SetupIntent for saving an OEM's card."""
+    from fastapi.responses import JSONResponse as _JSONResponse
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    if not _is_user_logged_in(request):
+        return _JSONResponse({"error": "Not authenticated"}, status_code=401)
+
+    if not settings.stripe_secret_key:
+        return _JSONResponse({"error": "Stripe is not configured"}, status_code=503)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return _JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    try:
+        import stripe as _stripe
+        _stripe.api_key = settings.stripe_secret_key
+
+        # Create or reuse Stripe Customer for this OEM
+        if not oem_org.stripe_customer_id:
+            customer = _stripe.Customer.create(
+                name=oem_org.org_name,
+                email=oem_org.email or oem_org.billing_email or "",
+                metadata={"org_id": oem_org_id, "org_type": "oem"},
+            )
+            oem_org.stripe_customer_id = customer.id
+            db.commit()
+        else:
+            customer = _stripe.Customer.retrieve(oem_org.stripe_customer_id)
+
+        setup_intent = _stripe.SetupIntent.create(
+            customer=customer.id,
+            usage="off_session",
+            metadata={"org_id": oem_org_id},
+        )
+        return _JSONResponse({"client_secret": setup_intent.client_secret})
+    except Exception as exc:
+        return _JSONResponse({"error": str(exc)}, status_code=502)
+
+
+@router.post("/payment-method/save")
+async def oem_save_payment_method(request: Request, db: Session = Depends(db_session)):
+    """Attach the confirmed SetupIntent payment method as the OEM's default card."""
+    from fastapi.responses import JSONResponse as _JSONResponse
+
+    if not _is_user_logged_in(request):
+        return _JSONResponse({"error": "Not authenticated"}, status_code=401)
+
+    if not settings.stripe_secret_key:
+        return _JSONResponse({"error": "Stripe is not configured"}, status_code=503)
+
+    oem_org_id = request.session.get("org_id")
+    username = request.session.get("username")
+    user = db.get(User, username) if username else None
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not user or user.role != "oem_admin" or not oem_org or oem_org.org_type != "oem":
+        return _JSONResponse({"error": "Forbidden"}, status_code=403)
+
+    try:
+        body = await request.json()
+        payment_method_id = body.get("payment_method_id")
+        if not payment_method_id:
+            return _JSONResponse({"error": "payment_method_id required"}, status_code=400)
+
+        import stripe as _stripe
+        _stripe.api_key = settings.stripe_secret_key
+
+        # Attach PM to customer and set as default
+        _stripe.PaymentMethod.attach(payment_method_id, customer=oem_org.stripe_customer_id)
+        _stripe.Customer.modify(
+            oem_org.stripe_customer_id,
+            invoice_settings={"default_payment_method": payment_method_id},
+        )
+        db.commit()
+        return _JSONResponse({"ok": True})
+    except Exception as exc:
+        return _JSONResponse({"error": str(exc)}, status_code=502)

@@ -161,6 +161,110 @@ def _issue_license_from_authorization(
     
     return rec, signed
 
+
+@router.get("/renew", response_class=HTMLResponse)
+def renew_plan_page(
+    request: Request,
+    org_id: Optional[str] = None,
+    db: Session = Depends(db_session),
+):
+    """Renewal plan-selection page for existing clients whose subscription is expiring."""
+    import urllib.request as _ur
+    import json as _json
+
+    org = db.get(Organization, org_id.strip()) if org_id else None
+    if not org:
+        path_prefix = (settings.root_path or "").rstrip("/")
+        return templates.TemplateResponse("signup.html", {
+            "request": request, "error": "Organization not found", "success": None,
+            "website_url": settings.website_url, "path_prefix": path_prefix,
+        }, status_code=404)
+
+    org_name = org.org_name
+    oem_logo_org_id = org.sponsor_org_id
+    brand_logo_url = None
+    brand_name = None
+    primary_color = "#7c3aed"
+    if oem_logo_org_id:
+        try:
+            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}", timeout=3) as _resp:
+                _d = _json.loads(_resp.read().decode())
+                brand_logo_url = _d.get("logo_url") or None
+                brand_name = _d.get("brand_name") or None
+                primary_color = _d.get("primary_color") or primary_color
+        except Exception:
+            pass
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    base_url = (settings.website_url or "").rstrip("/")
+    # Renewal flow: plan buttons POST directly to create-order (no credentials form needed)
+    renew_url = f"{base_url}{path_prefix}/register/renew/create-order?org_id={org_id}"
+
+    return templates.TemplateResponse("choose_plan.html", {
+        "request": request,
+        "org_name": org_name,
+        "brand_logo_url": brand_logo_url,
+        "brand_name": brand_name,
+        "primary_color": primary_color,
+        "signup_url": renew_url,
+        "is_renewal": True,
+        "path_prefix": path_prefix,
+    })
+
+
+@router.get("/renew/create-order", response_class=HTMLResponse)
+def renew_create_order(
+    request: Request,
+    org_id: str,
+    plan: str,
+    db: Session = Depends(db_session),
+):
+    """Create a renewal BillingOrder and redirect to the payment page."""
+    from ..services.pricing import calculate_price
+
+    org = db.get(Organization, org_id.strip()) if org_id else None
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    if plan not in ("basic", "pro", "enterprise"):
+        raise HTTPException(400, "Invalid plan selected")
+
+    today = date.today()
+    term_start = today.isoformat()
+    term_end = (today + timedelta(days=365)).isoformat()
+
+    try:
+        pricing = calculate_price("tracking", plan, term_days=365)
+        amount_total = str(pricing["amount_total"])
+        currency = pricing.get("currency", "USD")
+    except Exception:
+        amount_total = "0.00"
+        currency = "USD"
+
+    order_id = f"ORD-RENEW-{org_id}-{int(datetime.utcnow().timestamp())}"
+    order = BillingOrder(
+        order_id=order_id,
+        org_id=org_id,
+        program_id="tracking",
+        plan=plan,
+        term_start=term_start,
+        term_end=term_end,
+        amount_total=amount_total,
+        currency=currency,
+        status="pending",
+        notes="Annual subscription renewal.",
+    )
+    db.add(order)
+    db.commit()
+
+    log_event(db, actor="self_service", action="renewal.order.created", ref_id=order_id,
+              detail={"org_id": org_id, "plan": plan})
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    return RedirectResponse(f"{path_prefix}/register/payment?order_id={order_id}", status_code=303)
+
+
 @router.get("/choose-plan", response_class=HTMLResponse)
 def choose_plan_page(
     request: Request,

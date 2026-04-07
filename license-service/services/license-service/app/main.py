@@ -55,7 +55,7 @@ except ImportError:
 # Import all models to ensure they're registered
 from .models import (
     org, license as license_model, authorization, api_key,
-    seats, billing, audit, notification, webhook, usage, payment
+    seats, billing, audit, notification, webhook, usage, payment, oem_invoice
 )
 from .models.user import User
 from .models.admin_user import AdminUser

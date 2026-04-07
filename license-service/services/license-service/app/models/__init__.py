@@ -10,3 +10,4 @@ from .notification import Notification
 from .webhook import Webhook, WebhookDelivery
 from .usage import UsageEvent
 from .payment import Payment, Invoice
+from .oem_invoice import OemInvoice

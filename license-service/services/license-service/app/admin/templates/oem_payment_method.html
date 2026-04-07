@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Payment Method — {{ brand_name or oem_org.org_name }}</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f7fafc; min-height: 100vh; }
+    .shell { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: #1a1a2e; padding: 1.5rem 1rem; flex-shrink: 0; }
+    .sidebar .logo { margin-bottom: 2rem; text-align: center; }
+    .sidebar .logo img { height: 40px; max-width: 160px; object-fit: contain; }
+    .sidebar nav a { display: block; padding: .6rem .9rem; color: #cbd5e0; text-decoration: none; border-radius: 6px; font-size: .875rem; margin-bottom: .2rem; }
+    .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,.12); color: #fff; }
+    .main { flex: 1; padding: 2rem; max-width: 700px; }
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { font-size: 1.5rem; color: #1a202c; margin-bottom: .25rem; }
+    .page-header p { color: #718096; font-size: .875rem; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 2rem; margin-bottom: 1.5rem; }
+    .card-title { font-size: 1rem; font-weight: 600; color: #374151; margin-bottom: 1.25rem; padding-bottom: .75rem; border-bottom: 1px solid #f0f4f8; }
+    .current-method { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin-bottom: 1.5rem; }
+    .current-method .check { font-size: 1.5rem; }
+    .current-method .details { flex: 1; }
+    .current-method .details strong { color: #166534; display: block; font-size: .95rem; }
+    .current-method .details span { color: #4b5563; font-size: .8rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: .4rem; text-transform: uppercase; letter-spacing: .04em; }
+    #card-element { padding: .75rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; font-size: .95rem; }
+    #card-errors { color: #dc2626; font-size: .875rem; margin-top: .5rem; min-height: 1.25rem; }
+    .btn { padding: .75rem 2rem; border: none; border-radius: 8px; font-weight: 700; font-size: .95rem; cursor: pointer; }
+    .btn-primary { background: #4c1d95; color: #fff; width: 100%; }
+    .btn-primary:hover { background: #3b0764; }
+    .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+    .spinner { display: none; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; margin-left: .5rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .flash-msg { padding: .75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: .875rem; font-weight: 500; }
+    .flash-success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+    .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+    .note { background: #f3f4f6; border-radius: 6px; padding: .75rem 1rem; font-size: .8rem; color: #6b7280; margin-top: 1rem; }
+    .note strong { color: #374151; }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar">
+    <div class="logo">
+      {% if brand_logo_url %}
+      <img src="{{ brand_logo_url }}" alt="{{ brand_name }}"/>
+      {% else %}
+      <img src="{{ path_prefix }}/static/synerex_logo_white.png" alt="Synerex"/>
+      {% endif %}
+    </div>
+    <nav>
+      <a href="{{ path_prefix }}/oem-admin">&#128202; Dashboard</a>
+      <a href="{{ path_prefix }}/oem-admin/profile">&#127970; Profile</a>
+      <a href="{{ path_prefix }}/oem-admin/users">&#128101; Team</a>
+      <a href="{{ path_prefix }}/oem-admin/clients">&#129309; Clients</a>
+      <a href="{{ path_prefix }}/oem-admin/billing" class="active">&#128179; Billing</a>
+    </nav>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <h1>Payment Method</h1>
+      <p>Save a card for automatic platform fee charges when your clients renew their subscriptions.</p>
+    </div>
+
+    {% if flash_message %}
+    <div class="flash-msg flash-{{ flash_type or 'success' }}">{{ flash_message }}</div>
+    {% endif %}
+
+    {% if has_payment_method %}
+    <div class="card">
+      <div class="card-title">&#10003; Saved Payment Method</div>
+      <div class="current-method">
+        <div class="check">&#128179;</div>
+        <div class="details">
+          <strong>Card on file — {{ card_brand | upper }} ending in {{ card_last4 }}</strong>
+          <span>Expires {{ card_exp }}</span>
+        </div>
+      </div>
+      <p style="color:#4b5563;font-size:.875rem;margin-bottom:1.5rem;">
+        Your card will be automatically charged the Synerex platform fee when any of your clients renew their subscription online.
+      </p>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-title">{% if has_payment_method %}Replace Card{% else %}Add Payment Card{% endif %}</div>
+
+      <div class="form-group">
+        <label>Card Details</label>
+        <div id="card-element"></div>
+        <div id="card-errors"></div>
+      </div>
+
+      <button id="submit-btn" class="btn btn-primary" type="button">
+        Save Card <span class="spinner" id="spinner"></span>
+      </button>
+
+      <div class="note">
+        <strong>How it works:</strong> Your card is saved securely with Stripe. It will only be charged when one of your clients renews their annual subscription through the portal. You will receive an email receipt from Synerex for every charge.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var stripe = Stripe("{{ publishable_key }}");
+  var elements = stripe.elements();
+  var card = elements.create("card", {
+    style: {
+      base: { fontSize: "15px", color: "#374151", fontFamily: "system-ui, sans-serif", "::placeholder": { color: "#9ca3af" } },
+      invalid: { color: "#dc2626" }
+    }
+  });
+  card.mount("#card-element");
+  card.on("change", function(e) {
+    document.getElementById("card-errors").textContent = e.error ? e.error.message : "";
+  });
+
+  document.getElementById("submit-btn").addEventListener("click", async function() {
+    var btn = this;
+    btn.disabled = true;
+    document.getElementById("spinner").style.display = "inline-block";
+    document.getElementById("card-errors").textContent = "";
+
+    try {
+      // Step 1: Get a SetupIntent client secret from server
+      var resp = await fetch("{{ path_prefix }}/oem-admin/payment-method/create-setup-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+      });
+      var data = await resp.json();
+      if (!resp.ok || !data.client_secret) {
+        throw new Error(data.error || "Failed to initialize payment setup.");
+      }
+
+      // Step 2: Confirm SetupIntent with Stripe Elements
+      var result = await stripe.confirmCardSetup(data.client_secret, {
+        payment_method: { card: card }
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
+      // Step 3: Save the payment method on server
+      var saveResp = await fetch("{{ path_prefix }}/oem-admin/payment-method/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ payment_method_id: result.setupIntent.payment_method })
+      });
+      var saveData = await saveResp.json();
+      if (!saveResp.ok) throw new Error(saveData.error || "Failed to save card.");
+
+      window.location.href = "{{ path_prefix }}/oem-admin/billing?message=Payment+method+saved+successfully&message_type=success";
+
+    } catch (err) {
+      document.getElementById("card-errors").textContent = err.message;
+      btn.disabled = false;
+      document.getElementById("spinner").style.display = "none";
+    }
+  });
+</script>
+</body>
+</html>

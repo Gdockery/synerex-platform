@@ -73,31 +73,57 @@ def send_email(
         db.close()
 
 def send_expiration_reminder(license_id: str, days_until_expiry: int, db) -> bool:
-    """Send expiration reminder email."""
+    """Send expiration reminder email with renewal link."""
     from ..models.license import License
     from ..models.org import Organization
-    
+
     license_rec = db.get(License, license_id)
     if not license_rec:
         return False
-    
+
     org = db.get(Organization, license_rec.org_id)
     if not org or not org.email:
         return False
-    
-    subject = f"License Expiring Soon: {days_until_expiry} days remaining"
+
+    base_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    root_pfx = (settings.root_path or "").rstrip("/")
+    renewal_url = f"{base_url}{root_pfx}/register/renew?org_id={org.org_id}"
+
+    urgency_color = "#e65100" if days_until_expiry <= 7 else ("#f59e0b" if days_until_expiry <= 30 else "#4a5568")
+    subject = f"Action Required: Your subscription expires in {days_until_expiry} day{'s' if days_until_expiry != 1 else ''}"
+
     body_html = f"""
     <html>
-    <body>
-        <h2>License Expiration Reminder</h2>
-        <p>Dear {org.org_name},</p>
-        <p>Your license <strong>{license_id}</strong> will expire in {days_until_expiry} days.</p>
-        <p>Please renew your license to continue using the service.</p>
-        <p>Best regards,<br>Synerex License Service</p>
+    <body style="font-family:system-ui,sans-serif;background:#f7fafc;margin:0;padding:2rem 1rem;">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden;">
+        <div style="background:#4c1d95;padding:1.75rem 2rem;text-align:center;">
+          <h2 style="color:#fff;margin:0;font-size:1.35rem;">Subscription Renewal Reminder</h2>
+        </div>
+        <div style="padding:2rem;">
+          <p style="color:#374151;font-size:1rem;">Dear <strong>{org.org_name}</strong>,</p>
+          <div style="background:#fff3e0;border-left:4px solid {urgency_color};padding:1rem 1.25rem;border-radius:6px;margin:1.25rem 0;">
+            <p style="margin:0;color:{urgency_color};font-weight:700;font-size:1rem;">
+              Your Tracking portal subscription expires in <span style="font-size:1.3rem;">{days_until_expiry}</span> day{'s' if days_until_expiry != 1 else ''}.
+            </p>
+          </div>
+          <p style="color:#4b5563;font-size:0.95rem;">To avoid any interruption in service, please renew your subscription before it expires.</p>
+          <p style="color:#4b5563;font-size:0.875rem;margin-top:0.5rem;">License ID: <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;">{license_id}</code></p>
+          <div style="text-align:center;margin:2rem 0;">
+            <a href="{renewal_url}" style="background:#4c1d95;color:#fff;padding:0.85rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:1rem;display:inline-block;">
+              Renew My Subscription &rarr;
+            </a>
+          </div>
+          <p style="color:#9ca3af;font-size:0.8rem;text-align:center;">
+            Or copy this link: <a href="{renewal_url}" style="color:#7c3aed;">{renewal_url}</a>
+          </p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:1.5rem 0;"/>
+          <p style="color:#9ca3af;font-size:0.8rem;">This is an automated reminder. If you have questions, contact your account manager.</p>
+        </div>
+      </div>
     </body>
     </html>
     """
-    
+
     return send_email(
         to_email=org.email,
         subject=subject,
@@ -105,6 +131,92 @@ def send_expiration_reminder(license_id: str, days_until_expiry: int, db) -> boo
         org_id=org.org_id,
         license_id=license_id,
         notification_type="expiration_reminder"
+    )
+
+
+def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
+    """Send account activation confirmation email to Client Admin after manual activation by Synerex Admin."""
+    from ..models.org import Organization
+    from ..models.user import User
+
+    org = db.get(Organization, org_id)
+    if not org or not org.email:
+        return False
+
+    client_user = db.query(User).filter(User.org_id == org_id).order_by(User.username).first()
+    client_username = client_user.username if client_user else None
+
+    # Resolve OEM branding if org has a sponsor
+    brand_name = "Synerex"
+    portal_url = (settings.website_url or "http://localhost:8080").rstrip("/")
+    root_pfx = (settings.root_path or "").rstrip("/")
+    login_url = f"{portal_url}/tracking/#/login"
+    if org.sponsor_org_id:
+        try:
+            import urllib.request as _ur
+            import json as _json
+            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org.sponsor_org_id}", timeout=3) as _resp:
+                _d = _json.loads(_resp.read().decode())
+                brand_name = _d.get("brand_name") or brand_name
+        except Exception:
+            pass
+
+    subject = f"Your {brand_name} Tracking Portal is Now Active"
+
+    username_block = ""
+    if client_username:
+        username_block = f"""
+          <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1.25rem 1.5rem;margin:1.25rem 0;text-align:center;">
+            <p style="margin:0 0 0.35rem 0;color:#166534;font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Your Login Username</p>
+            <p style="margin:0;color:#14532d;font-size:1.6rem;font-weight:800;font-family:monospace;">{client_username}</p>
+          </div>"""
+
+    body_html = f"""
+    <html>
+    <body style="font-family:system-ui,sans-serif;background:#f7fafc;margin:0;padding:2rem 1rem;">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.08);overflow:hidden;">
+        <div style="background:#4c1d95;padding:1.75rem 2rem;text-align:center;">
+          <h2 style="color:#fff;margin:0;font-size:1.35rem;">Your Account is Now Active!</h2>
+        </div>
+        <div style="padding:2rem;">
+          <p style="color:#374151;font-size:1rem;">Dear <strong>{org.org_name}</strong>,</p>
+          <p style="color:#4b5563;font-size:0.95rem;margin:0.75rem 0;">
+            Great news! Your <strong>{brand_name} Tracking Portal</strong> subscription has been activated.
+            You can now log in and start using the portal.
+          </p>
+          {username_block}
+          <div style="text-align:center;margin:2rem 0;">
+            <a href="{login_url}" style="background:#4c1d95;color:#fff;padding:0.85rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;font-size:1rem;display:inline-block;">
+              Log In to {brand_name} Portal &rarr;
+            </a>
+          </div>
+          <div style="background:#f3f4f6;border-radius:8px;padding:1rem 1.25rem;margin-top:1.25rem;">
+            <p style="margin:0 0 0.5rem 0;color:#374151;font-weight:700;font-size:0.9rem;">What's included:</p>
+            <ul style="margin:0;padding-left:1.25rem;color:#4b5563;font-size:0.875rem;line-height:1.8;">
+              <li>Full access to the Tracking dashboard</li>
+              <li>Project and equipment management</li>
+              <li>12-month subscription term</li>
+            </ul>
+          </div>
+          <p style="color:#9ca3af;font-size:0.8rem;margin-top:1.5rem;text-align:center;">
+            License ID: <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;">{license_id}</code>
+          </p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:1.5rem 0;"/>
+          <p style="color:#9ca3af;font-size:0.8rem;">If you have questions, contact your account manager.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    return send_email(
+        to_email=org.email,
+        subject=subject,
+        body_html=body_html,
+        org_id=org_id,
+        license_id=license_id,
+        notification_type="account_activated"
     )
 
 def send_renewal_notification(license_id: str, new_license_id: str, db) -> bool:

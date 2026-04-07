@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>OEM Billing — Synerex Admin</title>
+  <link rel="stylesheet" href="{{ admin_url('static/admin.css') }}"/>
+  <style>
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem 1.5rem; }
+    .summary-card .label { font-size: 0.78rem; color: #718096; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .35rem; }
+    .summary-card .value { font-size: 1.65rem; font-weight: 700; color: #2d3748; }
+    .summary-card .value.danger { color: #c53030; }
+    .summary-card .value.success { color: #276749; }
+    .oem-block { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 1.75rem; overflow: hidden; }
+    .oem-block-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; background: #f7fafc; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; gap: .5rem; }
+    .oem-block-header h3 { margin: 0; font-size: 1rem; color: #2d3748; }
+    .oem-owed { font-size: 0.9rem; font-weight: 700; padding: 0.25rem .75rem; border-radius: 20px; }
+    .oem-owed.has-pending { background: #fff3e0; color: #c05621; }
+    .oem-owed.all-paid { background: #f0fdf4; color: #276749; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: .6rem 1rem; font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #718096; background: #f7fafc; border-bottom: 1px solid #e2e8f0; }
+    td { padding: .75rem 1rem; font-size: .875rem; border-bottom: 1px solid #f0f4f8; color: #374151; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: .2rem .6rem; border-radius: 12px; font-size: .75rem; font-weight: 600; }
+    .badge-pending { background: #fff3e0; color: #c05621; }
+    .badge-paid { background: #f0fdf4; color: #276749; }
+    .badge-waived { background: #f0f4ff; color: #4338ca; }
+    .btn-sm { padding: .35rem .8rem; font-size: .8rem; font-weight: 600; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+    .btn-pay { background: #276749; color: #fff; }
+    .btn-waive { background: #e2e8f0; color: #4a5568; }
+    .mark-paid-form { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+    .mark-paid-form input[type=text] { padding: .3rem .5rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: .8rem; width: 140px; }
+    .filter-bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .filter-bar select { padding: .45rem .75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: .875rem; }
+    .empty-note { padding: 2rem; text-align: center; color: #9ca3af; font-size: .875rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
+    .flash-msg { padding: .75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: .875rem; font-weight: 500; }
+    .flash-success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+    .flash-error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+  </style>
+</head>
+<body>
+{% set current_section = "oem-billing" %}
+<div class="admin-shell">
+  {% include "_sidebar.html" ignore missing %}
+  <main class="admin-main" style="padding:2rem;">
+
+    <div class="page-header">
+      <div>
+        <h1 style="margin:0;font-size:1.5rem;color:#1a202c;">OEM Platform Billing</h1>
+        <p style="margin:.25rem 0 0;color:#718096;font-size:.875rem;">Platform licensing fees Synerex charges each OEM per client activation or renewal.</p>
+      </div>
+      <a href="{{ admin_url('') }}" style="color:#667eea;font-size:.875rem;text-decoration:none;">&#8592; Back to Dashboard</a>
+    </div>
+
+    {% if flash_message %}
+    <div class="flash-msg flash-{{ flash_type or 'success' }}">{{ flash_message }}</div>
+    {% endif %}
+
+    <!-- Summary cards -->
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="label">Total Invoices</div>
+        <div class="value">{{ totals.total_count }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Outstanding</div>
+        <div class="value danger">${{ totals.pending_amount }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Collected</div>
+        <div class="value success">${{ totals.paid_amount }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Active OEMs</div>
+        <div class="value">{{ totals.oem_count }}</div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-bar">
+      <form method="get" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+        <select name="status" onchange="this.form.submit()">
+          <option value="" {% if not status_filter %}selected{% endif %}>All Statuses</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Paid</option>
+          <option value="waived" {% if status_filter == 'waived' %}selected{% endif %}>Waived</option>
+        </select>
+        <select name="oem_id" onchange="this.form.submit()">
+          <option value="">All OEMs</option>
+          {% for oem in all_oems %}
+          <option value="{{ oem.org_id }}" {% if oem_filter == oem.org_id %}selected{% endif %}>{{ oem.org_name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    {% if not grouped_invoices %}
+    <div class="oem-block">
+      <div class="empty-note">No billing records found. OEM invoices are generated automatically when a client is activated.</div>
+    </div>
+    {% else %}
+    {% for oem_id, group in grouped_invoices.items() %}
+    <div class="oem-block">
+      <div class="oem-block-header">
+        <div>
+          <h3>{{ group.oem_name }}</h3>
+          <span style="color:#718096;font-size:.8rem;">{{ oem_id }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:1rem;">
+          {% if group.pending_total != '0.00' %}
+          <span class="oem-owed has-pending">&#9888; Outstanding: ${{ group.pending_total }}</span>
+          {% else %}
+          <span class="oem-owed all-paid">&#10003; Fully Paid</span>
+          {% endif %}
+          <span style="color:#9ca3af;font-size:.8rem;">{{ group.invoices|length }} invoice{{ 's' if group.invoices|length != 1 }}</span>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice ID</th>
+            <th>Client</th>
+            <th>Plan</th>
+            <th>Type</th>
+            <th>Platform Fee</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in group.invoices %}
+          <tr>
+            <td><code style="font-size:.78rem;color:#6b7280;">{{ inv.invoice_id }}</code></td>
+            <td>
+              <a href="{{ admin_url('orgs/' ~ inv.client_org_id) }}" style="color:#4f46e5;text-decoration:none;font-weight:500;">
+                {{ inv.client_name or inv.client_org_id }}
+              </a>
+              <div style="font-size:.75rem;color:#9ca3af;">{{ inv.client_org_id }}</div>
+            </td>
+            <td><span style="text-transform:capitalize;font-weight:600;">{{ inv.plan }}</span></td>
+            <td><span style="color:#718096;font-size:.8rem;text-transform:capitalize;">{{ inv.event_type }}</span></td>
+            <td style="font-weight:700;font-size:1rem;">${{ inv.amount }}</td>
+            <td>
+              <span class="badge badge-{{ inv.status }}">{{ inv.status | capitalize }}</span>
+              {% if inv.paid_at %}
+              <div style="font-size:.75rem;color:#9ca3af;">{{ inv.paid_at.strftime('%b %d, %Y') }}</div>
+              {% endif %}
+              {% if inv.notes %}
+              <div style="font-size:.75rem;color:#6b7280;margin-top:.2rem;">Ref: {{ inv.notes }}</div>
+              {% endif %}
+            </td>
+            <td style="color:#9ca3af;font-size:.8rem;">{{ inv.created_at.strftime('%b %d, %Y') }}</td>
+            <td>
+              {% if inv.status == 'pending' %}
+              <form method="post" action="{{ admin_url('oem-billing/' ~ inv.invoice_id ~ '/mark-paid') }}" class="mark-paid-form">
+                <input type="text" name="payment_ref" placeholder="Payment ref (optional)"/>
+                <button type="submit" class="btn-sm btn-pay">&#10003; Mark Paid</button>
+              </form>
+              <form method="post" action="{{ admin_url('oem-billing/' ~ inv.invoice_id ~ '/waive') }}" style="margin-top:.3rem;" onsubmit="return confirm('Waive this invoice? This cannot be undone.');">
+                <button type="submit" class="btn-sm btn-waive">Waive</button>
+              </form>
+              {% else %}
+              <span style="color:#d1d5db;font-size:.85rem;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+  </main>
+</div>
+</body>
+</html>

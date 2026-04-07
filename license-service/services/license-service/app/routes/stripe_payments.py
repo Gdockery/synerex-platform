@@ -282,3 +282,125 @@ def _issue_license_for_stripe(db: Session, order: BillingOrder, intent: dict) ->
         detail={"order_id": order.order_id, "license_id": license_rec.license_id, "gateway": "stripe"},
     )
     logger.info("[stripe] License issued: %s for order %s", license_rec.license_id, order.order_id)
+
+    # Auto-charge OEM platform fee if this is a renewal order (ORD-RENEW-*) and OEM has a card on file
+    if order.order_id.startswith("ORD-RENEW-") and org.sponsor_org_id:
+        _charge_oem_renewal_fee(db, org, order, license_rec.license_id)
+
+
+# ---------------------------------------------------------------------------
+# OEM auto-charge on renewal
+# ---------------------------------------------------------------------------
+
+_OEM_PLATFORM_FEES = {
+    "basic": 240000,    # $2,400.00 in cents
+    "pro": 480000,      # $4,800.00 in cents
+    "enterprise": 960000,  # $9,600.00 in cents
+}
+
+
+def _charge_oem_renewal_fee(
+    db,
+    client_org: Organization,
+    order: BillingOrder,
+    license_id: str,
+) -> None:
+    """Charge the OEM's saved Stripe card for the platform fee when their client renews."""
+    from ..models.oem_invoice import OemInvoice
+    from datetime import datetime as _dt
+
+    oem_org = db.get(Organization, client_org.sponsor_org_id)
+    if not oem_org or not oem_org.stripe_customer_id:
+        # OEM has no card on file — create a pending invoice for manual collection
+        _create_pending_oem_invoice(db, oem_org, client_org, order, license_id)
+        logger.info("[oem_billing] OEM %s has no Stripe card — pending invoice created", client_org.sponsor_org_id)
+        return
+
+    amount_cents = _OEM_PLATFORM_FEES.get(order.plan, 0)
+    if amount_cents == 0:
+        logger.warning("[oem_billing] Unknown plan '%s' — skipping OEM charge", order.plan)
+        return
+
+    if not settings.stripe_secret_key:
+        _create_pending_oem_invoice(db, oem_org, client_org, order, license_id)
+        return
+
+    try:
+        import stripe as _stripe
+        _stripe.api_key = settings.stripe_secret_key
+
+        # Retrieve default payment method for the customer
+        customer = _stripe.Customer.retrieve(oem_org.stripe_customer_id)
+        default_pm = (customer.get("invoice_settings") or {}).get("default_payment_method")
+        if not default_pm:
+            _create_pending_oem_invoice(db, oem_org, client_org, order, license_id)
+            logger.warning("[oem_billing] OEM %s has no default PM — pending invoice created", oem_org.org_id)
+            return
+
+        intent = _stripe.PaymentIntent.create(
+            amount=amount_cents,
+            currency="usd",
+            customer=oem_org.stripe_customer_id,
+            payment_method=default_pm,
+            confirm=True,
+            off_session=True,
+            description=f"Synerex platform fee — {client_org.org_name} ({order.plan}) renewal",
+            metadata={
+                "oem_org_id": oem_org.org_id,
+                "client_org_id": client_org.org_id,
+                "license_id": license_id,
+                "order_id": order.order_id,
+                "event_type": "renewal",
+            },
+        )
+
+        status = "paid" if intent.status == "succeeded" else "pending"
+        invoice_id = f"INV-OEM-{oem_org.org_id}-{client_org.org_id}-{int(_dt.utcnow().timestamp())}"
+        inv = OemInvoice(
+            invoice_id=invoice_id,
+            oem_org_id=oem_org.org_id,
+            client_org_id=client_org.org_id,
+            license_id=license_id,
+            plan=order.plan,
+            event_type="renewal",
+            amount=f"{amount_cents / 100:.2f}",
+            currency="USD",
+            status=status,
+            paid_at=_dt.utcnow() if status == "paid" else None,
+            notes=f"Stripe charge: {intent.id}",
+        )
+        db.add(inv)
+        db.commit()
+        log_event(db, actor="stripe_webhook", action="oem_invoice.auto_charged", ref_id=invoice_id,
+                  detail={"oem_org_id": oem_org.org_id, "intent_id": intent.id, "status": status})
+        logger.info("[oem_billing] OEM %s charged %s cents for renewal of %s", oem_org.org_id, amount_cents, client_org.org_id)
+
+    except Exception as exc:
+        logger.error("[oem_billing] Failed to charge OEM %s: %s", oem_org.org_id, exc)
+        # Fall back to pending invoice so Synerex Admin can collect manually
+        _create_pending_oem_invoice(db, oem_org, client_org, order, license_id)
+
+
+def _create_pending_oem_invoice(db, oem_org, client_org, order, license_id):
+    """Create a pending OEM invoice for manual collection (fallback when Stripe charge fails)."""
+    from ..models.oem_invoice import OemInvoice
+    from datetime import datetime as _dt
+
+    if not oem_org:
+        return
+    amount_cents = _OEM_PLATFORM_FEES.get(order.plan, 0)
+    invoice_id = f"INV-OEM-{oem_org.org_id}-{client_org.org_id}-{int(_dt.utcnow().timestamp())}"
+    inv = OemInvoice(
+        invoice_id=invoice_id,
+        oem_org_id=oem_org.org_id,
+        client_org_id=client_org.org_id,
+        license_id=license_id,
+        plan=order.plan,
+        event_type="renewal",
+        amount=f"{amount_cents / 100:.2f}",
+        currency="USD",
+        status="pending",
+        notes="No card on file — manual collection required.",
+    )
+    db.add(inv)
+    db.commit()

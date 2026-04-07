@@ -234,6 +234,25 @@ def login():
             if license_id:
                 assign_seat(license_id, str(user.id))  # best-effort, non-blocking
 
+    # Enforce license expiry for non-admin users with an OEM-managed org
+    if getattr(user, "role", None) not in (8, 9):
+        org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if org_id:
+            try:
+                from app.services.license_service import get_license_for_org
+                lic = get_license_for_org(org_id, "tracking")
+                if lic and lic.get("suspended"):
+                    from flask_login import logout_user
+                    logout_user()
+                    license_service_url = current_app.config.get("LICENSE_SERVICE_URL", "http://localhost:8080").rstrip("/")
+                    renewal_url = f"{license_service_url}/license/register/renew?org_id={org_id}"
+                    if _wants_json_response():
+                        return {"status": "error", "error": "Your subscription has expired. Please renew to continue.", "renewal_url": renewal_url, "code": "LICENSE_EXPIRED"}, 403
+                    base = current_app.config.get("APPLICATION_ROOT", "") or ""
+                    return redirect(f"{base}/login?error=license_expired")
+            except Exception as _exp_ex:
+                current_app.logger.warning("License expiry check failed at login (fail open): %s", _exp_ex)
+
     if _wants_json_response():
         return {"status": "success"}
     base = current_app.config.get("APPLICATION_ROOT", "") or ""

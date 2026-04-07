@@ -51,8 +51,8 @@
         <img src="/license/static/synerex_logo_white.png" alt="Synerex"/>
         {% endif %}
       </div>
-      <h1>Choose Your Subscription Plan</h1>
-      <p>Select the plan that best fits your organization's needs.</p>
+      <h1>{% if is_renewal %}Renew Your Subscription{% else %}Choose Your Subscription Plan{% endif %}</h1>
+      <p>{% if is_renewal %}Select the plan you'd like to renew with for the next 12 months.{% else %}Select the plan that best fits your organization's needs.{% endif %}</p>
       {% if org_name %}
       <span class="org-badge">&#127970; {{ org_name }}</span>
       {% endif %}
@@ -73,7 +73,7 @@
           <li>Read-only equipment view</li>
           <li>Email support</li>
         </ul>
-        <a href="{{ signup_url }}&plan=basic" class="select-btn">Select Basic</a>
+        <a href="{{ signup_url }}&plan=basic" class="select-btn">{% if is_renewal %}Renew with Basic{% else %}Select Basic{% endif %}</a>
       </div>
 
       <!-- Pro (popular) -->
@@ -90,7 +90,7 @@
           <li>Work order management</li>
           <li>Priority email support</li>
         </ul>
-        <a href="{{ signup_url }}&plan=pro" class="select-btn">Select Pro</a>
+        <a href="{{ signup_url }}&plan=pro" class="select-btn">{% if is_renewal %}Renew with Pro{% else %}Select Pro{% endif %}</a>
       </div>
 
       <!-- Enterprise -->
@@ -106,7 +106,7 @@
           <li>Custom workflows</li>
           <li>Dedicated support</li>
         </ul>
-        <a href="{{ signup_url }}&plan=enterprise" class="select-btn">Select Enterprise</a>
+        <a href="{{ signup_url }}&plan=enterprise" class="select-btn">{% if is_renewal %}Renew with Enterprise{% else %}Select Enterprise{% endif %}</a>
       </div>
 
     </div>

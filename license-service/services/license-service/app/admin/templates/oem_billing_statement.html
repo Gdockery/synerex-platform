@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Billing Statement — {{ brand_name or oem_org.org_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f7fafc; min-height: 100vh; }
+    .shell { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: #1a1a2e; padding: 1.5rem 1rem; flex-shrink: 0; }
+    .sidebar .logo { margin-bottom: 2rem; text-align: center; }
+    .sidebar .logo img { height: 40px; max-width: 160px; object-fit: contain; }
+    .sidebar nav a { display: block; padding: .6rem .9rem; color: #cbd5e0; text-decoration: none; border-radius: 6px; font-size: .875rem; margin-bottom: .2rem; }
+    .sidebar nav a:hover, .sidebar nav a.active { background: rgba(255,255,255,.12); color: #fff; }
+    .main { flex: 1; padding: 2rem; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
+    .page-header h1 { font-size: 1.5rem; color: #1a202c; }
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .summary-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.1rem 1.25rem; }
+    .summary-card .label { font-size: .75rem; color: #718096; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .3rem; }
+    .summary-card .value { font-size: 1.5rem; font-weight: 700; color: #2d3748; }
+    .summary-card .value.danger { color: #c53030; }
+    .summary-card .value.success { color: #276749; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 1.5rem; }
+    .card-header { padding: .9rem 1.5rem; background: #f7fafc; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #374151; font-size: .95rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: .6rem 1.25rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #718096; background: #f7fafc; border-bottom: 1px solid #e2e8f0; }
+    td { padding: .75rem 1.25rem; font-size: .875rem; border-bottom: 1px solid #f0f4f8; color: #374151; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: .2rem .55rem; border-radius: 12px; font-size: .75rem; font-weight: 600; }
+    .badge-pending { background: #fff3e0; color: #c05621; }
+    .badge-paid { background: #f0fdf4; color: #276749; }
+    .badge-waived { background: #f0f4ff; color: #4338ca; }
+    .empty-note { padding: 2rem; text-align: center; color: #9ca3af; font-size: .875rem; }
+    .outstanding-banner { background: #fff3e0; border: 1px solid #f6ad55; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .outstanding-banner .amount { font-size: 1.5rem; font-weight: 800; color: #c05621; }
+    .outstanding-banner p { color: #744210; font-size: .875rem; margin: 0; }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="sidebar">
+    <div class="logo">
+      {% if brand_logo_url %}
+      <img src="{{ brand_logo_url }}" alt="{{ brand_name }}"/>
+      {% else %}
+      <img src="{{ path_prefix }}/static/synerex_logo_white.png" alt="Synerex"/>
+      {% endif %}
+    </div>
+    <nav>
+      <a href="{{ path_prefix }}/oem-admin">&#128202; Dashboard</a>
+      <a href="{{ path_prefix }}/oem-admin/profile">&#127970; Profile</a>
+      <a href="{{ path_prefix }}/oem-admin/users">&#128101; Team</a>
+      <a href="{{ path_prefix }}/oem-admin/clients">&#129309; Clients</a>
+      <a href="{{ path_prefix }}/oem-admin/billing" class="active">&#128179; Billing</a>
+      <a href="{{ path_prefix }}/oem-admin/payment-method">&#128142; Payment Method</a>
+    </nav>
+  </div>
+  <div class="main">
+    <div class="page-header">
+      <div>
+        <h1>Billing Statement</h1>
+        <p style="color:#718096;font-size:.875rem;margin-top:.25rem;">Your platform licensing fees with Synerex</p>
+      </div>
+    </div>
+
+    <!-- Outstanding balance banner -->
+    {% if totals.pending_amount != '0.00' %}
+    <div class="outstanding-banner">
+      <div>
+        <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:#92400e;margin-bottom:.2rem;">Outstanding Balance</div>
+        <div class="amount">${{ totals.pending_amount }}</div>
+      </div>
+      <div>
+        <p>You have outstanding platform licensing fees. Please remit payment to Synerex at your earliest convenience.</p>
+        <p style="margin-top:.4rem;font-size:.8rem;color:#92400e;">Questions? Contact your Synerex account manager.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="label">Total Invoices</div>
+        <div class="value">{{ totals.total_count }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Outstanding</div>
+        <div class="value danger">${{ totals.pending_amount }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Total Paid</div>
+        <div class="value success">${{ totals.paid_amount }}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">Active Clients</div>
+        <div class="value">{{ totals.client_count }}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Invoice History</div>
+      {% if invoices %}
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice ID</th>
+            <th>Client</th>
+            <th>Plan</th>
+            <th>Type</th>
+            <th>Platform Fee</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr>
+            <td><code style="font-size:.78rem;color:#6b7280;">{{ inv.invoice_id }}</code></td>
+            <td>
+              <span style="font-weight:500;">{{ inv.client_name or inv.client_org_id }}</span>
+              <div style="font-size:.75rem;color:#9ca3af;">{{ inv.client_org_id }}</div>
+            </td>
+            <td><span style="text-transform:capitalize;font-weight:600;">{{ inv.plan }}</span></td>
+            <td><span style="color:#718096;font-size:.8rem;text-transform:capitalize;">{{ inv.event_type }}</span></td>
+            <td style="font-weight:700;">${{ inv.amount }}</td>
+            <td>
+              <span class="badge badge-{{ inv.status }}">{{ inv.status | capitalize }}</span>
+              {% if inv.paid_at %}
+              <div style="font-size:.75rem;color:#9ca3af;">{{ inv.paid_at.strftime('%b %d, %Y') }}</div>
+              {% endif %}
+            </td>
+            <td style="color:#9ca3af;font-size:.8rem;">{{ inv.created_at.strftime('%b %d, %Y') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-note">No billing records yet. Invoices are generated when clients are activated.</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
