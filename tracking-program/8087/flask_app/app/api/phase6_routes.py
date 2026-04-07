@@ -953,9 +953,9 @@ def create_user():
 
     # Role creation permission checks:
     # - Synerex Admin (8): can create any role
-    # - OEM Admin (9): can create OEM User (10) and client roles (1-4)
-    # - OEM User (10): can create client roles (1-4) only
-    # - Client Admin (2): can create client roles (1-4) within their org
+    # - OEM Admin (9): can create OEM User (10) and client roles (1-4) including Client Admin (2)
+    # - OEM User (10): can create client roles (1,3,4) only — NOT Client Admin (2)
+    # - Client Admin (2): can create client roles (1,3,4) within their org — NOT another Client Admin
     new_role = int(role)
     allowed = False
     if current_role == 8:
@@ -963,9 +963,9 @@ def create_user():
     elif current_role == 9:
         allowed = new_role in (1, 2, 3, 4, 10)
     elif current_role == 10:
-        allowed = new_role in (1, 2, 3, 4)
+        allowed = new_role in (1, 3, 4)
     elif current_role == 2:
-        allowed = new_role in (1, 2, 3, 4)
+        allowed = new_role in (1, 3, 4)
     if not allowed:
         return jsonify({"error": "You are not permitted to create a user with that role"}), 403
 
@@ -1025,6 +1025,11 @@ def create_user():
         return jsonify({"meta": {}, "response": {"id": existing.id, "uriEncodedToken": token, "reEnabledUser": True}})
     u = User(firstName=first_name, lastName=last_name, email=email, role=role, client=client_id, isDeleted=False,
              hashedPassword=hashed, resetPasswordToken=token if not password else "")
+    # OEM Users (role 10) inherit the creating OEM Admin's org_id so they can access the same org scope
+    if new_role == 10:
+        creator_org_id = _get_oem_org_id_for_user(current)
+        if creator_org_id:
+            u.org_id = creator_org_id
     db.session.add(u)
     db.session.flush()
     for pid in projects:

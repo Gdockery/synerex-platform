@@ -237,11 +237,11 @@ def send_org_invitation(
     if not org:
         raise HTTPException(404, "Organization not found")
 
-    # Build the invitation URL pointing to the pre-filled registration page
+    # Build the invitation URL pointing to the plan-selection page (new OEM invite flow)
     base_url = (_settings.website_url or "http://localhost:8000").rstrip("/")
     root_pfx = (getattr(_settings, "root_path", None) or "").rstrip("/")
     invite_url = (
-        f"{base_url}{root_pfx}/license/register"
+        f"{base_url}{root_pfx}/license/register/choose-plan"
         f"?org_id={org.org_id}"
         + (f"&sponsor_org_id={org.sponsor_org_id}" if org.sponsor_org_id else "")
     )

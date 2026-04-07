@@ -44,6 +44,15 @@
   </style>
 </head>
 <body>
+  {% if brand_logo_url %}
+  <div style="text-align:center;margin-bottom:1.25rem;">
+    <img src="{{ brand_logo_url }}" alt="{{ brand_name }}" style="height:44px;max-width:180px;"/>
+  </div>
+  {% else %}
+  <div style="text-align:center;margin-bottom:1.25rem;">
+    <img src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex" style="height:44px;max-width:180px;"/>
+  </div>
+  {% endif %}
   <div class="header">
     <h1>OEM Users — {{ oem_org.org_name }}</h1>
     <a href="{{ path_prefix }}/oem-admin">← OEM Dashboard</a>
@@ -55,7 +64,7 @@
 
     <div class="info-box">
       <strong>OEM Users</strong> are internal staff accounts within your OEM organization.
-      They can log in to the Synerex portal but cannot manage clients or customers.
+      They can log in to the {{ brand_name or oem_org.org_name }} portal but cannot manage clients or customers.
       Use the form below to create sub-accounts for your team members.
     </div>
 

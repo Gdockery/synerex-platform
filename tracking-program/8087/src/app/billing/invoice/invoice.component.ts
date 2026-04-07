@@ -17,6 +17,7 @@ export class InvoiceComponent implements OnInit {
   public links;
   public viewOwnerManuals = false;
   public hasAnalytic = null;
+  public brandName: string = 'Synerex';
   public reportFields;
   public depositInvoiceDate;
   public finalInvoiceDate;
@@ -36,6 +37,9 @@ export class InvoiceComponent implements OnInit {
               private timeHelpers: TimeHelpers, private projectService: AdminProjectService) {}
 
   ngOnInit() {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.brandName = (bootstrap['oemDisplayName'] || 'Synerex').trim();
+
     this.pdfLinkService.getLinks().subscribe(links => {
       this.links = links;
     });

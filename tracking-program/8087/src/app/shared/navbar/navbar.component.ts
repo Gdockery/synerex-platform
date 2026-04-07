@@ -14,6 +14,10 @@ export class NavbarComponent {
   @Output() notify: EventEmitter<boolean> = new EventEmitter<boolean>();
 
   public logoUrl: string;
+  /** Color logo URL used as fallback when white logo is missing (OEM only). */
+  public logoColorFallbackUrl: string = '';
+  /** True when white logo failed but color logo is being tried. */
+  public logoTryingColorFallback: boolean = false;
   /** When true, apply invert filter (for Synerex white logo). Client/OEM logos use original colors. */
   public logoUseInvert: boolean;
   public myAccountUrl: string;
@@ -27,6 +31,7 @@ export class NavbarComponent {
   constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService) {
     const user = this.userService.user;
     this.logoUrl = this.whitelabelService.getNavbarLogoUrl(user);
+    this.logoColorFallbackUrl = this.whitelabelService.getNavbarColorLogoUrl(user);
     const role = Number(user?.role);
     const clientId = user?.client && (typeof user.client === 'object' ? user.client.id : user.client);
     // Invert (white logo) only for Synerex/fallback. Client and OEM logos use original colors.
@@ -42,7 +47,14 @@ export class NavbarComponent {
   }
 
   onLogoError() {
-    this.logoFailed = true;
+    if (!this.logoTryingColorFallback && this.logoColorFallbackUrl) {
+      // White logo failed — try the color logo next
+      this.logoTryingColorFallback = true;
+      this.logoUrl = this.logoColorFallbackUrl;
+    } else {
+      // Color logo also failed (or no color fallback) — show text/Synerex fallback
+      this.logoFailed = true;
+    }
   }
 
   /** Website My Account page URL (when in platform flow). Avoids double /my-account. */

@@ -40,6 +40,7 @@ export class ProjectOverviewComponent implements OnInit {
   public noData = true;
   public meters;
   public validBillAnalytic = false;
+  public brandName: string = 'Synerex';
   public breakdown;
   public emvAnalyses: any[] = [];
   public emvActiveId: number | null = null;
@@ -75,6 +76,9 @@ export class ProjectOverviewComponent implements OnInit {
   }
 
   ngOnInit() {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.brandName = (bootstrap['oemDisplayName'] || 'Synerex').trim();
+
     this.project = this.currentUserService.user.selectedProject;
     if(this.project.electricBillAnalysis && this.project.equipmentInfo) {
       this.validBillAnalytic = true;

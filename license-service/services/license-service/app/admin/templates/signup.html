@@ -54,33 +54,60 @@
     {% endif %}
     <form method="post" autocomplete="off" action="{{ register_action or ((path_prefix + '/register/') if path_prefix else '/register/') }}">
       <input type="hidden" name="return_url" value="{{ return_url or '' }}"/>
+
       {% if prefill_org %}
       <input type="hidden" name="existing_org_id" value="{{ prefill_org.org_id }}"/>
       <input type="hidden" name="org_type" value="{{ prefill_org.org_type or 'customer' }}"/>
-      <div class="row">
-        <label>Organization name</label>
-        <input type="text" name="org_name" value="{{ prefill_org.org_name }}" readonly/>
+      <input type="hidden" name="org_name" value="{{ prefill_org.org_name }}"/>
+      <input type="hidden" name="company_address" value="{{ prefill_org.company_address or 'N/A' }}"/>
+      <input type="hidden" name="company_city" value="{{ prefill_org.company_city or 'N/A' }}"/>
+      <input type="hidden" name="company_state" value="{{ prefill_org.company_state or 'NA' }}"/>
+      <input type="hidden" name="company_zip" value="{{ prefill_org.company_zip or '00000' }}"/>
+      <input type="hidden" name="company_phone" value="{{ prefill_org.company_phone or '000-000-0000' }}"/>
+      {% if plan %}<input type="hidden" name="plan" value="{{ plan }}"/>{% endif %}
+
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+        <div style="font-weight:700;color:#5b21b6;margin-bottom:0.25rem;">&#127970; {{ prefill_org.org_name }}</div>
+        {% if plan %}<div style="font-size:0.85rem;color:#6b7280;">Selected plan: <strong style="color:#5b21b6;">{{ plan | title }}</strong></div>{% endif %}
       </div>
+
+      <div class="row"><label>Username * <span style="font-size:0.78rem;color:#9ca3af;">(3-20 chars, letters/numbers/underscore)</span></label>
+        <input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="e.g. jsmith" autocomplete="off"/></div>
+      <div class="row"><label>Password * <span style="font-size:0.78rem;color:#9ca3af;">(min 8 characters)</span></label>
+        <input type="password" name="password" required minlength="8" autocomplete="new-password"/></div>
+      <div class="row"><label>Confirm Password *</label>
+        <input type="password" name="password_confirm" required minlength="8" autocomplete="new-password"/></div>
+      <div class="row"><label>Email *</label>
+        <input type="email" name="email" required placeholder="you@example.com" value="{{ prefill_org.email or '' }}" autocomplete="off"/></div>
+      <div class="row" style="margin-top:1rem;">
+        <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
+          <input type="checkbox" name="agreement_accepted" value="on" required style="width:auto;margin-top:3px;"/>
+          <span>I accept the <a href="#" style="color:#5b21b6;">Software License Agreement</a></span>
+        </label>
+      </div>
+      <button type="submit" style="margin-top:1.25rem;padding:0.8rem 1.5rem;background:#5b21b6;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;">
+        Continue to Payment &rarr;
+      </button>
+
       {% else %}
       <div class="row"><label>Organization name *</label><input type="text" name="org_name" required placeholder="Acme Inc" autocomplete="off"/></div>
       <div class="row"><label>Account type *</label>
         <select name="org_type" id="org_type_select" required onchange="updateOrgTypeHints(this.value)">
-          <option value="">— Select account type —</option>
+          <option value="">--- Select account type ---</option>
           <option value="oem">OEM / Original Equipment Manufacturer</option>
           <option value="pe">Licensed PE / Professional Engineer</option>
         </select>
         <p id="org_type_hint" style="font-size:0.78rem;color:#6b7280;margin-top:0.25rem;">OEM accounts are reviewed and approved by Synerex Admin before activation. PE accounts are verified against your license number.</p>
       </div>
-      {% endif %}
       <div class="row"><label>Username * (3-20 chars)</label><input type="text" name="username" required pattern="[a-zA-Z0-9_]{3,20}" placeholder="jdoe" autocomplete="off"/></div>
       <div class="row"><label>Password * (min 8)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"/></div>
       <div class="row"><label>Confirm password *</label><input type="password" name="password_confirm" required minlength="8" autocomplete="new-password"/></div>
-      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com" value="{{ prefill_org.email if prefill_org else '' }}" autocomplete="off"/></div>
-      <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St" value="{{ prefill_org.company_address if prefill_org else '' }}"/></div>
-      <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City" value="{{ prefill_org.company_city if prefill_org else '' }}"/></div>
-      <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2" value="{{ prefill_org.company_state if prefill_org else '' }}"/></div>
-      <div class="row"><label>ZIP *</label><input type="text" name="company_zip" required placeholder="12345" value="{{ prefill_org.company_zip if prefill_org else '' }}"/></div>
-      <div class="row"><label>Company phone *</label><input type="tel" name="company_phone" required placeholder="555-123-4567" value="{{ prefill_org.company_phone if prefill_org else '' }}"/></div>
+      <div class="row"><label>Email *</label><input type="email" name="email" required placeholder="you@example.com" autocomplete="off"/></div>
+      <div class="row"><label>Company address *</label><input type="text" name="company_address" required placeholder="123 Main St"/></div>
+      <div class="row"><label>City *</label><input type="text" name="company_city" required placeholder="City"/></div>
+      <div class="row"><label>State *</label><input type="text" name="company_state" required placeholder="ST" maxlength="2"/></div>
+      <div class="row"><label>ZIP *</label><input type="text" name="company_zip" required placeholder="12345"/></div>
+      <div class="row"><label>Company phone *</label><input type="tel" name="company_phone" required placeholder="555-123-4567"/></div>
       <div class="row"><label>Company cell (optional)</label><input type="tel" name="company_cell"/></div>
       <div class="row"><label>Physical address (optional)</label><input type="text" name="physical_address"/></div>
       <div class="row"><label>Physical city (optional)</label><input type="text" name="physical_city"/></div>
@@ -88,12 +115,12 @@
       <div class="row"><label>Physical ZIP (optional)</label><input type="text" name="physical_zip"/></div>
       <div class="row"><label>Physical phone (optional)</label><input type="tel" name="physical_phone"/></div>
       <div class="row"><label>Physical cell (optional)</label><input type="tel" name="physical_cell"/></div>
-      {% if not prefill_org %}
       <div class="row" id="pe-fields" style="display:none;"><label>PE License number *</label><input type="text" name="pe_license_number"/></div>
       <div class="row" id="pe-state-row" style="display:none;"><label>PE License state *</label><input type="text" name="pe_license_state" maxlength="2"/></div>
-      {% endif %}
       <div class="row"><label><input type="checkbox" name="agreement_accepted" value="on" required/> I accept the Software License Agreement</label></div>
-      <button type="submit">{% if prefill_org %}Activate My Subscription{% else %}Register{% endif %}</button>
+      <button type="submit">Register</button>
+      {% endif %}
+
     </form>
     <div class="links"><a href="{{ login_href or ((path_prefix + '/auth/login') if path_prefix else '/auth/login') }}">Already have an account? Log in</a></div>
     <div style="margin-top: 1rem;"><a href="javascript:history.back()" class="back-btn">&#8592; Back</a></div>

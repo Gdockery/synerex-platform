@@ -21,7 +21,7 @@ export let USER_ROLES = [
     minCreatorRole: 8,
   }, {
     id: 8,
-    displayName: 'Synerex Admin',
+    displayName: 'Platform Admin',
     minCreatorRole: 8,
   }, {
     id: 9,

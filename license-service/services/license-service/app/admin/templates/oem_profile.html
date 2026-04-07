@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Company Profile — OEM Admin - Synerex Platform</title>
+  <title>Company Profile — {{ brand_name or oem_org.org_name }}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; line-height: 1.6; padding: 2rem; }
@@ -38,7 +38,7 @@
 </head>
 <body>
   <div class="logo-container">
-    <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex"/>
+    {% if brand_logo_url %}<img src="{{ brand_logo_url }}" alt="{{ brand_name }}" style="height:44px;max-width:180px;"/>{% else %}<img src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex" style="height:44px;max-width:180px;"/>{% endif %}
   </div>
   <div class="header">
     <h1>Company Profile — {{ oem_org.org_name }}</h1>

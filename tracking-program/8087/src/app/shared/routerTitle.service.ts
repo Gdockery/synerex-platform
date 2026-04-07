@@ -10,8 +10,12 @@ import {SubNavService} from "./subNav/subNav.service";
 export class RouterTitleService {
 
   sub: Subscription;
+  private brandName: string = 'Synerex';
 
   constructor(private router: Router, private subnavService: SubNavService, private title: Title) {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.brandName = (bootstrap['oemDisplayName'] || 'Synerex').trim();
+
     this.sub = this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
       map(_ => this.router.routerState.root),
@@ -22,7 +26,7 @@ export class RouterTitleService {
       mergeMap(route => route.data),)
       .subscribe(data => {
         let title = data['title'] || "";
-        this.title.setTitle('Synerex - ' + title);
+        this.title.setTitle(this.brandName + ' - ' + title);
         this.subnavService.setTitle(title);
       });
   }

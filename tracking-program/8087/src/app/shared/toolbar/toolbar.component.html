@@ -9,7 +9,7 @@
     </strong></h1>
   </div>
   <div class="pull-right text-right">
-    <img src="{{logoPath}}"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <img *ngIf="logoPath && !logoFailed" [src]="logoPath" (error)="logoFailed = true" style="max-height:48px; max-width:160px; object-fit:contain;"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
     <h2>{{userService.user.getInitials()}}</h2>
   </div>
   <div class="clearfix"></div>

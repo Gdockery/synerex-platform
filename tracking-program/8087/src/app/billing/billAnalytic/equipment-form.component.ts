@@ -25,7 +25,7 @@ import {CurrentUserService} from "../../shared/user/currentUser.service";
         <div class="box">
           <table>
             <tr>
-              <td width="50%">Synerex Equipment Models</td>
+              <td width="50%">{{brandName}} Equipment Models</td>
               <td>Qty</td>
               <td>Price Each</td>
               <td class="text-right">Cost</td>
@@ -152,6 +152,7 @@ export class EquipmentFormComponent implements OnInit {
   private totals;
   private beforeServicesTotals;
   private totalAnalytic;
+  public brandName: string = 'Synerex';
 
 
   constructor(private formBuilder: FormBuilder,
@@ -164,6 +165,9 @@ export class EquipmentFormComponent implements OnInit {
               private billAnalyticService: BillAnalyticService) {}
 
   ngOnInit() {
+    const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
+    this.brandName = (bootstrap['oemDisplayName'] || 'Synerex').trim();
+
     //let unitType = parseFloat(this.currentUserService.user.selectedProject.;
     let exchangeRate = parseFloat(this.currentUserService.user.selectedProject.currencyExchangeRate) || 1;
 

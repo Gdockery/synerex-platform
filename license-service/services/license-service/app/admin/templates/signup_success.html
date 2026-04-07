@@ -176,8 +176,18 @@
       </div>
       {% else %}
       <div class="success-badge">
-        Your organization has been created and your license has been issued.
+        Your subscription is active and your license has been issued.
       </div>
+      {% if client_username %}
+      <div style="background:#ede9fe;border:2px solid #7c3aed;border-radius:8px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+        <div style="font-size:2rem;">&#128273;</div>
+        <div>
+          <div style="font-size:0.78rem;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Your Login Username</div>
+          <div style="font-size:1.4rem;font-weight:800;color:#5b21b6;font-family:'Courier New',monospace;">{{ client_username }}</div>
+          <div style="font-size:0.82rem;color:#6b7280;margin-top:3px;">Use this username and the password you just set to log in.</div>
+        </div>
+      </div>
+      {% endif %}
       {% endif %}
       
       <div class="section">
@@ -224,6 +234,14 @@
       
       <div class="section">
         <h2>Next Steps</h2>
+        {% if portal_url and client_username %}
+        <ol style="line-height: 1.8; color: #666;">
+          <li><strong>Save your username:</strong> <code style="background:#ede9fe;padding:2px 6px;border-radius:4px;color:#5b21b6;">{{ client_username }}</code> — this is what you'll use to log in.</li>
+          <li><strong>Click "Log In Now"</strong> below to access your {{ portal_brand_name or program|upper }} portal.</li>
+          <li><strong>Save your license serial number</strong> shown above — you may need it if prompted during first login.</li>
+          <li><strong>Set up your team:</strong> Once logged in, you can create users within your organization.</li>
+        </ol>
+        {% else %}
         <ol style="line-height: 1.8; color: #666;">
           <li><strong>Save your Serial Number:</strong> Copy the Serial Number above and store it securely</li>
           {% if portal_url %}
@@ -235,6 +253,7 @@
           {% endif %}
           <li><strong>Start using:</strong> Once validated, you can begin using the {{ program|upper }} software</li>
         </ol>
+        {% endif %}
       </div>
 
       {% if portal_url %}
@@ -252,9 +271,10 @@
           Use your license serial number when you log in for the first time.
         </div>
         <a href="{{ portal_url }}" target="_blank"
-           style="display:inline-block;padding:14px 36px;background:{{ portal_primary_color or '#7c3aed' }};
-                  color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;">
-          Access {{ portal_brand_name or 'My Portal' }} &rarr;
+           style="display:inline-block;padding:16px 44px;background:{{ portal_primary_color or '#7c3aed' }};
+                  color:#fff;text-decoration:none;border-radius:8px;font-weight:800;font-size:18px;
+                  box-shadow:0 4px 12px rgba(0,0,0,.18);">
+          &#128273; Log In to {{ portal_brand_name or 'My Portal' }} &rarr;
         </a>
         <div style="margin-top:12px;font-size:12px;color:#9ca3af;word-break:break-all;">
           {{ portal_url }}

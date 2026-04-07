@@ -268,6 +268,12 @@ def _issue_license_for_stripe(db: Session, order: BillingOrder, intent: dict) ->
     order.license_id = license_rec.license_id
     db.commit()
 
+    # Auto-activate the organization — mark as approved so license_required gate passes
+    if org.approval_status != "approved":
+        org.approval_status = "approved"
+        db.commit()
+        logger.info("[stripe] Org %s auto-approved after payment", org.org_id)
+
     log_event(
         db,
         actor="stripe_webhook",

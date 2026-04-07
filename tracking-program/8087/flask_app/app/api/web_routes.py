@@ -135,6 +135,11 @@ def _user_to_dict(user):
     }
     if hasattr(user, "userLogo"):
         d["userLogo"] = bool(user.userLogo)
+    # Include orgId for OEM users so Angular can load the OEM's own logo in the navbar
+    if getattr(user, "role", None) in (9, 10):
+        org_id = getattr(user, "org_id", None) or session.get("orgId")
+        if org_id:
+            d["orgId"] = org_id
     # Include sponsorOrgId for client users so Angular can load the OEM's logo
     if user.client:
         try:
@@ -276,16 +281,54 @@ def _serve_spa():
             public_emv = f"{scheme}://{host}/emv".rstrip("/")
         emv_url = public_emv
 
-    # OEM display name: for OEM users (role 9, 10), use their client's name.
-    # Strip "Oem " / "OEM " prefix for display (e.g. "Oem Acme" -> "Acme")
+    # OEM display name: for OEM users (role 9, 10), prefer brand_name from oem_branding table,
+    # then fall back to the OEM client record name.
     oem_display_name = None
-    if user.role in (9, 10) and user.client:
-        oem_client = sess.query(Client).get(user.client)
-        if oem_client:
-            name = (oem_client.name or "").strip()
-            if name.lower().startswith("oem "):
-                name = name[4:].strip()
-            oem_display_name = name or oem_client.name
+    if user.role in (9, 10):
+        oem_org_id = getattr(user, "org_id", None) or session.get("orgId")
+        if oem_org_id:
+            try:
+                from app.models.oem_branding import OemBranding as _OemBranding
+                _b = sess.query(_OemBranding).filter_by(org_id=oem_org_id).first()
+                if _b and _b.brand_name:
+                    oem_display_name = _b.brand_name.strip()
+            except Exception:
+                pass
+        if not oem_display_name and user.client:
+            oem_client = sess.query(Client).get(user.client)
+            if oem_client:
+                name = (oem_client.name or "").strip()
+                if name.lower().startswith("oem "):
+                    name = name[4:].strip()
+                oem_display_name = name or oem_client.name
+
+    # Populate account managers list scoped to the logged-in user's org
+    xeco_users_and_admins = []
+    try:
+        if user.role == 8:
+            # Synerex Admin: all non-client users (roles 7, 8, 9, 10)
+            mgr_users = sess.query(User).filter(
+                User._role.in_([7, 8, 9, 10]), User.isDeleted == False
+            ).all()
+            xeco_users_and_admins = [
+                {"id": u.id, "fullName": f"{u.firstName} {u.lastName}".strip()}
+                for u in mgr_users
+            ]
+        elif user.role in (9, 10):
+            # OEM Admin/User: users with same org_id (roles 7, 9, 10)
+            oem_org_id_mgr = getattr(user, "org_id", None) or session.get("orgId")
+            if oem_org_id_mgr:
+                mgr_users = sess.query(User).filter(
+                    User.org_id == oem_org_id_mgr,
+                    User._role.in_([7, 9, 10]),
+                    User.isDeleted == False
+                ).all()
+                xeco_users_and_admins = [
+                    {"id": u.id, "fullName": f"{u.firstName} {u.lastName}".strip()}
+                    for u in mgr_users
+                ]
+    except Exception:
+        xeco_users_and_admins = []
 
     locals_data = {
         "environment": current_app.config.get("ENV", "development"),
@@ -293,7 +336,7 @@ def _serve_spa():
         "appVersion": current_app.config.get("APP_VERSION", "1.0.0"),
         "xecoAdvancedOptions": {"id": xeco.id} if xeco else {},
         "clients": clients,
-        "xecoUsersAndAdmins": [],
+        "xecoUsersAndAdmins": xeco_users_and_admins,
         "myAccountUrl": my_account_url,
         "websiteHomeUrl": (website_home + "/") if website_home else "",
         "emvUrl": emv_url.rstrip("/"),
@@ -763,6 +806,8 @@ def _get_oem_org_id(sess, user):
     if not user or getattr(user, "role", None) not in (9, 10):
         return None
     org_id = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+    if not org_id:
+        org_id = getattr(user, "org_id", None)
     if not org_id and user.client:
         oem_client = sess.query(Client).get(user.client)
         if oem_client:
@@ -1306,11 +1351,16 @@ def list_clients():
     user = sess.query(User).get(current_user.id)
     role = getattr(user, "role", None)
     org_id = session.get("orgId") or (session.get("user") or {}).get("orgId") or (session.get("user") or {}).get("org_id")
+    if not org_id and user:
+        org_id = getattr(user, "org_id", None)
     if not org_id and user and user.client:
         oem_client = sess.query(Client).get(user.client)
         if oem_client:
             org_id = getattr(oem_client, "org_id", None)
-    if role in (9, 10) and org_id:
+    if role in (9, 10):
+        if not org_id:
+            # OEM user with no resolvable org_id — return empty list (never expose all clients)
+            return jsonify({"meta": {"page": page, "total": 0}, "response": []}), 200
         # OEM sees clients: legacy (org_id match) or sponsored (sponsor_org_id match)
         base = base.filter(
             or_(
@@ -1378,9 +1428,32 @@ def get_client(cid):
     user = sess.query(User).get(current_user.id)
     if not _oem_can_access_client(sess, user, c):
         return jsonify({"error": "Forbidden"}), 403
-    resp = {"id": c.id, "name": c.name, "legalName": c.legalName, "address": c.address}
-    if hasattr(c, "org_id"):
-        resp["org_id"] = c.org_id
+    resp = {
+        "id": c.id,
+        "name": c.name,
+        "legalName": c.legalName,
+        "address": c.address,
+        "city": c.city,
+        "state": c.state,
+        "zip": c.zip,
+        "country": c.country,
+        "contactName": c.contactName,
+        "contactTitle": c.contactTitle,
+        "contactPhone": c.contactPhone,
+        "marketSegment": c.marketSegment,
+        "taxId": c.taxId,
+        "shippingTerms": c.shippingTerms,
+        "salesTax": c.salesTax,
+        "financeEmail": c.financeEmail,
+        "financePhone": c.financePhone,
+        "managerName": c.managerName,
+        "managerCertificate": c.managerCertificate,
+        "managerPhone": c.managerPhone,
+        "managerEmail": c.managerEmail,
+        "managerLocation": c.managerLocation,
+        "logoImgSrc": c.logoImgSrc,
+        "org_id": getattr(c, "org_id", None),
+    }
     return jsonify({"meta": {}, "response": resp})
 
 
@@ -1474,6 +1547,149 @@ def destroy_client(cid):
     return jsonify({"meta": {}, "response": {"id": cid}})
 
 
+@web_bp.route("/api/client/invite", methods=["POST"])
+@login_required
+def send_client_invite():
+    """POST /api/client/invite - OEM sends a branded subscription invitation email to a prospective client.
+
+    Body: { "email": "...", "company_name": "..." (optional) }
+    Sends a branded email with a link to the Synerex registration page pre-tagged with the OEM's org_id.
+    Payment goes to Synerex; the OEM's brand appears on the registration page.
+    """
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9):
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.get_json() or {}
+    to_email = (data.get("email") or "").strip()
+    company_name = (data.get("company_name") or "").strip()
+    if not to_email or "@" not in to_email:
+        return jsonify({"error": "A valid email address is required"}), 400
+
+    # Resolve OEM org_id and branding
+    sess = get_session()
+    user = sess.query(User).get(current_user.id)
+    oem_org_id = _get_oem_org_id(sess, user) if role == 9 else None
+
+    try:
+        from app.api.phase6_routes import _get_oem_smtp_for_current_user, _send_email_via_smtp
+        smtp_cfg = _get_oem_smtp_for_current_user()
+    except Exception as e:
+        return jsonify({"error": f"Email configuration error: {e}"}), 500
+
+    if not smtp_cfg.get("server") or not smtp_cfg.get("username"):
+        return jsonify({"error": "No SMTP configured. Add email settings in Branding > Email Settings."}), 400
+
+    brand_name    = smtp_cfg.get("brand_name") or "Synerex"
+    logo_url      = smtp_cfg.get("logo_url") or ""
+    primary_color = smtp_cfg.get("primary_color") or "#1a73e8"
+    support_email = smtp_cfg.get("support_email") or smtp_cfg.get("from_address") or ""
+
+    # Build the registration link - always points to Synerex License Service
+    license_public_url = (
+        current_app.config.get("LICENSE_SERVICE_PUBLIC_URL")
+        or current_app.config.get("LICENSE_SERVICE_URL", "")
+    ).rstrip("/")
+    # Replace internal hostnames with public-facing URL
+    for _internal in ("license-service", "localhost:8000"):
+        if _internal in license_public_url:
+            scheme = request.headers.get("X-Forwarded-Proto", request.scheme) or "http"
+            host = request.headers.get("X-Forwarded-Host", request.host) or request.host
+            license_public_url = f"{scheme}://{host}/license"
+            break
+
+    reg_link = f"{license_public_url}/register/?program=tracking"
+    if oem_org_id:
+        reg_link += f"&oem={oem_org_id}"
+
+    greeting = f"Dear {company_name} Team," if company_name else "Hello,"
+    subject = f"You're invited to {brand_name} — Energy Monitoring Portal"
+
+    logo_html = (
+        f'<img src="{logo_url}" alt="{brand_name}" '
+        f'style="max-height:60px; max-width:220px; display:block; margin:0 auto 16px auto;">'
+        if logo_url else
+        f'<div style="font-size:1.4em; font-weight:bold; color:white; text-align:center; padding:8px 0;">{brand_name}</div>'
+    )
+
+    text_body = (
+        f"{greeting}\n\n"
+        f"You have been invited to subscribe to the {brand_name} Energy Monitoring & Verification portal.\n\n"
+        f"Click the link below to create your account and choose a subscription plan:\n\n"
+        f"{reg_link}\n\n"
+        f"Once subscribed, you'll have access to real-time energy tracking, savings reports, and more — "
+        f"all under the {brand_name} platform.\n\n"
+        f"If you have any questions, contact us at {support_email}.\n\n"
+        f"— The {brand_name} Team"
+    )
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:30px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:{primary_color};padding:28px 32px;text-align:center;">
+            {logo_html}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <p style="color:#444;font-size:1em;margin:0 0 12px 0;">{greeting}</p>
+            <h2 style="margin:0 0 16px 0;color:#222;">You're Invited to {brand_name}</h2>
+            <p style="color:#444;line-height:1.6;margin:0 0 20px 0;">
+              You have been invited to subscribe to the <strong>{brand_name}</strong> Energy Monitoring &amp;
+              Verification portal — your all-in-one platform for real-time energy tracking, savings reports,
+              and data-driven insights.
+            </p>
+            <p style="color:#444;line-height:1.6;margin:0 0 28px 0;">
+              Click the button below to create your account and choose a subscription plan.
+            </p>
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 28px auto;">
+              <tr>
+                <td style="background:{primary_color};border-radius:6px;padding:14px 32px;text-align:center;">
+                  <a href="{reg_link}" style="color:white;text-decoration:none;font-size:1em;font-weight:bold;">
+                    Subscribe Now &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#777;font-size:0.85em;line-height:1.5;">
+              Or copy this link into your browser:<br/>
+              <a href="{reg_link}" style="color:{primary_color};word-break:break-all;">{reg_link}</a>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f8f8;padding:16px 40px;text-align:center;border-top:1px solid #eee;color:#aaa;font-size:0.8em;">
+            Questions? Contact us at <a href="mailto:{support_email}" style="color:#aaa;">{support_email}</a><br/>
+            &copy; {brand_name}. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    try:
+        _send_email_via_smtp(
+            smtp_cfg=smtp_cfg,
+            to_address=to_email,
+            subject=subject,
+            body_text=text_body,
+            body_html=html_body,
+        )
+    except Exception as e:
+        current_app.logger.error("[invite] Email send failed to %s: %s", to_email, e)
+        return jsonify({"error": f"Failed to send email: {e}"}), 500
+
+    current_app.logger.info("[invite] Invitation sent by user=%s to %s (oem=%s)", current_user.id, to_email, oem_org_id)
+    return jsonify({"meta": {}, "response": {"sent": True, "to": to_email}})
+
+
 @web_bp.route("/api/client/<int:cid>/upload-logo", methods=["POST"])
 @login_required
 @license_required
@@ -1538,6 +1754,8 @@ def get_brand_name():
     org_id = None
     if current_user and current_user.is_authenticated:
         org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
+        if not org_id:
+            org_id = getattr(current_user, 'org_id', None)
         if not org_id and current_user.client:
             try:
                 from app.db.request_session import get_session as _gs
@@ -1959,14 +2177,22 @@ def serve_static(path):
             oem_dir = storage / "images" / "oem_logo"
             oem_file = oem_dir / path[len("oem_logo/"):]
             if oem_file.exists() and oem_file.is_file():
-                return send_from_directory(str(oem_dir), path[len("oem_logo/")])
+                import imghdr as _imghdr
+                detected = _imghdr.what(str(oem_file)) or "png"
+                mime = f"image/{detected}"
+                from flask import send_file as _send_file
+                return _send_file(str(oem_file), mimetype=mime)
         # Client logo: /images/client_company_logo/{id}-client-logo
         if path.startswith("client_company_logo/"):
             storage = Path(current_app.config.get("STORAGE_LOCAL_PATH", current_app.root_path))
             client_dir = storage / "images" / "client_company_logo"
             client_file = client_dir / path[len("client_company_logo/"):]
             if client_file.exists() and client_file.is_file():
-                return send_from_directory(str(client_dir), path[len("client_company_logo/")])
+                import imghdr as _imghdr
+                detected = _imghdr.what(str(client_file)) or "png"
+                mime = f"image/{detected}"
+                from flask import send_file as _send_file
+                return _send_file(str(client_file), mimetype=mime)
         hostname = (request.host or "").split(":")[0]
         mappings = current_app.config.get("WHITELABEL_DOMAIN_MAPPINGS") or {}
         branding = mappings.get(hostname) or _get_branding_from_hostname(hostname)

@@ -99,11 +99,11 @@ export class WhitelabelService {
     }
     const role = Number(user.role);
     const clientId = user.client && (typeof user.client === 'object' ? user.client.id : user.client);
-    // OEM users (9, 10): show OEM's own logo
+    // OEM users (9, 10): show OEM's white logo (dark navbar background)
     if (role === 9 || role === 10) {
       const orgId = (user.orgId || user.org_id || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
       if (orgId) {
-        return `/images/oem_logo/${orgId}`;
+        return this.getImageUrl(`oem_logo/${orgId}_white`);
       }
       if (clientId) return this.getClientLogoUrl(clientId);
     }
@@ -115,10 +115,23 @@ export class WhitelabelService {
       }
       const sponsorOrgId = (user.sponsorOrgId || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
       if (sponsorOrgId) {
-        return `/images/oem_logo/${sponsorOrgId}`;
+        return this.getImageUrl(`oem_logo/${sponsorOrgId}`);
       }
     }
     return this.getLogoUrl('small');
+  }
+
+  /**
+   * Get the color (non-white) OEM navbar logo URL — used as fallback when white logo is missing.
+   */
+  getNavbarColorLogoUrl(user?: any): string {
+    if (!user) return '';
+    const role = Number(user.role);
+    if (role === 9 || role === 10) {
+      const orgId = (user.orgId || user.org_id || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
+      if (orgId) return this.getImageUrl(`oem_logo/${orgId}`);
+    }
+    return '';
   }
 
   /**

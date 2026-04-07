@@ -161,6 +161,55 @@ def _issue_license_from_authorization(
     
     return rec, signed
 
+@router.get("/choose-plan", response_class=HTMLResponse)
+def choose_plan_page(
+    request: Request,
+    org_id: Optional[str] = None,
+    sponsor_org_id: Optional[str] = None,
+    db: Session = Depends(db_session),
+):
+    """OEM invite landing page: show the 3 Tracking plans before the signup form."""
+    org = db.get(Organization, org_id.strip()) if org_id else None
+    org_name = org.org_name if org else None
+
+    # Resolve OEM branding from sponsor_org_id
+    oem_logo_org_id = sponsor_org_id or (org.sponsor_org_id if org else None)
+    brand_logo_url = None
+    brand_name = None
+    primary_color = "#7c3aed"
+    if oem_logo_org_id:
+        try:
+            import urllib.request as _ur
+            import json as _json
+            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}", timeout=3) as _resp:
+                _d = _json.loads(_resp.read().decode())
+                brand_logo_url = _d.get("logo_url") or None
+                brand_name = _d.get("brand_name") or None
+                primary_color = _d.get("primary_color") or primary_color
+        except Exception:
+            pass
+
+    # Build the base signup URL that plan buttons will append &plan=X to
+    path_prefix = (settings.root_path or "").rstrip("/")
+    base_url = (settings.website_url or "").rstrip("/")
+    signup_url = f"{base_url}{path_prefix}/register/?existing_org_id={org_id or ''}"
+    if sponsor_org_id:
+        signup_url += f"&sponsor_org_id={sponsor_org_id}"
+    elif org and org.sponsor_org_id:
+        signup_url += f"&sponsor_org_id={org.sponsor_org_id}"
+
+    return templates.TemplateResponse("choose_plan.html", {
+        "request": request,
+        "org_name": org_name,
+        "brand_logo_url": brand_logo_url,
+        "brand_name": brand_name,
+        "primary_color": primary_color,
+        "signup_url": signup_url,
+        "path_prefix": path_prefix,
+    })
+
+
 @router.get("/", response_class=HTMLResponse)
 def registration_page(
     request: Request,
@@ -170,6 +219,7 @@ def registration_page(
     sponsor_org_id: Optional[str] = None,
     oem: Optional[str] = None,
     org_id: Optional[str] = None,
+    existing_org_id: Optional[str] = None,  # alias from choose-plan buttons
     db: Session = Depends(db_session),
 ):
     """Display the registration form.
@@ -197,8 +247,10 @@ def registration_page(
 
     # Pre-fill from an existing org when the client arrives via an invitation link
     prefill_org = None
-    if org_id:
-        existing = db.get(Organization, org_id.strip())
+    # Support both ?org_id= (direct) and ?existing_org_id= (from choose-plan buttons)
+    lookup_id = org_id or existing_org_id
+    if lookup_id:
+        existing = db.get(Organization, lookup_id.strip())
         if existing:
             prefill_org = {
                 "org_id": existing.org_id,
@@ -655,6 +707,12 @@ def payment_success(
         from ..services.email import send_license_receipt
         send_license_receipt(license_rec.license_id, db)
 
+    # Look up the Client Admin's username to display on the receipt
+    client_username = None
+    client_user = db.query(User).filter(User.org_id == org.org_id).order_by(User.username).first()
+    if client_user:
+        client_username = client_user.username
+
     # Resolve branded Tracking portal URL for the client
     # Uses the org's sponsor_org_id to look up OEM branding and build the login URL
     portal_url = None
@@ -703,6 +761,7 @@ def payment_success(
             "portal_brand_name": portal_brand_name,
             "portal_logo_url": portal_logo_url,
             "portal_primary_color": portal_primary_color,
+            "client_username": client_username,
         }
     )
 
@@ -806,6 +865,8 @@ def register_submit(
     return_url: Optional[str] = Form(None),
     # Pre-registered org claim: when set the org already exists (created by OEM at bill-scan time)
     existing_org_id: Optional[str] = Form(None),
+    # Plan selected on the choose-plan page (basic / pro / enterprise)
+    plan: Optional[str] = Form(None),
     db: Session = Depends(db_session)
 ):
     """Handle registration submission for PE or Licensee.
@@ -1008,12 +1069,46 @@ def register_submit(
                 }
             )
         
-        # For Licensee, registration is complete - redirect to login or My Account
-        # No billing/license creation at registration time
-        # Users will select licenses from My Account page
+        # For customer orgs arriving via an OEM invite: create a BillingOrder for the
+        # chosen plan and send them directly to the payment page.
+        if org_type == "customer" and plan and plan in ("basic", "pro", "enterprise"):
+            from ..services.pricing import PRICING as _PRICING
+            import uuid as _uuid
+            from datetime import date as _date
+            _today = _date.today()
+            _included_seats = int(_PRICING.get("tracking", {}).get(plan, {}).get("included_seats", 0))
+            try:
+                _pricing = calculate_price("tracking", plan, term_days=365,
+                                           seat_count=_included_seats, meter_count=0)
+            except ValueError:
+                _pricing = {"base_price": "0", "amount_total": "0"}
+            _order_id = f"ORD-{org_id[:20]}-{_uuid.uuid4().hex[:8].upper()}"
+            _order = BillingOrder(
+                order_id=_order_id,
+                org_id=org_id,
+                program_id="tracking",
+                plan=plan,
+                term_start=_today.isoformat(),
+                term_end=(_today.replace(year=_today.year + 1)).isoformat(),
+                seat_count=_included_seats,
+                meter_count=0,
+                unit_price=_pricing["base_price"],
+                amount_total=_pricing["amount_total"],
+                currency="USD",
+                status="pending",
+                notes=f"New subscription via OEM invite — {plan} plan",
+            )
+            db.add(_order)
+            db.commit()
+            log_event(db, actor=org_id, action="billing.order.created", ref_id=_order_id,
+                      detail={"org_id": org_id, "program_id": "tracking", "plan": plan,
+                              "amount_total": _pricing["amount_total"], "username": username})
+            _path_prefix = (settings.root_path or "").rstrip("/")
+            return RedirectResponse(f"{_path_prefix}/register/payment?order_id={_order_id}", status_code=303)
+
+        # For non-plan customer registration or other types: redirect to login
         if return_url:
             return RedirectResponse(f"{return_url}?registered=true", status_code=303)
-        # Redirect to login with success message
         return RedirectResponse("/auth/login?registered=true&message=Registration+successful!+Please+log+in+to+access+your+account.", status_code=303)
         
     except Exception as e:

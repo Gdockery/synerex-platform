@@ -57,7 +57,7 @@
             <p *ngIf="!currentUserService.user.selectedProject.hasRunTest">(No test has been run, so savings not displayed.)</p>
           </div>
           <div class="col-md-4 text-right">
-            <legend [values]="[{text:'Before Synerex', color: '#9ca5d7'},{text:'CURRENT', color: '#26c49d'}]"></legend>
+            <legend [values]="[{text:'Before ' + brandName, color: '#9ca5d7'},{text:'CURRENT', color: '#26c49d'}]"></legend>
           </div>
           <div class="clearfix"></div>
         </div>

@@ -43,9 +43,15 @@
   </style>
 </head>
 <body>
-  <div class="logo-container">
-    <img src="{% if path_prefix %}{{ path_prefix }}{% endif %}/static/synerex_logo_color.png" alt="Synerex"/>
+  {% if brand_logo_url %}
+  <div style="text-align:center;margin-bottom:1.25rem;">
+    <img src="{{ brand_logo_url }}" alt="{{ brand_name }}" style="height:48px;max-width:200px;"/>
   </div>
+  {% else %}
+  <div style="text-align:center;margin-bottom:1.25rem;">
+    <img src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex" style="height:48px;max-width:200px;"/>
+  </div>
+  {% endif %}
 
   <div class="header">
     <h1>{{ oem_org.org_name }} — Partner Admin Panel</h1>

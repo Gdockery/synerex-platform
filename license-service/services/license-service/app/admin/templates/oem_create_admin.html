@@ -54,7 +54,7 @@
     {% endif %}
 
     <form method="post" action="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ customer.org_id }}/create-admin">
-      <label for="email">Admin Email Address</label>
+      <label for="email">Client Admin Email Address</label>
       <input type="email" id="email" name="email" placeholder="admin@theircomain.com" value="{{ existing_admin.email if existing_admin else '' }}" required/>
 
       <label for="password">{{ 'New ' if existing_admin else '' }}Password</label>

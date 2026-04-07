@@ -146,21 +146,21 @@ export class CreateUserComponent implements OnInit {
       // Update the admin role display name - Synerex Admin for role 8
       var adminRole = this.userRoles.find(role => role.id === 8);
       if (adminRole) {
-        adminRole.displayName = 'Synerex Admin';
+        adminRole.displayName = 'Platform Admin';
       }
     });
 
     // Filter available roles based on the logged-in user's role:
     // - Synerex Admin (8): all roles
     // - OEM Admin (9): OEM User (10) + Client roles (1-4). NOT Synerex Admin (8) or OEM Admin (9)
-    // - OEM User (10): Client Admin (2) and client-level roles (1-4). NOT OEM roles
-    // - Client Admin (2) and below: only client-level roles (1-4)
+    // - OEM User (10): Client roles (1,3,4) only. NOT Client Admin (2) — only OEM Admin can promote to Client Admin
+    // - Client Admin (2) and below: client-level roles (1,3,4) — Client Admin cannot create another Client Admin
     const myRole = Number(this.currentUserService.user.role);
     this.userRoles = this.userRoles.filter(r => {
-      if (myRole === 8) return true;                              // Synerex Admin: all roles
-      if (myRole === 9) return r.id !== 8 && r.id !== 9;         // OEM Admin: all except Synerex/OEM Admin
-      if (myRole === 10) return r.id >= 1 && r.id <= 4;          // OEM User: client roles only
-      return r.id >= 1 && r.id <= 4;                             // Client roles: client-level only
+      if (myRole === 8) return true;                                        // Synerex Admin: all roles
+      if (myRole === 9) return r.id !== 8 && r.id !== 9;                   // OEM Admin: all except Synerex/OEM Admin
+      if (myRole === 10) return r.id >= 1 && r.id <= 4 && r.id !== 2;     // OEM User: client roles except Client Admin
+      return r.id >= 1 && r.id <= 4 && r.id !== 2;                        // Client roles: no Client Admin creation
     });
 
     this.clients = window['BOOTSTRAP_DATA'].clients;
@@ -171,6 +171,18 @@ export class CreateUserComponent implements OnInit {
       email: ['', [Validators.required, CustomValidators.email]],
       password: ['', Validators.minLength(6)],
     });
+
+    // Client Admin and below: lock client dropdown to their own client only
+    if (myRole >= 1 && myRole <= 6) {
+      const myClient = this.currentUserService.user.client;
+      const myClientId = myClient && (typeof myClient === 'object' ? myClient.id : myClient);
+      if (myClientId) {
+        this.clients = (this.clients || []).filter((c: any) => c.id == myClientId);
+        this.form.patchValue({ client: myClientId });
+        this.selectedClient = myClientId;
+        this.setAvailableProjects();
+      }
+    }
 
   }
 

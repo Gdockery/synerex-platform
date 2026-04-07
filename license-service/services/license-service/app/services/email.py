@@ -194,10 +194,33 @@ def send_license_receipt(license_id: str, db) -> bool:
             _pub = (settings.tracking_program_url or "http://localhost:8087").rstrip("/")
         portal_login_url = f"{_pub}/auth/login?oem={sponsor_org_id}"
 
+    # Resolve Client Admin's username for the receipt email
+    client_username = None
+    from ..models.user import User as _User
+    _client_user = db.query(_User).filter(_User.org_id == org.org_id).order_by(_User.username).first()
+    if _client_user:
+        client_username = _client_user.username
+
     # OEM logo block for email header
     logo_html = ""
     if oem_logo_url:
         logo_html = f'<img src="{oem_logo_url}" alt="{brand_name}" style="max-height:56px;max-width:180px;margin-bottom:10px;display:block;margin-left:auto;margin-right:auto;" />'
+
+    # Build username block for receipt email (plain string, no nested f-string)
+    if client_username:
+        username_html_block = (
+            '<div style="background:#ede9fe;border:2px solid ' + primary_color + ';border-radius:8px;'
+            'padding:18px 20px;margin:20px 0;text-align:center;">'
+            '<div style="font-size:0.78rem;color:#6b7280;font-weight:600;text-transform:uppercase;'
+            'letter-spacing:.05em;margin-bottom:6px;">Your Login Username</div>'
+            '<div style="font-size:1.6rem;font-weight:800;color:' + primary_color + ';'
+            'font-family:\'Courier New\',monospace;">' + client_username + '</div>'
+            '<div style="font-size:0.82rem;color:#6b7280;margin-top:6px;">'
+            'Use this username and the password you set during signup to log in.</div>'
+            '</div>'
+        )
+    else:
+        username_html_block = ""
 
     subject = f"License Receipt — {brand_name} Energy Portal"
 
@@ -242,6 +265,7 @@ def send_license_receipt(license_id: str, db) -> bool:
       <div class="row"><span class="lbl">Receipt Date:</span> {receipt_date}</div>
     </div>
 
+    {username_html_block}
     <div class="serial">
       <div class="serial-lbl">SOFTWARE LICENSE SERIAL NUMBER</div>
       <div class="serial-val">{license_rec.license_id}</div>
@@ -651,7 +675,7 @@ def send_client_invitation_email(
     </div>
 
     <div class="btn-wrap">
-      <a href="{registration_url}" class="btn">Activate My Subscription &rarr;</a>
+      <a href="{registration_url}" class="btn">View Plans &amp; Subscribe &rarr;</a>
     </div>
 
     <div class="steps-box">
@@ -659,11 +683,11 @@ def send_client_invitation_email(
       <div class="step"><span class="step-num">1</span>
         <span>Click the button above — your organization details will be pre-filled.</span></div>
       <div class="step"><span class="step-num">2</span>
-        <span>Create your username and password.</span></div>
+        <span>Select the plan that fits your needs (Basic, Pro, or Enterprise).</span></div>
       <div class="step"><span class="step-num">3</span>
-        <span>Choose your plan and complete payment.</span></div>
+        <span>Create your username and password — just 4 fields, takes 30 seconds.</span></div>
       <div class="step"><span class="step-num">4</span>
-        <span>Your license activates immediately — log in and start using the platform.</span></div>
+        <span>Complete payment. Your license activates instantly — log in and start using the platform.</span></div>
     </div>
 
     <div class="note">

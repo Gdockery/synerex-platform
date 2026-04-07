@@ -13,6 +13,7 @@ export class User {
   public client: any;
   public clientName: String;
   public userLogo: String;
+  public orgId: String;
   public sponsorOrgId: String;
 
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -35,6 +36,7 @@ export class User {
       this.selectedProject = null;
       this.client = user.client;
       this.clientName = user.clientName;
+      this.orgId = user.orgId || '';
       this.sponsorOrgId = user.sponsorOrgId || '';
     }
   }

@@ -45973,6 +45973,12 @@ def login_user():
                         ls_canonical_username = _ls_data.get("username") or username
                         ls_email = _ls_data.get("email") or username
                         _roles = _ls_data.get("roles") or []
+                        # Block customer orgs — EM&V is for OEM and Synerex users only
+                        if ls_org_type == "customer":
+                            return jsonify({
+                                "status": "error",
+                                "error": "Access denied. The EM&V portal is not available for client accounts."
+                            }), 403
                         if "administrator" in _roles or "admin" in _roles or "oem_admin" in _roles:
                             ls_role = "administrator"
                         elif "engineer" in _roles or "oem_engineer" in _roles:

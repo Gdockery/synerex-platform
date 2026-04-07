@@ -8,7 +8,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
   template: `
     <div class="container-fluid">
       <h3 style="text-align:center; margin-bottom: 1.5em;">{{brandName}} Branding Settings</h3>
-      <p class="text-muted">Customize how your clients see your portal. Your logo and brand name will replace all Synerex references for your clients.</p>
+      <p class="text-muted">Customize how your clients see your portal. Your logo and brand name will appear throughout the client-facing portal instead of any platform defaults.</p>
       <hr/>
 
       <!-- Success/Error messages -->
@@ -84,7 +84,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
 
       <!-- Branding Fields -->
       <h4>Brand Details</h4>
-      <p class="text-muted">These details replace "Synerex" references throughout the portal for your clients.</p>
+      <p class="text-muted">These details replace platform defaults throughout the portal for your clients.</p>
 
       <div class="row">
         <div class="col-md-4">
@@ -164,9 +164,9 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
       <div class="alert alert-info" style="margin-top: 1em;">
         <span class="glyphicon glyphicon-envelope" style="margin-right: 0.5em;"></span>
         <strong>Email Delivery:</strong>
-        Invite and password-reset emails are sent automatically by Synerex using your
-        <strong>{{form.brand_name || 'brand name'}}</strong> and logo — your clients will only see your brand,
-        not Synerex, in any email they receive.
+        Invite and password-reset emails are sent automatically using your
+        <strong>{{form.brand_name || brandName}}</strong> branding and logo — your clients will only see your brand
+        in any email they receive.
       </div>
 
       <hr/>
@@ -186,7 +186,7 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
           <p class="text-muted" style="font-size:0.8em; margin-bottom:0.4em;">PDF cover page (dark image + color overlay):</p>
           <div style="background: #2a3a5c; padding: 0.75em 1.5em; border-radius: 6px; display: flex; align-items: center; gap: 1em; margin-bottom: 1em;">
             <img *ngIf="whiteLogoUrl" [src]="whiteLogoUrl + '?t=' + cacheBust" style="height:40px; max-width:160px;" alt="white logo"/>
-            <span *ngIf="!whiteLogoUrl" style="color:rgba(255,255,255,0.5); font-size:1em;">No white logo uploaded — default Synerex white logo will be used</span>
+            <span *ngIf="!whiteLogoUrl" style="color:rgba(255,255,255,0.5); font-size:1em;">No white logo uploaded yet</span>
           </div>
           <p class="text-muted" style="font-size:0.9em;">
             Clients logging in will see "<strong>{{form.brand_name || 'Your Brand'}}</strong>" throughout the portal.

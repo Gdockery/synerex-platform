@@ -34,6 +34,40 @@ def _is_user_logged_in(request: Request) -> bool:
         return False
 
 
+def _fetch_oem_branding(org_id: str) -> dict:
+    """Fetch OEM branding from the Tracking program. Returns a dict with
+    brand_name, brand_logo_url, primary_color, and oem_branding_configured."""
+    result = {
+        "brand_name": None,
+        "brand_logo_url": None,
+        "primary_color": "#667eea",
+        "oem_branding_configured": False,
+    }
+    if not org_id:
+        return result
+    try:
+        import urllib.request as _ur
+        import json as _json
+        _tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
+        with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org_id}", timeout=3) as _resp:
+            _d = _json.loads(_resp.read().decode())
+            if isinstance(_d, dict) and _d.get("brand_name"):
+                result["brand_name"] = _d.get("brand_name")
+                result["primary_color"] = _d.get("primary_color") or result["primary_color"]
+                result["oem_branding_configured"] = True
+                # logo_url is a relative path served by the Tracking program.
+                # Convert it to an absolute public URL so the browser can load it
+                # from the License Service pages (which are on a different path).
+                logo_url = _d.get("logo_url") or None
+                if logo_url and logo_url.startswith("/"):
+                    _public_base = (settings.website_url or "").rstrip("/")
+                    logo_url = f"{_public_base}/tracking{logo_url}"
+                result["brand_logo_url"] = logo_url
+    except Exception:
+        pass
+    return result
+
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 def oem_admin_page(request: Request, db: Session = Depends(db_session)):
@@ -67,17 +101,8 @@ def oem_admin_page(request: Request, db: Session = Depends(db_session)):
 
     # Check if OEM branding is configured in the Tracking program.
     # Clients must see the OEM's logo — not Synerex defaults — so we warn if unset.
-    oem_branding_configured = False
-    try:
-        import urllib.request as _ur
-        import json as _json
-        _tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
-        _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org_id}"
-        with _ur.urlopen(_branding_url, timeout=3) as _resp:
-            _bdata = _json.loads(_resp.read().decode())
-            oem_branding_configured = bool(_bdata.get("brand_name"))
-    except Exception:
-        pass
+    oem_branding = _fetch_oem_branding(org_id)
+    oem_branding_configured = oem_branding["oem_branding_configured"]
 
     message = request.query_params.get("message", "").replace("+", " ")
     message_type = request.query_params.get("message_type", "success")
@@ -93,6 +118,9 @@ def oem_admin_page(request: Request, db: Session = Depends(db_session)):
             "message": message,
             "message_type": message_type,
             "oem_branding_configured": oem_branding_configured,
+            "brand_logo_url": oem_branding["brand_logo_url"],
+            "brand_name": oem_branding["brand_name"] or org.org_name,
+            "primary_color": oem_branding["primary_color"],
         },
     )
 
@@ -160,6 +188,8 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
     message = request.query_params.get("message", "").replace("+", " ")
     message_type = request.query_params.get("message_type", "success")
 
+    oem_branding = _fetch_oem_branding(org_id)
+
     return templates.TemplateResponse(
         "oem_profile.html",
         {
@@ -168,6 +198,9 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
             "path_prefix": path_prefix,
             "message": message,
             "message_type": message_type,
+            "brand_logo_url": oem_branding["brand_logo_url"],
+            "brand_name": oem_branding["brand_name"] or org.org_name,
+            "primary_color": oem_branding["primary_color"],
         },
     )
 
@@ -452,6 +485,8 @@ def oem_users_page(request: Request, db: Session = Depends(db_session)):
     message = request.query_params.get("message", "").replace("+", " ")
     message_type = request.query_params.get("message_type", "success")
 
+    oem_branding = _fetch_oem_branding(org_id or "")
+
     return templates.TemplateResponse("oem_users.html", {
         "request": request,
         "oem_org": oem_org,
@@ -459,6 +494,9 @@ def oem_users_page(request: Request, db: Session = Depends(db_session)):
         "path_prefix": path_prefix,
         "message": message,
         "message_type": message_type,
+        "brand_logo_url": oem_branding["brand_logo_url"],
+        "brand_name": oem_branding["brand_name"] or (oem_org.org_name if oem_org else ""),
+        "primary_color": oem_branding["primary_color"],
     })
 
 
@@ -595,6 +633,8 @@ def oem_client_approvals_page(request: Request, db: Session = Depends(db_session
     message = request.query_params.get("message", "").replace("+", " ")
     message_type = request.query_params.get("message_type", "success")
 
+    oem_branding = _fetch_oem_branding(org_id or "")
+
     return templates.TemplateResponse("oem_client_approvals.html", {
         "request": request,
         "oem_org": oem_org,
@@ -604,6 +644,9 @@ def oem_client_approvals_page(request: Request, db: Session = Depends(db_session
         "path_prefix": path_prefix,
         "message": message,
         "message_type": message_type,
+        "brand_logo_url": oem_branding["brand_logo_url"],
+        "brand_name": oem_branding["brand_name"] or (oem_org.org_name if oem_org else ""),
+        "primary_color": oem_branding["primary_color"],
     })
 
 

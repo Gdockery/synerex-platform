@@ -16,6 +16,7 @@ export class ToolbarComponent implements OnInit{
   private project;
   public selectedClientId;
   public logoPath;
+  public logoFailed: boolean = false;
   public daysLeftInSub;
   public colorOfSub;
 

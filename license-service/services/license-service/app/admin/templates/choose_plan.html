@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Choose Your Plan — {{ brand_name or 'Synerex' }} Tracking Portal</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #4c1d95; min-height: 100vh; padding: 2rem 1rem; }
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 2.5rem; }
+    .logo-wrap { margin-bottom: 1.25rem; }
+    .logo-wrap img { height: 60px; max-width: 220px; }
+    .header h1 { color: #fff; font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .header p { color: rgba(255,255,255,.75); font-size: 1rem; }
+    .org-badge { display: inline-block; background: rgba(255,255,255,.15); color: #fff;
+                 padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.85rem; margin-top: 0.5rem; }
+    .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-bottom: 2rem; }
+    @media (max-width: 680px) { .plans-grid { grid-template-columns: 1fr; } }
+    .plan-card { background: #fff; border-radius: 12px; padding: 2rem 1.5rem; position: relative;
+                 box-shadow: 0 4px 20px rgba(0,0,0,.18); transition: transform .15s; }
+    .plan-card:hover { transform: translateY(-4px); }
+    .plan-card.popular { border: 3px solid var(--accent); }
+    .popular-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+                     background: var(--accent); color: #fff; font-size: 0.75rem; font-weight: 700;
+                     padding: 0.25rem 0.85rem; border-radius: 20px; white-space: nowrap; }
+    .plan-name { font-size: 1.1rem; font-weight: 700; color: #111827; margin-bottom: 0.35rem; }
+    .plan-desc { font-size: 0.85rem; color: #6b7280; margin-bottom: 1.25rem; }
+    .plan-price { font-size: 2.25rem; font-weight: 800; color: var(--accent); line-height: 1; margin-bottom: 0.25rem; }
+    .plan-price sup { font-size: 1rem; font-weight: 600; vertical-align: super; }
+    .plan-price span { font-size: 0.9rem; font-weight: 400; color: #9ca3af; }
+    .plan-seats { font-size: 0.8rem; color: #6b7280; margin-bottom: 1.5rem; }
+    .features { list-style: none; margin-bottom: 1.75rem; }
+    .features li { font-size: 0.875rem; color: #374151; padding: 0.35rem 0; display: flex; gap: 0.5rem; }
+    .features li::before { content: "✓"; color: #16a34a; font-weight: 700; flex-shrink: 0; }
+    .select-btn { display: block; width: 100%; padding: 0.85rem; background: var(--accent);
+                  color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+                  cursor: pointer; text-decoration: none; text-align: center; transition: opacity .15s; }
+    .select-btn:hover { opacity: 0.88; }
+    .footer-note { text-align: center; color: rgba(255,255,255,.6); font-size: 0.82rem; margin-top: 1.5rem; }
+  </style>
+  <style>:root { --accent: {{ primary_color or '#7c3aed' }}; }</style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="header">
+      <div class="logo-wrap">
+        {% if brand_logo_url %}
+        <img src="{{ brand_logo_url }}" alt="{{ brand_name }}"/>
+        {% else %}
+        <img src="/license/static/synerex_logo_white.png" alt="Synerex"/>
+        {% endif %}
+      </div>
+      <h1>Choose Your Subscription Plan</h1>
+      <p>Select the plan that best fits your organization's needs.</p>
+      {% if org_name %}
+      <span class="org-badge">&#127970; {{ org_name }}</span>
+      {% endif %}
+    </div>
+
+    <div class="plans-grid">
+
+      <!-- Basic -->
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-desc">Read Only Version</div>
+        <div class="plan-price"><sup>$</sup>495<span>/mo</span></div>
+        <div class="plan-seats">Up to 5 users included</div>
+        <ul class="features">
+          <li>Dashboard &amp; reporting access</li>
+          <li>Up to 5 user seats</li>
+          <li>Project overview &amp; status</li>
+          <li>Read-only equipment view</li>
+          <li>Email support</li>
+        </ul>
+        <a href="{{ signup_url }}&plan=basic" class="select-btn">Select Basic</a>
+      </div>
+
+      <!-- Pro (popular) -->
+      <div class="plan-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-desc">Equipment Scheduling</div>
+        <div class="plan-price"><sup>$</sup>950<span>/mo</span></div>
+        <div class="plan-seats">Up to 15 users included</div>
+        <ul class="features">
+          <li>Everything in Basic</li>
+          <li>Up to 15 user seats</li>
+          <li>Equipment scheduling</li>
+          <li>Work order management</li>
+          <li>Priority email support</li>
+        </ul>
+        <a href="{{ signup_url }}&plan=pro" class="select-btn">Select Pro</a>
+      </div>
+
+      <!-- Enterprise -->
+      <div class="plan-card">
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-desc">Full Scheduling / Reporting</div>
+        <div class="plan-price"><sup>$</sup>1,495<span>/mo</span></div>
+        <div class="plan-seats">Up to 25 users included</div>
+        <ul class="features">
+          <li>Everything in Pro</li>
+          <li>Up to 25 user seats</li>
+          <li>Advanced reporting &amp; export</li>
+          <li>Custom workflows</li>
+          <li>Dedicated support</li>
+        </ul>
+        <a href="{{ signup_url }}&plan=enterprise" class="select-btn">Select Enterprise</a>
+      </div>
+
+    </div>
+
+    <p class="footer-note">
+      All plans are billed annually. Additional seats available at $99/user/mo.
+      Questions? Contact <strong>{{ brand_name or 'your provider' }}</strong>.
+    </p>
+  </div>
+</body>
+</html>
