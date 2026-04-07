@@ -138,6 +138,7 @@ def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
     """Send account activation confirmation email to Client Admin after manual activation by Synerex Admin."""
     from ..models.org import Organization
     from ..models.user import User
+    from ..models.license import License
 
     org = db.get(Organization, org_id)
     if not org or not org.email:
@@ -146,10 +147,14 @@ def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
     client_user = db.query(User).filter(User.org_id == org_id).order_by(User.username).first()
     client_username = client_user.username if client_user else None
 
+    # Fetch license expiry date
+    license_rec = db.get(License, license_id) if license_id else None
+    expires_at = license_rec.expires_at if license_rec else None
+    expiry_str = expires_at.strftime("%B %d, %Y") if expires_at else None
+
     # Resolve OEM branding if org has a sponsor
     brand_name = "Synerex"
     portal_url = (settings.website_url or "http://localhost:8080").rstrip("/")
-    root_pfx = (settings.root_path or "").rstrip("/")
     login_url = f"{portal_url}/tracking/#/login"
     if org.sponsor_org_id:
         try:
@@ -170,6 +175,18 @@ def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
           <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1.25rem 1.5rem;margin:1.25rem 0;text-align:center;">
             <p style="margin:0 0 0.35rem 0;color:#166534;font-size:0.85rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Your Login Username</p>
             <p style="margin:0;color:#14532d;font-size:1.6rem;font-weight:800;font-family:monospace;">{client_username}</p>
+          </div>"""
+
+    expiry_block = ""
+    if expiry_str:
+        expiry_block = f"""
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:1rem 1.25rem;margin:1.25rem 0;">
+            <p style="margin:0;color:#92400e;font-size:0.875rem;">
+              <strong>&#128197; Subscription expires:</strong> {expiry_str}
+            </p>
+            <p style="margin:0.4rem 0 0;color:#b45309;font-size:0.8rem;">
+              You will receive renewal reminder emails before this date. Renewing takes just a few minutes through the portal.
+            </p>
           </div>"""
 
     body_html = f"""
@@ -196,9 +213,10 @@ def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
             <ul style="margin:0;padding-left:1.25rem;color:#4b5563;font-size:0.875rem;line-height:1.8;">
               <li>Full access to the Tracking dashboard</li>
               <li>Project and equipment management</li>
-              <li>12-month subscription term</li>
+              <li>Annual subscription — renews each year</li>
             </ul>
           </div>
+          {expiry_block}
           <p style="color:#9ca3af;font-size:0.8rem;margin-top:1.5rem;text-align:center;">
             License ID: <code style="background:#f3f4f6;padding:0.2rem 0.4rem;border-radius:4px;">{license_id}</code>
           </p>
