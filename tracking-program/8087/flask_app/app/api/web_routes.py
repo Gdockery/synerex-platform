@@ -151,6 +151,20 @@ def _user_to_dict(user):
                     d["sponsorOrgId"] = sponsor
         except Exception:
             pass
+    # JIT-provisioned client users: user.client is None but org_id is set directly on the user row
+    elif getattr(user, "role", None) in (1, 2, 3, 4, 5, 6, 7):
+        jit_org_id = getattr(user, "org_id", None)
+        if jit_org_id:
+            d["orgId"] = jit_org_id
+            try:
+                from app.models.client import Client as _Client
+                c = get_session().query(_Client).filter_by(org_id=jit_org_id).first()
+                if c:
+                    sponsor = getattr(c, "sponsor_org_id", None)
+                    if sponsor:
+                        d["sponsorOrgId"] = sponsor
+            except Exception:
+                pass
     return d
 
 
@@ -1748,9 +1762,25 @@ def agreement_page():
 @web_bp.route("/api/whitelabel/brand-name", methods=["GET"])
 def get_brand_name():
     """GET /api/whitelabel/brand-name - returns brand name for logged-in user's OEM org.
+    For OEM users: looks up their own org branding.
+    For Client users: looks up their sponsor OEM's branding via client.sponsor_org_id.
     Falls back to hostname-based whitelabel, then 'Synerex'."""
     from flask_login import current_user
-    # 1. Try org_id from session (set during SSO/login)
+    from app.models.oem_branding import OemBranding
+    from app.db.request_session import get_session as _gs
+    from app.models.client import Client as _Client
+
+    def _brand_name_for_org(oid):
+        """Return brand_name from OemBranding for the given org_id, or None."""
+        if not oid:
+            return None
+        try:
+            b = _gs().query(OemBranding).filter_by(org_id=oid).first()
+            return b.brand_name if b and b.brand_name else None
+        except Exception:
+            return None
+
+    # 1. Resolve the user's own org_id
     org_id = None
     if current_user and current_user.is_authenticated:
         org_id = session.get("orgId") or (session.get("user") or {}).get("orgId")
@@ -1758,22 +1788,30 @@ def get_brand_name():
             org_id = getattr(current_user, 'org_id', None)
         if not org_id and current_user.client:
             try:
-                from app.db.request_session import get_session as _gs
-                from app.models.client import Client as _Client
                 _c = _gs().query(_Client).get(current_user.client)
                 if _c:
                     org_id = getattr(_c, "org_id", None)
             except Exception:
                 pass
+
     if org_id:
+        # 2a. Direct OEM branding lookup (works for OEM users, role 9/10)
+        name = _brand_name_for_org(org_id)
+        if name:
+            return jsonify({"brandName": name, "response": name})
+
+        # 2b. Client user: find their sponsor OEM via the Client record matching org_id
         try:
-            from app.models.oem_branding import OemBranding
-            branding = get_session().query(OemBranding).filter_by(org_id=org_id).first()
-            if branding and branding.brand_name:
-                return jsonify({"brandName": branding.brand_name, "response": branding.brand_name})
+            _client_rec = _gs().query(_Client).filter_by(org_id=org_id).first()
+            if _client_rec:
+                sponsor_org_id = getattr(_client_rec, "sponsor_org_id", None)
+                name = _brand_name_for_org(sponsor_org_id)
+                if name:
+                    return jsonify({"brandName": name, "response": name})
         except Exception:
             pass
-    # 2. Fallback: hostname-based whitelabel file
+
+    # 3. Fallback: hostname-based whitelabel file
     hostname = request.host or ""
     base_path = Path(current_app.config.get("WHITELABEL_BASE_PATH", ""))
     if base_path.exists():

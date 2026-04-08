@@ -92,10 +92,31 @@ def access_program(
                     "program_id": program_id,
                     "program_name": program_id.upper(),
                     "error": f"Invalid or expired access token: {str(e)}",
-                    "license_id": license_id or ""
+                    "license_id": license_id or "",
+                    "path_prefix": (settings.root_path or "").rstrip("/"),
+                    "brand_logo_url": None,
+                    "brand_name": None,
                 }
             )
-    
+
+    # Resolve OEM branding via the license_id → org → sponsor_org
+    path_prefix = (settings.root_path or "").rstrip("/")
+    brand_logo_url = None
+    brand_name = None
+    if license_id:
+        try:
+            from ..routes.oem_admin import _fetch_oem_branding
+            lic_rec = db.get(License, license_id)
+            if lic_rec and lic_rec.org_id:
+                client_org = db.get(Organization, lic_rec.org_id)
+                sponsor_id = getattr(client_org, "sponsor_org_id", None) if client_org else None
+                if sponsor_id:
+                    branding = _fetch_oem_branding(sponsor_id)
+                    brand_logo_url = branding.get("brand_logo_url")
+                    brand_name = branding.get("brand_name")
+        except Exception:
+            pass
+
     # Show verification form
     return templates.TemplateResponse(
         "access_verify.html",
@@ -104,7 +125,10 @@ def access_program(
             "program_id": program_id,
             "program_name": program_id.upper(),
             "error": None,
-            "license_id": license_id or ""
+            "license_id": license_id or "",
+            "path_prefix": path_prefix,
+            "brand_logo_url": brand_logo_url,
+            "brand_name": brand_name,
         }
     )
 
@@ -120,77 +144,61 @@ def verify_and_redirect(
     """
     if program_id not in ("emv", "tracking"):
         raise HTTPException(400, "Invalid program. Must be 'emv' or 'tracking'")
-    
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+
+    # Resolve OEM branding for this license
+    _brand_logo_url = None
+    _brand_name = None
+    try:
+        from ..routes.oem_admin import _fetch_oem_branding
+        _lic_tmp = db.get(License, license_id)
+        if _lic_tmp and _lic_tmp.org_id:
+            _client_org = db.get(Organization, _lic_tmp.org_id)
+            _sponsor_id = getattr(_client_org, "sponsor_org_id", None) if _client_org else None
+            if _sponsor_id:
+                _b = _fetch_oem_branding(_sponsor_id)
+                _brand_logo_url = _b.get("brand_logo_url")
+                _brand_name = _b.get("brand_name")
+    except Exception:
+        pass
+
+    def _error_page(msg, status=400):
+        return templates.TemplateResponse(
+            "access_verify.html",
+            {
+                "request": request,
+                "program_id": program_id,
+                "program_name": program_id.upper(),
+                "error": msg,
+                "license_id": license_id,
+                "path_prefix": path_prefix,
+                "brand_logo_url": _brand_logo_url,
+                "brand_name": _brand_name,
+            },
+            status_code=status,
+        )
+
     # Get license
     license_rec = db.get(License, license_id)
     if not license_rec:
-        return templates.TemplateResponse(
-            "access_verify.html",
-            {
-                "request": request,
-                "program_id": program_id,
-                "program_name": program_id.upper(),
-                "error": "License not found. Please check your serial number.",
-                "license_id": license_id
-            },
-            status_code=404
-        )
-    
+        return _error_page("License not found. Please check your serial number.", 404)
+
     # Verify license is for correct program
     if license_rec.program_id != program_id:
-        return templates.TemplateResponse(
-            "access_verify.html",
-            {
-                "request": request,
-                "program_id": program_id,
-                "program_name": program_id.upper(),
-                "error": f"This license is for {license_rec.program_id.upper()}, not {program_id.upper()}.",
-                "license_id": license_id
-            },
-            status_code=400
-        )
-    
+        return _error_page(f"This license is for {license_rec.program_id.upper()}, not {program_id.upper()}.")
+
     # Check if license is valid
     if license_rec.revoked:
-        return templates.TemplateResponse(
-            "access_verify.html",
-            {
-                "request": request,
-                "program_id": program_id,
-                "program_name": program_id.upper(),
-                "error": "This license has been revoked.",
-                "license_id": license_id
-            },
-            status_code=403
-        )
-    
+        return _error_page("This license has been revoked.", 403)
+
     if license_rec.suspended:
-        return templates.TemplateResponse(
-            "access_verify.html",
-            {
-                "request": request,
-                "program_id": program_id,
-                "program_name": program_id.upper(),
-                "error": "This license is suspended.",
-                "license_id": license_id
-            },
-            status_code=403
-        )
-    
+        return _error_page("This license is suspended.", 403)
+
     # Verify authorization
     auth = db.get(ProgramAuthorization, license_rec.authorization_id)
     if not auth or auth.status != "active":
-        return templates.TemplateResponse(
-            "access_verify.html",
-            {
-                "request": request,
-                "program_id": program_id,
-                "program_name": program_id.upper(),
-                "error": "License authorization is not active.",
-                "license_id": license_id
-            },
-            status_code=403
-        )
+        return _error_page("License authorization is not active.", 403)
     
     # Get license JSON for roles/features
     try:
@@ -357,5 +365,33 @@ def check_session(request: Request, db: Session = Depends(db_session)):
         response["pe_license_number"] = org.pe_license_number
         response["pe_license_state"] = org.pe_license_state
         response["pe_linked_org_id"] = org.pe_linked_org_id
-    
+
+    # For customer orgs, include license status so the portal can show renewal prompt
+    if org.org_type == "customer":
+        try:
+            from ..models.license import License as _License
+            lic = (
+                db.query(_License)
+                .filter(
+                    _License.org_id == org.org_id,
+                    _License.program_id == "tracking",
+                    _License.revoked == False,
+                )
+                .order_by(_License.issued_at.desc())
+                .first()
+            )
+            if lic:
+                response["license_id"] = lic.license_id
+                response["license_expires_at"] = lic.expires_at.isoformat() if lic.expires_at else None
+                response["license_suspended"] = bool(lic.suspended)
+                response["license_active"] = not lic.suspended and not lic.revoked and (
+                    lic.expires_at is None or lic.expires_at > __import__("datetime").datetime.utcnow()
+                )
+            else:
+                response["license_id"] = None
+                response["license_active"] = False
+                response["license_suspended"] = False
+        except Exception:
+            pass
+
     return response

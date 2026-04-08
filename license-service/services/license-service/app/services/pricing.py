@@ -27,7 +27,7 @@ PRICING = {
         "basic": {
             "base_price": Decimal("495.00"),
             "per_seat": Decimal("99.00"),
-            "per_meter": Decimal("750.00"),
+            "per_meter": Decimal("799.00"),
             "annual": Decimal("495.00"),
             "included_seats": 5,
             "max_users": 5,
@@ -36,7 +36,7 @@ PRICING = {
         "pro": {
             "base_price": Decimal("950.00"),
             "per_seat": Decimal("99.00"),
-            "per_meter": Decimal("750.00"),
+            "per_meter": Decimal("799.00"),
             "annual": Decimal("950.00"),
             "included_seats": 15,
             "max_users": 15,
@@ -45,7 +45,7 @@ PRICING = {
         "enterprise": {
             "base_price": Decimal("1495.00"),
             "per_seat": Decimal("99.00"),
-            "per_meter": Decimal("750.00"),
+            "per_meter": Decimal("799.00"),
             "annual": Decimal("1495.00"),
             "included_seats": 25,
             "max_users": 25,

@@ -79,6 +79,9 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
                 import json as _json
                 _data = _json.loads(_resp.read().decode())
                 brand_logo_url = _data.get("logo_url") or None
+                if brand_logo_url and brand_logo_url.startswith("/"):
+                    _public_base = (settings.website_url or "").rstrip("/")
+                    brand_logo_url = f"{_public_base}/tracking{brand_logo_url}"
         except Exception:
             brand_logo_url = None
 
@@ -628,6 +631,8 @@ def get_user_jwt(request: Request, db: Session = Depends(db_session)):
             org_id=org_id,
             roles=user_roles,
             email=getattr(user, "email", None),
+            org_type=org_type,
+            user_role=getattr(user, "role", None),
         )
         request.session["user_token"] = token
     return {"token": token}
@@ -657,12 +662,7 @@ def verify_credentials(body: dict, db: Session = Depends(db_session)):
 
     org = db.get(Organization, user.org_id) if user.org_id else None
     org_type = org.org_type if org else None
-    # Derive a role string suitable for downstream services (EMV, Tracking)
-    # OEM orgs and the Synerex admin org are treated as administrators
-    if org_type in ("oem", "admin") or user.org_id == "admin":
-        derived_role = "administrator"
-    else:
-        derived_role = "user"
+    user_role = getattr(user, "role", None) or "user"
     return {
         "valid": True,
         "username": user.username,
@@ -670,8 +670,9 @@ def verify_credentials(body: dict, db: Session = Depends(db_session)):
         "org_id": user.org_id,
         "org_type": org_type,
         "org_name": org.org_name if org else None,
-        "role": derived_role,
-        "roles": [derived_role],
+        "role": user_role,
+        "user_role": user_role,
+        "roles": [org_type] if org_type else [user_role],
     }
 
 

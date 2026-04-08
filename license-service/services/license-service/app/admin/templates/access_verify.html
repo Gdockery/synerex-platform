@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8"/>
-    <title>Access {{ program_name }} Program - Synerex Platform</title>
+    <title>Access {{ program_name }} Program{% if brand_name %} - {{ brand_name }}{% else %} - Synerex Platform{% endif %}</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -110,7 +110,7 @@
   <body>
     <div class="container">
       <div class="logo-container">
-        <img src="/static/synerex_logo_color.png" alt="Synerex Logo"/>
+        {% if brand_logo_url %}<img src="{{ brand_logo_url }}" alt="{{ brand_name or 'Logo' }}"/>{% else %}<img src="/static/synerex_logo_color.png" alt="Synerex Logo"/>{% endif %}
       </div>
       
       <h1>Access {{ program_name }} Program</h1>
@@ -126,7 +126,7 @@
         <p style="margin: 8px 0 0 0;">Please enter the Software License Serial Number you received in your email receipt.</p>
       </div>
       
-      <form method="post" action="/access/{{ program_id }}/verify">
+      <form method="post" action="{{ path_prefix }}/access/{{ program_id }}/verify">
         <div class="form-group">
           <label for="license_id">License Serial Number</label>
           <input 
@@ -147,7 +147,7 @@
       </form>
       
       <div class="back-link">
-        <a href="/register">← Back to Registration</a>
+        <a href="{{ path_prefix }}/register">← Back to Registration</a>
       </div>
     </div>
   </body>

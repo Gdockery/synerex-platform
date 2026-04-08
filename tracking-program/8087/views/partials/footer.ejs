@@ -2,7 +2,7 @@
   <div class="container-fluid clearfix">
     <div style="float: left;" class="left">
       <% var brandName = sails.config.whitelabel.getBrandName(req.hostname || req.get('host') || ''); %>
-      <span class="copy">Copyright © 2020 to Present. <%= brandName %> Energy Corporation. All Rights Reserved. <%= brandName %>, <%= brandName %>480, <%= brandName %>600, <%= brandName %>RS, uBillTRACKER and uBill4CAST are Trademarks of <%= brandName %> Energy Corporation. All other trademarks are the property of their respective owners.</span>
+      <span class="copy">&copy;Copyright <%= new Date().getFullYear() %> to Present. Synerex Laboratories, LLC. All Rights Reserved. uBillTRACKER and uBill4CAST are Trademarks of Synerex Laboratories, LLC. All other trademarks are the property of their respective owners.</span>
       <a href="/terms">Terms of Use</a>
       <span class="divider">|</span>
       <a href="/agreement">Privacy Policy</a>

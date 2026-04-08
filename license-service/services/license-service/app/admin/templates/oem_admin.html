@@ -190,15 +190,14 @@
       btn.textContent = 'Sending…';
       document.getElementById('inviteStatus').textContent = '';
 
-      fetch('/api/orgs/' + _inviteOrgId + '/send-invitation', {
+      fetch('{{ path_prefix }}/api/orgs/' + _inviteOrgId + '/send-invitation', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({to_email: email})
       })
-      .then(function(r){ return r.json(); })
       .then(function(r){
-        // Parse regardless of status so we can show the error message
-        return r.json().then(function(data){ return {status: r.status, data: data}; });
+        var status = r.status;
+        return r.json().then(function(data){ return {status: status, data: data}; });
       })
       .then(function(result){
         btn.disabled = false;

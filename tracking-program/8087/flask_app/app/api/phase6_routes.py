@@ -744,11 +744,15 @@ def _get_oem_org_id_for_user(user):
 
 
 def _get_client_org_id_for_user(user):
-    """Return org_id of user's client for client roles (1, 2, 3, 7). None if no client or unset."""
-    if not user or not user.client:
+    """Return org_id for client roles (1, 2, 3, 7). Checks client record first, then user.org_id directly (JIT users)."""
+    if not user:
         return None
-    c = db.session.query(Client).get(user.client)
-    return getattr(c, "org_id", None) if c else None
+    if user.client:
+        c = db.session.query(Client).get(user.client)
+        org_id = getattr(c, "org_id", None) if c else None
+        if org_id:
+            return org_id
+    return getattr(user, "org_id", None) or None
 
 
 def _user_can_access_user(current_user_obj, target_user):
@@ -772,10 +776,11 @@ def _user_can_access_user(current_user_obj, target_user):
         my_org = _get_client_org_id_for_user(current_user_obj)
         if not my_org:
             return False
-        if not target_user.client:
-            return False
-        c = db.session.query(Client).get(target_user.client)
-        return c is not None and getattr(c, "org_id", None) == my_org
+        # Check target via client record, or via org_id directly (JIT-provisioned users)
+        if target_user.client:
+            c = db.session.query(Client).get(target_user.client)
+            return c is not None and getattr(c, "org_id", None) == my_org
+        return getattr(target_user, "org_id", None) == my_org
     return True
 
 
@@ -875,10 +880,13 @@ def list_users():
             )
         else:
             q = q.filter(User.id == -1)  # OEM without org_id: show no users
-    elif role in (1, 2, 3, 7) and user and user.client:
+    elif role in (1, 2, 3, 7):
         client_org_id = _get_client_org_id_for_user(user)
         if client_org_id:
-            q = q.join(Client, User.client == Client.id).filter(Client.org_id == client_org_id)
+            # Include users linked via client record OR via org_id directly (JIT-provisioned users)
+            q = q.outerjoin(Client, User.client == Client.id).filter(
+                or_(Client.org_id == client_org_id, User.org_id == client_org_id)
+            )
         else:
             q = q.filter(User.id == -1)  # Client without org_id: show no users
     if email:

@@ -142,21 +142,31 @@ def login():
         claims = verify_credentials(email, password, license_service_url=license_url) if license_url else None
         if not claims:
             return _login_fail()
-        # If no local Tracking user, auto-provision one for OEM/admin org types (just-in-time provisioning)
+        # If no local Tracking user, auto-provision one (just-in-time provisioning)
         if not user:
-            org_type = claims.get("org_type") or ""
-            if org_type in ("oem", "admin"):
+            org_type = claims.get("org_type") or (claims.get("roles") or [None])[0] or ""
+            license_role = claims.get("user_role") or claims.get("role") or ""
+            if org_type in ("oem", "admin", "customer"):
                 try:
                     org_name = claims.get("org_name") or email.split("@")[0]
-                    name_parts = org_name.split(" ", 1)
+                    name_parts = (claims.get("name") or org_name).split(" ", 1)
                     first = name_parts[0]
                     last = name_parts[1] if len(name_parts) > 1 else ""
+                    # Map License Service org_type/user_role to Tracking role number
+                    if org_type == "admin":
+                        tracking_role = 8
+                    elif org_type == "oem":
+                        tracking_role = 9 if license_role in ("oem_admin",) else 10
+                    elif license_role == "customer_admin":
+                        tracking_role = 2   # Client Admin
+                    else:
+                        tracking_role = 1   # Client User
                     new_user = User(
                         firstName=first,
                         lastName=last,
                         email=email,
                         hashedPassword=None,
-                        role=9,   # OEM Admin
+                        role=tracking_role,
                         isDeleted=False,
                         client=None,
                         org_id=claims.get("org_id"),
@@ -165,7 +175,10 @@ def login():
                     sess.commit()
                     sess.refresh(new_user)
                     user = new_user
-                    current_app.logger.info("JIT provisioned Tracking user for OEM %s (org_id=%s)", email, claims.get("org_id"))
+                    current_app.logger.info(
+                        "JIT provisioned Tracking user %s (org_type=%s, role=%s)",
+                        email, org_type, tracking_role
+                    )
                 except Exception as _jit_err:
                     sess.rollback()
                     current_app.logger.error("JIT provisioning failed for %s: %s", email, _jit_err)
@@ -372,8 +385,52 @@ def sso_login():
         sess.close()
     else:
         user = get_session().query(User).filter_by(email=email, isDeleted=False).first()
+
+    # JIT provisioning for users who exist in License Service but not in Tracking
     if not user:
-        return redirect(_login_url())
+        # org_type may be in the dedicated field or inside the roles list
+        org_type = claims.get("org_type") or (claims.get("roles") or [None])[0] or ""
+        license_role = claims.get("user_role") or claims.get("role") or ""
+        if org_type in ("oem", "admin", "customer"):
+            try:
+                org_name = claims.get("org_name") or email.split("@")[0]
+                name_parts = (claims.get("name") or org_name).split(" ", 1)
+                first = name_parts[0]
+                last = name_parts[1] if len(name_parts) > 1 else ""
+                # Map License Service org_type/user_role to Tracking role number
+                if org_type == "admin":
+                    tracking_role = 8
+                elif org_type == "oem":
+                    tracking_role = 9 if license_role in ("oem_admin",) else 10
+                elif license_role == "customer_admin":
+                    tracking_role = 2   # Client Admin
+                else:
+                    tracking_role = 1   # Client User
+                sess_w = get_session()
+                new_user = User(
+                    firstName=first,
+                    lastName=last,
+                    email=email,
+                    hashedPassword=None,
+                    role=tracking_role,
+                    isDeleted=False,
+                    client=None,
+                    org_id=org_id,
+                )
+                sess_w.add(new_user)
+                sess_w.commit()
+                sess_w.refresh(new_user)
+                user = new_user
+                current_app.logger.info(
+                    "SSO JIT provisioned Tracking user %s (org_type=%s, role=%s)",
+                    email, org_type, tracking_role
+                )
+            except Exception as _jit_err:
+                sess_w.rollback()
+                current_app.logger.error("SSO JIT provisioning failed for %s: %s", email, _jit_err)
+                return redirect(_login_url())
+        else:
+            return redirect(_login_url())
 
     login_user(user, remember=True)
     session["userId"] = user.id

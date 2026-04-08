@@ -475,7 +475,12 @@ export default function MyAccount() {
               <h3 className="font-semibold text-purple-200 mb-2">What You Can Do Here</h3>
               <ul className="space-y-2 text-sm">
                 <li>• View your license details and status</li>
-                <li>• Access your licensed programs (EM&V, etc.)</li>
+                {userInfo?.org_type !== "customer" && (
+                  <li>• Access your licensed programs (EM&amp;V, etc.)</li>
+                )}
+                {userInfo?.org_type === "customer" && (
+                  <li>• Access the Tracking Portal for your organization</li>
+                )}
                 <li>• Check license expiration dates</li>
                 <li>• Get support and contact information</li>
               </ul>
@@ -483,11 +488,15 @@ export default function MyAccount() {
             <div>
               <h3 className="font-semibold text-purple-200 mb-2">Quick Links</h3>
               <ul className="space-y-2 text-sm">
-                <li>• <a href="/emv-program" className="text-purple-200 hover:text-purple-200">Learn about EM&V Program</a></li>
-                <li>• <a href={`${TRACKING_URL}/login?role=user`} className="text-purple-200 hover:text-purple-200">Tracking User Portal</a></li>
+                {userInfo?.org_type !== "customer" && (
+                  <li>• <a href="/emv-program" className="text-purple-200 hover:text-purple-200">Learn about EM&amp;V Program</a></li>
+                )}
+                <li>• <a href={`${TRACKING_PROXY_URL}`} className="text-purple-200 hover:text-purple-200">Tracking Portal</a></li>
                 <li>• <a href="/downloads" className="text-purple-200 hover:text-purple-200">Download Resources</a></li>
                 <li>• <a href="/contact" className="text-purple-200 hover:text-purple-200">Contact Support</a></li>
-                <li>• <a href="/licensing" className="text-purple-200 hover:text-purple-200">License Information</a></li>
+                {userInfo?.org_type !== "customer" && (
+                  <li>• <a href="/licensing" className="text-purple-200 hover:text-purple-200">License Information</a></li>
+                )}
               </ul>
             </div>
           </div>
@@ -632,10 +641,56 @@ export default function MyAccount() {
         {/* Client Admin Portal - visible to customer_admin role users */}
         {userInfo && userInfo.role === "customer_admin" && (
           <div className="bg-gradient-to-r from-sky-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-sky-700/50">
-            <h2 className="text-2xl font-bold mb-4 text-sky-200">User Management</h2>
+            <h2 className="text-2xl font-bold mb-4 text-sky-200">Your Portal Access</h2>
             <p className="text-gray-300 mb-6">
-              As a Client Admin, you can add and manage users for your organization, and share your branded login link with them.
+              Access the Tracking program, manage your users, and update your account settings.
             </p>
+
+            {/* License expired / suspended banner */}
+            {userInfo.license_active === false && userInfo.license_id && (
+              <div className="bg-red-900/40 border border-red-600 rounded-lg p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex-1">
+                  <div className="font-semibold text-red-300">&#9888; Subscription Expired</div>
+                  <div className="text-sm text-red-200 mt-0.5">
+                    Your Tracking Program subscription has expired. Renew to restore access for your team.
+                    {userInfo.license_expires_at && (
+                      <span className="ml-1">Expired: {new Date(userInfo.license_expires_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={`${LICENSE_SERVICE_URL}/register/renew?org_id=${userInfo.org_id}`}
+                  className="shrink-0 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Renew Now &rarr;
+                </a>
+              </div>
+            )}
+
+            {/* No license yet banner */}
+            {userInfo.license_active === false && !userInfo.license_id && (
+              <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-4 mb-6">
+                <div className="font-semibold text-yellow-300">&#9203; Account Pending Activation</div>
+                <div className="text-sm text-yellow-200 mt-0.5">Your subscription is being set up. You will receive an email once access is ready. Contact your administrator if this takes longer than expected.</div>
+              </div>
+            )}
+
+            {/* Prominent Tracking Portal button */}
+            <a
+              href={userInfo.license_active !== false ? getAccessUrl("tracking") : "#"}
+              rel="noopener noreferrer"
+              className={`block p-6 rounded-lg text-center transition-colors border mb-6 ${
+                userInfo.license_active !== false
+                  ? "bg-green-700 hover:bg-green-600 border-green-500 cursor-pointer"
+                  : "bg-gray-700/50 border-gray-600 cursor-not-allowed opacity-60"
+              }`}
+              onClick={userInfo.license_active === false ? (e) => e.preventDefault() : undefined}
+            >
+              <div className="text-xl font-bold mb-1 text-white">Open Tracking Portal</div>
+              <div className={`text-sm ${userInfo.license_active !== false ? "text-green-200" : "text-gray-400"}`}>
+                {userInfo.license_active !== false ? "Equipment & Meter Tracking program" : "Subscription required to access"}
+              </div>
+            </a>
             <div className="grid md:grid-cols-2 gap-4">
               <a
                 href={`${LICENSE_SERVICE_URL}/auth/client-portal`}
@@ -651,6 +706,19 @@ export default function MyAccount() {
                 <div className="text-base font-bold mb-1 text-white">Change Password</div>
                 <div className="text-sm text-gray-400">Update your account password</div>
               </a>
+              {userInfo.license_id && userInfo.license_active !== false && (
+                <a
+                  href={`${LICENSE_SERVICE_URL}/register/renew?org_id=${userInfo.org_id}`}
+                  className="block p-4 bg-gray-800/70 hover:bg-gray-700/80 rounded-lg border border-gray-600 transition-colors"
+                >
+                  <div className="text-base font-bold mb-1 text-white">Renew Subscription</div>
+                  <div className="text-sm text-gray-400">
+                    {userInfo.license_expires_at
+                      ? `Expires ${new Date(userInfo.license_expires_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}`
+                      : "Manage your annual subscription"}
+                  </div>
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -702,8 +770,8 @@ export default function MyAccount() {
           </div>
         )}
         
-        {/* License Selection Section - always visible for non-OEM, non-admin users */}
-        {userInfo && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && (
+        {/* License Selection Section - visible for non-OEM, non-admin, non-customer users */}
+        {userInfo && userInfo.org_type !== "oem" && userInfo.user_type !== "admin" && userInfo.org_type !== "customer" && (
           <div id="license-plans" className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-xl p-8 mb-8 border border-purple-700/50">
             <h2 className="text-2xl font-bold mb-2 text-purple-200">
               {licenseData ? "Purchase or Upgrade a License" : "Select a License"}
@@ -902,7 +970,7 @@ export default function MyAccount() {
             {/* Access Button - show program-specific button based on license */}
             {licenseStatus?.valid && licenseData?.program?.program_id && (
               <div className="mt-6">
-                {licenseData.program.program_id === "emv" && (
+                {licenseData.program.program_id === "emv" && userInfo?.org_type !== "customer" && (
                   <a
                     href={getAccessUrl("emv")}
                     
@@ -910,7 +978,7 @@ export default function MyAccount() {
                     className="block p-6 bg-purple-500 hover:bg-purple-300 rounded-lg text-center transition-colors"
                   >
                     <div className="text-xl font-bold mb-2">Access EM&V Program</div>
-                    <div className="text-sm text-purple-500">Click to open the Energy Measurement & Verification program</div>
+                    <div className="text-sm text-purple-500">Click to open the Energy Measurement &amp; Verification program</div>
                   </a>
                 )}
                 {licenseData.program.program_id === "tracking" && (

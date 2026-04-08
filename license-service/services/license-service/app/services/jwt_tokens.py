@@ -52,6 +52,7 @@ def generate_user_token(
     email: Optional[str] = None,
     org_type: Optional[str] = None,
     roles: Optional[list] = None,
+    user_role: Optional[str] = None,
 ) -> str:
     """Generate a short-lived JWT for user SSO across services."""
     now = int(time.time())
@@ -61,6 +62,7 @@ def generate_user_token(
         "email": email,
         "org_type": org_type,
         "roles": roles or [],
+        "user_role": user_role,
         "typ": "user",
         "iat": now,
         "exp": now + JWT_USER_TTL_SECONDS,

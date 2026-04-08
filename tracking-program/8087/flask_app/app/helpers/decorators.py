@@ -38,6 +38,82 @@ def _license_cache_set(org_id, valid):
     _LICENSE_CACHE[f"license:{org_id}"] = (valid, time.time() + _LICENSE_CACHE_TTL)
 
 
+def _pending_activation_response(license_url):
+    """Return a friendly HTML page for client users whose account hasn't been activated yet."""
+    from flask import make_response
+    my_account_url = (license_url or "").rstrip("/").replace("/license", "") + "/my-account"
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Account Pending Activation</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }}
+    .card {{ background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 2.5rem; max-width: 480px; width: 100%; text-align: center; }}
+    .icon {{ font-size: 3rem; margin-bottom: 1rem; }}
+    h1 {{ font-size: 1.4rem; font-weight: 700; color: #1e3a5f; margin-bottom: 0.75rem; }}
+    p {{ color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1rem; }}
+    .btn {{ display: inline-block; padding: 0.6rem 1.5rem; background: #0369a1; color: white; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; }}
+    .btn:hover {{ background: #075985; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#9203;</div>
+    <h1>Your Account Is Being Set Up</h1>
+    <p>Your organization's Tracking Program subscription is pending activation by your administrator.</p>
+    <p>You will receive an email confirmation once your account is ready. If you believe this is an error, please contact your OEM partner or Synerex support.</p>
+    <a href="{my_account_url}" class="btn">Back to My Account</a>
+  </div>
+</body>
+</html>"""
+    resp = make_response(html, 403)
+    resp.headers["Content-Type"] = "text/html"
+    return resp
+
+
+def _license_expired_response(license_url, renewal_url=None):
+    """Return a friendly HTML page for client users whose license has expired."""
+    from flask import make_response
+    my_account_url = (license_url or "").rstrip("/").replace("/license", "") + "/my-account"
+    renew_link = f'<a href="{renewal_url}" class="btn">Renew Subscription</a>' if renewal_url else ""
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Subscription Expired</title>
+  <style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{ font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }}
+    .card {{ background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 2.5rem; max-width: 480px; width: 100%; text-align: center; }}
+    .icon {{ font-size: 3rem; margin-bottom: 1rem; }}
+    h1 {{ font-size: 1.4rem; font-weight: 700; color: #7f1d1d; margin-bottom: 0.75rem; }}
+    p {{ color: #64748b; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.25rem; }}
+    .btn {{ display: inline-block; padding: 0.6rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.9rem; margin: 0.25rem; }}
+    .btn:hover {{ background: #6d28d9; }}
+    .btn-sec {{ background: #e2e8f0; color: #374151; }}
+    .btn-sec:hover {{ background: #cbd5e0; }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#128197;</div>
+    <h1>Your Subscription Has Expired</h1>
+    <p>Your Tracking Program subscription has expired. Renew now to restore access for your team.</p>
+    {renew_link}
+    <br/>
+    <a href="{my_account_url}" class="btn btn-sec" style="margin-top:0.75rem;">Back to My Account</a>
+  </div>
+</body>
+</html>"""
+    resp = make_response(html, 403)
+    resp.headers["Content-Type"] = "text/html"
+    return resp
+
+
 def license_required(f):
     """
     Require valid license for route. Ported from api/policies/hasValidLicense.js.
@@ -81,7 +157,14 @@ def license_required(f):
             if org_id:
                 logger.debug("license_required: org_id=%s from session", org_id)
 
-        # Fall back: look up org_id from user's client record in DB
+        # Fall back to org_id stored directly on current_user (JIT-provisioned users have no client record)
+        if not org_id:
+            org_id = getattr(current_user, 'org_id', None)
+            if org_id:
+                session['orgId'] = org_id
+                logger.debug("license_required: org_id=%s from current_user.org_id", org_id)
+
+        # Fall back: look up org_id from user's client record in DB (or directly on user row)
         if not org_id and current_user.is_authenticated:
             try:
                 from app.db.request_session import get_session as _get_session
@@ -89,14 +172,17 @@ def license_required(f):
                 from app.models.user import User as _User
                 _sess = _get_session()
                 _user = _sess.query(_User).get(current_user.id)
-                if _user and _user.client:
-                    _client = _sess.query(Client).get(_user.client)
-                    if _client:
-                        org_id = getattr(_client, 'org_id', None)
-                        if org_id:
-                            session['orgId'] = org_id
-                            session.setdefault('user', {})['orgId'] = org_id
-                            logger.info("license_required: resolved org_id=%s from DB for user=%s", org_id, current_user.id)
+                if _user:
+                    # JIT users: org_id may be on the User row directly
+                    org_id = getattr(_user, 'org_id', None)
+                    if not org_id and _user.client:
+                        _client = _sess.query(Client).get(_user.client)
+                        if _client:
+                            org_id = getattr(_client, 'org_id', None)
+                    if org_id:
+                        session['orgId'] = org_id
+                        session.setdefault('user', {})['orgId'] = org_id
+                        logger.info("license_required: resolved org_id=%s from DB for user=%s", org_id, current_user.id)
             except Exception as _e:
                 logger.warning("license_required: DB org_id lookup failed: %s", _e)
 
@@ -109,9 +195,10 @@ def license_required(f):
                     "error": "No org_id",
                     "code": "LICENSE_REQUIRED",
                     "program_id": "tracking",
-                    "purchase_url": f"{license_url}/register/?program=tracking",
                     "message": "A valid Tracking Program license is required.",
                 }), 403
+            if role in (1, 2):
+                return _pending_activation_response(license_url)
             return redirect(f"{license_url}/register/?program=tracking")
 
         # Check license via License Service (with cache to reduce HTTP calls)
@@ -129,9 +216,10 @@ def license_required(f):
                     "error": reason,
                     "code": "LICENSE_REQUIRED",
                     "program_id": "tracking",
-                    "purchase_url": f"{license_url}/register/?program=tracking",
                     "message": "A valid Tracking Program license is required.",
                 }), 403
+            if role in (1, 2):
+                return _pending_activation_response(license_url)
             return redirect(f"{license_url}/register/?program=tracking")
 
         check_url = f"{license_url.rstrip('/')}/api/licenses/check?org_id={org_id}&program_id=tracking"
@@ -142,6 +230,7 @@ def license_required(f):
                     return f(*args, **kwargs)
                 body = json.loads(resp.read().decode())
                 valid = bool(body.get("valid"))
+                suspended = bool(body.get("suspended"))
                 _license_cache_set(org_id, valid)
                 if valid:
                     logger.debug("license_required: org_id=%s valid", org_id)
@@ -160,9 +249,12 @@ def license_required(f):
                 "error": reason,
                 "code": "LICENSE_REQUIRED",
                 "program_id": "tracking",
-                "purchase_url": f"{purchase_url_base}/register/?program=tracking",
                 "message": "A valid Tracking Program license is required.",
             }), 403
+        if role in (1, 2):
+            # Client users whose license expired get sent to the renewal page
+            renewal_url = f"{purchase_url_base}/register/renew?org_id={org_id}" if org_id else None
+            return _license_expired_response(purchase_url_base, renewal_url)
         return redirect(f"{purchase_url_base}/register/?program=tracking")
 
     return decorated

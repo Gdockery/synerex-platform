@@ -576,6 +576,13 @@ def oem_user_delete(
 
 # ── Client Approval Queue (OEM Admin) ─────────────────────────────────────────
 
+@router.get("/clients", response_class=HTMLResponse)
+def oem_clients_redirect(request: Request):
+    """Redirect /oem-admin/clients → /oem-admin/client-approvals (full client list)."""
+    pfx = (settings.root_path or "").rstrip("/")
+    return RedirectResponse(f"{pfx}/oem-admin/client-approvals", status_code=302)
+
+
 @router.get("/client-approvals", response_class=HTMLResponse)
 def oem_client_approvals_page(request: Request, db: Session = Depends(db_session)):
     """OEM Admin: list sponsored customer orgs awaiting approval after payment."""
