@@ -563,7 +563,13 @@ class MainDashboard {
         
         const _adminOrgType = localStorage.getItem('org_type') || '';
         const _adminOrgId   = localStorage.getItem('org_id') || '';
-        const _isOemUser = (_adminOrgType === 'oem' || _adminOrgId.toUpperCase().startsWith('OEM-'));
+        // Also check org_id stored on currentUser if available (avoids stale localStorage)
+        const _sessionOrgId = (this.currentUser && this.currentUser.org_id) ? this.currentUser.org_id : '';
+        const _isOemUser = (
+            _adminOrgType === 'oem' ||
+            _adminOrgId.toUpperCase().startsWith('OEM-') ||
+            _sessionOrgId.toUpperCase().startsWith('OEM-')
+        );
 
         if (this.currentUser && this.currentUser.role === 'administrator' && !_isOemUser) {
             // Create button if it doesn't exist

@@ -220,79 +220,132 @@ def send_org_invitation(
     body: SendInvitationRequest,
     db: Session = Depends(db_session),
 ):
-    """Send a client activation email for a pre-registered organisation.
+    """Send a welcome email to an activated client with their login link.
 
-    Builds a unique registration URL that pre-fills the signup form with the
-    org's existing details so the client does not create a duplicate record.
-    Logs a ``client_invitation`` notification regardless of email delivery.
+    The client's subscription has already been set up by the OEM (first-year cost
+    collected with equipment). This email simply tells them how to log in.
     """
     from ..config import settings as _settings
-    from ..services.email import send_client_invitation_email
-    from ..models.notification import Notification, NotificationStatus
+    from ..services.email import send_email
+    from ..models.user import User as _User
     import urllib.request as _ur
     import json as _json
-    from datetime import datetime as _dt
 
     org = db.get(Organization, org_id)
     if not org:
         raise HTTPException(404, "Organization not found")
 
-    # Build the invitation URL pointing to the plan-selection page (new OEM invite flow)
-    base_url = (_settings.website_url or "http://localhost:8000").rstrip("/")
-    root_pfx = (getattr(_settings, "root_path", None) or "").rstrip("/")
-    invite_url = (
-        f"{base_url}{root_pfx}/license/register/choose-plan"
-        f"?org_id={org.org_id}"
-        + (f"&sponsor_org_id={org.sponsor_org_id}" if org.sponsor_org_id else "")
-    )
+    # Build the login URL for the Tracking portal
+    base_url = (_settings.website_url or "http://localhost:8080").rstrip("/")
+    login_url = f"{base_url}/tracking/login"
 
-    # Resolve OEM branding from sponsor
-    oem_branding: dict = {}
-    oem_org_name = body.oem_org_name or "Synerex"
+    # Resolve OEM branding from sponsor (fall back to Synerex defaults gracefully)
+    brand_name = "Synerex"
+    primary_color = "#4c1d95"
+    logo_html = f'<div style="font-size:1.3em;font-weight:bold;color:#fff;text-align:center;padding:6px 0;">{brand_name}</div>'
     sponsor_id = org.sponsor_org_id
+    public_base = base_url
     if sponsor_id:
         try:
             tracking_url = (getattr(_settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
             with _ur.urlopen(f"{tracking_url}/api/whitelabel/oem-branding-by-org?org_id={sponsor_id}", timeout=3) as _resp:
                 _data = _json.loads(_resp.read())
                 if isinstance(_data, dict) and _data.get("brand_name"):
-                    oem_branding = _data
-                    if not body.oem_org_name:
-                        oem_org_name = _data.get("brand_name") or oem_org_name
+                    brand_name = _data["brand_name"]
+                    primary_color = _data.get("primary_color") or primary_color
+                    logo_url = _data.get("logo_url") or ""
+                    # Convert relative URL to absolute so it loads in email clients
+                    if logo_url and not logo_url.startswith("http"):
+                        logo_url = f"{public_base}/tracking{logo_url}"
+                    if logo_url:
+                        logo_html = f'<img src="{logo_url}" alt="{brand_name}" style="max-height:56px;max-width:200px;display:block;margin:0 auto;"/>'
+                    else:
+                        logo_html = f'<div style="font-size:1.3em;font-weight:bold;color:#fff;text-align:center;padding:6px 0;">{brand_name}</div>'
         except Exception:
             pass
 
-    # Guard: require OEM branding to be configured before sending invitations.
-    # Clients must never see the Synerex default — the OEM logo and brand name are mandatory.
-    if not oem_branding.get("brand_name"):
-        raise HTTPException(
-            400,
-            "OEM branding is not configured. Please set up your brand name and logo in "
-            "the OEM Profile page before sending client invitations."
-        )
+    # Find the client admin username
+    client_user = db.query(_User).filter(_User.org_id == org_id).order_by(_User.username).first()
+    username = client_user.username if client_user else body.to_email
 
-    sent = send_client_invitation_email(
+    subject = f"Welcome to {brand_name} — Your Portal is Ready"
+    html_body = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:30px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:{primary_color};padding:28px 32px;text-align:center;">
+            {logo_html}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px 40px;">
+            <p style="color:#444;font-size:1em;margin:0 0 12px 0;">Dear <strong>{org.org_name}</strong>,</p>
+            <h2 style="margin:0 0 16px 0;color:#222;">Your {brand_name} Portal is Ready</h2>
+            <p style="color:#444;line-height:1.6;margin:0 0 20px 0;">
+              Your Tracking Portal has been set up and is ready to use.
+              Log in below to get started.
+            </p>
+            <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:1rem 1.25rem;margin:0 0 20px 0;text-align:center;">
+              <p style="margin:0 0 4px 0;color:#166534;font-size:0.85rem;font-weight:600;">Your Login Email</p>
+              <p style="margin:0;color:#14532d;font-size:1.1rem;font-weight:700;font-family:monospace;">{username}</p>
+            </div>
+            <table cellpadding="0" cellspacing="0" style="margin:0 auto 16px auto;">
+              <tr>
+                <td style="background:{primary_color};border-radius:6px;padding:14px 32px;text-align:center;">
+                  <a href="{login_url}" style="color:white;text-decoration:none;font-size:1em;font-weight:bold;">
+                    Log In to {brand_name} &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="text-align:center;margin:0 0 24px 0;font-size:0.875rem;color:#6b7280;">
+              Manage your account at
+              <a href="{base_url}/my-account" style="color:{primary_color};text-decoration:none;font-weight:600;">My Account &rarr;</a>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f8f8f8;padding:16px 40px;text-align:center;border-top:1px solid #eee;color:#aaa;font-size:0.8em;">
+            &copy; {brand_name}. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+    text_body = (
+        f"Dear {org.org_name},\n\n"
+        f"Your {brand_name} Tracking Portal has been set up and is ready to use.\n\n"
+        f"Log in at: {login_url}\n"
+        f"Username: {username}\n\n"
+        f"Manage your account at: {base_url}/my-account\n\n"
+        f"— The {brand_name} Team"
+    )
+
+    sent = send_email(
         to_email=body.to_email,
-        client_org_name=org.org_name,
-        client_org_id=org.org_id,
-        oem_org_name=oem_org_name,
-        registration_url=invite_url,
-        sponsor_org_id=sponsor_id,
-        oem_branding=oem_branding,
+        subject=subject,
+        body_html=html_body,
+        body_text=text_body,
     )
 
     log_event(
         db,
         actor="oem",
-        action="org.invitation_sent",
+        action="org.welcome_email_sent",
         ref_id=org_id,
-        detail={"to_email": body.to_email, "sent": sent, "invite_url": invite_url},
+        detail={"to_email": body.to_email, "sent": sent},
     )
 
     return {
         "ok": True,
         "org_id": org_id,
         "to_email": body.to_email,
-        "invite_url": invite_url,
         "email_sent": sent,
     }

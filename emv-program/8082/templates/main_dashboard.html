@@ -64,6 +64,7 @@
             <div class="header-right">
                 <div class="header-buttons-left">
                     <a id="back-to-home-btn" class="btn-secondary" href="{{ website_url or "http://localhost:5173" }}/" aria-label="Back to previous page">Back to previous page</a>
+                    <a class="btn-secondary" href="{{ website_url or "" }}/my-account" aria-label="My Account">My Account</a>
 
                     <button id="help-btn" class="btn-help">Help</button>
                     <button id="users-guide-btn" class="btn-users-guide" onclick="window.location.href='{{ static_base or "" }}/users-guide'">User's Guide</button>

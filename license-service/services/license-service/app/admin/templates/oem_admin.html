@@ -56,7 +56,7 @@
   <div class="header">
     <h1>{{ oem_org.org_name }} — Partner Admin Panel</h1>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/register" class="btn btn-green">+ Register Customer</a>
+      <a href="/tracking/#/synerex-administrator/client/create" class="btn btn-green">+ Add New Customer</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/client-approvals" class="btn btn-secondary">Client Approvals</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/users" class="btn btn-secondary">OEM Users</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/profile" class="btn btn-secondary">My Profile</a>
@@ -118,17 +118,10 @@
             <div class="actions-row">
               <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ c.org_id }}/create-admin" class="btn btn-green btn-sm">Set Up Admin</a>
               <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/customers/{{ c.org_id }}/edit" class="btn btn-sm">Edit Info</a>
-              {% if oem_branding_configured %}
               <button class="btn btn-sm" style="background:#7c3aed;"
                 onclick="sendInvite('{{ c.org_id }}', '{{ c.org_name|replace("'", "\\'") }}', '{{ c.email or "" }}')">
-                &#9993; Send Invite
+                &#9993; Welcome Email
               </button>
-              {% else %}
-              <button class="btn btn-sm btn-disabled" disabled
-                title="Set up your OEM branding first before sending invitations">
-                &#9993; Send Invite
-              </button>
-              {% endif %}
             </div>
           </td>
         </tr>
@@ -136,7 +129,7 @@
       </tbody>
     </table>
     {% else %}
-    <div class="empty">No customers yet. <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/register">Register your first customer</a>.</div>
+    <div class="empty">No customers yet. <a href="/tracking/#/synerex-administrator/client/create">Add your first customer in the Tracking program</a>.</div>
     {% endif %}
   </div>
 
@@ -144,10 +137,9 @@
   <!-- Send Invitation Modal -->
   <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:10px;padding:2rem;max-width:440px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.18);">
-      <h3 style="margin-bottom:1rem;color:#5b21b6;">&#9993; Send Activation Invitation</h3>
+      <h3 style="margin-bottom:1rem;color:#5b21b6;">&#9993; Send Welcome Email</h3>
       <p style="font-size:0.9rem;color:#374151;margin-bottom:1rem;">
-        Send an email to <strong id="inviteOrgName"></strong> with a unique link to activate their subscription.
-        Their organization profile is already configured — they just need to set a password and choose a plan.
+        Send a welcome email to <strong id="inviteOrgName"></strong> with their login link and a reminder that their subscription renews through "My Account" after the first year.
       </p>
       <label style="display:block;font-size:0.85rem;font-weight:600;color:#4a5568;margin-bottom:0.3rem;">Recipient Email *</label>
       <input type="email" id="inviteEmail" placeholder="client@example.com"
@@ -157,7 +149,7 @@
         <button onclick="closeInviteModal()" style="padding:0.5rem 1.1rem;background:#e5e7eb;border:none;border-radius:5px;cursor:pointer;font-size:0.9rem;">Cancel</button>
         <button id="inviteSendBtn" onclick="submitInvite()"
           style="padding:0.5rem 1.25rem;background:#7c3aed;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:0.9rem;font-weight:600;">
-          Send Invitation
+          Send Welcome Email
         </button>
       </div>
     </div>
@@ -201,12 +193,12 @@
       })
       .then(function(result){
         btn.disabled = false;
-        btn.textContent = 'Send Invitation';
+        btn.textContent = 'Send Welcome Email';
         var data = result.data;
         if (result.status === 200 && data.ok) {
           document.getElementById('inviteStatus').innerHTML =
             '<span style="color:#166534;">&#10003; Invitation ' +
-            (data.email_sent ? 'sent to ' + email : 'logged (email not configured)') +
+            (data.email_sent ? 'Welcome email sent to ' + email : 'logged (email not configured)') +
             '</span>';
           setTimeout(closeInviteModal, 2000);
         } else if (result.status === 400 && data.detail) {
@@ -220,7 +212,7 @@
       })
       .catch(function(err){
         btn.disabled = false;
-        btn.textContent = 'Send Invitation';
+        btn.textContent = 'Send Welcome Email';
         document.getElementById('inviteStatus').innerHTML =
           '<span style="color:#b91c1c;">Network error. Please try again.</span>';
       });

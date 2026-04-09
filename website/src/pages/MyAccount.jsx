@@ -732,7 +732,7 @@ export default function MyAccount() {
             </p>
             <div className="grid md:grid-cols-2 gap-6">
               <a
-                href={getAccessUrl("emv")}
+                href="/emv/main-dashboard"
                 rel="noopener noreferrer"
                 className="block p-6 bg-purple-500 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-400"
               >
@@ -740,7 +740,7 @@ export default function MyAccount() {
                 <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
               </a>
               <a
-                href={getAccessUrl("tracking")}
+                href="/tracking/"
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >

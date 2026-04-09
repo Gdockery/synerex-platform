@@ -46012,11 +46012,12 @@ def login_user():
 
             # --- Step 4: JIT provisioning for OEM / License Service users ---
             if not user and ls_verified and ls_org_id:
-                # Also try looking up by the canonical username with the stored password hash
-                # (covers cases where SSO created the user with a random password)
+                # Also try looking up by the canonical username OR email with the stored password hash
+                # (covers cases where SSO created the user with a random password, or where the
+                # user's stored username differs from what they typed e.g. 'xecolegacy' vs 'greg.dockery@...')
                 cursor.execute(
-                    "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ?",
-                    (ls_canonical_username,),
+                    "SELECT id, full_name, email, username, role, pe_license_number, state FROM users WHERE username = ? OR email = ?",
+                    (ls_canonical_username, ls_email or username),
                 )
                 existing = cursor.fetchone()
                 if existing:
@@ -46084,10 +46085,10 @@ def login_user():
 
             cursor.execute(
                 f"""
-                INSERT INTO user_sessions (user_id, session_token, expires_at, created_at)
-                VALUES (?, ?, ?, {_sql_now()})
+                INSERT INTO user_sessions (user_id, org_id, session_token, expires_at, created_at)
+                VALUES (?, ?, ?, ?, {_sql_now()})
                 """,
-                (user[0], session_token, expires_at.isoformat()),
+                (user[0], effective_org_id, session_token, expires_at.isoformat()),
             )
             conn.commit()
 
