@@ -219,39 +219,27 @@ def client_login_submit(
         request.session["username"] = canonical_username
         request.session["org_id"] = user.org_id
 
-        # Generate user JWT for SSO (stored in session for now)
+        # Generate user JWT for SSO — single token with full context
+        session_token = str(uuid.uuid4())
+        request.session["session_token"] = session_token
         try:
             org = db.get(Organization, user.org_id)
             org_type = org.org_type if org else None
+            user_roles = [org_type] if org_type else []
             user_token = generate_user_token(
-                org_id=user.org_id,
                 username=canonical_username,
+                org_id=user.org_id,
+                roles=user_roles,
                 email=user.email,
-                roles=["user"],
+                org_type=org_type,
+                user_role=getattr(user, "role", None),
             )
             request.session["user_token"] = user_token
+            request.session["user_jwt"] = user_token
         except Exception:
             # Do not block login if token creation fails
             request.session["user_token"] = None
-        
-        # Generate session token for external use
-        session_token = str(uuid.uuid4())
-        request.session["session_token"] = session_token
-
-        # Generate SSO JWT for external services
-        user_roles = []
-        try:
-            org = db.get(Organization, user.org_id)
-            if org and org.org_type:
-                user_roles = [org.org_type]
-        except Exception:
-            user_roles = []
-        jwt_token = generate_user_token(
-            username=canonical_username,
-            org_id=user.org_id,
-            roles=user_roles
-        )
-        request.session["user_jwt"] = jwt_token
+            request.session["user_jwt"] = None
         
         if return_url:
             return_url = _normalize_return_url(return_url)
