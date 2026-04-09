@@ -95,7 +95,7 @@ export class ClientListComponent implements OnInit {
   constructor(private clientService: ClientService, private currentUserService: CurrentUserService, private whitelabelService: WhitelabelService, private http: HttpClient) {
     this.isAdmin = currentUserService.user.role === 8;
     const role = Number(currentUserService.user.role);
-    this.canManageClients = role === 7 || role === 8 || role === 9 || role === 10;
+    this.canManageClients = role === 2 || role === 7 || role === 8 || role === 9 || role === 10;
     this.canAddClient = role === 8 || role === 9 || role === 10;
     /** Only OEM Admin (9) and Synerex Admin (8) can send subscription invitations */
     this.canInviteClient = role === 8 || role === 9;
