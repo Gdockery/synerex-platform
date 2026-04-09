@@ -30,15 +30,15 @@ import {DeviceService} from "../../electricityMeters/devices/device.service";
       <p *ngIf="!userService.user.projects || userService.user.projects.length === 0" class="text-muted" style="margin-top: 8px;">
         No projects yet. Use <strong>New from bill</strong> to create one from an electric bill PDF, or <strong>Add new project</strong> to create manually.
       </p>
-        <a class="btn btn-default pull-right" style="margin-left: 8px" *ngIf="userService.user.role === 7 || userService.user.role === 8" [routerLink]="['/project/create-from-bill']">New from bill</a>
-        <a class="btn btn-primary pull-right" *ngIf="userService.user.role === 7 || userService.user.role === 8" [routerLink]="['/project/create']">Add new project</a>
+        <a class="btn btn-default pull-right" style="margin-left: 8px" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10" [routerLink]="['/project/create-from-bill']">New from bill</a>
+        <a class="btn btn-primary pull-right" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10" [routerLink]="['/project/create']">Add new project</a>
       </h3>
       <div class="col-md-2" *ngFor="let project of userService.user.projects;">
         <div class="box text-center" style="height: 200px;" [class.disabled]="isExpired(project)">
           <h3 style="padding-top: -10px"><strong>{{project.name}}</strong></h3>
           <img *ngIf="project.logoImgSrc" width="120px" height="45px" src="/images/client_company_logo/{{project.client}}-client-logo"><br>
           <div style="padding-top: 10px">
-            <a class="btn btn-sm btn-primary" *ngIf="userService.user.role === 8 || userService.user.role === 7" [routerLink]="['/project/edit', project.id]"><span class="button-icon ss-write"></span></a>&nbsp;
+            <a class="btn btn-sm btn-primary" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10" [routerLink]="['/project/edit', project.id]"><span class="button-icon ss-write"></span></a>&nbsp;
             <button class="default-button green-button" (click)="select(project)" [disabled]="isExpired(project)">Select</button>
           </div>
         </div>
@@ -74,6 +74,9 @@ export class ProjectSelectComponent implements OnInit {
         return;
       }
     }
+    // Always deselect the current project when landing on this page so the
+    // top-level navbar (Scan Bill, Clients, Projects, Users) is visible.
+    this.userService.deselectProject();
   }
 
   select(project) {

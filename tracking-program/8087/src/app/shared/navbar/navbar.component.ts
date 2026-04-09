@@ -18,7 +18,7 @@ export class NavbarComponent {
   public logoColorFallbackUrl: string = '';
   /** True when white logo failed but color logo is being tried. */
   public logoTryingColorFallback: boolean = false;
-  /** When true, apply invert filter (for Synerex white logo). Client/OEM logos use original colors. */
+  /** When true, apply invert filter to make logo white on dark sidebar (Synerex and OEM users). */
   public logoUseInvert: boolean;
   public myAccountUrl: string;
   /** Synerex website home URL - for "Back to" link. */
@@ -34,8 +34,10 @@ export class NavbarComponent {
     this.logoColorFallbackUrl = this.whitelabelService.getNavbarColorLogoUrl(user);
     const role = Number(user?.role);
     const clientId = user?.client && (typeof user.client === 'object' ? user.client.id : user.client);
-    // Invert (white logo) only for Synerex/fallback. Client and OEM logos use original colors.
-    this.logoUseInvert = !((role >= 2 && role <= 7 && clientId) || role === 9 || role === 10);
+    // Invert filter for Synerex logo and OEM logos (dark sidebar → white appearance).
+    // Client's own uploaded logos use original colors; the OEM fallback logo is inverted
+    // (handled dynamically in onLogoError via logoUseInvert reset).
+    this.logoUseInvert = !((role >= 2 && role <= 7 && clientId));
     const bootstrap = (typeof window !== 'undefined' && window['BOOTSTRAP_DATA']) || {};
     this.myAccountUrl = (bootstrap['myAccountUrl'] || '').replace(/\/$/, '');
     this.websiteHomeUrl = (bootstrap['websiteHomeUrl'] || '').replace(/\/$/, '');
@@ -48,11 +50,12 @@ export class NavbarComponent {
 
   onLogoError() {
     if (!this.logoTryingColorFallback && this.logoColorFallbackUrl) {
-      // White logo failed — try the color logo next
+      // Client logo failed — try OEM fallback logo; apply invert so it appears white
       this.logoTryingColorFallback = true;
       this.logoUrl = this.logoColorFallbackUrl;
+      this.logoUseInvert = true;
     } else {
-      // Color logo also failed (or no color fallback) — show text/Synerex fallback
+      // Fallback also failed (or no fallback) — show text/Synerex logo
       this.logoFailed = true;
     }
   }

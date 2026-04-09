@@ -160,6 +160,10 @@ services:
       - ./tracking-program/8087/.tmp:/app/8087/.tmp
       - ./tracking-program/8087/assets/images:/app/8087/.tmp/public/images:ro
       - ./tracking-program/8087/flask_app/app:/app/8087-flask/app:ro
+      # Persist uploaded logos (OEM, client, company) across container rebuilds
+      - ./tracking-program/8087/storage/oem_logo:/app/8087/assets/images/oem_logo
+      - ./tracking-program/8087/storage/client_company_logo:/app/8087/assets/images/client_company_logo
+      - ./tracking-program/8087/storage/company_logo:/app/8087/assets/images/company_logo
     ports:
       - "8087:8087"
     restart: unless-stopped

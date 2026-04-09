@@ -131,6 +131,11 @@ export class WhitelabelService {
       const orgId = (user.orgId || user.org_id || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
       if (orgId) return this.getImageUrl(`oem_logo/${orgId}`);
     }
+    // Client roles: fall back to the OEM's logo when the client has no logo uploaded
+    if (role >= 2 && role <= 7) {
+      const sponsorOrgId = ((user as any).sponsorOrgId || '').replace(/[^a-zA-Z0-9\-_]/g, '_');
+      if (sponsorOrgId) return this.getImageUrl(`oem_logo/${sponsorOrgId}_white`);
+    }
     return '';
   }
 

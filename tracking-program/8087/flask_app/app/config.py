@@ -130,7 +130,7 @@ class Config:
         WHITELABEL_DOMAIN_MAPPINGS = {}
     DEFAULT_BRANDING = os.environ.get("WHITELABEL_DEFAULT_BRANDING", "tracking")
     # App version for S3 static paths
-    APP_VERSION = os.environ.get("APP_VERSION", "1.0.4")
+    APP_VERSION = os.environ.get("APP_VERSION", "1.0.8")
 
     # PDF: Path to Node pdf-bridge.js for full PDF layouts. When set, Flask uses it for
     # billAnalytic, costSavings, lsPotential, co2Savings, partsProcurement, shippingDocuments, financeAgreement.

@@ -216,7 +216,12 @@ def _serve_spa():
         return redirect(_login_url())
     projects = []
     if user.role == 8:
+        # Synerex Admin sees all projects
         projs = sess.query(Project).filter_by(isDeleted=False).all()
+    elif user.role in (1, 2, 3, 4) and user.client:
+        # Client users: automatically see ALL projects under their client org
+        # (no manual junction-table assignment required — OEM creates project → client sees it)
+        projs = sess.query(Project).filter_by(client=user.client, isDeleted=False).all()
     else:
         proj_ids = sess.query(project_user.c.project_users).filter(
             project_user.c.user_projects == user.id
@@ -521,6 +526,32 @@ def favicon():
         if candidate.exists():
             return send_from_directory(str(candidate.parent), "favicon.ico")
     return Response(status=204)
+
+
+@web_bp.route("/api/whoami", methods=["GET"])
+def whoami():
+    """GET /api/whoami - diagnostic: show current session user and projects."""
+    from app.models.project import project_user as _pu
+    if not current_user.is_authenticated:
+        return jsonify({"authenticated": False, "message": "Not logged in to Tracking"})
+    sess = get_session()
+    u = sess.query(User).get(current_user.id)
+    if not u:
+        return jsonify({"authenticated": True, "flask_login_id": current_user.id, "error": "User not found in DB"})
+    proj_ids = sess.query(_pu.c.project_users).filter(_pu.c.user_projects == u.id).all()
+    proj_ids = [r[0] for r in proj_ids]
+    from app.models.project import Project as _P
+    projs = sess.query(_P).filter(_P.id.in_(proj_ids), _P.isDeleted == False).all()
+    return jsonify({
+        "authenticated": True,
+        "user_id": u.id,
+        "email": u.email,
+        "role": u.role,
+        "org_id": u.org_id,
+        "session_org_id": session.get("orgId"),
+        "session_user_role": session.get("userRole"),
+        "projects": [{"id": p.id, "name": p.name} for p in projs],
+    })
 
 
 @web_bp.route("/api/account", methods=["GET"])

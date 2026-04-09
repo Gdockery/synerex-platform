@@ -740,6 +740,9 @@ def _get_oem_org_id_for_user(user):
         oem_client = db.session.query(Client).get(user.client)
         if oem_client:
             org_id = getattr(oem_client, "org_id", None)
+    # Fall back to org_id stored directly on the user row (JIT-provisioned OEM users)
+    if not org_id:
+        org_id = getattr(user, "org_id", None)
     return org_id
 
 
@@ -875,8 +878,12 @@ def list_users():
     if role in (9, 10):
         oem_org_id = _get_oem_org_id_for_user(user)
         if oem_org_id:
-            q = q.join(Client, User.client == Client.id).filter(
-                or_(Client.org_id == oem_org_id, Client.sponsor_org_id == oem_org_id)
+            q = q.outerjoin(Client, User.client == Client.id).filter(
+                or_(
+                    Client.org_id == oem_org_id,
+                    Client.sponsor_org_id == oem_org_id,
+                    User.org_id == oem_org_id,  # OEM admins/users have no client FK
+                )
             )
         else:
             q = q.filter(User.id == -1)  # OEM without org_id: show no users
