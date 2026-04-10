@@ -30,7 +30,7 @@
         <span class="text">Scan Bill</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 2 || userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <!-- (only (A) Synerex Managers and (B) Synerex Administrators can see this choice) -->
       <a [routerLink]="['/synerex-administrator/client']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-building-o"></span>
@@ -100,12 +100,6 @@
     ║║║║ ║ ╠═╣║║║║  ╠═╝╠╦╝║ ║ ║║╣ ║   ║
     ╚╩╝╩ ╩ ╩ ╩╩╝╚╝  ╩  ╩╚═╚═╝╚╝╚═╝╚═╝ ╩ooo
     (displayed only when viewing the navbar within a particular project) -->
-    <li *ngIf="userService.user.selectedProject && (userService.user.role === 2 || userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/project/select']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-arrow-left"></span>
-        <span class="text">&#9664; Change Project</span>
-      </a>
-    </li>
     <li *ngIf="userService.user.selectedProject">
       <a [routerLink]="['/savings/energy-savings']" [routerLinkActive]="['router-link-active']">
         <span class="icon ss-banknote"></span>

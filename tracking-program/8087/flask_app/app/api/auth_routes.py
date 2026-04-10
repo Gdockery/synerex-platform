@@ -174,6 +174,23 @@ def login():
                     sess.add(new_user)
                     sess.commit()
                     sess.refresh(new_user)
+                    # For client roles (1, 2), resolve and set user.client from org_id
+                    if tracking_role in (1, 2) and new_user.org_id:
+                        try:
+                            from app.models.client import Client as _Client
+                            client_rec = sess.query(_Client).filter(
+                                _Client.org_id == new_user.org_id,
+                                _Client.isDeleted == False,
+                            ).first()
+                            if client_rec:
+                                new_user.client = client_rec.id
+                                sess.commit()
+                                current_app.logger.info(
+                                    "JIT: linked user %s to client id=%s (org_id=%s)",
+                                    email, client_rec.id, new_user.org_id,
+                                )
+                        except Exception as _ce:
+                            current_app.logger.warning("JIT client lookup failed for %s: %s", email, _ce)
                     user = new_user
                     current_app.logger.info(
                         "JIT provisioned Tracking user %s (org_type=%s, role=%s)",
@@ -193,6 +210,27 @@ def login():
                 current_app.logger.info("Backfilled org_id=%s for existing user %s", claims["org_id"], email)
             except Exception:
                 sess.rollback()
+
+        # For existing client users (role 1, 2) whose user.client was never set, resolve it now
+        if getattr(user, "role", None) in (1, 2) and not user.client:
+            _org_id = getattr(user, "org_id", None) or (claims.get("org_id") if claims else None)
+            if _org_id:
+                try:
+                    from app.models.client import Client as _Client
+                    _client_rec = sess.query(_Client).filter(
+                        _Client.org_id == _org_id,
+                        _Client.isDeleted == False,
+                    ).first()
+                    if _client_rec:
+                        user.client = _client_rec.id
+                        sess.commit()
+                        current_app.logger.info(
+                            "Backfilled client=%s for existing user %s (org_id=%s)",
+                            _client_rec.id, email, _org_id,
+                        )
+                except Exception as _bce:
+                    sess.rollback()
+                    current_app.logger.warning("Client backfill failed for %s: %s", email, _bce)
 
     login_user(user, remember=True)
     session["userId"] = user.id
@@ -269,6 +307,10 @@ def login():
     if _wants_json_response():
         return {"status": "success"}
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    # Admin-level roles (2, 8, 9, 10): redirect to /#/project/select so deselectProject()
+    # is called on init, clearing any stale localStorage project selection.
+    if getattr(user, "role", None) in (2, 8, 9, 10):
+        return redirect(f"{base}/#/project/select" if base else "/#/project/select")
     return redirect(request.args.get("next") or f"{base}/")
 
 
@@ -420,6 +462,23 @@ def sso_login():
                 sess_w.add(new_user)
                 sess_w.commit()
                 sess_w.refresh(new_user)
+                # For client roles (1, 2), resolve and set user.client from org_id
+                if tracking_role in (1, 2) and org_id:
+                    try:
+                        from app.models.client import Client as _Client
+                        _cr = sess_w.query(_Client).filter(
+                            _Client.org_id == org_id,
+                            _Client.isDeleted == False,
+                        ).first()
+                        if _cr:
+                            new_user.client = _cr.id
+                            sess_w.commit()
+                            current_app.logger.info(
+                                "SSO JIT: linked user %s to client id=%s (org_id=%s)",
+                                email, _cr.id, org_id,
+                            )
+                    except Exception as _ce:
+                        current_app.logger.warning("SSO JIT client lookup failed for %s: %s", email, _ce)
                 user = new_user
                 current_app.logger.info(
                     "SSO JIT provisioned Tracking user %s (org_type=%s, role=%s)",
@@ -431,6 +490,24 @@ def sso_login():
                 return redirect(_login_url())
         else:
             return redirect(_login_url())
+
+    # Backfill user.client for existing client users whose client was never set
+    if getattr(user, "role", None) in (1, 2) and not user.client and org_id:
+        try:
+            from app.models.client import Client as _Client
+            _cr = get_session().query(_Client).filter(
+                _Client.org_id == org_id,
+                _Client.isDeleted == False,
+            ).first()
+            if _cr:
+                user.client = _cr.id
+                get_session().commit()
+                current_app.logger.info(
+                    "SSO: backfilled client=%s for user %s (org_id=%s)",
+                    _cr.id, email, org_id,
+                )
+        except Exception as _bce:
+            current_app.logger.warning("SSO client backfill failed for %s: %s", email, _bce)
 
     login_user(user, remember=True)
     session["userId"] = user.id
