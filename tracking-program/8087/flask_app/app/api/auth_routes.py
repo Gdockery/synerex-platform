@@ -455,7 +455,7 @@ def sso_login():
     # For OEM Admin (9), OEM User (10), and Synerex Admin (8), redirect to /#/project/select
     # (hash-based routing) which calls deselectProject() on init — clears any stale
     # localStorage project selection so they land on the admin nav view, not a project view.
-    if user.role in (8, 9, 10):
+    if user.role in (2, 8, 9, 10):
         return redirect(f"{base}/#/project/select" if base else "/#/project/select")
     return redirect(f"{base}/" if base else "/")
 
