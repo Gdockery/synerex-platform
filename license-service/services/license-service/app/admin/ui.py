@@ -793,7 +793,7 @@ def orgs_create(
         "physical_cell": physical_cell.strip() if physical_cell else None,
     }
     if org_type == "oem":
-        org_data["approval_status"] = "approved"  # Admin-created OEMs are pre-approved
+        org_data["approval_status"] = "pending"  # All OEMs require explicit Synerex Admin approval
     if org_type == "pe" and pe_license_number:
         org_data["pe_license_number"] = pe_license_number.strip()
         org_data["pe_license_state"] = pe_license_state.strip().upper() if pe_license_state else None

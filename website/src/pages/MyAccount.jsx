@@ -427,7 +427,7 @@ export default function MyAccount() {
         <h1 className="text-4xl font-bold mb-4 text-center">My Account</h1>
         {userInfo && (
           <p className="text-xl text-gray-300 mb-2 text-center max-w-4xl mx-auto">
-            Welcome, {userInfo.username || userInfo.email}!
+            Welcome, {userInfo.org_name || userInfo.username || userInfo.email}!
           </p>
         )}
         <div className="flex justify-center gap-3 mb-6">
@@ -748,6 +748,7 @@ export default function MyAccount() {
                 <div className="text-sm text-green-200">Equipment & Meter Tracking</div>
               </a>
             </div>
+            {userInfo.role === "oem_admin" && (
             <div className="mt-6 pt-6 border-t border-purple-700/40">
               <h3 className="text-lg font-semibold text-purple-200 mb-3">Account Management</h3>
               <div className="grid md:grid-cols-2 gap-4">
@@ -767,6 +768,7 @@ export default function MyAccount() {
                 </a>
               </div>
             </div>
+            )}
           </div>
         )}
         
