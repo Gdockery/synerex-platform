@@ -8,7 +8,7 @@ import { HttpClient } from '@angular/common/http';
   template: `
     <div class="container-fluid">
       <div class="clearfix" style="margin-bottom: 1.5em; padding: 0.5em 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em; position: relative;">
-        <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">Manage {{brandName}}'s Clients</h3>
+        <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">{{ role === 2 ? 'Manage Client Profile' : 'Manage ' + brandName + '\'s Clients' }}</h3>
         <div style="flex-shrink: 0; position: absolute; right: 0; display:flex; gap:0.5em;">
           <button *ngIf="canInviteClient" class="btn btn-default" (click)="showInviteForm = !showInviteForm">
             <span class="glyphicon glyphicon-envelope"></span> Invite Client
@@ -83,6 +83,7 @@ export class ClientListComponent implements OnInit {
   /** Admin (8) or OEM Admin (9) only - can send subscription invitations */
   public canInviteClient: boolean = false;
   public brandName: string = 'Synerex';
+  public role: number;
 
   // Invite form state
   public showInviteForm: boolean = false;
@@ -95,6 +96,7 @@ export class ClientListComponent implements OnInit {
   constructor(private clientService: ClientService, private currentUserService: CurrentUserService, private whitelabelService: WhitelabelService, private http: HttpClient) {
     this.isAdmin = currentUserService.user.role === 8;
     const role = Number(currentUserService.user.role);
+    this.role = role;
     this.canManageClients = role === 2 || role === 7 || role === 8 || role === 9 || role === 10;
     this.canAddClient = role === 8 || role === 9 || role === 10;
     /** Only OEM Admin (9) and Synerex Admin (8) can send subscription invitations */
