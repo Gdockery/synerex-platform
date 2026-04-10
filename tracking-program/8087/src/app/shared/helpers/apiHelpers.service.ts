@@ -30,6 +30,10 @@ export class ApiHelpers {
     if(params.createdBy) {
       requestParams.createdBy = params.createdBy;
     }
+
+    if(params.sponsor_org_id) {
+      requestParams.sponsor_org_id = params.sponsor_org_id;
+    }
     
     return requestParams;
   }

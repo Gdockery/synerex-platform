@@ -3,12 +3,16 @@ import {ClientService} from "./client.service";
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 import {WhitelabelService} from '../../shared/services/whitelabel.service';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   template: `
     <div class="container-fluid">
       <div class="clearfix" style="margin-bottom: 1.5em; padding: 0.5em 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em; position: relative;">
-        <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">Manage {{brandName}}'s Clients</h3>
+        <h3 style="margin: 0; flex: 1 1 auto; text-align: center;">
+          <span *ngIf="!sponsorOrgId">Manage {{brandName}}'s Clients</span>
+          <span *ngIf="sponsorOrgId">Clients for OEM: <strong>{{sponsorOrgId}}</strong></span>
+        </h3>
         <div style="flex-shrink: 0; position: absolute; right: 0; display:flex; gap:0.5em;">
           <button *ngIf="canInviteClient" class="btn btn-default" (click)="showInviteForm = !showInviteForm">
             <span class="glyphicon glyphicon-envelope"></span> Invite Client
@@ -76,6 +80,7 @@ export class ClientListComponent implements OnInit {
   private recordCount;
   private perPage = 10;
   private isAdmin: boolean;
+  private sponsorOrgId: string = '';
   /** Admin (8), Account Manager (7), or OEM (9, 10) - can add, edit, view clients */
   public canManageClients: boolean;
   /** Admin (8) or OEM (9, 10) - can create new clients */
@@ -92,7 +97,7 @@ export class ClientListComponent implements OnInit {
   public inviteSuccess: boolean = false;
   public inviteError: string = '';
 
-  constructor(private clientService: ClientService, private currentUserService: CurrentUserService, private whitelabelService: WhitelabelService, private http: HttpClient) {
+  constructor(private clientService: ClientService, private currentUserService: CurrentUserService, private whitelabelService: WhitelabelService, private http: HttpClient, private route: ActivatedRoute) {
     this.isAdmin = currentUserService.user.role === 8;
     const role = Number(currentUserService.user.role);
     this.canManageClients = role === 2 || role === 7 || role === 8 || role === 9 || role === 10;
@@ -113,11 +118,19 @@ export class ClientListComponent implements OnInit {
         this.brandName = brandName;
       });
     }
+    // Read optional sponsor_org_id filter from query params (set by OEM list "View Clients" button)
+    this.route.queryParams.subscribe(qp => {
+      this.sponsorOrgId = qp['sponsor_org_id'] || '';
+      this.fetch({ first: 0, rows: this.perPage });
+    });
   }
 
   fetch(params) {
     if (!params || params.first == null || params.rows == null) {
       params = { first: 0, rows: this.perPage };
+    }
+    if (this.sponsorOrgId) {
+      params['sponsor_org_id'] = this.sponsorOrgId;
     }
     this.clientService.getPaginated(params).subscribe(responseData => {
       const meta = responseData && responseData.meta;

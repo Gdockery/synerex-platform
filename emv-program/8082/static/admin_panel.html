@@ -527,6 +527,19 @@
     </div>
     
     <script>
+        // Persist session token from URL into localStorage so returning to the dashboard stays authenticated.
+        (function() {
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var token = params.get('session_token');
+                if (token) {
+                    localStorage.setItem('session_token', token);
+                    sessionStorage.setItem('session_token', token);
+                    document.cookie = 'session_token=' + encodeURIComponent(token) + '; path=/; max-age=86400; SameSite=Lax';
+                }
+            } catch(e) {}
+        })();
+
         // Detect /emv/ proxy prefix so all API fetch calls use the correct base path.
         window.SYNEREX_EMV_BASE = (function() {
             var p = window.location.pathname;

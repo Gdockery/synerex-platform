@@ -1376,6 +1376,54 @@ def destroy_project(pid):
     return jsonify({"meta": {}, "response": {"id": pid}})
 
 
+@web_bp.route("/api/oems", methods=["GET"])
+@web_bp.route("/api/oems/", methods=["GET"])
+@login_required
+def list_oems():
+    """GET /api/oems - list all OEM organizations. Synerex Admin (role 8) only."""
+    user = current_user
+    if getattr(user, "role", None) != 8:
+        return jsonify({"error": "Forbidden"}), 403
+
+    license_url = current_app.config.get("LICENSE_SERVICE_URL", "http://license-service:8000")
+    try:
+        import urllib.request as _ur
+        import json as _json
+        req = _ur.urlopen(f"{license_url.rstrip('/')}/api/orgs/?org_type=oem", timeout=10)
+        ls_data = _json.loads(req.read().decode())
+        oem_orgs = ls_data.get("orgs", [])
+    except Exception as e:
+        current_app.logger.warning("Failed to fetch OEM orgs from License Service: %s", e)
+        oem_orgs = []
+
+    # Enrich with client counts and admin user info from the Tracking DB
+    sess = get_session()
+    result = []
+    for org in oem_orgs:
+        org_id = org.get("org_id", "")
+        # Count clients sponsored by this OEM
+        client_count = sess.query(Client).filter(
+            Client.sponsor_org_id == org_id,
+            Client.isDeleted == False,
+        ).count()
+        # Get OEM admin users (role 9) associated with this OEM org
+        oem_admins = sess.query(User).filter(
+            User.org_id == org_id,
+            User.role == 9,
+            User.isDeleted == False,
+        ).all()
+        admin_emails = [u.email for u in oem_admins]
+
+        result.append({
+            "org_id": org_id,
+            "org_name": org.get("org_name", ""),
+            "client_count": client_count,
+            "admin_emails": admin_emails,
+        })
+
+    return jsonify({"oems": result, "total": len(result)})
+
+
 @web_bp.route("/api/client", methods=["GET"])
 @web_bp.route("/api/client/", methods=["GET"])
 @login_required
@@ -1422,6 +1470,12 @@ def list_clients():
     elif role in (2, 3) and user and user.client:
         # Client Admin, Client Manager: only their own client (their organization)
         base = base.filter(Client.id == user.client)
+
+    # Synerex Admin (role 8): optional filter by OEM sponsor_org_id (used by OEM list "View Clients" button)
+    if role == 8:
+        sponsor_org_filter = request.args.get("sponsor_org_id", "").strip()
+        if sponsor_org_filter:
+            base = base.filter(Client.sponsor_org_id == sponsor_org_filter)
 
     name_filter = request.args.get("name", "").strip()
     if name_filter:

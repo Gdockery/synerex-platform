@@ -27,6 +27,7 @@ import {EnergySavingsService} from "../savings/energySavings.service";
 import {OemBrandingComponent} from "./branding/oem-branding.component";
 import {ManageSubscriptionComponent} from "./subscription/manage-subscription.component";
 import {CompanySettingsComponent} from "./company/company-settings.component";
+import {OemListComponent} from "./oem/list-oem.component";
 import {ApiHelpers} from "../shared/helpers/apiHelpers.service";
 import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
 
@@ -58,6 +59,7 @@ import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
     OemBrandingComponent,
     ManageSubscriptionComponent,
     CompanySettingsComponent,
+    OemListComponent,
   ],
   exports: [AdminComponent],
   providers: [

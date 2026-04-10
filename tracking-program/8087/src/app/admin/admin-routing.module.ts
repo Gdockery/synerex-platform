@@ -14,6 +14,7 @@ import {UserListComponent} from "./user/list-user.component";
 import {CreateUserComponent} from "./user/create-user.component";
 import {EditUserComponent} from "./user/edit-user.component";
 import {CompanySettingsComponent} from "./company/company-settings.component";
+import {OemListComponent} from "./oem/list-oem.component";
 
 @NgModule({
   imports: [
@@ -38,6 +39,7 @@ import {CompanySettingsComponent} from "./company/company-settings.component";
           { path: 'edit/:id', component: EditUserComponent, data: {title: 'Admin - Edit User'}},
           { path: '', redirectTo:'/synerex-administrator/user/list' , pathMatch: 'full'}
         ]},
+        { path: 'oem', component: OemListComponent, data: {title: 'OEM Partners'} },
         { path: 'advanced', component: AdvancedOptionsComponent },
         { path: 'branding', component: OemBrandingComponent, data: {title: 'Brand Settings'} },
         { path: 'subscription', component: ManageSubscriptionComponent, data: {title: 'Manage Subscription'} },

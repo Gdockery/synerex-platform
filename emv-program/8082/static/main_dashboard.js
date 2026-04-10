@@ -240,10 +240,19 @@ class MainDashboard {
         
         // CRITICAL: Refresh session token from localStorage (may have been set after constructor)
         this.sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+        // Fallback: read from cookie (set when navigating to admin panel)
+        if (!this.sessionToken) {
+            var cookieMatch = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+            if (cookieMatch) {
+                this.sessionToken = decodeURIComponent(cookieMatch[1]);
+                // Persist back to localStorage for future checks
+                localStorage.setItem('session_token', this.sessionToken);
+            }
+        }
         if (this.sessionToken) {
-            console.log('🔑 Session token found in storage, length:', this.sessionToken.length);
+            console.log('🔑 Session token found, length:', this.sessionToken.length);
         } else {
-            console.log('ℹ️ No session token found in storage');
+            console.log('ℹ️ No session token found in storage or cookie');
         }
         
         // CRITICAL: Clear spinners immediately before starting auth check
