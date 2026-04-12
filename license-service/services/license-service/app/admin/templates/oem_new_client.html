@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Add New Client — {{ oem_org.org_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #f5f7fa; color: #2c3e50; padding: 2rem; min-height: 100vh; }
+
+    .page-header {
+      background: linear-gradient(135deg, {{ primary_color }} 0%, #4f46e5 100%);
+      color: white; padding: 1.25rem 2rem; border-radius: 10px;
+      margin-bottom: 1.75rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    .page-header h1 { font-size: 1.25rem; font-weight: 700; }
+    .page-header a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; }
+    .page-header a:hover { color: white; text-decoration: underline; }
+
+    .logo-wrap { text-align: center; margin-bottom: 1.5rem; }
+    .logo-wrap img { height: 44px; max-width: 180px; }
+
+    .form-card {
+      background: white; border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.09);
+      max-width: 680px; margin: 0 auto; overflow: hidden;
+    }
+    .section-header {
+      background: #f8fafc; border-bottom: 1px solid #e2e8f0;
+      padding: 0.85rem 1.75rem; font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em; color: #718096;
+    }
+    .section-body { padding: 1.5rem 1.75rem; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .field-row.single { grid-template-columns: 1fr; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 0.35rem; }
+    .field label .req { color: #e53e3e; margin-left: 2px; }
+    .field input {
+      width: 100%; padding: 0.6rem 0.85rem;
+      border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.9rem; color: #2c3e50;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .field input:focus {
+      outline: none; border-color: {{ primary_color }};
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+    }
+    .field .hint { font-size: 0.75rem; color: #9ca3af; margin-top: 0.2rem; }
+
+    .divider { border: none; border-top: 1px solid #e2e8f0; margin: 0.25rem 0 1rem; }
+
+    .alert { padding: 0.85rem 1.1rem; border-radius: 6px; margin: 1.25rem 1.75rem; font-size: 0.9rem; font-weight: 500; }
+    .alert-success { background: #c6f6d5; color: #22543d; border: 1px solid #9ae6b4; }
+    .alert-error   { background: #fed7d7; color: #c53030; border: 1px solid #fc8181; }
+    .alert-info    { background: #bee3f8; color: #2a4a7f; border: 1px solid #90cdf4; }
+
+    .info-box {
+      background: #ede9fe; border: 1px solid #c4b5fd; border-radius: 8px;
+      padding: 1rem 1.25rem; margin: 0 1.75rem 1.25rem;
+      font-size: 0.87rem; color: #4c1d95; line-height: 1.5;
+    }
+    .info-box ul { padding-left: 1.25rem; margin-top: 0.4rem; }
+    .info-box ul li { margin-bottom: 0.2rem; }
+
+    .form-actions {
+      padding: 1.25rem 1.75rem; background: #f8fafc;
+      border-top: 1px solid #e2e8f0; display: flex; gap: 0.75rem; align-items: center;
+    }
+    .btn-submit {
+      padding: 0.65rem 1.75rem; background: {{ primary_color }}; color: white;
+      border: none; border-radius: 7px; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn-submit:hover { opacity: 0.88; }
+    .btn-cancel {
+      padding: 0.65rem 1.25rem; background: #e2e8f0; color: #4a5568;
+      border: none; border-radius: 7px; font-size: 0.9rem; cursor: pointer;
+      text-decoration: none; display: inline-block; font-weight: 500;
+    }
+    .btn-cancel:hover { background: #cbd5e0; }
+  </style>
+</head>
+<body>
+
+  {% if brand_logo_url %}
+  <div class="logo-wrap"><img src="{{ brand_logo_url }}" alt="{{ brand_name }}"/></div>
+  {% else %}
+  <div class="logo-wrap"><img src="{{ path_prefix }}/static/synerex_logo_color.png" alt="Synerex"/></div>
+  {% endif %}
+
+  <div class="page-header">
+    <h1>Add New Client — {{ oem_org.org_name }}</h1>
+    <a href="{{ path_prefix }}/oem-admin">← Back to Dashboard</a>
+  </div>
+
+  {% if message %}
+  <div class="alert alert-{{ message_type or 'success' }}">{{ message }}</div>
+  {% endif %}
+
+  <div class="form-card">
+
+    <div class="info-box">
+      <strong>How this works:</strong>
+      <ul>
+        <li>Fill in the client's company details and set up their Client Admin login below.</li>
+        <li>Once submitted, the client account will be <strong>pending</strong> — inactive until you approve it.</li>
+        <li>After Synerex confirms payment for the first year, go to <strong>Client Approvals</strong> and approve the account to activate their login.</li>
+        <li>The client will then receive a welcome email with their login link.</li>
+      </ul>
+    </div>
+
+    <form method="post" action="{{ path_prefix }}/oem-admin/clients/new" autocomplete="off">
+
+      <!-- ── Company Information ─────────────────────────── -->
+      <div class="section-header">Client Company Information</div>
+      <div class="section-body">
+        <div class="field-row single">
+          <div class="field">
+            <label for="org_name">Company / Organization Name <span class="req">*</span></label>
+            <input type="text" id="org_name" name="org_name" placeholder="Acme Industries, Inc." required/>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="email">Company Email <span class="req">*</span></label>
+            <input type="email" id="email" name="email" placeholder="info@acme.com" required/>
+          </div>
+          <div class="field">
+            <label for="contact_name">Primary Contact Name</label>
+            <input type="text" id="contact_name" name="contact_name" placeholder="Jane Smith"/>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="phone">Phone Number</label>
+            <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567"/>
+          </div>
+          <div class="field">
+            <label for="company_city">City</label>
+            <input type="text" id="company_city" name="company_city" placeholder="Chicago"/>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="company_state">State</label>
+            <input type="text" id="company_state" name="company_state" placeholder="IL" maxlength="50"/>
+          </div>
+          <div class="field">
+            <label for="company_zip">ZIP Code</label>
+            <input type="text" id="company_zip" name="company_zip" placeholder="60601" maxlength="20"/>
+          </div>
+        </div>
+        <div class="field-row single">
+          <div class="field">
+            <label for="company_address">Street Address</label>
+            <input type="text" id="company_address" name="company_address" placeholder="123 Main St, Suite 100"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Client Admin Credentials ────────────────────── -->
+      <div class="section-header">Client Admin Login Credentials</div>
+      <div class="section-body">
+        <p style="font-size:0.85rem;color:#718096;margin-bottom:1.1rem;">
+          This creates the <strong>Client Admin</strong> account for this company.
+          They will use these credentials to log in, manage their users, and renew their subscription.
+          Share the password with the client — they can change it after their first login.
+        </p>
+        <div class="field-row">
+          <div class="field">
+            <label for="admin_email">Admin Email (Login Username) <span class="req">*</span></label>
+            <input type="email" id="admin_email" name="admin_email" placeholder="admin@acme.com" required/>
+          </div>
+          <div class="field">
+            <label for="admin_password">Temporary Password <span class="req">*</span></label>
+            <input type="text" id="admin_password" name="admin_password"
+              placeholder="Set a temporary password" required minlength="6"/>
+            <div class="hint">Minimum 6 characters. Advise the client to change this on first login.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">&#10003; Create Client Account</button>
+        <a href="{{ path_prefix }}/oem-admin" class="btn-cancel">Cancel</a>
+      </div>
+
+    </form>
+  </div>
+
+</body>
+</html>

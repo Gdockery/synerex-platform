@@ -73,7 +73,10 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
     if oem_logo_org_id:
         try:
             import urllib.request as _ur
-            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            # Always use the Docker-internal service name for server-to-server calls.
+            # settings.tracking_program_url is the Tailscale/public URL which is not
+            # reachable from inside Docker containers.
+            _tracking_url = "http://tracking-program:8087"
             _branding_url = f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={oem_logo_org_id}"
             with _ur.urlopen(_branding_url, timeout=3) as _resp:
                 import json as _json

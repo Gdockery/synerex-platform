@@ -1908,6 +1908,20 @@ def authorization_issue_license(authorization_id: str, request: Request, _=Depen
     org = db.get(Organization, auth.org_id)
     if not org:
         return RedirectResponse(f"/admin/authorizations/{authorization_id}?tab=overview&message=Organization+not+found&message_type=error", status_code=303)
+
+    # Business rule: customer orgs are Tracking-only.
+    # EM&V is an OEM/engineer tool — the OEM runs analyses and pushes results to Tracking.
+    # Block issuing an EMV license to a customer org to prevent accidental misconfiguration.
+    if org.org_type == "customer" and auth.program_id == "emv":
+        log_event(db, actor="admin", action="warning.emv_license_blocked_for_customer",
+                  ref_id=authorization_id,
+                  detail={"org_id": org.org_id, "org_type": org.org_type, "program_id": auth.program_id})
+        return RedirectResponse(
+            f"/admin/authorizations/{authorization_id}?tab=overview"
+            "&message=Cannot+issue+EM%26V+license+to+a+Client+org.+Clients+use+Tracking+only."
+            "+EM%26V+is+an+OEM+%2F+engineer+tool.&message_type=error",
+            status_code=303,
+        )
     
     try:
         template = load_template(auth.program_id, auth.template_id)
@@ -2529,6 +2543,19 @@ def eft_verify_payment(
     if order.status == "paid":
         return RedirectResponse(
             _admin_url(f"orgs/{order.org_id}?tab=billing&msg=Order+already+paid"),
+            status_code=303,
+        )
+
+    # Business rule: customer orgs are Tracking-only.
+    _eft_org = db.get(Organization, order.org_id)
+    if _eft_org and _eft_org.org_type == "customer" and order.program_id == "emv":
+        log_event(db, actor="admin", action="warning.emv_order_blocked_for_customer",
+                  ref_id=order_id,
+                  detail={"org_id": order.org_id, "program_id": order.program_id})
+        return RedirectResponse(
+            _admin_url(f"orgs/{order.org_id}?tab=billing"
+                       "&msg=Cannot+verify+EM%26V+order+for+a+Client+org."
+                       "+Clients+use+Tracking+only.&message_type=error"),
             status_code=303,
         )
 

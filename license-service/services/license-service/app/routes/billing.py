@@ -10,6 +10,7 @@ from ..db import SessionLocal
 from ..models.billing import BillingOrder
 from ..models.authorization import ProgramAuthorization
 from ..models.license import License
+from ..models.org import Organization
 from ..audit.events import log_event
 from ..licensing.issuer import issue_license_record
 
@@ -388,6 +389,16 @@ def get_subscription_info(org_id: str, program_id: str = "tracking", db: Session
     from ..models.license import License
     from ..models.seats import SeatAssignment
     from ..services.pricing import PRICING
+
+    # Client orgs (customer) are Tracking-only.
+    # EM&V is an OEM/engineer tool — block any subscription lookup for EM&V on customer orgs.
+    org = db.get(Organization, org_id)
+    if org and org.org_type == "customer" and program_id != "tracking":
+        raise HTTPException(
+            403,
+            "Client accounts are licensed for the Tracking program only. "
+            "EM&V is an OEM/engineering tool."
+        )
 
     # Find the most recent paid order for this org
     order = (

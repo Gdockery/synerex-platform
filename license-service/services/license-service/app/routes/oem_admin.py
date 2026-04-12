@@ -48,7 +48,10 @@ def _fetch_oem_branding(org_id: str) -> dict:
     try:
         import urllib.request as _ur
         import json as _json
-        _tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
+        # Always use the Docker-internal service name for server-to-server calls.
+        # settings.tracking_program_url is the Tailscale/public URL which is not
+        # reachable from inside Docker containers.
+        _tracking_url = "http://tracking-program:8087"
         with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org_id}", timeout=3) as _resp:
             _d = _json.loads(_resp.read().decode())
             if isinstance(_d, dict) and _d.get("brand_name"):
@@ -540,6 +543,144 @@ def oem_user_create(
     db.commit()
 
     return RedirectResponse(f"{users_url}?message=OEM+User+{email}+created&message_type=success", status_code=303)
+
+
+@router.get("/clients/new", response_class=HTMLResponse)
+def oem_new_client_page(request: Request, db: Session = Depends(db_session)):
+    """OEM Admin: form to create a brand-new client org and its Client Admin in one step."""
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login?return_url={path_prefix}/oem-admin/clients/new", status_code=303)
+
+    org_id = request.session.get("org_id")
+    if not org_id:
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org = db.get(Organization, org_id)
+    if not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    oem_branding = _fetch_oem_branding(org_id)
+    message = request.query_params.get("message", "").replace("+", " ")
+    message_type = request.query_params.get("message_type", "success")
+
+    return templates.TemplateResponse("oem_new_client.html", {
+        "request": request,
+        "oem_org": oem_org,
+        "path_prefix": path_prefix,
+        "message": message,
+        "message_type": message_type,
+        "brand_logo_url": oem_branding["brand_logo_url"],
+        "brand_name": oem_branding["brand_name"] or oem_org.org_name,
+        "primary_color": oem_branding["primary_color"],
+    })
+
+
+@router.post("/clients/new", response_class=RedirectResponse)
+def oem_new_client_submit(
+    request: Request,
+    org_name: str = Form(...),
+    email: str = Form(...),
+    contact_name: str = Form(None),
+    phone: str = Form(None),
+    company_address: str = Form(None),
+    company_city: str = Form(None),
+    company_state: str = Form(None),
+    company_zip: str = Form(None),
+    admin_email: str = Form(...),
+    admin_password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Create a new customer org + Client Admin account in one step."""
+    new_url = f"{path_prefix}/oem-admin/clients/new"
+    approvals_url = f"{path_prefix}/oem-admin/client-approvals"
+
+    if not _is_user_logged_in(request):
+        return RedirectResponse(f"{path_prefix}/auth/login", status_code=303)
+
+    oem_org_id = request.session.get("org_id")
+    oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
+    if not oem_org or oem_org.org_type != "oem":
+        return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
+
+    # Basic validation
+    if len(admin_password) < 6:
+        return RedirectResponse(
+            f"{new_url}?message=Password+must+be+at+least+6+characters&message_type=error",
+            status_code=303,
+        )
+
+    # Check admin email uniqueness across all users
+    taken = db.query(User).filter(
+        (User.username == admin_email) | (User.email == admin_email)
+    ).first()
+    if taken:
+        return RedirectResponse(
+            f"{new_url}?message=Email+{admin_email}+is+already+in+use+by+another+account&message_type=error",
+            status_code=303,
+        )
+
+    # Generate org_id (reuse registration helper)
+    import re
+    clean = re.sub(r"[^a-zA-Z0-9\s-]", "", org_name)
+    clean = re.sub(r"\s+", "-", clean.strip()).upper()
+    base_id = f"CUSTOMER-{clean[:20]}"
+    org_id = base_id
+    counter = 1
+    while db.get(Organization, org_id):
+        org_id = f"{base_id}-{counter:03d}"
+        counter += 1
+
+    # Create the customer org
+    new_org = Organization(
+        org_id=org_id,
+        org_name=org_name.strip(),
+        org_type="customer",
+        email=email.strip() or None,
+        contact_name=contact_name.strip() if contact_name else None,
+        phone=phone.strip() if phone else None,
+        company_address=company_address.strip() if company_address else None,
+        company_city=company_city.strip() if company_city else None,
+        company_state=company_state.strip() if company_state else None,
+        company_zip=company_zip.strip() if company_zip else None,
+        sponsor_org_id=oem_org_id,
+        approval_status="pending",
+    )
+    db.add(new_org)
+    db.commit()
+
+    # Create the Client Admin user (inactive until OEM approves after payment)
+    hashed = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    new_admin = User(
+        username=admin_email,
+        email=admin_email,
+        password_hash=hashed,
+        org_id=org_id,
+        role="customer_admin",
+        is_active=False,
+    )
+    db.add(new_admin)
+    db.commit()
+
+    # Sync org to EMV and Tracking programs (best-effort, non-blocking)
+    try:
+        from ..services.org_sync import sync_org_to_programs
+        sync_org_to_programs(new_org)
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).warning("org_sync failed for %s: %s", org_id, _e)
+
+    # Audit log
+    try:
+        from ..audit.events import log_event
+        log_event(db, actor=oem_org_id, action="org.create_by_oem", ref_id=org_id,
+                  detail={"org_name": org_name, "admin_email": admin_email, "oem_org_id": oem_org_id})
+    except Exception:
+        pass
+
+    return RedirectResponse(
+        f"{approvals_url}?message=Client+{org_name}+created.+Approve+after+payment+is+confirmed.&message_type=success",
+        status_code=303,
+    )
 
 
 @router.post("/users/delete", response_class=RedirectResponse)

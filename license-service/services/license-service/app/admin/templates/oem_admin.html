@@ -55,8 +55,9 @@
 
   <div class="header">
     <h1>{{ oem_org.org_name }} — Partner Admin Panel</h1>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <a href="/tracking/#/synerex-administrator/client/create" class="btn btn-green">+ Add New Customer</a>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+      <a href="javascript:history.back()" class="btn btn-secondary" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.4);">&#8592; Back</a>
+      <a href="{{ path_prefix }}/oem-admin/clients/new" class="btn btn-green">+ Add New Client</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/client-approvals" class="btn btn-secondary">Client Approvals</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/users" class="btn btn-secondary">OEM Users</a>
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin/profile" class="btn btn-secondary">My Profile</a>
@@ -129,7 +130,7 @@
       </tbody>
     </table>
     {% else %}
-    <div class="empty">No customers yet. <a href="/tracking/#/synerex-administrator/client/create">Add your first customer in the Tracking program</a>.</div>
+    <div class="empty">No customers yet. <a href="{{ path_prefix }}/oem-admin/clients/new">Add your first client</a>.</div>
     {% endif %}
   </div>
 

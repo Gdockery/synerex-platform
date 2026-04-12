@@ -957,12 +957,12 @@ export default function MyAccount() {
                 <>
                   <div className="bg-gray-900 rounded-lg p-4">
                     <div className="text-sm text-gray-400 mb-1">Start Date</div>
-                    <div className="text-lg text-gray-100">{formatDate(licenseData.term.term_start)}</div>
+                    <div className="text-lg text-gray-100">{formatDate(licenseData.term.start)}</div>
                   </div>
                   
                   <div className="bg-gray-900 rounded-lg p-4">
                     <div className="text-sm text-gray-400 mb-1">Expiration Date</div>
-                    <div className="text-lg text-gray-100">{formatDate(licenseData.term.term_end)}</div>
+                    <div className="text-lg text-gray-100">{formatDate(licenseData.term.end)}</div>
                   </div>
                 </>
               )}
@@ -1058,8 +1058,8 @@ export default function MyAccount() {
                     </div>
 
                     {/* Cost preview */}
-                    {licenseData?.term?.term_end && (() => {
-                      const daysLeft = Math.max(1, Math.ceil((new Date(licenseData.term.term_end) - new Date()) / 86400000));
+                    {licenseData?.term?.end && (() => {
+                      const daysLeft = Math.max(1, Math.ceil((new Date(licenseData.term.end) - new Date()) / 86400000));
                       const prorated = ((99 * addSeatsQty * daysLeft) / 365).toFixed(2);
                       return (
                         <div className="mb-4 p-3 bg-gray-700/60 rounded-lg text-sm">

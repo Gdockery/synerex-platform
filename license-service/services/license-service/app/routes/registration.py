@@ -1356,6 +1356,15 @@ def upgrade_plan_api(
     if not org:
         raise HTTPException(404, "Organization not found")
 
+    # Client orgs (customer) are Tracking-only.
+    # EM&V is an OEM/engineer tool used to establish the baseline that feeds into Tracking.
+    if org.org_type == "customer" and program_id != "tracking":
+        raise HTTPException(
+            403,
+            "Client accounts are licensed for the Tracking program only. "
+            "EM&V is an OEM/engineering tool and cannot be purchased by clients."
+        )
+
     # Calculate price for new plan — seat_count defaults to included_seats for the plan
     from ..services.pricing import PRICING as _PRICING
     included_seats = int(_PRICING.get(program_id, {}).get(new_plan, {}).get("included_seats", 0))

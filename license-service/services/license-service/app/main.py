@@ -77,6 +77,7 @@ from .routes.webhooks import router as webhooks_router
 from .routes.analytics import router as analytics_router
 from .routes.exports import router as exports_router
 from .routes.access import router as access_router
+from .routes.client_renewal import router as client_renewal_router
 from .admin.ui import router as admin_router
 
 app = FastAPI(title="License Service", docs_url=None)  # Custom /docs with root_path support
@@ -146,6 +147,7 @@ app.include_router(webhooks_router)
 app.include_router(analytics_router)
 app.include_router(exports_router)
 app.include_router(access_router)
+app.include_router(client_renewal_router)
 
 # Auth endpoint for website MyAccount page
 @app.get("/auth/api/check-session")
