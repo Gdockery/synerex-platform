@@ -13,7 +13,11 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     role: Mapped[str | None] = mapped_column(String(64), nullable=True)  # customer_admin | customer_viewer | oem_admin | oem_user | None
-    
+
+    # Password reset
+    reset_token: Mapped[str | None] = mapped_column(String(128), nullable=True, default=None)
+    reset_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+
     # Relationship
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
     

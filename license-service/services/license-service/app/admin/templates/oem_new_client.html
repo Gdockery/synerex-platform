@@ -103,10 +103,10 @@
     <div class="info-box">
       <strong>How this works:</strong>
       <ul>
-        <li>Fill in the client's company details and set up their Client Admin login below.</li>
-        <li>Once submitted, the client account will be <strong>pending</strong> — inactive until you approve it.</li>
-        <li>After Synerex confirms payment for the first year, go to <strong>Client Approvals</strong> and approve the account to activate their login.</li>
-        <li>The client will then receive a welcome email with their login link.</li>
+        <li>Fill in the client's company details and enter their Client Admin email below.</li>
+        <li>A secure <strong>set-password link</strong> is automatically emailed to the client so they can choose their own password (valid 72 hrs).</li>
+        <li>Once submitted, the account is <strong>pending</strong> — inactive until you approve it after payment is confirmed.</li>
+        <li>Go to <strong>Client Approvals</strong> to activate their login; the client will then receive a welcome email.</li>
       </ul>
     </div>
 
@@ -164,19 +164,15 @@
       <div class="section-body">
         <p style="font-size:0.85rem;color:#718096;margin-bottom:1.1rem;">
           This creates the <strong>Client Admin</strong> account for this company.
-          They will use these credentials to log in, manage their users, and renew their subscription.
-          Share the password with the client — they can change it after their first login.
+          A secure <strong>set-password link</strong> will be automatically emailed to the client —
+          they click the link to choose their own password before their first login.
+          The link is valid for <strong>72 hours</strong>.
         </p>
         <div class="field-row">
           <div class="field">
             <label for="admin_email">Admin Email (Login Username) <span class="req">*</span></label>
             <input type="email" id="admin_email" name="admin_email" placeholder="admin@acme.com" required/>
-          </div>
-          <div class="field">
-            <label for="admin_password">Temporary Password <span class="req">*</span></label>
-            <input type="text" id="admin_password" name="admin_password"
-              placeholder="Set a temporary password" required minlength="6"/>
-            <div class="hint">Minimum 6 characters. Advise the client to change this on first login.</div>
+            <div class="hint">A set-password email will be sent to this address automatically.</div>
           </div>
         </div>
       </div>

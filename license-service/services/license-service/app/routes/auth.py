@@ -1,6 +1,7 @@
 from __future__ import annotations
 import uuid
 import bcrypt
+from datetime import datetime
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -103,6 +104,8 @@ def client_login_page(request: Request, db: Session = Depends(db_session)):
     """Display client login page."""
     return_url = request.query_params.get("return_url", "")
     error = request.query_params.get("error", "")
+    message = request.query_params.get("message", "")
+    message_type = request.query_params.get("message_type", "info")
     branding = _resolve_login_branding(request, db)
 
     # Build login action URL preserving oem/client params
@@ -117,6 +120,8 @@ def client_login_page(request: Request, db: Session = Depends(db_session)):
     ctx = {
         "request": request,
         "error": error if error else None,
+        "message": message if message else None,
+        "message_type": message_type,
         "return_url": return_url,
         "login_action": login_action,
         "register_href": _path("/register/"),
@@ -735,3 +740,222 @@ def validate_jwt(body: dict, db: Session = Depends(db_session)):
         return {"valid": True, "claims": claims}
     except ValueError as e:
         raise HTTPException(401, str(e))
+
+
+# ── Forgot Password / Reset Password ─────────────────────────────────────────
+
+def _build_reset_url(token: str) -> str:
+    base = (settings.website_url or "http://localhost:8080").rstrip("/")
+    pfx = (settings.root_path or "").rstrip("/")
+    return f"{base}{pfx}/auth/reset-password?token={token}"
+
+
+@router.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_page(request: Request, message: str = "", message_type: str = ""):
+    """Display forgot-password form."""
+    path_prefix = (settings.root_path or "").rstrip("/")
+    msg_html = ""
+    if message:
+        color = "#166534" if message_type != "error" else "#991b1b"
+        bg = "#f0fdf4" if message_type != "error" else "#fef2f2"
+        border = "#86efac" if message_type != "error" else "#fca5a5"
+        msg_html = (
+            f'<div style="background:{bg};border:1px solid {border};border-radius:8px;'
+            f'padding:12px 16px;margin-bottom:1.25rem;color:{color};font-size:0.9rem;">'
+            f'{message}</div>'
+        )
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Forgot Password</title>
+  <style>
+    *{{margin:0;padding:0;box-sizing:border-box;}}
+    body{{font-family:system-ui,sans-serif;background:#f5f7fa;color:#2c3e50;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}}
+    .card{{background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.1);padding:2.5rem;width:100%;max-width:420px;}}
+    h2{{font-size:1.4rem;margin-bottom:0.5rem;}}
+    p.sub{{color:#6b7280;font-size:0.9rem;margin-bottom:1.5rem;}}
+    label{{display:block;font-weight:600;font-size:0.875rem;margin-bottom:0.4rem;}}
+    input{{width:100%;padding:0.6rem 0.8rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;margin-bottom:1.25rem;}}
+    input:focus{{outline:none;border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.15);}}
+    .btn{{width:100%;padding:0.7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:600;cursor:pointer;}}
+    .btn:hover{{background:#6d28d9;}}
+    .back{{display:block;text-align:center;margin-top:1.25rem;font-size:0.875rem;color:#6b7280;}}
+    .back a{{color:#7c3aed;text-decoration:none;}}
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>&#128274; Forgot Password</h2>
+  <p class="sub">Enter your email address and we'll send you a link to reset your password.</p>
+  {msg_html}
+  <form method="post" action="{path_prefix}/auth/forgot-password">
+    <label for="email">Email Address</label>
+    <input type="email" id="email" name="email" required placeholder="you@example.com" autocomplete="email"/>
+    <button type="submit" class="btn">Send Reset Link</button>
+  </form>
+  <span class="back"><a href="{path_prefix}/auth/login">&#8592; Back to Login</a></span>
+</div>
+</body>
+</html>""")
+
+
+@router.post("/forgot-password", response_class=RedirectResponse)
+def forgot_password_submit(
+    request: Request,
+    email: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Generate a reset token, store it, and send the reset email."""
+    import secrets
+    from datetime import timedelta
+    from ..models.user import User as _User
+    from ..models.org import Organization as _Org
+    from ..services.email import send_password_reset_email as _send_reset
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+    success_url = (
+        f"{path_prefix}/auth/forgot-password"
+        "?message=If+that+email+is+registered+you+will+receive+a+reset+link+shortly."
+        "&message_type=success"
+    )
+
+    # Always redirect to success message — never reveal if email exists
+    user = db.query(_User).filter(_User.email == email.strip().lower()).first()
+    if user and user.is_active:
+        token = secrets.token_urlsafe(48)
+        user.reset_token = token
+        user.reset_token_expires_at = datetime.utcnow() + timedelta(hours=1)
+        db.commit()
+
+        # Resolve OEM branding for the email
+        brand_name = "Synerex"
+        primary_color = "#7c3aed"
+        try:
+            org = db.get(_Org, user.org_id)
+            if org and org.sponsor_org_id:
+                import urllib.request as _ur, json as _json
+                with _ur.urlopen(
+                    f"http://tracking-program:8087/api/whitelabel/oem-branding-by-org"
+                    f"?org_id={org.sponsor_org_id}", timeout=2
+                ) as _r:
+                    _d = _json.loads(_r.read().decode())
+                    brand_name = _d.get("brand_name") or brand_name
+                    primary_color = _d.get("primary_color") or primary_color
+        except Exception:
+            pass
+
+        _send_reset(
+            to_email=user.email,
+            reset_url=_build_reset_url(token),
+            brand_name=brand_name,
+            primary_color=primary_color,
+            is_new_account=False,
+        )
+
+    return RedirectResponse(success_url, status_code=303)
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+def reset_password_page(request: Request, token: str = ""):
+    """Display the set-new-password form if token is valid."""
+    from datetime import timezone
+
+    path_prefix = (settings.root_path or "").rstrip("/")
+
+    if not token:
+        return HTMLResponse("<h3>Invalid or missing reset token.</h3>", status_code=400)
+
+    # Validate token
+    user = None
+    try:
+        _db = SessionLocal()
+        user = _db.query(User).filter(User.reset_token == token).first()
+        _db.close()
+    except Exception:
+        pass
+
+    if not user or not user.reset_token_expires_at:
+        return HTMLResponse("<h3>This link is invalid or has already been used.</h3>", status_code=400)
+    if datetime.utcnow() > user.reset_token_expires_at:
+        return HTMLResponse("<h3>This link has expired. Please request a new one.</h3>", status_code=400)
+
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Set New Password</title>
+  <style>
+    *{{margin:0;padding:0;box-sizing:border-box;}}
+    body{{font-family:system-ui,sans-serif;background:#f5f7fa;color:#2c3e50;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;}}
+    .card{{background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.1);padding:2.5rem;width:100%;max-width:420px;}}
+    h2{{font-size:1.4rem;margin-bottom:0.5rem;}}
+    p.sub{{color:#6b7280;font-size:0.9rem;margin-bottom:1.5rem;}}
+    label{{display:block;font-weight:600;font-size:0.875rem;margin-bottom:0.4rem;}}
+    input{{width:100%;padding:0.6rem 0.8rem;border:1px solid #d1d5db;border-radius:6px;font-size:0.95rem;margin-bottom:1.25rem;}}
+    input:focus{{outline:none;border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.15);}}
+    .btn{{width:100%;padding:0.7rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:1rem;font-weight:600;cursor:pointer;}}
+    .btn:hover{{background:#6d28d9;}}
+    .hint{{color:#9ca3af;font-size:0.8rem;margin-top:-0.9rem;margin-bottom:1.25rem;}}
+  </style>
+</head>
+<body>
+<div class="card">
+  <h2>&#128274; Set New Password</h2>
+  <p class="sub">Choose a strong password for <strong>{user.email}</strong>.</p>
+  <form method="post" action="{path_prefix}/auth/reset-password">
+    <input type="hidden" name="token" value="{token}"/>
+    <label for="new_password">New Password</label>
+    <input type="password" id="new_password" name="new_password" required minlength="8" autocomplete="new-password"/>
+    <p class="hint">Minimum 8 characters.</p>
+    <label for="confirm_password">Confirm Password</label>
+    <input type="password" id="confirm_password" name="confirm_password" required minlength="8" autocomplete="new-password"/>
+    <button type="submit" class="btn">Set Password</button>
+  </form>
+</div>
+</body>
+</html>""")
+
+
+@router.post("/reset-password", response_class=RedirectResponse)
+def reset_password_submit(
+    request: Request,
+    token: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(db_session),
+):
+    """Validate token and update the user's password."""
+    from ..models.user import User as _User
+    path_prefix = (settings.root_path or "").rstrip("/")
+    error_base = f"{path_prefix}/auth/reset-password?token={token}"
+
+    if len(new_password) < 8:
+        return RedirectResponse(f"{error_base}&error=Password+must+be+at+least+8+characters", status_code=303)
+    if new_password != confirm_password:
+        return RedirectResponse(f"{error_base}&error=Passwords+do+not+match", status_code=303)
+
+    user = db.query(_User).filter(_User.reset_token == token).first()
+    if not user or not user.reset_token_expires_at:
+        return RedirectResponse(f"{path_prefix}/auth/forgot-password?message=Invalid+or+expired+link.&message_type=error", status_code=303)
+    if datetime.utcnow() > user.reset_token_expires_at:
+        return RedirectResponse(f"{path_prefix}/auth/forgot-password?message=This+link+has+expired.+Please+request+a+new+one.&message_type=error", status_code=303)
+
+    # Update password and clear token
+    new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    user.password_hash = new_hash
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    if not user.is_active:
+        user.is_active = True  # activate account on first password set
+    db.commit()
+
+    from ..audit.events import log_event as _log
+    _log(db, actor=user.username, action="user.password_reset", ref_id=user.username)
+
+    return RedirectResponse(
+        f"{path_prefix}/auth/login?message=Password+set+successfully.+Please+log+in.&message_type=success",
+        status_code=303,
+    )

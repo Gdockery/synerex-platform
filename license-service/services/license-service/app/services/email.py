@@ -160,7 +160,8 @@ def send_account_activated_email(org_id: str, license_id: str, db) -> bool:
         try:
             import urllib.request as _ur
             import json as _json
-            _tracking_url = (getattr(settings, "tracking_program_url", None) or "http://tracking-program:8087").rstrip("/")
+            # Use Docker-internal service name — Tailscale/public URL not reachable from containers.
+            _tracking_url = "http://tracking-program:8087"
             with _ur.urlopen(f"{_tracking_url}/api/whitelabel/oem-branding-by-org?org_id={org.sponsor_org_id}", timeout=3) as _resp:
                 _d = _json.loads(_resp.read().decode())
                 brand_name = _d.get("brand_name") or brand_name
@@ -302,7 +303,8 @@ def send_license_receipt(license_id: str, db) -> bool:
     lookup_org_id = sponsor_org_id or (org.org_id if getattr(org, "org_type", "") == "oem" else None)
     if lookup_org_id:
         try:
-            tracking_url = (settings.tracking_program_url or "http://tracking-program:8087").rstrip("/")
+            # Use Docker-internal service name — Tailscale/public URL not reachable from containers.
+            tracking_url = "http://tracking-program:8087"
             branding_url = f"{tracking_url}/api/whitelabel/oem-branding-by-org?org_id={lookup_org_id}"
             with _ur.urlopen(branding_url, timeout=2) as _resp:
                 _data = _json.loads(_resp.read())
@@ -607,7 +609,7 @@ def send_client_admin_invitation_email(
     client_org_name: str,
     client_org_id: str,
     oem_org_name: str,
-    temp_password: str,
+    temp_password: Optional[str],
     oem_login_url: str,
     client_portal_url: str,
     is_reset: bool = False,
@@ -623,6 +625,32 @@ def send_client_admin_invitation_email(
     root_pfx = getattr(settings, "root_path", "") or ""
     root_pfx = root_pfx.rstrip("/")
     change_pw_url = f"{base_url}{root_pfx}/auth/change-password"
+
+    # Build the credentials block depending on whether a password was provided
+    if temp_password:
+        creds_password_row = (
+            f'<div class="cred-row"><span class="cred-lbl">Password:</span> '
+            f'<span class="cred-val">{temp_password}</span></div>'
+        )
+        creds_password_txt = f"  Password:       {temp_password}"
+        warn_block = f"""
+    <div class="warn">
+      <strong>Security:</strong> Please change your password immediately after logging in.
+      <br/><a href="{change_pw_url}" style="color:#92400e;">Change your password &rarr;</a>
+    </div>"""
+    else:
+        creds_password_row = (
+            '<div class="cred-row" style="background:#fffbeb;border-radius:4px;padding:8px 10px;margin-top:10px;">'
+            f'<span style="color:#92400e;font-size:13px;">&#128274; Use the password provided to you by '
+            f'<strong>{oem_org_name}</strong> when your account was created.</span></div>'
+        )
+        creds_password_txt = f"  Password:       (use the password provided by {oem_org_name})"
+        warn_block = f"""
+    <div class="warn">
+      <strong>Tip:</strong> If you do not know your password, contact <strong>{oem_org_name}</strong> to have it reset.
+      Once logged in, you can change it at any time.
+      <br/><a href="{change_pw_url}" style="color:#92400e;">Change your password &rarr;</a>
+    </div>"""
 
     body_html = f"""<!DOCTYPE html>
 <html>
@@ -664,19 +692,15 @@ def send_client_admin_invitation_email(
     <div class="creds-box">
       <div class="title">&#128272; Your Login Credentials</div>
       <div class="cred-row"><span class="cred-lbl">Email:</span> <span class="cred-val">{to_email}</span></div>
-      <div class="cred-row"><span class="cred-lbl">Temp Password:</span> <span class="cred-val">{temp_password}</span></div>
+      {creds_password_row}
       <div class="cred-row"><span class="cred-lbl">Login URL:</span> <a href="{oem_login_url}" style="color:#0369a1;">{oem_login_url}</a></div>
     </div>
-
-    <div class="warn">
-      <strong>Security:</strong> This is a temporary password. Please change it immediately after logging in.
-      <br/><a href="{change_pw_url}" style="color:#92400e;">Change your password &rarr;</a>
-    </div>
+    {warn_block}
 
     <div class="steps-box">
       <div class="title">&#128204; Getting Started</div>
       <div class="step"><span class="step-num">1</span><span>Click the login link above and sign in with your credentials.</span></div>
-      <div class="step"><span class="step-num">2</span><span>Change your password from the temporary one provided.</span></div>
+      <div class="step"><span class="step-num">2</span><span>Change your password from the <a href="{change_pw_url}" style="color:#166534;">Change Password</a> page.</span></div>
       <div class="step"><span class="step-num">3</span><span>Go to <strong>My Account &rarr; User Management</strong> to add your team members.</span></div>
       <div class="step"><span class="step-num">4</span><span>Share your organization\'s branded login link with your users so they can access their portal: <a href="{client_portal_url}" style="color:#166534;">{client_portal_url}</a></span></div>
     </div>
@@ -704,15 +728,12 @@ Hello,
 
 YOUR LOGIN CREDENTIALS:
   Email:          {to_email}
-  Temp Password:  {temp_password}
+{creds_password_txt}
   Login URL:      {oem_login_url}
-
-SECURITY: This is a temporary password. Change it immediately:
-  {change_pw_url}
 
 GETTING STARTED:
   1. Visit the login link above and sign in.
-  2. Change your password immediately.
+  2. Change your password: {change_pw_url}
   3. Go to My Account -> User Management to add your team members.
   4. Share your client portal link with users: {client_portal_url}
 
@@ -874,4 +895,111 @@ Powered by Synerex Laboratories, LLC
         body_text=body_text,
         org_id=client_org_id,
         notification_type="client_invitation",
+    )
+
+
+def send_password_reset_email(
+    to_email: str,
+    reset_url: str,
+    brand_name: str = "Synerex",
+    primary_color: str = "#7c3aed",
+    is_new_account: bool = False,
+) -> bool:
+    """
+    Send a password reset (or first-time set-password) email.
+    is_new_account=True produces a 'Set Your Password' framing for new clients.
+    """
+    if is_new_account:
+        subject = f"Set Your Password — {brand_name} Portal"
+        headline = "&#127381; Set Your Password"
+        sub_headline = "Your account is ready — create your password to get started."
+        intro = (
+            f"Your <strong>{brand_name}</strong> account has been set up for you. "
+            "Click the button below to choose your password and activate your account."
+        )
+        btn_label = "Set My Password &rarr;"
+        expiry_note = "This link is valid for <strong>24 hours</strong>."
+    else:
+        subject = f"Password Reset Request — {brand_name}"
+        headline = "&#128274; Password Reset"
+        sub_headline = "We received a request to reset your password."
+        intro = (
+            "Click the button below to choose a new password. "
+            "If you did not request this, you can safely ignore this email."
+        )
+        btn_label = "Reset My Password &rarr;"
+        expiry_note = "This link is valid for <strong>1 hour</strong>."
+
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"/>
+<style>
+  body{{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;background:#f3f4f6;}}
+  .wrap{{max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.08);}}
+  .hdr{{background:{primary_color};padding:28px 36px;text-align:center;}}
+  .hdr h1{{color:#fff;margin:0;font-size:21px;font-weight:700;}}
+  .hdr p{{color:rgba(255,255,255,.85);margin:6px 0 0;font-size:14px;}}
+  .body{{padding:32px 36px;}}
+  .btn-wrap{{text-align:center;margin:28px 0;}}
+  .btn{{display:inline-block;background:{primary_color};color:#fff;padding:14px 36px;
+        text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;}}
+  .note{{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;
+         margin:20px 0;color:#6b7280;font-size:13px;text-align:center;}}
+  .warn{{background:#fffbeb;border-left:4px solid #f59e0b;padding:12px 16px;
+         margin:20px 0;color:#92400e;font-size:13px;border-radius:0 6px 6px 0;}}
+  .ftr{{background:#f9fafb;padding:18px 36px;text-align:center;border-top:1px solid #e5e7eb;}}
+  .powered{{font-size:12px;color:#9ca3af;margin:0;}}
+  .powered strong{{color:#7c3aed;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>{headline}</h1>
+    <p>{sub_headline}</p>
+  </div>
+  <div class="body">
+    <p>{intro}</p>
+    <div class="btn-wrap">
+      <a href="{reset_url}" class="btn">{btn_label}</a>
+    </div>
+    <div class="note">
+      {expiry_note}<br/>
+      If the button doesn't work, copy and paste this link into your browser:<br/>
+      <a href="{reset_url}" style="color:{primary_color};word-break:break-all;font-size:12px;">{reset_url}</a>
+    </div>
+    <div class="warn">
+      <strong>Security:</strong> Never share this link with anyone.
+      If you did not {'create an account' if is_new_account else 'request a password reset'}, please contact support.
+    </div>
+  </div>
+  <div class="ftr">
+    <p class="powered">Powered by <strong>Synerex Laboratories, LLC</strong></p>
+    <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
+  </div>
+</div>
+</body>
+</html>"""
+
+    body_text = f"""{'SET YOUR PASSWORD' if is_new_account else 'PASSWORD RESET REQUEST'} — {brand_name.upper()}
+{'=' * 55}
+
+{'Your account is ready. Click the link below to choose your password.' if is_new_account else 'Click the link below to reset your password.'}
+
+  {reset_url}
+
+{expiry_note.replace('<strong>', '').replace('</strong>', '')}
+
+If you did not {'create an account' if is_new_account else 'request a password reset'}, ignore this email.
+
+{'=' * 55}
+Powered by Synerex Laboratories, LLC
+"""
+
+    return send_email(
+        to_email=to_email,
+        subject=subject,
+        body_html=body_html,
+        body_text=body_text,
+        notification_type="password_reset",
     )

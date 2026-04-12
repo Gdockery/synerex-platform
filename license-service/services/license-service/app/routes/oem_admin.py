@@ -1,5 +1,6 @@
 """OEM Admin Panel - OEM users can view their sponsored customers."""
 from pathlib import Path
+from datetime import datetime
 
 import bcrypt
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
@@ -587,7 +588,6 @@ def oem_new_client_submit(
     company_state: str = Form(None),
     company_zip: str = Form(None),
     admin_email: str = Form(...),
-    admin_password: str = Form(...),
     db: Session = Depends(db_session),
 ):
     """Create a new customer org + Client Admin account in one step."""
@@ -601,13 +601,6 @@ def oem_new_client_submit(
     oem_org = db.get(Organization, oem_org_id) if oem_org_id else None
     if not oem_org or oem_org.org_type != "oem":
         return RedirectResponse(f"{path_prefix}/oem-admin", status_code=303)
-
-    # Basic validation
-    if len(admin_password) < 6:
-        return RedirectResponse(
-            f"{new_url}?message=Password+must+be+at+least+6+characters&message_type=error",
-            status_code=303,
-        )
 
     # Check admin email uniqueness across all users
     taken = db.query(User).filter(
@@ -648,18 +641,50 @@ def oem_new_client_submit(
     db.add(new_org)
     db.commit()
 
-    # Create the Client Admin user (inactive until OEM approves after payment)
-    hashed = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    # Create the Client Admin user with a placeholder hash (inactive until they set password + OEM approves)
+    import secrets
+    from datetime import timedelta
+    placeholder_hash = bcrypt.hashpw(secrets.token_hex(32).encode(), bcrypt.gensalt()).decode("utf-8")
+    set_password_token = secrets.token_urlsafe(48)
     new_admin = User(
         username=admin_email,
         email=admin_email,
-        password_hash=hashed,
+        password_hash=placeholder_hash,
         org_id=org_id,
         role="customer_admin",
         is_active=False,
+        reset_token=set_password_token,
+        reset_token_expires_at=datetime.utcnow() + timedelta(hours=72),
     )
     db.add(new_admin)
     db.commit()
+
+    # Send set-password invitation email to the new client admin
+    try:
+        from ..services.email import send_password_reset_email as _send_set_pw
+        _base = (settings.website_url or "http://localhost:8080").rstrip("/")
+        _pfx = (settings.root_path or "").rstrip("/")
+        set_pw_url = f"{_base}{_pfx}/auth/reset-password?token={set_password_token}"
+
+        brand_name = oem_org.org_name or "Synerex"
+        primary_color = "#7c3aed"
+        try:
+            _branding = _fetch_oem_branding(oem_org_id)
+            brand_name = _branding.get("brand_name") or brand_name
+            primary_color = _branding.get("primary_color") or primary_color
+        except Exception:
+            pass
+
+        _send_set_pw(
+            to_email=admin_email,
+            reset_url=set_pw_url,
+            brand_name=brand_name,
+            primary_color=primary_color,
+            is_new_account=True,
+        )
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).warning("Could not send set-password email for %s: %s", admin_email, _e)
 
     # Sync org to EMV and Tracking programs (best-effort, non-blocking)
     try:
@@ -678,7 +703,7 @@ def oem_new_client_submit(
         pass
 
     return RedirectResponse(
-        f"{approvals_url}?message=Client+{org_name}+created.+Approve+after+payment+is+confirmed.&message_type=success",
+        f"{approvals_url}?message=Client+{org_name}+created.+A+set-password+link+was+emailed+to+{admin_email}.+Approve+after+payment+is+confirmed.&message_type=success",
         status_code=303,
     )
 
@@ -836,13 +861,13 @@ def oem_client_approve(
             base = (_settings.website_url or "http://localhost:8080").rstrip("/")
             pfx = (_settings.root_path or "").rstrip("/")
             _client_portal_url = f"{base}{pfx}/auth/client-portal"
-            _oem_login_url = f"{base}{pfx}/auth/login?client={org_id}"
+            _oem_login_url = f"{base}{pfx}/auth/login?oem={oem_org_id}"
             _send(
                 to_email=u.email,
                 client_org_name=customer.org_name,
                 client_org_id=org_id,
                 oem_org_name=oem_org.org_name,
-                temp_password="(use your configured password)",
+                temp_password=None,
                 oem_login_url=_oem_login_url,
                 client_portal_url=_client_portal_url,
                 is_reset=False,
