@@ -6,7 +6,11 @@ class MainDashboard {
     constructor() {
 
         this.currentUser = null;
-        this.sessionToken = localStorage.getItem('session_token');
+        // Read session token from localStorage, then cookie (SSO sets the cookie).
+        const _initCookieMatch = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+        this.sessionToken = localStorage.getItem('session_token')
+            || sessionStorage.getItem('session_token')
+            || (_initCookieMatch ? decodeURIComponent(_initCookieMatch[1]) : null);
         this.helpStep = 1;
         this.maxHelpSteps = 5;
         
@@ -245,8 +249,8 @@ class MainDashboard {
             var cookieMatch = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
             if (cookieMatch) {
                 this.sessionToken = decodeURIComponent(cookieMatch[1]);
-                // Persist back to localStorage for future checks
-                localStorage.setItem('session_token', this.sessionToken);
+                // Do NOT write the cookie value back to localStorage — doing so would
+                // perpetuate stale admin tokens across user switches.
             }
         }
         if (this.sessionToken) {
@@ -1056,7 +1060,7 @@ class MainDashboard {
                 <div class="modal-content" style="max-width: 800px;">
                     <div class="modal-header">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                            <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                             <h2 style="margin: 0;">📤 Upload Raw Data Files</h2>
                         </div>
                         <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -1530,7 +1534,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;">Raw Files List</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -1640,7 +1644,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> Storage Breakdown</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -1748,7 +1752,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;">🕒 Recent Uploads (Last 7 Days)</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -1876,7 +1880,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> Raw Meter Data Statistics</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
@@ -1973,7 +1977,7 @@ class MainDashboard {
         this.showNotification('Loading fingerprints viewer...', 'info');
         
         try {
-            const sessionToken = localStorage.getItem('session_token') || '';
+            const sessionToken = this.sessionToken || localStorage.getItem('session_token') || '';
             const headers = {};
             if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
             const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/fingerprints', {
@@ -2006,6 +2010,8 @@ class MainDashboard {
 
         function isFileVerified(fp) {
             if (fp.type === 'csv_fingerprint') return true;
+            // raw_meter_data files with a 64-char SHA-256 fingerprint were stamped during clipping
+            if (fp.type === 'raw_meter_data' && fp.fingerprint && fp.fingerprint.length === 64) return true;
             if (fp.file_path) {
                 // Normalize Windows backslashes before checking path
                 const normalizedPath = fp.file_path.replace(/\\/g, '/');
@@ -2183,24 +2189,30 @@ class MainDashboard {
 
 
         async showIntegrityVerification() {
-        this.showNotification('Starting integrity verification...', 'info');
+        this.showNotification('Verifying file integrity...', 'info');
+        this.showVerificationLoadingModal();
         
-        // First, get the list of files to show them in "Unverified" state
         try {
-            const filesResponse = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/verify-all');
-            const filesData = await filesResponse.json();
+            const _viToken = this.sessionToken || localStorage.getItem('session_token') || '';
+            const _viHeaders = {};
+            if (_viToken) _viHeaders['Authorization'] = 'Bearer ' + _viToken;
+            const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/csv/integrity/verify-all', {
+                credentials: 'same-origin',
+                headers: _viHeaders
+            });
+            const data = await response.json();
             
-            if (filesData.status === 'success') {
-                // Show the report with all files in "Unverified" status initially
-                this.displayIntegrityVerificationWithUnverifiedStatus(filesData);
-                
-                // Now start the actual verification process
-                await this.performIntegrityVerification();
+            this.removeVerificationLoadingModal();
+            
+            if (data.status === 'success') {
+                this.showNotification('Integrity verification completed!', 'success');
+                this.displayIntegrityVerification(data);
             } else {
-                this.showNotification('Error loading files: ' + filesData.error, 'error');
+                this.showNotification('Error verifying files: ' + data.error, 'error');
             }
         } catch (error) {
-            this.showNotification('Error loading files: ' + error.message, 'error');
+            this.removeVerificationLoadingModal();
+            this.showNotification('Error verifying integrity: ' + error.message, 'error');
         }
     }
     
@@ -2258,7 +2270,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1400px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> CSV Integrity Verification Report</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
@@ -2693,7 +2705,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;">✂️ Clipped Files List</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -2837,7 +2849,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1400px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> Data Modifications History</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -2942,7 +2954,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> Integrity Status Report</h2>
                     </div>
                     <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -3095,7 +3107,7 @@ class MainDashboard {
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
                     <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                        <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                         <h2 style="margin: 0;"> Verifying CSV Integrity...</h2>
                     </div>
                 </div>
@@ -3170,7 +3182,7 @@ class MainDashboard {
                 <div class="modal-content" style="max-width: 600px;">
                     <div class="modal-header">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                            <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                             <h2 style="margin: 0;">➕ Create New Project</h2>
                         </div>
                         <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -3304,7 +3316,7 @@ class MainDashboard {
                     <div class="modal-content" style="max-width: 800px;">
                         <div class="modal-header">
                             <div style="display: flex; align-items: center; gap: 15px;">
-                                <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                                <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                                 <h2 style="margin: 0;">📂 Access Project</h2>
                             </div>
                             <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -3632,7 +3644,7 @@ class MainDashboard {
                 <div class="modal-content" style="max-width: 800px;">
                     <div class="modal-header">
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
+                            <img src="${window.SYNEREX_EMV_BASE||''}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 32px; width: auto;">
                             <h2 style="margin: 0;">📄 Project Templates</h2>
                         </div>
                         <span class="close" onclick="this.closest('.modal').remove(); document.body.classList.remove('modal-open');">&times;</span>
@@ -4647,7 +4659,7 @@ function openAdminPanel() {
     if (dashboard && dashboard.sessionToken) {
         sessionToken = dashboard.sessionToken.trim();
     } else {
-        sessionToken = (localStorage.getItem('session_token') || sessionStorage.getItem('session_token'));
+        sessionToken = (localStorage.getItem('session_token') || sessionStorage.getItem('session_token') || (() => { const m = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/); return m ? decodeURIComponent(m[1]) : ''; })());
         if (sessionToken) sessionToken = sessionToken.trim();
     }
     

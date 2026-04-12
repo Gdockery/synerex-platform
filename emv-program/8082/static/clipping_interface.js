@@ -409,10 +409,16 @@ class ClippingInterface {
             if (result.status === 'success') {
                 this.currentFile = result.file;
                 this.originalData = result.content;
+                // Store server-side pagination state
+                this.pagination = result.pagination || null;
+                this.allDataLoaded = !result.pagination || !result.pagination.has_more;
                 
                 console.log('File loaded successfully, processing data...');
                 console.log('File data:', this.currentFile);
                 console.log('Content length:', this.originalData ? this.originalData.length : 'No content');
+                if (this.pagination) {
+                    console.log(`Pagination: page ${this.pagination.page}/${this.pagination.total_pages}, ${this.pagination.total_rows} total rows`);
+                }
                 
                 // Load cell annotations for this file
                 await this.loadCellAnnotations(fileId);
@@ -610,6 +616,17 @@ class ClippingInterface {
         }
         
         console.log('renderCSVTable() called');
+
+        // Create table structure inside csv-table-container if it doesn't exist yet
+        const container = document.getElementById('csv-table-container');
+        if (container && !document.getElementById('csv-header')) {
+            container.innerHTML = '<div class="csv-table-wrapper" style="overflow:auto;max-height:600px">' +
+                '<table id="csv-table" class="csv-table">' +
+                '<thead id="csv-header"></thead>' +
+                '<tbody id="csv-body"></tbody>' +
+                '</table></div>';
+        }
+
         const header = document.getElementById('csv-header');
         const body = document.getElementById('csv-body');
         
@@ -704,6 +721,17 @@ class ClippingInterface {
     
     renderCSVTableChunked() {
         console.log('renderCSVTableChunked() called');
+
+        // Create table structure inside csv-table-container if it doesn't exist yet
+        const container = document.getElementById('csv-table-container');
+        if (container && !document.getElementById('csv-header')) {
+            container.innerHTML = '<div class="csv-table-wrapper" style="overflow:auto;max-height:600px">' +
+                '<table id="csv-table" class="csv-table">' +
+                '<thead id="csv-header"></thead>' +
+                '<tbody id="csv-body"></tbody>' +
+                '</table></div>';
+        }
+
         const header = document.getElementById('csv-header');
         const body = document.getElementById('csv-body');
         
@@ -824,30 +852,29 @@ class ClippingInterface {
     renderVirtualTable(headers, body) {
         console.log('renderVirtualTable() called for large file');
         
-        // For very large files, only show first 100 rows with pagination
-        const visibleRows = 100;
-        const totalRows = this.modifiedData.length;
+        const loadedRows = this.modifiedData.length;
+        const totalRows = (this.pagination && this.pagination.total_rows) || loadedRows;
+        const hasMore = this.pagination ? this.pagination.has_more : false;
         
         body.innerHTML = `
-            <tr>
+            <tr id="virtual-table-info-row">
                 <td colspan="${headers.length + 2}" style="text-align: center; padding: 20px; background-color: #f8f9fa;">
-                    <div style="margin-bottom: 15px;">
-                        <strong>Large File Detected (${totalRows} rows)</strong>
+                    <div style="margin-bottom: 10px;">
+                        <strong>Large File (${totalRows.toLocaleString()} total rows)</strong>
+                        &nbsp;—&nbsp; showing first <strong>${loadedRows.toLocaleString()}</strong> rows.
+                        ${hasMore ? `<span style="color:#888">Load more to see or select additional rows.</span>` : ''}
                     </div>
-                    <div style="margin-bottom: 15px;">
-                        Showing first ${visibleRows} rows for performance. Use range selection to work with specific data.
-                    </div>
-                    <div style="margin-bottom: 15px;">
-                        <button onclick="clippingInterface.loadMoreRows()" class="btn-primary">Load More Rows</button>
-                        <button onclick="clippingInterface.showAllRows()" class="btn-secondary">Show All (May be slow)</button>
+                    <div>
+                        ${hasMore ? `<button onclick="clippingInterface.loadMoreRows()" class="btn-primary" id="load-more-btn">Load Next 500 Rows</button>` : ''}
+                        <button onclick="clippingInterface.loadAllRows()" class="btn-secondary" id="load-all-btn"
+                            ${!hasMore ? 'style="display:none"' : ''}>Load All (may be slow)</button>
                     </div>
                 </td>
             </tr>
         `;
         
-        // Render first 100 rows
-        const firstChunk = this.modifiedData.slice(0, visibleRows);
-        const chunkHTML = firstChunk.map((row, index) => `
+        // Render visible rows
+        const chunkHTML = this.modifiedData.map((row, index) => `
             <tr data-row-index="${index}" class="${this.selectedRows.has(index) ? 'selected' : ''}">
                 <td class="row-number">${index + 1}</td>
                 <td class="select-column">
@@ -862,90 +889,110 @@ class ClippingInterface {
                     const bgColor = annotation ? annotation.color_code : '';
                     const hasAnnotation = annotation ? 'data-annotated="true"' : '';
                     const title = annotation ? `Annotated by ${annotation.user_name}: ${annotation.explanation}` : 'Click to annotate this cell';
-                    
-                    return `<td 
-                        contenteditable="true" 
-                        data-row="${index}" 
-                        data-column="${h}"
+                    return `<td contenteditable="true" data-row="${index}" data-column="${h}"
                         data-cell-key="${cellKey}"
                         style="background-color: ${bgColor};${annotation ? ' border-left: 3px solid #007bff; font-weight: 500;' : ''}"
                         ${hasAnnotation}
                         onclick="clippingInterface.onCellClick(${index}, '${h}', this)"
                         onblur="clippingInterface.onCellEdit(${index}, '${h}', this.textContent)"
-                        title="${title}">
-                        ${row[h] || ''}
-                    </td>`;
+                        title="${title}">${row[h] || ''}</td>`;
                 }).join('')}
             </tr>
         `).join('');
         
         body.innerHTML += chunkHTML;
         
-        // Store virtual table state
-        this.virtualTable = {
-            visibleRows: visibleRows,
-            totalRows: totalRows,
-            headers: headers
-        };
-        
+        this.virtualTable = { loadedRows, totalRows, headers, hasMore };
         this.updateRowCounts();
     }
     
-    loadMoreRows() {
-        if (!this.virtualTable) return;
+    async loadMoreRows() {
+        if (!this.currentFile) return;
         
-        const { visibleRows, totalRows, headers } = this.virtualTable;
-        const newVisibleRows = Math.min(visibleRows + 100, totalRows);
+        const nextPage = this.pagination ? this.pagination.page + 1 : 2;
+        const perPage = this.pagination ? this.pagination.per_page : 500;
         
-        if (newVisibleRows === visibleRows) {
-            this.showNotification('All rows are already visible', 'info');
-            return;
+        const btn = document.getElementById('load-more-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+        
+        try {
+            const _tok = this.getSessionToken();
+            const response = await fetch(
+                `${window.SYNEREX_EMV_BASE||''}/api/original-files/${this.currentFile.id}/clipping?page=${nextPage}&per_page=${perPage}`,
+                { headers: _tok ? { 'Authorization': `Bearer ${_tok}` } : {} }
+            );
+            const result = await response.json();
+            if (result.status === 'success' && result.content) {
+                // Append new rows to modifiedData and originalData
+                const startIdx = this.modifiedData.length;
+                const newRows = result.content;
+                this.originalData = this.originalData.concat(newRows);
+                this.modifiedData = this.modifiedData.concat(newRows);
+                this.pagination = result.pagination;
+                
+                const body = document.getElementById('csv-body');
+                const infoRow = document.getElementById('virtual-table-info-row');
+                if (infoRow) infoRow.remove();
+                
+                const headers = this.virtualTable ? this.virtualTable.headers : Object.keys(this.modifiedData[0]);
+                const chunkHTML = newRows.map((row, i) => {
+                    const index = startIdx + i;
+                    return `<tr data-row-index="${index}" class="${this.selectedRows.has(index) ? 'selected' : ''}">
+                        <td class="row-number">${index + 1}</td>
+                        <td class="select-column">
+                            <input type="checkbox" class="row-checkbox" data-row-index="${index}"
+                                onchange="clippingInterface.toggleRowSelection(${index})"
+                                ${this.selectedRows.has(index) ? 'checked' : ''}>
+                        </td>
+                        ${headers.map(h => `<td contenteditable="true" data-row="${index}" data-column="${h}"
+                            onblur="clippingInterface.onCellEdit(${index}, '${h}', this.textContent)">${row[h] || ''}</td>`).join('')}
+                    </tr>`;
+                }).join('');
+                
+                if (body) body.innerHTML += chunkHTML;
+                
+                const hasMore = result.pagination && result.pagination.has_more;
+                this.allDataLoaded = !hasMore;
+                if (this.virtualTable) {
+                    this.virtualTable.loadedRows = this.modifiedData.length;
+                    this.virtualTable.hasMore = hasMore;
+                }
+                
+                // Re-add info row
+                if (hasMore && body) {
+                    const infoHTML = `<tr id="virtual-table-info-row">
+                        <td colspan="${headers.length + 2}" style="text-align:center;padding:15px;background:#f8f9fa;">
+                            Showing ${this.modifiedData.length.toLocaleString()} of ${result.pagination.total_rows.toLocaleString()} rows.
+                            <button onclick="clippingInterface.loadMoreRows()" class="btn-primary" id="load-more-btn">Load Next ${perPage} Rows</button>
+                            <button onclick="clippingInterface.loadAllRows()" class="btn-secondary">Load All</button>
+                        </td></tr>`;
+                    body.innerHTML += infoHTML;
+                }
+                
+                this.updateRowCounts();
+                this.showNotification(`Loaded ${newRows.length} more rows (${this.modifiedData.length.toLocaleString()} total shown)`, 'success');
+            }
+        } catch (e) {
+            console.error('Error loading more rows:', e);
+            this.showNotification('Error loading more rows: ' + e.message, 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Load Next 500 Rows'; }
         }
-        
-        const body = document.getElementById('csv-body');
-        if (!body) return;
-        
-        // Remove the info row
-        const infoRow = body.querySelector('tr:first-child');
-        if (infoRow) infoRow.remove();
-        
-        // Add more rows
-        const additionalRows = this.modifiedData.slice(visibleRows, newVisibleRows);
-        const chunkHTML = additionalRows.map((row, index) => {
-            const actualIndex = visibleRows + index;
-            return `
-                <tr data-row-index="${actualIndex}" class="${this.selectedRows.has(actualIndex) ? 'selected' : ''}">
-                    <td class="select-column">
-                        <input type="checkbox" class="row-checkbox" 
-                               data-row-index="${actualIndex}" 
-                               onchange="clippingInterface.toggleRowSelection(${actualIndex})"
-                               ${this.selectedRows.has(actualIndex) ? 'checked' : ''}>
-                    </td>
+    }
+    
+    async loadAllRows() {
+        if (!this.currentFile || !this.pagination) return;
+        const confirmLoad = confirm(
+            `This will load all ${this.pagination.total_rows.toLocaleString()} rows. This may take a moment for large files. Continue?`
+        );
+        if (!confirmLoad) return;
+        // Load page by page until done
+        while (this.pagination && this.pagination.has_more) {
+            await this.loadMoreRows();
+        }
+    }
                     ${headers.map(h => `<td contenteditable="true" onblur="clippingInterface.onCellEdit(${actualIndex}, '${h}', this.textContent)">${row[h] || ''}</td>`).join('')}
                 </tr>
             `;
-        }).join('');
-        
-        body.innerHTML += chunkHTML;
-        
-        // Update virtual table state
-        this.virtualTable.visibleRows = newVisibleRows;
-        
-        this.showNotification(`Loaded ${newVisibleRows} of ${totalRows} rows`, 'success');
-    }
-    
-    showAllRows() {
-        if (!this.virtualTable) return;
-        
-        this.showNotification('Loading all rows... This may take a moment.', 'info');
-        
-        // Use the chunked rendering for all rows
-        setTimeout(() => {
-            this.renderCSVTableChunked();
-            this.virtualTable = null; // Clear virtual table state
-        }, 100);
-    }
-    
     toggleRowSelection(rowIndex) {
         if (this.selectedRows.has(rowIndex)) {
             this.selectedRows.delete(rowIndex);
@@ -1432,6 +1479,21 @@ class ClippingInterface {
             return;
         }
         
+        // Warn if not all rows have been loaded — saving partial data would truncate the file.
+        if (!this.allDataLoaded && this.pagination && this.pagination.has_more) {
+            const totalRows = this.pagination.total_rows;
+            const loadedRows = this.modifiedData.length;
+            const proceed = confirm(
+                `Warning: You have only loaded ${loadedRows.toLocaleString()} of ${totalRows.toLocaleString()} rows.\n\n` +
+                `Saving now will save ONLY the ${loadedRows.toLocaleString()} loaded rows and the rest will be lost.\n\n` +
+                `Click OK to load all rows first (recommended), or Cancel to save partial data anyway.`
+            );
+            if (proceed) {
+                // Load all remaining pages first
+                await this.loadAllRows();
+            }
+        }
+        
         try {
             this.showNotification('Applying modifications...', 'info');
             
@@ -1563,7 +1625,13 @@ class ClippingInterface {
     }
     
     getSessionToken() {
-        return localStorage.getItem('session_token') || '';
+        // Prefer localStorage, then fall back to the session_token cookie (set by SSO login).
+        // The cookie is the authoritative source after SSO — localStorage may be empty if the
+        // browser never copied it (by design, to prevent stale admin token bleed-over).
+        const localToken = localStorage.getItem('session_token');
+        if (localToken) return localToken;
+        const cookieMatch = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+        return cookieMatch ? decodeURIComponent(cookieMatch[1]) : '';
     }
 
     addBackToMyAccountButton() {

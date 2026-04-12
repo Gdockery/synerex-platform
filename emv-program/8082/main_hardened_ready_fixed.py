@@ -1989,6 +1989,10 @@ class MySQLCursor:
         normalized = normalized.replace("?", "%s")
         return self._cursor.executemany(normalized, seq)
 
+    @property
+    def rowcount(self):
+        return self._cursor.rowcount
+
     def fetchone(self):
         row = self._cursor.fetchone()
         return _DictRow(row) if row is not None else None
@@ -22143,11 +22147,25 @@ def fetch_weather():
         weather_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            # Get files from verified-files API to get actual file paths
-            import requests
+            # Get files from verified-files API to get actual file paths.
+            # Pass the session cookie so the endpoint returns files for the correct org.
+            import requests as _req_lib
 
-            response = requests.get(
-                f"{EMV_BASE_URL}/api/verified-files", timeout=10
+            _session_token = (
+                request.cookies.get("session_token")
+                or request.form.get("session_token")
+                or request.args.get("session_token")
+            )
+            _vf_headers = {}
+            _vf_cookies = {}
+            if _session_token:
+                _vf_cookies["session_token"] = _session_token
+
+            response = _req_lib.get(
+                f"{EMV_BASE_URL}/api/verified-files",
+                headers=_vf_headers,
+                cookies=_vf_cookies,
+                timeout=10,
             )
             if response.status_code == 200:
                 files_data = response.json()
@@ -22202,44 +22220,53 @@ def fetch_weather():
                 f"WEATHER API - Could not get files from verified-files API: {e}"
             )
 
-        # Fallback: check database if API didn't work
+        # Fallback: check database if API didn't work.
+        # Try the current user's org first, then every other org, so files uploaded
+        # before multi-tenancy was enforced (stored under a different org_id) still work.
         if not before_path or not after_path:
             try:
-                with get_db_connection() as conn:
-                    if conn:
-                        cursor = conn.cursor()
-                        # Try to find by file ID in raw_meter_data table
-                        cursor.execute(
-                            """
-                            SELECT file_path FROM raw_meter_data 
-                            WHERE id = ? AND file_path IS NOT NULL
-                        """,
-                            (before_file_id,),
-                        )
-                        before_result = cursor.fetchone()
-                        if before_result:
-                            # Construct full path relative to 8082 directory
-                            before_path = str(before_result[0])
-                            logger.info(
-                                f"Found before file in database by ID {before_file_id}: {before_path}"
-                            )
+                from main_hardened_ready_refactored import get_current_org_id
+                _weather_org_id = get_current_org_id(request)
+            except Exception:
+                _weather_org_id = None
 
-                        cursor.execute(
-                            """
-                            SELECT file_path FROM raw_meter_data 
-                            WHERE id = ? AND file_path IS NOT NULL
-                        """,
-                            (after_file_id,),
+            _orgs_to_try = []
+            if _weather_org_id:
+                _orgs_to_try.append(_weather_org_id)
+            # Also try with no org filter (None causes MySQL default of 'admin' — skip
+            # that; instead use a raw unfiltered query via a dedicated helper below)
+            _found_before = before_path is not None
+            _found_after = after_path is not None
+
+            def _db_lookup_file(file_id, org_id_param):
+                try:
+                    with get_db_connection(org_id=org_id_param) as _conn:
+                        if not _conn:
+                            return None
+                        _cur = _conn.cursor()
+                        _cur.execute(
+                            "SELECT file_path FROM raw_meter_data WHERE id = ? AND file_path IS NOT NULL",
+                            (file_id,),
                         )
-                        after_result = cursor.fetchone()
-                        if after_result:
-                            # Construct full path relative to 8082 directory
-                            after_path = str(after_result[0])
-                            logger.info(
-                                f"Found after file in database by ID {after_file_id}: {after_path}"
-                            )
-            except Exception as e:
-                logger.warning(f"Could not find files in database: {e}")
+                        row = _cur.fetchone()
+                        return str(row[0]) if row else None
+                except Exception as _e:
+                    logger.warning(f"DB lookup for file ID {file_id} (org={org_id_param}): {_e}")
+                    return None
+
+            for _attempt_org in _orgs_to_try:
+                if not _found_before:
+                    _r = _db_lookup_file(before_file_id, _attempt_org)
+                    if _r:
+                        before_path = _r
+                        _found_before = True
+                        logger.info(f"Found before file (org={_attempt_org}) ID {before_file_id}: {_r}")
+                if not _found_after:
+                    _r = _db_lookup_file(after_file_id, _attempt_org)
+                    if _r:
+                        after_path = _r
+                        _found_after = True
+                        logger.info(f"Found after file (org={_attempt_org}) ID {after_file_id}: {_r}")
 
         # Final fallback: check protected directories (removed - not needed since we have file IDs)
 
@@ -29370,7 +29397,54 @@ def tracking_push_baseline():
     data = request.get_json() or {}
     if not data.get("projectId"):
         return jsonify({"error": "projectId is required"}), 400
-    data["orgId"] = org_id
+    # Use the orgId supplied by the frontend (from the tracking projects dropdown)
+    # which reflects the project's actual org. Only fall back to the authenticated
+    # user's org_id if the payload didn't include one.
+    if not data.get("orgId"):
+        data["orgId"] = org_id
+
+    def _write_push_audit(status, emv_analysis_id=None, error_msg=None):
+        """Write a push-to-tracking audit record to the EMV database."""
+        try:
+            with get_db_connection(org_id=org_id) as _conn:
+                if not _conn:
+                    return
+                _cur = _conn.cursor()
+                _cur.execute("""
+                    CREATE TABLE IF NOT EXISTS tracking_push_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        org_id TEXT,
+                        project_id TEXT,
+                        tracking_org_id TEXT,
+                        kwh_savings REAL,
+                        kw_savings REAL,
+                        pf_savings REAL,
+                        emv_analysis_id TEXT,
+                        status TEXT,
+                        error_msg TEXT,
+                        pushed_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                _cur.execute("""
+                    INSERT INTO tracking_push_log
+                        (org_id, project_id, tracking_org_id, kwh_savings, kw_savings, pf_savings,
+                         emv_analysis_id, status, error_msg)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    org_id,
+                    str(data.get("projectId", "")),
+                    str(data.get("orgId", "")),
+                    data.get("kwhSavings"),
+                    data.get("kwPeakSavings"),
+                    data.get("pfSavings"),
+                    str(emv_analysis_id) if emv_analysis_id else None,
+                    status,
+                    error_msg,
+                ))
+                _conn.commit()
+        except Exception as _e:
+            logger.warning("Could not write tracking_push_log: %s", _e)
+
     try:
         resp = requests.post(
             f"{_TRACKING_URL.rstrip('/')}/api/emv/push-baseline",
@@ -29381,13 +29455,18 @@ def tracking_push_baseline():
         try:
             resp_data = resp.json()
         except (ValueError, getattr(requests.exceptions, "JSONDecodeError", ValueError)):
+            _write_push_audit("error", error_msg=f"Invalid JSON from tracking (HTTP {resp.status_code})")
             if resp.status_code != 200:
                 return jsonify({"error": f"Tracking returned {resp.status_code} (empty or invalid response)"}), 502
             return jsonify({"error": "Tracking returned invalid JSON"}), 502
         if resp.status_code != 200:
+            _write_push_audit("error", error_msg=resp_data.get("error", f"HTTP {resp.status_code}"))
             return jsonify({"error": resp_data.get("error", "Push failed")}), resp.status_code
+        emv_id = (resp_data.get("response") or {}).get("emvAnalysisId")
+        _write_push_audit("success", emv_analysis_id=emv_id)
         return jsonify(resp_data), 200
     except requests.RequestException as e:
+        _write_push_audit("error", error_msg=str(e))
         logger.warning("Tracking push-baseline proxy failed: %s", e)
         return jsonify({"error": f"Tracking service unavailable: {str(e)}"}), 502
 
@@ -29912,111 +29991,119 @@ def analyze():
                 logger.info(
                     f"ANALYSIS API - Looking up files by ID - Before: {before_file_id}, After: {after_file_id}"
                 )
-                # Get file paths from database using file IDs and copy to analysis directory
-                with get_db_connection() as conn:
-                    if conn:
-                        cursor = conn.cursor()
-                        # Try to get from raw_meter_data first (convert to int)
-                        try:
-                            before_id_int = int(before_file_id)
-                            after_id_int = int(after_file_id)
-                        except (ValueError, TypeError) as e:
-                            logger.error(
-                                f"ANALYSIS API - Invalid file ID format - Before: {before_file_id}, After: {after_file_id}, Error: {e}"
-                            )
-                            before_id_int = None
-                            after_id_int = None
+                # Convert IDs to int first
+                try:
+                    before_id_int = int(before_file_id)
+                    after_id_int = int(after_file_id)
+                except (ValueError, TypeError) as e:
+                    logger.error(
+                        f"ANALYSIS API - Invalid file ID format - Before: {before_file_id}, After: {after_file_id}, Error: {e}"
+                    )
+                    before_id_int = None
+                    after_id_int = None
 
-                        if before_id_int and after_id_int:
-                            cursor.execute(
-                                "SELECT file_path FROM raw_meter_data WHERE id = ?",
-                                (before_id_int,),
-                            )
-                            before_result = cursor.fetchone()
-                            before_path = (
-                                str(before_result[0]) if before_result else None
-                            )
-                            logger.info(
-                                f"ANALYSIS API - Before file lookup - ID: {before_id_int}, Path: {before_path}"
-                            )
-                            cursor.execute(
-                                "SELECT file_path FROM raw_meter_data WHERE id = ?",
-                                (after_id_int,),
-                            )
-                            after_result = cursor.fetchone()
-                            after_path = str(after_result[0]) if after_result else None
-                            logger.info(
-                                f"ANALYSIS API - After file lookup - ID: {after_id_int}, Path: {after_path}"
-                            )
-                        else:
-                            before_path = None
-                            after_path = None
-                            logger.warning(
-                                f"ANALYSIS API - Invalid file IDs - Before: {before_id_int}, After: {after_id_int}"
-                            )
+                if before_id_int and after_id_int:
+                    # Resolve org_id from session; fall back through all orgs so files
+                    # uploaded under a different org (e.g. before multi-tenancy) still work.
+                    try:
+                        from main_hardened_ready_refactored import get_current_org_id as _get_org
+                        _analysis_org_id = _get_org(request)
+                    except Exception:
+                        _analysis_org_id = None
 
+                    _orgs_to_try = []
+                    if _analysis_org_id:
+                        _orgs_to_try.append(_analysis_org_id)
+
+                    before_path = None
+                    after_path = None
+
+                    for _org in _orgs_to_try:
+                        with get_db_connection(org_id=_org) as conn:
+                            if not conn:
+                                continue
+                            cursor = conn.cursor()
+                            if before_path is None:
+                                cursor.execute(
+                                    "SELECT file_path FROM raw_meter_data WHERE id = ?",
+                                    (before_id_int,),
+                                )
+                                row = cursor.fetchone()
+                                if row:
+                                    before_path = str(row[0])
+                                    logger.info(f"ANALYSIS API - Before file (org={_org}) ID {before_id_int}: {before_path}")
+                            if after_path is None:
+                                cursor.execute(
+                                    "SELECT file_path FROM raw_meter_data WHERE id = ?",
+                                    (after_id_int,),
+                                )
+                                row = cursor.fetchone()
+                                if row:
+                                    after_path = str(row[0])
+                                    logger.info(f"ANALYSIS API - After file (org={_org}) ID {after_id_int}: {after_path}")
+                        if before_path and after_path:
+                            break
+
+                    logger.info(
+                        f"ANALYSIS API - Database lookup - Before path: {before_path}, After path: {after_path}"
+                    )
+
+                    # Copy files to analysis directory
+                    if before_path and after_path:
+                        # Resolve relative paths to absolute paths
+                        base_dir = Path(__file__).parent
+                        before_path_abs = (base_dir / before_path).resolve() if not Path(before_path).is_absolute() else Path(before_path)
+                        after_path_abs = (base_dir / after_path).resolve() if not Path(after_path).is_absolute() else Path(after_path)
+
+                        # Verify files exist
+                        if not before_path_abs.exists():
+                            logger.error(f"ANALYSIS API - Before file does not exist: {before_path_abs}")
+                            return jsonify({"error": f"Before file not found: {before_path}"}), 400
+                        if not after_path_abs.exists():
+                            logger.error(f"ANALYSIS API - After file does not exist: {after_path_abs}")
+                            return jsonify({"error": f"After file not found: {after_path}"}), 400
+
+                        # Copy before file to analysis directory
+                        before_analysis_path = (
+                            analysis_dir / f"before_{before_id_int}_{ts}.csv"
+                        )
+                        shutil.copy2(str(before_path_abs), before_analysis_path)
+                        saved_files["before"] = str(before_analysis_path).replace(
+                            "\\", "/"
+                        )
                         logger.info(
-                            f"ANALYSIS API - Database lookup - Before path: {before_path}, After path: {after_path}"
+                            f"ANALYSIS API - Copied before file to analysis dir: {saved_files['before']}"
+                        )
+                        print(
+                            f"*** DEBUG FILE ID PATH - BEFORE FILE: {saved_files['before']} ***"
                         )
 
-                        # Copy files to analysis directory
-                        if before_path and after_path:
-                            # Resolve relative paths to absolute paths
-                            base_dir = Path(__file__).parent
-                            before_path_abs = (base_dir / before_path).resolve() if not Path(before_path).is_absolute() else Path(before_path)
-                            after_path_abs = (base_dir / after_path).resolve() if not Path(after_path).is_absolute() else Path(after_path)
-                            
-                            # Verify files exist
-                            if not before_path_abs.exists():
-                                logger.error(f"ANALYSIS API - Before file does not exist: {before_path_abs}")
-                                return jsonify({"error": f"Before file not found: {before_path}"}), 400
-                            if not after_path_abs.exists():
-                                logger.error(f"ANALYSIS API - After file does not exist: {after_path_abs}")
-                                return jsonify({"error": f"After file not found: {after_path}"}), 400
-                            
-                            # Copy before file to analysis directory
-                            before_analysis_path = (
-                                analysis_dir / f"before_{before_id_int}_{ts}.csv"
-                            )
-                            shutil.copy2(str(before_path_abs), before_analysis_path)
-                            saved_files["before"] = str(before_analysis_path).replace(
-                                "\\", "/"
-                            )
-                            logger.info(
-                                f"ANALYSIS API - Copied before file to analysis dir: {saved_files['before']}"
-                            )
-                            print(
-                                f"*** DEBUG FILE ID PATH - BEFORE FILE: {saved_files['before']} ***"
-                            )
-
-                            # Copy after file to analysis directory
-                            after_analysis_path = (
-                                analysis_dir / f"after_{after_id_int}_{ts}.csv"
-                            )
-                            shutil.copy2(str(after_path_abs), after_analysis_path)
-                            saved_files["after"] = str(after_analysis_path).replace(
-                                "\\", "/"
-                            )
-                            logger.info(
-                                f"ANALYSIS API - Copied after file to analysis dir: {saved_files['after']}"
-                            )
-                            print(
-                                f"*** DEBUG FILE ID PATH - AFTER FILE: {saved_files['after']} ***"
-                            )
-                        else:
-                            logger.warning(
-                                f"ANALYSIS API - Could not find files by ID - Before: {before_file_id}, After: {after_file_id}"
-                            )
-                            return (
-                                jsonify(
-                                    {
-                                        "error": f"Could not find files by ID - Before: {before_file_id}, After: {after_file_id}. Please check if the files exist in the database."
-                                    }
-                                ),
-                                400,
-                            )
+                        # Copy after file to analysis directory
+                        after_analysis_path = (
+                            analysis_dir / f"after_{after_id_int}_{ts}.csv"
+                        )
+                        shutil.copy2(str(after_path_abs), after_analysis_path)
+                        saved_files["after"] = str(after_analysis_path).replace(
+                            "\\", "/"
+                        )
+                        logger.info(
+                            f"ANALYSIS API - Copied after file to analysis dir: {saved_files['after']}"
+                        )
+                        print(
+                            f"*** DEBUG FILE ID PATH - AFTER FILE: {saved_files['after']} ***"
+                        )
                     else:
-                        logger.error("ANALYSIS API - Database connection failed")
+                        logger.warning(
+                            f"ANALYSIS API - Could not find files by ID - Before: {before_file_id}, After: {after_file_id}"
+                        )
+                        return (
+                            jsonify(
+                                {
+                                    "error": f"Could not find files by ID - Before: {before_file_id}, After: {after_file_id}. Please check if the files exist in the database."
+                                }
+                            ),
+                            400,
+                        )
             else:
                 logger.info(
                     f"ANALYSIS API - No file IDs provided - Before: {before_file_id}, After: {after_file_id}"
@@ -36111,7 +36198,7 @@ def audit_compliance_page():
     <div class="audit-container">
         <div class="audit-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
+                <img src="{{ static_base }}/static/synerex_logo_white.png" alt="SYNEREX" style="height: 44px; width: auto;">
                 <h1 style="margin: 0;">🔍 Audit Compliance & Documentation</h1>
             </div>
             <p>Comprehensive audit trail and compliance verification for power analysis</p>
@@ -36245,6 +36332,7 @@ def audit_compliance_page():
 </html>
         """,
             cache_bust=cache_bust,
+            static_base=(lambda: __import__('main_hardened_ready_refactored', fromlist=['_static_base'])._static_base())(),
         )
     except Exception as e:
         logger.error(f"Error rendering audit compliance page: {e}")
@@ -36759,7 +36847,7 @@ def system_status_page():
     <div class="status-container">
         <div class="status-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 44px; width: auto;">
+                <img src="{{ static_base }}/static/synerex_logo_transparent.png" alt="SYNEREX" style="height: 44px; width: auto;">
                 <h1 style="margin: 0;">🔧 System Status & Health</h1>
             </div>
             <p>Real-time system monitoring and operational status</p>
@@ -36861,6 +36949,7 @@ def system_status_page():
 </html>
         """,
             cache_bust=cache_bust,
+            static_base=(lambda: __import__('main_hardened_ready_refactored', fromlist=['_static_base'])._static_base())(),
         )
     except Exception as e:
         logger.error(f"Error rendering system status page: {e}")
@@ -36944,7 +37033,7 @@ def documentation_page():
     <div class="doc-container">
         <div class="doc-header">
             <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-                <img src="/static/synerex_logo_white.png" alt="SYNEREX" style="height: 40px; width: auto;">
+                <img src="{{ static_base }}/static/synerex_logo_white.png" alt="SYNEREX" style="height: 40px; width: auto;">
                 <h1 style="margin: 0;">📚 Documentation</h1>
             </div>
             <p>Complete system documentation and user guides</p>
@@ -37038,6 +37127,7 @@ POST /api/original-files/{id}/apply-clipping - Apply data range clipping
 </html>
         """,
             cache_bust=cache_bust,
+            static_base=(lambda: __import__('main_hardened_ready_refactored', fromlist=['_static_base'])._static_base())(),
         )
     except Exception as e:
         logger.error(f"Error rendering documentation page: {e}")
@@ -44549,6 +44639,14 @@ def projects_load():
         import os
         import re
 
+        # Resolve the caller's org so project lookup is scoped correctly
+        _load_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _load_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
         # Support both JSON body and form data
         project_id = None
         name = None
@@ -44569,7 +44667,7 @@ def projects_load():
         # Try database first if available
         if ENABLE_SQLITE or USE_MYSQL:
             try:
-                with get_db_connection() as conn:
+                with get_db_connection(org_id=_load_org_id) as conn:
                     if conn is not None:
                         cursor = conn.cursor()
                         
@@ -44911,7 +45009,14 @@ def create_project():
         if not name:
             return jsonify({"error": "Project name is required"}), 400
 
-        with get_db_connection() as conn:
+        _create_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _create_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
+        with get_db_connection(org_id=_create_org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
@@ -44953,6 +45058,14 @@ def projects_save():
         import re
         from datetime import datetime
 
+        # Resolve the caller's org so new projects are created in the right org scope
+        _save_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _save_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
         name = (request.form.get("project_name", "") or "").strip()
         if not name:
             return jsonify({"error": "Missing project_name"}), 400
@@ -44981,7 +45094,7 @@ def projects_save():
                     
                     # Save to database and get file ID
                     if ENABLE_SQLITE or USE_MYSQL:
-                        with get_db_connection() as conn:
+                        with get_db_connection(org_id=_save_org_id) as conn:
                             if conn is not None:
                                 cursor = conn.cursor()
                                 file_size = os.path.getsize(saved_path) if os.path.exists(saved_path) else 0
@@ -45020,7 +45133,7 @@ def projects_save():
                     
                     # Save to database and get file ID
                     if ENABLE_SQLITE or USE_MYSQL:
-                        with get_db_connection() as conn:
+                        with get_db_connection(org_id=_save_org_id) as conn:
                             if conn is not None:
                                 cursor = conn.cursor()
                                 file_size = os.path.getsize(saved_path) if os.path.exists(saved_path) else 0
@@ -45079,7 +45192,7 @@ def projects_save():
         # Try database first if available
         if ENABLE_SQLITE or USE_MYSQL:
             try:
-                with get_db_connection() as conn:
+                with get_db_connection(org_id=_save_org_id) as conn:
                     if conn is not None:
                         cursor = conn.cursor()
                         
@@ -45094,7 +45207,8 @@ def projects_save():
                                 project_row = None
                         else:
                             # Check if project exists by name (case-insensitive)
-                            cursor.execute("SELECT id, name FROM projects WHERE name = ? COLLATE NOCASE", (name,))
+                            # Use LOWER() which works in both MySQL and SQLite (COLLATE NOCASE is SQLite-only)
+                            cursor.execute("SELECT id, name FROM projects WHERE LOWER(name) = LOWER(?)", (name,))
                             project_row = cursor.fetchone()
                             if project_row:
                                 logger.info(f"💾 Found project by name: ID {project_row[0]}, name '{project_row[1]}'")
@@ -45103,12 +45217,14 @@ def projects_save():
 
                         if not project_row:
                             # Create new project
+                            # Use datetime parameter instead of NOW() to avoid breaking _inject_org_id regex
+                            _insert_now = datetime.now()
                             cursor.execute(
-                                f"""
+                                """
                                 INSERT INTO projects (name, description, data, created_at, updated_at)
-                                VALUES (?, ?, ?, {_sql_now()}, {_sql_now()})
+                                VALUES (?, ?, ?, ?, ?)
                                 """,
-                                (name, "", data_json),
+                                (name, "", data_json, _insert_now, _insert_now),
                             )
                             conn.commit()
                             new_project_id = cursor.lastrowid
@@ -45130,7 +45246,11 @@ def projects_save():
                                 (data_json, project_id_to_update),
                             )
                             conn.commit()
-                            logger.info(f"✅ Updated project '{actual_name}' (ID: {project_id_to_update}) with {len(project_data)} fields")
+                            _rows = getattr(cursor, 'rowcount', -1)
+                            if _rows == 0:
+                                logger.warning(f"⚠️ UPDATE affected 0 rows for project ID {project_id_to_update} - possible org_id mismatch. Save may not have persisted.")
+                            else:
+                                logger.info(f"✅ Updated project '{actual_name}' (ID: {project_id_to_update}) with {len(project_data)} fields")
                             return jsonify({
                                 "ok": True,
                                 "method": "database",
@@ -45256,11 +45376,19 @@ def get_project_data(project_id):
         return jsonify({"error": "SQLite persistence not enabled"}), 400
 
     try:
+        # Resolve the caller's org so project lookup is scoped correctly
+        _data_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _data_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
         # Track data access
         csv_integrity = CSVIntegrityProtection()
         requester_info = f"Project {project_id} data request"
 
-        with get_db_connection() as conn:
+        with get_db_connection(org_id=_data_org_id) as conn:
             if conn is None:
                 return jsonify({"error": "Database not available"}), 500
 
@@ -45979,7 +46107,9 @@ def login_user():
                                 "status": "error",
                                 "error": "Access denied. The EM&V portal is not available for client accounts."
                             }), 403
-                        if "administrator" in _roles or "admin" in _roles or "oem_admin" in _roles:
+                        # "oem_admin" is excluded — OEM admins manage their own users
+                        # but are NOT Synerex Administrators in the EM&V system.
+                        if "administrator" in _roles or "admin" in _roles:
                             ls_role = "administrator"
                         elif "engineer" in _roles or "oem_engineer" in _roles:
                             ls_role = "engineer"
@@ -46120,6 +46250,65 @@ def validate_user_session(session_token):
         logger.info("No session token provided")
         return None
 
+    # Step 1: look up the session in the shared sessions DB (no org_id filter)
+    # so OEM sessions (org_id != 'default') can be found correctly.
+    session_row = None
+    try:
+        with get_db_connection(use_sessions_db=True) as sess_conn:
+            if sess_conn is None:
+                return None
+            sess_cursor = sess_conn.cursor()
+            sess_cursor.execute(
+                f"""
+                SELECT user_id, org_id FROM user_sessions
+                WHERE session_token = ? AND expires_at > {_sql_now()}
+                """,
+                (session_token,),
+            )
+            session_row = sess_cursor.fetchone()
+    except Exception as _e:
+        logger.debug(f"Sessions DB lookup failed, falling back to default: {_e}")
+
+    if session_row is not None:
+        try:
+            _s_user_id = session_row["user_id"] if hasattr(session_row, "get") else session_row[0]
+            _s_org_id  = session_row["org_id"]  if hasattr(session_row, "get") else (session_row[1] if len(session_row) > 1 else None)
+        except Exception:
+            _s_user_id, _s_org_id = None, None
+
+        # Step 2: fetch the user record from their org-specific DB
+        if _s_user_id is not None:
+            try:
+                with get_db_connection(org_id=_s_org_id) as user_conn:
+                    if user_conn:
+                        u_cursor = user_conn.cursor()
+                        u_cursor.execute(
+                            "SELECT id, full_name, email, username, role, pe_license_number, state, org_id FROM users WHERE id = ?",
+                            (_s_user_id,),
+                        )
+                        user = u_cursor.fetchone()
+                        if user:
+                            logger.info(f"Valid session found for user: {user[3]} (org: {_s_org_id})")
+                            try:
+                                _org_id = user["org_id"] if hasattr(user, "get") else (user[7] if len(user) > 7 else _s_org_id)
+                            except Exception:
+                                _org_id = _s_org_id
+                            _org_type = _derive_org_type(_org_id or _s_org_id)
+                            return {
+                                "id": user[0],
+                                "full_name": user[1],
+                                "email": user[2],
+                                "username": user[3],
+                                "role": user[4],
+                                "pe_license_number": user[5],
+                                "state": user[6],
+                                "org_id": _org_id or _s_org_id,
+                                "org_type": _org_type,
+                            }
+            except Exception as _e:
+                logger.debug(f"User fetch from org DB failed: {_e}")
+
+    # Fallback: legacy single-DB JOIN (for backward compat / SQLite setups)
     with get_db_connection() as conn:
         if conn is None:
             logger.info("Database connection failed")
@@ -46289,7 +46478,19 @@ def upload_interface():
         logger.info(
             f"Upload interface template rendered successfully, length: {len(result)}"
         )
-        return result
+        config_script = (
+            "<script>window.SYNEREX_EMV_BASE=(function(){"
+            "var p=window.location.pathname;"
+            "return p.startsWith('/emv')?'/emv':'';"
+            "})();</script>"
+        )
+        if "</head>" in result:
+            result = result.replace("</head>", config_script + "\n</head>", 1)
+        response = make_response(result)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     except Exception as e:
         logger.error(f"Error rendering upload interface: {e}")
         import traceback
@@ -46316,7 +46517,19 @@ def raw_files_list():
         logger.info(
             f"Raw files list template rendered successfully, length: {len(result)}"
         )
-        return result
+        config_script = (
+            "<script>window.SYNEREX_EMV_BASE=(function(){"
+            "var p=window.location.pathname;"
+            "return p.startsWith('/emv')?'/emv':'';"
+            "})();</script>"
+        )
+        if "</head>" in result:
+            result = result.replace("</head>", config_script + "\n</head>", 1)
+        response = make_response(result)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     except Exception as e:
         logger.error(f"Error rendering raw files list: {e}")
         import traceback
@@ -46343,7 +46556,21 @@ def clipping_interface():
         logger.info(
             f"Clipping interface template rendered successfully, length: {len(result)}"
         )
-        return result
+        # Inject SYNEREX_EMV_BASE so all API calls in clipping_interface.js
+        # include the correct /emv/ prefix when accessed behind the Nginx proxy.
+        config_script = (
+            "<script>window.SYNEREX_EMV_BASE=(function(){"
+            "var p=window.location.pathname;"
+            "return p.startsWith('/emv')?'/emv':'';"
+            "})();</script>"
+        )
+        if "</head>" in result:
+            result = result.replace("</head>", config_script + "\n</head>", 1)
+        response = make_response(result)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     except Exception as e:
         logger.error(f"Error rendering clipping interface: {e}")
         import traceback
@@ -46504,6 +46731,13 @@ def csv_editor_guide_html():
 def upload_raw_meter_data():
     """Upload raw meter data CSV files"""
     try:
+        _upload_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _upload_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
         if "file" not in request.files:
             return jsonify({"status": "error", "error": "No file provided"}), 400
 
@@ -46557,7 +46791,7 @@ def upload_raw_meter_data():
             fingerprint = fingerprint_data["content_hash"]  # Store just the hash string
 
             # Store file metadata in database
-            with get_db_connection() as conn:
+            with get_db_connection(org_id=_upload_org_id) as conn:
                 if conn is None:
                     return (
                         jsonify(
@@ -46606,7 +46840,14 @@ def upload_raw_meter_data():
 def list_original_files():
     """List all original raw meter data files"""
     try:
-        with get_db_connection() as conn:
+        _list_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _list_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
+        with get_db_connection(org_id=_list_org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -46668,8 +46909,18 @@ def list_verified_files():
     try:
         from pathlib import Path
 
-        # Use proper database connection
-        with get_db_connection() as conn:
+        # Resolve the current user's org_id so OEM users only see their own files.
+        # Synerex Admin (org_id='admin') sees all files across all orgs.
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _vf_org_id = get_current_org_id(request)
+        except Exception:
+            _vf_org_id = None
+
+        _is_admin_user = (_vf_org_id == "admin" or _vf_org_id is None)
+
+        # Use org-aware database connection
+        with get_db_connection(org_id=_vf_org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -46677,14 +46928,26 @@ def list_verified_files():
                 )
 
             cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT id, file_name, file_path, file_size, created_at, fingerprint
-                FROM raw_meter_data 
-                WHERE file_path IS NOT NULL AND fingerprint IS NOT NULL
-                ORDER BY created_at DESC
-            """
-            )
+            if _is_admin_user:
+                # Admins see all verified files across all orgs
+                cursor.execute(
+                    """
+                    SELECT id, file_name, file_path, file_size, created_at, fingerprint
+                    FROM raw_meter_data
+                    WHERE file_path IS NOT NULL AND fingerprint IS NOT NULL
+                    ORDER BY created_at DESC
+                    """
+                )
+            else:
+                # OEM users only see their own org's files (org_id injected by _inject_org_id)
+                cursor.execute(
+                    """
+                    SELECT id, file_name, file_path, file_size, created_at, fingerprint
+                    FROM raw_meter_data
+                    WHERE file_path IS NOT NULL AND fingerprint IS NOT NULL
+                    ORDER BY created_at DESC
+                    """
+                )
             db_results = cursor.fetchall()
 
             files = []
@@ -47097,7 +47360,13 @@ def list_fingerprint_files():
     """List all fingerprint files for file selection"""
     try:
         # Get all files from the csv_fingerprints table
-        with get_db_connection() as conn:
+        _lfp_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _lfp_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+        with get_db_connection(org_id=_lfp_org_id) as conn:
             if not conn:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -48065,7 +48334,16 @@ def get_file_for_clipping(file_id):
         logger.info(f"Request method: {request.method}")
         logger.info(f"Request headers: {dict(request.headers)}")
 
-        with get_db_connection() as conn:
+        _clip_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _clip_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
+        # No pagination — return all rows so the frontend has the complete dataset
+
+        with get_db_connection(org_id=_clip_org_id) as conn:
             if conn is None:
                 logger.error("Database connection failed")
                 return (
@@ -48074,11 +48352,6 @@ def get_file_for_clipping(file_id):
                 )
 
             cursor = conn.cursor()
-
-            # First, let's see what files exist
-            cursor.execute("SELECT id, file_name FROM raw_meter_data ORDER BY id")
-            all_files = cursor.fetchall()
-            logger.info(f"All files in database: {all_files}")
 
             cursor.execute(
                 """
@@ -48183,7 +48456,12 @@ def get_file_for_clipping(file_id):
             )
 
             csv_reader = csv.DictReader(io.StringIO(csv_content_clean))
-            content_data = list(csv_reader)
+            all_rows = list(csv_reader)
+            total_rows = len(all_rows)
+
+            logger.info(
+                f"Returning all {total_rows} rows for file {file_id}"
+            )
 
             return jsonify(
                 {
@@ -48196,8 +48474,10 @@ def get_file_for_clipping(file_id):
                         "fingerprint": fingerprint,
                         "created_at": created_at,
                     },
-                    "content": content_data,
-                    "raw_content": csv_content,
+                    "content": all_rows,
+                    "pagination": {
+                        "total_rows": total_rows,
+                    },
                 }
             )
 
@@ -48236,7 +48516,14 @@ def apply_clipping_to_original_file(file_id):
         if not user:
             return jsonify({"status": "error", "error": "Invalid session"}), 401
 
-        with get_db_connection() as conn:
+        _apply_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _apply_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+
+        with get_db_connection(org_id=_apply_org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -48310,11 +48597,14 @@ def apply_clipping_to_original_file(file_id):
             )
 
             # Store modification record in database
+            # Use a Python datetime parameter instead of NOW() to avoid breaking
+            # the _inject_org_id regex (which cannot handle SQL function calls in VALUES).
+            from datetime import datetime as _dt_now
             cursor.execute(
-                f"""
+                """
                 INSERT INTO data_modifications (file_id, modifier_id, modification_type, reason, 
                                               fingerprint_before, fingerprint_after, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, {_sql_now()})
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
                 (
                     file_id,
@@ -48323,6 +48613,7 @@ def apply_clipping_to_original_file(file_id):
                     modification_reason,
                     original_fingerprint,
                     new_fingerprint,
+                    _dt_now.now(),
                 ),
             )
 
@@ -49249,7 +49540,13 @@ def get_pe_stats():
 def get_csv_fingerprints():
     """Get fingerprints for all CSV files"""
     try:
-        with get_db_connection() as conn:
+        _fp_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _fp_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+        with get_db_connection(org_id=_fp_org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -49344,7 +49641,13 @@ def get_csv_fingerprints():
 def verify_all_csv_integrity():
     """Get all CSV files for integrity verification"""
     try:
-        with get_db_connection() as conn:
+        _vai_org_id = None
+        try:
+            from main_hardened_ready_refactored import get_current_org_id
+            _vai_org_id = get_current_org_id(request)
+        except Exception:
+            pass
+        with get_db_connection(org_id=_vai_org_id) as conn:
             if conn is None:
                 return (
                     jsonify({"status": "error", "error": "Database connection failed"}),
@@ -49382,33 +49685,37 @@ def verify_all_csv_integrity():
                 project_files = []
 
             # Format the data and perform integrity checks
+            # Use a fast hash-only helper to avoid DB writes on every file during verification
+            def _fast_file_hash(file_path):
+                """Read file and return normalized SHA-256 hash without any DB side-effects."""
+                try:
+                    import hashlib as _hashlib
+                    with open(file_path, "r", encoding="utf-8") as _f:
+                        _raw = _f.read()
+                    # Apply same normalization as CSVIntegrityProtection._normalize_csv_content
+                    if _raw.startswith("\ufeff"):
+                        _raw = _raw[1:]
+                    _raw = _raw.replace("\r\n", "\n").replace("\r", "\n")
+                    _lines = [l.rstrip() for l in _raw.split("\n")]
+                    while _lines and not _lines[-1]:
+                        _lines.pop()
+                    _normalized = "\n".join(_lines)
+                    return _hashlib.sha256(_normalized.encode("utf-8")).hexdigest()
+                except Exception as _e:
+                    logger.error(f"Error hashing file {file_path}: {_e}")
+                    return None
+
             files_to_verify = []
 
             for row in raw_files:
                 file_path = row[2]
                 stored_fingerprint = row[4]
 
-                # Check if file exists and get current fingerprint
                 current_fingerprint = None
-                file_exists = False
-                try:
-                    import os
+                file_exists = os.path.exists(file_path)
+                if file_exists:
+                    current_fingerprint = _fast_file_hash(file_path)
 
-                    if os.path.exists(file_path):
-                        file_exists = True
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                        csv_integrity = CSVIntegrityProtection()
-                        current_fingerprint_data = (
-                            csv_integrity.create_content_fingerprint(content)
-                        )
-                        current_fingerprint = current_fingerprint_data.get(
-                            "content_hash"
-                        )
-                except Exception as e:
-                    logger.error(f"Error reading file {file_path}: {e}")
-
-                # Determine integrity status
                 integrity_status = "unknown"
                 if not file_exists:
                     integrity_status = "file_missing"
@@ -49441,37 +49748,13 @@ def verify_all_csv_integrity():
                 file_path = row[2]
                 stored_fingerprint = row[3]
 
-                # Check if file exists and get current fingerprint
                 current_fingerprint = None
-                file_exists = False
-                try:
-                    import os
+                file_exists = os.path.exists(file_path)
+                if file_exists:
+                    current_fingerprint = _fast_file_hash(file_path)
 
-                    if os.path.exists(file_path):
-                        file_exists = True
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                        csv_integrity = CSVIntegrityProtection()
-                        current_fingerprint_data = (
-                            csv_integrity.create_content_fingerprint(content)
-                        )
-                        current_fingerprint = current_fingerprint_data.get(
-                            "content_hash"
-                        )
-                except Exception as e:
-                    logger.error(f"Error reading file {file_path}: {e}")
+                file_size = os.path.getsize(file_path) if file_exists else 0
 
-                # Get file size
-                file_size = 0
-                try:
-                    import os
-
-                    if os.path.exists(file_path):
-                        file_size = os.path.getsize(file_path)
-                except:
-                    file_size = 0
-
-                # Determine integrity status
                 integrity_status = "unknown"
                 if not file_exists:
                     integrity_status = "file_missing"

@@ -600,6 +600,12 @@ def client_logout_all(request: Request):
 def get_user_jwt(request: Request, db: Session = Depends(db_session)):
     """Return the current user's JWT if logged in. Refreshes token if expired."""
     if not _is_user_logged_in(request):
+        # Also support Synerex Admin — they log in via admin credentials which sets
+        # admin_logged_in and stores the admin session token under session_token.
+        # The admin session token is accepted by verify_user_jwt and by /emv/sso.
+        admin_token = request.session.get("session_token")
+        if admin_token and request.session.get("admin_logged_in"):
+            return {"token": admin_token}
         raise HTTPException(401, "Not authenticated")
     token = request.session.get("user_token")
     # Refresh token if missing or expired so program links (EM&V, Tracking) always work
@@ -679,7 +685,9 @@ def verify_user_jwt(body: dict):
         if verify_admin_token(token):
             claims = {
                 "email": settings.admin_sso_email,
-                "sub": "synerex",
+                "sub": "admin",
+                "username": "admin",
+                "org_id": "admin",
                 "roles": ["admin"],
             }
         else:

@@ -618,12 +618,11 @@ export default function MyAccount() {
             </p>
             <div className="grid md:grid-cols-2 gap-6">
               <a
-                href={`${EMV_URL}/admin-panel`}
-                
+                href={getAccessUrl("emv")}
                 rel="noopener noreferrer"
                 className="block p-6 bg-purple-500 hover:bg-purple-500 rounded-lg text-center transition-colors border border-purple-400"
               >
-                <div className="text-xl font-bold mb-2 text-white">EM&V Admin Panel</div>
+                <div className="text-xl font-bold mb-2 text-white">EM&V Program</div>
                 <div className="text-sm text-purple-200">Energy Measurement & Verification</div>
               </a>
               <a

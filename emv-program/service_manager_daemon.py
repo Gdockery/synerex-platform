@@ -841,10 +841,39 @@ def stop_other_services():
 
 @app.route('/api/services/start/<service_id>', methods=['POST'])
 def start_service(service_id):
-    """Start a specific service"""
+    """Start a specific service. Uses 'docker start' for Docker-managed services."""
     if service_id not in service_manager.services:
         return jsonify({'success': False, 'message': 'Service not found'}), 404
-    
+
+    service_config = service_manager.config['services'].get(service_id, {})
+    docker_container = service_config.get('docker_container')
+    if docker_container:
+        try:
+            result = subprocess.run(
+                ['docker', 'start', docker_container],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                time.sleep(3)
+                healthy = service_manager._is_service_healthy(service_id)
+                return jsonify({
+                    'success': True,
+                    'message': f'{service_id} started via Docker successfully',
+                    'healthy': healthy,
+                    'container': docker_container
+                })
+            else:
+                error_msg = result.stderr.strip() or f'docker start exited with code {result.returncode}'
+                return jsonify({
+                    'success': False,
+                    'message': f'docker start failed for {docker_container}',
+                    'error': error_msg
+                }), 500
+        except subprocess.TimeoutExpired:
+            return jsonify({'success': False, 'message': f'docker start timed out for {docker_container}', 'error': 'timeout after 60s'}), 500
+        except FileNotFoundError:
+            return jsonify({'success': False, 'message': 'docker command not found in PATH'}), 500
+
     success = service_manager._start_service(service_id)
     return jsonify({
         'success': success,
@@ -853,10 +882,36 @@ def start_service(service_id):
 
 @app.route('/api/services/stop/<service_id>', methods=['POST'])
 def stop_service(service_id):
-    """Stop a specific service"""
+    """Stop a specific service. Uses 'docker stop' for Docker-managed services."""
     if service_id not in service_manager.services:
         return jsonify({'success': False, 'message': 'Service not found'}), 404
-    
+
+    service_config = service_manager.config['services'].get(service_id, {})
+    docker_container = service_config.get('docker_container')
+    if docker_container:
+        try:
+            result = subprocess.run(
+                ['docker', 'stop', docker_container],
+                capture_output=True, text=True, timeout=60
+            )
+            if result.returncode == 0:
+                return jsonify({
+                    'success': True,
+                    'message': f'{service_id} stopped via Docker successfully',
+                    'container': docker_container
+                })
+            else:
+                error_msg = result.stderr.strip() or f'docker stop exited with code {result.returncode}'
+                return jsonify({
+                    'success': False,
+                    'message': f'docker stop failed for {docker_container}',
+                    'error': error_msg
+                }), 500
+        except subprocess.TimeoutExpired:
+            return jsonify({'success': False, 'message': f'docker stop timed out for {docker_container}', 'error': 'timeout after 60s'}), 500
+        except FileNotFoundError:
+            return jsonify({'success': False, 'message': 'docker command not found in PATH'}), 500
+
     success = service_manager._stop_service(service_id)
     return jsonify({
         'success': success,

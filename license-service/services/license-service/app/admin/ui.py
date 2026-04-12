@@ -271,6 +271,14 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
         request.session["admin_logged_in"] = True
         request.session["admin_username"] = username
 
+        # Generate an opaque admin session token so /auth/api/jwt can return it,
+        # allowing the Admin Dashboard to build SSO URLs for EM&V and Tracking.
+        import uuid
+        from ..auth.admin_tokens import store_admin_token
+        _admin_session_token = str(uuid.uuid4())
+        store_admin_token(_admin_session_token)
+        request.session["session_token"] = _admin_session_token
+
         # If an explicit return_url was supplied honour it (e.g. /admin from
         # the React unified dashboard that bounced the user here to log in).
         if return_url:

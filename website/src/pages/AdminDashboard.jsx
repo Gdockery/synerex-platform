@@ -6,6 +6,7 @@ export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [jwtToken, setJwtToken] = useState(null);
   const [stats, setStats] = useState({
     organizations: 0, api_keys: 0, api_keys_active: 0,
     authorizations: 0, authorizations_active: 0,
@@ -46,9 +47,9 @@ export default function AdminDashboard() {
     const mapping = {
       'emv_service_9000': 'SELF_RESTART', // Service Manager itself - uses special self-restart endpoint
       'emv_program_8082': 'main_app', // EMV Program maps to main_app
-      'license_service_8000': null, // License Service - not managed by Service Manager
-      'tracking_program_8087': null, // Tracking Program - not managed by Service Manager
-      'website_frontend_5173': null // Website Frontend - not managed by Service Manager
+      'license_service_8000': null, // License Service - handled separately (custom restart logic)
+      'tracking_program_8087': null, // Tracking Program - handled separately (custom restart logic)
+      'website_frontend_5173': 'website_frontend' // Website Frontend - Docker-managed via Service Manager
     };
     // Check if key exists in mapping first, then return the value (even if null)
     if (websiteServiceId in mapping) {
@@ -61,13 +62,22 @@ export default function AdminDashboard() {
     // Verify session via License Service server-side cookie.
     // If not authenticated, redirect to the License Service admin login
     // with return_url so we come back here after successful login.
-    fetch(`${LICENSE_SERVICE_URL}/admin/api/check-auth`, { credentials: 'include' })
-      .then(res => {
-        if (res.ok) {
+    Promise.all([
+      fetch(`${LICENSE_SERVICE_URL}/admin/api/check-auth`, { credentials: 'include' }),
+      fetch(`${LICENSE_SERVICE_URL}/auth/api/jwt`, { credentials: 'include' })
+    ])
+      .then(async ([authRes, jwtRes]) => {
+        if (authRes.ok) {
           setIsAdmin(true);
           setIsAuthenticated(true);
           loadStats();
           loadServices();
+          if (jwtRes.ok) {
+            try {
+              const jwtData = await jwtRes.json();
+              if (jwtData?.token) setJwtToken(jwtData.token);
+            } catch (_) {}
+          }
         } else {
           // Not authenticated — redirect to License Service login
           const returnUrl = window.location.origin + '/admin';
@@ -111,7 +121,14 @@ export default function AdminDashboard() {
   }, [isAuthenticated, isAdmin]);
   
   // REMOVED: checkAuth function - no longer needed, we trust the token
-  
+
+  const getAccessUrl = (program) => {
+    if (jwtToken) {
+      return `${LICENSE_SERVICE_URL}/access/${program}?token=${encodeURIComponent(jwtToken)}`;
+    }
+    return `${LICENSE_SERVICE_URL}/access/${program}`;
+  };
+
   const loadStats = async () => {
     try {
       const controller = new AbortController();
@@ -490,16 +507,38 @@ export default function AdminDashboard() {
         }
         return;
       } else if (serviceId === 'website_frontend_5173') {
-        // Website Frontend (5173) - Docker or local dev
-        const dockerRestart = 'docker-compose restart website';
-        const localStart = 'cd website && npm run dev';
+        // Website Frontend (5173) — Docker-managed, restart via Service Manager.
+        // NOTE: Restarting the website will briefly take this admin page offline
+        // since the same container serves it. The page will auto-reload.
         if (action === 'restart') {
-          const msg = `To restart the website (port 5173):\n\nDocker: In project root run:\n  ${dockerRestart}\n\nLocal dev: Ctrl+C in the terminal, then:\n  ${localStart}\n\nTip: Use "Copy restart command" in Maintenance Tools to copy the Docker command.`;
-          alert(msg);
-        } else if (action === 'start') {
-          alert(`To start the website (5173):\n\nDocker: docker-compose up -d website\nLocal: ${localStart}`);
-        } else if (action === 'stop') {
-          alert('To stop: Docker: docker-compose stop website\nLocal: Ctrl+C in the terminal.');
+          if (!confirm('Restarting the Website Frontend will briefly take this page offline. It will reload automatically. Continue?')) return;
+        }
+        setServiceActions(prev => ({ ...prev, [serviceId]: action }));
+        const smId = 'website_frontend';
+        try {
+          const response = await fetch(
+            `${SERVICE_MANAGER_URL}/api/services/${action}/${smId}`,
+            { method: 'POST', credentials: 'omit' }
+          );
+          const data = await response.json();
+          if (data.success !== false) {
+            if (action === 'restart') {
+              alert(data.message || 'Website Frontend restarted. Page will reload automatically...');
+              setTimeout(() => window.location.reload(), 5000);
+            } else {
+              alert(data.message || `Website Frontend ${action} initiated.`);
+              setTimeout(() => {
+                loadServices();
+                setServiceActions(prev => { const next = { ...prev }; delete next[serviceId]; return next; });
+              }, 4000);
+            }
+          } else {
+            throw new Error(data.message || data.error || 'Unknown error');
+          }
+        } catch (err) {
+          console.error('Failed to ' + action + ' Website Frontend:', err);
+          alert('Failed to ' + action + ' Website Frontend: ' + messageForFetchError(err, 'Service Manager', SERVICE_MANAGER_URL));
+          setServiceActions(prev => { const next = { ...prev }; delete next[serviceId]; return next; });
         }
         return;
       } else {
@@ -794,11 +833,10 @@ export default function AdminDashboard() {
           </div>
           
           <a
-            href={`${EMV_URL}/admin-panel`}
+            href={getAccessUrl("emv")}
             onClick={(e) => {
               e.preventDefault();
-              // Open in same window to preserve session cookies
-              window.location.href = `${EMV_URL}/admin-panel`;
+              window.location.href = getAccessUrl("emv");
             }}
             className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-700/50 hover:border-blue-500 transition-all hover:shadow-lg hover:scale-105 cursor-pointer"
           >
@@ -1342,13 +1380,6 @@ export default function AdminDashboard() {
                             <div className="text-base font-semibold text-gray-200 mb-1">{serviceData.name}</div>
                             <div className="text-xs text-gray-500 mb-2">{serviceData.description}</div>
                             <div className="text-xs text-gray-400">{serviceData.url}</div>
-                            <a
-                              href={serviceData.url}
-                              className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block"
-                            >
-                              Open →
-                            </a>
-                            <div className="text-xs text-yellow-500 mt-2">Restart: use &quot;Copy restart command&quot; in Maintenance Tools below, or click Restart for instructions.</div>
                           </div>
                           <div className="flex flex-col items-center gap-2 ml-4">
                             <div className={`w-6 h-6 rounded-full ${ledColor} shadow-lg ${isHealthy ? 'animate-pulse led-green' : isRunning ? 'led-yellow' : 'led-red'}`} 

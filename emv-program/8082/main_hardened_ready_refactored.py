@@ -11642,25 +11642,33 @@ def fetch_weather_legacy():
             logger.error("Γ¥î Weather fetch failed: No org_id found")
             return jsonify({"success": False, "error": "Organization ID required. Please log in again."}), 401
 
-        # Resolve file paths from DB using org-specific database
+        # Resolve file paths from DB using org-specific database.
+        # Falls back to 'admin' org when the file isn't found in the user's org —
+        # matching the same fallback used by list_verified_files(), which means files
+        # uploaded before the multi-tenancy fix (stored as org_id='admin') still work.
         base_dir = Path(__file__).parent
         def _resolve_path(file_id: str):
-            with get_db_connection(org_id=org_id) as conn:
-                if conn is None:
-                    logger.error(f"Γ¥î Database connection failed for org_id={org_id}")
-                    return None
-                cur = conn.cursor()
-                cur.execute("SELECT file_path FROM raw_meter_data WHERE id = ? AND file_path IS NOT NULL", (file_id,))
-                row = cur.fetchone()
-                if not row:
-                    logger.warning(f"ΓÜá∩╕Å File ID {file_id} not found in org_id={org_id} database")
-                    return None
-                rel = row[0]
-                p = (base_dir / rel).resolve()
-                if not p.exists():
-                    logger.warning(f"ΓÜá∩╕Å File path does not exist: {p}")
-                    return None
-                return p
+            orgs_to_try = [org_id]
+            if org_id and org_id != "admin":
+                orgs_to_try.append("admin")
+            for attempt_org in orgs_to_try:
+                with get_db_connection(org_id=attempt_org) as conn:
+                    if conn is None:
+                        continue
+                    cur = conn.cursor()
+                    cur.execute("SELECT file_path FROM raw_meter_data WHERE id = ? AND file_path IS NOT NULL", (file_id,))
+                    row = cur.fetchone()
+                    if not row:
+                        logger.warning(f"File ID {file_id} not found in org_id={attempt_org}")
+                        continue
+                    rel = row[0]
+                    p = (base_dir / rel).resolve()
+                    if not p.exists():
+                        logger.warning(f"File path does not exist on disk: {p}")
+                        continue
+                    logger.info(f"Resolved file ID {file_id} via org_id={attempt_org}")
+                    return p
+            return None
 
         before_path = _resolve_path(before_file_id)
         after_path = _resolve_path(after_file_id)
@@ -13027,8 +13035,9 @@ def sso_login():
             return redirect(_main_dashboard_url())
 
         claims = resp.json().get("claims") or {}
-        org_id = claims.get("sub")
-        username = claims.get("username") or claims.get("sub") or "sso_user"
+        # org_id is either an explicit claim (set for admin tokens) or falls back to sub
+        org_id = claims.get("org_id") or claims.get("sub")
+        username = claims.get("username") or claims.get("email") or claims.get("sub") or "sso_user"
         roles = claims.get("roles") or []
         if not org_id:
             return redirect(_main_dashboard_url())
@@ -13066,6 +13075,17 @@ def sso_login():
                     (username,),
                 )
                 row = cursor.fetchone()
+                # Determine if this SSO user should have administrator role.
+                # Synerex Admin has org_id='admin' but no Organization row in the
+                # License Service DB, so their JWT roles list is empty. We fall back
+                # to checking org_id directly so they always get the correct role.
+                # NOTE: "oem_admin" is intentionally excluded — OEM admins manage their
+                # own users but are NOT Synerex Administrators in the EM&V system.
+                _should_be_admin = (
+                    org_id == "admin"
+                    or "administrator" in roles
+                    or "admin" in roles
+                )
                 if row:
                     user_id = row[0]
                     # Fix existing users who were created with full_name="sso_user"
@@ -13074,7 +13094,14 @@ def sso_login():
                             "UPDATE users SET full_name = ? WHERE id = ?",
                             (username, user_id),
                         )
-                        org_conn.commit()
+                    # Upgrade role to administrator if the SSO claim now warrants it
+                    # (covers users who were created before this logic existed).
+                    if _should_be_admin:
+                        cursor.execute(
+                            "UPDATE users SET role = 'administrator' WHERE id = ? AND role != 'administrator'",
+                            (user_id,),
+                        )
+                    org_conn.commit()
                 else:
                     # Migrate existing sso_user to real username when SSO provides it
                     if username != "sso_user":
@@ -13100,7 +13127,7 @@ def sso_login():
                         user_count = (count_row[0] if count_row else 0) if count_row else 0
                         is_first_user = user_count == 0
                         role = "administrator" if (
-                            is_first_user or "administrator" in roles or "admin" in roles or "oem_admin" in roles
+                            is_first_user or _should_be_admin
                         ) else "user"
                         cursor.execute(
                             """
@@ -13127,21 +13154,62 @@ def sso_login():
                     )
                     """
                 )
+                # Expire all previous sessions for this user before creating a new one.
+                # This prevents a stale session token (e.g. from a prior admin login in
+                # the same browser) from remaining valid after a new SSO login.
+                try:
+                    cursor.execute(
+                        f"UPDATE user_sessions SET expires_at = {_sql_now()} WHERE user_id = ? AND org_id = ?",
+                        (user_id, org_id),
+                    )
+                    logger.debug(f"Expired {getattr(cursor, 'rowcount', '?')} old session(s) for user_id={user_id} org_id={org_id}")
+                except Exception as _exp_err:
+                    logger.warning(f"Could not expire old sessions for user {user_id}: {_exp_err}")
+
+                # Admin sessions get a shorter TTL (2 h) to limit blast radius if a token leaks.
+                _session_ttl_hours = 2 if org_id == "admin" else 24
+                expires_at = datetime.now() + timedelta(hours=_session_ttl_hours)
+
                 cursor.execute(
-                    """
+                    f"""
                     INSERT INTO user_sessions (user_id, org_id, session_token, expires_at, created_at)
-                    VALUES (?, ?, ?, ?, datetime('now'))
+                    VALUES (?, ?, ?, ?, {_sql_now()})
                     """,
                     (user_id, org_id, session_token, expires_at.isoformat()),
                 )
                 sessions_conn.commit()
 
-        resp = redirect(_main_dashboard_url())
-        # Use path=/emv when behind proxy so cookie is sent for /emv/api/* requests
+        # Use an HTML redirect page instead of a bare 302 so we can also clear
+        # stale localStorage values (org_id, org_type) that may have been left behind
+        # by a previous admin or different-OEM session in the same browser.
         cookie_path = _static_base() or "/"
-        # Clear any existing session cookie first (e.g. from previous user) so we don't leave stale sessions
+        dashboard_url = _main_dashboard_url()
+        # Admin sessions get a shorter cookie lifetime to match the DB TTL.
+        _cookie_max_age = 7200 if org_id == "admin" else 86400
+        html_redirect = f"""<!DOCTYPE html>
+<html><head><title>Logging in...</title></head>
+<body>
+<script>
+try {{
+  localStorage.removeItem('org_id');
+  localStorage.removeItem('org_type');
+  localStorage.setItem('session_token', {repr(session_token)});
+  sessionStorage.removeItem('org_id');
+  sessionStorage.removeItem('org_type');
+  sessionStorage.setItem('session_token', {repr(session_token)});
+}} catch(e) {{}}
+window.location.replace({repr(dashboard_url)});
+</script>
+<noscript><meta http-equiv="refresh" content="0;url={dashboard_url}"></noscript>
+</body></html>"""
+        from flask import make_response
+        resp = make_response(html_redirect, 200)
+        resp.headers['Content-Type'] = 'text/html'
+        # Clear any existing session cookie first (e.g. from previous user)
         resp.set_cookie("session_token", "", max_age=0, path=cookie_path, samesite="Lax")
-        resp.set_cookie("session_token", session_token, max_age=86400, samesite="Lax", path=cookie_path)
+        resp.set_cookie("session_token", session_token, max_age=_cookie_max_age, samesite="Lax", path=cookie_path)
+        # Also clear with path="/" in case old cookie was set at root path
+        resp.set_cookie("session_token", "", max_age=0, path="/", samesite="Lax")
         return resp
     except Exception as e:
         logger.error(f"SSO login failed: {e}")

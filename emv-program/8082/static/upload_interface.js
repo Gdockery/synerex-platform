@@ -3,7 +3,11 @@ class UploadInterface {
     constructor() {
         this.selectedFiles = [];
         this.currentUser = null;
-        this.sessionToken = localStorage.getItem('session_token');
+        // Read session token: localStorage first, then cookie (SSO sets the cookie).
+        const _ui_cookie = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+        this.sessionToken = localStorage.getItem('session_token')
+            || sessionStorage.getItem('session_token')
+            || (_ui_cookie ? decodeURIComponent(_ui_cookie[1]) : null);
         this.initializeEventListeners();
         this.checkAuthentication();
         this.loadRecentUploads();

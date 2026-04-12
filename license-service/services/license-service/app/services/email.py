@@ -435,7 +435,7 @@ def send_license_receipt(license_id: str, db) -> bool:
     <p style="font-size:14px;color:#374151;">This is your official receipt. Please save it for your records.</p>
   </div>
   <div class="ftr">
-    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p class="powered">Powered by <strong>Synerex Laboratories, LLC</strong></p>
     <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
     {f'<p style="font-size:11px;color:#9ca3af;margin:4px 0 0;"><a href="{oem_website}" style="color:{primary_color};">{brand_name}</a></p>' if oem_website else ''}
   </div>
@@ -560,7 +560,7 @@ def send_oem_invitation_email(
     <p style="font-size:13px;color:#6b7280;">If you have any questions, contact Synerex support. Do not share your credentials with anyone.</p>
   </div>
   <div class="ftr">
-    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p class="powered">Powered by <strong>Synerex Laboratories, LLC</strong></p>
     <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
   </div>
 </div>
@@ -688,7 +688,7 @@ def send_client_admin_invitation_email(
     <p style="font-size:13px;color:#6b7280;">This email was sent on behalf of <strong>{oem_org_name}</strong> via the Synerex platform. Do not share your credentials with anyone.</p>
   </div>
   <div class="ftr">
-    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p class="powered">Powered by <strong>Synerex Laboratories, LLC</strong></p>
     <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
   </div>
 </div>
@@ -832,7 +832,7 @@ def send_client_invitation_email(
     </p>
   </div>
   <div class="ftr">
-    <p class="powered">Powered by <strong>Synerex</strong> Energy Corporation</p>
+    <p class="powered">Powered by <strong>Synerex Laboratories, LLC</strong></p>
     <p style="font-size:11px;color:#9ca3af;margin:4px 0 0;">&copy; Synerex Laboratories, LLC. All rights reserved.</p>
   </div>
 </div>

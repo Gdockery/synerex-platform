@@ -524,7 +524,7 @@
             const refreshBtn = document.getElementById('refresh-files');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', function() {
-                    loadFiles();
+                    if (typeof clippingInterface !== 'undefined') { clippingInterface.loadFiles(); }
                 });
             }
             
@@ -601,11 +601,12 @@
                     currentFile = data.file;
                     originalData = data.content;
                     modifiedData = JSON.parse(JSON.stringify(originalData));
+                    window._totalRows = (data.pagination && data.pagination.total_rows) ? data.pagination.total_rows : data.content.length;
                     
                     fileInfo.innerHTML = `
                         <div class="notification info">
                             <strong>File:</strong> ${data.file.file_name}<br>
-                            <strong>Rows:</strong> ${data.content.length}<br>
+                            <strong>Rows:</strong> ${window._totalRows}<br>
                             <strong>Size:</strong> ${data.file.file_size} bytes
                         </div>
                     `;
@@ -685,7 +686,7 @@
         function previewRange() {
             const startRow = parseInt(document.getElementById('start-row').value);
             const endRow = parseInt(document.getElementById('end-row').value);
-            const totalRows = modifiedData ? modifiedData.length : 0;
+            const totalRows = window._totalRows || (modifiedData ? modifiedData.length : 0);
             
             if (!startRow || !endRow) {
                 document.getElementById('range-preview-text').textContent = 'Please enter both start and end row numbers';
@@ -728,9 +729,10 @@
                 return;
             }
             
-            if (!modifiedData || startRow < 1 || endRow > modifiedData.length) {
+            const _applyTotal = window._totalRows || (modifiedData ? modifiedData.length : 0);
+            if (!modifiedData || startRow < 1 || endRow > _applyTotal) {
                 document.getElementById('debug-info').innerHTML = 
-                    '<div class="notification error">❌ Invalid row range</div>';
+                    '<div class="notification error">❌ Invalid row range (valid: 1–' + _applyTotal + ')</div>';
                 return;
             }
             

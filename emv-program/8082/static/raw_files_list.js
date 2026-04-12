@@ -2,7 +2,11 @@
 class RawFilesList {
     constructor() {
         this.currentUser = null;
-        this.sessionToken = localStorage.getItem('session_token');
+        // Read session token: localStorage first, then cookie (SSO sets the cookie).
+        const _rfl_cookie = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+        this.sessionToken = localStorage.getItem('session_token')
+            || sessionStorage.getItem('session_token')
+            || (_rfl_cookie ? decodeURIComponent(_rfl_cookie[1]) : null);
         this.files = [];
         this.filteredFiles = [];
         this.selectedFiles = new Set();

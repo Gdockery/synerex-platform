@@ -72,7 +72,16 @@ def access_program(
             else:
                 return RedirectResponse(url=f"{base}/tracking/sso?token={token}", status_code=302)
         except ValueError:
-            pass  # Not a user JWT, try as session token below
+            pass  # Not a user JWT, try as admin or program session token below
+
+        # Try as a Synerex Admin session token (non-JWT opaque token)
+        from ..auth.admin_tokens import verify_admin_token
+        if verify_admin_token(token):
+            # Valid admin token — forward to program SSO which handles it via verify_user_jwt
+            if program_id == "emv":
+                return RedirectResponse(url=f"{base}/emv/sso?token={token}", status_code=302)
+            else:
+                return RedirectResponse(url=f"{base}/tracking/sso?token={token}", status_code=302)
 
         # Try as a program session token
         try:
@@ -321,6 +330,28 @@ def check_session(request: Request, db: Session = Depends(db_session)):
     Used by website MyAccount page.
     Does NOT modify token/payload structures - only reads organization data.
     """
+    # Synerex Admin bypass: admin panel login sets admin_logged_in but not org_id.
+    # Return a synthetic admin response so MyAccount can show the Admin Access section
+    # and build the correct SSO URL via getAccessUrl("emv").
+    # IMPORTANT: Only fire this bypass when user_logged_in is NOT also set — if both
+    # flags exist in the same session (e.g. admin logged in, then OEM logged in without
+    # fully clearing the session), prefer the regular user session to prevent privilege
+    # escalation where an OEM is incorrectly treated as Synerex Admin.
+    if request.session.get("admin_logged_in") and not request.session.get("user_logged_in"):
+        from ..config import settings
+        return JSONResponse(
+            status_code=200,
+            content={
+                "authenticated": True,
+                "user_type": "admin",
+                "org_id": "admin",
+                "org_name": "Synerex Laboratories",
+                "org_type": "admin",
+                "email": settings.admin_sso_email,
+                "role": "administrator",
+            },
+        )
+
     # Check if user has a session (could be from license lookup, admin login, etc.)
     # For now, check if there's an org_id in session or from query params
     org_id = request.session.get("org_id") or request.query_params.get("org_id")

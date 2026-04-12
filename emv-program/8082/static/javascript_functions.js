@@ -92,6 +92,21 @@
   });
 })();
 
+/**
+ * _getSessionToken() — Read the EM&V session token from all possible storage locations.
+ * Priority: localStorage → sessionStorage → cookie.
+ * The cookie is the authoritative source after an SSO login; localStorage may be empty
+ * because we no longer copy the cookie back to localStorage (to prevent stale-token bleed).
+ */
+function _getSessionToken() {
+  const local = localStorage.getItem('session_token');
+  if (local) return local;
+  const session = sessionStorage.getItem('session_token');
+  if (session) return session;
+  const m = document.cookie.match(/(?:^|;\s*)session_token=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
 // Test logging at the very beginning
 
 // Safe initialization for feeders UI
@@ -560,10 +575,20 @@ function fetchWeatherData() {
     }
   }, 10000); // Update every 10 seconds
 
+  // Include session token so the backend can resolve the correct OEM org_id
+  const _weatherToken = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+    || localStorage.getItem('session_token')
+    || sessionStorage.getItem('session_token');
+  if (_weatherToken) {
+    formData.append('session_token', _weatherToken);
+  }
+  const _weatherHeaders = _weatherToken ? { 'Authorization': 'Bearer ' + _weatherToken } : {};
+
   // Make API call - credentials needed for org_id/session (required by backend)
   fetch((window.SYNEREX_EMV_BASE||'')+'/api/fetch_weather', {
       method: 'POST',
       body: formData,
+      headers: _weatherHeaders,
       signal: controller.signal,
       credentials: 'same-origin'
     })
@@ -1185,7 +1210,7 @@ document.addEventListener("DOMContentLoaded", function() {
     console.log('📡 Fetching projects from /api/projects...');
     
     // Get session token for authentication
-    const sessionToken = localStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const authHeaders = {
       'Accept': 'application/json',
       'Content-Type': 'application/json'
@@ -1926,7 +1951,7 @@ function saveProject() {
   }
   
   // Get session token for authentication (don't set Content-Type for FormData - browser does it)
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {};
   if (sessionToken) {
     headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
@@ -2056,7 +2081,7 @@ function reanalyzeProject() {
   btn.disabled = true;
   
   // Get session token for authentication
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -2128,10 +2153,19 @@ function reanalyzeProject() {
     // Show notification
     showNotification(`Re-analyzing "${projectName}" with latest code...`, 'info');
     
+    // Include session token so backend can resolve the correct OEM org_id
+    const _reanalysisToken = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+      || localStorage.getItem('session_token')
+      || sessionStorage.getItem('session_token');
+    if (_reanalysisToken) {
+      formData.append('session_token', _reanalysisToken);
+    }
+
     // Submit analysis
     return fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: _reanalysisToken ? { 'Authorization': 'Bearer ' + _reanalysisToken } : {}
     });
   })
   .then(response => response.json())
@@ -2207,7 +2241,7 @@ function validateAndRestoreFile(fileId, fileType) {
   return new Promise((resolve, reject) => {
     // First, check if the file ID exists in the verified files
     // Get session token for authentication
-    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const headers = {
       'Content-Type': 'application/json'
     };
@@ -2307,7 +2341,7 @@ function fetchFileInfoAndRestore(fileId, fileType) {
 
   // Fetch file information from the verified files API
   // Get session token for authentication
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -2451,7 +2485,7 @@ function loadProject(selectOverride) {
   }
 
   // Get session token for authentication
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -3897,7 +3931,7 @@ function setupTrackingIntegration() {
     form.insertBefore(container, form.firstChild);
   }
 
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   if (!sessionToken) {
     container.innerHTML = '<p style="color:#666; font-size:0.9em;">Sign in to use Tracking integration.</p>';
     return;
@@ -3953,7 +3987,7 @@ function setupTrackingIntegration() {
   async function loadOemEmvProjects() {
     if (!oemEmvSelect) return;
     try {
-      const token = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+      const token = _getSessionToken();
       const headers = { 'Accept': 'application/json', 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = 'Bearer ' + token;
       const resp = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/projects', {
@@ -4167,41 +4201,76 @@ function setupTrackingIntegration() {
 }
 
 // Push Analysis to Tracking - used by btn-push-to-tracking (in export section, enabled after analysis)
+// Cooldown tracker — prevents duplicate pushes within 60 seconds
+var _lastPushTimestamp = 0;
+var _lastPushProjectId = null;
+
 async function handlePushToTracking() {
   let selectEl = document.getElementById('tracking-project-select');
   const pushBtn = document.getElementById('btn-push-to-tracking');
+  const pushBtnOriginalHtml = pushBtn ? pushBtn.innerHTML : '';
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function _injectSpinKeyframes() {
+    if (!document.getElementById('_push-spin-style')) {
+      const s = document.createElement('style');
+      s.id = '_push-spin-style';
+      s.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+  }
+
+  function setSpinner(on) {
+    if (!pushBtn) return;
+    _injectSpinKeyframes();
+    if (on) {
+      pushBtn.disabled = true;
+      pushBtn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px;"></span>Pushing...';
+    } else {
+      pushBtn.disabled = false;
+      pushBtn.innerHTML = pushBtnOriginalHtml;
+    }
+  }
+
   function setStatus(msg, isError) {
     let el = document.getElementById('tracking-status') || document.getElementById('push-to-tracking-status');
     if (!el && pushBtn) {
-      el = document.createElement('span');
+      el = document.createElement('div');
       el.id = 'push-to-tracking-status';
-      el.style.cssText = 'margin-left:8px;font-size:0.9em;';
       pushBtn.parentNode && pushBtn.parentNode.insertBefore(el, pushBtn.nextSibling);
     }
     if (el) {
       el.textContent = msg || '';
-      el.style.color = isError ? '#c00' : '#666';
+      if (isError) {
+        el.style.cssText = 'margin-top:8px;font-size:0.95em;font-weight:600;padding:6px 10px;border-radius:4px;background:#fde8e8;color:#c00;border:1px solid #f5c6c6;';
+      } else if (msg) {
+        el.style.cssText = 'margin-top:8px;font-size:0.95em;font-weight:600;padding:6px 10px;border-radius:4px;background:#e8f5e9;color:#1a7a1a;border:1px solid #c3e6cb;';
+      } else {
+        el.style.cssText = 'margin-top:8px;font-size:0.95em;font-weight:600;padding:6px 10px;border-radius:4px;color:#666;';
+      }
     }
-    if (msg && !el && typeof showNotification === 'function') {
-      showNotification(msg, isError ? 'error' : 'info');
+    if (msg && typeof showNotification === 'function') {
+      showNotification(msg, isError ? 8000 : 6000);
     } else if (msg && !el) {
       alert(msg);
     }
   }
+
+  // ── Pre-flight checks ────────────────────────────────────────────────────
+
   if (!pushBtn) {
     alert('Push to Tracking button not found. Please refresh the page after running analysis.');
     return;
   }
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   if (!sessionToken) {
     setStatus('Sign in to use Push to Tracking.', true);
     return;
   }
   if (!selectEl) {
     setStatus('Loading Tracking projects...', false);
-    if (typeof setupTrackingIntegration === 'function') {
-      setupTrackingIntegration();
-    }
+    if (typeof setupTrackingIntegration === 'function') setupTrackingIntegration();
     await new Promise(function(r) { setTimeout(r, 500); });
     selectEl = document.getElementById('tracking-project-select');
   }
@@ -4220,69 +4289,136 @@ async function handlePushToTracking() {
     setStatus('Invalid project selection. Please pick a Tracking project again.', true);
     return;
   }
+
+  // ── Build savings values ─────────────────────────────────────────────────
+
+  const results = window.analysisResults || {};
+  const fin = (results.financial_debug || results.bill_weighted || results) || {};
+  const exec = results.executive_summary || {};
+  function toDecimal(v) {
+    if (v == null) return null;
+    const n = Number(v);
+    if (isNaN(n)) return null;
+    return n > 1 ? n / 100 : n;
+  }
+  const kwhPct  = toDecimal(fin.kwh_savings_percent  ?? fin.kwhSavingsPercent  ?? exec.kwh_savings_percent  ?? (results.savings && results.savings.kwh_percent));
+  const kwPct   = toDecimal(fin.kw_peak_savings_percent ?? fin.kwPeakSavingsPercent ?? exec.kw_peak_savings_percent ?? (results.savings && results.savings.kw_percent));
+  const pfPct   = toDecimal(fin.pf_savings_percent   ?? (results.savings && results.savings.pf_percent));
+  const kvarPct = toDecimal(fin.kvar_savings_percent ?? (results.savings && results.savings.kvar_percent));
+  const kvaPct  = toDecimal(fin.kva_savings_percent  ?? (results.savings && results.savings.kva_percent));
+
+  // Guard: warn if all savings values are null/zero
+  const hasSavings = [kwhPct, kwPct, pfPct, kvarPct, kvaPct].some(function(v) { return v != null && v !== 0; });
+  if (!hasSavings) {
+    const proceed = confirm(
+      'Warning: No savings values were found in the analysis results.\n\n' +
+      'This may mean the analysis has not been run yet, or the results are incomplete.\n\n' +
+      'Do you want to push anyway (the project savings in Tracking will not be updated)?'
+    );
+    if (!proceed) return;
+  }
+
+  // ── Duplicate-push cooldown (60 seconds per project) ────────────────────
+
+  const now = Date.now();
+  const cooldownMs = 60000;
+  if (_lastPushProjectId === String(params.projectId) && (now - _lastPushTimestamp) < cooldownMs) {
+    const secsLeft = Math.ceil((cooldownMs - (now - _lastPushTimestamp)) / 1000);
+    const proceed = confirm(
+      'You already pushed this analysis to the same project ' +
+      Math.round((now - _lastPushTimestamp) / 1000) + ' seconds ago.\n\n' +
+      'Pushing again will create a new baseline entry and overwrite the active one in Tracking.\n\n' +
+      'Wait ' + secsLeft + 's to auto-unlock, or click OK to push again anyway.'
+    );
+    if (!proceed) return;
+  }
+
+  // ── Confirmation modal ───────────────────────────────────────────────────
+
+  const formEl  = document.getElementById('analysisForm');
+  const config  = {};
+  if (formEl) { const fd = new FormData(formEl); fd.forEach(function(v, k) { config[k] = v; }); }
+
+  const offStart = config.test_period_before || '—';
+  const onStart  = config.test_period_after  || '—';
+  const projectName = params.projectName || ('Project #' + params.projectId);
+  const clientName  = params.clientName  || params.clientId || '—';
+
+  function fmtPct(v) { return v != null ? (v * 100).toFixed(2) + '%' : 'N/A'; }
+
+  const confirmMsg =
+    'You are about to push the following analysis to Tracking.\n\n' +
+    'Project : ' + projectName + '\n' +
+    'Client  : ' + clientName  + '\n' +
+    'OFF period (before): ' + offStart + '\n' +
+    'ON period (after) : ' + onStart  + '\n\n' +
+    'kWh savings  : ' + fmtPct(kwhPct)  + '\n' +
+    'kW savings   : ' + fmtPct(kwPct)   + '\n' +
+    'PF savings   : ' + fmtPct(pfPct)   + '\n' +
+    'kVAR savings : ' + fmtPct(kvarPct) + '\n' +
+    'kVA savings  : ' + fmtPct(kvaPct)  + '\n\n' +
+    'This will update the live project baseline in the Tracking program.\n' +
+    'Press OK to confirm, or Cancel to go back.';
+
+  if (!confirm(confirmMsg)) return;
+
+  // ── Execute push ─────────────────────────────────────────────────────────
+
   setStatus('Generating report and pushing...');
-  pushBtn.disabled = true;
+  setSpinner(true);
   try {
     const base = _trackingApiBase();
     const reportResp = await fetch((base || '') + '/api/serve-template-report', { method: 'GET', credentials: 'include' });
     if (!reportResp.ok) throw new Error('Could not generate HTML report');
     const reportHtml = await reportResp.text();
-    const formEl = document.getElementById('analysisForm');
-    const config = {};
-    if (formEl) {
-      const fd = new FormData(formEl);
-      fd.forEach(function(v, k) { config[k] = v; });
-    }
-    const results = window.analysisResults || {};
-    const fin = (results.financial_debug || results.bill_weighted || results) || {};
-    const exec = results.executive_summary || {};
-    function toDecimal(v) {
-      if (v == null) return null;
-      const n = Number(v);
-      if (isNaN(n)) return null;
-      return n > 1 ? n / 100 : n;
-    }
-    const kwhPct = toDecimal(fin.kwh_savings_percent ?? fin.kwhSavingsPercent ?? exec.kwh_savings_percent ?? (results.savings && results.savings.kwh_percent));
-    const kwPct = toDecimal(fin.kw_peak_savings_percent ?? fin.kwPeakSavingsPercent ?? exec.kw_peak_savings_percent ?? (results.savings && results.savings.kw_percent));
-    const pfPct = toDecimal(fin.pf_savings_percent ?? (results.savings && results.savings.pf_percent));
-    const kvarPct = toDecimal(fin.kvar_savings_percent ?? (results.savings && results.savings.kvar_percent));
-    const kvaPct = toDecimal(fin.kva_savings_percent ?? (results.savings && results.savings.kva_percent));
+
     const payload = {
-      orgId: params.orgId,
-      clientId: params.clientId,
-      projectId: params.projectId,
-      kwhSavings: kwhPct != null ? Number(kwhPct) : null,
-      kwPeakSavings: kwPct != null ? Number(kwPct) : null,
-      pfSavings: pfPct != null ? Number(pfPct) : null,
-      kvarSavings: kvarPct != null ? Number(kvarPct) : null,
-      kvaSavings: kvaPct != null ? Number(kvaPct) : null,
-      reportHtml: reportHtml,
-      analysisDate: new Date().toISOString().slice(0, 10),
+      orgId:         params.orgId,
+      clientId:      params.clientId,
+      projectId:     params.projectId,
+      kwhSavings:    kwhPct  != null ? Number(kwhPct)  : null,
+      kwPeakSavings: kwPct   != null ? Number(kwPct)   : null,
+      pfSavings:     pfPct   != null ? Number(pfPct)   : null,
+      kvarSavings:   kvarPct != null ? Number(kvarPct) : null,
+      kvaSavings:    kvaPct  != null ? Number(kvaPct)  : null,
+      reportHtml:    reportHtml,
+      analysisDate:  new Date().toISOString().slice(0, 10),
       offPeriod: { start: config.test_period_before || '', end: config.test_period_before || '' },
-      onPeriod: { start: config.test_period_after || '', end: config.test_period_after || '' }
+      onPeriod:  { start: config.test_period_after  || '', end: config.test_period_after  || '' }
     };
+
     const pushUrl = window.location.origin + (window.SYNEREX_EMV_BASE || base || '') + '/api/tracking/push-baseline';
     const resp = await fetch(pushUrl, {
-        method: 'POST',
-        headers: authHeaders,
-        body: JSON.stringify(payload),
-        credentials: 'include'
-      });
-      let data;
-      try { data = await resp.json(); } catch (_) { data = {}; }
-      if (!resp.ok) throw new Error(data.error || 'Push failed (status ' + resp.status + ')');
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify(payload),
+      credentials: 'include'
+    });
+    let data;
+    try { data = await resp.json(); } catch (_) { data = {}; }
+    if (!resp.ok) throw new Error(data.error || 'Push failed (status ' + resp.status + ')');
+
+    // Record successful push for cooldown
+    _lastPushTimestamp = Date.now();
+    _lastPushProjectId = String(params.projectId);
+
     const origin = window.location.origin;
     const isProxy = (origin.includes(':8080') || origin.includes(':8443'));
     const trackingBase = (window.SYNEREX_TRACKING_URL || (isProxy ? origin + '/tracking' : origin.replace('8082', '8087'))).replace(/\/+$/, '');
     const reportUrl = (data.response && data.response.reportUrl) ? trackingBase + data.response.reportUrl : '';
     const viewInTrackingUrl = trackingBase + '/#/project/select?projectId=' + encodeURIComponent(params.projectId) + '&go=emv-baseline';
-    let msg = 'Pushed successfully. View in Tracking: ' + viewInTrackingUrl;
-    if (reportUrl) msg += ' Share report: ' + reportUrl;
-    setStatus(msg);
+
+    setStatus('Analysis pushed to Tracking successfully!');
+    const statusEl = document.getElementById('push-to-tracking-status') || document.getElementById('tracking-status');
+    if (statusEl) {
+      const linkHtml = ' <a href="' + viewInTrackingUrl + '" target="_blank" style="color:#1a7a1a;text-decoration:underline;">View in Tracking</a>';
+      statusEl.innerHTML = 'Analysis pushed to Tracking successfully!' + linkHtml +
+        (reportUrl ? ' | <a href="' + reportUrl + '" target="_blank" style="color:#1a7a1a;text-decoration:underline;">Share Report</a>' : '');
+    }
   } catch (e) {
     setStatus('Push failed: ' + e.message, true);
   }
-  pushBtn.disabled = false;
+  setSpinner(false);
 }
 
 // *** FIX: Consolidated and corrected the primary form submission logic ***
@@ -4497,14 +4633,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add cache-busting query parameter and cache control headers to prevent caching
         const cacheBust = Date.now();
+        // Include session token so backend can resolve the correct OEM org_id
+        const _analysisToken = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+          || localStorage.getItem('session_token')
+          || sessionStorage.getItem('session_token');
+        if (_analysisToken) {
+          formData.append('session_token', _analysisToken);
+        }
+
         const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/analyze?_cb='+cacheBust, {
           method: "POST",
           body: formData,
           cache: 'no-cache',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
+          headers: Object.assign(
+            { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+            _analysisToken ? { 'Authorization': 'Bearer ' + _analysisToken } : {}
+          )
         });
         
         const endTime = Date.now();
@@ -5111,7 +5255,7 @@ async function generateMVPlanPreAnalysis() {
     if (projectName) payload.project_name = projectName;
     // No analysis_results — pre-installation plan uses project config only
 
-    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const headers = { "Content-Type": "application/json" };
     if (sessionToken) headers["Authorization"] = `Bearer ${sessionToken.trim()}`;
 
@@ -5196,7 +5340,7 @@ async function generateMVPlan(r) {
       payload.analysis_results = r;
     }
 
-    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const mvHeaders = { "Content-Type": "application/json" };
     if (sessionToken) mvHeaders["Authorization"] = `Bearer ${sessionToken.trim()}`;
 
@@ -5266,7 +5410,7 @@ async function generateUtilitySubmissionPackage(r) {
     }
 
     // Get session token for authentication
-    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const headers = {
       'Content-Type': 'application/json',
     };
@@ -6770,7 +6914,7 @@ async function generateAuditPackage(r) {
     });
 
     // Session token for auth (required for org_id / multi-tenant)
-    const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+    const sessionToken = _getSessionToken();
     const headers = { 'Content-Type': 'application/json' };
     if (sessionToken) {
       headers['Authorization'] = `Bearer ${sessionToken.trim()}`;
@@ -13535,7 +13679,7 @@ function createProject() {
   }
 
   // Get session token for authentication
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -13940,7 +14084,7 @@ function findCloudKitchenWithData() {
   console.log('[SEARCH] Searching for Cloud Kitchen projects with 160+ fields...');
   
   // Get session token
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   
   if (!sessionToken) {
     console.error('[ERROR] No session token found. Please log in first.');
@@ -14011,7 +14155,7 @@ function showFileSelectionModal(fileType) {
   closeAllModals();
 
   // Get session token for authentication
-  const sessionToken = localStorage.getItem('session_token') || sessionStorage.getItem('session_token');
+  const sessionToken = _getSessionToken();
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -14286,83 +14430,48 @@ function selectFile(fileId, fileName, fileType) {
 // Extract test period from CSV file using file ID
 function extractPeriodFromFileId(fileId, fileType) {
   console.log(`[DATA] Extracting period from ${fileType} file ID: ${fileId}`);
-  
-  // Fetch file content from the server
-  fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/'+fileId+'/clipping')
+
+  // Build auth header so the backend returns the correct OEM's file
+  const _token = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+    || localStorage.getItem('session_token')
+    || sessionStorage.getItem('session_token');
+  const _fetchHeaders = {};
+  if (_token) _fetchHeaders['Authorization'] = 'Bearer ' + _token;
+
+  fetch((window.SYNEREX_EMV_BASE||'')+'/api/original-files/'+fileId+'/clipping', { headers: _fetchHeaders })
     .then(response => response.json())
     .then(data => {
-      if (data.status === 'success' && data.raw_content) {
-        // Parse the CSV content
-        const csvContent = data.raw_content;
-        const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+      if (data.status === 'success' && data.content && data.content.length > 0) {
+        const rows = data.content;
 
-        if (lines.length < 2) {
-          console.warn(`Not enough data in ${fileType} file`);
-          return;
-        }
-
-        // Simple CSV parser that handles quoted values
-        function parseCSVLine(line) {
-          const result = [];
-          let current = '';
-          let inQuotes = false;
-          
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current.trim().replace(/^"|"$/g, ''));
-              current = '';
-            } else {
-              current += char;
-            }
-          }
-          // Add the last field
-          result.push(current.trim().replace(/^"|"$/g, ''));
-          return result;
-        }
-
-        // Find timestamp column
-        const headerLine = parseCSVLine(lines[0]);
-        const header = headerLine.map(h => h.toLowerCase()).join(',');
-        let timestampColIndex = 0;
+        // Find timestamp key from row object keys
+        const firstRow = rows[0];
+        const keys = Object.keys(firstRow);
         const timestampKeywords = ['time', 'date', 'timestamp', 'datetime'];
-        for (let i = 0; i < timestampKeywords.length; i++) {
-          const keyword = timestampKeywords[i];
-          const colIndex = headerLine.findIndex(col => col.toLowerCase().includes(keyword));
-          if (colIndex !== -1) {
-            timestampColIndex = colIndex;
-            break;
-          }
+        let timestampKey = keys[0];
+        for (const keyword of timestampKeywords) {
+          const found = keys.find(k => k.toLowerCase().includes(keyword));
+          if (found) { timestampKey = found; break; }
         }
 
-        // Get first and last timestamps
-        const firstLine = parseCSVLine(lines[1]);
-        const lastLine = parseCSVLine(lines[lines.length - 1]);
+        const firstTimestamp = (firstRow[timestampKey] || '').trim();
+        const lastRow = rows[rows.length - 1];
+        const lastTimestamp = (lastRow[timestampKey] || '').trim();
 
-        if (firstLine.length > timestampColIndex && lastLine.length > timestampColIndex) {
-          const firstTimestamp = firstLine[timestampColIndex].trim();
-          const lastTimestamp = lastLine[timestampColIndex].trim();
-
+        if (firstTimestamp && lastTimestamp) {
           console.log(`[DATE] ${fileType} file: First timestamp = ${firstTimestamp}, Last timestamp = ${lastTimestamp}`);
 
-          // Calculate duration in days
-          const days = calculateDurationInDays(firstTimestamp, lastTimestamp, lines.length);
+          const days = calculateDurationInDays(firstTimestamp, lastTimestamp, rows.length + 1);
           const period = formatTimestampPeriod(firstTimestamp, lastTimestamp);
 
-          // Update the period field
           const periodField = document.getElementById(fileType === 'before' ? 'test_period_before' : 'test_period_after');
           if (periodField) {
             periodField.value = period;
             console.log(`[OK] Updated ${fileType} period: ${period}`);
           }
 
-          // Update duration
           updateTestDurationFromFileIds();
 
-          // Store for duration calculation
           if (fileType === 'before') {
             window.beforeFileDays = days;
             window.beforeFilePeriod = period;
@@ -14371,7 +14480,7 @@ function extractPeriodFromFileId(fileId, fileType) {
             window.afterFilePeriod = period;
           }
         } else {
-          console.warn(`Could not find timestamp column at index ${timestampColIndex} in ${fileType} file`);
+          console.warn(`Could not find timestamp values in ${fileType} file`);
         }
       } else {
         console.warn(`Failed to get file content for ${fileType} file ID ${fileId}:`, data);
