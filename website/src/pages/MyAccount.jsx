@@ -491,7 +491,7 @@ export default function MyAccount() {
                 {userInfo?.org_type !== "customer" && (
                   <li>• <a href="/emv-program" className="text-purple-200 hover:text-purple-200">Learn about EM&amp;V Program</a></li>
                 )}
-                <li>• <a href={`${TRACKING_PROXY_URL}`} className="text-purple-200 hover:text-purple-200">Tracking Portal</a></li>
+
                 <li>• <a href="/downloads" className="text-purple-200 hover:text-purple-200">Download Resources</a></li>
                 <li>• <a href="/contact" className="text-purple-200 hover:text-purple-200">Contact Support</a></li>
                 {userInfo?.org_type !== "customer" && (

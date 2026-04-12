@@ -3921,6 +3921,221 @@ class EnhancedDataProcessor:
 # =============================================================================
 
 
+# =============================================================================
+# IPMVP OPTION C — WHOLE-FACILITY BILLING ANALYSIS
+# =============================================================================
+
+class IPMVPOptionC:
+    """
+    IPMVP Option C — Whole-Facility (utility bill) analysis.
+
+    Determines savings by comparing whole-facility energy consumption before
+    and after the retrofit, both adjusted to a common set of conditions using
+    regression against an independent variable (typically HDD/CDD or production).
+
+    Methodology (IPMVP Volume I §4.3.3, Option C):
+    ────────────────────────────────────────────────
+    1. Fit a linear regression model on the BASELINE period:
+           E_baseline = β₀ + β₁·X   (X = HDD, CDD, production, or billing days)
+    2. Apply the baseline model to the REPORTING-PERIOD independent variable
+       to predict what consumption *would have been* without the retrofit.
+    3. Savings = Σ(E_predicted_baseline − E_actual_reporting)
+
+    ASHRAE Guideline 14 acceptance criteria for the baseline model:
+        - CV(RMSE) ≤ 15%
+        - NMBE    ≤ ±5%
+        - R²      ≥ 0.75
+
+    Inputs (passed as lists aligned month-by-month)
+    ────────────────────────────────────────────────
+    baseline_consumption  : kWh (or kW demand) for each baseline billing period
+    baseline_independent  : independent variable (HDD, CDD, etc.) for same periods
+    reporting_consumption : kWh (or kW demand) for each reporting billing period
+    reporting_independent : independent variable for reporting periods
+    independent_label     : label string, e.g. "HDD", "CDD", "Production Units"
+    """
+
+    CVRMSE_LIMIT = 15.0   # ASHRAE GL14-2023 §5.2.1
+    NMBE_LIMIT   =  5.0   # ASHRAE GL14-2023 §5.2.1
+    R2_MIN       =  0.75  # ASHRAE GL14-2023 §5.2.1
+
+    def __init__(self):
+        self.model_slope     = None
+        self.model_intercept = None
+        self.model_fit       = {}
+
+    # ------------------------------------------------------------------
+    def _fit_baseline(
+        self,
+        baseline_consumption: list,
+        baseline_independent: list,
+    ) -> dict:
+        """OLS regression of consumption ~ independent variable."""
+        import numpy as np
+
+        X = np.array(baseline_independent,  dtype=float)
+        Y = np.array(baseline_consumption,   dtype=float)
+        n = len(Y)
+
+        if n < 3:
+            return {"error": "Need ≥ 3 baseline data points for regression"}
+
+        # OLS: [b0, b1] = (XᵀX)⁻¹ Xᵀy  with intercept column
+        Xmat = np.column_stack([np.ones(n), X])
+        try:
+            coeffs, residuals_ss, _, _ = np.linalg.lstsq(Xmat, Y, rcond=None)
+        except np.linalg.LinAlgError as e:
+            return {"error": f"OLS failed: {e}"}
+
+        b0, b1 = float(coeffs[0]), float(coeffs[1])
+        pred   = b0 + b1 * X
+        resid  = Y - pred
+
+        ss_res = float(np.sum(resid ** 2))
+        ss_tot = float(np.sum((Y - np.mean(Y)) ** 2))
+        r2     = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
+
+        # CV(RMSE) and NMBE per ASHRAE GL14-2023 — denominator (n−p), p=2
+        p      = 2  # intercept + slope
+        cvrmse = 100.0 * float(np.sqrt(ss_res / (n - p))) / float(np.mean(Y)) if np.mean(Y) != 0 else float("inf")
+        nmbe   = 100.0 * float(np.sum(resid)) / ((n - p) * float(np.mean(Y))) if np.mean(Y) != 0 else float("inf")
+
+        # Simple F-test p-value for overall model significance
+        from scipy import stats as _stats
+        f_stat = ((ss_tot - ss_res) / (p - 1)) / (ss_res / (n - p)) if ss_res > 0 else float("inf")
+        f_pval = float(1.0 - _stats.f.cdf(f_stat, p - 1, n - p))
+
+        self.model_slope     = b1
+        self.model_intercept = b0
+
+        return {
+            "intercept":  b0,
+            "slope":      b1,
+            "r_squared":  float(r2),
+            "cvrmse":     float(cvrmse),
+            "nmbe":       float(nmbe),
+            "f_statistic": float(f_stat),
+            "f_p_value":  float(f_pval),
+            "n_baseline": int(n),
+            "predictions_baseline": pred.tolist(),
+            "residuals_baseline":   resid.tolist(),
+            "meets_ashrae_cvrmse":  cvrmse <= self.CVRMSE_LIMIT,
+            "meets_ashrae_nmbe":    abs(nmbe) <= self.NMBE_LIMIT,
+            "meets_ashrae_r2":      r2 >= self.R2_MIN,
+            "baseline_model_acceptable": (
+                cvrmse <= self.CVRMSE_LIMIT
+                and abs(nmbe) <= self.NMBE_LIMIT
+                and r2 >= self.R2_MIN
+            ),
+        }
+
+    # ------------------------------------------------------------------
+    def analyze(
+        self,
+        baseline_consumption:  list,
+        baseline_independent:  list,
+        reporting_consumption: list,
+        reporting_independent: list,
+        independent_label:     str  = "HDD",
+        cost_per_kwh:          float = 0.0,
+    ) -> dict:
+        """
+        Full Option C analysis: fit baseline model, predict over reporting
+        period, compute savings and uncertainty.
+
+        Returns
+        -------
+        dict  – all inputs, model fit metrics, savings, and ASHRAE compliance.
+        """
+        import numpy as np
+        from scipy import stats as _stats
+
+        fit = self._fit_baseline(baseline_consumption, baseline_independent)
+        if "error" in fit:
+            return {"error": fit["error"], "method": "IPMVP Option C"}
+
+        self.model_fit = fit
+
+        X_rep  = np.array(reporting_independent,  dtype=float)
+        Y_rep  = np.array(reporting_consumption,   dtype=float)
+        n_rep  = len(Y_rep)
+
+        # Predict what consumption *would have been* in the reporting period
+        # using the baseline regression model
+        predicted_baseline_in_reporting = fit["intercept"] + fit["slope"] * X_rep
+
+        # Savings = predicted (without retrofit) − actual (with retrofit)
+        period_savings = predicted_baseline_in_reporting - Y_rep
+        total_savings_kwh    = float(np.sum(period_savings))
+        total_predicted_kwh  = float(np.sum(predicted_baseline_in_reporting))
+        total_actual_kwh     = float(np.sum(Y_rep))
+        savings_pct          = (
+            100.0 * total_savings_kwh / total_predicted_kwh
+            if total_predicted_kwh != 0 else 0.0
+        )
+
+        # Uncertainty: 95% CI on total savings (propagate model SE)
+        # SE of predicted mean from regression = σ · √(1/n + (x − x̄)²/Sxx)
+        X_base = np.array(baseline_independent, dtype=float)
+        resid_base  = np.array(fit["residuals_baseline"], dtype=float)
+        n_base      = len(X_base)
+        mse         = float(np.sum(resid_base ** 2) / (n_base - 2))
+        x_mean      = float(np.mean(X_base))
+        Sxx         = float(np.sum((X_base - x_mean) ** 2))
+
+        se_per_point = np.sqrt(
+            mse * (1.0 / n_base + (X_rep - x_mean) ** 2 / Sxx)
+            if Sxx > 0 else np.full(n_rep, np.sqrt(mse / n_base))
+        )
+        # Combined SE for sum of n_rep predictions (assuming independence)
+        se_total = float(np.sqrt(np.sum(se_per_point ** 2)))
+        t_crit   = float(_stats.t.ppf(0.975, df=max(n_base - 2, 1)))
+        ci_95    = float(t_crit * se_total)
+
+        # Fractional uncertainty per IPMVP
+        fractional_uncertainty = abs(ci_95 / total_savings_kwh) if total_savings_kwh != 0 else float("inf")
+        meets_ipmvp_uncertainty = fractional_uncertainty <= 0.50  # IPMVP: < 50%
+
+        cost_savings = total_savings_kwh * cost_per_kwh if cost_per_kwh > 0 else None
+
+        return {
+            "method":                     "IPMVP Option C — Whole-Facility Billing Analysis",
+            "ipmvp_reference":            "IPMVP Volume I §4.3.3 Option C",
+            "ashrae_reference":           "ASHRAE Guideline 14-2023 §5.2",
+            "independent_variable":       independent_label,
+
+            # Baseline model
+            "baseline_model":             fit,
+
+            # Reporting period
+            "n_reporting_periods":        int(n_rep),
+            "predicted_baseline_kwh":     predicted_baseline_in_reporting.tolist(),
+            "actual_reporting_kwh":       Y_rep.tolist(),
+            "period_savings_kwh":         period_savings.tolist(),
+
+            # Summary savings
+            "total_predicted_baseline_kwh": total_predicted_kwh,
+            "total_actual_reporting_kwh":   total_actual_kwh,
+            "total_savings_kwh":            total_savings_kwh,
+            "savings_pct":                  float(savings_pct),
+            "cost_savings":                 cost_savings,
+
+            # Uncertainty
+            "savings_95_ci":              float(ci_95),
+            "fractional_uncertainty_pct": float(fractional_uncertainty * 100.0),
+            "meets_ipmvp_uncertainty":    bool(meets_ipmvp_uncertainty),
+
+            # Compliance flags
+            "baseline_model_acceptable":  fit.get("baseline_model_acceptable", False),
+            "overall_compliant":          (
+                fit.get("baseline_model_acceptable", False)
+                and meets_ipmvp_uncertainty
+                and total_savings_kwh > 0
+            ),
+        }
+
+
+# =============================================================================
 class WeatherNormalization:
     """Enhanced weather normalization per ASHRAE Guideline 14 with humidity and other factors"""
 
@@ -5297,6 +5512,149 @@ class OccupancyScheduleNormalizer:
         except Exception as e:
             logger.error(f"Error normalizing energy data: {e}")
             return energy_values
+
+
+class ProductionThroughputNormalizer:
+    """
+    Normalize energy consumption by production throughput (units, hours, meals, etc.)
+    so that savings are reported on a per-unit-of-production basis.
+
+    Per IPMVP Volume I §5.5: when production output changes between the baseline and
+    reporting periods, energy consumption must be normalized to the same production
+    basis before calculating savings. This prevents over- or under-reporting due to
+    changes in operating intensity rather than efficiency improvements.
+
+    Usage example (config keys):
+        config["production_before"]  = 12500  # units produced in baseline period
+        config["production_after"]   = 14800  # units produced in reporting period
+        config["production_unit"]    = "units"  # label (units, meals, lbs, hrs, ...)
+    """
+
+    def __init__(self):
+        self.min_production = 1e-6  # guard against division by zero
+
+    # ------------------------------------------------------------------
+    def normalize(
+        self,
+        before_energy: list,
+        after_energy: list,
+        production_before: float,
+        production_after: float,
+        production_unit: str = "units",
+    ) -> dict:
+        """
+        Return normalized energy arrays and intensity metrics.
+
+        Parameters
+        ----------
+        before_energy : list[float]  – kW (or kWh) readings from baseline period
+        after_energy  : list[float]  – kW (or kWh) readings from reporting period
+        production_before : float    – total production in baseline period
+        production_after  : float    – total production in reporting period
+        production_unit   : str      – label for the production quantity
+
+        Returns
+        -------
+        dict with keys:
+            normalized_before   – before_energy scaled to production_after basis
+            normalized_after    – after_energy (unchanged, reference basis)
+            intensity_before    – mean kW per unit produced (baseline)
+            intensity_after     – mean kW per unit produced (reporting)
+            intensity_savings   – intensity_before – intensity_after
+            intensity_savings_pct – savings as % of baseline intensity
+            normalization_factor – factor applied to baseline (production_after / production_before)
+            production_unit     – label
+            normalization_applied – True when factor ≠ 1.0
+            notes               – human-readable explanation
+        """
+        import numpy as np
+
+        pb = max(float(production_before), self.min_production)
+        pa = max(float(production_after), self.min_production)
+        factor = pa / pb  # scale baseline to reporting-period production level
+
+        arr_before = np.array(before_energy, dtype=float)
+        arr_after  = np.array(after_energy,  dtype=float)
+
+        # Intensity = mean consumption per unit of production
+        intensity_before = float(np.mean(arr_before)) / pb if len(arr_before) > 0 else 0.0
+        intensity_after  = float(np.mean(arr_after))  / pa if len(arr_after)  > 0 else 0.0
+
+        # Normalize baseline to the same production level as the reporting period
+        # so the two periods can be compared on a like-for-like basis.
+        normalized_before = (arr_before * factor).tolist()
+
+        intensity_savings     = intensity_before - intensity_after
+        intensity_savings_pct = (
+            100.0 * intensity_savings / intensity_before
+            if intensity_before > 0 else 0.0
+        )
+
+        normalization_applied = abs(factor - 1.0) > 1e-4
+
+        notes = (
+            f"Baseline consumption scaled by {factor:.4f} "
+            f"(production ratio: {pa:.1f}/{pb:.1f} {production_unit}). "
+            f"Energy intensity: {intensity_before:.6f} → {intensity_after:.6f} "
+            f"kW/{production_unit} ({intensity_savings_pct:+.1f}%)."
+            if normalization_applied
+            else "Production throughput unchanged between periods; no scaling applied."
+        )
+
+        return {
+            "normalized_before":    normalized_before,
+            "normalized_after":     arr_after.tolist(),
+            "intensity_before":     intensity_before,
+            "intensity_after":      intensity_after,
+            "intensity_savings":    intensity_savings,
+            "intensity_savings_pct": intensity_savings_pct,
+            "normalization_factor": float(factor),
+            "production_before":    float(pb),
+            "production_after":     float(pa),
+            "production_unit":      production_unit,
+            "normalization_applied": normalization_applied,
+            "notes":                notes,
+            "ipmvp_reference":      "IPMVP Volume I §5.5 – Production normalization",
+        }
+
+    # ------------------------------------------------------------------
+    def apply_to_analysis_config(self, before_data: dict, after_data: dict, config: dict) -> dict:
+        """
+        Convenience wrapper: reads production figures from *config* and applies
+        normalization to the avgKw value arrays in *before_data* / *after_data*.
+
+        If config does not contain production keys, returns an empty dict
+        (normalization not applied).
+
+        Modified arrays are stored as ``avgKw.normalized_production_values`` on
+        each period dict so the caller can opt-in without breaking existing paths.
+        """
+        prod_before = config.get("production_before") or config.get("production_baseline")
+        prod_after  = config.get("production_after")  or config.get("production_reporting")
+        prod_unit   = config.get("production_unit", "units")
+
+        if not prod_before or not prod_after:
+            return {"normalization_applied": False, "reason": "production figures not provided in config"}
+
+        before_vals = before_data.get("avgKw", {}).get("values", [])
+        after_vals  = after_data.get("avgKw",  {}).get("values", [])
+
+        if not before_vals or not after_vals:
+            return {"normalization_applied": False, "reason": "avgKw.values not available"}
+
+        result = self.normalize(
+            before_energy=before_vals,
+            after_energy=after_vals,
+            production_before=prod_before,
+            production_after=prod_after,
+            production_unit=prod_unit,
+        )
+
+        # Attach normalized arrays back to the period data structures for downstream use
+        before_data.setdefault("avgKw", {})["normalized_production_values"] = result["normalized_before"]
+        after_data.setdefault("avgKw",  {})["normalized_production_values"] = result["normalized_after"]
+
+        return result
 
 
 class DataValidation:
@@ -10320,6 +10678,216 @@ class CSVIntegrityProtection:
             }
 
 
+class CUSUMMonitor:
+    """
+    Cumulative SUM (CUSUM) control chart for ongoing M&V monitoring.
+
+    Detects persistent drift (savings degradation or unexpected consumption
+    increases) in a metered series relative to the adjusted baseline model.
+    Implements the two-sided tabular CUSUM per:
+        - ASHRAE Guideline 14-2023 §7 (ongoing M&V)
+        - IPMVP Volume I §5.6 (performance period verification)
+
+    A CUSUM alarm fires when the cumulative deviation from the target
+    exceeds a decision interval H (typically 4–5 × σ for industrial M&V).
+
+    Parameters
+    ----------
+    k : float
+        Allowable slack (reference value), typically 0.5 × σ of the baseline
+        residuals. Controls sensitivity vs. false-alarm rate. Default = 0.5.
+    h : float
+        Decision interval in units of σ.  An alarm fires when the CUSUM
+        statistic exceeds h × σ. Typical range 4–5. Default = 5.0.
+    """
+
+    def __init__(self, k: float = 0.5, h: float = 5.0):
+        self.k = k
+        self.h = h
+
+    # ------------------------------------------------------------------
+    def run(
+        self,
+        measured: list,
+        baseline_predicted: list,
+        sigma: float = None,
+    ) -> dict:
+        """
+        Run a two-sided CUSUM on (measured − predicted) residuals.
+
+        Parameters
+        ----------
+        measured           : list[float] – actual energy readings (kW or kWh)
+        baseline_predicted : list[float] – model-predicted values for the same
+                             periods (from the regression/change-point model)
+        sigma              : float or None – baseline residual standard deviation;
+                             estimated from the residuals when None.
+
+        Returns
+        -------
+        dict with keys:
+            cusum_high       – upper CUSUM series (consumption *above* baseline)
+            cusum_low        – lower CUSUM series (consumption *below* baseline)
+            residuals        – (measured − predicted)
+            sigma_used       – σ value used
+            k_used, h_used   – parameters used
+            alarm_high_idx   – indices where upper CUSUM exceeded threshold
+            alarm_low_idx    – indices where lower CUSUM exceeded threshold
+            alarm_fired      – True if any alarm was triggered
+            alarm_type       – "degradation" | "over-savings" | "none"
+            first_alarm_idx  – index of first alarm (or None)
+            cumulative_deviation – final net deviation from baseline
+            ipmvp_reference  – standard citation
+            summary          – human-readable interpretation
+        """
+        import numpy as np
+
+        m = np.array(measured,           dtype=float)
+        p = np.array(baseline_predicted, dtype=float)
+
+        if len(m) == 0 or len(p) == 0 or len(m) != len(p):
+            return {
+                "alarm_fired": False,
+                "error": "measured and baseline_predicted must be non-empty and same length",
+            }
+
+        residuals = m - p  # positive = consuming more than predicted (degradation)
+
+        if sigma is None or sigma <= 0:
+            sigma = float(np.std(residuals, ddof=1)) if len(residuals) > 1 else 1.0
+        if sigma <= 0:
+            sigma = 1.0
+
+        k_abs = self.k * sigma  # allowable slack in measurement units
+        h_abs = self.h * sigma  # decision interval in measurement units
+
+        # Two-sided tabular CUSUM
+        sh = np.zeros(len(residuals))  # upper (high consumption)
+        sl = np.zeros(len(residuals))  # lower (low consumption / over-savings)
+        for i, r in enumerate(residuals):
+            prev_h = sh[i - 1] if i > 0 else 0.0
+            prev_l = sl[i - 1] if i > 0 else 0.0
+            sh[i] = max(0.0, prev_h + r - k_abs)
+            sl[i] = max(0.0, prev_l - r - k_abs)
+
+        alarm_high_idx = [int(i) for i in np.where(sh > h_abs)[0].tolist()]
+        alarm_low_idx  = [int(i) for i in np.where(sl > h_abs)[0].tolist()]
+
+        alarm_fired = bool(alarm_high_idx or alarm_low_idx)
+
+        if alarm_high_idx and alarm_low_idx:
+            alarm_type = "mixed"
+            first_alarm_idx = min(alarm_high_idx[0], alarm_low_idx[0])
+        elif alarm_high_idx:
+            alarm_type = "degradation"       # savings are eroding
+            first_alarm_idx = alarm_high_idx[0]
+        elif alarm_low_idx:
+            alarm_type = "over-savings"      # consumption below model (unexpected)
+            first_alarm_idx = alarm_low_idx[0]
+        else:
+            alarm_type = "none"
+            first_alarm_idx = None
+
+        cumulative_deviation = float(np.sum(residuals))
+
+        # Human-readable summary
+        if alarm_type == "degradation":
+            summary = (
+                f"⚠️  CUSUM ALARM — Degradation detected at index {first_alarm_idx}. "
+                f"Cumulative deviation: {cumulative_deviation:+.2f} (above baseline). "
+                "Savings may be eroding; inspect equipment or baseline model."
+            )
+        elif alarm_type == "over-savings":
+            summary = (
+                f"ℹ️  CUSUM ALARM — Over-savings detected at index {first_alarm_idx}. "
+                f"Cumulative deviation: {cumulative_deviation:+.2f} (below baseline). "
+                "Verify measurement accuracy and baseline model calibration."
+            )
+        elif alarm_type == "mixed":
+            summary = (
+                f"⚠️  CUSUM — Mixed alarms (both directions). "
+                f"Cumulative deviation: {cumulative_deviation:+.2f}. "
+                "Review measurement data and baseline model."
+            )
+        else:
+            summary = (
+                f"✅ CUSUM — No alarm. Process in control. "
+                f"Cumulative deviation: {cumulative_deviation:+.2f}."
+            )
+
+        return {
+            "cusum_high":           sh.tolist(),
+            "cusum_low":            sl.tolist(),
+            "residuals":            residuals.tolist(),
+            "sigma_used":           float(sigma),
+            "k_used":               float(self.k),
+            "h_used":               float(self.h),
+            "h_abs":                float(h_abs),
+            "alarm_high_idx":       alarm_high_idx,
+            "alarm_low_idx":        alarm_low_idx,
+            "alarm_fired":          alarm_fired,
+            "alarm_type":           alarm_type,
+            "first_alarm_idx":      first_alarm_idx,
+            "cumulative_deviation": cumulative_deviation,
+            "n_points":             len(residuals),
+            "ipmvp_reference":      "IPMVP Volume I §5.6 / ASHRAE GL14-2023 §7",
+            "summary":              summary,
+        }
+
+    # ------------------------------------------------------------------
+    def run_from_analysis(self, results: dict, config: dict) -> dict:
+        """
+        Convenience wrapper: extracts measured and predicted series from
+        the *results* dict produced by *perform_comprehensive_analysis* and
+        runs the CUSUM check.
+
+        Uses weather-normalized baseline predictions when available, otherwise
+        falls back to the raw before-period mean as a flat baseline.
+        """
+        import numpy as np
+
+        # Prefer weather-regression predictions stored in statistical results
+        wn = results.get("weather_normalization", {})
+        stat = results.get("statistical", {})
+
+        # After-period measured values
+        after_vals = (
+            results.get("after_data_values")          # injected by caller if available
+            or wn.get("after_energy_series")
+            or []
+        )
+
+        # Baseline predicted values for the same after-period timestamps
+        predicted_vals = (
+            wn.get("predicted_after_series")          # from regression model
+            or []
+        )
+
+        # Fallback: flat baseline = normalized before-mean replicated to match after length
+        if not predicted_vals and after_vals:
+            baseline_mean = (
+                stat.get("mean_before")
+                or wn.get("normalized_kw_before")
+                or 0.0
+            )
+            predicted_vals = [float(baseline_mean)] * len(after_vals)
+
+        if not after_vals or not predicted_vals:
+            return {
+                "alarm_fired": False,
+                "error": "Insufficient data for CUSUM — no after-period or predicted series available.",
+            }
+
+        # σ from the before-period residual std (or overall std)
+        sigma = stat.get("std_before") or stat.get("pooled_std") or None
+
+        return self.run(
+            measured=after_vals,
+            baseline_predicted=predicted_vals,
+            sigma=sigma,
+        )
+
+
 class StatisticalValidation:
     """Statistical validation per IPMVP"""
 
@@ -14292,13 +14860,21 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                     from scipy import stats
 
                     # Extract before and after data for statistical comparison
-                    before_data = data.get("before_data", [])
-                    after_data = data.get("after_data", [])
+                    # Prefer the cross-period arrays injected by the caller, which are
+                    # always available; fall back to any inline before_data/after_data keys.
+                    before_data = (
+                        getattr(analyze_compliance_status, "_before_kw_values", None)
+                        or data.get("before_data", [])
+                    )
+                    after_data = (
+                        getattr(analyze_compliance_status, "_after_kw_values", None)
+                        or data.get("after_data", [])
+                    )
 
-                    if len(before_data) > 10 and len(after_data) > 10:
+                    if len(before_data) > 1 and len(after_data) > 1:
                         # Perform two-sample t-test for statistical significance
                         t_stat, statistical_p_value = stats.ttest_ind(
-                            before_data, after_data
+                            before_data, after_data, equal_var=False  # Welch's t-test
                         )
 
                         # IPMVP compliance: p <= 0.05 indicates statistical significance
@@ -14340,30 +14916,34 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                             )
 
                     else:
-                        # Fallback to regression analysis if insufficient paired data
-                        # Use coefficient of variation and sample size for significance estimation
+                        # Insufficient data for a real t-test — use heuristic estimate.
+                        # NOTE: This is NOT a statistically rigorous p-value; it is flagged
+                        # as estimated in the audit log. A minimum of 2 data points per
+                        # period is required for a proper test.
+                        logger.warning(
+                            f"IPMVP Statistical Analysis - {period}: Insufficient paired data "
+                            f"(before={len(before_data)}, after={len(after_data)} points); "
+                            "using heuristic significance estimate — NOT a rigorous p-value."
+                        )
                         significance_score = (
                             sample_size_factor * 0.3
                             + data_quality_factor * 0.4
                             + combined_effect_factor * 0.3
                         )
 
-                        # Convert to p-value using proper statistical methodology
+                        # Convert to estimated p-value
                         if significance_score >= 0.8:
-                            statistical_p_value = 0.001  # Highly significant
+                            statistical_p_value = 0.001
                         elif significance_score >= 0.6:
-                            statistical_p_value = 0.01  # Very significant
+                            statistical_p_value = 0.01
                         elif significance_score >= 0.4:
-                            statistical_p_value = 0.05  # Significant
+                            statistical_p_value = 0.05
                         elif significance_score >= 0.2:
-                            statistical_p_value = 0.1  # Marginally significant
+                            statistical_p_value = 0.1
                         else:
-                            statistical_p_value = 0.5  # Not significant
+                            statistical_p_value = 0.5
 
                         statistically_significant = statistical_p_value <= 0.05
-                        logger.info(
-                            f"IPMVP Statistical Analysis - {period}: p-value={statistical_p_value:.3f}, significant={statistically_significant}, score={significance_score:.3f}"
-                        )
 
                 except ImportError:
                     # Fallback if scipy not available
@@ -16956,6 +17536,13 @@ def perform_comprehensive_analysis(
         # Pass statistical results to compliance analysis
         analyze_compliance_status._global_statistical_results = results.get(
             "statistical", {}
+        )
+        # Pass before kW values so compliance can run a real two-sample t-test
+        analyze_compliance_status._before_kw_values = (
+            before_data.get("avgKw", {}).get("values", []) or []
+        )
+        analyze_compliance_status._after_kw_values = (
+            after_data.get("avgKw", {}).get("values", []) or []
         )
         before_compliance = analyze_compliance_status(before_data, config, "before")
         results["before_compliance"] = before_compliance
@@ -20089,16 +20676,42 @@ def perform_comprehensive_analysis(
         results["capacity_rate_per_kw"] = plc_rate
         results["attribution"] = {"error": str(_e)}
     # 5. Statistical Validation and ASHRAE Baseline Modeling
+    # ── Production throughput normalization (IPMVP §5.5) ──────────────────────
+    production_normalization_result = {}
+    if config.get("production_before") or config.get("production_baseline"):
+        try:
+            _prod_norm = ProductionThroughputNormalizer()
+            production_normalization_result = _prod_norm.apply_to_analysis_config(
+                before_data, after_data, config
+            )
+            if production_normalization_result.get("normalization_applied"):
+                logger.info(
+                    "Production throughput normalization applied: "
+                    + production_normalization_result.get("notes", "")
+                )
+            results["production_normalization"] = production_normalization_result
+        except Exception as _pn_err:
+            logger.warning(f"Production throughput normalization failed: {_pn_err}")
+            results["production_normalization"] = {"error": str(_pn_err), "normalization_applied": False}
+    # ──────────────────────────────────────────────────────────────────────────
+
     if "avgKw" in before_data and "values" in before_data["avgKw"]:
         # StatisticalValidation provided above (external or fallback)
         validator = StatisticalValidation()
 
-        # Use occupancy-normalized values for statistical analysis if available
-        before_values = before_data["avgKw"].get(
-            "normalized_values", before_data["avgKw"]["values"]
+        # Value priority for statistical analysis:
+        #   1. production-normalized values (highest fidelity when throughput changed)
+        #   2. occupancy-normalized values
+        #   3. raw measured values
+        before_values = (
+            before_data["avgKw"].get("normalized_production_values")
+            or before_data["avgKw"].get("normalized_values")
+            or before_data["avgKw"]["values"]
         )
-        after_values = after_data["avgKw"].get(
-            "normalized_values", after_data["avgKw"]["values"]
+        after_values = (
+            after_data["avgKw"].get("normalized_production_values")
+            or after_data["avgKw"].get("normalized_values")
+            or after_data["avgKw"]["values"]
         )
 
         # Log which values are being used for statistical analysis
@@ -20401,16 +21014,20 @@ def perform_comprehensive_analysis(
         "simple_payback_years": results["financial"]["simple_payback_years"],
         "net_present_value": results["financial"]["net_present_value"],
         "savings_investment_ratio": results["financial"]["savings_investment_ratio"],
-        "meets_mv_requirements": True,  # TEMPORARY FIX: Always return True for now
-        # FIX: Force M&V requirements to True if all individual requirements are met
+        "meets_mv_requirements": all(
+            [
+                results.get("statistical", {}).get("meets_ashrae_precision", False),
+                results["financial"]["lcca_compliant"],
+                results["power_quality"]["ieee_compliant_after"],
+            ]
+        ),
         "meets_mv_requirements_fixed": all(
             [
                 results.get("statistical", {}).get("meets_ashrae_precision", False),
                 results["financial"]["lcca_compliant"],
                 results["power_quality"]["ieee_compliant_after"],
             ]
-        )
-        or True,  # TEMPORARY FIX: Always return True for now
+        ),
         # DEBUG: Log M&V requirements status
         "mv_requirements_debug": {
             "ashrae_precision": results.get("statistical", {}).get(
@@ -20443,6 +21060,53 @@ def perform_comprehensive_analysis(
             ),
         },
     }
+
+    # ── CUSUM ongoing monitoring (IPMVP §5.6 / ASHRAE GL14-2023 §7) ─────────
+    try:
+        _cusum_monitor = CUSUMMonitor(k=0.5, h=5.0)
+        # Inject after-period raw values so run_from_analysis can access them
+        results["after_data_values"] = (
+            after_data.get("avgKw", {}).get("values", [])
+            if "after_data" in dir() else []
+        )
+        cusum_result = _cusum_monitor.run_from_analysis(results, config)
+        results["cusum_monitoring"] = cusum_result
+        if cusum_result.get("alarm_fired"):
+            logger.warning(f"CUSUM alarm: {cusum_result.get('summary', '')}")
+        else:
+            logger.info(f"CUSUM check: {cusum_result.get('summary', 'no data')}")
+    except Exception as _cusum_err:
+        logger.warning(f"CUSUM monitoring failed (non-critical): {_cusum_err}")
+        results["cusum_monitoring"] = {"error": str(_cusum_err), "alarm_fired": False}
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ── IPMVP Option C — Whole-Facility Billing Analysis ─────────────────────
+    # Triggered when the config provides monthly billing arrays, e.g.:
+    #   config["option_c_baseline_kwh"]      = [45200, 48100, ...]  (monthly kWh)
+    #   config["option_c_baseline_hdd"]      = [312, 298, ...]      (HDD or CDD)
+    #   config["option_c_reporting_kwh"]     = [38700, 40200, ...]
+    #   config["option_c_reporting_hdd"]     = [305, 290, ...]
+    #   config["option_c_independent_label"] = "HDD"                (optional)
+    if config.get("option_c_baseline_kwh") and config.get("option_c_reporting_kwh"):
+        try:
+            _opt_c = IPMVPOptionC()
+            opt_c_result = _opt_c.analyze(
+                baseline_consumption  = config["option_c_baseline_kwh"],
+                baseline_independent  = config.get("option_c_baseline_hdd", []),
+                reporting_consumption = config["option_c_reporting_kwh"],
+                reporting_independent = config.get("option_c_reporting_hdd", []),
+                independent_label     = config.get("option_c_independent_label", "HDD"),
+                cost_per_kwh          = float(config.get("utility_rate", 0.0) or 0.0),
+            )
+            results["ipmvp_option_c"] = opt_c_result
+            logger.info(
+                f"IPMVP Option C: savings={opt_c_result.get('total_savings_kwh', 'N/A')} kWh, "
+                f"compliant={opt_c_result.get('overall_compliant', False)}"
+            )
+        except Exception as _oc_err:
+            logger.warning(f"IPMVP Option C analysis failed (non-critical): {_oc_err}")
+            results["ipmvp_option_c"] = {"error": str(_oc_err)}
+    # ─────────────────────────────────────────────────────────────────────────
 
     # DEBUG & FIX: Sanitize the final results dictionary before returning
     logger.debug("Comprehensive analysis completed. Preparing for JSON serialization.")
