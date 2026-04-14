@@ -4,26 +4,30 @@ Bill routes - standalone bill scan for Scan Bill First flow.
 POST /api/bill/analyze        — submit PDF, returns job_id immediately
 GET  /api/bill/analyze/<id>   — poll for result (pending / done / error)
 
-The AI vision extraction (qwen2.5vl:32b) takes ~2 minutes for a 3-page bill,
-which exceeds typical HTTP proxy timeouts. The async job pattern keeps the
-initial POST fast and lets the frontend poll until the result is ready.
+Extraction is delegated to the bill-platform FastAPI service (port 8000),
+which runs qwen2.5vl:32b with refined prompts and post-processing for
+tiered billing, multilingual bills, rate calculations, etc.
 """
-import base64
 import logging
+import os
 import threading
 import time
 import uuid
 
-import fitz  # PyMuPDF — page rendering only, not text extraction
+import requests as _requests
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import login_required
 
 from app.helpers.decorators import license_required
-from app.services.bill_ai_extractor import extract_bill_from_images, find_meters_from_images
 
 logger = logging.getLogger(__name__)
 
 bill_bp = Blueprint("bill", __name__, url_prefix="")
+
+# Bill-platform FastAPI service URL (same host, port 8000)
+BILL_PLATFORM_URL = os.environ.get("BILL_PLATFORM_URL", "http://100.106.19.30:8000")
+# How long to wait total for the GPU to finish (seconds)
+BILL_PLATFORM_TIMEOUT = int(os.environ.get("BILL_PLATFORM_TIMEOUT", "1200"))
 
 # In-memory job store: job_id → { status, result, error, created_at }
 # Jobs are pruned after 30 minutes to avoid memory leaks.
@@ -40,32 +44,160 @@ def _prune_jobs() -> None:
             del _JOBS[jid]
 
 
-def _run_extraction(job_id: str, image_b64_list: list, app) -> None:
-    """Background thread: run AI extraction and store result in _JOBS."""
-    with app.app_context():
-        try:
-            meters = find_meters_from_images(image_b64_list)
-            result = extract_bill_from_images(image_b64_list, selected_meters=meters or None)
-            with _JOBS_LOCK:
-                if result:
-                    meaningful = [k for k in result if k != "lineItems" and result[k] not in (None, "", [])]
+def _map_platform_result(parse: dict) -> dict:
+    """
+    Convert bill-platform ParseResult dict into the format the tracking
+    frontend expects (same shape as the old bill_ai_extractor output).
+    """
+    # Map lineItems: {description, amount, units, ratePerUnit, meterKwh, meterKwPeak}
+    #             → {name, unit, type, cost, billingRate, quantity}
+    line_items = []
+    for li in (parse.get("lineItems") or []):
+        units = str(li.get("units") or "").lower()
+        if "kwh" in units or "kwh" in str(li.get("description") or "").lower():
+            item_type = "kwh"
+        elif "kw" in units:
+            item_type = "kw"
+        elif "tax" in units or "tax" in str(li.get("description") or "").lower():
+            item_type = "tax"
+        else:
+            item_type = "fixed"
+        qty = li.get("meterKwh") or li.get("meterKwPeak") or 0
+        line_items.append({
+            "name": li.get("description") or "",
+            "unit": li.get("units") or "",
+            "type": item_type,
+            "cost": li.get("amount") or 0,
+            "billingRate": li.get("ratePerUnit") or 0,
+            "quantity": qty,
+        })
+
+    # Strip currency symbol from billAmount so frontend gets a plain number
+    bill_amount_raw = str(parse.get("billAmount") or "")
+    bill_amount = bill_amount_raw.strip()
+    for sym in ("NT$", "$", "€", "£", "¥", "₩"):
+        bill_amount = bill_amount.replace(sym, "")
+    bill_amount = bill_amount.replace(",", "").strip()
+
+    # Convert billDate string → epoch milliseconds (frontend expects epoch ms)
+    bill_date = None
+    bill_date_str = parse.get("billDate")
+    if bill_date_str:
+        from datetime import datetime
+        for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(str(bill_date_str)[:10], fmt)
+                bill_date = int(dt.timestamp() * 1000)
+                break
+            except (ValueError, TypeError):
+                continue
+
+    currency = parse.get("currency") or "USD"
+    currency_sym = {"USD": "$", "TWD": "NT$", "NTD": "NT$", "EUR": "€",
+                    "GBP": "£", "JPY": "¥", "KRW": "₩", "CAD": "$"}.get(currency, "$")
+
+    return {
+        "customerName":          parse.get("customerName") or "",
+        "accountNumber":         parse.get("accountNumber") or "",
+        "billDate":              bill_date,
+        "billAmount":            bill_amount,
+        "electricCompanyName":   parse.get("electricCompanyName") or "",
+        "electricCompanyAddress":parse.get("electricCompanyAddress") or "",
+        "electricCompanyCity":   parse.get("electricCompanyCity") or "",
+        "electricCompanyState":  parse.get("electricCompanyState") or "",
+        "electricCompanyZip":    parse.get("electricCompanyZip") or "",
+        "serviceAddress":        parse.get("serviceAddress") or "",
+        "serviceCity":           parse.get("serviceCity") or "",
+        "serviceState":          parse.get("serviceState") or "",
+        "serviceZip":            parse.get("serviceZip") or "",
+        "meterNumber":           parse.get("meterNumber") or "",
+        "totalKwh":              parse.get("totalKwh") or "",
+        "kwPeak":                parse.get("kwPeak") or "",
+        "kwhRate":               parse.get("kwhRate") or "",
+        "kwRatePerTariff":       parse.get("kwRatePerTariff") or "",
+        "daysBilled":            parse.get("daysBilled") or "",
+        "customerCharge":        parse.get("customerCharge") or "",
+        "taxAmount":             parse.get("taxAmount") or "",
+        "tariff":                parse.get("tariff") or "",
+        "billReference":         parse.get("billReference") or "",
+        "voltage":               parse.get("voltage") or "",
+        "currencySymbol":        currency_sym,
+        "lineItems":             line_items,
+    }
+
+
+def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str) -> None:
+    """
+    Background thread: POST the PDF to bill-platform, poll until done,
+    then store the mapped result in _JOBS.
+    """
+    platform_url = BILL_PLATFORM_URL
+    poll_interval = 5   # seconds between status checks
+    max_wait = BILL_PLATFORM_TIMEOUT
+
+    try:
+        # 1. Submit PDF to bill-platform
+        logger.info("Bill job %s: POSTing to %s/bills", job_id, platform_url)
+        resp = _requests.post(
+            f"{platform_url}/bills",
+            files={"file": (filename, pdf_buffer, "application/pdf")},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        bill_id = resp.json()["id"]
+        logger.info("Bill job %s: bill-platform bill_id=%s", job_id, bill_id)
+
+        # 2. Poll until status changes from "processing"
+        deadline = time.time() + max_wait
+        while time.time() < deadline:
+            time.sleep(poll_interval)
+            poll = _requests.get(f"{platform_url}/bills/{bill_id}", timeout=15)
+            poll.raise_for_status()
+            data = poll.json()
+            status = data.get("status")
+            logger.info("Bill job %s: poll status=%s", job_id, status)
+
+            if status in ("pending_review", "approved"):
+                parse = data.get("initial_parse") or {}
+                result = _map_platform_result(parse)
+                meaningful = [k for k in result if k not in ("lineItems", "currencySymbol") and result[k] not in (None, "", [])]
+                with _JOBS_LOCK:
                     _JOBS[job_id].update({
                         "status": "done",
                         "result": result,
                         "partial": len(meaningful) < 5,
                     })
-                else:
+                return
+            elif status == "failed":
+                with _JOBS_LOCK:
                     _JOBS[job_id].update({
                         "status": "error",
-                        "error": "AI could not extract bill data from this PDF. Please enter the information manually.",
+                        "error": "Bill parsing failed on the AI server. Please try again or enter data manually.",
                     })
-        except TimeoutError as e:
-            with _JOBS_LOCK:
-                _JOBS[job_id].update({"status": "error", "error": str(e)})
-        except Exception as e:
-            logger.exception("AI bill extraction error for job %s", job_id)
-            with _JOBS_LOCK:
-                _JOBS[job_id].update({"status": "error", "error": "AI extraction failed. Please try again."})
+                return
+            # status == "processing" → keep polling
+
+        # Timed out
+        with _JOBS_LOCK:
+            _JOBS[job_id].update({
+                "status": "error",
+                "error": "AI extraction timed out. The bill may be very complex. Please try again or enter data manually.",
+            })
+
+    except _requests.ConnectionError:
+        logger.warning("Bill job %s: cannot reach bill-platform at %s", job_id, platform_url)
+        with _JOBS_LOCK:
+            _JOBS[job_id].update({
+                "status": "error",
+                "error": "Cannot connect to the bill processing service. Please try again later.",
+            })
+    except Exception:
+        logger.exception("Bill platform extraction error for job %s", job_id)
+        with _JOBS_LOCK:
+            _JOBS[job_id].update({
+                "status": "error",
+                "error": "AI extraction failed. Please try again or enter data manually.",
+            })
 
 
 @bill_bp.route("/api/bill/analyze", methods=["POST"])
@@ -102,36 +234,17 @@ def analyze_bill():
     if not pdf_buffer or len(pdf_buffer) < 100:
         return jsonify({"success": False, "error": "File appears empty or corrupted", "data": {}}), 400
 
-    # Render PDF pages to PNG images
-    try:
-        doc = fitz.open(stream=pdf_buffer, filetype="pdf")
-        image_b64_list = []
-        for page in doc:
-            pix = page.get_pixmap(dpi=150)
-            image_b64_list.append(base64.b64encode(pix.tobytes("png")).decode())
-        doc.close()
-    except Exception:
-        current_app.logger.exception("PDF render error")
-        return jsonify({
-            "success": False,
-            "error": "Failed to render PDF pages. The file may be corrupted or password-protected.",
-            "data": {},
-        }), 500
-
-    if not image_b64_list:
-        return jsonify({"success": False, "error": "PDF has no pages", "data": {}}), 400
-
     _prune_jobs()
 
     job_id = str(uuid.uuid4())
     with _JOBS_LOCK:
         _JOBS[job_id] = {"status": "pending", "created_at": time.time()}
 
-    app = current_app._get_current_object()
-    t = threading.Thread(target=_run_extraction, args=(job_id, image_b64_list, app), daemon=True)
+    filename = file.filename or "bill.pdf"
+    t = threading.Thread(target=_run_extraction, args=(job_id, pdf_buffer, filename), daemon=True)
     t.start()
 
-    logger.info("Bill analyze job %s started (%d pages)", job_id, len(image_b64_list))
+    logger.info("Bill analyze job %s started", job_id)
     return jsonify({"success": True, "job_id": job_id, "status": "pending"}), 202
 
 

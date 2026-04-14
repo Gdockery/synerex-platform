@@ -52,9 +52,9 @@
       </div>
 
       <div class="form-group">
-        <label for="co_org_id">Organization ID <span style="font-weight:400;color:var(--text-dim)">(auto-generated — edit if needed)</span></label>
-        <input type="text" id="co_org_id" name="org_id" placeholder="Auto-generated from name" style="font-family:monospace;">
-        <div class="small">Leave blank to auto-generate, e.g. OEM-ACME-POWER-001</div>
+        <label for="co_org_id">Organization ID <span style="font-weight:400;color:var(--text-dim)">(auto-generated from name)</span></label>
+        <input type="text" id="co_org_id" name="org_id" readonly autocomplete="off" placeholder="Fill in name above" style="font-family:monospace; background:#f5f5f5; cursor:default; color:#555;">
+        <div class="small">Generated automatically — not editable.</div>
       </div>
 
       <div class="row">
@@ -172,11 +172,11 @@ function coGenId(){
   var typeEl = document.getElementById('co_org_type');
   var orgName = document.getElementById('co_org_name').value;
   var orgType = typeEl.value || 'ORG';
-  if(!orgName.trim()){ nameEl.placeholder='Auto-generated from name'; document.getElementById('co_id_preview').textContent=''; return; }
+  if(!orgName.trim()){ nameEl.value=''; nameEl.placeholder='Fill in name above'; document.getElementById('co_id_preview').textContent=''; return; }
   var clean = orgName.replace(/[^a-zA-Z0-9\s-]/g,'').trim().replace(/\s+/g,'-').toUpperCase().substring(0,20);
   var preview = orgType.toUpperCase() + '-' + clean;
-  document.getElementById('co_id_preview').textContent = 'Preview: ' + preview;
-  if(!nameEl.value){ nameEl.placeholder = preview; }
+  nameEl.value = preview;
+  document.getElementById('co_id_preview').textContent = '';
 }
 function coUpdateType(val){
   coGenId();
