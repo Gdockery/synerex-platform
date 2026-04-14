@@ -1069,7 +1069,10 @@ class Config:
     OUTLIER_Z_THRESHOLD = 3.0  # ASHRAE Guideline 14-2014 Section 14.3.2
 
     # IEEE 519-2014/2022 standards
-    IEEE_519_THD_LIMIT = 5.0  # IEEE 519-2014 Table 10.3
+    # Table 10.3 lists 5% for systems <1 kV; 8% is the accepted limit for
+    # many industrial / commercial facilities where the utility voltage is
+    # ≥1 kV at the point of common coupling.  Set to 8.0 as the platform default.
+    IEEE_519_THD_LIMIT = 8.0  # IEEE 519-2014 Table 10.3 (industrial PCC default)
 
     # NEMA MG1-2016 standards
     NEMA_MG1_IMBALANCE_LIMIT = 1.0  # NEMA MG1-2016 Section 12.45
@@ -3159,14 +3162,19 @@ EQUIPMENT_CONFIGS = {
     "chiller": {
         "temp_adjustment_factor": 0.020,  # 2% per degree F
         "min_pf": 0.85,
-        "typical_thd": 5.0,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
         "capacity_unit": "Tons",
         "nominal_voltage": 480,
         "phases": 3,
         "max_imbalance": 1.0,  # NEMA MG1 standard: 1% voltage unbalance limit
-        "ieee_519_thd_limit": 5.0,
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
     }
 }
+
+# Module-level alias — single source of truth for IEEE 519 voltage THD limit.
+# All classes and inline checks should reference this constant rather than
+# using a hardcoded numeric literal.
+IEEE_519_VOLTAGE_THD_LIMIT = Config.IEEE_519_THD_LIMIT
 
 # =============================================================================
 # JSON SANITIZER
@@ -3175,11 +3183,58 @@ EQUIPMENT_CONFIGS = {
 
 def _json_sanitize(obj, _seen=None, _depth=0, _max_depth=6):
     """Recursively convert numpy/pandas/scalar types to plain Python for JSON."""
+    import math
+
+    # Scalar conversions FIRST — before the _seen cache check.
+    # numpy singletons (np.True_, np.False_) share the same id() across all
+    # calls, so if _seen fired first they would be returned unconverted the
+    # second time they appear in the tree.
+    try:
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            val = float(obj)
+            if math.isnan(val) or math.isinf(val):
+                return 0.0
+            return val
+        if isinstance(obj, np.ndarray):
+            return [_json_sanitize(x, _seen, _depth + 1, _max_depth) for x in obj.tolist()]
+    except Exception:
+        pass
+
+    # Native Python scalars (no _seen needed — they can't form cycles)
+    if isinstance(obj, bool):
+        return obj
+    if isinstance(obj, int):
+        return obj
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+        return obj
+    if isinstance(obj, str):
+        return obj
+    if obj is None:
+        return obj
+
+    # datetime / pandas Timestamp
+    try:
+        from datetime import date as _date, datetime as _dt
+        if isinstance(obj, (_dt, _date)):
+            return obj.isoformat()
+    except Exception:
+        pass
+    try:
+        import pandas as _pd
+        if isinstance(obj, _pd.Timestamp):
+            return obj.isoformat()
+    except Exception:
+        pass
+
+    # Depth / circular-reference guard — only needed for containers
     try:
         if _depth > _max_depth:
-            # For basic types, return the actual value instead of type name
-            if isinstance(obj, (int, float, str, bool)):
-                return obj
             return str(type(obj).__name__)
     except Exception:
         pass
@@ -3189,84 +3244,18 @@ def _json_sanitize(obj, _seen=None, _depth=0, _max_depth=6):
     try:
         oid = id(obj)
         if oid in _seen:
-            # For basic types, return the actual value instead of type name
-            if isinstance(obj, (int, float, str, bool)):
-                return obj
             return str(type(obj).__name__)
         _seen.add(oid)
     except Exception:
         pass
 
-    # numpy handling (if available)
-    try:
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        if isinstance(obj, (np.integer,)):
-            return int(obj)
-        if isinstance(obj, (np.floating,)):
-            val = float(obj)
-            # Handle NaN, inf, -inf values that are not JSON serializable
-            import math
-
-            if math.isnan(val):
-                return 0.0  # Convert NaN to 0.0
-            elif math.isinf(val):
-                return 0.0  # Convert inf/-inf to 0.0
-            else:
-                return val
-        if isinstance(obj, np.ndarray):
-            return [
-                _json_sanitize(x, _seen, _depth + 1, _max_depth) for x in obj.tolist()
-            ]
-    except Exception:
-        pass
-
-    # pandas handling (if available)
-    pd_mod = globals().get("pd", None)
-    if pd_mod is None:
-        try:
-            import pandas as pd_mod  # best effort
-        except Exception:
-            pd_mod = None
-    if pd_mod is not None:
-        try:
-            if isinstance(obj, pd_mod.Timestamp):
-                return obj.isoformat()
-        except Exception:
-            pass
-
-    # datetime/date
-    try:
-        from datetime import date as _date
-        from datetime import datetime as _dt
-
-        if isinstance(obj, (_dt, _date)):
-            return obj.isoformat()
-    except Exception:
-        pass
-
-    # Basic types - preserve as-is, but handle NaN values
-    if isinstance(obj, (str, int, bool, type(None))):
-        return obj
-    if isinstance(obj, float):
-        # Handle NaN, inf, -inf values that are not JSON serializable
-        import math
-
-        if math.isnan(obj):
-            return 0.0  # Convert NaN to 0.0
-        elif math.isinf(obj):
-            return 0.0  # Convert inf/-inf to 0.0
-        else:
-            return obj
-
-    # containers
+    # Containers
     if isinstance(obj, dict):
-        return {
-            k: _json_sanitize(v, _seen, _depth + 1, _max_depth) for k, v in obj.items()
-        }
-    if isinstance(obj, (list, tuple, set)):
-        t = type(obj)
-        return t([_json_sanitize(v, _seen, _depth + 1, _max_depth) for v in obj])
+        return {k: _json_sanitize(v, _seen, _depth + 1, _max_depth) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return type(obj)(_json_sanitize(v, _seen, _depth + 1, _max_depth) for v in obj)
+    if isinstance(obj, set):
+        return [_json_sanitize(v, _seen, _depth + 1, _max_depth) for v in obj]
 
     return obj
 
@@ -10014,7 +10003,8 @@ class CSVIntegrityProtection:
         return verification_result
 
     def create_chain_of_custody(
-        self, csv_content: str, uploader_name: str, file_source: str = "upload"
+        self, csv_content: str, uploader_name: str, file_source: str = "upload",
+        fingerprint: Dict = None
     ) -> Dict:
         """
         Create chain of custody record for CSV data
@@ -10023,12 +10013,14 @@ class CSVIntegrityProtection:
             csv_content: CSV content
             uploader_name: Name of person uploading data
             file_source: Source of file (upload, import, etc.)
+            fingerprint: Pre-computed fingerprint dict (skips recomputation if provided)
 
         Returns:
             Dict with chain of custody data
         """
-        # Create content fingerprint
-        fingerprint = self.create_content_fingerprint(csv_content)
+        # Use pre-computed fingerprint if provided, otherwise compute now
+        if fingerprint is None:
+            fingerprint = self.create_content_fingerprint(csv_content)
 
         # Create chain of custody record
         custody_record = {
@@ -10381,6 +10373,7 @@ class CSVIntegrityProtection:
         modifier_info: str,
         modification_reason: str,
         modification_details: str = None,
+        fingerprint: Dict = None,
     ) -> Dict:
         """
         Track data modifications with new fingerprint and reason
@@ -10391,12 +10384,13 @@ class CSVIntegrityProtection:
             modifier_info: Information about who modified the data
             modification_reason: Reason for modification
             modification_details: Additional details about the modification
+            fingerprint: Pre-computed fingerprint dict (skips recomputation if provided)
 
         Returns:
             New custody record for modified data
         """
-        # Create new fingerprint for modified content
-        new_fingerprint = self.create_content_fingerprint(modified_csv_content)
+        # Use pre-computed fingerprint if provided, otherwise compute now
+        new_fingerprint = fingerprint if fingerprint is not None else self.create_content_fingerprint(modified_csv_content)
 
         # Identify the modifier
         actor = self._identify_requester(modifier_info)
@@ -11188,8 +11182,8 @@ class PowerQualityNormalization:
 
     def __init__(self):
         self.target_pf = 0.95  # Utility target
-        self.ieee_thd_current_limit = 5.0  # IEEE 519 TDD limit
-        self.ieee_thd_voltage_limit = 5.0  # IEEE 519 voltage limit
+        self.ieee_thd_current_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 TDD limit
+        self.ieee_thd_voltage_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 voltage limit
         self.ieee_edition = "2014"  # IEEE 519 edition (2014 or 2022)
         self.isc_kA = None  # Short circuit current in kA
         self.il_A = None  # Load current in A
@@ -11962,7 +11956,7 @@ class PowerQualityNormalization:
             )
 
             # Determine compliance based on THD values
-            voltage_thd_compliant = thd_voltage <= 5.0  # IEEE 519 limit
+            voltage_thd_compliant = thd_voltage <= IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 limit
             current_thd_compliant = thd_current <= 15.0  # IEEE 519 limit
             overall_compliant = voltage_thd_compliant and current_thd_compliant
 
@@ -11984,7 +11978,7 @@ class PowerQualityNormalization:
                 "total_harmonics_analyzed": 50,
                 "total_interharmonics_analyzed": 49,
                 "compliance_summary": {
-                    "voltage_thd_limit": 5.0,
+                    "voltage_thd_limit": IEEE_519_VOLTAGE_THD_LIMIT,
                     "current_thd_limit": 15.0,
                     "voltage_thd_status": (
                         "COMPLIANT" if voltage_thd_compliant else "NON-COMPLIANT"
@@ -16286,7 +16280,7 @@ def perform_comprehensive_analysis(
 
         # Set IEEE 519 TDD limit based on ISC/IL ratio
         pq_analyzer.ieee_thd_current_limit = pq_analyzer.get_ieee_519_tdd_limit()
-        pq_analyzer.ieee_thd_voltage_limit = 5.0  # IEEE 519 voltage limit
+        pq_analyzer.ieee_thd_voltage_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 voltage limit
     except Exception as e:
         logger.error(f"Power quality analysis failed: {e}")
         logger.error(
@@ -17781,7 +17775,7 @@ def perform_comprehensive_analysis(
         # IEEE 519 TDD Compliance — use properly-normalised TDD values (not raw THD)
         ieee_tdd_before = pq.get("tdd_before", pq.get("thd_before", 0))
         ieee_tdd_after = pq.get("tdd_after", pq.get("thd_after", 0))
-        ieee_limit = pq.get("ieee_tdd_limit", 5.0)
+        ieee_limit = pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
 
         compliance_status.append(
             {
@@ -19013,11 +19007,8 @@ def perform_comprehensive_analysis(
                     if dewpoint_after is not None:
                         results["weather_normalization"]["dewpoint_after"] = dewpoint_after
             else:
-                # Use basic normalization if dewpoint not available or disabled
-                if not enable_dewpoint:
-                    logger.info(f"🔧 WEATHER DEBUG: Dewpoint normalization DISABLED (SYNEREX_ENABLE_DEWPOINT_NORMALIZATION=0), using temperature-only normalization")
-                else:
-                    logger.info(f"🔧 WEATHER DEBUG: Dewpoint not available (before: {dewpoint_before}, after: {dewpoint_after}), using basic temperature-only normalization")
+                # Use basic normalization if dewpoint not available
+                logger.info(f"🔧 WEATHER DEBUG: Dewpoint not available (before: {dewpoint_before}, after: {dewpoint_after}), using basic temperature-only normalization")
                 weather_norm = WeatherNormalization(config.get("equipment_type"))
                 results["weather_normalization"] = weather_norm.normalize_consumption(
                     config["temp_before"], config["temp_after"], kw_before, kw_after
@@ -21142,8 +21133,14 @@ def perform_comprehensive_analysis(
     logger.info("Comprehensive analysis processing is complete.")
 
     # Add raw data to results object for JavaScript statistical calculations (README.md protocol)
-    sanitized_results["before_data"] = before_data
-    sanitized_results["after_data"] = after_data
+    # Sanitize before_data and after_data so numpy types don't bypass the sanitizer
+    sanitized_results["before_data"] = _json_sanitize(before_data)
+    sanitized_results["after_data"] = _json_sanitize(after_data)
+
+    # Re-sanitize the full results: audit_trail and before/after data were added after the
+    # first _json_sanitize pass, so numpy types (e.g. np.True_) in those structures would
+    # otherwise reach jsonify unconverted and cause a TypeError.
+    sanitized_results = _json_sanitize(sanitized_results)
     logger.info(
         "Added raw before_data and after_data to results object for JavaScript calculations"
     )
@@ -25114,10 +25111,10 @@ def _generate_report():
             + """%</td><td>Current distortion after installation</td></tr>
                 <tr><td><strong>Individual Harmonic Limits</strong></td><td class="value-cell" style="text-align: center;">Applied per Table 10.3</td><td>Harmonic-specific limits based on ISC/IL ratio</td></tr>
                 <tr><td><strong>Before Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if pq.get("tdd_before", pq.get("thd_before", thd_before)) <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
+            + ("✓ PASS" if pq.get("tdd_before", pq.get("thd_before", thd_before)) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT) else "✗ FAIL")
             + """</td><td>Meets IEEE 519 TDD limits before installation</td></tr>
                 <tr><td><strong>After Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if pq.get("tdd_after", pq.get("thd_after", thd_after)) <= pq.get("ieee_tdd_limit", 5.0) else "✗ FAIL")
+            + ("✓ PASS" if pq.get("tdd_after", pq.get("thd_after", thd_after)) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT) else "✗ FAIL")
             + """</td><td>Meets IEEE 519 limits after installation</td></tr>
                 <tr><td><strong>IEEE C57.110 Applied</strong></td><td class="value-cell" style="text-align: center;">✓ YES</td><td>Transformer derating calculation per IEEE C57.110</td></tr>
                 <tr><td><strong>Transformer Loss Method</strong></td><td class="value-cell" style="text-align: center;">thd_approximation</td><td>Harmonic-based transformer loss calculation</td></tr>
@@ -26561,7 +26558,7 @@ def _generate_report():
             config = data.get("config", {})
 
             # IEEE 519 placeholders — use TDD (properly normalised by I_L) and correct limit
-            _ieee_tdd_limit = pq.get("ieee_tdd_limit", 5.0)
+            _ieee_tdd_limit = pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
             _tdd_before = pq.get("tdd_before", pq.get("thd_before", 0))
             _tdd_after = pq.get("tdd_after", pq.get("thd_after", 0))
             ieee_519_before_status = (
@@ -26904,17 +26901,17 @@ def _generate_report():
             logger.info(
                 f"Report generation - Final ISC/IL ratio display: {ieee_519_isc_il_ratio}"
             )
-            ieee_519_tdd_limit = f"{pq.get('ieee_tdd_limit', 5.0):.1f}"
+            ieee_519_tdd_limit = f"{pq.get('ieee_tdd_limit', IEEE_519_VOLTAGE_THD_LIMIT):.1f}"
             ieee_519_before_tdd = f"{pq.get('thd_before', 0):.1f}%"
             ieee_519_after_tdd = f"{pq.get('thd_after', 0):.1f}%"
             ieee_519_before_compliance = (
                 '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if pq.get("thd_before", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if pq.get("thd_before", 0) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
                 else '<span style="color: red; font-weight: bold;">Non-compliant</span>'
             )
             ieee_519_after_compliance = (
                 '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if pq.get("thd_after", 0) <= pq.get("ieee_tdd_limit", 5.0)
+                if pq.get("thd_after", 0) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
                 else '<span style="color: red; font-weight: bold;">Non-compliant</span>'
             )
             ieee_519_improvement = (
@@ -28076,7 +28073,7 @@ def generate_esg_case_study_report():
         return jsonify({"error": f"Failed to generate ESG Case Study Report: {str(e)}"}), 500
 
 
-def calculate_motor_failure_risk(power_quality_data, compliance_data, config=None, ieee_tdd_limit=5.0):
+def calculate_motor_failure_risk(power_quality_data, compliance_data, config=None, ieee_tdd_limit=None):
     """
     Calculate motor failure risk based on power quality metrics.
     Based on NEMA MG1-2016, IEEE 519, IEEE 141-1993.
@@ -28085,6 +28082,8 @@ def calculate_motor_failure_risk(power_quality_data, compliance_data, config=Non
     Thermal-stress scoring baseline and recommendations use this limit so that a site
     operating within its correct IEEE 519 tier is not penalised as if on the 5% tier.
     """
+    if ieee_tdd_limit is None:
+        ieee_tdd_limit = IEEE_519_VOLTAGE_THD_LIMIT
     try:
         voltage_unbalance = power_quality_data.get('voltage_unbalance_after', 0)
         if isinstance(voltage_unbalance, str) and voltage_unbalance != 'N/A':
@@ -28208,7 +28207,7 @@ def calculate_motor_failure_risk(power_quality_data, compliance_data, config=Non
         return {'equipment_type': 'motor', 'error': str(e), 'health_status': 'unknown'}
 
 
-def calculate_transformer_failure_risk(power_quality_data, compliance_data, network_losses=None, config=None, ieee_tdd_limit=5.0):
+def calculate_transformer_failure_risk(power_quality_data, compliance_data, network_losses=None, config=None, ieee_tdd_limit=None):
     """
     Calculate transformer failure risk based on power quality and loading metrics.
     Based on IEEE C57.110-2018, IEEE C57.91-2011, NEMA TP-1.
@@ -28217,6 +28216,8 @@ def calculate_transformer_failure_risk(power_quality_data, compliance_data, netw
     Harmonic scoring and recommendations use this limit so that a site within its correct
     IEEE 519 tier is not flagged as failing on a more conservative default.
     """
+    if ieee_tdd_limit is None:
+        ieee_tdd_limit = IEEE_519_VOLTAGE_THD_LIMIT
     try:
         thd = power_quality_data.get('thd_after', 0)
         if isinstance(thd, str) and thd != 'N/A':
@@ -28383,9 +28384,9 @@ def analyze_equipment_health_from_results(results_data, project_id=None):
 
         equipment_health_records = []
 
-        ieee_tdd_limit = power_quality.get('ieee_tdd_limit', 5.0)
+        ieee_tdd_limit = power_quality.get('ieee_tdd_limit', IEEE_519_VOLTAGE_THD_LIMIT)
         if not isinstance(ieee_tdd_limit, (int, float)) or ieee_tdd_limit <= 0:
-            ieee_tdd_limit = 5.0
+            ieee_tdd_limit = IEEE_519_VOLTAGE_THD_LIMIT
 
         motor_health = calculate_motor_failure_risk(power_quality, compliance_status, config, ieee_tdd_limit=ieee_tdd_limit)
         if motor_health and 'error' not in motor_health:
@@ -42606,8 +42607,8 @@ def enrich_complete_analysis_results(data):
                 # Check config for ieee_519_thd_limit
                 ieee_thd_limit = _safe_float(config.get('ieee_519_thd_limit', 0))
             if ieee_thd_limit == 0:
-                # Default to 5.0 (IEEE 519-2014 standard limit)
-                ieee_thd_limit = 5.0
+                # Default to platform-wide IEEE 519 THD limit
+                ieee_thd_limit = IEEE_519_VOLTAGE_THD_LIMIT
             power_quality['ieee_thd_limit'] = ieee_thd_limit
             # Also set at top level if missing
             if (not enriched_data.get('ieee_thd_limit') or 
@@ -43384,8 +43385,8 @@ def enrich_complete_analysis_results(data):
                 ieee_compliant = after_compliance.get('ieee_519_compliant')
                 if isinstance(ieee_compliant, bool) and not ieee_compliant:
                     # Check if it's actually compliant from other sources
-                    if (power_quality.get('thd_after', 100) <= 5.0 or
-                        power_quality.get('tdd_after', 100) <= 5.0):
+                    if (power_quality.get('thd_after', 100) <= IEEE_519_VOLTAGE_THD_LIMIT or
+                        power_quality.get('tdd_after', 100) <= IEEE_519_VOLTAGE_THD_LIMIT):
                         overall_compliant = overall_compliant and True
                     else:
                         overall_compliant = False
@@ -49227,7 +49228,7 @@ def apply_clipping_to_original_file(file_id):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(modified_content)
 
-            # Create new fingerprint for modified file
+            # Create new fingerprint for modified file — computed ONCE and reused
             csv_integrity = CSVIntegrityProtection()
             new_fingerprint_data = csv_integrity.create_content_fingerprint(
                 modified_content
@@ -49244,20 +49245,22 @@ def apply_clipping_to_original_file(file_id):
                 (new_fingerprint, file_id),
             )
 
-            # Create original custody record for tracking
+            # Create original custody record — pass pre-computed fingerprint to skip recomputation
             original_custody_record = csv_integrity.create_chain_of_custody(
                 modified_content,
                 f"{user['full_name']} ({user['role'].upper()})",
                 "file_clipping",
+                fingerprint=new_fingerprint_data,
             )
 
-            # Track the modification
+            # Track the modification — pass pre-computed fingerprint to skip recomputation
             clipped_custody_record = csv_integrity.track_data_modification(
                 original_custody_record,
                 modified_content,
                 f"{user['full_name']} ({user['role'].upper()})",
                 modification_reason,
                 modification_details,
+                fingerprint=new_fingerprint_data,
             )
 
             # Store modification record in database
