@@ -234,7 +234,7 @@ def _table_needs_syncing(table, this_is_master, only_these_tables=None):
         "switchcommand", "test",
     ):
         return False
-    if this_is_master and table in ("client", "user"):
+    if this_is_master and table in ("user",):
         return False
     return table in REFERENCES or table == "deleted"
 

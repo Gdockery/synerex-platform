@@ -282,7 +282,7 @@ services:
     depends_on:
       - tracking-errands
     command: >
-      sh -c "while true; do sleep 300; wget -qO- --post-data= http://tracking-errands:1340/check-alerts 2>/dev/null || true; wget -qO- --post-data= http://tracking-errands:1340/sync-data 2>/dev/null || true; done"
+      sh -c "while true; do sleep 60; wget -qO- --post-data= http://tracking-errands:1340/check-alerts 2>/dev/null || true; wget -qO- --post-data= http://tracking-errands:1340/sync-data 2>/dev/null || true; done"
     restart: unless-stopped
 
   website-backend:
