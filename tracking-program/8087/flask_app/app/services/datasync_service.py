@@ -6,6 +6,7 @@ Expects tables to have xuid and updatedAt columns.
 
 # References: ref field -> table(s) to join for xuid
 REFERENCES = {
+    "client": {},
     "gateway": {"project": "project"},
     "meter": {"project": "project"},
     "switch_switches_switch__switchcommand_switches": {

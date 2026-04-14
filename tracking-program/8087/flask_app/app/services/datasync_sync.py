@@ -19,8 +19,7 @@ logger = logging.getLogger(__name__)
 ORDERED_TABLES = [
     "serviceplan", "xeco", "piboard", "client",
     "user", "project", "gateway", "meter", "repeater", "switch",
-    "switchcommand",  # before join table (join refs switchcommand)
-    "switch_switches_switch__switchcommand_switches",
+    "switchcommand",
     "test", "schedule",
     "meterdata", "meterdataaggregate", "permeterdataaggregate",
 ]
@@ -34,6 +33,7 @@ UNIQUE_KEYS = {
 
 SEMAPHORE_DIR = "/tmp"
 SEMAPHORE_TIMEOUT_MS = 20000
+_TABLE_COLUMNS_CACHE = {}  # table -> set of column names
 
 
 def _ensure_sync_status_table():
@@ -162,6 +162,17 @@ def _resolve_xuids_to_ids(records, table):
     return None, records
 
 
+def _get_table_columns(table):
+    """Return set of column names that exist in the DB table (cached)."""
+    if table not in _TABLE_COLUMNS_CACHE:
+        try:
+            result = db.session.execute(text("SHOW COLUMNS FROM " % table))
+            _TABLE_COLUMNS_CACHE[table] = {row[0] for row in result.fetchall()}
+        except Exception:
+            _TABLE_COLUMNS_CACHE[table] = set()
+    return _TABLE_COLUMNS_CACHE[table]
+
+
 def _import_record(table, record):
     """Insert or update record. Uses parameterized queries for values."""
     local_id = record.get("_localId")
@@ -170,9 +181,14 @@ def _import_record(table, record):
         return None
 
     # Whitelist column names (alphanumeric + underscore) to prevent injection
-    keys = [k for k in record.keys() if k and all(c.isalnum() or c == "_" for c in str(k))]
-    if len(keys) != len(record):
+    # Also filter to only columns that exist in the destination table
+    existing_cols = _get_table_columns(table)
+    keys = [k for k in record.keys() if k and all(c.isalnum() or c == "_" for c in str(k)) and (k in existing_cols if existing_cols else True)]
+    if not keys:
         return None
+    # Serialize lists/dicts to JSON strings so pymysql does not expand them as SQL tuples
+    import json as _json
+    record = {k: (_json.dumps(v) if isinstance(v, (list, dict)) else v) for k, v in record.items()}
     keys_str = ", ".join(f"`{k}`" for k in keys)
 
     if local_id and isinstance(local_id, (int, float)):
