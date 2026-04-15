@@ -3159,16 +3159,82 @@ def safe_chmod(path, mode):
 
 
 EQUIPMENT_CONFIGS = {
+    # ── Weather-sensitive equipment ────────────────────────────────────────
+    # Chillers and HVAC systems have strong temperature-to-energy relationships
+    # (COP drops ~2 % per °F rise in condenser entering temperature).
     "chiller": {
-        "temp_adjustment_factor": 0.020,  # 2% per degree F
+        "temp_adjustment_factor": 0.020,  # 2% per °F (AHRI 550/590 typical)
+        "applies_weather_normalization": True,
         "min_pf": 0.85,
         "typical_thd": Config.IEEE_519_THD_LIMIT,
         "capacity_unit": "Tons",
         "nominal_voltage": 480,
         "phases": 3,
-        "max_imbalance": 1.0,  # NEMA MG1 standard: 1% voltage unbalance limit
+        "max_imbalance": 1.0,
         "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
-    }
+    },
+    "hvac": {
+        "temp_adjustment_factor": 0.015,  # 1.5% per °F (mixed heating/cooling systems)
+        "applies_weather_normalization": True,
+        "min_pf": 0.85,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
+        "capacity_unit": "kW",
+        "nominal_voltage": 480,
+        "phases": 3,
+        "max_imbalance": 2.0,
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
+    },
+    # ── Weather-independent equipment ─────────────────────────────────────
+    # Indoor motor, distribution, and panel loads are driven by production
+    # schedule, not outdoor temperature.  Weather normalization must NOT be
+    # applied; doing so would introduce fictitious savings adjustments.
+    "main": {
+        "temp_adjustment_factor": 0.0,   # No temperature sensitivity for main meter
+        "applies_weather_normalization": False,
+        "min_pf": 0.90,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
+        "capacity_unit": "kW",
+        "nominal_voltage": 480,
+        "phases": 3,
+        "max_imbalance": 2.0,
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
+    },
+    "subpanel": {
+        "temp_adjustment_factor": 0.0,
+        "applies_weather_normalization": False,
+        "min_pf": 0.90,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
+        "capacity_unit": "kW",
+        "nominal_voltage": 480,
+        "phases": 3,
+        "max_imbalance": 2.0,
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
+    },
+    "mcc": {
+        # Motor Control Center — purely process / production driven
+        "temp_adjustment_factor": 0.0,
+        "applies_weather_normalization": False,
+        "min_pf": 0.90,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
+        "capacity_unit": "kW",
+        "nominal_voltage": 480,
+        "phases": 3,
+        "max_imbalance": 1.0,  # NEMA MG1 1% limit applies to motor loads
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
+    },
+    "other": {
+        # Unknown load — conservative: no automatic weather normalization.
+        # User should select a more specific type if normalization is needed.
+        "temp_adjustment_factor": 0.0,
+        "applies_weather_normalization": False,
+        "min_pf": 0.85,
+        "typical_thd": Config.IEEE_519_THD_LIMIT,
+        "capacity_unit": "kW",
+        "nominal_voltage": 480,
+        "phases": 3,
+        "max_imbalance": 2.0,
+        "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
+    },
 }
 
 # Module-level alias — single source of truth for IEEE 519 voltage THD limit.
@@ -16135,18 +16201,16 @@ def perform_comprehensive_analysis(
     if thd_after == 0 and "harmonic_analysis" in after_data:
         thd_after = after_data["harmonic_analysis"].get("thd_percent", 0)
 
-    # AUDIT FIX: Validate and correct unrealistic THD values
-    # THD values > 50% indicate data quality issues or measurement errors
+    # Log high THD values for informational purposes only — do NOT overwrite real data.
+    # Industrial sites with no power quality equipment can legitimately exceed 50% THD.
     if thd_before > 50:
-        logger.warning(
-            f"AUDIT FIX: Unrealistic THD before value {thd_before}% - correcting to realistic 8.5%"
+        logger.info(
+            f"THD before value {thd_before:.1f}% exceeds 50% — high but valid for unmitigated industrial load"
         )
-        thd_before = 8.5  # Typical industrial THD before power quality improvements
     if thd_after > 50:
-        logger.warning(
-            f"AUDIT FIX: Unrealistic THD after value {thd_after}% - correcting to realistic 3.2%"
+        logger.info(
+            f"THD after value {thd_after:.1f}% exceeds 50% — high but valid for unmitigated industrial load"
         )
-        thd_after = 3.2  # Typical industrial THD after power quality improvements
 
     # Log key metrics extraction to audit trail
     audit_trail.log_calculation(
@@ -18925,8 +18989,32 @@ def perform_comprehensive_analysis(
             logger.info(f"🔧   after_timestamps: {'EXTRACTED' if after_timestamps and len(after_timestamps) > 0 else 'MISSING'} ({len(after_timestamps) if after_timestamps else 0} points)")
             logger.info(f"🔧   Will use timestamp normalization: {after_energy_series is not None and after_temp_series is not None and len(after_energy_series) > 0 and len(after_temp_series) > 0 and len(after_energy_series) == len(after_temp_series)}")
             
+            # Check whether this equipment type has weather-dependent energy consumption.
+            # Indoor motor/panel/MCC loads are process-driven, not temperature-driven.
+            _eq_type_for_weather = config.get("equipment_type", "chiller")
+            _eq_cfg_for_weather = EQUIPMENT_CONFIGS.get(_eq_type_for_weather, EQUIPMENT_CONFIGS["chiller"])
+            _applies_weather = _eq_cfg_for_weather.get("applies_weather_normalization", True)
+            if not _applies_weather:
+                logger.info(
+                    f"🌡️ WEATHER NORMALIZATION SKIPPED: equipment_type='{_eq_type_for_weather}' "
+                    f"is weather-independent (indoor/process load). "
+                    f"Normalized values set equal to raw measured values."
+                )
+                results["weather_normalization"] = {
+                    "method": "Not applied — equipment load is weather-independent",
+                    "standards_compliance": "N/A — weather normalization not applicable for this equipment type",
+                    "normalization_applied": False,
+                    "raw_kw_before": kw_before,
+                    "raw_kw_after": kw_after,
+                    "normalized_kw_before": kw_before,
+                    "normalized_kw_after": kw_after,
+                    "weather_adjusted_savings": kw_before - kw_after,
+                    "equipment_type": _eq_type_for_weather,
+                    "reason": f"Equipment type '{_eq_type_for_weather}' has applies_weather_normalization=False in EQUIPMENT_CONFIGS",
+                }
+
             # Use ML normalization if dewpoint values are available (automatic, no environment variable needed)
-            if dewpoint_before is not None and dewpoint_after is not None:
+            elif dewpoint_before is not None and dewpoint_after is not None:
                 try:
                     # Import ML normalization from refactored file
                     from main_hardened_ready_refactored import WeatherNormalizationML
