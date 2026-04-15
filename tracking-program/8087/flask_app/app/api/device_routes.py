@@ -25,6 +25,14 @@ def _user_has_project_access(project_id):
         return False
     if user.role == 8:  # XECO_ADMIN
         return True
+    # OEM users: grant access if the project's client is sponsored by (or belongs to) their org
+    if user.role == 9 and user.org_id:
+        proj = Project.query.filter_by(id=project_id, isDeleted=False).first()
+        if proj and proj.client:
+            from app.models.client import Client
+            cli = Client.query.filter_by(id=proj.client, isDeleted=False).first()
+            if cli and (cli.org_id == user.org_id or cli.sponsor_org_id == user.org_id):
+                return True
     row = db.session.query(project_user).filter(
         project_user.c.project_users == project_id,
         project_user.c.user_projects == user.id,
@@ -398,22 +406,35 @@ def get_meter_daily():
     next_month = (end_dt.replace(day=28) + timedelta(days=4)).replace(day=1)
     end_day = (next_month - timedelta(days=1)).strftime("%Y-%m-%d")
 
-    rows = MeterDataAggregate.query.filter(
-        MeterDataAggregate.project == project_id,
-        MeterDataAggregate.intervalId == "",
-        MeterDataAggregate.day >= start_day,
-        MeterDataAggregate.day <= end_day,
-    ).all()
+    from sqlalchemy import text as _text
+    # Use GROUP BY day to deduplicate (multiple rows per day can appear after re-syncs)
+    agg_rows = db.session.execute(
+        _text("""
+            SELECT day,
+                   MAX(peakKva)   AS peakKva,
+                   MAX(peakKw)    AS peakKw,
+                   AVG(avgKva)    AS avgKva,
+                   MAX(multiplier) AS multiplier
+            FROM meterdataaggregate
+            WHERE project = :project
+              AND (intervalId IS NULL OR intervalId = '')
+              AND day >= :start_day
+              AND day <= :end_day
+            GROUP BY day
+            ORDER BY day
+        """),
+        {"project": project_id, "start_day": start_day, "end_day": end_day}
+    ).fetchall()
 
     data = [
         {
-            "date": r.day,
-            "kwh": float(r.avgKva or 0) * 24,
-            "kvap": float(r.peakKva or 0),
-            "kwp": float(r.peakKw or 0),
-            "multiplier": float(r.multiplier or 1),
+            "date": r[0],
+            "kwh": float(r[3] or 0) * 24,
+            "kvap": float(r[1] or 0),
+            "kwp": float(r[2] or 0),
+            "multiplier": float(r[4] or 1),
         }
-        for r in rows
+        for r in agg_rows
     ]
     return jsonify({"meta": {"total": len(data)}, "response": data})
 

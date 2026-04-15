@@ -33,6 +33,18 @@ def _user_has_project_access(project_id):
         return False
     if user.role == 8:
         return True
+    # OEM users (role 9/10): grant access if the project belongs to a client they sponsor/own
+    if user.role in (9, 10) and getattr(user, "org_id", None):
+        try:
+            from app.models.client import Client
+            p = Project.query.filter_by(id=project_id, isDeleted=False).first()
+            if p and p.client:
+                cli = Client.query.filter_by(id=p.client, isDeleted=False).first()
+                if cli and (getattr(cli, "org_id", None) == user.org_id or
+                            getattr(cli, "sponsor_org_id", None) == user.org_id):
+                    return True
+        except Exception:
+            pass
     row = db.session.query(project_user).filter(
         project_user.c.project_users == project_id,
         project_user.c.user_projects == user.id,
@@ -402,6 +414,11 @@ def get_meter_quality_chart():
                 "p3Data": p3_data,
                 "timeLabels": time_labels,
             },
+            # Top-level aliases so Angular charting component can access result.p1Data directly
+            "p1Data": p1_data,
+            "p2Data": p2_data,
+            "p3Data": p3_data,
+            "timeLabels": time_labels,
         }
     )
 

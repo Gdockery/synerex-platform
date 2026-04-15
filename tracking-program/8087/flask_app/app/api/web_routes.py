@@ -222,6 +222,16 @@ def _serve_spa():
         # Client users: automatically see ALL projects under their client org
         # (no manual junction-table assignment required — OEM creates project → client sees it)
         projs = sess.query(Project).filter_by(client=user.client, isDeleted=False).all()
+    elif user.role in (9, 10) and user.org_id:
+        # OEM users: see all projects for clients they sponsor or own
+        oem_clients = sess.query(Client).filter(
+            db.or_(Client.sponsor_org_id == user.org_id, Client.org_id == user.org_id),
+            Client.isDeleted == False
+        ).all()
+        client_ids = [c.id for c in oem_clients]
+        projs = sess.query(Project).filter(
+            Project.client.in_(client_ids), Project.isDeleted == False
+        ).all() if client_ids else []
     else:
         proj_ids = sess.query(project_user.c.project_users).filter(
             project_user.c.user_projects == user.id
@@ -229,7 +239,7 @@ def _serve_spa():
         proj_ids = [r[0] for r in proj_ids]
         projs = sess.query(Project).filter(Project.id.in_(proj_ids), Project.isDeleted == False).all()
     for p in projs:
-        pd = _project_to_dict(p, include_meters=(user.role == 8), sess=sess)
+        pd = _project_to_dict(p, include_meters=(user.role in (8, 9, 10)), sess=sess)
         if pd:
             projects.append(pd)
     xeco = sess.query(CompanySettings).first()

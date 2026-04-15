@@ -40,15 +40,27 @@ module.exports = function defineUserHook(sails) {
 
               // If this is a XECO admin, then fetch all of the projects and attach them to `user`
               (function (proceed){
-                if (user.role !== sails.config.constants.USER_ROLES.XECO_ADMIN) {
+                if (user.role === sails.config.constants.USER_ROLES.XECO_ADMIN) {
+                  // Synerex admin: gets all projects
+                  Project.find().exec(function(err, projects){
+                    if (err) { return proceed(err); }
+                    user.projects = projects;
+                    return proceed();
+                  });
+                } else if (user.role === 9 && user.org_id) {
+                  // OEM user: gets projects for all clients they sponsor
+                  sails.sendNativeQuery(
+                    'SELECT p.* FROM `project` p JOIN `client` c ON p.client = c.id WHERE (c.sponsor_org_id = ? OR c.org_id = ?) AND p.isDeleted = 0 AND c.isDeleted = 0',
+                    [user.org_id, user.org_id],
+                    function(err, result) {
+                      if (err) { return proceed(err); }
+                      user.projects = (result && result.rows) ? result.rows : [];
+                      return proceed();
+                    }
+                  );
+                } else {
                   return proceed();
                 }
-
-                Project.find().exec(function(err, projects){
-                  if (err) { return proceed(err); }
-                  user.projects = projects;
-                  return proceed();
-                });
 
               })(function (err) {
                 if (err) { return res.serverError(err); }

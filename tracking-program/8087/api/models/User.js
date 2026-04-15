@@ -59,6 +59,11 @@ module.exports = {
       type: 'number'
     },
 
+    // The org_id of the OEM/org this user belongs to (for SSO).
+    org_id: {
+      type: 'string'
+    },
+
     // The JS timestamp at which this user last interacted with
     // the XECO portal in a logged-in kind of a way.
     lastActiveAt: {

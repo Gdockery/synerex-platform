@@ -138,7 +138,7 @@ export class MeterChartComponent implements OnInit {
           data.push(result[this.type] * result.multiplier);
         });
         this.chart.setData([
-          {data: data, backgroundColor: ['#26c49d']},
+          {data: data, label: this.title, backgroundColor: ['#26c49d']},
         ], months);
       });
     }

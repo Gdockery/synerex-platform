@@ -145,6 +145,15 @@ module.exports = {
       type: 'boolean'
     },
 
+    // OEM org that owns/sponsors this client.
+    org_id: {
+      type: 'string'
+    },
+
+    sponsor_org_id: {
+      type: 'string'
+    },
+
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

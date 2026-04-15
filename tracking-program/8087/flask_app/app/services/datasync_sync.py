@@ -96,7 +96,7 @@ def _request_records(host, table, sync_point, ref_id, base_url=None):
     ref_id = ref_id or 0
     url = f"{base_url or f'http://{host}'}/api/datasync/{table}/{sync_point}/100/{ref_id}"
     try:
-        r = requests.get(url, timeout=600)
+        r = requests.get(url, timeout=30)
         if r.status_code == 200:
             return None, r.json()
         return f"Request failed: {r.status_code}", None
@@ -159,6 +159,9 @@ def _resolve_xuids_to_ids(records, table):
             xuid = rec.get(ref_field)
             if xuid and rt in xuid_maps and xuid in xuid_maps[rt] and xuid_maps[rt][xuid]:
                 rec[ref_field] = xuid_maps[rt][xuid]
+            elif xuid and isinstance(xuid, str) and len(xuid) > 10:
+                # Unresolvable xuid — null out to avoid truncation into INT FK column
+                rec[ref_field] = None
     return None, records
 
 
@@ -166,9 +169,11 @@ def _get_table_columns(table):
     """Return set of column names that exist in the DB table (cached)."""
     if table not in _TABLE_COLUMNS_CACHE:
         try:
-            result = db.session.execute(text("SHOW COLUMNS FROM " % table))
-            _TABLE_COLUMNS_CACHE[table] = {row[0] for row in result.fetchall()}
-        except Exception:
+            with db.engine.connect() as _conn:
+                result = _conn.execute(text("SHOW COLUMNS FROM `%s`" % table))
+                _TABLE_COLUMNS_CACHE[table] = {row[0] for row in result.fetchall()}
+        except Exception as _col_exc:
+            logger.warning("_get_table_columns %s failed: %s", table, _col_exc)
             _TABLE_COLUMNS_CACHE[table] = set()
     return _TABLE_COLUMNS_CACHE[table]
 
@@ -230,8 +235,7 @@ def _table_needs_syncing(table, this_is_master, only_these_tables=None):
     if only_these_tables and table not in only_these_tables:
         return False
     if not this_is_master and table not in (
-        "schedule", "switch", "switch_switches_switch__switchcommand_switches",
-        "switchcommand", "test",
+        "schedule", "switch", "switchcommand", "test",
     ):
         return False
     if this_is_master and table in ("user",):
