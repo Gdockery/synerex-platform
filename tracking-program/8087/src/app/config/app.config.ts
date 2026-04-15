@@ -1,7 +1,7 @@
 import {InjectionToken} from "@angular/core";
 
 export let APP_CONFIG = new InjectionToken('app.config');
-let constants = require('../../../config/constants.js');
+let constants = require('./constants.js');
 
 export interface IAppConfig {
   locals: any,
