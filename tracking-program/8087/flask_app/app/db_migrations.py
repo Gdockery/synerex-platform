@@ -794,7 +794,7 @@ def add_missing_model_columns():
         ("repeater", "deviceId",                "ALTER TABLE `repeater` ADD COLUMN `deviceId` VARCHAR(255) NULL"),
         ("repeater", "gateway",                 "ALTER TABLE `repeater` ADD COLUMN `gateway` VARCHAR(255) NULL"),
         ("repeater", "isOn",                    "ALTER TABLE `repeater` ADD COLUMN `isOn` TINYINT(1) NULL"),
-        ("repeater", "meshLastCommunicatedAt",  "ALTER TABLE `repeater` ADD COLUMN `meshLastCommunicatedAt` FLOAT NULL"),
+        ("repeater", "meshLastCommunicatedAt",  "ALTER TABLE `repeater` ADD COLUMN `meshLastCommunicatedAt` BIGINT NULL"),
         # switch
         ("switch", "ampLoad",       "ALTER TABLE `switch` ADD COLUMN `ampLoad` FLOAT NULL"),
         ("switch", "isOn",          "ALTER TABLE `switch` ADD COLUMN `isOn` TINYINT(1) NULL"),
@@ -831,4 +831,37 @@ def add_missing_model_columns():
             else:
                 print(f"ERROR {key}: {e}")
                 results[key] = f"error: {e}"
+    return results
+
+
+def fix_device_timestamp_columns():
+    """
+    MODIFY epoch-millisecond timestamp columns from FLOAT to BIGINT on meter and repeater.
+    FLOAT (32-bit) loses precision for 13-digit epoch-ms values; BIGINT stores them exactly.
+    Safe to re-run — silently skips if columns are already the right type.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    MODIFY_DDLS = [
+        ("meter",    "lastTimestamp",          "ALTER TABLE `meter`    MODIFY COLUMN `lastTimestamp`          BIGINT NULL"),
+        ("meter",    "lastCommunicatedAt",      "ALTER TABLE `meter`    MODIFY COLUMN `lastCommunicatedAt`     BIGINT NULL"),
+        ("meter",    "meshLastCommunicatedAt",  "ALTER TABLE `meter`    MODIFY COLUMN `meshLastCommunicatedAt` BIGINT NULL"),
+        ("repeater", "lastCommunicatedAt",      "ALTER TABLE `repeater` MODIFY COLUMN `lastCommunicatedAt`     BIGINT NULL"),
+        ("repeater", "meshLastCommunicatedAt",  "ALTER TABLE `repeater` MODIFY COLUMN `meshLastCommunicatedAt` BIGINT NULL"),
+    ]
+
+    results = {}
+    for table, col, sql in MODIFY_DDLS:
+        key = f"{table}.{col}"
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"fix_device_timestamp_columns: converted {key} to BIGINT.")
+            results[key] = "converted"
+        except Exception as e:
+            print(f"fix_device_timestamp_columns: ERROR {key}: {e}")
+            results[key] = f"error: {e}"
     return results
