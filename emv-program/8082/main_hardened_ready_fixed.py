@@ -19717,10 +19717,16 @@ def perform_comprehensive_analysis(
     
     # STEP 4: Apply PF normalization to weather-normalized values for total normalized savings
     # This is the correct order: Weather normalization first, then PF normalization.
-    # GUARD: PF normalization is only valid when PF genuinely improved (pf_after > pf_before).
+    # GUARD 1: Skip entirely when APFs are configured for harmonics-only mode
+    #          (power_factor_not_included=True means the utility does not bill for PF;
+    #           applying PF normalization would fabricate savings the APF didn't deliver).
+    # GUARD 2: PF normalization is only valid when PF genuinely improved (pf_after > pf_before).
+    # GUARD 3: Require a minimum meaningful improvement (≥0.005 absolute / ≥0.5 pp) to
+    #          avoid noise-driven adjustments that contradict a "0% PF improvement" display.
     # If PF declined, the utility tariff clause produces no billing-demand benefit on the
     # "after" side; applying target_pf / pf_after when pf_after < pf_before would artificially
     # inflate the after-period normalized kW and overstate savings.
+    _pf_not_included = bool(config.get("power_factor_not_included", False))
     total_normalized_kw_before = None
     total_normalized_kw_after = None
     if weather_norm_before is not None and weather_norm_after is not None:
@@ -19730,17 +19736,31 @@ def perform_comprehensive_analysis(
         target_pf = float(config.get("target_pf") or config.get("target_power_factor") or 0.95)
         logger.info(f"[POWER FACTOR NORMALIZATION] Using target_pf = {target_pf:.4f} from config (user input from UI form)")
 
-        if pf_before is not None and pf_after is not None and pf_before > 0 and pf_after > 0:
-            _pf_improved = pf_after > pf_before
+        if _pf_not_included:
+            # APFs in harmonics mode — PF normalization not applicable
+            logger.info(
+                "[POWER FACTOR NORMALIZATION] Skipped — power_factor_not_included=True "
+                "(APFs configured for harmonics, not PF correction)."
+            )
+            total_normalized_kw_before = weather_norm_before
+            total_normalized_kw_after = weather_norm_after
+            results.setdefault("power_quality", {})["pf_normalization_skipped"] = True
+            results["power_quality"]["pf_normalization_skip_reason"] = (
+                "power_factor_not_included=True: APFs are in harmonics mode; "
+                "PF normalization not applicable."
+            )
+        elif pf_before is not None and pf_after is not None and pf_before > 0 and pf_after > 0:
+            _pf_delta = pf_after - pf_before
+            _pf_improved = _pf_delta > 0.005  # require ≥0.5 pp improvement — avoids noise
             if _pf_improved:
-                # PF improved — apply normalization to both periods
+                # PF improved meaningfully — apply normalization to both periods
                 pf_adjustment_before = target_pf / pf_before
                 pf_adjustment_after = target_pf / pf_after
 
                 total_normalized_kw_before = weather_norm_before * pf_adjustment_before
                 total_normalized_kw_after = weather_norm_after * pf_adjustment_after
 
-                logger.info(f"🔧 PF improved ({pf_before:.4f} → {pf_after:.4f}): PF normalization applied.")
+                logger.info(f"🔧 PF improved ({pf_before:.4f} → {pf_after:.4f}, Δ={_pf_delta:.4f}): PF normalization applied.")
                 logger.info(f"   Weather-normalized before: {weather_norm_before:.2f} kW")
                 logger.info(f"   PF adjustment before: {target_pf:.2f} / {pf_before:.4f} = {pf_adjustment_before:.4f}")
                 logger.info(f"   Total normalized before: {total_normalized_kw_before:.2f} kW")
@@ -19748,44 +19768,50 @@ def perform_comprehensive_analysis(
                 logger.info(f"   PF adjustment after: {target_pf:.2f} / {pf_after:.4f} = {pf_adjustment_after:.4f}")
                 logger.info(f"   Total normalized after: {total_normalized_kw_after:.2f} kW")
             else:
-                # PF declined — skip PF normalization to avoid inflating savings
+                # PF did not improve meaningfully — skip PF normalization
+                reason = (
+                    f"PF declined from {pf_before:.4f} to {pf_after:.4f}"
+                    if _pf_delta <= 0
+                    else f"PF change too small ({_pf_delta*100:.2f} pp < 0.5 pp threshold)"
+                )
                 logger.warning(
-                    f"⚠ PF DECLINED ({pf_before:.4f} → {pf_after:.4f}): "
+                    f"⚠ PF NOT MEANINGFULLY IMPROVED ({pf_before:.4f} → {pf_after:.4f}, Δ={_pf_delta:.4f}): "
                     f"PF normalization NOT applied. Using weather-normalized values directly."
                 )
                 total_normalized_kw_before = weather_norm_before
                 total_normalized_kw_after = weather_norm_after
-                if "power_quality" not in results:
-                    results["power_quality"] = {}
-                results["power_quality"]["pf_normalization_skipped"] = True
+                results.setdefault("power_quality", {})["pf_normalization_skipped"] = True
                 results["power_quality"]["pf_normalization_skip_reason"] = (
-                    f"PF declined from {pf_before:.4f} to {pf_after:.4f}; "
-                    f"billing-demand relief not applicable."
+                    f"{reason}; billing-demand relief not applicable."
                 )
 
-            # Calculate total normalized savings (in both branches)
+            # Calculate total normalized savings (in both sub-branches)
+            # (the outer block below also stores these for all paths; this is kept for
+            #  the _pf_improved log message which needs the per-branch context)
             total_normalized_savings_kw = total_normalized_kw_before - total_normalized_kw_after
             total_normalized_savings_percent = (total_normalized_savings_kw / total_normalized_kw_before * 100) if total_normalized_kw_before > 0 else 0.0
-
             logger.info(f"✅ Total normalized savings (weather{' + PF' if _pf_improved else ' only'}): {total_normalized_savings_kw:.2f} kW ({total_normalized_savings_percent:.2f}%)")
-
-            # Store total normalized values in power_quality for UI to use
-            if "power_quality" not in results:
-                results["power_quality"] = {}
-            results["power_quality"]["total_normalized_kw_before"] = total_normalized_kw_before
-            results["power_quality"]["total_normalized_kw_after"] = total_normalized_kw_after
-            results["power_quality"]["total_normalized_savings_kw"] = total_normalized_savings_kw
-            results["power_quality"]["total_normalized_savings_percent"] = total_normalized_savings_percent
-            # CRITICAL: Also store as calculated_pf_normalized_kw_before/after for frontend Step 4 to use
-            results["power_quality"]["calculated_pf_normalized_kw_before"] = total_normalized_kw_before
-            results["power_quality"]["calculated_pf_normalized_kw_after"] = total_normalized_kw_after
-            results["power_quality"]["normalized_kw_before"] = total_normalized_kw_before
-            results["power_quality"]["normalized_kw_after"] = total_normalized_kw_after
         else:
             logger.warning(f"⚠ PF values not available, cannot apply PF normalization to weather-normalized values")
             # Use weather-normalized values as total normalized if PF not available
             total_normalized_kw_before = weather_norm_before
             total_normalized_kw_after = weather_norm_after
+
+        # Store totals for all paths (including _pf_not_included and PF-unavailable paths)
+        if total_normalized_kw_before is not None and total_normalized_kw_after is not None:
+            _pf_applied = not _pf_not_included and locals().get("_pf_improved", False)
+            total_normalized_savings_kw = total_normalized_kw_before - total_normalized_kw_after
+            total_normalized_savings_percent = (total_normalized_savings_kw / total_normalized_kw_before * 100) if total_normalized_kw_before > 0 else 0.0
+            logger.info(f"✅ Total normalized savings (weather{' + PF' if _pf_applied else ' only'}): {total_normalized_savings_kw:.2f} kW ({total_normalized_savings_percent:.2f}%)")
+            results.setdefault("power_quality", {})
+            results["power_quality"]["total_normalized_kw_before"] = total_normalized_kw_before
+            results["power_quality"]["total_normalized_kw_after"] = total_normalized_kw_after
+            results["power_quality"]["total_normalized_savings_kw"] = total_normalized_savings_kw
+            results["power_quality"]["total_normalized_savings_percent"] = total_normalized_savings_percent
+            results["power_quality"]["calculated_pf_normalized_kw_before"] = total_normalized_kw_before
+            results["power_quality"]["calculated_pf_normalized_kw_after"] = total_normalized_kw_after
+            results["power_quality"]["normalized_kw_before"] = total_normalized_kw_before
+            results["power_quality"]["normalized_kw_after"] = total_normalized_kw_after
     
     # Calculate weather-normalized kW savings
     if weather_norm_before is not None and weather_norm_after is not None:
