@@ -1,9 +1,0 @@
-# Rollup cron tasks
-
-#* * * * * root curl -X POST http://localhost:1339/schedule
-3-59 * * * * root curl -X POST http://localhost:1339/cache-instantaneous-readings
-3,18,33,48 * * * * root curl -X POST http://localhost:1339/perform-rollup
-1 0 * * * root curl -X POST http://localhost:1339/accumulate-savings
-1,16,31,46 * * * * root curl -X POST http://localhost:1339/calculate-tests
-55 23 * * 0-6 root curl -X POST http://localhost:1339/schedule-switches
-#15 0 * * * root curl -X POST http://localhost:1339/generate-automatic-monthly-reports

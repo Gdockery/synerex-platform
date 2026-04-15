@@ -1,5 +1,0 @@
-version: 1
-cron:
- - name: "schedule-switches"
-   url: "/schedule-switches"
-   schedule: "50 23 * * 0-6"

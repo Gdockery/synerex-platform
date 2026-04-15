@@ -1,5 +1,0 @@
-version: 1
-cron:
- - name: "schedule-tasks"
-   url: "/schedule-tasks"
-   schedule: "* * * * *"
