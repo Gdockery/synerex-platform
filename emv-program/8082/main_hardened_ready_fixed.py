@@ -16388,6 +16388,8 @@ def perform_comprehensive_analysis(
     _settling_hours = float(config.get("thermal_settling_exclusion_hours", 48))
     _settling_rows_dropped = 0
     _facility_hvac = str(config.get("facility_hvac_type", "unknown")).lower()
+    current_before_peak_csv = None  # set inside CSV-loading block when files available
+    current_after_peak_csv  = None
 
     if before_file and after_file:
         try:
@@ -16480,6 +16482,14 @@ def perform_comprehensive_analysis(
                 if len(after_current_clean) > 0
                 else after_data.get("avgAmp", {}).get("mean", 0)
             )
+
+            # IEEE 519-2022 §2.23: I_L = maximum demand load current.
+            # Compute directly from the raw CSV — the peak 15/30-min interval
+            # average is the correct denominator for TDD, not the period mean.
+            _amp_col_b = df_before_raw["avgAmp"] if "avgAmp" in df_before_raw.columns else None
+            _amp_col_a = df_after_raw["avgAmp"]  if "avgAmp" in df_after_raw.columns  else None
+            current_before_peak_csv = float(_amp_col_b.max()) if _amp_col_b is not None and not _amp_col_b.empty else current_before
+            current_after_peak_csv  = float(_amp_col_a.max()) if _amp_col_a is not None and not _amp_col_a.empty else current_after
 
             # Also clean kW data for normalized values
             kw_before_clean = (
@@ -16598,10 +16608,15 @@ def perform_comprehensive_analysis(
 
     # Peak demand current for IEEE 519-2022 IL (maximum demand load current).
     # IEEE 519 requires IL = peak 15/30-min interval current, not the mean.
+    # Prefer values computed directly from the re-read CSV (current_before_peak_csv),
+    # then fall back to the values list from EnhancedDataProcessor, then to mean.
     _amp_b_vals = before_data.get("avgAmp", {}).get("values", []) if isinstance(before_data.get("avgAmp"), dict) else []
     _amp_a_vals = after_data.get("avgAmp",  {}).get("values", []) if isinstance(after_data.get("avgAmp"),  dict) else []
-    current_before_peak = float(max(_amp_b_vals)) if _amp_b_vals else current_before
-    current_after_peak  = float(max(_amp_a_vals)) if _amp_a_vals else current_after
+    _peak_b_from_vals = float(max(_amp_b_vals)) if _amp_b_vals else None
+    _peak_a_from_vals = float(max(_amp_a_vals)) if _amp_a_vals else None
+    # current_before_peak_csv is set inside the CSV-loading block when file paths are present.
+    current_before_peak = current_before_peak_csv or _peak_b_from_vals or current_before
+    current_after_peak  = current_after_peak_csv  or _peak_a_from_vals or current_after
     power_quality_results["current_before_peak"] = current_before_peak
     power_quality_results["current_after_peak"]  = current_after_peak
 
@@ -16936,17 +16951,50 @@ def perform_comprehensive_analysis(
             f"Before: {power_quality_results['voltage_unbalance_before']}, After: {power_quality_results['voltage_unbalance_after']}"
         )
 
-    # Compute TDD from THD.  TDD = THD × (I_mean / I_L) where I_L is the
-    # rated / maximum demand load current per IEEE 519-2022 §2.23 / Table 2.
-    # When il_A is not known, use THD as a conservative TDD proxy.
-    if il_A > 0 and current_before > 0 and current_before < il_A:
-        tdd_before_calc = thd_before * (current_before / il_A)
+    # Compute TDD from THD per IEEE 519-2022 §2.23:
+    #   TDD = (√ΣIₕ²) / I_L × 100  where I_L = maximum demand load current.
+    #
+    # The CSV avgTHD column is THD = (√ΣIₕ²) / I₁ (instantaneous fundamental).
+    # Converting:  TDD = THD × (I₁_mean / I_L)
+    #
+    # I_L priority:
+    #   1. User-supplied il_A (most accurate — from short-circuit study)
+    #   2. Peak interval current read directly from the CSV here (max of avgAmp)
+    #   3. Mean current — last resort, gives TDD = THD (conservative proxy)
+    # I_L and I_mean for TDD — read directly from CSV to avoid issues with
+    # processed-data dicts that may have None means when avgAmp is missing.
+    _tdd_il_before = float(il_A) if il_A and il_A > 0 else 0.0
+    _tdd_il_after  = float(il_A) if il_A and il_A > 0 else 0.0
+    _tdd_i1_before = float(current_before) if current_before and current_before > 0 else 0.0
+    _tdd_i1_after  = float(current_after)  if current_after  and current_after  > 0 else 0.0
+
+    _bf_path = before_data.get("file_path", "")
+    _af_path = after_data.get("file_path", "")
+    if _bf_path and _af_path:
+        try:
+            _df_b_amp = pd.read_csv(_bf_path, usecols=["avgAmp"])["avgAmp"].dropna()
+            _df_a_amp = pd.read_csv(_af_path, usecols=["avgAmp"])["avgAmp"].dropna()
+            if not _df_b_amp.empty:
+                if _tdd_il_before <= 0:
+                    _tdd_il_before = float(_df_b_amp.max())
+                if _tdd_i1_before <= 0:
+                    _tdd_i1_before = float(_df_b_amp.mean())
+            if not _df_a_amp.empty:
+                if _tdd_il_after <= 0:
+                    _tdd_il_after = float(_df_a_amp.max())
+                if _tdd_i1_after <= 0:
+                    _tdd_i1_after = float(_df_a_amp.mean())
+        except Exception as _tdd_e:
+            logger.warning(f"TDD: could not read peak/mean current from CSV: {_tdd_e}")
+
+    if _tdd_il_before > 0 and _tdd_i1_before > 0:
+        tdd_before_calc = thd_before * (_tdd_i1_before / _tdd_il_before)
     else:
-        tdd_before_calc = thd_before
-    if il_A > 0 and current_after > 0 and current_after < il_A:
-        tdd_after_calc = thd_after * (current_after / il_A)
+        tdd_before_calc = thd_before  # conservative: no current data
+    if _tdd_il_after > 0 and _tdd_i1_after > 0:
+        tdd_after_calc = thd_after * (_tdd_i1_after / _tdd_il_after)
     else:
-        tdd_after_calc = thd_after
+        tdd_after_calc = thd_after  # conservative: no current data
 
     # IEEE 519-2022 Table 2 TDD limit for the configured ISC/IL ratio
     if isc_kA > 0 and il_A > 0:
@@ -17510,8 +17558,34 @@ def perform_comprehensive_analysis(
                     #                = (I1/IL) × √(Σ h_pct²) / 100 × 100
                     #                = (I1/IL) × THD_pct   (where THD_pct = √Σ h_pct²)
                     _il_demand = config.get("il_demand_A") or pq_analyzer.il_A or 0
-                    _i1_mean_b = (before_data.get("avgAmp", {}) or {}).get("mean", 0) or 0
-                    _i1_mean_a = (after_data.get("avgAmp",  {}) or {}).get("mean", 0) or 0
+                    # Mean current (I₁) — numerator in TDD = THD × (I₁/I_L).
+                    # Fall back to direct CSV read when processed-data mean is None.
+                    _raw_i1_b = (before_data.get("avgAmp", {}) or {}).get("mean")
+                    _raw_i1_a = (after_data.get("avgAmp",  {}) or {}).get("mean")
+                    _i1_mean_b = float(_raw_i1_b) if _raw_i1_b and float(_raw_i1_b) > 0 else 0.0
+                    _i1_mean_a = float(_raw_i1_a) if _raw_i1_a and float(_raw_i1_a) > 0 else 0.0
+
+                    # Derive I_L and I₁ from CSV peak/mean when not already available.
+                    _bf_path_spec = before_data.get("file_path", "")
+                    _af_path_spec = after_data.get("file_path", "")
+                    if _bf_path_spec:
+                        try:
+                            _df_amp_b = pd.read_csv(_bf_path_spec, usecols=["avgAmp"])["avgAmp"].dropna()
+                            if not _df_amp_b.empty:
+                                if not (_il_demand > 0):
+                                    _il_demand = float(_df_amp_b.max())
+                                if _i1_mean_b <= 0:
+                                    _i1_mean_b = float(_df_amp_b.mean())
+                        except Exception:
+                            pass
+                    if _af_path_spec:
+                        try:
+                            _df_amp_a = pd.read_csv(_af_path_spec, usecols=["avgAmp"])["avgAmp"].dropna()
+                            if not _df_amp_a.empty:
+                                if _i1_mean_a <= 0:
+                                    _i1_mean_a = float(_df_amp_a.mean())
+                        except Exception:
+                            pass
 
                     def _tdd_from_spectrum(spec: dict, i1_mean: float, il: float):
                         """TDD = (I1/IL) × √(Σ h_pct²) — units-correct per IEEE 519 §2.23."""
@@ -17526,8 +17600,8 @@ def perform_comprehensive_analysis(
 
                     _tdd_before = _tdd_from_spectrum(_spec_before, _i1_mean_b, _il_demand) if _il_demand > 0 else None
                     _tdd_after  = _tdd_from_spectrum(_spec_after,  _i1_mean_a, _il_demand) if _il_demand > 0 else None
-                    results["power_quality"]["tdd_before"] = round(_tdd_before, 3) if _tdd_before is not None else None
-                    results["power_quality"]["tdd_after"]  = round(_tdd_after,  3) if _tdd_after  is not None else None
+                    results["power_quality"]["tdd_before"] = round(_tdd_before, 3) if _tdd_before is not None else results["power_quality"].get("tdd_before")
+                    results["power_quality"]["tdd_after"]  = round(_tdd_after,  3) if _tdd_after  is not None else results["power_quality"].get("tdd_after")
                     results["power_quality"]["tdd_il_demand_A"] = _il_demand
                     logger.info(f"IEEE 519 TDD (per-order, units-correct): before={_tdd_before}, after={_tdd_after}")
                 else:
