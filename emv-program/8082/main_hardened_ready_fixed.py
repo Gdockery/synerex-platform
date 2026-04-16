@@ -15066,16 +15066,19 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 _isc_A   = _rated_A / _z_pct
                 _isc_kA_est = _isc_A / 1000.0
 
-                # Use metered peak demand current as IL if available;
-                # IEEE 519-2022 defines IL as the maximum demand load current
-                # (highest 15/30-min interval average). Fall back to mean if
-                # values list is absent, then to 60% of rated as last resort.
-                _amp_data_est = data.get("avgAmp", {}) if isinstance(data.get("avgAmp"), dict) else {}
-                _amp_vals_est = _amp_data_est.get("values", [])
-                if _amp_vals_est:
-                    avg_amp_est = float(max(_amp_vals_est))
-                else:
-                    avg_amp_est = float(_amp_data_est.get("mean", 0) or 0)
+                # Use metered peak demand current as IL (IEEE 519-2022 §2.23 definition).
+                # Read directly from the CSV — the processed-data dict has avgAmp.values=[]
+                # and avgAmp.mean=None, so we cannot rely on it here.
+                avg_amp_est = 0.0
+                _csv_path = data.get("file_path", "")
+                if _csv_path:
+                    try:
+                        import pandas as _pd_amp
+                        _df_amp = _pd_amp.read_csv(_csv_path, usecols=["avgAmp"])["avgAmp"].dropna()
+                        if not _df_amp.empty:
+                            avg_amp_est = float(_df_amp.max())  # peak demand = I_L
+                    except Exception:
+                        pass
                 _il_A_est = avg_amp_est if avg_amp_est > 0 else (_rated_A * 0.60)
 
                 isc_kA = _isc_kA_est
@@ -15102,12 +15105,27 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
 
         # IEEE 519 requires TDD = √(ΣIₕ²) / I_L (maximum demand load current).
         # The CSV avgTHD column is THD = √(ΣIₕ²) / I₁ (instantaneous fundamental).
-        # When il_A is known, scale THD → TDD by the loading ratio (I₁_mean / I_L).
-        avg_amp = float(data.get("avgAmp", {}).get("mean", 0) or 0)
-        if il_A > 0 and avg_amp > 0 and avg_amp < il_A:
-            tdd = thd * (avg_amp / il_A)
+        # TDD = THD × (I₁_mean / I_L)
+        # Read avgAmp directly from the CSV; the processed-data dict has mean=None.
+        _avg_amp_mean = 0.0
+        _avg_amp_peak = 0.0
+        _csv_path_tdd = data.get("file_path", "")
+        if _csv_path_tdd:
+            try:
+                import pandas as _pd_tdd
+                _df_tdd = _pd_tdd.read_csv(_csv_path_tdd, usecols=["avgAmp"])["avgAmp"].dropna()
+                if not _df_tdd.empty:
+                    _avg_amp_mean = float(_df_tdd.mean())
+                    _avg_amp_peak = float(_df_tdd.max())
+            except Exception:
+                pass
+        # I_L priority: user-supplied il_A → CSV peak → fallback (gives TDD = THD)
+        _il_for_tdd = il_A if il_A > 0 else (_avg_amp_peak if _avg_amp_peak > 0 else 0.0)
+        _i1_for_tdd = _avg_amp_mean if _avg_amp_mean > 0 else 0.0
+        if _il_for_tdd > 0 and _i1_for_tdd > 0:
+            tdd = thd * (_i1_for_tdd / _il_for_tdd)
         else:
-            tdd = thd  # No I_L data — use THD as conservative TDD proxy
+            tdd = thd  # No current data — use THD as conservative proxy
 
         ieee_compliant = tdd < ieee_tdd_limit
         
@@ -15866,6 +15884,7 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                 "kva": kva,
                 "pf": pf,
                 "thd": thd,
+                "tdd": tdd,
                 "calculated_pf": calculated_pf,
                 "data_completeness": data_completeness,
                 "ieee_tdd_limit": ieee_tdd_limit,
