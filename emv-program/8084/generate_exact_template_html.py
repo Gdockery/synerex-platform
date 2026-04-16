@@ -2313,13 +2313,23 @@ def generate_exact_template_html(r):
         safe_get(r, "cp_address") or 
         "-"
     )
+    _cp_city_val = (
+        safe_get(config, "cp_city") or
+        safe_get(client_profile, "cp_city") or
+        safe_get(r, "cp_city") or ""
+    )
+    _cp_state_val = (
+        safe_get(config, "cp_state") or
+        safe_get(client_profile, "cp_state") or
+        safe_get(r, "cp_state") or ""
+    )
     cp_location = (
-        safe_get(config, "cp_location") or 
-        safe_get(config, "client_location") or 
-        safe_get(client_profile, "cp_location") or 
-        safe_get(client_profile, "client_location") or 
-        safe_get(r, "cp_location") or 
-        "-"
+        safe_get(config, "cp_location") or
+        safe_get(config, "client_location") or
+        safe_get(client_profile, "cp_location") or
+        safe_get(client_profile, "client_location") or
+        safe_get(r, "cp_location") or
+        (", ".join(p for p in [_cp_city_val, _cp_state_val] if p) or "-")
     )
     cp_zip = (
         safe_get(config, "cp_zip") or 
@@ -7082,6 +7092,107 @@ def generate_exact_template_html(r):
             print(f"*** MANUFACTURING DEBUG: Added manufacturing section to Client HTML Report ***")
             print(f"*** MANUFACTURING DEBUG: Energy per unit before={energy_per_unit_before:.4f}, after={energy_per_unit_after:.4f}, improvement={energy_per_unit_improvement_pct:.2f}% ***")
     
+    # ── Missing template variable replacements ────────────────────────────────
+    # COMPLIANCE_STATUS_SUMMARY – one-line summary used in Key Findings page 2
+    _ieee_ok  = safe_get(after_compliance, "ieee_compliant", default=True)
+    _ash_ok   = ashrae_precision_compliant
+    _ipmvp_ok = after_ipmvp_compliant
+    _all_ok   = _ieee_ok and _ash_ok and _ipmvp_ok
+    _compliance_summary = (
+        "✓ Fully Compliant — IEEE 519, ASHRAE Guideline 14 & IPMVP"
+        if _all_ok else
+        "⚠ Partial Compliance — review compliance table for details"
+    )
+    template_content = template_content.replace('{{COMPLIANCE_STATUS_SUMMARY}}', _compliance_summary)
+
+    # LETTER_ENERGY_SAVINGS_FULL – full energy savings line for the letter / Key Findings page
+    _kes_kwh = annual_kwh_savings if isinstance(annual_kwh_savings, (int, float)) else 0.0
+    _kes_kw  = kw_savings         if isinstance(kw_savings,  (int, float)) else 0.0
+    _letter_energy_full = f"{_kes_kwh:,.0f} kWh/year  ({_kes_kw:.2f} kW avg demand reduction)"
+    template_content = template_content.replace('{{LETTER_ENERGY_SAVINGS_FULL}}', _letter_energy_full)
+
+    # BASE_KWH_SAVINGS / NETWORK_KWH_SAVINGS – kWh savings breakdown
+    _fin = financial if isinstance(financial, dict) else {}
+    _base_kwh = _safe_float(
+        _fin.get("annual_kwh_savings") or
+        _fin.get("base_kwh_savings") or
+        _fin.get("delta_kwh_annual") or
+        annual_kwh_savings or 0
+    )
+    _net_kwh = _safe_float(
+        _fin.get("network_kwh_savings") or
+        _fin.get("annual_network_kwh") or 0
+    )
+    template_content = template_content.replace('{{BASE_KWH_SAVINGS}}',    f"{_base_kwh:,.0f}")
+    template_content = template_content.replace('{{NETWORK_KWH_SAVINGS}}', f"{_net_kwh:,.0f}")
+
+    # CSS STATUS CLASS variables (compliant / non-compliant) ─────────────────
+    template_content = template_content.replace(
+        '{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}',
+        "compliant" if ashrae_precision_compliant else "non-compliant")
+    template_content = template_content.replace(
+        '{{ASHRAE_DATA_QUALITY_STATUS_CLASS}}',
+        "compliant" if data_quality_compliant else "non-compliant")
+    template_content = template_content.replace(
+        '{{IPMVP_STATUS_CLASS}}',
+        "compliant" if after_ipmvp_compliant else "non-compliant")
+    template_content = template_content.replace('{{IEEE_C57_110_STATUS_CLASS}}', "compliant")
+    template_content = template_content.replace(
+        '{{IEC_61000_2_2_BEFORE_STATUS_CLASS}}',
+        "compliant" if iec_61000_2_2_before_compliant else "non-compliant")
+    template_content = template_content.replace(
+        '{{IEC_61000_2_2_AFTER_STATUS_CLASS}}',
+        "compliant" if iec_61000_2_2_after_compliant else "non-compliant")
+    template_content = template_content.replace(
+        '{{ANSI_C57_12_00_BEFORE_STATUS_CLASS}}',
+        "compliant" if ansi_c57_12_00_before_compliant else "non-compliant")
+    template_content = template_content.replace(
+        '{{ANSI_C57_12_00_AFTER_STATUS_CLASS}}',
+        "compliant" if ansi_c57_12_00_after_compliant else "non-compliant")
+
+    # PF direction label
+    _pf_b = _safe_float(safe_get(power_quality, "pf_before", default=0))
+    _pf_a = _safe_float(safe_get(power_quality, "pf_after",  default=0))
+    _pf_dir = "improved" if _pf_a >= _pf_b else "decreased"
+    template_content = template_content.replace('{{PF_DIRECTION}}',        _pf_dir)
+    template_content = template_content.replace('{{LETTER_PF_DIRECTION}}', _pf_dir)
+
+    # INTERVAL_LABEL – derive from interval_data string
+    _interval_label = interval_data if interval_data and interval_data != "CSV Data" else "interval"
+    template_content = template_content.replace('{{INTERVAL_LABEL}}', _interval_label)
+
+    # ASHRAE_REGRESSION_P_VALUE
+    _ash_pval = safe_get(statistical, "p_value", default=0)
+    template_content = template_content.replace(
+        '{{ASHRAE_REGRESSION_P_VALUE}}',
+        f"{_ash_pval:.4f}" if isinstance(_ash_pval, float) else str(_ash_pval))
+
+    # REGRESSION_EQUATION – build from baseline model info if available
+    _r2  = safe_get(before_compliance, "baseline_model_r_squared", default=0)
+    _reg_eq = safe_get(before_compliance, "regression_equation", default="")
+    if not _reg_eq:
+        _reg_eq = f"Baseline model R² = {_r2:.3f}" if _r2 else "See analysis data"
+    template_content = template_content.replace('{{REGRESSION_EQUATION}}', _reg_eq)
+
+    # utility_program_line
+    _util_prog = (
+        safe_get(config, "utility_program") or
+        safe_get(client_profile, "utility_program") or
+        safe_get(r, "utility_program") or ""
+    )
+    _util_prog_line = f"Utility Program: {_util_prog}" if _util_prog else ""
+    template_content = template_content.replace('{{utility_program_line}}', _util_prog_line)
+
+    # Informational / conditional blocks – replace with empty string if no data
+    template_content = template_content.replace('{{ANNUALIZATION_CAVEAT}}',       "")
+    template_content = template_content.replace('{{VARIABLE_LOADS_WARNING}}',     "")
+    template_content = template_content.replace('{{AUDIT_READINESS_BANNER}}',     "")
+    template_content = template_content.replace('{{PE_REVIEW_STATUS}}',           "")
+    template_content = template_content.replace('{{VERIFICATION_CERTIFICATE_HTML}}', "")
+    template_content = template_content.replace('{{DEVICE_CERTIFICATION_BADGE}}', "")
+    template_content = template_content.replace('{{WEATHER_REGRESSION_SCATTER_PLOT}}', "")
+    # ── End missing replacements ──────────────────────────────────────────────
+
     # Final cleanup: Replace ANY remaining template variables - this is critical
     # Use replace_all to ensure we catch all instances
     remaining_vars = re.findall(r'\{\{([A-Za-z0-9_]+)\}\}', template_content)
