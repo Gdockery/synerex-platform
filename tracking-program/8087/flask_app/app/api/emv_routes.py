@@ -12,6 +12,7 @@ from app.helpers.decorators import emv_api_key_or_login, license_required
 from app.models.client import Client
 from app.models.project import Project, project_user
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _shared_project_access
 
 emv_bp = Blueprint("emv", __name__, url_prefix="")
 
@@ -48,19 +49,8 @@ def _is_emv_api_key_request():
 
 
 def _user_has_project_access(sess, project_id):
-    """Return True if current user has access to project (admin or project member)."""
-    if not current_user.is_authenticated:
-        return False
-    user = sess.query(User).get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    row = sess.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
+    """Wrapper — sess arg kept for call-site compatibility; delegates to shared helper."""
+    return _shared_project_access(project_id)
 
 
 def _projects_for_user(sess, org_id=None, client_id=None):

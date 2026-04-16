@@ -16,23 +16,11 @@ from app.models.project import Project, project_user
 from app.models.report_data import ReportData
 from app.models.savings_report import SavingsReport
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 
 phase7_bp = Blueprint("phase7", __name__, url_prefix="")
 
 
-def _user_has_project_access(project_id):
-    if not current_user.is_authenticated:
-        return False
-    user = User.query.get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 def _get_report_value(report_data, period, value_type, type_name="project"):

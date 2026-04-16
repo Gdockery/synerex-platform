@@ -25,6 +25,7 @@ from app.models.client import Client
 from app.models.meter_csv import MeterCSV
 from app.models.project import Project
 from app.models.gateway import Gateway
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 
 phase6_bp = Blueprint("phase6", __name__, url_prefix="")
 
@@ -278,19 +279,6 @@ def _send_email_via_smtp(smtp_cfg, to_address, subject, body_text, body_html=Non
         current_app.logger.exception("Failed to send %s: %s", log_label, e)
 
 
-def _user_has_project_access(project_id):
-    if not current_user.is_authenticated:
-        return False
-    user = User.query.get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 

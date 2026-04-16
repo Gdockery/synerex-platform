@@ -16,23 +16,11 @@ from app.models.switch import Switch
 from app.models.switch_command import SwitchCommand
 from app.models.test import Test
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 
 phase11_bp = Blueprint("phase11", __name__, url_prefix="")
 
 
-def _user_has_project_access(project_id):
-    if not current_user.is_authenticated:
-        return False
-    user = User.query.get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 # ----- SWITCH SCHEDULERS -----

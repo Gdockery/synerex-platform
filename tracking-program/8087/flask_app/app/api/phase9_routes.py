@@ -15,24 +15,12 @@ from app.helpers.decorators import license_required, remote_maintainer
 from app.models.project import Project, project_user
 from app.models.service_plan import ServicePlan
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 from app.models.xeco import CompanySettings
 
 phase9_bp = Blueprint("phase9", __name__, url_prefix="")
 
 
-def _user_has_project_access(project_id):
-    if not current_user.is_authenticated:
-        return False
-    user = User.query.get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 # ----- PAYMENT -----

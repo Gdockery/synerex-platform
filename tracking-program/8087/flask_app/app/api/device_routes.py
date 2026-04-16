@@ -14,30 +14,11 @@ from app.models.report_data import ReportData
 from app.models.repeater import Repeater
 from app.models.switch import Switch
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 
 device_bp = Blueprint("device", __name__, url_prefix="")
 
 
-def _user_has_project_access(project_id):
-    """Check if current user has access to project. XECO_ADMIN (8) has access to all."""
-    user = User.query.get(current_user.id) if current_user.is_authenticated else None
-    if not user:
-        return False
-    if user.role == 8:  # XECO_ADMIN
-        return True
-    # OEM users: grant access if the project's client is sponsored by (or belongs to) their org
-    if user.role == 9 and user.org_id:
-        proj = Project.query.filter_by(id=project_id, isDeleted=False).first()
-        if proj and proj.client:
-            from app.models.client import Client
-            cli = Client.query.filter_by(id=proj.client, isDeleted=False).first()
-            if cli and (cli.org_id == user.org_id or cli.sponsor_org_id == user.org_id):
-                return True
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 def _meter_report_data_records(project_id, meter_id):

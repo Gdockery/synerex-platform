@@ -21,35 +21,9 @@ from app.models.meter_data import MeterData
 from app.models.project import Project, project_user
 from app.models.report_data import ReportData
 from app.models.user import User
+from app.helpers.project_access import user_has_project_access as _user_has_project_access
 
 phase8_bp = Blueprint("phase8", __name__, url_prefix="")
-
-
-def _user_has_project_access(project_id):
-    if not current_user.is_authenticated:
-        return False
-    user = User.query.get(current_user.id)
-    if not user:
-        return False
-    if user.role == 8:
-        return True
-    # OEM users (role 9/10): grant access if the project belongs to a client they sponsor/own
-    if user.role in (9, 10) and getattr(user, "org_id", None):
-        try:
-            from app.models.client import Client
-            p = Project.query.filter_by(id=project_id, isDeleted=False).first()
-            if p and p.client:
-                cli = Client.query.filter_by(id=p.client, isDeleted=False).first()
-                if cli and (getattr(cli, "org_id", None) == user.org_id or
-                            getattr(cli, "sponsor_org_id", None) == user.org_id):
-                    return True
-        except Exception:
-            pass
-    row = db.session.query(project_user).filter(
-        project_user.c.project_users == project_id,
-        project_user.c.user_projects == user.id,
-    ).first()
-    return row is not None
 
 
 def _get_report_value(report_data, value_type, default=0):
