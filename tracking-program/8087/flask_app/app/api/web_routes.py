@@ -2373,6 +2373,20 @@ def upload_company_logo_legacy():
         return jsonify({"error": str(e)}), 500
 
 
+@web_bp.route("/files/csv/<filename>")
+@login_required
+def serve_csv_file(filename):
+    """Serve generated CSV reports from .tmp/csv/ (volume-mounted for persistence)."""
+    from app.config import _8087_ROOT
+    csv_dir = Path(_8087_ROOT) / ".tmp" / "csv"
+    safe_name = Path(filename).name
+    full = csv_dir / safe_name
+    if not full.exists() or not full.is_file():
+        return {"error": "Not found"}, 404
+    return send_from_directory(str(csv_dir), safe_name, as_attachment=True,
+                               download_name=safe_name)
+
+
 @web_bp.route("/files/<path:path>")
 @cross_origin()
 def serve_files(path):

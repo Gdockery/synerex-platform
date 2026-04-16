@@ -2,7 +2,12 @@
 Phase 6: Alerts (meter, repeater, switch), Test, User (admin), Meter CSV.
 Ported from api/controllers/web/
 """
+import csv as csvmod
+import io
 import secrets
+from datetime import datetime, timezone
+from pathlib import Path
+
 from flask import Blueprint, current_app, jsonify, request, session
 from flask_login import current_user, login_required
 
@@ -1139,45 +1144,300 @@ def get_meter_csv_details(rid):
     return jsonify({"meta": {}, "response": {"id": r.id, "reportType": r.reportType, "title": r.title, "fromDate": r.fromDate, "toDate": r.toDate, "meters": meters}})
 
 
+def _build_csv_sql(meters, from_date, to_date, frequency):
+    """Build the meterdata SQL query matching the original Sails.js helper logic."""
+    from_date = int(from_date)
+    to_date = int(to_date)
+    meter_list = ", ".join(str(m) for m in meters)
+    merge_meters = frequency == 365
+    interval_length = 1 if merge_meters else frequency
+    interval_ms = 60 * 1000 * interval_length
+    interval_sec = 60 * interval_length
+    from_date_sec = from_date // 1000
+
+    if frequency == 0:
+        return f"""
+            SELECT
+                MeterData.meter AS meter,
+                Meter.name AS meterName,
+                CONCAT(DATE_FORMAT(FROM_UNIXTIME(MeterData.recordedAt/1000), '%Y-%m-%d %H:'),
+                       LPAD(MeterData.minute, 2, '0'), ':00') AS fromTime,
+                CONCAT(DATE_FORMAT(FROM_UNIXTIME(MeterData.recordedAt/1000), '%Y-%m-%d %H:'),
+                       LPAD(MeterData.minute, 2, '0'), ':59') AS toTime,
+                MeterData.l1Volt, MeterData.l1Amp, MeterData.l1Kw, MeterData.l1Kva,
+                MeterData.l1Pf, MeterData.l1THD, MeterData.l1Kvar,
+                MeterData.l2Volt, MeterData.l2Amp, MeterData.l2Kw, MeterData.l2Kva,
+                MeterData.l2Pf, MeterData.l2THD, MeterData.l2Kvar,
+                MeterData.l3Volt, MeterData.l3Amp, MeterData.l3Kw, MeterData.l3Kva,
+                MeterData.l3Pf, MeterData.l3THD, MeterData.l3Kvar,
+                MeterData.totalVolt, MeterData.totalAmp, MeterData.totalKw, MeterData.totalKva,
+                MeterData.totalPf, MeterData.totalTHD, MeterData.totalKvar,
+                NULL AS peakKva, NULL AS peakKw,
+                Project.timeZoneId AS projectTimeZoneId
+            FROM meterdata AS MeterData
+            JOIN meter AS Meter ON (MeterData.meter = Meter.id)
+            JOIN project AS Project ON (Meter.project = Project.id)
+            WHERE MeterData.meter IN ({meter_list})
+              AND MeterData.recordedAt >= {from_date}
+              AND MeterData.recordedAt <= {to_date} + 86399000
+            ORDER BY fromTime
+        """
+
+    n = len(meters)
+    if merge_meters:
+        agg = f"""
+            AVG(MeterData.l1Volt) AS l1Volt,
+            AVG(MeterData.l1Amp)*{n} AS l1Amp,
+            AVG(MeterData.l1Kw)*{n} AS l1Kw,
+            AVG(MeterData.l1Kva)*{n} AS l1Kva,
+            AVG(ABS(MeterData.l1Pf)) AS l1Pf,
+            COALESCE(AVG(MeterData.l1THD), 0) AS l1THD,
+            AVG(MeterData.l1Kvar)*{n} AS l1Kvar,
+            AVG(MeterData.l2Volt) AS l2Volt,
+            AVG(MeterData.l2Amp)*{n} AS l2Amp,
+            AVG(MeterData.l2Kw)*{n} AS l2Kw,
+            AVG(MeterData.l2Kva)*{n} AS l2Kva,
+            AVG(ABS(MeterData.l2Pf)) AS l2Pf,
+            COALESCE(AVG(MeterData.l2THD), 0) AS l2THD,
+            AVG(MeterData.l2Kvar)*{n} AS l2Kvar,
+            AVG(MeterData.l3Volt) AS l3Volt,
+            AVG(MeterData.l3Amp)*{n} AS l3Amp,
+            AVG(MeterData.l3Kw)*{n} AS l3Kw,
+            AVG(MeterData.l3Kva)*{n} AS l3Kva,
+            AVG(ABS(MeterData.l3Pf)) AS l3Pf,
+            COALESCE(AVG(MeterData.l3THD), 0) AS l3THD,
+            AVG(MeterData.l3Kvar)*{n} AS l3Kvar,
+            AVG(MeterData.totalVolt) AS totalVolt,
+            AVG(MeterData.totalAmp)*{n} AS totalAmp,
+            AVG(MeterData.totalKw)*{n} AS totalKw,
+            AVG(MeterData.totalKva)*{n} AS totalKva,
+            AVG(MeterData.totalPf) AS totalPf,
+            COALESCE(AVG(MeterData.totalTHD), 0) AS totalTHD,
+            AVG(MeterData.totalKvar)*{n} AS totalKvar,
+            MAX(MeterData.totalKva)*{n} AS peakKva,
+            MAX(MeterData.totalKw)*{n} AS peakKw
+        """
+        group_by = "intervalNum, fromTime, toTime"
+    else:
+        agg = """
+            AVG(MeterData.l1Volt) AS l1Volt,
+            AVG(MeterData.l1Amp) AS l1Amp,
+            AVG(MeterData.l1Kw) AS l1Kw,
+            AVG(MeterData.l1Kva) AS l1Kva,
+            AVG(ABS(MeterData.l1Pf)) AS l1Pf,
+            COALESCE(AVG(MeterData.l1THD), 0) AS l1THD,
+            AVG(MeterData.l1Kvar) AS l1Kvar,
+            AVG(MeterData.l2Volt) AS l2Volt,
+            AVG(MeterData.l2Amp) AS l2Amp,
+            AVG(MeterData.l2Kw) AS l2Kw,
+            AVG(MeterData.l2Kva) AS l2Kva,
+            AVG(ABS(MeterData.l2Pf)) AS l2Pf,
+            COALESCE(AVG(MeterData.l2THD), 0) AS l2THD,
+            AVG(MeterData.l2Kvar) AS l2Kvar,
+            AVG(MeterData.l3Volt) AS l3Volt,
+            AVG(MeterData.l3Amp) AS l3Amp,
+            AVG(MeterData.l3Kw) AS l3Kw,
+            AVG(MeterData.l3Kva) AS l3Kva,
+            AVG(ABS(MeterData.l3Pf)) AS l3Pf,
+            COALESCE(AVG(MeterData.l3THD), 0) AS l3THD,
+            AVG(MeterData.l3Kvar) AS l3Kvar,
+            AVG(MeterData.totalVolt) AS totalVolt,
+            AVG(MeterData.totalAmp) AS totalAmp,
+            AVG(MeterData.totalKw) AS totalKw,
+            AVG(MeterData.totalKva) AS totalKva,
+            AVG(MeterData.totalPf) AS totalPf,
+            COALESCE(AVG(MeterData.totalTHD), 0) AS totalTHD,
+            AVG(MeterData.totalKvar) AS totalKvar,
+            MAX(MeterData.totalKva) AS peakKva,
+            MAX(MeterData.totalKw) AS peakKw
+        """
+        group_by = "meter, intervalNum, fromTime, toTime"
+
+    return f"""
+        SELECT
+            max(MeterData.meter) AS meter,
+            max(Meter.name) AS meterName,
+            FLOOR((MeterData.recordedAt - {from_date}) / {interval_ms}) AS intervalNum,
+            DATE_FORMAT(FROM_UNIXTIME({from_date_sec} + (FLOOR((recordedAt - {from_date}) / {interval_ms}) * {interval_sec})),
+                        '%Y-%m-%d %H:%i:%s') AS fromTime,
+            DATE_FORMAT(FROM_UNIXTIME({from_date_sec} + (FLOOR((recordedAt - {from_date}) / {interval_ms}) * {interval_sec}) + {interval_sec - 1}),
+                        '%Y-%m-%d %H:%i:%s') AS toTime,
+            {agg},
+            max(Project.timeZoneId) AS projectTimeZoneId
+        FROM meterdata AS MeterData
+        JOIN meter AS Meter ON (MeterData.meter = Meter.id)
+        JOIN project AS Project ON (Meter.project = Project.id)
+        WHERE MeterData.meter IN ({meter_list})
+          AND MeterData.recordedAt >= {from_date}
+          AND MeterData.recordedAt <= {to_date} + 86399000
+        GROUP BY {group_by}
+        ORDER BY intervalNum
+    """
+
+
+def _corrected_pf(pf1_raw, pf2_raw, pf3_raw):
+    """Replicate the PF correction logic from the original Sails.js CSV helper."""
+    pf1 = (200 + pf1_raw) if pf1_raw is not None and pf1_raw < 0 else (pf1_raw or 0)
+    pf2 = (200 + pf2_raw) if pf2_raw is not None and pf2_raw < 0 else (pf2_raw or 0)
+    pf3 = (200 + pf3_raw) if pf3_raw is not None and pf3_raw < 0 else (pf3_raw or 0)
+    result = (pf1 + pf2 + pf3) / 3
+    if result > 100:
+        result = -(200 - result)
+    return result
+
+
+def _format_row_time(time_str, tz):
+    """Convert a UTC datetime string from MySQL to the project timezone."""
+    try:
+        dt = datetime.fromisoformat(str(time_str)).replace(tzinfo=timezone.utc).astimezone(tz)
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return str(time_str)
+
+
+def _generate_csv_content(rows, frequency):
+    """Turn SQL result rows into CSV bytes."""
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:
+        from backports.zoneinfo import ZoneInfo
+
+    output = io.StringIO()
+    writer = csvmod.writer(output)
+
+    if frequency == 1:
+        writer.writerow([
+            "Start Time", "End Time", "Meter",
+            "l1Volt", "l1Amp", "l1Kw", "l1Kva", "l1Pf", "l1THD", "l1Kvar",
+            "l2Volt", "l2Amp", "l2Kw", "l2Kva", "l2Pf", "l2THD", "l2Kvar",
+            "l3Volt", "l3Amp", "l3Kw", "l3Kva", "l3Pf", "l3THD", "l3Kvar",
+            "avgVolt", "avgAmp", "totalKw", "totalKva", "avgPf", "avgTHD", "totalKvar",
+        ])
+    else:
+        writer.writerow([
+            "Start Time", "End Time", "Meter",
+            "l1Volt", "l1Amp", "l1Kw", "l1Kva", "l1Pf", "l1THD", "l1Kvar",
+            "l2Volt", "l2Amp", "l2Kw", "l2Kva", "l2Pf", "l2THD", "l2Kvar",
+            "l3Volt", "l3Amp", "l3Kw", "l3Kva", "l3Pf", "l3THD", "l3Kvar",
+            "avgVolt", "avgAmp", "avgKw", "avgKva", "avgPf", "avgTHD", "avgKvar",
+            "peakKva", "peakKw",
+        ])
+
+    def r(v):
+        try:
+            return f"{float(v):.2f}" if v is not None else "0.00"
+        except (TypeError, ValueError):
+            return "0.00"
+
+    for row in rows:
+        d = dict(row._mapping)
+        tz_id = d.get("projectTimeZoneId") or "UTC"
+        try:
+            tz = ZoneInfo(tz_id)
+        except Exception:
+            tz = ZoneInfo("UTC")
+
+        from_str = _format_row_time(d.get("fromTime"), tz)
+        to_str = _format_row_time(d.get("toTime"), tz)
+        pf = _corrected_pf(d.get("l1Pf"), d.get("l2Pf"), d.get("l3Pf"))
+
+        row_data = [
+            from_str, to_str, d.get("meterName", ""),
+            r(d.get("l1Volt")), r(d.get("l1Amp")), r(d.get("l1Kw")), r(d.get("l1Kva")),
+            r(d.get("l1Pf")), r(d.get("l1THD")), r(d.get("l1Kvar")),
+            r(d.get("l2Volt")), r(d.get("l2Amp")), r(d.get("l2Kw")), r(d.get("l2Kva")),
+            r(d.get("l2Pf")), r(d.get("l2THD")), r(d.get("l2Kvar")),
+            r(d.get("l3Volt")), r(d.get("l3Amp")), r(d.get("l3Kw")), r(d.get("l3Kva")),
+            r(d.get("l3Pf")), r(d.get("l3THD")), r(d.get("l3Kvar")),
+            r(d.get("totalVolt")), r(d.get("totalAmp")),
+            r(d.get("totalKw")), r(d.get("totalKva")),
+            r(pf),
+            r(d.get("totalTHD")), r(d.get("totalKvar")),
+        ]
+        if frequency > 1:
+            row_data.append(r(d.get("peakKva")))
+            row_data.append(r(d.get("peakKw")))
+
+        writer.writerow(row_data)
+
+    return output.getvalue()
+
+
 @phase6_bp.route("/api/meter/csv/<int:project_or_id>/create", methods=["POST"])
 @login_required
 @license_required
 def create_meter_csv_report(project_or_id):
+    from sqlalchemy import text as sa_text
+    from app.config import _8087_ROOT
+
     data = request.get_json() or {}
     project = data.get("project") or project_or_id or request.args.get("project", type=int)
     if not project or not _user_has_project_access(project):
         return jsonify({"error": "Unauthorized"}), 404
+
     meters = data.get("meters", [])
     report_type = data.get("reportType", 1)
     from_date = data.get("fromDate")
     to_date = data.get("toDate")
-    title = data.get("title", f"Report {project}")
+    frequency = int(data.get("frequency") or 15)
+    title = data.get("title") or f"Report {project}"
+
     if from_date is None or to_date is None:
         return jsonify({"error": "fromDate and toDate required"}), 400
     if not meters:
         return jsonify({"error": "meters required"}), 400
+
+    valid_meters = [
+        m.id for m in Meter.query.filter(Meter.id.in_(meters), Meter.project == project).all()
+    ]
+    if not valid_meters:
+        return jsonify({"error": "No valid meters for this project"}), 400
+
     uuid_val = secrets.token_urlsafe(16)
-    r = MeterCSV(reportType=report_type, title=title, uuid=uuid_val, project=project, fromDate=from_date, toDate=to_date)
+
+    sql = _build_csv_sql(valid_meters, from_date, to_date, frequency)
+    rows = db.session.execute(sa_text(sql)).fetchall()
+    csv_content = _generate_csv_content(rows, frequency)
+
+    csv_dir = Path(_8087_ROOT) / ".tmp" / "csv"
+    csv_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = csv_dir / f"{uuid_val}.csv"
+    csv_path.write_text(csv_content, encoding="utf-8")
+
+    r = MeterCSV(reportType=report_type, title=title, uuid=uuid_val, project=project,
+                 fromDate=int(from_date), toDate=int(to_date))
     db.session.add(r)
     db.session.flush()
-    for m in meters:
-        if Meter.query.filter_by(id=m, project=project).first():
-            try:
-                db.session.execute(metercsv_meter.insert().values(metercsv_meters=r.id, meter_meters_meter=m))
-            except Exception:
-                pass
+    for m in valid_meters:
+        try:
+            db.session.execute(metercsv_meter.insert().values(metercsv_meters=r.id, meter_meters_meter=m))
+        except Exception:
+            pass
     db.session.commit()
-    return jsonify({"meta": {}, "response": {"id": r.id, "reportType": r.reportType, "title": r.title, "fromDate": r.fromDate, "toDate": r.toDate, "meterCount": len(meters), "url": ""}})
+
+    return jsonify({"meta": {}, "response": {
+        "id": r.id, "reportType": r.reportType, "title": r.title,
+        "fromDate": r.fromDate, "toDate": r.toDate, "meterCount": len(valid_meters),
+    }})
 
 
 @phase6_bp.route("/api/meter/csv/<int:rid>/download", methods=["GET"])
 @login_required
 @license_required
 def get_meter_csv_download_url(rid):
+    from app.config import _8087_ROOT
+
     r = MeterCSV.query.get(rid)
     if not r or not _user_has_project_access(r.project):
         return jsonify({"error": "Not found"}), 404
-    return jsonify({"meta": {}, "response": {"url": ""}})
+
+    csv_path = Path(_8087_ROOT) / ".tmp" / "csv" / f"{r.uuid}.csv"
+    if not csv_path.exists():
+        return jsonify({"error": "CSV file not found — please regenerate the report"}), 404
+
+    app_root = current_app.config.get("APPLICATION_ROOT", "") or ""
+    url = f"{app_root}/files/csv/{r.uuid}.csv"
+    return jsonify({"meta": {}, "response": url})
 
 
 @phase6_bp.route("/api/meter/csv/<int:rid>", methods=["DELETE"])
