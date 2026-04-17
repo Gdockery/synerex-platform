@@ -972,7 +972,7 @@
             <h3>Performance</h3>
             <div class="compliance-note">
                 <strong>Network Improvement Standards:</strong> These tests measure the effectiveness of power quality improvements.
-                IEEE 519 measures harmonic distortion reduction, NEMA MG1 validates phase balance.
+                IEEE 519 validates TDD (Total Demand Distortion at the PCC) compliance — the number the utility measures for penalty purposes. NEMA MG1 validates phase balance.
             </div>
             <table class="compliance-table performance-compliance-table">
                 <tr><th>Standard</th><th>Requirement</th><th>Before {{BEFORE_LABEL}}</th><th>After {{AFTER_LABEL}}</th><th>Before Value</th><th>After Value</th></tr>
@@ -1077,7 +1077,7 @@
             <div class="compliance-note">
                 <strong>Electrical Parameter Analysis:</strong> These metrics show the before/after comparison of key electrical parameters and their percentage improvements. 
                 <strong>Improvement Context:</strong> Positive percentages indicate measurable improvements in power quality, efficiency, or compliance. 
-                For example, "0.6% power factor improvement" means reduced reactive power consumption, while "5.2% THD reduction" means cleaner electrical waveforms.
+                For example, "0.6% power factor improvement" means reduced reactive power consumption, "5.2% THD reduction" means cleaner waveforms at the <em>equipment terminals</em> (what motors, VFDs, transformers, and UPSs actually feel), and "5.2% TDD reduction" means lower harmonic current at the <em>PCC</em> (what the utility meters for IEEE 519 compliance).
             </div>
             <table class="compliance-table">
                 <tr><th>Parameter</th><th style="text-align: center;">Before {{BEFORE_LABEL}}</th><th style="text-align: center;">After {{AFTER_LABEL}}</th><th style="text-align: center;">% Improvement</th></tr>
@@ -1088,20 +1088,21 @@
                 <tr><td><strong>kVA</strong></td><td class="value-cell" style="text-align: center;">{{KVA_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{KVA_AFTER}}</td><td class="value-cell" style="text-align: center;">{{KVA_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>Power Factor</strong></td><td class="value-cell" style="text-align: center;">{{PF_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{PF_AFTER}}</td><td class="value-cell" style="text-align: center;">{{PF_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>kVAR</strong></td><td class="value-cell" style="text-align: center;">{{KVAR_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{KVAR_AFTER}}</td><td class="value-cell" style="text-align: center;">{{KVAR_IMPROVEMENT}}</td></tr>
-                <tr><td><strong>THD</strong></td><td class="value-cell" style="text-align: center;">{{THD_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{THD_AFTER}}</td><td class="value-cell" style="text-align: center;">{{THD_IMPROVEMENT}}</td></tr>
+                <tr><td><strong>THD</strong><br/><small style="color: #666;">Total Harmonic Distortion (at equipment terminals)</small></td><td class="value-cell" style="text-align: center;">{{THD_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{THD_AFTER}}</td><td class="value-cell" style="text-align: center;">{{THD_IMPROVEMENT}}</td></tr>
             </table>
             
             <div class="compliance-note" style="margin-top: 15px;">
                 <strong>Key Improvements:</strong><br>
                 <strong>Power Factor:</strong> {{PF_DIRECTION}} from {{PF_BEFORE}} to {{PF_AFTER}} ({{PF_IMPROVEMENT}})<br>
-                <strong>THD Reduction:</strong> Reduced from {{THD_BEFORE}} to {{THD_AFTER}} ({{THD_IMPROVEMENT}} reduction)<br>
-                <strong>kVAR Reduction:</strong> Reduced from {{KVAR_BEFORE}} to {{KVAR_AFTER}} ({{KVAR_IMPROVEMENT}} reduction)
+                <strong>Equipment Exposure (THD):</strong> Reduced from {{THD_BEFORE}} to {{THD_AFTER}} ({{THD_IMPROVEMENT}}) &mdash; <em>what motors, VFDs, transformers, and UPSs actually see at their terminals</em><br>
+                <strong>Utility Compliance (TDD):</strong> Reduced from {{TDD_BEFORE}} to {{TDD_AFTER}} ({{TDD_IMPROVEMENT}}) &mdash; <em>IEEE 519-2014/2022 measurement at the PCC, limit {{IEEE_519_TDD_LIMIT}}% based on ISC/IL ratio</em><br>
+                <strong>kVAR Reduction:</strong> Reduced from {{KVAR_BEFORE}} to {{KVAR_AFTER}} ({{KVAR_IMPROVEMENT}})
             </div>
             
             <h3>IEEE 519-2014/2022 Power Quality Analysis</h3>
             <div class="compliance-note">
                 <strong>Standards-Compliant Electrical Parameter Analysis:</strong> These metrics follow IEEE 519-2014/2022, ASHRAE Guideline 14-2014, and IEC 61000-2-2 standards. 
-                kW (Weather Normalized) shows ASHRAE weather-adjusted power savings, Volts (L-N) shows IEC 61000-2-2 voltage quality, THD shows IEEE 519 harmonic distortion reduction, 
+                kW (Weather Normalized) shows ASHRAE weather-adjusted power savings, Volts (L-N) shows IEC 61000-2-2 voltage quality, TDD (Total Demand Distortion at the PCC) shows IEEE 519 harmonic compliance — the utility-facing metric used for Table 2 limit checks, 
                 and Voltage Unbalance shows IEEE 519 three-phase voltage balance improvement. 
                 <em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2014 Section 14.3.</em>
             </div>
@@ -1113,7 +1114,7 @@
                 <tr><td><strong>kW Peak</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_PEAK_KW_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PEAK_KW_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PEAK_KW_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>kVA</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_KVA_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>Power Factor</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_PF_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PF_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_PF_IMPROVEMENT}}</td></tr>
-                <tr><td><strong>THD</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_THD_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_THD_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_THD_IMPROVEMENT}}</td></tr>
+                <tr><td><strong>TDD</strong><br/><small style="color: #666;">Total Demand Distortion (at PCC, IEEE 519 limit: {{IEEE_519_TDD_LIMIT}}%)</small></td><td class="value-cell" style="text-align: center;">{{IEEE_TDD_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_TDD_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_TDD_IMPROVEMENT}}</td></tr>
                 <tr><td><strong>Voltage Unbalance</strong></td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTAGE_UNBALANCE_BEFORE}}</td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTAGE_UNBALANCE_AFTER}}</td><td class="value-cell" style="text-align: center;">{{IEEE_VOLTAGE_UNBALANCE_IMPROVEMENT}}</td></tr>
             </table>
             

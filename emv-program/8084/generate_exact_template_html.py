@@ -4,6 +4,9 @@ HTML Report Generator that uses the exact synerex_standard_report_template.html 
 This copies the template exactly and replaces data with dynamic values
 """
 
+import sys as _sys_marker
+print(f"[MODULE_LOAD_MARKER] Loading generate_exact_template_html from {__file__} (8084 canonical)", flush=True)
+
 import json
 import base64
 import time
@@ -13,8 +16,16 @@ from pathlib import Path
 import re
 import sys
 
-# Add parent directory to path to import sankey_diagram
-sys.path.insert(0, str(Path(__file__).parent.parent / "8082"))
+# Add 8082 to sys.path so we can import sankey_diagram from there.
+# IMPORTANT: Use append, not insert(0). Inserting 8082 at index 0 makes it
+# shadow the canonical 8084 modules — e.g. if anything re-imports
+# `generate_exact_template_html`, Python would find the legacy 8082 copy
+# FIRST and load the stale duplicate instead of this file, silently
+# breaking the HTML report pipeline. Append keeps 8084 canonical while
+# still making sankey_diagram importable.
+_8082_PATH = str(Path(__file__).parent.parent / "8082")
+if _8082_PATH not in sys.path:
+    sys.path.append(_8082_PATH)
 try:
     from sankey_diagram import generate_sankey_diagram_html
     SANKEY_AVAILABLE = True
@@ -118,6 +129,15 @@ def format_number(value, decimals=2):
 # Marker for blocks to remove when show_dollars is False (engineering-only report)
 _DOLLAR_BLOCK_MARKER = "__REMOVE_DOLLAR_BLOCK__"
 
+
+def _safe_float(x, default=0):
+    """Module-level safe float conversion used across template helpers."""
+    try:
+        return float(x) if x is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
 def _fmt_dollar(value, show_dollars, decimals=2):
     """Format dollar amount, or return marker to remove block when show_dollars is False."""
     if not show_dollars:
@@ -162,6 +182,20 @@ def _remove_dollar_blocks(html_content, show_dollars):
     if eng_match:
         eng_section = eng_match.group(1)
         html_content = html_content[:eng_match.start(1)] + eng_placeholder + html_content[eng_match.end(1):]
+    # Remove entire Main Results Summary section (financial KPIs — NPV, IRR, payback, etc.)
+    html_content = re.sub(
+        r'<h2[^>]*>\s*Main Results Summary\s*</h2>.*?(?=<h2)',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
+    # Remove entire Savings Attribution Card section (dollar-breakdown by category)
+    html_content = re.sub(
+        r'<h2[^>]*>\s*Savings Attribution Card\s*</h2>.*?(?=<h2)',
+        '',
+        html_content,
+        flags=re.DOTALL | re.IGNORECASE
+    )
     # Remove entire Bill-Weighted Savings section (h3 with possible attributes)
     html_content = re.sub(
         r'<h3[^>]*>\s*Bill-Weighted Savings\s*</h3>.*?(?=<h[23])',
@@ -220,6 +254,193 @@ def _remove_dollar_blocks(html_content, show_dollars):
     if mv_match:
         html_content = html_content.replace(mv_placeholder, mv_section)
     return html_content
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# THD / TDD consolidation — single source of truth for harmonic placeholders
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Background: THD (Total Harmonic Distortion, scaled to I₁) and TDD (Total
+# Demand Distortion, scaled to I_L at the PCC) are semantically distinct:
+#   THD  → equipment exposure (motors, VFDs, transformers, UPSs)
+#   TDD  → utility / IEEE 519-2014/2022 Table 2 compliance
+#
+# Historically, ~12 scattered blocks in this file each read power_quality.*
+# and wrote into THD- and TDD-labeled placeholders with their own ad-hoc
+# fallbacks, which repeatedly caused THD values to be labeled "TDD" in the
+# final HTML. This pair of helpers (_build_harmonics_snapshot + _apply_harmonics)
+# centralizes all of that: compute once from the 8082 payload, substitute
+# every placeholder from a single dict. The call runs at the END of the main
+# generator so it *supersedes* any stale work done by the legacy blocks; those
+# blocks can then be deleted one at a time without functional risk.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _build_harmonics_snapshot(r):
+    """
+    Build the canonical THD/TDD snapshot consumed by _apply_harmonics.
+
+    Priority cascade (documented here and nowhere else):
+
+      TDD_before / TDD_after:
+        1. before_compliance.ieee_tdd_value / after_compliance.ieee_tdd_value
+        2. before_compliance.tdd_value      / after_compliance.tdd_value
+        3. power_quality.tdd_before         / power_quality.tdd_after
+        4. (LAST RESORT, flagged) power_quality.thd_before / thd_after
+
+      THD_before / THD_after:
+        power_quality.thd_before / power_quality.thd_after   (no fallback —
+        THD is raw-meter data from 8082 and should always be present)
+
+      IEEE 519 TDD limit:
+        power_quality.ieee_tdd_limit -> 5.0 (IEEE 519 default for ISC/I_L < 20)
+
+    Returns a dict of dicts: {"thd": {...}, "tdd": {...}}.
+    """
+    pq = safe_get(r, "power_quality", default={}) or {}
+    bc = safe_get(r, "before_compliance", default={}) or {}
+    ac = safe_get(r, "after_compliance",  default={}) or {}
+
+    def _num(x, default=0.0):
+        try:
+            if x is None:
+                return default
+            if isinstance(x, str):
+                s = x.strip()
+                if not s or s.upper() == "N/A":
+                    return default
+                return float(s)
+            return float(x)
+        except (TypeError, ValueError):
+            return default
+
+    def _first_non_null(*vals):
+        for v in vals:
+            if v is not None:
+                return v
+        return None
+
+    # THD — equipment exposure. No TDD fallback (would corrupt semantics).
+    thd_b = _num(pq.get("thd_before"))
+    thd_a = _num(pq.get("thd_after"))
+
+    # TDD — utility / IEEE 519. Cascades through compliance dicts then PQ.
+    raw_tdd_b = _first_non_null(
+        bc.get("ieee_tdd_value"),
+        bc.get("tdd_value"),
+        pq.get("tdd_before"),
+    )
+    raw_tdd_a = _first_non_null(
+        ac.get("ieee_tdd_value"),
+        ac.get("tdd_value"),
+        pq.get("tdd_after"),
+    )
+    tdd_from_thd_fallback = (raw_tdd_b is None) or (raw_tdd_a is None)
+    tdd_b = _num(raw_tdd_b, default=thd_b)
+    tdd_a = _num(raw_tdd_a, default=thd_a)
+
+    tdd_limit = _num(pq.get("ieee_tdd_limit"), default=5.0)
+
+    def _impr(b, a):
+        if b and b > 0:
+            pct = (b - a) / b * 100.0
+            word = "reduction" if pct >= 0 else "increase"
+            return pct, f"{abs(pct):.1f}% {word}"
+        return 0.0, "N/A"
+
+    thd_pct, thd_txt = _impr(thd_b, thd_a)
+    tdd_pct, tdd_txt = _impr(tdd_b, tdd_a)
+
+    return {
+        "thd": {
+            "before": thd_b,
+            "after": thd_a,
+            "impr_pct": thd_pct,
+            "impr_txt": thd_txt,
+        },
+        "tdd": {
+            "before": tdd_b,
+            "after": tdd_a,
+            "impr_pct": tdd_pct,
+            "impr_txt": tdd_txt,
+            "limit": tdd_limit,
+            "before_pass": tdd_b <= tdd_limit,
+            "after_pass":  tdd_a <= tdd_limit,
+            "before_verdict": "PASS" if tdd_b <= tdd_limit else "FAIL",
+            "after_verdict":  "PASS" if tdd_a <= tdd_limit else "FAIL",
+            "from_thd_fallback": tdd_from_thd_fallback,
+        },
+    }
+
+
+def _apply_harmonics(template, h):
+    """
+    Substitute every THD/TDD/IEEE 519 harmonic placeholder from a single dict.
+
+    Intentional design: this runs at the END of generate_exact_template_html,
+    so it overwrites any stale values written by the older scattered blocks.
+    Placeholders that are already substituted by the legacy blocks become
+    no-ops here (str.replace on a missing pattern does nothing) — but if a
+    legacy block wrote the wrong value into a still-present placeholder,
+    this helper corrects it.
+
+    This is the only place in the file where the mapping from snapshot →
+    template placeholder lives. To add/change a placeholder, edit here.
+    """
+    thd, tdd = h["thd"], h["tdd"]
+
+    subs = {
+        # ── THD (raw / equipment terminals) ────────────────────────────
+        "{{THD_BEFORE}}":        f"{thd['before']:.2f}%",
+        "{{THD_AFTER}}":         f"{thd['after']:.2f}%",
+        "{{THD_IMPROVEMENT}}":   thd["impr_txt"],
+        "{{LETTER_THD_BEFORE}}": f"{thd['before']:.1f}",
+        "{{LETTER_THD_AFTER}}":  f"{thd['after']:.1f}",
+        "{{IEC_61000_4_7_BEFORE_VALUE}}": f"{thd['before']:.1f}%",
+        "{{IEC_61000_4_7_AFTER_VALUE}}":  f"{thd['after']:.1f}%",
+
+        # Legacy {{IEEE_THD_*}} aliases — template no longer contains them,
+        # but we fill them defensively so any future re-introduction stays
+        # correctly labeled as THD (equipment, not compliance).
+        "{{IEEE_THD_BEFORE}}":      f"{thd['before']:.2f}%",
+        "{{IEEE_THD_AFTER}}":       f"{thd['after']:.2f}%",
+        "{{IEEE_THD_IMPROVEMENT}}": thd["impr_txt"],
+
+        # ── TDD (utility / IEEE 519 at PCC) ────────────────────────────
+        "{{TDD_BEFORE}}":        f"{tdd['before']:.2f}%",
+        "{{TDD_AFTER}}":         f"{tdd['after']:.2f}%",
+        "{{TDD_IMPROVEMENT}}":   tdd["impr_txt"],
+        "{{IEEE_TDD_BEFORE}}":      f"{tdd['before']:.2f}%",
+        "{{IEEE_TDD_AFTER}}":       f"{tdd['after']:.2f}%",
+        "{{IEEE_TDD_IMPROVEMENT}}": tdd["impr_txt"],
+
+        # ── IEEE 519 main compliance row + Compliance Details block ────
+        "{{IEEE_519_BEFORE_VALUE}}":      f"{tdd['before']:.1f}%",
+        "{{IEEE_519_AFTER_VALUE}}":       f"{tdd['after']:.1f}%",
+        "{{IEEE_519_BEFORE_TDD}}":        f"{tdd['before']:.1f}%",
+        "{{IEEE_519_AFTER_TDD}}":         f"{tdd['after']:.1f}%",
+        "{{IEEE_519_BEFORE_STATUS}}":     tdd["before_verdict"],
+        "{{IEEE_519_AFTER_STATUS}}":      tdd["after_verdict"],
+        "{{IEEE_519_BEFORE_COMPLIANCE}}": tdd["before_verdict"],
+        "{{IEEE_519_AFTER_COMPLIANCE}}":  tdd["after_verdict"],
+        # The template for this placeholder reads:
+        #   "Improvement: {{IEEE_519_IMPROVEMENT}} harmonic distortion reduction"
+        # so we supply just the percentage, not "X% reduction" (would yield
+        # "reduction reduction").
+        "{{IEEE_519_IMPROVEMENT}}":       f"{tdd['impr_pct']:.1f}%",
+        "{{IEEE_519_TDD_LIMIT}}":         f"{tdd['limit']:.1f}",
+    }
+
+    import sys as _sys_dbg
+    print(f"[HARMONICS_DEBUG] _apply_harmonics CALLED tdd_before={tdd['before']:.4f} tdd_after={tdd['after']:.4f} thd_before={thd['before']:.4f} thd_after={thd['after']:.4f} from_thd_fallback={h['tdd'].get('from_thd_fallback')}", flush=True)
+    _bt_count = template.count("{{IEEE_519_BEFORE_TDD}}")
+    print(f"[HARMONICS_DEBUG] template has {{IEEE_519_BEFORE_TDD}} count={_bt_count}", flush=True)
+    for placeholder, value in subs.items():
+        template = template.replace(placeholder, value)
+    _bt_after = template.count("{{IEEE_519_BEFORE_TDD}}")
+    print(f"[HARMONICS_DEBUG] AFTER replace, {{IEEE_519_BEFORE_TDD}} count={_bt_after}", flush=True)
+
+    return template
+
 
 def generate_verification_certificate_html(r):
     """Generate HTML version of verification certificate for Client HTML Report"""
@@ -1465,7 +1686,36 @@ def generate_exact_template_html(r):
     
     with open(template_file, 'r', encoding='utf-8') as f:
         template_content = f.read()
-    
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # HARMONICS (THD / TDD / IEEE 519) — SINGLE SOURCE OF TRUTH
+    # ═══════════════════════════════════════════════════════════════════════
+    # Every THD/TDD/IEEE-519 placeholder is substituted here, ONCE, from the
+    # canonical snapshot. Because template placeholder substitution is
+    # one-shot (once "{{X}}" is replaced with a literal, subsequent
+    # str.replace("{{X}}", ...) calls are no-ops), running this first makes
+    # all downstream legacy harmonic substitutions inert. Do NOT add any
+    # str.replace("{{THD_...}}", ...), str.replace("{{TDD_...}}", ...), or
+    # str.replace("{{IEEE_519_BEFORE_TDD}}" / AFTER_TDD / BEFORE_COMPLIANCE /
+    # AFTER_COMPLIANCE / IMPROVEMENT / TDD_LIMIT / BEFORE_VALUE / AFTER_VALUE
+    # / BEFORE_STATUS / AFTER_STATUS / IEEE_THD_*, ...) elsewhere in this
+    # file — edit _apply_harmonics (line ~364) instead.
+    try:
+        _harmonics = _build_harmonics_snapshot(r)
+        template_content = _apply_harmonics(template_content, _harmonics)
+        if _harmonics["tdd"].get("from_thd_fallback"):
+            print(
+                "[HARMONICS] WARN: TDD values fell back to THD — 8082 did not "
+                "provide power_quality.tdd_before/after. IEEE 519 verdict in "
+                "the HTML report is computed against THD and should be treated "
+                "as indicative only until I_L is available.",
+                flush=True,
+            )
+    except Exception as _harm_ex:
+        import traceback as _tb
+        print(f"[HARMONICS] Warning: consolidated harmonics pass failed: {_harm_ex}\n{_tb.format_exc()}", flush=True)
+    # ═══════════════════════════════════════════════════════════════════════
+
     # Get logo for cover page
     logo_data_uri = get_logo_data_uri()
     
@@ -1564,8 +1814,11 @@ def generate_exact_template_html(r):
             from main_hardened_ready_fixed import get_git_version
             version_value = get_git_version()
         else:
-            # Try to import it
-            sys.path.insert(0, str(Path(__file__).parent.parent / "8082"))
+            # Try to import it. Use append (not insert(0)) to avoid shadowing
+            # canonical 8084 modules like generate_exact_template_html itself.
+            _8082_path = str(Path(__file__).parent.parent / "8082")
+            if _8082_path not in sys.path:
+                sys.path.append(_8082_path)
             try:
                 from main_hardened_ready_fixed import get_git_version
                 version_value = get_git_version()
@@ -2508,8 +2761,27 @@ def generate_exact_template_html(r):
     # Performance Standards - GET from before_compliance and after_compliance sections (using same approach as ASHRAE)
     template_content = template_content.replace('{{IEEE_519_BEFORE_STATUS}}', "PASS" if safe_get(before_compliance, "ieee_compliant", default=True) else "FAIL")
     template_content = template_content.replace('{{IEEE_519_AFTER_STATUS}}', "PASS" if safe_get(after_compliance, "ieee_compliant", default=True) else "FAIL")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_VALUE}}', f"{format_number(safe_get(power_quality, 'thd_before', default=0), 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_VALUE}}', f"{format_number(safe_get(power_quality, 'thd_after', default=0), 1)}%")
+    # Use TDD values (not THD) — IEEE 519 measures Total Demand Distortion, not Total Harmonic Distortion
+    _ieee_before_tdd = (
+        safe_get(before_compliance, "ieee_tdd_value", default=None)
+        or safe_get(before_compliance, "tdd_value", default=None)
+        or safe_get(power_quality, "tdd_before", default=None)
+    )
+    _ieee_after_tdd = (
+        safe_get(after_compliance, "ieee_tdd_value", default=None)
+        or safe_get(after_compliance, "tdd_value", default=None)
+        or safe_get(power_quality, "tdd_after", default=None)
+    )
+    try:
+        _ieee_before_tdd = float(_ieee_before_tdd) if _ieee_before_tdd is not None else 0.0
+    except (TypeError, ValueError):
+        _ieee_before_tdd = 0.0
+    try:
+        _ieee_after_tdd = float(_ieee_after_tdd) if _ieee_after_tdd is not None else 0.0
+    except (TypeError, ValueError):
+        _ieee_after_tdd = 0.0
+    template_content = template_content.replace('{{IEEE_519_BEFORE_VALUE}}', f"{format_number(_ieee_before_tdd, 1)}%")
+    template_content = template_content.replace('{{IEEE_519_AFTER_VALUE}}', f"{format_number(_ieee_after_tdd, 1)}%")
 
     # Performance Standards - ASHRAE Guideline 14 Relative Precision - use processed compliance data
     before_ashrae_compliant = safe_get(before_compliance, "ashrae_precision_compliant", default=True)
@@ -3663,22 +3935,15 @@ def generate_exact_template_html(r):
     # IEEE 519 Compliance Details - Calculate from CSV data
     ieee_519_edition = safe_get(r, "ieee_519_edition", default="2014")
     
-    # IEEE 519 Section - Wrap entire section in try/except to prevent crashes
-    # Initialize defaults in case of error
+    # ISC/IL ratio only (not a harmonic value). Used for
+    # {{IEEE_519_ISC_IL_RATIO}} and the Methods & Formulas section.
+    # TDD limit, TDD values, PASS/FAIL verdicts and the improvement text
+    # are set exclusively by _apply_harmonics (single source of truth,
+    # runs at top of this function).
     ieee_519_isc_il_ratio = 0
-    ieee_519_tdd_limit = 20.0
-    ieee_519_before_tdd = 0.0
-    ieee_519_after_tdd = 0.0
-    ieee_519_before_compliance = "FAIL"
-    ieee_519_after_compliance = "FAIL"
-    ieee_519_improvement = "N/A"
-    
     try:
-        # Calculate ISC/IL ratio from transformer and load data
         isc_kA = safe_get(config, "isc_kA", default=0)
         il_A = safe_get(config, "il_A", default=0)
-        
-        # Convert to float if they're strings
         try:
             isc_kA = float(isc_kA) if isc_kA else 0
         except (ValueError, TypeError):
@@ -3687,17 +3952,12 @@ def generate_exact_template_html(r):
             il_A = float(il_A) if il_A else 0
         except (ValueError, TypeError):
             il_A = 0
-        
-        # Validation: Log that we're calculating from CSV data, not using hardcoded values
         print(f"DEBUG: METHODS & FORMULAS VALIDATION: IEEE 519 ISC/IL calculation using CSV data - isc_kA={isc_kA}, il_A={il_A}")
         if isc_kA > 0 and il_A > 0:
             ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A
         else:
-            # Try to calculate from transformer data if direct values not available
             xfmr_kva = safe_get(config, "xfmr_kva", default=0)
             voltage_nominal = safe_get(config, "voltage_nominal", default=0)
-            
-            # Convert to float if they're strings
             try:
                 xfmr_kva = float(xfmr_kva) if xfmr_kva else 0
             except (ValueError, TypeError):
@@ -3712,149 +3972,21 @@ def generate_exact_template_html(r):
             except (ValueError, TypeError):
                 xfmr_impedance_pct = 5.75
             xfmr_impedance_pct = xfmr_impedance_pct / 100
-            
             if xfmr_kva > 0 and voltage_nominal > 0:
-                # Calculate rated current
-                rated_current = (xfmr_kva * 1000) / (voltage_nominal * 1.732)  # 3-phase
-                # Calculate short circuit current
+                rated_current = (xfmr_kva * 1000) / (voltage_nominal * 1.732)
                 isc_A = rated_current / xfmr_impedance_pct
                 isc_kA = isc_A / 1000
-                # Use 60% of rated current as typical commercial demand (ASHRAE 90.1 / CBECS)
                 il_A = rated_current * 0.60
                 ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A if il_A > 0 else 0
-            else:
-                ieee_519_isc_il_ratio = 0
-        
-        # Calculate IEEE 519 TDD limit based on ISC/IL ratio (per IEEE 519-2022 Table 2)
-        # TDD limit INCREASES with ISC/IL (stiffer grid → more lenient limit)
-        if ieee_519_isc_il_ratio >= 1000:
-            ieee_519_tdd_limit = 20.0  # ISC/IL >= 1000: TDD limit = 20%
-        elif ieee_519_isc_il_ratio >= 100:
-            ieee_519_tdd_limit = 15.0  # ISC/IL 100–1000: TDD limit = 15%
-        elif ieee_519_isc_il_ratio >= 50:
-            ieee_519_tdd_limit = 12.0  # ISC/IL 50–100: TDD limit = 12%
-        elif ieee_519_isc_il_ratio >= 20:
-            ieee_519_tdd_limit = 8.0   # ISC/IL 20–50: TDD limit = 8%
-        else:
-            ieee_519_tdd_limit = 5.0   # ISC/IL < 20: TDD limit = 5%
-        
-        # GET TDD values from already-calculated compliance data (not recalculate)
-        # These values are already calculated and stored in before_compliance/after_compliance
-        ieee_519_before_tdd = safe_get(before_compliance, "ieee_tdd_value", default=None)
-        ieee_519_after_tdd = safe_get(after_compliance, "ieee_tdd_value", default=None)
-        
-        # Fallback to power_quality if not in compliance data
-        if ieee_519_before_tdd is None:
-            ieee_519_before_tdd = safe_get(power_quality, "thd_before", default=0)
-        if ieee_519_after_tdd is None:
-            ieee_519_after_tdd = safe_get(power_quality, "thd_after", default=0)
-        
-        # Safely convert to float
-        try:
-            if isinstance(ieee_519_before_tdd, str):
-                if ieee_519_before_tdd == "N/A" or ieee_519_before_tdd.strip() == "":
-                    ieee_519_before_tdd = 0.0
-                else:
-                    ieee_519_before_tdd = float(ieee_519_before_tdd)
-            elif ieee_519_before_tdd is None:
-                ieee_519_before_tdd = 0.0
-            else:
-                ieee_519_before_tdd = float(ieee_519_before_tdd)
-        except (ValueError, TypeError):
-            ieee_519_before_tdd = 0.0
-        
-        try:
-            if isinstance(ieee_519_after_tdd, str):
-                if ieee_519_after_tdd == "N/A" or ieee_519_after_tdd.strip() == "":
-                    ieee_519_after_tdd = 0.0
-                else:
-                    ieee_519_after_tdd = float(ieee_519_after_tdd)
-            elif ieee_519_after_tdd is None:
-                ieee_519_after_tdd = 0.0
-            else:
-                ieee_519_after_tdd = float(ieee_519_after_tdd)
-        except (ValueError, TypeError):
-            ieee_519_after_tdd = 0.0
-        
-        # Final safety check before comparison - ensure both are numeric
-        try:
-            if not isinstance(ieee_519_before_tdd, (int, float)):
-                print(f"[WARN] ieee_519_before_tdd is not numeric: {type(ieee_519_before_tdd).__name__}({ieee_519_before_tdd})", flush=True)
-                ieee_519_before_tdd = 0.0
-            if not isinstance(ieee_519_after_tdd, (int, float)):
-                print(f"[WARN] ieee_519_after_tdd is not numeric: {type(ieee_519_after_tdd).__name__}({ieee_519_after_tdd})", flush=True)
-                ieee_519_after_tdd = 0.0
-            if not isinstance(ieee_519_tdd_limit, (int, float)):
-                print(f"[WARN] ieee_519_tdd_limit is not numeric: {type(ieee_519_tdd_limit).__name__}({ieee_519_tdd_limit})", flush=True)
-                ieee_519_tdd_limit = 20.0
-        except Exception as e:
-            print(f"[WARN] Error in final safety check: {e}", flush=True)
-            ieee_519_before_tdd = 0.0
-            ieee_519_after_tdd = 0.0
-            ieee_519_tdd_limit = 20.0
-        
-        # Safe comparison with error handling
-        try:
-            ieee_519_before_compliance = "PASS" if float(ieee_519_before_tdd) <= float(ieee_519_tdd_limit) else "FAIL"
-            ieee_519_after_compliance = "PASS" if float(ieee_519_after_tdd) <= float(ieee_519_tdd_limit) else "FAIL"
-        except (ValueError, TypeError) as e:
-            print(f"[WARN] Error in compliance comparison: {e}, before_tdd={ieee_519_before_tdd}, after_tdd={ieee_519_after_tdd}, limit={ieee_519_tdd_limit}", flush=True)
-            ieee_519_before_compliance = "FAIL"
-            ieee_519_after_compliance = "FAIL"
-        
-        # Safely calculate improvement, handling string values
-        # Note: ieee_519_before_tdd and ieee_519_after_tdd should already be floats from above, but double-check
-        try:
-            # Ensure they're numeric - convert to float explicitly
-            try:
-                if isinstance(ieee_519_before_tdd, str):
-                    if ieee_519_before_tdd == "N/A" or ieee_519_before_tdd.strip() == "":
-                        before_tdd_num = 0.0
-                    else:
-                        before_tdd_num = float(ieee_519_before_tdd)
-                elif isinstance(ieee_519_before_tdd, (int, float)):
-                    before_tdd_num = float(ieee_519_before_tdd)
-                else:
-                    before_tdd_num = 0.0
-            except (ValueError, TypeError):
-                before_tdd_num = 0.0
-            
-            try:
-                if isinstance(ieee_519_after_tdd, str):
-                    if ieee_519_after_tdd == "N/A" or ieee_519_after_tdd.strip() == "":
-                        after_tdd_num = 0.0
-                    else:
-                        after_tdd_num = float(ieee_519_after_tdd)
-                elif isinstance(ieee_519_after_tdd, (int, float)):
-                    after_tdd_num = float(ieee_519_after_tdd)
-                else:
-                    after_tdd_num = 0.0
-            except (ValueError, TypeError):
-                after_tdd_num = 0.0
-            
-            # Final safety check - ensure both are numeric before subtraction
-            if not isinstance(before_tdd_num, (int, float)) or not isinstance(after_tdd_num, (int, float)):
-                print(f"[WARN] Non-numeric values detected: before_tdd_num={type(before_tdd_num).__name__}({before_tdd_num}), after_tdd_num={type(after_tdd_num).__name__}({after_tdd_num})", flush=True)
-                before_tdd_num = 0.0
-                after_tdd_num = 0.0
-            
-            ieee_519_improvement = format_number(before_tdd_num - after_tdd_num, 1)
-        except (ValueError, TypeError) as e:
-            print(f"[WARN] Error calculating IEEE 519 improvement: {e}, before_tdd={ieee_519_before_tdd}, after_tdd={ieee_519_after_tdd}", flush=True)
-            ieee_519_improvement = "N/A"
     except Exception as e:
-        print(f"[WARN] Error in IEEE 519 calculation: {e}", flush=True)
-        # Keep default values if calculation fails
+        print(f"[WARN] Error computing ISC/IL ratio: {e}", flush=True)
     
     template_content = template_content.replace('{{IEEE_519_EDITION}}', ieee_519_edition)
     template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
-    template_content = template_content.replace('{{IEEE_519_TDD_LIMIT}}', str(ieee_519_tdd_limit))
-    template_content = template_content.replace('{{IEEE_519_BEFORE_TDD}}', f"{format_number(ieee_519_before_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_TDD}}', f"{format_number(ieee_519_after_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_COMPLIANCE}}', ieee_519_before_compliance)
-    template_content = template_content.replace('{{IEEE_519_AFTER_COMPLIANCE}}', ieee_519_after_compliance)
-    template_content = template_content.replace('{{IEEE_519_IMPROVEMENT}}', ieee_519_improvement)
-    
+    # {{IEEE_519_TDD_LIMIT}}, {{IEEE_519_BEFORE_TDD}}, {{IEEE_519_AFTER_TDD}},
+    # {{IEEE_519_BEFORE_COMPLIANCE}}, {{IEEE_519_AFTER_COMPLIANCE}},
+    # {{IEEE_519_IMPROVEMENT}} are owned by _apply_harmonics (top of fn).
+
     # NEMA MG1 Phase Balance Details - GET already-calculated values (not recalculate)
     # Check multiple locations where voltage unbalance might be stored (same priority as UI JavaScript)
     nema_mg1_before_imbalance = None
@@ -4520,8 +4652,38 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{THD_BEFORE}}', f"{format_number(thd_before, 2)}%")
     template_content = template_content.replace('{{THD_AFTER}}', f"{format_number(thd_after, 2)}%")
     template_content = template_content.replace('{{THD_IMPROVEMENT}}', thd_improvement)
-    
-    
+
+    # TDD (Total Demand Distortion) — used for IEEE 519 compliance rows
+    _tdd_before = safe_get(power_quality, "tdd_before", default=None)
+    _tdd_after  = safe_get(power_quality, "tdd_after",  default=None)
+    # Fall back to THD only if TDD was never calculated
+    if _tdd_before is None:
+        _tdd_before = thd_before
+    if _tdd_after is None:
+        _tdd_after = thd_after
+    try:
+        _tdd_before = float(_tdd_before)
+    except (TypeError, ValueError):
+        _tdd_before = 0.0
+    try:
+        _tdd_after = float(_tdd_after)
+    except (TypeError, ValueError):
+        _tdd_after = 0.0
+    _tdd_impr_pct = ((_tdd_before - _tdd_after) / _tdd_before * 100) if _tdd_before > 0 else 0.0
+    _tdd_improvement = f"{abs(_tdd_impr_pct):.1f}% {'reduction' if _tdd_impr_pct >= 0 else 'increase'}"
+    template_content = template_content.replace('{{TDD_BEFORE}}', f"{format_number(_tdd_before, 2)}%")
+    template_content = template_content.replace('{{TDD_AFTER}}',  f"{format_number(_tdd_after,  2)}%")
+    template_content = template_content.replace('{{TDD_IMPROVEMENT}}', _tdd_improvement)
+
+    # IEEE 519 section uses its own placeholder names so the row stays semantically
+    # distinct from the raw-meter TDD line (which we still expose via {{TDD_*}} above
+    # for the Key Improvements dual-line summary). Both resolve to the same values
+    # because TDD = TDD; the split is purely for template readability.
+    template_content = template_content.replace('{{IEEE_TDD_BEFORE}}', f"{format_number(_tdd_before, 2)}%")
+    template_content = template_content.replace('{{IEEE_TDD_AFTER}}',  f"{format_number(_tdd_after,  2)}%")
+    template_content = template_content.replace('{{IEEE_TDD_IMPROVEMENT}}', _tdd_improvement)
+
+
     # IEEE 519-2014/2022 Power Quality Analysis - Standards-Compliant Electrical Parameters
     # Use power_quality data source (same as UI) for consistency
     power_quality = safe_get(r, "power_quality", default={})
@@ -5058,35 +5220,28 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{WEATHER_DATA_COMPLETENESS}}', f"{format_number(weather_data_completeness, 1)}%")
     template_content = template_content.replace('{{WEATHER_NORMALIZATION_METHOD}}', weather_normalization_method)
     
-    # IEEE 519-2014 Power Quality Analysis - Harmonic Control Methodology
-    # Use power_quality and config data sources (same as UI) for consistency
+    # IEEE 519-2014 Power Quality Analysis — METADATA ONLY.
+    # All harmonic values (TDD before/after, compliance, improvement,
+    # TDD limit, IEEE_519_BEFORE/AFTER_TDD) are owned by _apply_harmonics
+    # at the top of this function. Do not re-introduce harmonic
+    # substitutions here.
     power_quality = safe_get(r, "power_quality", default={})
     config = safe_get(r, "config", default={})
-    
-    # Extract IEEE 519 specific data from power_quality and config
+
     ieee_519_standard_reference = "IEEE Std 519-2014 - IEEE Recommended Practice and Requirements for Harmonic Control in Electric Power Systems"
     ieee_519_pcc_status = safe_get(r, "pcc_location", default="Main Service")
-    ieee_519_edition = safe_get(config, "ieee_519_edition", default="1")
     ieee_519_isc_il_ratio = safe_get(power_quality, "isc_il_ratio", default=0)
     ieee_519_harmonic_depth = safe_get(r, "harmonic_analysis_depth", default="50th order")
     ieee_519_measurement_method = safe_get(r, "ieee_519_measurement_method", default="Standardized harmonic measurement per IEEE 519 Section 4.2.1")
     ieee_519_tdd_formula = "TDD = √(Σ(h=2 to 50) Ih²) / IL × 100%"
     ieee_519_voltage_tdd_limit = safe_get(r, "ieee_519_voltage_tdd_limit", default=0)
-    ieee_519_tdd_limit = safe_get(power_quality, "ieee_tdd_limit", default=0)
     ieee_519_before_voltage_tdd = safe_get(before_compliance, "ieee_519_voltage_tdd", default=0)
     ieee_519_after_voltage_tdd = safe_get(after_compliance, "ieee_519_voltage_tdd", default=0)
-    ieee_519_before_tdd = safe_get(power_quality, "thd_before", default=0)
-    ieee_519_after_tdd = safe_get(power_quality, "thd_after", default=0)
-    
-    
     ieee_519_individual_limits = f"Individual harmonic limits based on ISC/IL ratio of {ieee_519_isc_il_ratio}"
-    ieee_519_before_compliance = "PASS" if safe_get(before_compliance, "ieee_compliant", default=True) else "FAIL"
-    ieee_519_after_compliance = "PASS" if safe_get(power_quality, "ieee_compliant_after", default=True) else "FAIL"
     ieee_c57_110_applied = safe_get(r, "ieee_c57_110_method", default="THD approximation method")
     ieee_519_transformer_loss_method = safe_get(r, "ieee_519_transformer_loss_method", default="Harmonic-based transformer loss calculation per IEEE C57.110")
     ieee_519_steady_state_analysis = safe_get(r, "ieee_519_steady_state_analysis", default="Steady-state harmonic limits as per IEEE 519 Section 4.1")
-    
-    # Replace IEEE 519 template variables
+
     template_content = template_content.replace('{{IEEE_519_STANDARD_REFERENCE}}', ieee_519_standard_reference)
     template_content = template_content.replace('{{IEEE_519_PCC_STATUS}}', ieee_519_pcc_status)
     template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
@@ -5094,17 +5249,15 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{IEEE_519_MEASUREMENT_METHOD}}', ieee_519_measurement_method)
     template_content = template_content.replace('{{IEEE_519_TDD_FORMULA}}', ieee_519_tdd_formula)
     template_content = template_content.replace('{{IEEE_519_VOLTAGE_TDD_LIMIT}}', f"{format_number(ieee_519_voltage_tdd_limit, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_TDD_LIMIT}}', f"{format_number(ieee_519_tdd_limit, 1)}%")
     template_content = template_content.replace('{{IEEE_519_BEFORE_VOLTAGE_TDD}}', f"{format_number(ieee_519_before_voltage_tdd, 1)}%")
     template_content = template_content.replace('{{IEEE_519_AFTER_VOLTAGE_TDD}}', f"{format_number(ieee_519_after_voltage_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_BEFORE_TDD}}', f"{format_number(ieee_519_before_tdd, 1)}%")
-    template_content = template_content.replace('{{IEEE_519_AFTER_TDD}}', f"{format_number(ieee_519_after_tdd, 1)}%")
     template_content = template_content.replace('{{IEEE_519_INDIVIDUAL_LIMITS}}', ieee_519_individual_limits)
-    template_content = template_content.replace('{{IEEE_519_BEFORE_COMPLIANCE}}', ieee_519_before_compliance)
-    template_content = template_content.replace('{{IEEE_519_AFTER_COMPLIANCE}}', ieee_519_after_compliance)
     template_content = template_content.replace('{{IEEE_C57_110_APPLIED}}', ieee_c57_110_applied)
     template_content = template_content.replace('{{IEEE_519_TRANSFORMER_LOSS_METHOD}}', ieee_519_transformer_loss_method)
     template_content = template_content.replace('{{IEEE_519_STEADY_STATE_ANALYSIS}}', ieee_519_steady_state_analysis)
+    # {{IEEE_519_TDD_LIMIT}}, {{IEEE_519_BEFORE_TDD}}, {{IEEE_519_AFTER_TDD}},
+    # {{IEEE_519_BEFORE_COMPLIANCE}}, {{IEEE_519_AFTER_COMPLIANCE}} — owned
+    # by _apply_harmonics (top of fn). Do not substitute here.
     
     
     # NEMA MG1 Three-Phase Analysis - Phase Balance Analysis
@@ -7664,6 +7817,10 @@ def generate_exact_template_html(r):
     except Exception as _app_ex:
         import traceback as _tb
         print(f"[APPENDIX A] Warning: could not render appendix: {_app_ex}\n{_tb.format_exc()}")
+
+    # Harmonics (THD/TDD/IEEE 519) were substituted once at the top of this
+    # function via _apply_harmonics. No late pass is needed — and adding one
+    # would be a no-op anyway because the placeholders are already gone.
 
     return template_content
 

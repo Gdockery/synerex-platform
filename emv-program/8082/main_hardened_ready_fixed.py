@@ -1069,10 +1069,17 @@ class Config:
     OUTLIER_Z_THRESHOLD = 3.0  # ASHRAE Guideline 14-2014 Section 14.3.2
 
     # IEEE 519-2014/2022 standards
-    # Table 10.3 lists 5% for systems <1 kV; 8% is the accepted limit for
-    # many industrial / commercial facilities where the utility voltage is
-    # ≥1 kV at the point of common coupling.  Set to 8.0 as the platform default.
-    IEEE_519_THD_LIMIT = 8.0  # IEEE 519-2014 Table 10.3 (industrial PCC default)
+    #
+    # NOTE: this is a TDD limit (Total Demand Distortion at the PCC),
+    # not THD. IEEE 519 Table 2 gives TDD limits indexed by ISC/I_L; for
+    # the typical industrial / commercial PCC band (ISC/I_L ∈ [20, 50])
+    # the TDD limit is 8.0%. The actual per-analysis limit is computed
+    # by `_ieee_519_tdd_limit_for(isc_il_ratio)` — this constant is
+    # only a fallback when ISC/I_L cannot be determined.
+    IEEE_519_TDD_LIMIT = 8.0  # IEEE 519-2014 Table 2 (industrial PCC default)
+    # Deprecated alias — kept so old env vars / external callers still work.
+    # Do NOT use in new code; reference IEEE_519_TDD_LIMIT instead.
+    IEEE_519_THD_LIMIT = IEEE_519_TDD_LIMIT
 
     # NEMA MG1-2016 standards
     NEMA_MG1_IMBALANCE_LIMIT = 1.0  # NEMA MG1-2016 Section 12.45
@@ -1109,9 +1116,13 @@ class Config:
         except Exception:
             pass
         try:
-            cfg.IEEE_519_THD_LIMIT = float(
-                os.environ.get("IEEE_519_THD_LIMIT", cfg.IEEE_519_THD_LIMIT)
+            # Prefer the new env var name; fall back to the legacy one.
+            _v = os.environ.get(
+                "IEEE_519_TDD_LIMIT",
+                os.environ.get("IEEE_519_THD_LIMIT", cfg.IEEE_519_TDD_LIMIT),
             )
+            cfg.IEEE_519_TDD_LIMIT = float(_v)
+            cfg.IEEE_519_THD_LIMIT = cfg.IEEE_519_TDD_LIMIT  # keep alias in sync
         except Exception:
             pass
         try:
@@ -3237,10 +3248,13 @@ EQUIPMENT_CONFIGS = {
     },
 }
 
-# Module-level alias — single source of truth for IEEE 519 voltage THD limit.
-# All classes and inline checks should reference this constant rather than
-# using a hardcoded numeric literal.
-IEEE_519_VOLTAGE_THD_LIMIT = Config.IEEE_519_THD_LIMIT
+# Module-level alias — single source of truth for the IEEE 519 TDD limit.
+#
+# Historical name was `IEEE_519_VOLTAGE_THD_LIMIT`; that was a misnomer (the
+# value is a TDD limit per IEEE 519 Table 2, not a voltage THD limit per
+# §5.1). Both names are kept so existing call sites continue to compile.
+IEEE_519_TDD_LIMIT = Config.IEEE_519_TDD_LIMIT
+IEEE_519_VOLTAGE_THD_LIMIT = IEEE_519_TDD_LIMIT  # deprecated alias
 
 # =============================================================================
 # JSON SANITIZER
@@ -3341,6 +3355,362 @@ def safe_div(a, b, default=0.0):
         return a / b
     except Exception:
         return default
+
+
+# =============================================================================
+# HARMONICS (THD / TDD / IEEE 519) — SINGLE SOURCE OF TRUTH
+# =============================================================================
+#
+# Background: THD (Total Harmonic Distortion, scaled to I₁) and TDD (Total
+# Demand Distortion, scaled to I_L at the PCC) are semantically distinct:
+#
+#   THD  → equipment exposure (motors, VFDs, transformers, UPSs)
+#   TDD  → utility / IEEE 519-2014/2022 Table 2 compliance at the PCC
+#
+# Historically this file had ~12 scattered blocks each re-deriving these
+# values with subtly different fallbacks (e.g. "tdd_after defaults to
+# thd_after" — which silently leaks THD into IEEE 519 verdicts). The two
+# helpers below are the *only* place those derivations should happen. All
+# downstream code (calc path, audit-package PDFs, JSON exports, internal
+# HTML composers) should call `harmonics_snapshot(results)` and consume the
+# returned dict — never re-implement the lookup or the verdict.
+#
+# Mirror in 8084: emv-program/8084/generate_exact_template_html.py
+# (`_build_harmonics_snapshot` / `_apply_harmonics`). Keep the priority
+# cascades in lockstep.
+# =============================================================================
+
+# IEEE 519-2014 Table 2 — TDD limits indexed by ISC/I_L ratio (current
+# distortion at the PCC). Higher ISC/I_L means a stiffer grid → more
+# lenient TDD allowance. This is the canonical lookup used everywhere.
+def _ieee_519_tdd_limit_for(isc_il_ratio):
+    """Return the IEEE 519-2014 Table 2 TDD limit (% of I_L) for a given
+    ISC/I_L ratio at the PCC.
+
+    Args:
+        isc_il_ratio: short-circuit current divided by maximum demand load
+            current at the PCC.
+
+    Returns:
+        TDD limit as a float percent. Conservative 5.0% default when the
+        ratio is unknown / non-positive.
+    """
+    try:
+        r = float(isc_il_ratio) if isc_il_ratio is not None else 0.0
+    except (TypeError, ValueError):
+        r = 0.0
+    if r >= 1000:
+        return 20.0
+    if r >= 100:
+        return 15.0
+    if r >= 50:
+        return 12.0
+    if r >= 20:
+        return 8.0
+    return 5.0
+
+
+def _safe_num(x, default=0.0):
+    """Coerce x to float, treating None / "" / "N/A" / unparseable as default."""
+    try:
+        if x is None:
+            return default
+        if isinstance(x, str):
+            s = x.strip()
+            if not s or s.upper() == "N/A":
+                return default
+            return float(s)
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+
+def harmonics_snapshot(results):
+    """Build the canonical THD / TDD / IEEE 519 snapshot for a results dict.
+
+    `results` is the analysis-results structure as stored on the
+    EM&V service (the same shape that 8084 receives via
+    /api/analysis/results). This function reads from these subkeys:
+
+      results["power_quality"]      — THD / TDD measurements
+      results["before_compliance"]  — pre-installation compliance dict
+      results["after_compliance"]   — post-installation compliance dict
+      results["config"]             — for ISC/I_L override
+
+    Priority cascade for TDD:
+      1. before_compliance/after_compliance.ieee_tdd_value
+      2. before_compliance/after_compliance.tdd_value
+      3. power_quality.tdd_before / tdd_after
+      4. (LAST RESORT, flagged) power_quality.thd_before / thd_after
+         — happens only when 8082 could not compute TDD because I_L was
+         missing. The verdict will be wrong relative to a true PCC reading.
+
+    THD has no fallback — it's raw-meter data and should always be in
+    power_quality.
+
+    IEEE 519 limit:
+      power_quality.ieee_tdd_limit  →  table 2 lookup from isc_il_ratio
+      →  5.0% conservative default
+
+    Returns:
+        dict with shape:
+        {
+            "thd": {"before": float, "after": float,
+                    "impr_pct": float, "impr_txt": str},
+            "tdd": {"before": float, "after": float,
+                    "impr_pct": float, "impr_txt": str,
+                    "limit": float,
+                    "before_pass": bool, "after_pass": bool,
+                    "before_verdict": "PASS"|"FAIL",
+                    "after_verdict":  "PASS"|"FAIL",
+                    "from_thd_fallback": bool},
+            "isc_il_ratio": float,
+        }
+    """
+    pq = (results or {}).get("power_quality") or {}
+    bc = (results or {}).get("before_compliance") or {}
+    ac = (results or {}).get("after_compliance") or {}
+
+    # THD — equipment exposure. No TDD-direction fallback.
+    thd_b = _safe_num(pq.get("thd_before"))
+    thd_a = _safe_num(pq.get("thd_after"))
+
+    # TDD — utility / IEEE 519. Cascade through compliance dicts then PQ.
+    def _first_non_null(*vals):
+        for v in vals:
+            if v is not None:
+                return v
+        return None
+
+    raw_tdd_b = _first_non_null(
+        bc.get("ieee_tdd_value"),
+        bc.get("tdd_value"),
+        pq.get("tdd_before"),
+    )
+    raw_tdd_a = _first_non_null(
+        ac.get("ieee_tdd_value"),
+        ac.get("tdd_value"),
+        pq.get("tdd_after"),
+    )
+    tdd_from_thd_fallback = (raw_tdd_b is None) or (raw_tdd_a is None)
+    tdd_b = _safe_num(raw_tdd_b, default=thd_b)
+    tdd_a = _safe_num(raw_tdd_a, default=thd_a)
+
+    # ISC/I_L: prefer the per-analysis value 8082 stored in power_quality;
+    # fall back to a config override if present (some legacy uploads set
+    # this in the form data).
+    isc_il_ratio = _safe_num(
+        pq.get("isc_il_ratio"),
+        default=_safe_num((results or {}).get("config", {}).get("isc_il_ratio"))
+    )
+
+    # TDD limit: prefer the value 8082 already wrote (which itself uses
+    # the table-2 lookup), else recompute from ISC/I_L, else 5.0%.
+    tdd_limit = _safe_num(pq.get("ieee_tdd_limit"))
+    if tdd_limit <= 0:
+        tdd_limit = _ieee_519_tdd_limit_for(isc_il_ratio)
+
+    def _impr(b, a):
+        if b and b > 0:
+            pct = (b - a) / b * 100.0
+            word = "reduction" if pct >= 0 else "increase"
+            return pct, f"{abs(pct):.1f}% {word}"
+        return 0.0, "N/A"
+
+    thd_pct, thd_txt = _impr(thd_b, thd_a)
+    tdd_pct, tdd_txt = _impr(tdd_b, tdd_a)
+
+    before_pass = bool(tdd_b <= tdd_limit)
+    after_pass  = bool(tdd_a <= tdd_limit)
+
+    return {
+        "thd": {
+            "before": thd_b,
+            "after": thd_a,
+            "impr_pct": thd_pct,
+            "impr_txt": thd_txt,
+        },
+        "tdd": {
+            "before": tdd_b,
+            "after": tdd_a,
+            "impr_pct": tdd_pct,
+            "impr_txt": tdd_txt,
+            "limit": tdd_limit,
+            "before_pass": before_pass,
+            "after_pass":  after_pass,
+            "before_verdict": "PASS" if before_pass else "FAIL",
+            "after_verdict":  "PASS" if after_pass  else "FAIL",
+            "from_thd_fallback": tdd_from_thd_fallback,
+        },
+        "isc_il_ratio": isc_il_ratio,
+    }
+
+
+def _resolve_il_and_i1(before_data, after_data, config, il_A_known=0,
+                       il_demand_known=0):
+    """Resolve I_L (max demand load current) and I₁ (mean fundamental
+    current) for both the before and after periods, used by the TDD
+    computation in the analysis pipeline.
+
+    I_L priority cascade:
+      1. user-supplied `il_A` from config (typically from short-circuit study)
+      2. `il_demand_A` from config (explicit demand override)
+      3. peak `avgAmp` from the CSV (max demand observed in audit period)
+      4. 60% of transformer rated current (conservative ASHRAE 90.1 default)
+
+    I₁ priority cascade:
+      1. mean `avgAmp` from the processed dict (already computed upstream)
+      2. mean `avgAmp` from re-reading the CSV directly
+
+    NEVER use mean current as a substitute for I_L — that would force
+    TDD ≈ THD because I₁/I_L → 1, hiding utility-side distortion.
+
+    Args:
+        before_data, after_data: per-period data dicts (must have file_path).
+        config: the analysis config dict.
+        il_A_known: pre-resolved user I_L (skip cascade if positive).
+        il_demand_known: pre-resolved demand override (skip cascade if positive).
+
+    Returns:
+        dict with keys:
+            il_before, il_after,            (floats, amps; max demand)
+            i1_before, i1_after,            (floats, amps; mean fundamental)
+            il_source_before, il_source_after  (str, provenance for logs)
+    """
+    import pandas as _pd  # local import — avoids hot path cost when unused
+    user_il = float(il_A_known or 0)
+    if user_il <= 0:
+        try:
+            user_il = float((config or {}).get("il_A", 0) or 0)
+        except (TypeError, ValueError):
+            user_il = 0.0
+    if user_il <= 0:
+        try:
+            user_il = float(il_demand_known or (config or {}).get("il_demand_A", 0) or 0)
+        except (TypeError, ValueError):
+            user_il = 0.0
+
+    il_b = user_il if user_il > 0 else 0.0
+    il_a = user_il if user_il > 0 else 0.0
+    i1_b = 0.0
+    i1_a = 0.0
+    src_b = "user-supplied il_A" if user_il > 0 else None
+    src_a = "user-supplied il_A" if user_il > 0 else None
+
+    bf_path = (before_data or {}).get("file_path", "")
+    af_path = (after_data or {}).get("file_path", "")
+    for path, is_before in ((bf_path, True), (af_path, False)):
+        if not path:
+            continue
+        try:
+            amps = _pd.read_csv(path, usecols=["avgAmp"])["avgAmp"].dropna()
+            if amps.empty:
+                continue
+            peak = float(amps.max())
+            mean = float(amps.mean())
+            if is_before:
+                if il_b <= 0:
+                    il_b, src_b = peak, "CSV peak avgAmp (max demand)"
+                if i1_b <= 0:
+                    i1_b = mean
+            else:
+                if il_a <= 0:
+                    il_a, src_a = peak, "CSV peak avgAmp (max demand)"
+                if i1_a <= 0:
+                    i1_a = mean
+        except Exception:
+            continue
+
+    if il_b <= 0 or il_a <= 0:
+        try:
+            xfmr_kva = float((config or {}).get("xfmr_kva", 0) or 0)
+            v_nom    = float((config or {}).get("voltage_nominal", 480) or 480)
+            phases   = int((config or {}).get("phases", 3) or 3)
+            if xfmr_kva > 0 and v_nom > 0:
+                rated = (xfmr_kva * 1000) / (1.732 * v_nom) if phases == 3 else (xfmr_kva * 1000) / v_nom
+                fb = rated * 0.60
+                if il_b <= 0:
+                    il_b, src_b = fb, "60% of transformer rated current"
+                if il_a <= 0:
+                    il_a, src_a = fb, "60% of transformer rated current"
+        except Exception:
+            pass
+
+    return {
+        "il_before": il_b, "il_after": il_a,
+        "i1_before": i1_b, "i1_after": i1_a,
+        "il_source_before": src_b, "il_source_after": src_a,
+    }
+
+
+def _harmonics_snapshot_audit(power_quality=None, after_compliance=None,
+                              before_compliance=None, compliance_status=None,
+                              compliance=None, after_data=None, before_data=None,
+                              data=None, results_data=None, config=None):
+    """Adapter for audit-package report generators.
+
+    The audit-package functions (generate_audit_package,
+    generate_calculation_methodologies_document, etc.) receive data in a
+    flatter / more scattered shape than the canonical analysis-results
+    dict. This wrapper coalesces the common legacy aliases into the shape
+    `harmonics_snapshot` expects, then defers to it. Use this helper at
+    audit-package call sites instead of re-implementing the cascade.
+
+    All keyword arguments are optional; pass whatever local variables
+    are available at the call site.
+    """
+    pq = dict(power_quality or {})
+
+    # Promote legacy aliases into the canonical names where the canonical
+    # key is missing. Search order = same priority used historically.
+    promotions = (
+        ("tdd_before", ("tdd_before", "total_demand_distortion_before")),
+        ("tdd_after",  ("tdd_after",  "total_demand_distortion", "tdd")),
+        ("thd_before", ("thd_before", "total_harmonic_distortion_before")),
+        ("thd_after",  ("thd_after",  "total_harmonic_distortion", "thd")),
+        ("ieee_tdd_limit", ("ieee_tdd_limit", "tdd_limit", "ieee_limit")),
+        ("isc_il_ratio",   ("isc_il_ratio", "isc_il")),
+    )
+    sources = (compliance_status, compliance, after_compliance,
+               before_compliance, after_data, before_data,
+               data, results_data, config)
+    for canonical, aliases in promotions:
+        if pq.get(canonical) in (None, "", "N/A"):
+            for src in sources:
+                if not isinstance(src, dict):
+                    continue
+                for a in aliases:
+                    v = src.get(a)
+                    if v not in (None, "", "N/A"):
+                        pq[canonical] = v
+                        break
+                if pq.get(canonical) not in (None, "", "N/A"):
+                    break
+
+    # If isc_il_ratio is still missing, try to derive it from isc_kA and il_A.
+    if _safe_num(pq.get("isc_il_ratio")) <= 0:
+        isc_kA = 0.0
+        il_A = 0.0
+        for src in sources:
+            if not isinstance(src, dict):
+                continue
+            if isc_kA <= 0:
+                isc_kA = _safe_num(
+                    src.get("isc_kA") or src.get("isc_ka") or src.get("short_circuit_current")
+                )
+            if il_A <= 0:
+                il_A = _safe_num(
+                    src.get("il_A") or src.get("il_a") or src.get("load_current")
+                )
+        if isc_kA > 0 and il_A > 0:
+            pq["isc_il_ratio"] = (isc_kA * 1000.0) / il_A
+
+    return harmonics_snapshot({
+        "power_quality": pq,
+        "before_compliance": before_compliance or {},
+        "after_compliance":  after_compliance or {},
+        "config": config or {},
+    })
 
 
 # =============================================================================
@@ -11248,8 +11618,15 @@ class PowerQualityNormalization:
 
     def __init__(self):
         self.target_pf = 0.95  # Utility target
-        self.ieee_thd_current_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 TDD limit
-        self.ieee_thd_voltage_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 voltage limit
+        # ieee_tdd_limit_at_pcc: IEEE 519 Table 2 TDD current-distortion
+        # limit at the Point of Common Coupling (the value the utility
+        # actually penalizes against). Renamed from `ieee_thd_current_limit`
+        # because the old name caused systemic confusion — IEEE 519 §5
+        # is a TDD standard, not a THD one.
+        self.ieee_tdd_limit_at_pcc = IEEE_519_TDD_LIMIT
+        # Deprecated alias — keep until all readers are migrated.
+        self.ieee_thd_current_limit = self.ieee_tdd_limit_at_pcc
+        self.ieee_thd_voltage_limit = IEEE_519_TDD_LIMIT  # IEEE 519 §5.1 voltage THD limit
         self.ieee_edition = "2014"  # IEEE 519 edition (2014 or 2022)
         self.isc_kA = None  # Short circuit current in kA
         self.il_A = None  # Load current in A
@@ -11320,10 +11697,13 @@ class PowerQualityNormalization:
         pf_penalty_before = self._calculate_utility_penalty(true_pf_before)
         pf_penalty_after = self._calculate_utility_penalty(true_pf_after)
 
-        # IEEE 519-2014 Section 4.2.5 - Compliance Assessment
-        # TDD (Total Demand Distortion) compliance per IEEE 519-2014 Table 10.3
-        ieee_compliant_before = bool(thd_before <= self.ieee_thd_current_limit)
-        ieee_compliant_after = bool(thd_after <= self.ieee_thd_current_limit)
+        # IEEE 519-2014 §4.2.5 / Table 2 — TDD compliance at the PCC.
+        # NOTE: this is a partial check — the values being compared are
+        # THD (equipment terminals), not TDD (PCC). The full per-analysis
+        # TDD check is recomputed downstream once I_L is known. Kept here
+        # for backward-compat with the rest of the dict shape.
+        ieee_compliant_before = bool(thd_before <= self.ieee_tdd_limit_at_pcc)
+        ieee_compliant_after = bool(thd_after <= self.ieee_tdd_limit_at_pcc)
 
         return {
             "kw_before": kw_before,
@@ -15089,19 +15469,9 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
                     f"IL={'metered avgAmp' if avg_amp_est > 0 else '60% rated'}"
                 )
 
-        # IEEE 519-2022 Table 2 / IEEE 519-2014 Table 10.3 TDD limits
-        if isc_il_ratio >= 1000:
-            ieee_tdd_limit = 20.0
-        elif isc_il_ratio >= 100:
-            ieee_tdd_limit = 15.0
-        elif isc_il_ratio >= 50:
-            ieee_tdd_limit = 12.0
-        elif isc_il_ratio >= 20:
-            ieee_tdd_limit = 8.0
-        elif isc_il_ratio > 0:
-            ieee_tdd_limit = 5.0
-        else:
-            ieee_tdd_limit = 5.0  # Conservative default when no data at all
+        # IEEE 519-2014 Table 2 / IEEE 519-2022 Table 2 — single source of truth
+        # for TDD limits. See `_ieee_519_tdd_limit_for` near top of module.
+        ieee_tdd_limit = _ieee_519_tdd_limit_for(isc_il_ratio)
 
         # IEEE 519 requires TDD = √(ΣIₕ²) / I_L (maximum demand load current).
         # The CSV avgTHD column is THD = √(ΣIₕ²) / I₁ (instantaneous fundamental).
@@ -16361,9 +16731,10 @@ def perform_comprehensive_analysis(
             "export_harmonic_spectrum", False
         )
 
-        # Set IEEE 519 TDD limit based on ISC/IL ratio
-        pq_analyzer.ieee_thd_current_limit = pq_analyzer.get_ieee_519_tdd_limit()
-        pq_analyzer.ieee_thd_voltage_limit = IEEE_519_VOLTAGE_THD_LIMIT  # IEEE 519 voltage limit
+        # Set per-analysis IEEE 519 TDD limit based on ISC/I_L ratio.
+        pq_analyzer.ieee_tdd_limit_at_pcc = pq_analyzer.get_ieee_519_tdd_limit()
+        pq_analyzer.ieee_thd_current_limit = pq_analyzer.ieee_tdd_limit_at_pcc  # legacy alias
+        pq_analyzer.ieee_thd_voltage_limit = IEEE_519_TDD_LIMIT  # IEEE 519 §5.1 voltage THD limit
     except Exception as e:
         logger.error(f"Power quality analysis failed: {e}")
         logger.error(
@@ -16970,41 +17341,31 @@ def perform_comprehensive_analysis(
             f"Before: {power_quality_results['voltage_unbalance_before']}, After: {power_quality_results['voltage_unbalance_after']}"
         )
 
-    # Compute TDD from THD per IEEE 519-2022 §2.23:
-    #   TDD = (√ΣIₕ²) / I_L × 100  where I_L = maximum demand load current.
+    # ─── TDD computation — STAGE 1 of 2: aggregate THD path ─────────────
     #
-    # The CSV avgTHD column is THD = (√ΣIₕ²) / I₁ (instantaneous fundamental).
-    # Converting:  TDD = THD × (I₁_mean / I_L)
+    # Compute TDD from the *aggregate* THD column (avgTHD) per IEEE 519-2022
+    # §2.23.  TDD = THD × (I₁_mean / I_L).  This always runs and seeds
+    # `power_quality_results["tdd_*"]`.
     #
-    # I_L priority:
-    #   1. User-supplied il_A (most accurate — from short-circuit study)
-    #   2. Peak interval current read directly from the CSV here (max of avgAmp)
-    #   3. Mean current — last resort, gives TDD = THD (conservative proxy)
-    # I_L and I_mean for TDD — read directly from CSV to avoid issues with
-    # processed-data dicts that may have None means when avgAmp is missing.
-    _tdd_il_before = float(il_A) if il_A and il_A > 0 else 0.0
-    _tdd_il_after  = float(il_A) if il_A and il_A > 0 else 0.0
-    _tdd_i1_before = float(current_before) if current_before and current_before > 0 else 0.0
-    _tdd_i1_after  = float(current_after)  if current_after  and current_after  > 0 else 0.0
+    # STAGE 2 (later, around the per-order spectrum block ~L17920) may
+    # OVERRIDE these values when a per-order harmonic spectrum is present
+    # in the CSV (h3_pct…h49_pct) — that path is more accurate because
+    # it does not depend on the aggregate avgTHD column.
+    #
+    # I_L / I₁ resolution is delegated to `_resolve_il_and_i1`, the single
+    # source of truth for both stages. NEVER substitute mean current for
+    # I_L — that forces TDD ≈ THD and hides the utility-side distortion.
+    _curi = _resolve_il_and_i1(before_data, after_data, config)
+    _tdd_il_before = _curi["il_before"]
+    _tdd_il_after  = _curi["il_after"]
+    _tdd_i1_before = float(current_before) if current_before and current_before > 0 else _curi["i1_before"]
+    _tdd_i1_after  = float(current_after)  if current_after  and current_after  > 0 else _curi["i1_after"]
 
-    _bf_path = before_data.get("file_path", "")
-    _af_path = after_data.get("file_path", "")
-    if _bf_path and _af_path:
-        try:
-            _df_b_amp = pd.read_csv(_bf_path, usecols=["avgAmp"])["avgAmp"].dropna()
-            _df_a_amp = pd.read_csv(_af_path, usecols=["avgAmp"])["avgAmp"].dropna()
-            if not _df_b_amp.empty:
-                if _tdd_il_before <= 0:
-                    _tdd_il_before = float(_df_b_amp.max())
-                if _tdd_i1_before <= 0:
-                    _tdd_i1_before = float(_df_b_amp.mean())
-            if not _df_a_amp.empty:
-                if _tdd_il_after <= 0:
-                    _tdd_il_after = float(_df_a_amp.max())
-                if _tdd_i1_after <= 0:
-                    _tdd_i1_after = float(_df_a_amp.mean())
-        except Exception as _tdd_e:
-            logger.warning(f"TDD: could not read peak/mean current from CSV: {_tdd_e}")
+    logger.info(
+        f"TDD I_L (max demand load current) — before: {_tdd_il_before:.2f}A "
+        f"({_curi['il_source_before']}), after: {_tdd_il_after:.2f}A ({_curi['il_source_after']}); "
+        f"I_avg — before: {_tdd_i1_before:.2f}A, after: {_tdd_i1_after:.2f}A"
+    )
 
     if _tdd_il_before > 0 and _tdd_i1_before > 0:
         tdd_before_calc = thd_before * (_tdd_i1_before / _tdd_il_before)
@@ -17015,21 +17376,13 @@ def perform_comprehensive_analysis(
     else:
         tdd_after_calc = thd_after  # conservative: no current data
 
-    # IEEE 519-2022 Table 2 TDD limit for the configured ISC/IL ratio
+    # IEEE 519 Table 2 TDD limit for the configured ISC/I_L ratio.
+    # See `_ieee_519_tdd_limit_for` near top of module.
     if isc_kA > 0 and il_A > 0:
         _pq_isc_il = (isc_kA * 1000) / il_A
-        if _pq_isc_il >= 1000:
-            _pq_tdd_limit = 20.0
-        elif _pq_isc_il >= 100:
-            _pq_tdd_limit = 15.0
-        elif _pq_isc_il >= 50:
-            _pq_tdd_limit = 12.0
-        elif _pq_isc_il >= 20:
-            _pq_tdd_limit = 8.0
-        else:
-            _pq_tdd_limit = 5.0
+        _pq_tdd_limit = _ieee_519_tdd_limit_for(_pq_isc_il)
     else:
-        _pq_tdd_limit = 5.0  # Default: most conservative (no ISC/IL data)
+        _pq_tdd_limit = _ieee_519_tdd_limit_for(0)
 
     power_quality_results["tdd_before"] = tdd_before_calc
     power_quality_results["tdd_after"] = tdd_after_calc
@@ -17565,46 +17918,32 @@ def perform_comprehensive_analysis(
                         results["power_quality"]["k_factor"] = round(_kf, 3)
                         logger.info(f"IEEE C57.110-2018 K-factor computed: {_kf:.3f}")
 
-                    # ── TDD (IEEE 519-2022 §2.23 / Table 1) ────────────────
-                    # IEEE 519 §2.23: TDD = √(Σ Ih²) / IL × 100
-                    #   where Ih are harmonic RMS currents in AMPS and IL is the
-                    #   maximum demand load current in AMPS.
+                    # ─── TDD computation — STAGE 2 of 2: per-order spectrum ───
+                    # IEEE 519 §2.23: TDD = √(Σ Ih²) / IL × 100, where Ih
+                    # are harmonic RMS currents in AMPS and IL is the max
+                    # demand load current in AMPS.
                     #
-                    # The CSV h*_pct columns are Ih as % of I1 (fundamental), NOT amps.
-                    # Correct conversion: Ih_A = (h_pct / 100) × I1_mean_A
-                    # Therefore: TDD = √(Σ (h_pct/100 × I1)²) / IL × 100
-                    #                = (I1/IL) × √(Σ h_pct²/10000) × 100
-                    #                = (I1/IL) × √(Σ h_pct²) / 100 × 100
-                    #                = (I1/IL) × THD_pct   (where THD_pct = √Σ h_pct²)
-                    _il_demand = config.get("il_demand_A") or pq_analyzer.il_A or 0
-                    # Mean current (I₁) — numerator in TDD = THD × (I₁/I_L).
-                    # Fall back to direct CSV read when processed-data mean is None.
+                    # The CSV h*_pct columns store Ih as % of I1 (NOT amps).
+                    # Conversion: Ih_A = (h_pct / 100) × I1_mean_A
+                    #   ⇒ TDD = (I1/IL) × √(Σ h_pct²) = (I1/IL) × THD_pct
+                    #
+                    # This stage OVERRIDES the aggregate-THD TDD computed
+                    # earlier (~L17247) when spectrum data is present, since
+                    # per-order summation is more accurate.
+                    #
+                    # I_L / I₁ resolution uses the same shared helper as
+                    # stage 1 — `_resolve_il_and_i1` is the single source
+                    # of truth for both.
+                    _curi2 = _resolve_il_and_i1(
+                        before_data, after_data, config,
+                        il_A_known=pq_analyzer.il_A or 0,
+                        il_demand_known=config.get("il_demand_A") or 0,
+                    )
+                    _il_demand = _curi2["il_before"] or _curi2["il_after"]
                     _raw_i1_b = (before_data.get("avgAmp", {}) or {}).get("mean")
                     _raw_i1_a = (after_data.get("avgAmp",  {}) or {}).get("mean")
-                    _i1_mean_b = float(_raw_i1_b) if _raw_i1_b and float(_raw_i1_b) > 0 else 0.0
-                    _i1_mean_a = float(_raw_i1_a) if _raw_i1_a and float(_raw_i1_a) > 0 else 0.0
-
-                    # Derive I_L and I₁ from CSV peak/mean when not already available.
-                    _bf_path_spec = before_data.get("file_path", "")
-                    _af_path_spec = after_data.get("file_path", "")
-                    if _bf_path_spec:
-                        try:
-                            _df_amp_b = pd.read_csv(_bf_path_spec, usecols=["avgAmp"])["avgAmp"].dropna()
-                            if not _df_amp_b.empty:
-                                if not (_il_demand > 0):
-                                    _il_demand = float(_df_amp_b.max())
-                                if _i1_mean_b <= 0:
-                                    _i1_mean_b = float(_df_amp_b.mean())
-                        except Exception:
-                            pass
-                    if _af_path_spec:
-                        try:
-                            _df_amp_a = pd.read_csv(_af_path_spec, usecols=["avgAmp"])["avgAmp"].dropna()
-                            if not _df_amp_a.empty:
-                                if _i1_mean_a <= 0:
-                                    _i1_mean_a = float(_df_amp_a.mean())
-                        except Exception:
-                            pass
+                    _i1_mean_b = float(_raw_i1_b) if _raw_i1_b and float(_raw_i1_b) > 0 else _curi2["i1_before"]
+                    _i1_mean_a = float(_raw_i1_a) if _raw_i1_a and float(_raw_i1_a) > 0 else _curi2["i1_after"]
 
                     def _tdd_from_spectrum(spec: dict, i1_mean: float, il: float):
                         """TDD = (I1/IL) × √(Σ h_pct²) — units-correct per IEEE 519 §2.23."""
@@ -23657,4535 +23996,96 @@ def _load_data_from_file_id(file_id):
 
 @app.route("/api/generate-report", methods=["POST"])
 def _generate_report():
-    """Generate HTML report using exact template format"""
+    """Legacy HTML-report endpoint. Now a thin proxy to the 8084 service.
+
+    Historically this route contained ~4550 lines of duplicated template
+    logic that mirrored /api/serve-template-report. The canonical HTML
+    report path is now /api/serve-template-report, which forwards to the
+    8084 service (emv-program/8084/generate_exact_template_html.py — the
+    single source of truth). Keeping /api/generate-report as a proxy
+    preserves backward-compat for external scripts / tests (e.g.
+    emv-program/8082/verify_data_source.py and the API docs in the
+    users guide) without maintaining two parallel HTML generators.
+
+    Access logs show zero runtime UI/JS callers for this endpoint; this
+    proxy may be deleted entirely once verify_data_source.py and the
+    users-guide API docs are updated to point at /api/serve-template-report.
+    """
+    import requests as _req
+
     try:
-        # Extract and validate report data
-        report_data = extract_report_data(request.get_json())
+        raw = request.get_json(silent=True) or {}
+        report_data = extract_report_data(raw)
         if "error" in report_data:
             return jsonify({"error": report_data["error"]}), 400
-        
+
         data = report_data["raw_data"]
 
-        # Check if this is a direct report generation call with just file IDs
-        # If so, we need to run the analysis first to get the compliance data
-        logger.info(
-            f"Report generation - Checking conditions: before_file_id={'before_file_id' in data}, after_file_id={'after_file_id' in data}, after_compliance={'after_compliance' in data}"
-        )
+        # Mode (b): caller supplied file IDs but no pre-computed compliance
+        # data. Run analyze() internally so the 8084 generator receives a
+        # fully-populated results payload — same behavior the original
+        # ~4550-line handler had at the top of its body.
         if (
             "before_file_id" in data
             and "after_file_id" in data
             and "after_compliance" not in data
         ):
             logger.info(
-                "Report generation - Direct call with file IDs, running analysis first to get compliance data"
+                "generate-report (proxy): running analyze() for file IDs "
+                f"{data.get('before_file_id')}/{data.get('after_file_id')}"
             )
-
-            # Use the existing analyze endpoint to get full analysis results
             try:
-                # Create a proper Flask request object that mimics the analyze endpoint
-                from flask import Request
-                import io
-
-                # Create form data
-                form_data = {
-                    "before_file_id": str(data["before_file_id"]),
-                    "after_file_id": str(data["after_file_id"]),
-                    "facility_address": data.get("facility_address", "Test Facility"),
-                }
-
-                # Create a proper Flask request object
-                class MockRequest:
-                    def __init__(self, form_data):
-                        self.form = form_data
+                class _MockAnalyzeRequest:
+                    def __init__(self, form):
+                        self.form = form
                         self.get_json = lambda: None
                         self.method = "POST"
                         self.content_type = "application/x-www-form-urlencoded"
 
-                # Call the analyze endpoint directly
-                analysis_request = MockRequest(form_data)
-                analysis_response = analyze(analysis_request)
-
-                # Extract JSON data from Flask response
-                if hasattr(analysis_response, "get_json"):
-                    analysis_data = analysis_response.get_json()
-                else:
-                    # If it's already a dict, use it directly
-                    analysis_data = analysis_response
-
-                if analysis_data and "results" in analysis_data:
-                    # Extract the results from the analysis response
-                    results = analysis_data["results"]
-                    data.update(results)
-                    logger.info(
-                        f"Report generation - Analysis completed, merged results with keys: {list(data.keys())}"
-                    )
-                    logger.info(
-                        f"Report generation - after_compliance keys after analysis: {list(data.get('after_compliance', {}).keys())}"
-                    )
-                else:
-                    logger.error("Report generation - Analysis returned no results")
-
-            except Exception as e:
-                logger.error(f"Report generation - Analysis failed: {e}")
-                # Continue with original data if analysis fails
-
-        if "config" in data:
-            logger.info(
-                f"Report generation - Config keys: {list(data['config'].keys())}"
-            )
-            # Debug checkbox values specifically
-            config = data["config"]
-            logger.info(
-                f"Report generation - Checkbox values: power_factor_not_included={config.get('power_factor_not_included')}, no_cp_event={config.get('no_cp_event')}"
-            )
-
-        # The data structure is different - it's not in 'results' but directly in the data
-        # Log some sample data to understand the structure
-        for key in ["power_quality", "three_phase", "energy", "demand", "financial"]:
-            if key in data:
-                logger.info(
-                    f"Report generation - {key}: {type(data[key])} - {str(data[key])[:200]}..."
-                )
-
-        # Debug financial data specifically
-        if "financial" in data and isinstance(data["financial"], dict):
-            financial = data["financial"]
-            logger.info(f"Report generation - Financial keys: {list(financial.keys())}")
-            logger.info(
-                f"Report generation - Financial values: initial_cost={financial.get('initial_cost')}, total_annual_savings={financial.get('total_annual_savings')}, savings_investment_ratio={financial.get('savings_investment_ratio')}"
-            )
-
-        # Use the same HTML generation approach as the UI's HTML Report
-        # This ensures the export looks exactly the same as the UI
-        logger.info("Report generation - Using UI HTML Report generation approach")
-
-        # Generate HTML report using the same method as the UI
-        try:
-            # Use the same template and data processing as the UI
-            html_content, _, _ = _generate_report_from_data(data)
-            logger.info("Report generation - Generated HTML using UI method")
-        except Exception as e:
-            logger.error(
-                f"Report generation - Error generating HTML using UI method: {e}"
-            )
-            # Fallback to template-based approach
-            template_path = os.path.join(
-                os.path.dirname(__file__), "report_template.html"
-            )
-            try:
-                with open(template_path, "r", encoding="utf-8") as f:
-                    html_content = f.read()
-                logger.info(
-                    f"Report generation - Using fallback template: {template_path}"
-                )
-            except FileNotFoundError:
-                # Final fallback
-                template_path = os.path.join(
-                    os.path.dirname(os.path.dirname(__file__)),
-                    "synerex_standard_report_template.html",
-                )
-                with open(template_path, "r", encoding="utf-8") as f:
-                    html_content = f.read()
-                logger.info(
-                    f"Report generation - Using final fallback template: {template_path}"
-                )
-
-        # Debug: Check if M&V Compliance Status section exists in template
-        if "M&V Compliance Status" in html_content:
-            logger.info(
-                "Report generation - M&V Compliance Status section found in template"
-            )
-        else:
-            logger.warning(
-                "Report generation - M&V Compliance Status section NOT found in template"
-            )
-
-        # Debug: Check template content length and key sections
-        logger.info(
-            f"Report generation - Template content length: {len(html_content)} characters"
-        )
-        logger.info(
-            f"Report generation - Template contains 'Data Integrity Standards': {'Data Integrity Standards' in html_content}"
-        )
-        logger.info(
-            f"Report generation - Template contains 'ASHRAE_GUIDELINE_14_VALUE': {'{{ASHRAE_GUIDELINE_14_VALUE}}' in html_content}"
-        )
-
-        # Extract key information from the data for replacement
-        config = data.get("config", {})
-
-        # Extract test parameters from config
-        test_name = config.get("test_circuit", "Main Test")
-        circuit_name = config.get(
-            "equipment_type", "Main Circuit"
-        )  # Use equipment_type for Circuit
-        project_name = config.get("project_name", "Power Analysis Project")
-
-        # Extract date information from actual data
-        before_date = "N/A"
-        after_date = "N/A"
-        duration = "N/A"
-        before_days = 0
-        after_days = 0
-
-        # Try to extract actual timestamps from the data
-        # Look for timestamp data in various possible locations
-        logger.info(f"Report generation - Exploring data structure for timestamps...")
-
-        # Check if there's a timestamp field at the root level
-        if "timestamp" in data:
-            logger.info(
-                f"Report generation - Found timestamp field: {data['timestamp']}"
-            )
-
-        # Check energy section for timestamp info
-        if "energy" in data and isinstance(data["energy"], dict):
-            energy = data["energy"]
-            logger.info(f"Report generation - Energy keys: {list(energy.keys())}")
-            if "timestamps" in energy:
-                logger.info(
-                    f"Report generation - Found timestamps in energy: {len(energy['timestamps'])} entries"
-                )
-
-        # Check power_quality section for timestamp info
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-            logger.info(f"Report generation - Power quality keys: {list(pq.keys())}")
-
-        # Check if there are any other sections that might contain timestamp data
-        for key in ["statistical", "three_phase", "envelope_analysis"]:
-            if key in data and isinstance(data[key], dict):
-                section = data[key]
-                if "timestamps" in section or "before" in section or "after" in section:
-                    logger.info(
-                        f"Report generation - Found potential timestamp data in {key}: {list(section.keys())}"
-                    )
-
-        # Try to extract timestamp data from the actual CSV files
-        if "files" in data and isinstance(data["files"], dict):
-            files = data["files"]
-            logger.info(f"Report generation - Files data: {files}")
-
-            # Try to read the CSV files directly to get timestamp information
-            try:
-
-                before_file = files.get("before")
-                after_file = files.get("after")
-
-                # Check if files exist and read them
-                if before_file:
-                    try:
-                        logger.info(
-                            f"Report generation - Reading before file: {before_file}"
-                        )
-                        df_before = pd.read_csv(before_file)
-                        if (
-                            "timestamp" in df_before.columns
-                            or "Start Time" in df_before.columns
-                        ):
-                            timestamp_col = (
-                                "timestamp"
-                                if "timestamp" in df_before.columns
-                                else "Start Time"
-                            )
-                            timestamps = pd.to_datetime(
-                                df_before[timestamp_col], errors="coerce"
-                            ).dropna()
-                            if len(timestamps) > 0:
-                                before_date = f"{timestamps.iloc[0].strftime('%Y-%m-%d %H:%M')} - {timestamps.iloc[-1].strftime('%Y-%m-%d %H:%M')}"
-                                # Calculate actual time difference in days (works for any interval: 1-min, 15-min, hourly, etc.)
-                                time_diff = timestamps.iloc[-1] - timestamps.iloc[0]
-                                before_days = max(1, round(time_diff.total_seconds() / 86400))  # 86400 = seconds per day
-                                logger.info(
-                                    f"Report generation - Extracted before period: {before_date}, {before_days} days (calculated from {len(timestamps)} timestamps)"
-                                )
-                    except Exception as e:
-                        logger.warning(
-                            f"Report generation - Error reading before file: {e}"
-                        )
-
-                if after_file:
-                    try:
-                        logger.info(
-                            f"Report generation - Reading after file: {after_file}"
-                        )
-                        df_after = pd.read_csv(after_file)
-                        if (
-                            "timestamp" in df_after.columns
-                            or "Start Time" in df_after.columns
-                        ):
-                            timestamp_col = (
-                                "timestamp"
-                                if "timestamp" in df_after.columns
-                                else "Start Time"
-                            )
-                            timestamps = pd.to_datetime(
-                                df_after[timestamp_col], errors="coerce"
-                            ).dropna()
-                            if len(timestamps) > 0:
-                                after_date = f"{timestamps.iloc[0].strftime('%Y-%m-%d %H:%M')} - {timestamps.iloc[-1].strftime('%Y-%m-%d %H:%M')}"
-                                # Calculate actual time difference in days (works for any interval: 1-min, 15-min, hourly, etc.)
-                                time_diff = timestamps.iloc[-1] - timestamps.iloc[0]
-                                after_days = max(1, round(time_diff.total_seconds() / 86400))  # 86400 = seconds per day
-                                logger.info(
-                                    f"Report generation - Extracted after period: {after_date}, {after_days} days (calculated from {len(timestamps)} timestamps)"
-                                )
-                    except Exception as e:
-                        logger.warning(
-                            f"Report generation - Error reading after file: {e}"
-                        )
-
-                # Format duration
-                if before_days > 0 and after_days > 0:
-                    duration = (
-                        f"{before_days} Days (Before) | {after_days} Days (After)"
-                    )
-                elif before_days > 0:
-                    duration = f"{before_days} Days (Before)"
-                elif after_days > 0:
-                    duration = f"{after_days} Days (After)"
-
-            except Exception as e:
-                logger.warning(f"Report generation - Error in CSV processing: {e}")
-
-        # If duration still not calculated, try to get it from data timestamps
-        if duration == "N/A" and before_days == 0 and after_days == 0:
-            logger.info("Report generation - Attempting to calculate duration from data timestamps...")
-            # Try to calculate from before_data and after_data timestamps
-            if "before_data" in data and isinstance(data["before_data"], dict):
-                before_timestamps = data["before_data"].get("timestamps", [])
-                if before_timestamps and len(before_timestamps) > 0:
-                    try:
-                        first_ts = pd.to_datetime(before_timestamps[0], errors="coerce")
-                        last_ts = pd.to_datetime(before_timestamps[-1], errors="coerce")
-                        if pd.notna(first_ts) and pd.notna(last_ts):
-                            time_diff = last_ts - first_ts
-                            before_days = max(1, round(time_diff.total_seconds() / 86400))
-                            before_date = f"{first_ts.strftime('%Y-%m-%d %H:%M')} - {last_ts.strftime('%Y-%m-%d %H:%M')}"
-                            logger.info(f"Report generation - Calculated before_days from data timestamps: {before_days} days")
-                    except Exception as e:
-                        logger.warning(f"Report generation - Error calculating before_days from timestamps: {e}")
-            
-            # Also check energy section for before timestamps
-            if before_days == 0 and "energy" in data and isinstance(data["energy"], dict):
-                energy = data["energy"]
-                # Check for before-specific timestamps
-                if "before_timestamps" in energy:
-                    before_timestamps = energy["before_timestamps"]
-                elif "timestamps" in energy and isinstance(energy["timestamps"], list):
-                    # If there's a before/after split, try to find before portion
-                    before_timestamps = energy["timestamps"]
-                else:
-                    before_timestamps = []
-                
-                if before_timestamps and len(before_timestamps) > 0:
-                    try:
-                        first_ts = pd.to_datetime(before_timestamps[0], errors="coerce")
-                        last_ts = pd.to_datetime(before_timestamps[-1], errors="coerce")
-                        if pd.notna(first_ts) and pd.notna(last_ts):
-                            time_diff = last_ts - first_ts
-                            before_days = max(1, round(time_diff.total_seconds() / 86400))
-                            before_date = f"{first_ts.strftime('%Y-%m-%d %H:%M')} - {last_ts.strftime('%Y-%m-%d %H:%M')}"
-                            logger.info(f"Report generation - Calculated before_days from energy timestamps: {before_days} days")
-                    except Exception as e:
-                        logger.warning(f"Report generation - Error calculating before_days from energy timestamps: {e}")
-            
-            if "after_data" in data and isinstance(data["after_data"], dict):
-                after_timestamps = data["after_data"].get("timestamps", [])
-                if after_timestamps and len(after_timestamps) > 0:
-                    try:
-                        first_ts = pd.to_datetime(after_timestamps[0], errors="coerce")
-                        last_ts = pd.to_datetime(after_timestamps[-1], errors="coerce")
-                        if pd.notna(first_ts) and pd.notna(last_ts):
-                            time_diff = last_ts - first_ts
-                            after_days = max(1, round(time_diff.total_seconds() / 86400))
-                            after_date = f"{first_ts.strftime('%Y-%m-%d %H:%M')} - {last_ts.strftime('%Y-%m-%d %H:%M')}"
-                            logger.info(f"Report generation - Calculated after_days from data timestamps: {after_days} days")
-                    except Exception as e:
-                        logger.warning(f"Report generation - Error calculating after_days from timestamps: {e}")
-            
-            # Also check energy section for after timestamps
-            if after_days == 0 and "energy" in data and isinstance(data["energy"], dict):
-                energy = data["energy"]
-                # Check for after-specific timestamps
-                if "after_timestamps" in energy:
-                    after_timestamps = energy["after_timestamps"]
-                elif "timestamps" in energy and isinstance(energy["timestamps"], list):
-                    # If timestamps span both periods, we'd need to know the split point
-                    # For now, use all timestamps as after if before wasn't found
-                    if before_days == 0:
-                        after_timestamps = energy["timestamps"]
-                    else:
-                        after_timestamps = []
-                else:
-                    after_timestamps = []
-                
-                if after_timestamps and len(after_timestamps) > 0:
-                    try:
-                        first_ts = pd.to_datetime(after_timestamps[0], errors="coerce")
-                        last_ts = pd.to_datetime(after_timestamps[-1], errors="coerce")
-                        if pd.notna(first_ts) and pd.notna(last_ts):
-                            time_diff = last_ts - first_ts
-                            after_days = max(1, round(time_diff.total_seconds() / 86400))
-                            after_date = f"{first_ts.strftime('%Y-%m-%d %H:%M')} - {last_ts.strftime('%Y-%m-%d %H:%M')}"
-                            logger.info(f"Report generation - Calculated after_days from energy timestamps: {after_days} days")
-                    except Exception as e:
-                        logger.warning(f"Report generation - Error calculating after_days from energy timestamps: {e}")
-            
-            # Format duration if we calculated it
-            if before_days > 0 or after_days > 0:
-                if before_days > 0 and after_days > 0:
-                    duration = f"{before_days} Days (Before) | {after_days} Days (After)"
-                elif before_days > 0:
-                    duration = f"{before_days} Days (Before)"
-                elif after_days > 0:
-                    duration = f"{after_days} Days (After)"
-
-        # Fallback to config values if data extraction fails (only as last resort)
-        if before_date == "N/A":
-            before_date = config.get("test_period_before", "N/A")
-        if after_date == "N/A":
-            after_date = config.get("test_period_after", "N/A")
-        if duration == "N/A":
-            duration = config.get("test_duration", "N/A")
-            logger.warning(f"Report generation - Using duration from config (fallback): {duration}")
-
-        # Debug logging for test parameters
-        logger.info(
-            f"Report generation - Test Parameters: test_name={test_name}, circuit_name={circuit_name}"
-        )
-        logger.info(
-            f"Report generation - Period: before_date={before_date}, after_date={after_date}"
-        )
-        logger.info(f"Report generation - Duration: {duration}")
-
-        # Extract electrical parameters from the actual data structure
-        voltage_before = "480.0"  # Default value
-        voltage_after = "480.0"  # Default value
-
-        # Try to extract voltage from power_quality data
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-            if "voltage_before" in pq:
-                voltage_before = f"{safe_float(pq['voltage_before']):.2f}"
-            if "voltage_after" in pq:
-                voltage_after = f"{safe_float(pq['voltage_after']):.2f}"
-            elif "voltage" in pq:
-                voltage_before = f"{safe_float(pq['voltage']):.2f}"
-                voltage_after = f"{safe_float(pq['voltage']):.2f}"
-
-        # Extract current data
-        amps_before = "320.2"  # Default
-        amps_after = "259.4"  # Default
-        if "three_phase" in data and isinstance(data["three_phase"], dict):
-            tp = data["three_phase"]
-            if "current_before" in tp:
-                amps_before = str(tp["current_before"])
-            if "current_after" in tp:
-                amps_after = str(tp["current_after"])
-            elif "current" in tp:
-                amps_before = str(tp["current"])
-                # Calculate after value assuming improvement
-                before_val = float(amps_before)
-                improvement = 0.19  # 19% improvement
-                amps_after = str(round(before_val * (1 - improvement), 1))
-
-        # Extract power data
-        kw_before = "246.8"  # Default
-        kw_after = "200.4"  # Default
-        if "energy" in data and isinstance(data["energy"], dict):
-            energy = data["energy"]
-            if "kw_before" in energy:
-                kw_before = str(energy["kw_before"])
-            if "kw_after" in energy:
-                kw_after = str(energy["kw_after"])
-            elif "kw" in energy:
-                kw_before = str(energy["kw"])
-                # Calculate after value (assuming improvement)
-                before_val = float(kw_before)
-                improvement = 0.19  # 19% improvement
-                kw_after = str(round(before_val * (1 - improvement), 1))
-
-        # Extract kVA data
-        kva_before = "259.7"  # Default
-        kva_after = "210.9"  # Default
-        if "energy" in data and isinstance(data["energy"], dict):
-            energy = data["energy"]
-            if "kva_before" in energy:
-                kva_before = str(energy["kva_before"])
-            if "kva_after" in energy:
-                kva_after = str(energy["kva_after"])
-            elif "kva" in energy:
-                kva_before = str(energy["kva"])
-                # Calculate after value
-                before_val = float(kva_before)
-                improvement = 0.19  # 19% improvement
-                kva_after = str(round(before_val * (1 - improvement), 1))
-
-        # Extract power factor data - use actual CSV data, no hardcoded defaults
-        pf_before = "0.00"  # Will be overridden by actual data
-        pf_after = "0.00"  # Will be overridden by actual data
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-            if "pf_before" in pq:
-                pf_before = f"{safe_float(pq['pf_before']):.3f}"
-            if "pf_after" in pq:
-                pf_after = f"{safe_float(pq['pf_after']):.3f}"
-            elif "power_factor" in pq:
-                pf_before = f"{safe_float(pq['power_factor']):.3f}"
-                # Power factor improvement to near unity
-                pf_after = "1.00"
-
-        # FORCE CORRECT VALUES - Override with actual power quality data
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-            if "pf_before" in pq and "pf_after" in pq:
-                pf_before = f"{safe_float(pq['pf_before']):.3f}"
-                pf_after = f"{safe_float(pq['pf_after']):.3f}"
-                logger.info(
-                    f"🔧 FORCED PF VALUES: pf_before = {pf_before}, pf_after = {pf_after}"
-                )
-
-        # Calculate improvements
-        def calculate_improvement(before, after):
-            try:
-                before_val = safe_float(before)
-                after_val = safe_float(after)
-                if before_val == 0:
-                    return "0.0%"
-                improvement = ((before_val - after_val) / before_val) * 100
-                return f"{improvement:.1f}%"
-            except:
-                return "0.0%"
-
-        def calculate_power_factor_improvement(before, after):
-            try:
-                before_val = safe_float(before)
-                after_val = safe_float(after)
-                if before_val == 0:
-                    return "0.0%"
-                # For power factor, improvement is (after - before) / before * 100
-                # This gives positive percentage for improvements (0.69 -> 1.00)
-                improvement = ((after_val - before_val) / before_val) * 100
-                return f"{improvement:.1f}%"
-            except:
-                return "0.0%"
-
-        amps_improvement = calculate_improvement(amps_before, amps_after)
-        logger.info(f"🔧 AMPS DEBUG: Line 17176 - amps_improvement = {amps_improvement} (from amps_before={amps_before}, amps_after={amps_after})")
-        kw_improvement = calculate_improvement(kw_before, kw_after)
-        kva_improvement = calculate_improvement(kva_before, kva_after)
-        pf_improvement = calculate_power_factor_improvement(pf_before, pf_after)
-
-        # Log the extracted values for debugging
-        logger.info(f"Report generation - Extracted values:")
-        logger.info(f"  Voltage: {voltage_before} V -> {voltage_after} V")
-        logger.info(
-            f"  Current: {amps_before} A -> {amps_after} A ({amps_improvement})"
-        )
-        logger.info(f"  Power: {kw_before} kW -> {kw_after} kW ({kw_improvement})")
-        logger.info(f"  kVA: {kva_before} kVA -> {kva_after} kVA ({kva_improvement})")
-        logger.info(f"  Power Factor: {pf_before} -> {pf_after} ({pf_improvement})")
-
-        # Extract detailed IEC standards compliance data
-        iec_standards_table = []
-
-        # Extract power quality compliance data
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-
-            # IEEE 519-2014 TDD compliance
-            if "ieee_compliant_before" in pq and "ieee_compliant_after" in pq:
-                before_status = "✓ PASS" if pq["ieee_compliant_before"] else "✗ FAIL"
-                after_status = "✓ PASS" if pq["ieee_compliant_after"] else "✗ FAIL"
-                before_value = (
-                    f"{pq.get('tdd_before', 0.0):.1f}%" if "tdd_before" in pq else "N/A"
-                )
-                after_value = (
-                    f"{pq.get('tdd_after', 0.0):.1f}%" if "tdd_after" in pq else "N/A"
-                )
-                iec_standards_table.append(
-                    {
-                        "standard": "IEEE 519-2014/2022",
-                        "requirement": "TDD < IEEE 519 Limit (ISC/IL)",
-                        "before_status": before_status,
-                        "after_status": after_status,
-                        "before_value": before_value,
-                        "after_value": after_value,
-                    }
-                )
-
-            # Individual harmonics compliance — None means "not assessed (no per-order data)"
-            _ih_before = pq.get("individual_harmonics_before")
-            _ih_after  = pq.get("individual_harmonics_after")
-            before_status = (
-                "✓ PASS" if _ih_before is True else
-                "✗ FAIL" if _ih_before is False else
-                "— Not assessed (per-order spectrum data required)"
-            )
-            after_status = (
-                "✓ PASS" if _ih_after is True else
-                "✗ FAIL" if _ih_after is False else
-                "— Not assessed (per-order spectrum data required)"
-            )
-            before_value = (
-                f"{pq.get('individual_thd_before', 0.0):.1f}%"
-                if "individual_thd_before" in pq
-                else "N/A"
-            )
-            after_value = (
-                f"{pq.get('individual_thd_after', 0.0):.1f}%"
-                if "individual_thd_after" in pq
-                else "N/A"
-            )
-            iec_standards_table.append(
-                {
-                    "standard": "IEEE 519 Individual",
-                    "requirement": "Individual Harmonics < 5.0% (IEEE Limit)",
-                    "before_status": before_status,
-                    "after_status": after_status,
-                    "before_value": before_value,
-                    "after_value": after_value,
-                }
-            )
-
-        # Extract three-phase imbalance data
-        if "three_phase" in data and isinstance(data["three_phase"], dict):
-            tp = data["three_phase"]
-            if "before" in tp and "after" in tp:
-                before_imbalance = tp["before"].get("imbalance_percent", 1.88)
-                after_imbalance = tp["after"].get("imbalance_percent", 0.24)
-                before_status = (
-                    "✓ PASS" if before_imbalance < 1.0 else "✗ FAIL"
-                )  # NEMA MG1: 1% voltage unbalance limit
-                after_status = (
-                    "✓ PASS" if after_imbalance < 1.0 else "✗ FAIL"
-                )  # NEMA MG1: 1% voltage unbalance limit
-                iec_standards_table.append(
-                    {
-                        "standard": "NEMA MG1",
-                        "requirement": "Voltage Unbalance < 1%",  # NEMA MG1 standard
-                        "before_status": before_status,
-                        "after_status": after_status,
-                        "before_value": f"{before_imbalance:.2f}%",
-                        "after_value": f"{after_imbalance:.2f}%",
-                    }
-                )
-
-        # Add remaining IEC standards with default values
-        additional_standards = [
-            {
-                "standard": "IEC 61000-4-30",
-                "requirement": "Class A Instrument Accuracy ±0.5%",
-                "before_status": "✓ PASS",
-                "after_status": "✓ PASS",
-                "before_value": "0.50%",
-                "after_value": "0.50%",
-            },
-            {
-                "standard": "IEC 61000-4-7",
-                "requirement": "Measurement Methods Compliant",
-                "before_status": "✓ PASS",
-                "after_status": "✓ PASS",
-                "before_value": "Compliant",
-                "after_value": "Compliant",
-            },
-            {
-                "standard": "IEC 61000-2-2",
-                "requirement": "Voltage Variation ±10%",
-                "before_status": "✓ PASS",
-                "after_status": "✓ PASS",
-                "before_value": "1.5%",
-                "after_value": "2.8%",
-            },
-            {
-                "standard": "IEC 60034-30-1",
-                "requirement": "Motor Efficiency Class ≥ IE2",
-                "before_status": "✗ FAIL",
-                "after_status": "✓ PASS",
-                "before_value": "IE1",
-                "after_value": "IE3",
-            },
-        ]
-
-        # Add additional standards if not already present
-        for standard in additional_standards:
-            if not any(
-                s["standard"] == standard["standard"] for s in iec_standards_table
-            ):
-                iec_standards_table.append(standard)
-
-        # Add default IEC standards if no data found
-        if not iec_standards_table:
-            iec_standards_table = [
-                {
-                    "standard": "IEEE 519-2014/2022",
-                    "requirement": "TDD < IEEE 519 Limit (ISC/IL)",
-                    "before_status": "✓ PASS",
-                    "after_status": "✓ PASS",
-                    "before_value": "Compliant",
-                    "after_value": "Compliant",
-                },
-                {
-                    "standard": "IEEE 519 Individual",
-                    "requirement": "Individual Harmonics < 5.0% (IEEE Limit)",
-                    "before_status": "✓ PASS",
-                    "after_status": "✓ PASS",
-                    "before_value": "Compliant",
-                    "after_value": "Compliant",
-                },
-                {
-                    "standard": "NEMA MG1",
-                    "requirement": "Voltage Unbalance < 1%",  # NEMA MG1 standard
-                    "before_status": "✗ FAIL",
-                    "after_status": "✓ PASS",
-                    "before_value": "1.88%",
-                    "after_value": "0.24%",
-                },
-                {
-                    "standard": "IEC 61000-4-30",
-                    "requirement": "Class A Instrument Accuracy ±0.5%",
-                    "before_status": "✓ PASS",
-                    "after_status": "✓ PASS",
-                    "before_value": "0.50%",
-                    "after_value": "0.50%",
-                },
-                {
-                    "standard": "IEC 61000-4-7",
-                    "requirement": "Measurement Methods Compliant",
-                    "before_status": "✓ PASS",
-                    "after_status": "✓ PASS",
-                    "before_value": "Compliant",
-                    "after_value": "Compliant",
-                },
-                {
-                    "standard": "IEC 61000-2-2",
-                    "requirement": "Voltage Variation ±10%",
-                    "before_status": "✓ PASS",
-                    "after_status": "✓ PASS",
-                    "before_value": "1.5%",
-                    "after_value": "2.8%",
-                },
-                {
-                    "standard": "IEC 60034-30-1",
-                    "requirement": "Motor Efficiency Class ≥ IE2",
-                    "before_status": "✗ FAIL",
-                    "after_status": "✓ PASS",
-                    "before_value": "IE1",
-                    "after_value": "IE3",
-                },
-            ]
-
-        # Replace placeholder values in the template
-        replacements = {
-            "Main Test": test_name,
-            "Main Circuit": circuit_name,
-            " - 5/31/2025 23:00 |  - 4/30/2025 23:00": f"{before_date} | {after_date}",
-            "30 Days": duration,
-            "480.0 V (Before)": f"{voltage_before} V",
-            "480.0 V (After)": f"{voltage_after} V",
-            "320.2 A": f"{amps_before} A",
-            "259.4 A": f"{amps_after} A",
-            "246.8 kW": f"{kw_before} kW",
-            "200.4 kW": f"{kw_after} kW",
-            "259.7 kVA": f"{kva_before} kVA",
-            "210.9 kVA": f"{kva_after} kVA",
-            "0.7": pf_before,
-            "1.0": pf_after,
-            "19.0%": amps_improvement,
-            "18.8% (kW)": kw_improvement,
-            "18.8% (kVA)": kva_improvement,
-            "44.5%": pf_improvement,
-        }
-        logger.info(f"🔧 AMPS DEBUG: Line 17391 - amps_improvement = {amps_improvement}")
-
-        # Generate IEC standards table HTML
-        iec_table_html = """
-        <table class="compliance-table">
-            <tr>
-                <th>Standard</th>
-                <th>Requirement</th>
-                <th>Before XECO</th>
-                <th>After XECO</th>
-                <th>Before Value</th>
-                <th>After Value</th>
-            </tr>
-        """
-
-        for standard in iec_standards_table:
-            iec_table_html += f"""
-            <tr>
-                <td><strong>{standard['standard']}</strong></td>
-                <td>{standard['requirement']}</td>
-                <td class="{'compliant' if 'PASS' in standard['before_status'] else 'non-compliant' if 'FAIL' in standard['before_status'] else ''}">{standard['before_status']}</td>
-                <td class="{'compliant' if 'PASS' in standard['after_status'] else 'non-compliant' if 'FAIL' in standard['after_status'] else ''}">{standard['after_status']}</td>
-                <td class="value-cell">{standard['before_value']}</td>
-                <td class="value-cell">{standard['after_value']}</td>
-            </tr>
-            """
-
-        iec_table_html += "</table>"
-
-        # Replace the entire Performance section in the template
-        performance_section_replacement = f"""
-            <h3>⚡ Performance</h3>
-            <div class="compliance-note">
-                <strong>Network Improvement Standards:</strong> These tests measure the effectiveness of power quality improvements. Before XECO shows baseline compliance (typically non-compliant), After XECO shows post-retrofit compliance (should show improvement). IEEE 519 measures harmonic distortion reduction, Individual Harmonics checks specific harmonic limits, NEMA MG1 validates phase balance, IEC 61000-4-30 validates measurement accuracy, IEC 61000-4-7 ensures harmonic compliance, IEC 61000-2-2 checks voltage compatibility, and AHRI 550/590 validates chiller efficiency standards.
-            </div>
-            {iec_table_html}
-        """
-
-        # Generate Report section (Data Integrity)
-        report_section_repl = f"""
-            <h3>📊 Report</h3>
-            <div class="compliance-note" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 8px 0; font-size: 14px; color: #666;">
-                <strong>Data Integrity Standards:</strong> These tests validate the quality and statistical validity of the uploaded data. All tests should pass for reliable analysis results.
-            </div>
-            <table class="compliance-table">
-                <tr><th>Standard</th><th>Requirement</th><th>Status</th><th style="text-align: right;">Value</th></tr>
-        """
-
-        # Get compliance_status from the data
-        compliance_status = data.get("compliance_status", [])
-
-        # Get compliance data
-        before_comp = data.get("before_compliance", {})
-        after_comp = data.get("after_compliance", {})
-
-        # Debug: Log the compliance data structure
-        logger.info(
-            f"DEBUG - Report Generation: after_comp keys = {list(after_comp.keys())}"
-        )
-        logger.info(
-            f"DEBUG - Report Generation: after_comp ashrae_precision_value = {after_comp.get('ashrae_precision_value', 'NOT_FOUND')}"
-        )
-        logger.info(
-            f"DEBUG - Report Generation: after_comp ashrae_precision_compliant = {after_comp.get('ashrae_precision_compliant', 'NOT_FOUND')}"
-        )
-        logger.info(
-            f"DEBUG - Report Generation: after_comp completeness_percent = {after_comp.get('completeness_percent', 'NOT_FOUND')}"
-        )
-        logger.info(
-            f"DEBUG - Report Generation: after_comp outlier_percent = {after_comp.get('outlier_percent', 'NOT_FOUND')}"
-        )
-        logger.info(
-            f"DEBUG - Report Generation: after_comp data_quality_compliant = {after_comp.get('data_quality_compliant', 'NOT_FOUND')}"
-        )
-
-        # Add Report section items with actual calculated values
-        # ASHRAE Guideline 14 - Relative Precision - Calculate from compliance data
-        ashrae_precision_value = after_comp.get("ashrae_precision_value", 0.0)
-        ashrae_precision_compliant = after_comp.get("ashrae_precision_compliant", False)
-
-        # Log the calculated values for audit trail
-        logger.info(
-            f"AUDIT TRAIL - Report Generation ASHRAE Precision: {ashrae_precision_value:.2f}% (Compliant: {ashrae_precision_compliant})"
-        )
-        ashrae_status_class = "compliant"
-        ashrae_status_symbol = "✓ PASS"
-        report_section_repl += f"""
-                <tr>
-                    <td><strong>ASHRAE Guideline 14</strong></td>
-                    <td>Relative Precision < 50% @ 95% CL</td>
-                    <td class="{ashrae_status_class}">{ashrae_status_symbol}</td>
-                    <td class="value-cell">{ashrae_precision_value:.1f}%</td>
-                </tr>"""
-
-        # ASHRAE Data Quality - check multiple sources, default completeness to 100% if not found
-        ashrae_dq = after_comp.get("ashrae_data_quality", {}) if isinstance(after_comp, dict) else {}
-        completeness_percent = (
-            (ashrae_dq.get("completeness") if isinstance(ashrae_dq, dict) else None) or
-            after_comp.get("completeness_percent") or
-            after_comp.get("data_completeness_pct") or
-            100.0  # Default to 100% if data files are complete
-        )
-        # Convert to float if needed
-        try:
-            completeness_percent = float(completeness_percent) if completeness_percent is not None else 100.0
-        except (ValueError, TypeError):
-            completeness_percent = 100.0
-        
-        outlier_percent = (
-            (ashrae_dq.get("outliers") if isinstance(ashrae_dq, dict) else None) or
-            after_comp.get("outlier_percent") or
-            after_comp.get("outlier_percentage") or
-            0.0
-        )
-        # Convert to float if needed
-        try:
-            outlier_percent = float(outlier_percent) if outlier_percent is not None else 0.0
-        except (ValueError, TypeError):
-            outlier_percent = 0.0
-        # Recalculate compliance based on actual values as safeguard
-        # Completeness ≥ 95% (as percentage) and Outliers ≤ 5% (as percentage)
-        data_quality_compliant = (
-            completeness_percent >= 95.0 and outlier_percent <= 5.0
-        )
-        # Use stored value if available, otherwise use recalculated value
-        stored_compliant = after_comp.get("data_quality_compliant", None)
-        if stored_compliant is not None:
-            # If stored value exists, use it, but log if there's a mismatch
-            if stored_compliant != data_quality_compliant:
-                logger.warning(
-                    f"ASHRAE Data Quality compliance mismatch: stored={stored_compliant}, "
-                    f"recalculated={data_quality_compliant} (completeness={completeness_percent:.1f}%, outliers={outlier_percent:.1f}%)"
-                )
-                # Use recalculated value if it's more accurate
-                data_quality_compliant = (
-                    completeness_percent >= 95.0 and outlier_percent <= 5.0
-                )
-        data_quality_status_class = (
-            "compliant" if data_quality_compliant else "non-compliant"
-        )
-        data_quality_status_symbol = "✓ PASS" if data_quality_compliant else "✗ FAIL"
-        report_section_repl += f"""
-                <tr>
-                    <td><strong>ASHRAE Data Quality</strong></td>
-                    <td>Data Completeness ≥ 95% & Outliers ≤ 5%</td>
-                    <td class="{data_quality_status_class}">{data_quality_status_symbol}</td>
-                    <td class="value-cell">Completeness: {completeness_percent:.1f}%, Outliers: {outlier_percent:.1f}%</td>
-                </tr>"""
-
-        # IPMVP Statistical Significance
-        statistical = data.get("statistical", {})
-        p_value = statistical.get("p_value", 0.0)
-        statistically_significant = statistical.get("statistically_significant", False)
-        ipmvp_status_class = (
-            "compliant" if statistically_significant else "non-compliant"
-        )
-        ipmvp_status_symbol = "✓ PASS" if statistically_significant else "✗ FAIL"
-        report_section_repl += f"""
-                <tr>
-                    <td><strong>IPMVP</strong></td>
-                    <td>Statistical Significance (p < 0.05)</td>
-                    <td class="{ipmvp_status_class}">{ipmvp_status_symbol}</td>
-                    <td class="value-cell">p = {p_value:.3f}</td>
-                </tr>"""
-
-        # IEEE C57.110
-        ieee_c57_110_applied = after_comp.get("ieee_c57_110_applied", False)
-        ieee_c57_110_method = after_comp.get("ieee_c57_110_method", "THD Approximation (loss estimate only)")
-        ieee_c57_status_class = "not-evaluated"
-        ieee_c57_status_symbol = "— NOT EVALUATED"
-        report_section_repl += f"""
-                <tr>
-                    <td><strong>IEEE C57.110-2018</strong></td>
-                    <td>Transformer Harmonic Capability (K-factor / Derating)</td>
-                    <td class="{ieee_c57_status_class}">{ieee_c57_status_symbol}</td>
-                    <td class="value-cell">{ieee_c57_110_method} — per-harmonic spectrum not available in CSV; full K-factor derating check not performed</td>
-                </tr>"""
-
-        report_section_repl += """
-            </table>
-        """
-
-        # Replace individual template placeholders for Data Integrity Standards
-        # ASHRAE Guideline 14
-        ashrae_guideline_14_status_class = (
-            "compliant" if ashrae_precision_compliant else "non-compliant"
-        )
-        ashrae_guideline_14_status = (
-            "✓ PASS" if ashrae_precision_compliant else "✗ FAIL"
-        )
-        ashrae_guideline_14_value = f"{ashrae_precision_value:.1f}%"
-
-        # ASHRAE Data Quality
-        ashrae_data_quality_status_class = (
-            "compliant" if data_quality_compliant else "non-compliant"
-        )
-        ashrae_data_quality_status = "✓ PASS" if data_quality_compliant else "✗ FAIL"
-        ashrae_data_quality_value = f"Completeness: {completeness_percent:.1f}%, Outliers: {outlier_percent:.1f}%"
-
-        # IPMVP Statistical Significance
-        ipmvp_status_class = (
-            "compliant" if statistically_significant else "non-compliant"
-        )
-        ipmvp_status = "✓ PASS" if statistically_significant else "✗ FAIL"
-        ipmvp_value = f"p = {p_value:.4f}"
-
-        # IEEE C57.110 — not evaluated: full K-factor derating per C57.110-2018
-        # requires per-order harmonic current amplitudes not present in the CSV.
-        ieee_c57_status_class = "not-evaluated"
-        ieee_c57_status = "— NOT EVALUATED"
-        ieee_c57_value = "THD Approximation (loss estimate only) — per-harmonic spectrum required for full C57.110-2018 K-factor derating check"
-
-        # Add individual template replacements
-        replacements["{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}"] = (
-            ashrae_guideline_14_status_class
-        )
-        replacements["{{ASHRAE_GUIDELINE_14_STATUS}}"] = ashrae_guideline_14_status
-        replacements["{{ASHRAE_GUIDELINE_14_VALUE}}"] = ashrae_guideline_14_value
-        replacements["{{ASHRAE_DATA_QUALITY_STATUS_CLASS}}"] = (
-            ashrae_data_quality_status_class
-        )
-        replacements["{{ASHRAE_DATA_QUALITY_STATUS}}"] = ashrae_data_quality_status
-        replacements["{{ASHRAE_DATA_QUALITY_VALUE}}"] = ashrae_data_quality_value
-        replacements["{{IPMVP_STATUS_CLASS}}"] = ipmvp_status_class
-        replacements["{{IPMVP_STATUS}}"] = ipmvp_status
-        replacements["{{IPMVP_VALUE}}"] = ipmvp_value
-        # ANSI C12.1 & C12.20 - Use actual calculated values from compliance analysis
-        ansi_c12_compliant = after_comp.get("ansi_c12_20_class_05_compliant", False)
-        ansi_c12_accuracy = after_comp.get("ansi_c12_20_class_05_accuracy", 0.0)
-        ansi_c12_status_class = "compliant" if ansi_c12_compliant else "non-compliant"
-        ansi_c12_status = "✓ PASS" if ansi_c12_compliant else "✗ FAIL"
-        ansi_c12_value = f"±{ansi_c12_accuracy:.2f}%"
-
-        replacements["{{ANSI_C12_STATUS_CLASS}}"] = ansi_c12_status_class
-        replacements["{{ANSI_C12_STATUS}}"] = ansi_c12_status
-        replacements["{{ANSI_C12_VALUE}}"] = ansi_c12_value
-
-        # Debug: Log the template replacements
-        logger.info(
-            f"DEBUG - Template Replacements: ASHRAE_GUIDELINE_14_VALUE = {ashrae_guideline_14_value}"
-        )
-        logger.info(
-            f"DEBUG - Template Replacements: ASHRAE_DATA_QUALITY_VALUE = {ashrae_data_quality_value}"
-        )
-        logger.info(f"DEBUG - Template Replacements: IPMVP_VALUE = {ipmvp_value}")
-        logger.info(f"DEBUG - Template Replacements: ANSI_C12_VALUE = {ieee_c57_value}")
-
-        # Replace the existing Performance section
-        replacements[
-            '<h3>⚡ Performance</h3>\n            <div class="compliance-note">\n                <strong>Network Improvement Standards:</strong> These tests measure the effectiveness of power quality improvements.\n                IEEE 519 measures harmonic distortion reduction, NEMA MG1 validates phase balance.\n            </div>\n            <table class="compliance-table">\n                <tr><th>Standard</th><th>Requirement</th><th>Before P/F</th><th>After P/F</th><th>Before Value</th><th>After Value</th></tr>\n                <tr><td>IEEE 519-2014</td><td>TDD < IEEE 519 Limit (8%)</td><td class="compliant">✓ PASS</td><td class="compliant">✓ PASS</td><td class="value-cell">2.9%</td><td class="value-cell">1.9%</td></tr>\n                <tr><td>NEMA MG1</td><td>Phase Imbalance < 5.0%</td><td class="compliant">✓ PASS</td><td class="compliant">✓ PASS</td><td class="value-cell">2.55%</td><td class="value-cell">0.87%</td></tr>\n            </table>'
-        ] = performance_section_replacement
-
-        # Extract all variables needed for Engineering Results section BEFORE generating it
-        # Initialize all variables with default values
-        kw_before = 0
-        kw_after = 0
-        kva_before = 0
-        kva_after = 0
-        kvar_before = 0
-        kvar_after = 0
-        pf_before = 0
-        pf_after = 0
-        thd_before = 0
-        thd_after = 0
-        voltage_before = 0
-        voltage_after = 0
-        normalized_kw_before = 0
-        normalized_kw_after = 0
-        phase_imbalance_before = 0
-        phase_imbalance_after = 0
-
-        kw_improvement = "0%"
-        kva_improvement = "0%"
-        kvar_improvement = "0%"
-        pf_improvement = "0%"
-        thd_improvement = "0%"
-        voltage_improvement = (
-            '<span style="color: #28a745; font-weight: bold;">0% improvement</span>'
-        )
-        normalized_kw_improvement = "0%"
-        normalized_kva_improvement = "0%"
-        normalized_pf_improvement = "0%"
-        normalized_thd_improvement = "0%"
-        phase_imbalance_improvement = "0%"
-
-        # Get electrical parameter values from power_quality data
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-
-            # Get electrical parameter values
-            kw_before = pq.get("kw_before", 0)
-            kw_after = pq.get("kw_after", 0)
-            kva_before = pq.get("kva_before", 0)
-            kva_after = pq.get("kva_after", 0)
-            kvar_before = pq.get("kvar_before", 0)
-            kvar_after = pq.get("kvar_after", 0)
-            pf_before = pq.get("pf_before", 0)
-            pf_after = pq.get("pf_after", 0)
-            thd_before = pq.get("thd_before", 0)
-            thd_after = pq.get("thd_after", 0)
-            voltage_before = pq.get("voltage_before", 0)
-            voltage_after = pq.get("voltage_after", 0)
-            # Weather normalization per ASHRAE Guideline 14-2014 for kW values
-            weather_factor_before = pq.get("weather_factor_before", 1.0)
-            weather_factor_after = pq.get(
-                "weather_factor_after", 0.85
-            )  # 15% energy savings from retrofit
-
-            # CRITICAL: Force normalization to show DIFFERENT values
-            if weather_factor_before == 1.0 and weather_factor_after == 1.0:
-                weather_factor_before = 1.0
-                weather_factor_after = 0.85  # Force 15% energy savings
-                logger.error(
-                    "STANDARDS VIOLATION: Weather factors were 1.0 - forcing 15% energy savings per ASHRAE Guideline 14-2014"
-                )
-
-            # STANDARDS COMPLIANCE: Apply proper normalization factors per Standards
-            # Weather normalization per ASHRAE Guideline 14-2014
-            weather_factor_before = 1.0
-            weather_factor_after = 0.85  # 15% energy savings from retrofit
-
-            # THD reduction per IEEE 519-2014/2022 (harmonic losses reduction)
-            thd_reduction_factor = 0.95  # 5% reduction in harmonic losses
-
-            # I²R losses reduction (conductor losses)
-            i2r_reduction_factor = 0.97  # 3% reduction in conductor losses
-
-            # Eddy current losses reduction (transformer losses)
-            eddy_reduction_factor = 0.98  # 2% reduction in transformer losses
-
-            # Combined normalization factors per Standards
-            combined_factor_before = weather_factor_before
-            combined_factor_after = (
-                weather_factor_after
-                * thd_reduction_factor
-                * i2r_reduction_factor
-                * eddy_reduction_factor
-            )
-
-            logger.error(
-                f"STANDARDS NORMALIZATION: Weather={weather_factor_after}, THD={thd_reduction_factor}, I²R={i2r_reduction_factor}, Eddy={eddy_reduction_factor}"
-            )
-            logger.error(
-                f"STANDARDS NORMALIZATION: Combined factor = {combined_factor_after:.3f}"
-            )
-
-            normalized_kw_before = kw_before * combined_factor_before
-            normalized_kw_after = kw_after * combined_factor_after
-
-            # CRITICAL: Create SEPARATE normalized variables for the IEEE 519-2014/2022 section
-            # These must show DIFFERENT values after power quality and weather normalization
-            # STANDARDS COMPLIANCE: Use actual normalization factors from power quality analysis
-
-            # Power quality normalization per IEEE 519-2014/2022
-            pq_factor_before = pq.get("pq_factor_before", 1.0)
-            pq_factor_after = pq.get(
-                "pq_factor_after", 0.95
-            )  # 5% improvement from power quality
-
-            # CRITICAL: Force power quality normalization to show DIFFERENT values
-            if pq_factor_before == 1.0 and pq_factor_after == 1.0:
-                pq_factor_before = 1.0
-                pq_factor_after = 0.95  # Force 5% improvement
-                logger.error(
-                    "STANDARDS VIOLATION: Power quality factors were 1.0 - forcing 5% improvement per IEEE 519-2014/2022"
-                )
-
-            # STANDARDS COMPLIANCE: Apply proper power quality normalization per IEEE 519-2014/2022
-            # Power factor improvement
-            pf_improvement_factor = 0.95  # 5% power factor improvement
-
-            # THD reduction per IEEE 519-2014/2022
-            thd_reduction_factor = 0.95  # 5% THD reduction
-
-            # Voltage unbalance reduction per IEEE 519-2014/2022
-            voltage_unbalance_factor = 0.98  # 2% voltage unbalance reduction
-
-            # Combined power quality factors per Standards
-            pq_factor_before = 1.0
-            pq_factor_after = (
-                pf_improvement_factor * thd_reduction_factor * voltage_unbalance_factor
-            )
-
-            logger.error(
-                f"POWER QUALITY NORMALIZATION: PF={pf_improvement_factor}, THD={thd_reduction_factor}, Voltage={voltage_unbalance_factor}"
-            )
-            logger.error(
-                f"POWER QUALITY NORMALIZATION: Combined factor = {pq_factor_after:.3f}"
-            )
-
-            # Calculate normalized values using Standards-compliant factors
-            normalized_kva_before = (
-                kva_before * combined_factor_before * pq_factor_before
-            )
-            normalized_kva_after = kva_after * combined_factor_after * pq_factor_after
-            normalized_pf_before = pf_before * pq_factor_before
-            normalized_pf_after = pf_after * (
-                1.0 + (1.0 - pq_factor_after)
-            )  # Power factor improvement
-            normalized_thd_before = thd_before * pq_factor_before
-            normalized_thd_after = (
-                thd_after * pq_factor_after
-            )  # THD reduction from power quality
-
-            # DEBUG: Log the normalization factors and results
-            logger.info(
-                f"STANDARDS COMPLIANCE: Weather factors - Before: {weather_factor_before}, After: {weather_factor_after}"
-            )
-            logger.info(
-                f"STANDARDS COMPLIANCE: Power quality factors - Before: {pq_factor_before}, After: {pq_factor_after}"
-            )
-            logger.info(
-                f"STANDARDS COMPLIANCE: kW normalization - Raw: {kw_before:.1f} -> {normalized_kw_before:.1f}, {kw_after:.1f} -> {normalized_kw_after:.1f}"
-            )
-            logger.info(
-                f"STANDARDS COMPLIANCE: kVA normalization - Raw: {kva_before:.1f} -> {normalized_kva_before:.1f}, {kva_after:.1f} -> {normalized_kva_after:.1f}"
-            )
-            logger.info(
-                f"STANDARDS COMPLIANCE: PF normalization - Raw: {pf_before:.3f} -> {normalized_pf_before:.3f}, {pf_after:.3f} -> {normalized_pf_after:.3f}"
-            )
-            logger.info(
-                f"STANDARDS COMPLIANCE: THD normalization - Raw: {thd_before:.1f}% -> {normalized_thd_before:.1f}%, {thd_after:.1f}% -> {normalized_thd_after:.1f}%"
-            )
-
-            # Calculate percentage improvements - convert to float values first
-            kw_before_val = safe_float(kw_before)
-            kw_after_val = safe_float(kw_after)
-            kva_before_val = safe_float(kva_before)
-            kva_after_val = safe_float(kva_after)
-            kvar_before_val = safe_float(kvar_before)
-            kvar_after_val = safe_float(kvar_after)
-            pf_before_val = safe_float(pf_before)
-            pf_after_val = safe_float(pf_after)
-            thd_before_val = safe_float(thd_before)
-            thd_after_val = safe_float(thd_after)
-            voltage_before_val = safe_float(voltage_before)
-            voltage_after_val = safe_float(voltage_after)
-            normalized_kw_before_val = safe_float(normalized_kw_before)
-            normalized_kw_after_val = safe_float(normalized_kw_after)
-
-            # Calculate normalized values for IEEE 519-2014/2022 section
-            normalized_kva_before_val = safe_float(normalized_kva_before)
-            normalized_kva_after_val = safe_float(normalized_kva_after)
-            normalized_pf_before_val = safe_float(normalized_pf_before)
-            normalized_pf_after_val = safe_float(normalized_pf_after)
-            normalized_thd_before_val = safe_float(normalized_thd_before)
-            normalized_thd_after_val = safe_float(normalized_thd_after)
-
-            if kw_before_val != 0:
-                kw_improvement_val = (
-                    (kw_before_val - kw_after_val) / kw_before_val * 100
-                )
-                kw_improvement = f"{abs(kw_improvement_val):.1f}%" + (
-                    " increase" if kw_improvement_val < 0 else " reduction"
-                )
-            if kva_before_val != 0:
-                kva_improvement_val = (
-                    (kva_before_val - kva_after_val) / kva_before_val * 100
-                )
-                kva_improvement = f"{abs(kva_improvement_val):.1f}% reduction"
-            if kvar_before_val != 0:
-                kvar_improvement_val = (
-                    (kvar_before_val - kvar_after_val) / kvar_before_val * 100
-                )
-                kvar_improvement = f"{abs(kvar_improvement_val):.1f}% reduction"
-            if pf_before_val != 0:
-                pf_improvement_val = (
-                    (pf_after_val - pf_before_val) / pf_before_val * 100
-                )
-                pf_improvement = f"{abs(pf_improvement_val):.1f}% {'improvement' if pf_improvement_val >= 0 else 'decline'}"
-            if thd_before_val != 0:
-                thd_improvement_val = (
-                    (thd_before_val - thd_after_val) / thd_before_val * 100
-                )
-                thd_improvement = f"{abs(thd_improvement_val):.1f}% reduction"
-            if voltage_before_val != 0:
-                voltage_improvement_val = (
-                    (voltage_after_val - voltage_before_val) / voltage_before_val * 100
-                )
-                voltage_improvement = f'<span style="color: #28a745; font-weight: bold;">{abs(voltage_improvement_val):.1f}% improvement</span>'
-            if normalized_kw_before_val != 0:
-                normalized_kw_improvement_val = (
-                    (normalized_kw_before_val - normalized_kw_after_val)
-                    / normalized_kw_before_val
-                    * 100
-                )
-                normalized_kw_improvement = (
-                    f"{abs(normalized_kw_improvement_val):.1f}% reduction"
-                )
-
-            # Calculate improvements for normalized values
-            if normalized_kva_before_val != 0:
-                normalized_kva_improvement_val = (
-                    (normalized_kva_before_val - normalized_kva_after_val)
-                    / normalized_kva_before_val
-                    * 100
-                )
-                normalized_kva_improvement = (
-                    f"{abs(normalized_kva_improvement_val):.1f}% reduction"
-                )
-            if normalized_pf_before_val != 0:
-                normalized_pf_improvement_val = (
-                    (normalized_pf_after_val - normalized_pf_before_val)
-                    / normalized_pf_before_val
-                    * 100
-                )
-                normalized_pf_improvement = (
-                    f"{abs(normalized_pf_improvement_val):.1f}% {'improvement' if normalized_pf_improvement_val >= 0 else 'decline'}"
-                )
-            if normalized_thd_before_val != 0:
-                normalized_thd_improvement_val = (
-                    (normalized_thd_before_val - normalized_thd_after_val)
-                    / normalized_thd_before_val
-                    * 100
-                )
-                normalized_thd_improvement = (
-                    f"{abs(normalized_thd_improvement_val):.1f}% reduction"
-                )
-
-        # Get phase imbalance from three_phase data if available
-        if "three_phase" in data and isinstance(data["three_phase"], dict):
-            tp = data["three_phase"]
-            if "before" in tp and "after" in tp:
-                phase_imbalance_before = tp["before"].get("imbalance_percent", 0)
-                phase_imbalance_after = tp["after"].get("imbalance_percent", 0)
-            else:
-                # Fallback to single three_phase object
-                phase_imbalance_before = tp.get("imbalance_percent", 0)
-                phase_imbalance_after = tp.get("imbalance_percent", 0)
-
-            if phase_imbalance_before != 0:
-                phase_imbalance_improvement_val = (
-                    (phase_imbalance_before - phase_imbalance_after)
-                    / phase_imbalance_before
-                    * 100
-                )
-                phase_imbalance_improvement = (
-                    f"{abs(phase_imbalance_improvement_val):.1f}% reduction"
-                )
-
-        # Extract financial data for Bill-Weighted Savings
-        energy_savings_annual = 0
-        demand_savings_annual = 0
-        network_savings_annual = 0
-        total_savings_annual = 0
-        delta_kwh_annual = 0
-        delta_kw_avg = 0
-
-        if "financial" in data and isinstance(data["financial"], dict):
-            financial = data["financial"]
-            energy_savings_annual = financial.get("energy_savings_annual", 0)
-            demand_savings_annual = financial.get("demand_savings_annual", 0)
-            total_savings_annual = financial.get("total_annual_savings", 0)
-
-        # Get network savings from network_losses data (I²R + eddy losses)
-        if "network_losses" in data and isinstance(data["network_losses"], dict):
-            network_losses = data["network_losses"]
-            network_savings_annual = network_losses.get("annual_dollars", 0)
-            logger.info(
-                f"Report generation - Network losses data: annual_dollars=${network_savings_annual:,.2f}"
-            )
-        else:
-            logger.warning("Report generation - No network_losses data found")
-
-        logger.info(
-            f"Report generation - Bill-Weighted Savings: energy=${energy_savings_annual:,.2f}, demand=${demand_savings_annual:,.2f}, network=${network_savings_annual:,.2f}, total=${total_savings_annual:,.2f}"
-        )
-
-        if "energy" in data and isinstance(data["energy"], dict):
-            energy = data["energy"]
-            delta_kwh_annual = energy.get("kwh", 0)
-            logger.info(
-                f"Report generation - Energy data: delta_kwh={delta_kwh_annual:,.0f}"
-            )
-
-        # Calculate delta kW from the power data
-        try:
-            kw_before_val = safe_float(kw_before)
-            kw_after_val = safe_float(kw_after)
-            delta_kw_avg = kw_before_val - kw_after_val
-            logger.info(
-                f"Report generation - Power data: delta_kw={delta_kw_avg:.2f} kW"
-            )
-        except:
-            delta_kw_avg = 0
-            logger.warning(
-                "Report generation - Could not calculate delta kW from power data"
-            )
-
-        # Now format all the numeric values as strings for HTML display
-        kw_before = f"{kw_before:.2f}"
-        kw_after = f"{kw_after:.2f}"
-        kva_before = f"{kva_before:.2f}"
-        kva_after = f"{kva_after:.2f}"
-        kvar_before = f"{kvar_before:.2f}"
-        kvar_after = f"{kvar_after:.2f}"
-        pf_before = f"{pf_before:.3f}"
-        pf_after = f"{pf_after:.3f}"
-        thd_before = f"{thd_before:.1f}%"
-        thd_after = f"{thd_after:.1f}%"
-        voltage_before = f"{voltage_before:.2f}"
-        voltage_after = f"{voltage_after:.2f}"
-        normalized_kw_before = f"{normalized_kw_before:.1f}"
-        normalized_kw_after = f"{normalized_kw_after:.1f}"
-        normalized_kva_before = f"{normalized_kva_before:.1f}"
-        normalized_kva_after = f"{normalized_kva_after:.1f}"
-        normalized_pf_before = f"{normalized_pf_before:.3f}"
-        normalized_pf_after = f"{normalized_pf_after:.3f}"
-        normalized_thd_before = f"{normalized_thd_before:.1f}%"
-        normalized_thd_after = f"{normalized_thd_after:.1f}%"
-        phase_imbalance_before = f"{phase_imbalance_before:.2f}%"
-        phase_imbalance_after = f"{phase_imbalance_after:.2f}%"
-
-        # CRITICAL DEBUG: Log the final formatted values
-        logger.error(f"CRITICAL DEBUG: Raw kW - Before: {kw_before}, After: {kw_after}")
-        logger.error(
-            f"CRITICAL DEBUG: Normalized kW - Before: {normalized_kw_before}, After: {normalized_kw_after}"
-        )
-        logger.error(
-            f"CRITICAL DEBUG: Raw kVA - Before: {kva_before}, After: {kva_after}"
-        )
-        logger.error(
-            f"CRITICAL DEBUG: Normalized kVA - Before: {normalized_kva_before}, After: {normalized_kva_after}"
-        )
-        logger.error(f"CRITICAL DEBUG: Raw PF - Before: {pf_before}, After: {pf_after}")
-        logger.error(
-            f"CRITICAL DEBUG: Normalized PF - Before: {normalized_pf_before}, After: {normalized_pf_after}"
-        )
-        logger.error(
-            f"CRITICAL DEBUG: Raw THD - Before: {thd_before}, After: {thd_after}"
-        )
-
-        # HTML TEMPLATE DEBUG: Log the exact values being passed to HTML template
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kw_before = {normalized_kw_before}"
-        )
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kw_after = {normalized_kw_after}"
-        )
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kva_before = {normalized_kva_before}"
-        )
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kva_after = {normalized_kva_after}"
-        )
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kw_improvement = {normalized_kw_improvement}"
-        )
-        logger.error(
-            f"HTML TEMPLATE DEBUG: normalized_kva_improvement = {normalized_kva_improvement}"
-        )
-        logger.error(
-            f"CRITICAL DEBUG: Normalized THD - Before: {normalized_thd_before}, After: {normalized_thd_after}"
-        )
-
-        # EMERGENCY FIX: Force normalized values to be DIFFERENT from raw values
-        # This is a DIRECT fix to ensure Standards compliance
-        if str(normalized_kw_before) == str(kw_before):
-            logger.error(
-                "EMERGENCY FIX: Normalized kW values are IDENTICAL to raw values - FORCING DIFFERENT VALUES"
-            )
-            normalized_kw_before = (
-                f"{float(kw_before) * 0.85:.1f}"  # Force 15% reduction
-            )
-            normalized_kw_after = f"{float(kw_after) * 0.85:.1f}"  # Force 15% reduction
-
-        if str(normalized_kva_before) == str(kva_before):
-            logger.error(
-                "EMERGENCY FIX: Normalized kVA values are IDENTICAL to raw values - FORCING DIFFERENT VALUES"
-            )
-            normalized_kva_before = (
-                f"{float(kva_before) * 0.90:.1f}"  # Force 10% reduction
-            )
-            normalized_kva_after = (
-                f"{float(kva_after) * 0.90:.1f}"  # Force 10% reduction
-            )
-
-        if str(normalized_pf_before) == str(pf_before):
-            logger.error(
-                "EMERGENCY FIX: Normalized PF values are IDENTICAL to raw values - FORCING DIFFERENT VALUES"
-            )
-            normalized_pf_before = (
-                f"{float(pf_before) * 0.95:.3f}"  # Force 5% improvement
-            )
-            normalized_pf_after = (
-                f"{float(pf_after) * 1.05:.3f}"  # Force 5% improvement
-            )
-
-        if str(normalized_thd_before) == str(thd_before):
-            logger.error(
-                "EMERGENCY FIX: Normalized THD values are IDENTICAL to raw values - FORCING DIFFERENT VALUES"
-            )
-            normalized_thd_before = (
-                f"{float(thd_before) * 0.80:.1f}%"  # Force 20% reduction
-            )
-            normalized_thd_after = (
-                f"{float(thd_after) * 0.80:.1f}%"  # Force 20% reduction
-            )
-
-        # CRITICAL FIX: Add template variable replacements for normalization values
-        # These are the variables that the UI Report template expects
-        replacements["{{IEEE_KW_NORMALIZED_BEFORE}}"] = str(normalized_kw_before)
-        replacements["{{IEEE_KW_NORMALIZED_AFTER}}"] = str(normalized_kw_after)
-        replacements["{{IEEE_KW_NORMALIZED_IMPROVEMENT}}"] = str(
-            normalized_kw_improvement
-        )
-        replacements["{{IEEE_KVA_BEFORE}}"] = str(kva_before)
-        replacements["{{IEEE_KVA_AFTER}}"] = str(kva_after)
-        replacements["{{IEEE_KVA_IMPROVEMENT}}"] = str(kva_improvement)
-        replacements["{{IEEE_KVAR_BEFORE}}"] = str(kvar_before)
-        replacements["{{IEEE_KVAR_AFTER}}"] = str(kvar_after)
-        replacements["{{IEEE_KVAR_IMPROVEMENT}}"] = str(kvar_improvement)
-        replacements["{{IEEE_PF_BEFORE}}"] = str(pf_before)
-        replacements["{{IEEE_PF_AFTER}}"] = str(pf_after)
-        replacements["{{IEEE_PF_IMPROVEMENT}}"] = str(pf_improvement)
-        replacements["{{IEEE_THD_BEFORE}}"] = str(thd_before)
-        replacements["{{IEEE_THD_AFTER}}"] = str(thd_after)
-        replacements["{{IEEE_THD_IMPROVEMENT}}"] = str(thd_improvement)
-
-        # CRITICAL FIX: Add basic template placeholders for Raw Meter Test Data section
-        # These are the placeholders that the template expects for the "Raw Meter Test Data" section
-        replacements["{{KW_BEFORE}}"] = f"{kw_before:.1f} kW"
-        replacements["{{KW_AFTER}}"] = f"{kw_after:.1f} kW"
-
-        # DEBUG: Log template replacement values
-        print(
-            f"*** DEBUG STEP 4 - TEMPLATE REPLACEMENT: KW_BEFORE = {replacements['{{KW_BEFORE}}']}, KW_AFTER = {replacements['{{KW_AFTER}}']} ***"
-        )
-        logger.info(
-            f"*** DEBUG STEP 4 - TEMPLATE REPLACEMENT: KW_BEFORE = {replacements['{{KW_BEFORE}}']}, KW_AFTER = {replacements['{{KW_AFTER}}']} ***"
-        )
-        replacements["{{KW_IMPROVEMENT}}"] = (
-            f"{kw_improvement:.1f}% {'reduction' if kw_improvement < 0 else 'increase'}"
-        )
-        replacements["{{KVA_BEFORE}}"] = f"{kva_before:.1f} kVA"
-        replacements["{{KVA_AFTER}}"] = f"{kva_after:.1f} kVA"
-        replacements["{{KVA_IMPROVEMENT}}"] = (
-            f"{kva_improvement:.1f}% {'reduction' if kva_improvement < 0 else 'increase'}"
-        )
-        replacements["{{KVAR_BEFORE}}"] = f"{kvar_before:.1f} kVAR"
-        replacements["{{KVAR_AFTER}}"] = f"{kvar_after:.1f} kVAR"
-        replacements["{{KVAR_IMPROVEMENT}}"] = (
-            f"{kvar_improvement:.1f}% {'reduction' if kvar_improvement < 0 else 'increase'}"
-        )
-        replacements["{{PF_BEFORE}}"] = f"{pf_before:.2f}"
-        replacements["{{PF_AFTER}}"] = f"{pf_after:.2f}"
-        replacements["{{PF_IMPROVEMENT}}"] = (
-            f"{pf_improvement:.1f}% {'improvement' if pf_improvement > 0 else 'reduction'}"
-        )
-        replacements["{{THD_BEFORE}}"] = f"{thd_before:.1f}%"
-        replacements["{{THD_AFTER}}"] = f"{thd_after:.1f}%"
-        replacements["{{THD_IMPROVEMENT}}"] = (
-            f"{thd_improvement:.1f}% {'reduction' if thd_improvement < 0 else 'increase'}"
-        )
-        replacements["{{AMPS_BEFORE}}"] = f"{current_before:.1f} A"
-        replacements["{{AMPS_AFTER}}"] = f"{current_after:.1f} A"
-        replacements["{{AMPS_IMPROVEMENT}}"] = power_quality_results.get(
-            "current_improvement_pct",
-            f"{current_improvement:.1f}% {'reduction' if current_improvement < 0 else 'increase'}",
-        )
-        logger.info(f"🔧 AMPS DEBUG: Line 18110-18113 - replacements['{{AMPS_IMPROVEMENT}}'] = {replacements['{{AMPS_IMPROVEMENT}}']}, current_improvement = {current_improvement}")
-        replacements["{{VOLTS_BEFORE}}"] = f"{voltage_before:.1f} V"
-        replacements["{{VOLTS_AFTER}}"] = f"{voltage_after:.1f} V"
-        replacements["{{VOLTS_IMPROVEMENT}}"] = (
-            f"{voltage_improvement:.1f}% {'improvement' if voltage_improvement > 0 else 'reduction'}"
-        )
-
-        replacements["{{IEEE_VOLTS_BEFORE}}"] = str(voltage_before)
-        replacements["{{IEEE_VOLTS_AFTER}}"] = str(voltage_after)
-        replacements["{{IEEE_VOLTS_IMPROVEMENT}}"] = str(voltage_improvement)
-        replacements["{{IEEE_AMPS_BEFORE}}"] = str(amps_before)
-        replacements["{{IEEE_AMPS_AFTER}}"] = str(amps_after)
-        replacements["{{IEEE_AMPS_IMPROVEMENT}}"] = str(amps_improvement)
-        logger.info(f"🔧 AMPS DEBUG: Line 18125 - replacements['{{IEEE_AMPS_IMPROVEMENT}}'] = {replacements['{{IEEE_AMPS_IMPROVEMENT}}']}, amps_improvement = {amps_improvement}")
-        replacements["{{IEEE_VOLTAGE_UNBALANCE_BEFORE}}"] = str(phase_imbalance_before)
-        replacements["{{IEEE_VOLTAGE_UNBALANCE_AFTER}}"] = str(phase_imbalance_after)
-        replacements["{{IEEE_VOLTAGE_UNBALANCE_IMPROVEMENT}}"] = str(
-            phase_imbalance_improvement
-        )
-
-        # Add cache busting timestamp to force browser refresh
-        import time
-
-        cache_timestamp = int(time.time())
-
-        # Generate Engineering Results section with three tables
-        engineering_results_section = (
-            f"""
-            <!-- Cache bust: {cache_timestamp} - POWER FACTOR FIX -->
-            <h2>Engineering Results</h2>
-            
-            <h3>Raw Meter Test Data</h3>
-            <div class="compliance-note">
-                <strong>Electrical Parameter Analysis:</strong> These metrics show the before/after comparison of key electrical parameters for kW/kVA/kVAR/Power Factor/THD.
-            </div>
-            <table class="compliance-table">
-                <tr><th>Parameter</th><th style="text-align: center;">Before XECO</th><th style="text-align: center;">After XECO</th><th style="text-align: center;">% Improvement</th></tr>
-                <tr><td><strong>kW (Real Power)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(kw_before)
-            + """ kW<br/><small style="color: #666; font-size: 0.8em;">Before Normalization</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(kw_after)
-            + """ kW<br/><small style="color: #666; font-size: 0.8em;">Before Normalization</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(kw_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>kVA (Apparent Power)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(kva_before)
-            + """ kVA</td><td class="value-cell" style="text-align: center;">"""
-            + str(kva_after)
-            + """ kVA</td><td class="value-cell" style="text-align: center;">"""
-            + str(kva_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>kVAR (Reactive Power)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(kvar_before)
-            + """ kVAR</td><td class="value-cell" style="text-align: center;">"""
-            + str(kvar_after)
-            + """ kVAR</td><td class="value-cell" style="text-align: center;">"""
-            + str(kvar_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>Power Factor</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(pf_before)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(pf_after)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(pf_improvement)
-            + """ improvement</td></tr>
-                <!-- DEBUG: pf_before = """
-            + str(pf_before)
-            + """, pf_after = """
-            + str(pf_after)
-            + """ -->
-                <tr><td><strong>THD (Total Harmonic Distortion)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_before)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_after)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_improvement)
-            + """ reduction</td></tr>
-            </table>
-            
-            <h3>📊 IEEE 519-2014/2022 Power Quality Analysis</h3>
-            <div class="compliance-note">
-                <strong>Standards-Compliant Electrical Parameter Analysis:</strong> These metrics follow IEEE 519-2014/2022, ASHRAE Guideline 14-2014, and IEC 61000-2-2 standards. kW (Weather Normalized) shows ASHRAE weather-adjusted power savings, Volts (L-N) shows IEC 61000-2-2 voltage quality, THD shows IEEE 519 harmonic distortion reduction, and Voltage Unbalance shows IEEE 519 three-phase voltage balance improvement. <em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2014 Section 14.3.</em>
-            </div>
-            <table class="compliance-table">
-                <tr><th>Parameter</th><th style="text-align: center;">Before XECO</th><th style="text-align: center;">After XECO</th><th style="text-align: center;">% Improvement</th></tr>
-                <tr><td><strong>Volts (L-N)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(voltage_before)
-            + """ V</td><td class="value-cell" style="text-align: center;">"""
-            + str(voltage_after)
-            + """ V</td><td class="value-cell" style="text-align: center;">"""
-            + str(voltage_improvement)
-            + """</td></tr>
-                <tr><td><strong>kW (Normalized)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kw_before)
-            + """ kW<br/><small style="color: #666; font-size: 0.8em;">Weather Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kw_after)
-            + """ kW<br/><small style="color: #666; font-size: 0.8em;">Weather Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kw_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>kVA</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kva_before)
-            + """ kVA<br/><small style="color: #666; font-size: 0.8em;">Power Quality Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kva_after)
-            + """ kVA<br/><small style="color: #666; font-size: 0.8em;">Power Quality Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_kva_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>Power Factor</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_pf_before)
-            + """<br/><small style="color: #666; font-size: 0.8em;">Power Quality Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_pf_after)
-            + """<br/><small style="color: #666; font-size: 0.8em;">Power Quality Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_pf_improvement)
-            + """ improvement</td></tr>
-                <tr><td><strong>THD</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_thd_before)
-            + """<br/><small style="color: #666; font-size: 0.8em;">IEEE 519 Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_thd_after)
-            + """<br/><small style="color: #666; font-size: 0.8em;">IEEE 519 Normalized</small></td><td class="value-cell" style="text-align: center;">"""
-            + str(normalized_thd_improvement)
-            + """ reduction</td></tr>
-                <tr><td><strong>Voltage Unbalance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(phase_imbalance_before)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(phase_imbalance_after)
-            + """</td><td class="value-cell" style="text-align: center;">"""
-            + str(phase_imbalance_improvement)
-            + """ reduction</td></tr>
-            </table>
-            
-            <h3>⚡ IEEE 519-2014 Methodology & Standards Compliance</h3>
-            <div class="compliance-note">
-                <strong>IEEE 519-2014 Harmonic Control Methodology:</strong> This section details the comprehensive IEEE 519-2014 implementation including harmonic analysis methodology, measurement standards, and compliance verification procedures.
-            </div>
-            <table class="compliance-table">
-                <tr><th>Methodology Component</th><th style="text-align: center;">Value/Status</th><th>Description</th></tr>
-                <tr><td><strong>Standard Reference</strong></td><td class="value-cell" style="text-align: center;">IEEE 519-2014</td><td>IEEE Recommended Practice and Requirements for Harmonic Control in Electric Power Systems</td></tr>
-                <tr><td><strong>Point of Common Coupling (PCC)</strong></td><td class="value-cell" style="text-align: center;">Identified and Analyzed</td><td>Interface between sources and loads per IEEE 519 Section 4.1</td></tr>
-                <tr><td><strong>ISC/IL Ratio</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(pq.get("isc_il_ratio", "N/A"))
-            + """</td><td>Short circuit current to load current ratio - determines harmonic limits per Table 10.3</td></tr>
-                <tr><td><strong>Harmonic Analysis Depth</strong></td><td class="value-cell" style="text-align: center;">50th Harmonic</td><td>Analysis includes harmonics up to 50th order per IEEE 519 Section 4.2</td></tr>
-                <tr><td><strong>Measurement Method</strong></td><td class="value-cell" style="text-align: center;">IEC 61000-4-7 FFT Analysis</td><td>Standardized harmonic measurement per IEEE 519 Section 4.2.1</td></tr>
-                <tr><td><strong>TDD Calculation Formula</strong></td><td class="value-cell" style="text-align: center;">√(Σ(h=2 to 50) Ih²) / IL × 100%</td><td>Total Demand Distortion formula per IEEE 519 Section 4.2.2</td></tr>
-                <tr><td><strong>TDD Limit (Voltage)</strong></td><td class="value-cell" style="text-align: center;">5.0%</td><td>Maximum voltage distortion per IEEE 519 Table 1</td></tr>
-                <tr><td><strong>TDD Limit (Current)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(pq.get("ieee_tdd_limit", "N/A"))
-            + """%</td><td>Current distortion limit based on ISC/IL ratio per Table 10.3</td></tr>
-                <tr><td><strong>Before TDD (Voltage)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_before)
-            + """%</td><td>Voltage distortion before installation</td></tr>
-                <tr><td><strong>After TDD (Voltage)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_after)
-            + """%</td><td>Voltage distortion after installation</td></tr>
-                <tr><td><strong>Before TDD (Current)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_before)
-            + """%</td><td>Current distortion before installation</td></tr>
-                <tr><td><strong>After TDD (Current)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + str(thd_after)
-            + """%</td><td>Current distortion after installation</td></tr>
-                <tr><td><strong>Individual Harmonic Limits</strong></td><td class="value-cell" style="text-align: center;">Applied per Table 10.3</td><td>Harmonic-specific limits based on ISC/IL ratio</td></tr>
-                <tr><td><strong>Before Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if pq.get("tdd_before", pq.get("thd_before", thd_before)) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT) else "✗ FAIL")
-            + """</td><td>Meets IEEE 519 TDD limits before installation</td></tr>
-                <tr><td><strong>After Compliance</strong></td><td class="value-cell" style="text-align: center;">"""
-            + ("✓ PASS" if pq.get("tdd_after", pq.get("thd_after", thd_after)) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT) else "✗ FAIL")
-            + """</td><td>Meets IEEE 519 limits after installation</td></tr>
-                <tr><td><strong>IEEE C57.110 Applied</strong></td><td class="value-cell" style="text-align: center;">✓ YES</td><td>Transformer derating calculation per IEEE C57.110</td></tr>
-                <tr><td><strong>Transformer Loss Method</strong></td><td class="value-cell" style="text-align: center;">thd_approximation</td><td>Harmonic-based transformer loss calculation</td></tr>
-                <tr><td><strong>Steady-State Analysis</strong></td><td class="value-cell" style="text-align: center;">✓ YES</td><td>Steady-state harmonic limits as per IEEE 519 Section 4.1</td></tr>
-            </table>
-            
-            <h3>Bill-Weighted Savings</h3>
-            <div class="compliance-note">
-                <strong>Financial Impact Analysis:</strong> These metrics show the annual financial impact of power quality improvements. Energy $ shows electricity cost savings, Demand $ shows demand charge reductions, Network $ shows I²R and transformer losses savings, and Total $ shows combined annual savings.<br/><br/>
-                <strong>Note:</strong> ΔkW (avg) shows raw CSV meter data power reduction (192.5 kW) used for financial calculations, while Main Results Summary shows weather/power factor normalized power reduction (210 kW) used for technical performance analysis. Both values are correct for their respective purposes.
-            </div>
-            <table class="compliance-table">
-                <tr><th>Savings Category</th><th style="text-align: center;">Annual Value</th><th>Description</th></tr>
-                <tr><td><strong>Energy $ (annual)</strong></td><td class="value-cell" style="text-align: center;">$"""
-            + f"{energy_savings_annual:,.2f}"
-            + """</td><td>Annual electricity cost savings from reduced energy consumption</td></tr>
-                <tr><td><strong>Demand $ (annual)</strong></td><td class="value-cell" style="text-align: center;">$"""
-            + f"{demand_savings_annual:,.2f}"
-            + """</td><td>Annual demand charge savings from reduced peak power consumption</td></tr>
-                <tr><td><strong>Network (I²R+eddy) - Included ⚠ ℹ️</strong></td><td class="value-cell" style="text-align: center;">$"""
-            + f"{network_savings_annual:,.2f}"
-            + """</td><td>Annual savings from reduced I²R losses and transformer stray/eddy losses</td></tr>
-                <tr><td><strong>Total $ (annual)</strong></td><td class="value-cell" style="text-align: center;">$"""
-            + f"{total_savings_annual:,.2f}"
-            + """</td><td>Combined annual financial savings from all sources</td></tr>
-                <tr><td><strong>ΔkWh (annual)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + f"{delta_kwh_annual:,.2f}"
-            + """ kWh</td><td>Total annual energy savings including base and network losses</td></tr>
-                <tr><td><strong>ΔkW (avg)</strong></td><td class="value-cell" style="text-align: center;">"""
-            + f"{delta_kw_avg:.2f}"
-            + """ kW</td><td>Raw CSV meter data power reduction (before weather/power factor normalization) - used for financial calculations</td></tr>
-            </table>
-        """
-        )
-
-        # Replace the existing Engineering Results section - use a simpler approach
-        # Find the Engineering Results section and replace everything until Main Results Summary
-        engineering_results_start = (
-            '<h2 class="engineering-results">Engineering Results</h2>'
-        )
-        main_results_start = "<h2>Main Results Summary</h2>"
-
-        # Find the start and end positions
-        start_pos = html_content.find(engineering_results_start)
-        end_pos = html_content.find(main_results_start)
-
-        if start_pos != -1 and end_pos != -1:
-            # Replace the entire Engineering Results section
-            html_content = (
-                html_content[:start_pos]
-                + engineering_results_section
-                + html_content[end_pos:]
-            )
-            logger.info(
-                "Report generation - Engineering Results section replaced successfully"
-            )
-        else:
-            logger.warning(
-                "Report generation - Could not find Engineering Results section boundaries"
-            )
-
-        # Add the Synerex logo to the HTML report
-        # The template now has a placeholder comment where the logo should be inserted
-        logo_placeholder = (
-            "<!-- Logo will be inserted here by the report generation logic -->"
-        )
-
-        # Use a simple static file path instead of data URI to avoid browser issues
-        logo_html = '<img src="/static/synerex_logo_transparent.png" alt="Synerex Logo" style="height: 60px; margin-bottom: 20px;">'
-
-        # Replace the placeholder with the actual logo
-        html_content = html_content.replace(logo_placeholder, logo_html)
-        logger.info("Report generation - Added Synerex logo to HTML report")
-
-        # AGGRESSIVE CACHE BUSTING - Force browser to reload everything
-        cache_bust_timestamp = int(
-            time.time() * 1000
-        )  # Milliseconds for more aggressive cache busting
-        cache_bust_meta = f"""
-        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-        <meta http-equiv="Pragma" content="no-cache">
-        <meta http-equiv="Expires" content="0">
-        <meta name="cache-bust" content="{cache_bust_timestamp}">
-        <meta name="normalization-fix" content="v2.0-{cache_bust_timestamp}">
-        """
-
-        # Add cache-busting meta tags to head
-        html_content = html_content.replace("<head>", f"<head>{cache_bust_meta}")
-
-        # Add cache-busting to any existing cache-bust parameters
-        html_content = html_content.replace(
-            "{{ cache_bust }}", str(cache_bust_timestamp)
-        )
-
-        logger.info(
-            f"Report generation - Applied AGGRESSIVE cache busting: {cache_bust_timestamp}"
-        )
-
-        # Process Flask template variables that aren't being processed by the template engine
-        # Instead of external files, embed CSS and JS directly to avoid path issues
-        try:
-            # Read and embed CSS file - replace the entire link tag
-            css_path = BASE_DIR / "static/file_selection.css"
-            if css_path.exists():
-                css_content = css_path.read_text(encoding="utf-8")
-                css_embed = f'<style type="text/css">\n{css_content}\n</style>'
-                # Replace the entire link tag, not just the href
-                html_content = html_content.replace(
-                    "<link rel=\"stylesheet\" href=\"{{ url_for('static', filename='file_selection.css') }}?v={{ cache_bust }}\">",
-                    css_embed,
-                )
-
-            # Read and embed JS file - replace the entire script tag
-            js_path = BASE_DIR / "static/file_selection.js"
-            if js_path.exists():
-                js_content = js_path.read_text(encoding="utf-8")
-                js_embed = f'<script type="text/javascript">\n{js_content}\n</script>'
-                # Replace the entire script tag, not just the src
-                html_content = html_content.replace(
-                    "<script src=\"{{ url_for('static', filename='file_selection.js') }}?v={{ cache_bust }}\"></script>",
-                    js_embed,
-                )
-
-            logger.info(
-                "Report generation - Embedded CSS and JS files directly into HTML report"
-            )
-        except Exception as e:
-            logger.error(f"Error embedding CSS/JS files: {e}")
-            # Fallback to removing the references
-            html_content = html_content.replace(
-                "<link rel=\"stylesheet\" href=\"{{ url_for('static', filename='file_selection.css') }}?v={{ cache_bust }}\">",
-                "",
-            )
-            html_content = html_content.replace(
-                "<script src=\"{{ url_for('static', filename='file_selection.js') }}?v={{ cache_bust }}\"></script>",
-                "",
-            )
-
-        # Handle conditional Savings Attribution Card rows based on checkbox values
-        power_factor_not_included = config.get("power_factor_not_included", False)
-        no_cp_event = config.get("no_cp_event", False)
-
-        logger.info(
-            f"Report generation - Conditional logic: power_factor_not_included={power_factor_not_included}, no_cp_event={no_cp_event}"
-        )
-
-        # If power factor is not included in billing, downstream logic will omit PF dollars.
-        # Avoid early placeholder mutation to prevent conflicts with final PF dollar replacement.
-        if power_factor_not_included:
-            logger.info("Report generation - Power factor not included, PF dollars will be omitted downstream")
-
-        # Update CP Demand Reduction to just "Demand Reduction" (kVA reduction - always show)
-        demand_reduction_row = """                <tr>
-                    <td><b>CP Demand Reduction</b></td>
-                    <td>$12085</td>
-                    <td>Power factor normalized kVA demand reduction<br/>
-                        <small>Tariff billing demand (kW/kVA, ratchet applied if configured).</small></td>
-                </tr>"""
-        updated_demand_reduction_row = """                <tr>
-                    <td><b>Demand Reduction</b></td>
-                    <td>$12085</td>
-                    <td>Power factor normalized kVA demand reduction<br/>
-                        <small>Tariff billing demand (kW/kVA, ratchet applied if configured).</small></td>
-                </tr>"""
-        html_content = html_content.replace(
-            demand_reduction_row, updated_demand_reduction_row
-        )
-        logger.info(
-            "Report generation - Updated CP Demand Reduction to Demand Reduction"
-        )
-
-        # Calculate total savings using the same method as the UI
-        # Get the total_attributed_dollars from the analysis results
-        total_savings = 0
-        if "attribution" in data and "total_attributed_dollars" in data["attribution"]:
-            total_savings = data["attribution"]["total_attributed_dollars"]
-            logger.info(
-                f"Report generation - Using UI calculation method: ${total_savings:,.0f}"
-            )
-        else:
-            # Fallback to hardcoded calculation if attribution data not available
-            total_savings = 46450  # Base total from template
-            if power_factor_not_included:
-                # Subtract Power Factor Penalty cost ($9238) from total since we set it to $0
-                total_savings = total_savings - 9238
-                logger.info(
-                    f"Report generation - Fallback calculation, excluded Power Factor Penalty cost: ${total_savings:,.2f}"
-                )
-
-        # Replace the hardcoded total with the calculated total
-        html_content = html_content.replace(
-            "{{TOTAL_ATTRIBUTED_DOLLARS}}", f"${total_savings:,.2f}"
-        )
-        logger.info(
-            f"Report generation - Updated total savings to: ${total_savings:,.2f}"
-        )
-
-        # Replace Savings Attribution Card values with actual calculated values
-        if "attribution" in data and isinstance(data["attribution"], dict):
-            attribution = data["attribution"]
-            logger.info(
-                f"Report generation - Attribution data keys: {list(attribution.keys())}"
-            )
-
-            # Energy savings values
-            if "energy" in attribution and isinstance(attribution["energy"], dict):
-                energy = attribution["energy"]
-                energy_kwh = energy.get("kwh", 0)
-                energy_dollars = energy.get("dollars", 0)
-                components = energy.get("components", {})
-                base_kwh = components.get("base_kwh", 0)
-                network_kwh = components.get("network_kwh", 0)
-                energy_rate = components.get("energy_rate", 0)
-
-                # Replace energy savings values (to hundredth decimal place)
-                _tp_energy = TemplateProcessor()
-                _tp_energy.set_template_variables({
-                    "414743 kWh": f"{energy_kwh:,.2f} kWh",
-                    "$23412": f"${energy_dollars:,.2f}",
-                    "406453 kWh": f"{base_kwh:,.2f} kWh",
-                    "8290 kWh": f"{network_kwh:,.2f} kWh",
-                    "$0.0565/kWh": f"${energy_rate:.4f}/kWh"
+                _mock = _MockAnalyzeRequest({
+                    "before_file_id": str(data["before_file_id"]),
+                    "after_file_id":  str(data["after_file_id"]),
+                    "facility_address": data.get("facility_address", "Test Facility"),
                 })
-                html_content = _tp_energy.process_template(html_content)
-
-                logger.info(
-                    f"Report generation - Updated energy savings: {energy_kwh:,.0f} kWh, ${energy_dollars:,.2f}"
-                )
-
-            # Demand reduction values (to hundredth decimal place)
-            if "demand" in attribution and isinstance(attribution["demand"], dict):
-                demand = attribution["demand"]
-                demand_dollars = demand.get("dollars", 0)
-                _tp_demand = TemplateProcessor()
-                _tp_demand.set_template_variables({
-                    "$12085": f"${demand_dollars:,.2f}"
-                })
-                html_content = _tp_demand.process_template(html_content)
-                logger.info(
-                    f"Report generation - Updated demand reduction: ${demand_dollars:,.2f}"
-                )
-
-            # Power factor penalty values (to hundredth decimal place)
-            if "pf_reactive" in attribution and isinstance(
-                attribution["pf_reactive"], dict
-            ):
-                pf_reactive = attribution["pf_reactive"]
-                pf_dollars = pf_reactive.get("dollars", 0)
-                # Always replace with the calculated value (which will be $0 if power_factor_not_included)
-                _tp_pf = TemplateProcessor()
-                _tp_pf.set_template_variables({
-                    "$9238": f"${pf_dollars:,.2f}"
-                })
-                html_content = _tp_pf.process_template(html_content)
-                logger.info(
-                    f"Report generation - Updated power factor penalty: ${pf_dollars:,.2f}"
-                )
-
-            # Envelope smoothing values (to hundredth decimal place)
-            if "envelope_smoothing" in attribution and isinstance(
-                attribution["envelope_smoothing"], dict
-            ):
-                envelope = attribution["envelope_smoothing"]
-                envelope_dollars = envelope.get("dollars", 0)
-                html_content = html_content.replace(
-                    "$1171", f"${envelope_dollars:,.2f}"
-                )
-                logger.info(
-                    f"Report generation - Updated envelope smoothing: ${envelope_dollars:,.2f}"
-                )
-
-            # Harmonic losses values (to hundredth decimal place)
-            if "harmonic_losses" in attribution and isinstance(
-                attribution["harmonic_losses"], dict
-            ):
-                harmonic = attribution["harmonic_losses"]
-                harmonic_kwh = harmonic.get("kwh", 0)
-                harmonic_dollars = harmonic.get("dollars", 0)
-                html_content = html_content.replace(
-                    "8290 kWh<br/>$468",
-                    f"{harmonic_kwh:,.2f} kWh<br/>${harmonic_dollars:,.2f}",
-                )
-                logger.info(
-                    f"Report generation - Updated harmonic losses: {harmonic_kwh:,.2f} kWh, ${harmonic_dollars:,.2f}"
-                )
-
-            # CP/PLC capacity values (to hundredth decimal place)
-            if "cp_plc" in attribution and isinstance(attribution["cp_plc"], dict):
-                cp_plc = attribution["cp_plc"]
-                cp_kw = cp_plc.get("kw", 0)
-                cp_dollars = cp_plc.get("dollars", 0)
-                cp_rate = cp_plc.get("capacity_rate_per_kw", 0)
-                html_content = html_content.replace("1 kW", f"{cp_kw:.2f} kW")
-                html_content = html_content.replace("$1", f"${cp_dollars:,.2f}")
-                html_content = html_content.replace(
-                    "$0.1/kW-month", f"${cp_rate:.2f}/kW-month"
-                )
-                logger.info(
-                    f"Report generation - Updated CP/PLC capacity: {cp_kw:.2f} kW, ${cp_dollars:,.2f}"
-                )
-
-            # O&M savings values (to hundredth decimal place)
-            if "om" in attribution and isinstance(attribution["om"], dict):
-                om = attribution["om"]
-                om_dollars = om.get("dollars", 0)
-                html_content = html_content.replace("$76", f"${om_dollars:,.2f}")
-                logger.info(
-                    f"Report generation - Updated O&M savings: ${om_dollars:,.2f}"
-                )
-
-        # Replace Methods & Formulas section values with actual calculated values
-        # Executive Summary values
-        if "executive_summary" in data and isinstance(data["executive_summary"], dict):
-            execsum = data["executive_summary"]
-
-            # Replace executive summary values
-            kw_savings = execsum.get("adjusted_kw_savings", 0)
-            annual_kwh = execsum.get("annual_kwh_savings", 0)
-            npv = execsum.get("net_present_value", 0)
-            sir = execsum.get("savings_investment_ratio", 0)
-            payback = execsum.get("simple_payback_years", 0)
-            irr = execsum.get("internal_rate_of_return", 0)
-
-            # Batch executive summary replacements
-            _tp_exec = TemplateProcessor()
-            _tp_exec.set_template_variables({
-                "TBD kW": f"{kw_savings:.2f} kW",
-                "TBD": f"${npv:,.2f}",
-                "610057.57": f"{sir:.2f}",
-                "0.000 years": f"{payback:.3f} years",
-                "0.0%": f"{irr:.1f}%"
-            })
-            html_content = _tp_exec.process_template(html_content)
-
-            logger.info(
-                f"Report generation - Updated executive summary: {kw_savings:.2f} kW, {annual_kwh:,.0f} kWh, ${npv:,.2f}"
-            )
-
-        # Replace power quality values in Methods & Formulas
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-
-            # Replace IEEE 519 values
-            isc_il_ratio = pq.get("isc_il_ratio", 0)
-            tdd_before = pq.get("tdd_before", 0)
-            tdd_after = pq.get("tdd_after", 0)
-
-            # Batch IEEE 519 power quality replacements
-            _tp_pq = TemplateProcessor()
-            _tp_pq.set_template_variables({
-                "ISC/IL Ratio: 8.5": f"ISC/IL Ratio: {isc_il_ratio:.1f}",
-                "TDD Before: 5.2%": f"TDD Before: {tdd_before:.1f}%",
-                "TDD After: 2.1%": f"TDD After: {tdd_after:.1f}%"
-            })
-            html_content = _tp_pq.process_template(html_content)
-
-            logger.info(
-                f"Report generation - Updated IEEE 519 values: ISC/IL={isc_il_ratio:.1f}, TDD Before={tdd_before:.1f}%, TDD After={tdd_after:.1f}%"
-            )
-
-        # Replace Statistical Significance section values with actual calculated values
-        if "statistical" in data and isinstance(data["statistical"], dict):
-            statistical = data["statistical"]
-            confidence_intervals = statistical.get("confidence_intervals", {})
-
-            # Get confidence interval data
-            before_ci = confidence_intervals.get("before", {})
-            after_ci = confidence_intervals.get("after", {})
-
-            # Before Period confidence interval
-            before_mean = before_ci.get("mean", 0)
-            before_ci_half_width = before_ci.get("ci_half_width", 0)
-            before_ci_lower = before_ci.get("confidence_interval", [0, 0])[0]
-            before_ci_upper = before_ci.get("confidence_interval", [0, 0])[1]
-
-            # After Period confidence interval
-            after_mean = after_ci.get("mean", 0)
-            after_ci_half_width = after_ci.get("ci_half_width", 0)
-            after_ci_lower = after_ci.get("confidence_interval", [0, 0])[0]
-            after_ci_upper = after_ci.get("confidence_interval", [0, 0])[1]
-
-            # Calculate savings confidence interval
-            savings_mean = after_mean - before_mean
-            savings_ci_lower = after_ci_lower - before_ci_upper  # Conservative estimate
-            savings_ci_upper = after_ci_upper - before_ci_lower  # Conservative estimate
-
-            # Replace confidence interval values
-            html_content = html_content.replace(
-                "179.35 kW ± 1.73 kW",
-                f"{before_mean:.2f} kW ± {before_ci_half_width:.2f} kW",
-            )
-            html_content = html_content.replace(
-                "210.35 kW ± 1.60 kW",
-                f"{after_mean:.2f} kW ± {after_ci_half_width:.2f} kW",
-            )
-            html_content = html_content.replace(
-                "-30.990 kW (95% CI: -33.35 to -28.64 kW)",
-                f"{savings_mean:.3f} kW (95% CI: {savings_ci_lower:.2f} to {savings_ci_upper:.2f} kW)",
-            )
-
-            # Data Quality Assessment values
-            before_cv = before_ci.get("cv_percent", 0)
-            after_cv = after_ci.get("cv_percent", 0)
-            overall_compliant = (
-                "Yes"
-                if (
-                    before_ci.get("meets_ashrae_cv", False)
-                    and after_ci.get("meets_ashrae_cv", False)
-                )
-                else "No"
-            )
-
-            # Batch data quality assessment replacements
-            _tp_dqa = TemplateProcessor()
-            _tp_dqa.set_template_variables({
-                "8.22%": f"{before_cv:.2f}%",
-                "6.10%": f"{after_cv:.2f}%",
-                "Yes": overall_compliant
-            })
-            html_content = _tp_dqa.process_template(html_content)
-
-            # Replace the hardcoded p-value with the actual calculated p-value
-            p_value = statistical.get("p_value", 0.0)
-            html_content = html_content.replace("0.0001", f"{p_value:.4f}")
-
-            # Replace hardcoded sample sizes with actual values
-            sample_size_before = statistical.get("sample_size_before", 0)
-            sample_size_after = statistical.get("sample_size_after", 0)
-            html_content = html_content.replace("700", str(sample_size_before))
-            html_content = html_content.replace("702", str(sample_size_after))
-
-            # Replace hardcoded detailed p-value
-            html_content = html_content.replace("0.000000", f"{p_value:.6f}")
-
-            logger.info(
-                f"Report generation - Updated Statistical Significance: Before={before_mean:.2f}±{before_ci_half_width:.2f}, After={after_mean:.2f}±{after_ci_half_width:.2f}, Savings={savings_mean:.3f}"
-            )
-            logger.info(
-                f"Report generation - Updated Data Quality: Before CV={before_cv:.2f}%, After CV={after_cv:.2f}%, Compliant={overall_compliant}"
-            )
-            logger.info(
-                f"Report generation - Updated p-value: {p_value:.4f}, Sample sizes: {sample_size_before}/{sample_size_after}"
-            )
-
-        # Replace Engineering Results section values with actual calculated values
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-
-            # Get electrical parameter values
-            kw_before = pq.get("kw_before", 0)
-            kw_after = pq.get("kw_after", 0)
-            kva_before = pq.get("kva_before", 0)
-            kva_after = pq.get("kva_after", 0)
-            kvar_before = pq.get("kvar_before", 0)
-            kvar_after = pq.get("kvar_after", 0)
-            pf_before = pq.get("pf_before", 0)
-            pf_after = pq.get("pf_after", 0)
-            thd_before = pq.get("thd_before", 0)
-            thd_after = pq.get("thd_after", 0)
-            current_before = pq.get("current_before", 0)
-            current_after = pq.get("current_after", 0)
-
-            # Calculate percentage improvements
-            kw_improvement = (
-                ((kw_after - kw_before) / kw_before * 100) if kw_before != 0 else 0
-            )
-            kva_improvement = (
-                ((kva_after - kva_before) / kva_before * 100) if kva_before != 0 else 0
-            )
-            kvar_improvement = (
-                ((kvar_after - kvar_before) / kvar_before * 100)
-                if kvar_before != 0
-                else 0
-            )
-            pf_improvement = (
-                ((pf_after - pf_before) / pf_before * 100) if pf_before != 0 else 0
-            )
-            thd_improvement = (
-                ((thd_after - thd_before) / thd_before * 100) if thd_before != 0 else 0
-            )
-            current_improvement = (
-                ((current_after - current_before) / current_before * 100)
-                if current_before != 0
-                else 0
-            )
-            logger.info(f"🔧 CURRENT DEBUG: Line 18746-18750 - current_improvement = {current_improvement} (from current_before={current_before}, current_after={current_after})")
-
-
-            # Note: Financial values '$610,057.00', '610057.57', '0.000 years', '0.0%' are already replaced earlier
-            # at lines 13255-13259 with npv/sir/payback/irr
-            # Note: Current values '320.2 A' and '259.4 A' are already replaced earlier at lines 13391-13392
-            # So we don't need to replace them again here
-
-            logger.info(
-                f"Report generation - Updated Raw Meter Data: kW {kw_before}→{kw_after}, kVA {kva_before}→{kva_after}, kVAR {kvar_before}→{kvar_after}"
-            )
-
-        # Replace Power Quality CSV Meter Data (Normalized) section values
-        # Use power_quality data for normalized values, and three_phase data for phase imbalance
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-
-            # Get normalized values from power_quality section
-            volts_before = pq.get("voltage_before", 0)
-            volts_after = pq.get("voltage_after", 0)
-            kw_norm_before = pq.get(
-                "normalized_kw_before", pq.get("kw_before", 0)
-            )  # Use normalized if available, fallback to raw
-            kw_norm_after = pq.get("normalized_kw_after", pq.get("kw_after", 0))
-            kva_norm_before = pq.get(
-                "normalized_kva_before", pq.get("kva_before", 0)
-            )  # Use normalized if available, fallback to raw
-            kva_norm_after = pq.get("normalized_kva_after", pq.get("kva_after", 0))
-            pf_norm_before = pq.get(
-                "normalized_pf_before", pq.get("pf_before", 0)
-            )  # Use normalized if available, fallback to raw
-            pf_norm_after = pq.get("normalized_pf_after", pq.get("pf_after", 0))
-            thd_before = pq.get(
-                "thd_before", 0
-            )  # Use raw THD values directly for compliance checking
-            thd_after = pq.get("thd_after", 0)
-
-            # Get phase imbalance from three_phase data if available
-            imbalance_before = 0
-            imbalance_after = 0
-            if "three_phase" in data and isinstance(data["three_phase"], dict):
-                tp = data["three_phase"]
-                if "before" in tp and "after" in tp:
-                    imbalance_before = tp["before"].get("imbalance_percent", 0)
-                    imbalance_after = tp["after"].get("imbalance_percent", 0)
-                else:
-                    # Fallback to single three_phase object
-                    imbalance_before = tp.get("imbalance_percent", 0)
-                    imbalance_after = tp.get("imbalance_percent", 0)
-
-            # Calculate percentage improvements for normalized data
-            volts_improvement = (
-                ((volts_after - volts_before) / volts_before * 100)
-                if volts_before != 0
-                else 0
-            )
-            kw_norm_improvement = (
-                ((kw_norm_after - kw_norm_before) / kw_norm_before * 100)
-                if kw_norm_before != 0
-                else 0
-            )
-            kva_norm_improvement = (
-                ((kva_norm_after - kva_norm_before) / kva_norm_before * 100)
-                if kva_norm_before != 0
-                else 0
-            )
-            pf_norm_improvement = (
-                ((pf_norm_after - pf_norm_before) / pf_norm_before * 100)
-                if pf_norm_before != 0
-                else 0
-            )
-            thd_improvement = (
-                ((thd_after - thd_before) / thd_before * 100) if thd_before != 0 else 0
-            )
-            imbalance_improvement = (
-                ((imbalance_after - imbalance_before) / imbalance_before * 100)
-                if imbalance_before != 0
-                else 0
-            )
-
-            # Replace normalized values
-            html_content = html_content.replace("279.55 V", f"{volts_before:.2f} V")
-            html_content = html_content.replace("283.86 V", f"{volts_after:.2f} V")
-            html_content = html_content.replace("1.2%", f"{volts_improvement:.1f}%")
-            # Note: '246.8 kW', '200.4 kW', '259.7 kVA', '210.9 kVA', '18.8% reduction', '0.89', '0.99', and '11.2% improvement'
-            # are already replaced earlier at lines 13359-13370 with kw_before/kw_after/kva_before/kva_after/kva_improvement/pf_before/pf_after/pf_improvement
-            # So we don't need to replace them again here
-            # Note: '2.9%', '1.9%', and '33.7% reduction' are already replaced earlier at lines 13371-13373 with thd_before/thd_after/thd_improvement
-            # So we don't need to replace them again here
-            html_content = html_content.replace("1.88%", f"{imbalance_before:.2f}%")
-            html_content = html_content.replace("0.24%", f"{imbalance_after:.2f}%")
-            html_content = html_content.replace(
-                "87.2% reduction", f"{abs(imbalance_improvement):.1f}% reduction"
-            )
-
-            logger.info(
-                f"Report generation - Updated Normalized Data: Volts {volts_before:.2f}→{volts_after:.2f}, kW {kw_norm_before:.1f}→{kw_norm_after:.1f}, Imbalance {imbalance_before:.2f}%→{imbalance_after:.2f}%"
-            )
-            logger.info(
-                f"Report generation - Power Quality data keys: {list(pq.keys())}"
-            )
-            logger.info(
-                f"Report generation - Three Phase data structure: {data.get('three_phase', 'Not found')}"
-            )
-
-        # Replace NEMA MG1 Three-Phase Analysis section values with actual calculated values
-        if "three_phase" in data and isinstance(data["three_phase"], dict):
-            tp = data["three_phase"]
-
-            # Get NEMA MG1 values
-            if "before" in tp and "after" in tp:
-                before_imbalance = tp["before"].get("imbalance_percent", 0)
-                after_imbalance = tp["after"].get("imbalance_percent", 0)
-                before_derating = tp["before"].get("nema_derating_factor", 1.0)
-                after_derating = tp["after"].get("nema_derating_factor", 1.0)
-                before_efficiency_impact = tp["before"].get("efficiency_impact", 0)
-                after_efficiency_impact = tp["after"].get("efficiency_impact", 0)
-            else:
-                # Fallback to single three_phase object
-                before_imbalance = tp.get("imbalance_percent", 0)
-                after_imbalance = tp.get("imbalance_percent", 0)
-                before_derating = tp.get("nema_derating_factor", 1.0)
-                after_derating = tp.get("nema_derating_factor", 1.0)
-                before_efficiency_impact = tp.get("efficiency_impact", 0)
-                after_efficiency_impact = tp.get("efficiency_impact", 0)
-
-            # Calculate compliance status
-            nema_limit = 1.0  # NEMA MG1 limit is 1%
-            before_compliant = "✓ PASS" if before_imbalance <= nema_limit else "✗ FAIL"
-            after_compliant = "✓ PASS" if after_imbalance <= nema_limit else "✗ FAIL"
-
-            # Calculate efficiency gain
-            efficiency_gain = before_efficiency_impact - after_efficiency_impact
-
-            # Replace NEMA MG1 values
-            html_content = html_content.replace("2.55%", f"{before_imbalance:.2f}%")
-            html_content = html_content.replace("0.87%", f"{after_imbalance:.2f}%")
-            html_content = html_content.replace("5.0%", f"{nema_limit:.1f}%")
-            html_content = html_content.replace("✗ FAIL", before_compliant)
-            html_content = html_content.replace("✓ PASS", after_compliant)
-            html_content = html_content.replace(
-                "0.001300", f"{before_efficiency_impact:.6f}"
-            )
-            html_content = html_content.replace(
-                "0.000150", f"{after_efficiency_impact:.6f}"
-            )
-            html_content = html_content.replace("0.001150", f"{efficiency_gain:.6f}")
-
-            # Replace hardcoded IEEE 519 values in detailed analysis section
-            html_content = html_content.replace(
-                "Before TDD: <strong>2.9%</strong>",
-                f"Before TDD: <strong>{tdd_before:.1f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "After TDD: <strong>1.9%</strong>",
-                f"After TDD: <strong>{tdd_after:.1f}%</strong>",
-            )
-
-            # Replace hardcoded NEMA MG1 values in detailed analysis section
-            html_content = html_content.replace(
-                "Before Imbalance: <strong>2.55%</strong>",
-                f"Before Imbalance: <strong>{before_imbalance:.2f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "After Imbalance: <strong>0.87%</strong>",
-                f"After Imbalance: <strong>{after_imbalance:.2f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "NEMA Limit: <strong>5.0%</strong>",
-                f"NEMA Limit: <strong>{nema_limit:.1f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "Efficiency Impact (Before): <strong>0.001300</strong>",
-                f"Efficiency Impact (Before): <strong>{before_efficiency_impact:.6f}</strong>",
-            )
-            html_content = html_content.replace(
-                "Efficiency Impact (After): <strong>0.000150</strong>",
-                f"Efficiency Impact (After): <strong>{after_efficiency_impact:.6f}</strong>",
-            )
-            html_content = html_content.replace(
-                "Efficiency Gain: <strong>0.001150</strong>",
-                f"Efficiency Gain: <strong>{efficiency_gain:.6f}</strong>",
-            )
-
-            # Replace additional hardcoded power quality values in Methods & Formulas section
-            html_content = html_content.replace(
-                "• Before Imbalance: <strong>2.55%</strong>",
-                f"• Before Imbalance: <strong>{before_imbalance:.2f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "• After Imbalance: <strong>0.87%</strong>",
-                f"• After Imbalance: <strong>{after_imbalance:.2f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "• NEMA Limit: <strong>5.0%</strong>",
-                f"• NEMA Limit: <strong>{nema_limit:.1f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "• Before RMS Current: <strong>320.2 A</strong>",
-                f"• Before RMS Current: <strong>{current_before:.1f} A</strong>",
-            )
-            html_content = html_content.replace(
-                "• After RMS Current: <strong>259.4 A</strong>",
-                f"• After RMS Current: <strong>{current_after:.1f} A</strong>",
-            )
-            html_content = html_content.replace(
-                "• Voltage: <strong>480 V</strong>",
-                f"• Voltage: <strong>{voltage_before:.0f} V</strong>",
-            )
-            html_content = html_content.replace(
-                "• Target Power Factor: <strong>.95</strong>",
-                f'• Target Power Factor: <strong>{config.get("target_pf", 0.95):.2f}</strong>',
-            )
-
-            # Replace hardcoded I²R and transformer loss values
-            html_content = html_content.replace(
-                "• Conductor Loss Reduction: <strong>0.946 kW</strong>",
-                f'• Conductor Loss Reduction: <strong>{pq.get("conductor_loss_reduction", 0):.3f} kW</strong>',
-            )
-            html_content = html_content.replace(
-                "• Transformer Copper Loss Reduction: <strong>0.051 kW</strong>",
-                f'• Transformer Copper Loss Reduction: <strong>{pq.get("transformer_copper_loss_reduction", 0):.3f} kW</strong>',
-            )
-            html_content = html_content.replace(
-                "• Transformer Stray Loss Reduction: <strong>0.013 kW</strong>",
-                f'• Transformer Stray Loss Reduction: <strong>{pq.get("transformer_stray_loss_reduction", 0):.3f} kW</strong>',
-            )
-            html_content = html_content.replace(
-                "• Annual Network Savings: <strong>$467.95</strong>",
-                f'• Annual Network Savings: <strong>${pq.get("annual_network_savings", 0):.2f}</strong>',
-            )
-
-            # Replace hardcoded IEEE 519 values in Methods & Formulas section
-            html_content = html_content.replace(
-                "• Edition: <strong>IEEE 519-2014</strong>",
-                f'• Edition: <strong>IEEE 519-{config.get("ieee_519_edition", "2014")}</strong>',
-            )
-            html_content = html_content.replace(
-                "• TDD Limit: <strong>8%</strong>",
-                f'• TDD Limit: <strong>{pq.get("ieee_tdd_limit", 0):.0f}%</strong>',
-            )
-            html_content = html_content.replace(
-                "• Before TDD: <strong>2.9%</strong>",
-                f"• Before TDD: <strong>{tdd_before:.1f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "• After TDD: <strong>1.9%</strong>",
-                f"• After TDD: <strong>{tdd_after:.1f}%</strong>",
-            )
-            html_content = html_content.replace(
-                "• Before Compliance: <strong>✗ FAIL</strong>",
-                f'• Before Compliance: <strong>{"✓ PASS" if tdd_before <= pq.get("ieee_tdd_limit", 0) else "✗ FAIL"}</strong>',
-            )
-            html_content = html_content.replace(
-                "• After Compliance: <strong>✓ PASS</strong>",
-                f'• After Compliance: <strong>{"✓ PASS" if tdd_after <= pq.get("ieee_tdd_limit", 0) else "✗ FAIL"}</strong>',
-            )
-
-            # Replace remaining hardcoded current values with calculated values
-            html_content = html_content.replace("320.2 A", f"{current_before:.1f} A")
-            html_content = html_content.replace("259.4 A", f"{current_after:.1f} A")
-
-            # Replace remaining hardcoded voltage values
-            html_content = html_content.replace("480.0 V", f"{voltage_before:.0f} V")
-            html_content = html_content.replace("485.0 V", f"{voltage_after:.0f} V")
-
-            # Replace remaining hardcoded power factor values (be more specific to avoid false matches)
-            html_content = html_content.replace("0.7", f"{pf_before:.2f}")
-            html_content = html_content.replace("1.0", f"{pf_after:.2f}")
-
-            # Replace remaining hardcoded THD values
-            html_content = html_content.replace("2.9%", f"{thd_before:.1f}%")
-            html_content = html_content.replace("1.9%", f"{thd_after:.1f}%")
-
-            # Replace remaining hardcoded values in Methods & Formulas section with calculated current values
-            html_content = html_content.replace(
-                "• Before RMS Current: <strong>320.2 A</strong>",
-                f"• Before RMS Current: <strong>{current_before:.1f} A</strong>",
-            )
-            html_content = html_content.replace(
-                "• After RMS Current: <strong>259.4 A</strong>",
-                f"• After RMS Current: <strong>{current_after:.1f} A</strong>",
-            )
-            html_content = html_content.replace(
-                "• Voltage: <strong>480 V</strong>",
-                f"• Voltage: <strong>{voltage_before:.0f} V</strong>",
-            )
-            html_content = html_content.replace(
-                "• Target Power Factor: <strong>.95</strong>",
-                f'• Target Power Factor: <strong>{config.get("target_pf", 0.95):.2f}</strong>',
-            )
-            html_content = html_content.replace(
-                "• Annual Network Savings: <strong>$467.95</strong>",
-                f'• Annual Network Savings: <strong>${pq.get("annual_network_savings", 0):.2f}</strong>',
-            )
-
-            # Replace hardcoded IEEE 519 edition in Methods & Formulas section
-            html_content = html_content.replace(
-                "• Edition: <strong>IEEE 519-2014</strong>",
-                f'• Edition: <strong>IEEE 519-{config.get("ieee_519_edition", "2014")}</strong>',
-            )
-            html_content = html_content.replace(
-                "Power quality analysis based on IEEE 519-2014 standards.",
-                f'Power quality analysis based on IEEE 519-{config.get("ieee_519_edition", "2014")} standards.',
-            )
-
-            logger.info(
-                f"Report generation - Updated NEMA MG1: Before={before_imbalance:.2f}%, After={after_imbalance:.2f}%, Gain={efficiency_gain:.6f}"
-            )
-
-        # Individual Metric Improvements - REMOVED (handled by HTML service)
-        # The HTML service (8084) handles this using Direct GET approach
-        logger.info(
-            "Report generation - Individual Metric Improvements handled by HTML service via Direct GET approach"
-        )
-
-        # Replace ASHRAE baseline model values with actual calculated values
-        if "statistical" in data and isinstance(data["statistical"], dict):
-            statistical = data["statistical"]
-
-            # Debug: Log what's available in statistical data
-            logger.info(
-                f"Report generation - Statistical data keys: {list(statistical.keys())}"
-            )
-            logger.info(
-                f"Report generation - Statistical data values: cvrmse={statistical.get('cvrmse')}, nmbe={statistical.get('nmbe')}, r_squared={statistical.get('r_squared')}"
-            )
-
-            # Get ASHRAE baseline model values
-            model_selected = statistical.get(
-                "baseline_model_selected", "Temperature data required"
-            )
-            cvrmse = statistical.get("cvrmse")
-            nmbe = statistical.get("nmbe")
-            r_squared = statistical.get("r_squared")
-            temperature_units = statistical.get("temperature_units", "°F")
-
-            # Priority 1: real regression values from weather_normalization result dict
-            # (computed from actual model residuals, not approximated from period statistics)
-            weather_norm_report = data.get("weather_normalization", {}) or {}
-            if weather_norm_report.get("regression_cvrmse") is not None:
-                cvrmse = weather_norm_report["regression_cvrmse"]
-            if weather_norm_report.get("regression_nmbe") is not None:
-                nmbe = weather_norm_report["regression_nmbe"]
-            if weather_norm_report.get("regression_r2") is not None:
-                r_squared = weather_norm_report["regression_r2"]
-            if weather_norm_report.get("regression_model_name"):
-                model_selected = weather_norm_report["regression_model_name"]
-
-            # Priority 2: If ASHRAE values are still missing, check before_compliance fallback
-            if (cvrmse is None or cvrmse == "NoneType") and "before_compliance" in data:
-                before_comp = data["before_compliance"]
-                if before_comp.get("baseline_model_cvrmse") is not None:
-                    cvrmse = before_comp["baseline_model_cvrmse"]
-                    logger.info(
-                        f"Report generation - Using CVRMSE from before_compliance: {cvrmse}"
-                    )
-
-            if (nmbe is None or nmbe == "NoneType") and "before_compliance" in data:
-                before_comp = data["before_compliance"]
-                if before_comp.get("baseline_model_nmbe") is not None:
-                    nmbe = before_comp["baseline_model_nmbe"]
-                    logger.info(
-                        f"Report generation - Using NMBE from before_compliance: {nmbe}"
-                    )
-
-            if (
-                r_squared is None or r_squared == "NoneType"
-            ) and "before_compliance" in data:
-                before_comp = data["before_compliance"]
-                if before_comp.get("baseline_model_r_squared") is not None:
-                    r_squared = before_comp["baseline_model_r_squared"]
-                    logger.info(
-                        f"Report generation - Using R² from before_compliance: {r_squared}"
-                    )
-
-            # Update model_selected if we found actual ASHRAE values and it wasn't set from regression
-            if cvrmse is not None and cvrmse != "NoneType" and model_selected in ("Temperature data required", "NOT AVAILABLE — no regression data", None):
-                model_selected = "ASHRAE Guideline 14"
-
-            # Determine normalization decision for display
-            normalization_applied = weather_norm_report.get("normalization_applied")
-            ashrae_norm_compliant = weather_norm_report.get("ashrae_compliant")
-            if normalization_applied is True:
-                norm_decision = "APPLIED (R² ≥ 0.75 demonstrated)"
-            elif normalization_applied is False and ashrae_norm_compliant is False:
-                norm_decision = "NOT APPLIED (R² < 0.75 — raw measured values used)"
-            elif normalization_applied is False:
-                norm_decision = "NOT APPLIED (insufficient temperature difference)"
-            else:
-                norm_decision = "—"
-
-            # Format values with ASHRAE 14-2023 threshold pass/fail
-            # Thresholds: R² ≥ 0.75, CV-RMSE < 15%, NMBE < ±5%
-            if cvrmse is not None and isinstance(cvrmse, (int, float)):
-                cvrmse_pass = "✓ PASS" if cvrmse < 15.0 else "✗ FAIL"
-                cvrmse_str = f"{cvrmse:.1f}% ({cvrmse_pass}, threshold < 15%)"
-            else:
-                cvrmse_str = "— (no regression data)"
-
-            if nmbe is not None and isinstance(nmbe, (int, float)):
-                nmbe_pass = "✓ PASS" if abs(nmbe) < 5.0 else "✗ FAIL"
-                nmbe_str = f"{nmbe:.1f}% ({nmbe_pass}, threshold ±5%)"
-            else:
-                nmbe_str = "— (no regression data)"
-
-            if r_squared is not None and isinstance(r_squared, (int, float)):
-                r2_pass = "✓ PASS" if r_squared >= 0.75 else "✗ FAIL"
-                r_squared_str = f"{r_squared:.4f} ({r2_pass}, threshold ≥ 0.75)"
-            else:
-                r_squared_str = "— (no regression data)"
-
-            # Prepend normalization decision to model_selected for transparency
-            model_selected_display = f"{model_selected} | Normalization: {norm_decision}"
-
-            # Get ASHRAE precision values from compliance analysis
-            relative_precision = after_comp.get("ashrae_precision_value", None)
-            precision_status = "—"
-
-            if relative_precision is not None:
-                # Calculate status based on ASHRAE Guideline 14 limit (< 50%)
-                precision_status = "✓ PASS" if relative_precision < 50.0 else "✗ FAIL"
-                logger.info(
-                    f"AUDIT TRAIL - Statistical Analysis ASHRAE Precision: {relative_precision:.2f}% (Status: {precision_status})"
-                )
-            else:
+                _resp = analyze(_mock)
+                _ad = _resp.get_json() if hasattr(_resp, "get_json") else _resp
+                if _ad and "results" in _ad:
+                    data.update(_ad["results"])
+            except Exception as _analyze_err:
                 logger.warning(
-                    "AUDIT TRAIL - ASHRAE precision value not found in compliance data"
+                    f"generate-report (proxy): inline analyze() failed: {_analyze_err}"
                 )
 
-            # Format relative precision
-            relative_precision_str = (
-                f"{relative_precision:.1f}%"
-                if relative_precision is not None
-                and isinstance(relative_precision, (int, float))
-                else "—"
-            )
-
-            # Replace ASHRAE placeholders
-            html_content = html_content.replace(
-                "{{ASHRAE_MODEL_SELECTED}}", str(model_selected_display)
-            )
-            html_content = html_content.replace("{{ASHRAE_CVRMSE}}", cvrmse_str)
-            html_content = html_content.replace("{{ASHRAE_NMBE}}", nmbe_str)
-            html_content = html_content.replace("{{ASHRAE_R_SQUARED}}", r_squared_str)
-            html_content = html_content.replace(
-                "{{ASHRAE_TEMPERATURE_UNITS}}", str(temperature_units)
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_RELATIVE_PRECISION}}", relative_precision_str
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_PRECISION_STATUS}}", precision_status
-            )
-
-            logger.info(
-                f"Report generation - ASHRAE values applied: model={model_selected_display}, "
-                f"CVRMSE={cvrmse_str}, NMBE={nmbe_str}, R²={r_squared_str}, "
-                f"precision={relative_precision_str}, status={precision_status}"
-            )
-
-            # Replace statistical analysis values
-            cohens_d = statistical.get("cohens_d", 0.0)
-            t_statistic = statistical.get("t_statistic", 0.0)
-            relative_precision_stat = statistical.get("relative_precision", 0.0)
-
-            cohens_d_str = (
-                f"{cohens_d:.3f}"
-                if cohens_d is not None and isinstance(cohens_d, (int, float))
-                else "0.000"
-            )
-            t_statistic_str = (
-                f"{t_statistic:.2f}"
-                if t_statistic is not None and isinstance(t_statistic, (int, float))
-                else "0.00"
-            )
-            relative_precision_stat_str = (
-                f"{relative_precision_stat:.2f}%"
-                if relative_precision_stat is not None
-                and isinstance(relative_precision_stat, (int, float))
-                else "0.00%"
-            )
-
-            # Effect size (Cohen's d) — sign-aware (ASHRAE 14-2023 §5.3.2 / Cohen 1988).
-            # Negative d = consumption increased (wrong direction for savings claim).
-            cohens_d_f = float(cohens_d) if isinstance(cohens_d, (int, float)) else 0.0
-            cohens_d_abs_f = abs(cohens_d_f)
-            if cohens_d_f < 0:
-                if cohens_d_abs_f < 0.1:
-                    cohens_d_rating = "Negligible — Wrong Direction (consumption increased)"
-                elif cohens_d_abs_f < 0.2:
-                    cohens_d_rating = "Small Effect — Wrong Direction (consumption increased)"
-                else:
-                    cohens_d_rating = "Meaningful Effect — Wrong Direction (consumption increased)"
-            elif cohens_d_abs_f < 0.1:
-                cohens_d_rating = "Negligible — Below Practical Detection Threshold"
-            elif cohens_d_abs_f < 0.2:
-                cohens_d_rating = "Small Effect"
-            elif cohens_d_abs_f < 0.5:
-                cohens_d_rating = "Moderate Effect (savings signal present)"
-            elif cohens_d_abs_f < 0.8:
-                cohens_d_rating = "Large Effect (strong savings signal)"
-            else:
-                cohens_d_rating = "Very Large Effect (very strong savings signal)"
-
-            html_content = html_content.replace("{{COHENS_D}}", cohens_d_str)
-            html_content = html_content.replace("{{COHENS_D_RATING}}", cohens_d_rating)
-            html_content = html_content.replace("{{T_STATISTIC}}", t_statistic_str)
-            html_content = html_content.replace(
-                "{{RELATIVE_PRECISION}}", relative_precision_stat_str
-            )
-
-            # Use the same confidence intervals that work in UI HTML
-            confidence_interval_before = "1018.06 - 1040.73"
-            confidence_interval_after = "833.24 - 852.72"
-            confidence_interval_savings = "165.34 - 207.49"
-
-            data_quality = statistical.get("data_quality", {})
-            before_quality = data_quality.get("before", {})
-            after_quality = data_quality.get("after", {})
-            cv_before = before_quality.get("cv", 2.1)
-            cv_after = after_quality.get("cv", 1.8)
-            data_quality_compliant = (
-                "✓ YES" if data_quality.get("overall_compliant", True) else "✗ NO"
-            )
-
-            ashrae_precision_status_detailed = (
-                "YES" if relative_precision_stat < 50 else "NO"
-            )
-            power_quality_significance = (
-                "✓ Significant"
-                if statistical.get("statistically_significant", True)
-                else "✗ Not Significant"
-            )
-
-            html_content = html_content.replace(
-                "{{CONFIDENCE_INTERVAL_BEFORE}}", confidence_interval_before
-            )
-            html_content = html_content.replace(
-                "{{CONFIDENCE_INTERVAL_AFTER}}", confidence_interval_after
-            )
-            html_content = html_content.replace(
-                "{{CONFIDENCE_INTERVAL_SAVINGS}}", confidence_interval_savings
-            )
-
-            # Use client-friendly quality ratings from JavaScript (README.md protocol)
-            def get_quality_rating(cv):
-                if cv < 5:
-                    return "Excellent"
-                elif cv < 10:
-                    return "Very Good"
-                elif cv < 15:
-                    return "Good"
-                elif cv < 20:
-                    return "Acceptable"
-                else:
-                    return "Needs Review"
-
-            before_quality_rating = get_quality_rating(cv_before)
-            after_quality_rating = get_quality_rating(cv_after)
-
-            html_content = html_content.replace(
-                "{{CV_BEFORE_DETAILED}}", before_quality_rating
-            )
-            html_content = html_content.replace(
-                "{{CV_AFTER_DETAILED}}", after_quality_rating
-            )
-            html_content = html_content.replace(
-                "{{DATA_QUALITY_COMPLIANT_DETAILED}}", data_quality_compliant
-            )
-            html_content = html_content.replace(
-                "{{RELATIVE_PRECISION_DETAILED}}", relative_precision_stat_str
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_PRECISION_STATUS_DETAILED}}", ashrae_precision_status_detailed
-            )
-            html_content = html_content.replace(
-                "{{POWER_QUALITY_SIGNIFICANCE}}", power_quality_significance
-            )
-
-            logger.info(
-                f"Report generation - Comprehensive statistical analysis values applied"
-            )
-            html_content = html_content.replace("{{COHENS_D_DETAILED}}", cohens_d_str)
-            html_content = html_content.replace(
-                "{{T_STATISTIC_DETAILED}}", t_statistic_str
-            )
-
-            # Add missing P_VALUE_DETAILED replacement
-            p_value = statistical.get("p_value", 0.0)
-            p_value_detailed = f"< 0.001" if p_value < 0.001 else f"{p_value:.3f}"
-            html_content = html_content.replace(
-                "{{P_VALUE_DETAILED}}", p_value_detailed
-            )
-
-            # Add missing CONFIDENCE_LEVEL replacement
-            confidence_level = data.get("config", {}).get("confidence_level", 0.95)
-            if confidence_level > 1:
-                # Already a percentage (e.g., 95)
-                confidence_level_str = f"{int(confidence_level)}%"
-            else:
-                # Decimal format (e.g., 0.95) - convert to percentage
-                confidence_level_str = f"{int(confidence_level * 100)}%"
-            html_content = html_content.replace(
-                "{{CONFIDENCE_LEVEL}}", confidence_level_str
-            )
-
-            # Replace data quality assessment values
-            before_comp = data.get("before_compliance", {})
-            after_comp = data.get("after_compliance", {})
-            statistical = data.get("statistical", {})
-            confidence_intervals = statistical.get("confidence_intervals", {})
-
-            # Get CV values from confidence intervals
-            before_cv = confidence_intervals.get("before", {}).get("cv_percent", 0.0)
-            after_cv = confidence_intervals.get("after", {}).get("cv_percent", 0.0)
-
-            # Overall compliant based on data quality compliance
-            overall_compliant = (
-                "Yes"
-                if (
-                    before_comp.get("data_quality_compliant", False)
-                    and after_comp.get("data_quality_compliant", False)
-                )
-                else "No"
-            )
-
-            # Calculate comprehensive data quality score that can reach 100%
-            # This considers completeness, outliers, CV, and data consistency
-
-            # Get data completeness percentages - check multiple sources, default to 100% if not found
-            before_ashrae_dq = before_comp.get("ashrae_data_quality", {}) if isinstance(before_comp, dict) else {}
-            after_ashrae_dq = after_comp.get("ashrae_data_quality", {}) if isinstance(after_comp, dict) else {}
-            
-            before_completeness = (
-                (before_ashrae_dq.get("completeness") if isinstance(before_ashrae_dq, dict) else None) or
-                before_comp.get("completeness_percent") or
-                before_comp.get("data_completeness_pct") or
-                100.0  # Default to 100% if data files are complete
-            )
-            try:
-                before_completeness = float(before_completeness) if before_completeness is not None else 100.0
-            except (ValueError, TypeError):
-                before_completeness = 100.0
-            
-            after_completeness = (
-                (after_ashrae_dq.get("completeness") if isinstance(after_ashrae_dq, dict) else None) or
-                after_comp.get("completeness_percent") or
-                after_comp.get("data_completeness_pct") or
-                100.0  # Default to 100% if data files are complete
-            )
-            try:
-                after_completeness = float(after_completeness) if after_completeness is not None else 100.0
-            except (ValueError, TypeError):
-                after_completeness = 100.0
-
-            # Get outlier percentages
-            before_outliers = before_comp.get("outlier_percent", 0.0)
-            after_outliers = after_comp.get("outlier_percent", 0.0)
-
-            # Get CV values from compliance data (lower is better for data quality)
-            before_cv = before_comp.get("cv_percent", 0.0)
-            after_cv = after_comp.get("cv_percent", 0.0)
-
-            # Calculate quality components (each can contribute up to 25 points)
-            # 1. Data completeness score (25 points max) - Industrial plant realistic scoring
-            # Industrial plants may have planned maintenance, equipment cycling, etc.
-            avg_completeness = (before_completeness + after_completeness) / 2
-
-            # Industrial-appropriate completeness scoring - More generous for industrial plants
-            if avg_completeness >= 95.0:  # Exceptional completeness (ASHRAE standard)
-                completeness_score = 25
-            elif (
-                avg_completeness >= 90.0
-            ):  # Excellent completeness (typical for good industrial)
-                completeness_score = 24
-            elif (
-                avg_completeness >= 85.0
-            ):  # Very good completeness (typical for industrial)
-                completeness_score = 23
-            elif (
-                avg_completeness >= 80.0
-            ):  # Good completeness (acceptable for industrial)
-                completeness_score = 22
-            elif (
-                avg_completeness >= 75.0
-            ):  # Acceptable completeness (normal for industrial operations)
-                completeness_score = 21
-            elif (
-                avg_completeness >= 70.0
-            ):  # Fair completeness (some gaps expected in industrial)
-                completeness_score = 20
-            elif (
-                avg_completeness >= 60.0
-            ):  # Poor completeness (needs attention but not critical)
-                completeness_score = 18
-            elif (
-                avg_completeness >= 50.0
-            ):  # Very poor completeness (significant issues)
-                completeness_score = 15
-            else:  # Extremely poor completeness (major issues)
-                completeness_score = 10
-
-            # 2. Outlier score (25 points max) - Industrial plant realistic scoring
-            # Industrial plants have equipment cycling, load changes, etc. - some outliers are normal
-            avg_outliers = (before_outliers + after_outliers) / 2
-
-            # Industrial-appropriate outlier scoring - More generous for industrial plants
-            if avg_outliers <= 5.0:  # Exceptional (very few outliers)
-                outlier_score = 25
-            elif (
-                avg_outliers <= 8.0
-            ):  # Excellent (normal for well-controlled industrial)
-                outlier_score = 24
-            elif avg_outliers <= 12.0:  # Very good (typical for industrial operations)
-                outlier_score = 23
-            elif (
-                avg_outliers <= 15.0
-            ):  # Good (acceptable for variable industrial loads)
-                outlier_score = 22
-            elif (
-                avg_outliers <= 20.0
-            ):  # Acceptable (normal for complex industrial processes)
-                outlier_score = 21
-            elif avg_outliers <= 25.0:  # Fair (some equipment cycling expected)
-                outlier_score = 20
-            elif avg_outliers <= 30.0:  # Poor (needs attention but not critical)
-                outlier_score = 18
-            elif avg_outliers <= 40.0:  # Very poor (significant issues)
-                outlier_score = 15
-            else:  # Extremely poor (major issues)
-                outlier_score = 10
-
-            # 3. CV consistency score (25 points max) - Industrial plant realistic scoring
-            # Industrial plants have variable loads - this is normal and expected
-            avg_cv = (before_cv + after_cv) / 2
-
-            # Industrial-appropriate scoring system that recognizes load variations as normal
-            if avg_cv <= 8.0:  # Exceptional consistency (rare in industrial plants)
-                cv_score = 25
-            elif (
-                avg_cv <= 12.0
-            ):  # Excellent consistency (well-controlled industrial systems)
-                cv_score = 24
-            elif (
-                avg_cv <= 15.0
-            ):  # Very good consistency (typical for good industrial plants)
-                cv_score = 23
-            elif avg_cv <= 20.0:  # Good consistency (normal for most industrial plants)
-                cv_score = 22
-            elif (
-                avg_cv <= 25.0
-            ):  # Acceptable consistency (typical for variable industrial loads)
-                cv_score = 21
-            elif (
-                avg_cv <= 30.0
-            ):  # Moderate consistency (acceptable for heavy industrial operations)
-                cv_score = 20
-            elif (
-                avg_cv <= 35.0
-            ):  # Fair consistency (normal for complex industrial processes)
-                cv_score = 19
-            elif avg_cv <= 40.0:  # Poor consistency (needs attention but not critical)
-                cv_score = 18
-            elif avg_cv <= 50.0:  # Very poor consistency (significant issues)
-                cv_score = 15
-            else:  # Extremely poor consistency (major issues)
-                cv_score = 10
-
-            # 4. Data compliance score (25 points max) - based on ASHRAE compliance
-            compliance_score = 25 if overall_compliant == "Yes" else 0
-
-            # Total quality score (0-100%)
-            overall_quality_score = min(
-                100.0, completeness_score + outlier_score + cv_score + compliance_score
-            )
-
-            # Debug logging to understand why score is low
-            logger.info(
-                f"DATA QUALITY DEBUG - Completeness: {before_completeness:.1f}% + {after_completeness:.1f}% = {completeness_score:.1f} points"
-            )
-            logger.info(
-                f"DATA QUALITY DEBUG - Outliers: {before_outliers:.1f}% + {after_outliers:.1f}% = {outlier_score:.1f} points"
-            )
-            logger.info(
-                f"DATA QUALITY DEBUG - CV: {before_cv:.1f}% + {after_cv:.1f}% = {cv_score:.1f} points"
-            )
-            logger.info(
-                f"DATA QUALITY DEBUG - Compliance: {overall_compliant} = {compliance_score:.1f} points"
-            )
-            logger.info(
-                f"DATA QUALITY DEBUG - Total Score: {overall_quality_score:.1f}%"
-            )
-
-            html_content = html_content.replace(
-                "{{DATA_QUALITY_SCORE}}", f"{overall_quality_score:.1f}"
-            )
-
-            # Use client-friendly quality ratings for CV values
-            def get_quality_rating(cv):
-                if cv < 5:
-                    return "Excellent"
-                elif cv < 10:
-                    return "Very Good"
-                elif cv < 15:
-                    return "Good"
-                elif cv < 20:
-                    return "Acceptable"
-                else:
-                    return "Needs Review"
-
-            before_quality_rating = get_quality_rating(before_cv)
-            after_quality_rating = get_quality_rating(after_cv)
-
-            html_content = html_content.replace("{{BEFORE_CV}}", before_quality_rating)
-            html_content = html_content.replace("{{AFTER_CV}}", after_quality_rating)
-            html_content = html_content.replace(
-                "{{OVERALL_COMPLIANT}}", overall_compliant
-            )
-
-            # Add confidence interval values
-            html_content = html_content.replace(
-                "{{CONFIDENCE_INTERVAL_BEFORE}}", "1018.06 - 1040.73"
-            )
-            html_content = html_content.replace(
-                "{{CONFIDENCE_INTERVAL_AFTER}}", "833.24 - 852.72"
-            )
-
-            # Replace M&V Compliance Status placeholders - Calculate from compliance data
-            ashrae_precision_value = after_comp.get("ashrae_precision_value", 0.0)
-            ashrae_precision_compliant = after_comp.get(
-                "ashrae_precision_compliant", False
-            )
-
-            ashrae_guideline_14_status = (
-                "✓ PASS" if ashrae_precision_compliant else "✗ FAIL"
-            )
-            ashrae_guideline_14_status_class = (
-                "compliant" if ashrae_precision_compliant else "non-compliant"
-            )
-            ashrae_guideline_14_value = f"{ashrae_precision_value:.1f}%"
-
-            # Log the calculated values for audit trail
-            logger.info(
-                f"AUDIT TRAIL - M&V Compliance ASHRAE Precision: {ashrae_precision_value:.2f}% (Status: {ashrae_guideline_14_status})"
-            )
-
-            # Recalculate compliance based on actual values as safeguard - check multiple sources
-            ashrae_dq = after_comp.get("ashrae_data_quality", {}) if isinstance(after_comp, dict) else {}
-            completeness_pct = (
-                (ashrae_dq.get("completeness") if isinstance(ashrae_dq, dict) else None) or
-                after_comp.get('data_completeness_pct') or
-                after_comp.get('completeness_percent') or
-                100.0  # Default to 100% if data files are complete
-            )
-            try:
-                completeness_pct = float(completeness_pct) if completeness_pct is not None else 100.0
-            except (ValueError, TypeError):
-                completeness_pct = 100.0
-            
-            outlier_pct = (
-                (ashrae_dq.get("outliers") if isinstance(ashrae_dq, dict) else None) or
-                after_comp.get('outlier_percentage') or
-                after_comp.get('outlier_percent') or
-                0.0
-            )
-            try:
-                outlier_pct = float(outlier_pct) if outlier_pct is not None else 0.0
-            except (ValueError, TypeError):
-                outlier_pct = 0.0
-            
-            # Recalculate: Completeness ≥ 95% and Outliers ≤ 5%
-            recalculated_compliant = (completeness_pct >= 95.0 and outlier_pct <= 5.0)
-            stored_compliant = after_comp.get("data_quality_compliant", None)
-            
-            # Use recalculated value if stored value seems incorrect
-            if stored_compliant is not None and stored_compliant != recalculated_compliant:
-                logger.warning(
-                    f"ASHRAE Data Quality compliance mismatch: stored={stored_compliant}, "
-                    f"recalculated={recalculated_compliant} (completeness={completeness_pct:.1f}%, outliers={outlier_pct:.1f}%)"
-                )
-                data_quality_compliant_final = recalculated_compliant
-            else:
-                data_quality_compliant_final = stored_compliant if stored_compliant is not None else recalculated_compliant
-
-            ashrae_data_quality_status = (
-                "✓ PASS" if data_quality_compliant_final else "✗ FAIL"
-            )
-            ashrae_data_quality_status_class = (
-                "compliant" if data_quality_compliant_final else "non-compliant"
-            )
-            ashrae_data_quality_value = f"Completeness: {completeness_pct:.1f}%, Outliers: {outlier_pct:.1f}%"
-
-            ipmvp_status = (
-                "✓ PASS"
-                if after_comp.get("statistically_significant", False)
-                else "✗ FAIL"
-            )
-            ipmvp_status_class = (
-                "compliant"
-                if after_comp.get("statistically_significant", False)
-                else "non-compliant"
-            )
-            # Format p-value with appropriate precision for very small values
-            p_val = after_comp.get("statistical_p_value", 0.0)
-            if p_val > 0:
-                if p_val < 0.001:
-                    ipmvp_value = (
-                        f"p < 0.001"  # For very small p-values, show as less than 0.001
-                    )
-                else:
-                    ipmvp_value = f"p = {p_val:.4f}"
-            else:
-                ipmvp_value = "N/A"
-
-            # ANSI C12.1 & C12.20 - Use actual calculated values from compliance analysis
-            ansi_c12_compliant = after_comp.get("ansi_c12_20_class_05_compliant", False)
-            ansi_c12_accuracy = after_comp.get("ansi_c12_20_class_05_accuracy", 0.0)
-            ansi_c12_status = "✓ PASS" if ansi_c12_compliant else "✗ FAIL"
-            ansi_c12_status_class = (
-                "compliant" if ansi_c12_compliant else "non-compliant"
-            )
-            ansi_c12_value = f"±{ansi_c12_accuracy:.2f}%"
-
-            html_content = html_content.replace(
-                "{{ASHRAE_GUIDELINE_14_STATUS}}", ashrae_guideline_14_status
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}", ashrae_guideline_14_status_class
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_GUIDELINE_14_VALUE}}", ashrae_guideline_14_value
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_STATUS}}", ashrae_data_quality_status
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_STATUS_CLASS}}", ashrae_data_quality_status_class
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_VALUE}}", ashrae_data_quality_value
-            )
-            html_content = html_content.replace("{{IPMVP_STATUS}}", ipmvp_status)
-            html_content = html_content.replace(
-                "{{IPMVP_STATUS_CLASS}}", ipmvp_status_class
-            )
-            html_content = html_content.replace("{{IPMVP_VALUE}}", ipmvp_value)
-            html_content = html_content.replace("{{ANSI_C12_STATUS}}", ansi_c12_status)
-            html_content = html_content.replace(
-                "{{ANSI_C12_STATUS_CLASS}}", ansi_c12_status_class
-            )
-            html_content = html_content.replace("{{ANSI_C12_VALUE}}", ansi_c12_value)
-
-            # Replace Performance section placeholders
-            pq = data.get("power_quality", {})
-            config = data.get("config", {})
-
-            # IEEE 519 placeholders — use TDD (properly normalised by I_L) and correct limit
-            _ieee_tdd_limit = pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
-            _tdd_before = pq.get("tdd_before", pq.get("thd_before", 0))
-            _tdd_after = pq.get("tdd_after", pq.get("thd_after", 0))
-            ieee_519_before_status = (
-                "✓ PASS"
-                if _tdd_before <= _ieee_tdd_limit
-                else "✗ FAIL"
-            )
-            ieee_519_before_status_class = (
-                "compliant"
-                if _tdd_before <= _ieee_tdd_limit
-                else "non-compliant"
-            )
-            ieee_519_after_status = (
-                "✓ PASS"
-                if _tdd_after <= _ieee_tdd_limit
-                else "✗ FAIL"
-            )
-            ieee_519_after_status_class = (
-                "compliant"
-                if _tdd_after <= _ieee_tdd_limit
-                else "non-compliant"
-            )
-            ieee_519_before_value = f"{_tdd_before:.1f}%"
-            ieee_519_after_value = f"{_tdd_after:.1f}%"
-
-            # NEMA MG1 placeholders
-            nema_mg1_before_status = (
-                "✓ PASS" if before_comp.get("nema_compliant", False) else "✗ FAIL"
-            )
-            nema_mg1_before_status_class = (
-                "compliant"
-                if before_comp.get("nema_compliant", False)
-                else "non-compliant"
-            )
-            nema_mg1_after_status = (
-                "✓ PASS" if after_comp.get("nema_compliant", False) else "✗ FAIL"
-            )
-            nema_mg1_after_status_class = (
-                "compliant"
-                if after_comp.get("nema_compliant", False)
-                else "non-compliant"
-            )
-            nema_mg1_before_value = _safe_format_percentage(
-                before_comp.get('nema_imbalance_value', "N/A"), precision=1
-            )
-            nema_mg1_after_value = _safe_format_percentage(
-                after_comp.get('nema_imbalance_value', "N/A"), precision=1
-            )
-
-            # IEC 62053-22 placeholders
-            iec_62053_22_before_status = (
-                "✓ PASS"
-                if before_comp.get("iec_62053_22_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_62053_22_before_status_class = (
-                "compliant"
-                if before_comp.get("iec_62053_22_compliant", False)
-                else "non-compliant"
-            )
-            iec_62053_22_after_status = (
-                "✓ PASS"
-                if after_comp.get("iec_62053_22_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_62053_22_after_status_class = (
-                "compliant"
-                if after_comp.get("iec_62053_22_compliant", False)
-                else "non-compliant"
-            )
-            iec_62053_22_before_value = (
-                f"{before_comp.get('iec_62053_22_accuracy', 0):.2f}%"
-            )
-            iec_62053_22_after_value = (
-                f"{after_comp.get('iec_62053_22_accuracy', 0):.2f}%"
-            )
-
-            # IEC 61000-4-7 placeholders
-            iec_61000_4_7_before_status = (
-                "✓ PASS"
-                if before_comp.get("iec_61000_4_7_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_61000_4_7_before_status_class = (
-                "compliant"
-                if before_comp.get("iec_61000_4_7_compliant", False)
-                else "non-compliant"
-            )
-            iec_61000_4_7_after_status = (
-                "✓ PASS"
-                if after_comp.get("iec_61000_4_7_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_61000_4_7_after_status_class = (
-                "compliant"
-                if after_comp.get("iec_61000_4_7_compliant", False)
-                else "non-compliant"
-            )
-            iec_61000_4_7_before_value = (
-                f"{before_comp.get('iec_61000_4_7_thd_value', 0):.1f}%"
-            )
-            iec_61000_4_7_after_value = (
-                f"{after_comp.get('iec_61000_4_7_thd_value', 0):.1f}%"
-            )
-
-            # IEC 61000-2-2 placeholders
-            iec_61000_2_2_before_status = (
-                "✓ PASS"
-                if before_comp.get("iec_61000_2_2_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_61000_2_2_before_status_class = (
-                "compliant"
-                if before_comp.get("iec_61000_2_2_compliant", False)
-                else "non-compliant"
-            )
-            iec_61000_2_2_after_status = (
-                "✓ PASS"
-                if after_comp.get("iec_61000_2_2_compliant", False)
-                else "✗ FAIL"
-            )
-            iec_61000_2_2_after_status_class = (
-                "compliant"
-                if after_comp.get("iec_61000_2_2_compliant", False)
-                else "non-compliant"
-            )
-            iec_61000_2_2_before_value = _safe_format_percentage(
-                before_comp.get('iec_61000_2_2_voltage_variation', "N/A"), precision=1
-            )
-            iec_61000_2_2_after_value = _safe_format_percentage(
-                after_comp.get('iec_61000_2_2_voltage_variation', "N/A"), precision=1
-            )
-
-            # AHRI 550/590 placeholders
-            ari_550_590_before_status = (
-                "✓ PASS"
-                if before_comp.get("ari_550_590_compliant", False)
-                else "✗ FAIL"
-            )
-            ari_550_590_before_status_class = (
-                "compliant"
-                if before_comp.get("ari_550_590_compliant", False)
-                else "non-compliant"
-            )
-            ari_550_590_after_status = (
-                "✓ PASS" if after_comp.get("ari_550_590_compliant", False) else "✗ FAIL"
-            )
-            ari_550_590_after_status_class = (
-                "compliant"
-                if after_comp.get("ari_550_590_compliant", False)
-                else "non-compliant"
-            )
-            ari_550_590_before_value = before_comp.get(
-                "ari_550_590_class", "Below Standard"
-            )
-            ari_550_590_after_value = after_comp.get(
-                "ari_550_590_class", "Below Standard"
-            )
-
-            # Replace all Performance section placeholders
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_STATUS}}", ieee_519_before_status
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_STATUS_CLASS}}", ieee_519_before_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_STATUS}}", ieee_519_after_status
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_STATUS_CLASS}}", ieee_519_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_VALUE}}", ieee_519_before_value
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_VALUE}}", ieee_519_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_STATUS}}", nema_mg1_before_status
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_STATUS_CLASS}}", nema_mg1_before_status_class
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_STATUS}}", nema_mg1_after_status
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_STATUS_CLASS}}", nema_mg1_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_VALUE}}", nema_mg1_before_value
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_VALUE}}", nema_mg1_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_STATUS}}", iec_62053_22_before_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_STATUS_CLASS}}", iec_62053_22_before_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_AFTER_STATUS}}", iec_62053_22_after_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_AFTER_STATUS_CLASS}}", iec_62053_22_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_VALUE}}", iec_62053_22_before_value
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_AFTER_VALUE}}", iec_62053_22_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_STATUS}}", iec_61000_4_7_before_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_STATUS_CLASS}}",
-                iec_61000_4_7_before_status_class,
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_AFTER_STATUS}}", iec_61000_4_7_after_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_AFTER_STATUS_CLASS}}", iec_61000_4_7_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_VALUE}}", iec_61000_4_7_before_value
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_AFTER_VALUE}}", iec_61000_4_7_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_STATUS}}", iec_61000_2_2_before_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_STATUS_CLASS}}",
-                iec_61000_2_2_before_status_class,
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_AFTER_STATUS}}", iec_61000_2_2_after_status
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_AFTER_STATUS_CLASS}}", iec_61000_2_2_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_VALUE}}", iec_61000_2_2_before_value
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_AFTER_VALUE}}", iec_61000_2_2_after_value
-            )
-
-            html_content = html_content.replace(
-                "{{ARI_550_590_BEFORE_STATUS}}", ari_550_590_before_status
-            )
-            html_content = html_content.replace(
-                "{{ARI_550_590_BEFORE_STATUS_CLASS}}", ari_550_590_before_status_class
-            )
-            html_content = html_content.replace(
-                "{{ARI_550_590_AFTER_STATUS}}", ari_550_590_after_status
-            )
-            html_content = html_content.replace(
-                "{{ARI_550_590_AFTER_STATUS_CLASS}}", ari_550_590_after_status_class
-            )
-            html_content = html_content.replace(
-                "{{ARI_550_590_BEFORE_VALUE}}", ari_550_590_before_value
-            )
-            html_content = html_content.replace(
-                "{{ARI_550_590_AFTER_VALUE}}", ari_550_590_after_value
-            )
-
-            # Replace IEEE 519 compliance details placeholders
-            ieee_519_edition = config.get("ieee_519_edition", "2014")
-
-            # Try to get ISC/IL ratio from power quality results first, then fallback to config
-            isc_il_ratio = pq.get("isc_il_ratio", None)
-            logger.info(f"Report generation - ISC/IL ratio from PQ: {isc_il_ratio}")
-
-            if isc_il_ratio is None or isc_il_ratio == 0:
-                # Auto-calculate ISC/IL ratio from transformer data if not provided
-                isc_kA = config.get("isc_kA", 0)
-                il_A = config.get("il_A", 0)
-
-                # If not provided, calculate from transformer data
-                if isc_kA == 0 or il_A == 0:
-                    transformer_kva = config.get("xfmr_kva", 0)
-                    voltage_nominal = config.get("voltage_nominal", 480)
-                    transformer_impedance = (
-                        config.get("xfmr_impedance_pct", 5.75) / 100.0
-                    )  # Default 5.75%
-                    phases = config.get("phases", 3)
-
-                    if transformer_kva > 0 and voltage_nominal > 0:
-                        # Calculate rated current
-                        if phases == 3:
-                            rated_current = (transformer_kva * 1000) / (
-                                1.732 * voltage_nominal
-                            )
-                        else:
-                            rated_current = (transformer_kva * 1000) / voltage_nominal
-
-                        # Calculate short-circuit current (ISC = Rated Current / Impedance)
-                        isc_kA = (
-                            rated_current / transformer_impedance
-                        ) / 1000  # Convert to kA
-
-                        # Use actual load current from data
-                        if "avgKva" in data and "mean" in data["avgKva"]:
-                            kva_avg = data["avgKva"]["mean"]
-                            if phases == 3:
-                                il_A = (kva_avg * 1000) / (1.732 * voltage_nominal)
-                            else:
-                                il_A = (kva_avg * 1000) / voltage_nominal
-                        else:
-                            il_A = rated_current * 0.8  # Assume 80% loading
-
-                        logger.info(
-                            f"Report generation - Auto-calculated: transformer_kva={transformer_kva}, voltage={voltage_nominal}, impedance={transformer_impedance*100:.1f}%"
-                        )
-                        logger.info(
-                            f"Report generation - Auto-calculated: rated_current={rated_current:.1f}A, isc_kA={isc_kA:.1f}kA, il_A={il_A:.1f}A"
-                        )
-
-                logger.info(
-                    f"Report generation - Final values: isc_kA={isc_kA}, il_A={il_A}"
-                )
-                isc_il_ratio = (isc_kA * 1000 / il_A) if il_A > 0 else 0
-                logger.info(
-                    f"Report generation - Calculated ISC/IL ratio: {isc_il_ratio}"
-                )
-
-            ieee_519_isc_il_ratio = (
-                f"{isc_il_ratio:.1f}" if isc_il_ratio and isc_il_ratio > 0 else "—"
-            )
-            logger.info(
-                f"Report generation - Final ISC/IL ratio display: {ieee_519_isc_il_ratio}"
-            )
-            ieee_519_tdd_limit = f"{pq.get('ieee_tdd_limit', IEEE_519_VOLTAGE_THD_LIMIT):.1f}"
-            ieee_519_before_tdd = f"{pq.get('thd_before', 0):.1f}%"
-            ieee_519_after_tdd = f"{pq.get('thd_after', 0):.1f}%"
-            ieee_519_before_compliance = (
-                '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if pq.get("thd_before", 0) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
-                else '<span style="color: red; font-weight: bold;">Non-compliant</span>'
-            )
-            ieee_519_after_compliance = (
-                '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if pq.get("thd_after", 0) <= pq.get("ieee_tdd_limit", IEEE_519_VOLTAGE_THD_LIMIT)
-                else '<span style="color: red; font-weight: bold;">Non-compliant</span>'
-            )
-            ieee_519_improvement = (
-                f"{pq.get('thd_before', 0) - pq.get('thd_after', 0):.1f}%"
-            )
-
-            html_content = html_content.replace(
-                "{{IEEE_519_EDITION}}", ieee_519_edition
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_ISC_IL_RATIO}}", ieee_519_isc_il_ratio
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_TDD_LIMIT}}", ieee_519_tdd_limit
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_TDD}}", ieee_519_before_tdd
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_TDD}}", ieee_519_after_tdd
-            )
-            # Batch template replacements using TemplateProcessor
-            _tp_ieee = TemplateProcessor()
-            _tp_ieee.set_template_variables({
-                "{{IEEE_519_BEFORE_COMPLIANCE}}": ieee_519_before_compliance,
-                "{{IEEE_519_AFTER_COMPLIANCE}}": ieee_519_after_compliance,
-                "{{IEEE_519_IMPROVEMENT}}": ieee_519_improvement,
-            })
-            html_content = _tp_ieee.process_template(html_content)
-
-            # Add new IEEE 519 variables for enhanced methodology section
-            ieee_519_before_voltage_tdd = (
-                f"{pq.get('thd_before', 0):.1f}%"
-                if pq.get("thd_before", 0) > 0
-                else "N/A"
-            )
-            ieee_519_after_voltage_tdd = (
-                f"{pq.get('thd_after', 0):.1f}%"
-                if pq.get("thd_after", 0) > 0
-                else "N/A"
-            )
-
-            _tp_ieee2 = TemplateProcessor()
-            _tp_ieee2.set_template_variables({
-                "{{IEEE_519_BEFORE_VOLTAGE_TDD}}": ieee_519_before_voltage_tdd,
-                "{{IEEE_519_AFTER_VOLTAGE_TDD}}": ieee_519_after_voltage_tdd,
-            })
-            html_content = _tp_ieee2.process_template(html_content)
-
-            # Replace NEMA MG1 compliance details placeholders
-            nema_before_val = before_comp.get('nema_imbalance_value', "N/A")
-            nema_after_val = after_comp.get('nema_imbalance_value', "N/A")
-            
-            nema_mg1_before_imbalance = _safe_format_percentage(nema_before_val, precision=2)
-            nema_mg1_after_imbalance = _safe_format_percentage(nema_after_val, precision=2)
-            
-            nema_before_compliant = _safe_boolean_value(before_comp.get("nema_compliant", False))
-            nema_after_compliant = _safe_boolean_value(after_comp.get("nema_compliant", False))
-            
-            nema_mg1_before_compliance = (
-                '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if nema_before_compliant
-                else ('<span style="color: red; font-weight: bold;">Non-compliant</span>'
-                      if nema_before_compliant is not False
-                      else '<span style="color: gray; font-weight: bold;">N/A</span>')
-            )
-            nema_mg1_after_compliance = (
-                '<span style="color: green; font-weight: bold;">Compliant</span>'
-                if nema_after_compliant
-                else ('<span style="color: red; font-weight: bold;">Non-compliant</span>'
-                      if nema_after_compliant is not False
-                      else '<span style="color: gray; font-weight: bold;">N/A</span>')
-            )
-            nema_mg1_improvement = _safe_format_percentage(
-                _safe_arithmetic_operation(nema_before_val, nema_after_val, "subtract"),
-                precision=2
-            )
-
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_IMBALANCE}}", nema_mg1_before_imbalance
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_IMBALANCE}}", nema_mg1_after_imbalance
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_COMPLIANCE}}", nema_mg1_before_compliance
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_COMPLIANCE}}", nema_mg1_after_compliance
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_IMPROVEMENT}}", nema_mg1_improvement
-            )
-
-            logger.info(
-                f"Report generation - Updated ASHRAE baseline model values: {model_selected}, CVRMSE={cvrmse_str}, NMBE={nmbe_str}, R²={r_squared_str}"
-            )
-            logger.info(
-                f"Report generation - Updated statistical values: Cohen's d={cohens_d_str}, T-Statistic={t_statistic_str}, Relative Precision={relative_precision_stat_str}"
-            )
-            logger.info(
-                f"Report generation - Updated data quality: Before CV={before_cv:.2f}%, After CV={after_cv:.2f}%, Overall Compliant={overall_compliant}"
-            )
-            logger.info(
-                f"Report generation - Updated M&V Compliance Status and Performance section placeholders"
-            )
-        else:
-            # Fallback values if statistical data not available
-            html_content = html_content.replace(
-                "{{ASHRAE_MODEL_SELECTED}}", "No temperature data — weather normalization not applicable"
-            )
-            html_content = html_content.replace("{{ASHRAE_CVRMSE}}", "— (no regression data)")
-            html_content = html_content.replace("{{ASHRAE_NMBE}}", "— (no regression data)")
-            html_content = html_content.replace("{{ASHRAE_R_SQUARED}}", "— (no regression data)")
-            html_content = html_content.replace("{{ASHRAE_TEMPERATURE_UNITS}}", "°F")
-            html_content = html_content.replace("{{ASHRAE_RELATIVE_PRECISION}}", "—")
-            html_content = html_content.replace("{{ASHRAE_PRECISION_STATUS}}", "—")
-            html_content = html_content.replace("{{COHENS_D}}", "0.000")
-            html_content = html_content.replace("{{COHENS_D_RATING}}", "Negligible — No analysis data")
-            html_content = html_content.replace("{{T_STATISTIC}}", "0.00")
-            html_content = html_content.replace("{{RELATIVE_PRECISION}}", "0.00%")
-            html_content = html_content.replace("{{COHENS_D_DETAILED}}", "0.000")
-            html_content = html_content.replace("{{T_STATISTIC_DETAILED}}", "0.00")
-            # Note: BEFORE_CV, AFTER_CV, and OVERALL_COMPLIANT are already replaced above with correct values
-
-            # Fallback values for M&V Compliance Status placeholders
-            html_content = html_content.replace(
-                "{{ASHRAE_GUIDELINE_14_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_GUIDELINE_14_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{ASHRAE_GUIDELINE_14_VALUE}}", "N/A")
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{ASHRAE_DATA_QUALITY_VALUE}}", "Completeness: 0.0%, Outliers: 0.0%"
-            )
-            html_content = html_content.replace("{{IPMVP_STATUS}}", "✗ FAIL")
-            html_content = html_content.replace(
-                "{{IPMVP_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{IPMVP_VALUE}}", "N/A")
-            # Note: ANSI_C12_STATUS, ANSI_C12_STATUS_CLASS, and ANSI_C12_VALUE are already replaced above with correct values
-
-            # Fallback values for Performance section placeholders
-            html_content = html_content.replace("{{IEEE_519_BEFORE_STATUS}}", "✗ FAIL")
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{IEEE_519_AFTER_STATUS}}", "✗ FAIL")
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{IEEE_519_BEFORE_VALUE}}", "0.0%")
-            html_content = html_content.replace("{{IEEE_519_AFTER_VALUE}}", "0.0%")
-
-            html_content = html_content.replace("{{NEMA_MG1_BEFORE_STATUS}}", "✗ FAIL")
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{NEMA_MG1_AFTER_STATUS}}", "✗ FAIL")
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace("{{NEMA_MG1_BEFORE_VALUE}}", "N/A")
-            html_content = html_content.replace("{{NEMA_MG1_AFTER_VALUE}}", "N/A")
-
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_AFTER_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_62053_22_BEFORE_VALUE}}", "0.00%"
-            )
-            html_content = html_content.replace("{{IEC_62053_22_AFTER_VALUE}}", "0.00%")
-
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_AFTER_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_4_7_BEFORE_VALUE}}", "0.0%"
-            )
-            html_content = html_content.replace("{{IEC_61000_4_7_AFTER_VALUE}}", "0.0%")
-
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_AFTER_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_61000_2_2_BEFORE_VALUE}}", "0.0%"
-            )
-            html_content = html_content.replace("{{IEC_61000_2_2_AFTER_VALUE}}", "0.0%")
-
-            html_content = html_content.replace(
-                "{{IEC_60034_30_1_BEFORE_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_60034_30_1_BEFORE_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_60034_30_1_AFTER_STATUS}}", "✗ FAIL"
-            )
-            html_content = html_content.replace(
-                "{{IEC_60034_30_1_AFTER_STATUS_CLASS}}", "non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEC_60034_30_1_BEFORE_VALUE}}", "IE1"
-            )
-            html_content = html_content.replace("{{IEC_60034_30_1_AFTER_VALUE}}", "IE1")
-
-            # Note: ANSI_C57_12_00_STATUS, ANSI_C57_12_00_STATUS_CLASS, and ANSI_C57_12_00_VALUE are already replaced above with correct values
-
-            # Fallback values for IEEE 519 compliance details placeholders
-            html_content = html_content.replace("{{IEEE_519_EDITION}}", "2014")
-            html_content = html_content.replace("{{IEEE_519_ISC_IL_RATIO}}", "—")
-            html_content = html_content.replace("{{IEEE_519_TDD_LIMIT}}", "5.0")
-            html_content = html_content.replace("{{IEEE_519_BEFORE_TDD}}", "0.0%")
-            html_content = html_content.replace("{{IEEE_519_AFTER_TDD}}", "0.0%")
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_COMPLIANCE}}", "Non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{IEEE_519_AFTER_COMPLIANCE}}", "Non-compliant"
-            )
-            html_content = html_content.replace("{{IEEE_519_IMPROVEMENT}}", "0.0%")
-
-            # Fallback values for new IEEE 519 variables
-            html_content = html_content.replace(
-                "{{IEEE_519_BEFORE_VOLTAGE_TDD}}", "N/A"
-            )
-            html_content = html_content.replace("{{IEEE_519_AFTER_VOLTAGE_TDD}}", "N/A")
-
-            # Fallback values for NEMA MG1 compliance details placeholders
-            html_content = html_content.replace("{{NEMA_MG1_BEFORE_IMBALANCE}}", "N/A")
-            html_content = html_content.replace("{{NEMA_MG1_AFTER_IMBALANCE}}", "N/A")
-            html_content = html_content.replace(
-                "{{NEMA_MG1_BEFORE_COMPLIANCE}}", "Non-compliant"
-            )
-            html_content = html_content.replace(
-                "{{NEMA_MG1_AFTER_COMPLIANCE}}", "Non-compliant"
-            )
-            html_content = html_content.replace("{{NEMA_MG1_IMPROVEMENT}}", "N/A")
-
-            logger.info(
-                "Report generation - Used fallback ASHRAE baseline model values and compliance placeholders"
-            )
-
-        # Apply replacements
-        for old_val, new_val in replacements.items():
-            html_content = html_content.replace(old_val, new_val)
-
-        # Embed envelope charts if available
-        if "envelope_analysis" in data and "charts" in data["envelope_analysis"]:
-            envelope_charts = data["envelope_analysis"]["charts"]
-            logger.info(
-                f"Report generation - Embedding {len(envelope_charts)} envelope charts"
-            )
-
-            # Replace envelope chart placeholders with actual chart data
-            for chart_key, chart_data in envelope_charts.items():
-                if chart_key == "avgKw_envelope":
-                    # Replace AVGKW Network Envelope chart
-                    placeholder = "<h5>AVGKW Network Envelope</h5>"
-                    if placeholder in html_content:
-                        # Find the next chart-svg div after this heading
-                        start_pos = html_content.find(placeholder)
-                        chart_start = html_content.find(
-                            '<div class="chart-svg">', start_pos
-                        )
-                        if chart_start != -1:
-                            chart_end = html_content.find("</div>", chart_start) + 6
-                            # Replace with PNG chart
-                            chart_html = f'<div class="chart-svg"><img src="{chart_data}" alt="AVGKW Network Envelope Analysis" style="max-width: 100%; height: auto;" /></div>'
-                            html_content = (
-                                html_content[:chart_start]
-                                + chart_html
-                                + html_content[chart_end:]
-                            )
-                            logger.info(
-                                f"Report generation - Embedded {chart_key} chart"
-                            )
-
-                elif chart_key == "avgKva_envelope":
-                    # Replace AVGKVA Network Envelope chart
-                    placeholder = "<h5>AVGKVA Network Envelope</h5>"
-                    if placeholder in html_content:
-                        # Find the next chart-svg div after this heading
-                        start_pos = html_content.find(placeholder)
-                        chart_start = html_content.find(
-                            '<div class="chart-svg">', start_pos
-                        )
-                        if chart_start != -1:
-                            chart_end = html_content.find("</div>", chart_start) + 6
-                            # Replace with PNG chart
-                            chart_html = f'<div class="chart-svg"><img src="{chart_data}" alt="AVGKVA Network Envelope Analysis" style="max-width: 100%; height: auto;" /></div>'
-                            html_content = (
-                                html_content[:chart_start]
-                                + chart_html
-                                + html_content[chart_end:]
-                            )
-                            logger.info(
-                                f"Report generation - Embedded {chart_key} chart"
-                            )
-
-                elif chart_key == "avgPf_envelope":
-                    # Replace AVGPF Network Envelope chart
-                    placeholder = "<h5>AVGPF Network Envelope</h5>"
-                    if placeholder in html_content:
-                        # Find the next chart-svg div after this heading
-                        start_pos = html_content.find(placeholder)
-                        chart_start = html_content.find(
-                            '<div class="chart-svg">', start_pos
-                        )
-                        if chart_start != -1:
-                            chart_end = html_content.find("</div>", chart_start) + 6
-                            # Replace with PNG chart
-                            chart_html = f'<div class="chart-svg"><img src="{chart_data}" alt="AVGPF Network Envelope Analysis" style="max-width: 100%; height: auto;" /></div>'
-                            html_content = (
-                                html_content[:chart_start]
-                                + chart_html
-                                + html_content[chart_end:]
-                            )
-                            logger.info(
-                                f"Report generation - Embedded {chart_key} chart"
-                            )
-
-                elif chart_key == "avgTHD_envelope":
-                    # Replace AVGTHD Network Envelope chart
-                    placeholder = "<h5>AVGTHD Network Envelope</h5>"
-                    if placeholder in html_content:
-                        # Find the next chart-svg div after this heading
-                        start_pos = html_content.find(placeholder)
-                        chart_start = html_content.find(
-                            '<div class="chart-svg">', start_pos
-                        )
-                        if chart_start != -1:
-                            chart_end = html_content.find("</div>", chart_start) + 6
-                            # Replace with PNG chart
-                            chart_html = f'<div class="chart-svg"><img src="{chart_data}" alt="AVGTHD Network Envelope Analysis" style="max-width: 100%; height: auto;" /></div>'
-                            html_content = (
-                                html_content[:chart_start]
-                                + chart_html
-                                + html_content[chart_end:]
-                            )
-                            logger.info(
-                                f"Report generation - Embedded {chart_key} chart"
-                            )
-
-        # Replace smoothing index chart if available
-        if (
-            "envelope_analysis" in data
-            and "smoothing_index_chart" in data["envelope_analysis"]
-        ):
-            smoothing_chart_data = data["envelope_analysis"]["smoothing_index_chart"]
-            placeholder = "<h4>Smoothing Index Summary</h4>"
-            if placeholder in html_content:
-                # Find the next chart-svg div after this heading
-                start_pos = html_content.find(placeholder)
-                chart_start = html_content.find('<div class="chart-svg">', start_pos)
-                if chart_start != -1:
-                    chart_end = html_content.find("</div>", chart_start) + 6
-                    # Replace with PNG chart
-                    chart_html = f'<div class="chart-svg"><img src="{smoothing_chart_data}" alt="Smoothing Index Summary" style="max-width: 100%; height: auto;" /></div>'
-                    html_content = (
-                        html_content[:chart_start]
-                        + chart_html
-                        + html_content[chart_end:]
-                    )
-                    logger.info("Report generation - Embedded smoothing index chart")
-
-        # Replace Overall Smoothing Index value with actual calculated value
-        if (
-            "envelope_analysis" in data
-            and "smoothing_data" in data["envelope_analysis"]
-        ):
-            smoothing_data = data["envelope_analysis"]["smoothing_data"]
-            overall_smoothing = smoothing_data.get("overall_smoothing", 0.0)
-            smoothing_value = (
-                f"{overall_smoothing:.1f}%" if overall_smoothing > 0 else "—"
-            )
-
-            # Replace the hardcoded 67.4% with the actual value
-            html_content = html_content.replace(
-                '<div><div class="muted">Overall Smoothing Index</div><div><b>67.4%</b></div></div>',
-                f'<div><div class="muted">Overall Smoothing Index</div><div><b>{smoothing_value}</b></div></div>',
-            )
-            # Also replace any other hardcoded overall smoothing values
-            html_content = html_content.replace("67.4%", smoothing_value)
-            html_content = html_content.replace("71.6%", smoothing_value)
-            logger.info(
-                f"Report generation - Updated Overall Smoothing Index to {smoothing_value}"
-            )
-
-        # Replace M&V requirements statement with dynamic value
-        if "executive_summary" in data:
-            meets_mv = data["executive_summary"].get(
-                "meets_mv_requirements_fixed", False
-            )
-
-            # DEBUG: Log M&V requirements status
-            mv_debug = data["executive_summary"].get("mv_requirements_debug", {})
+        # Stash the combined payload where the 8084 /generate endpoint
+        # fetches it from (via GET /api/analysis/results on this service).
+        _set_latest_analysis_results(data)
+
+        _sd_raw = data.get("show_dollars", True)
+        _sd = "false" if str(_sd_raw).lower() in ("false", "off", "0") else "true"
+        _sm = data.get("submission_mode", "pe_review")
+
+        if not HTML_REPORT_URL:
+            return jsonify({"error": "HTML_REPORT_URL not configured"}), 500
+
+        upstream = _req.get(
+            f"{HTML_REPORT_URL}/generate?show_dollars={_sd}&submission_mode={_sm}",
+            timeout=60,
+        )
+        if upstream.status_code != 200:
             logger.error(
-                f"🔧 M&V DEBUG: ASHRAE Precision: {mv_debug.get('ashrae_precision', False)}"
+                f"generate-report (proxy): 8084 /generate returned "
+                f"{upstream.status_code}"
             )
-            logger.error(
-                f"🔧 M&V DEBUG: LCCA Compliant: {mv_debug.get('lcca_compliant', False)}"
+            return (
+                jsonify({
+                    "error": "HTML report service returned non-200",
+                    "upstream_status": upstream.status_code,
+                }),
+                502,
             )
-            logger.error(
-                f"🔧 M&V DEBUG: IEEE Compliant After: {mv_debug.get('ieee_compliant_after', False)}"
-            )
-            logger.error(
-                f"🔧 M&V DEBUG: All Requirements Met: {mv_debug.get('all_requirements_met', False)}"
-            )
-            logger.error(f"🔧 M&V DEBUG: meets_mv_requirements: {meets_mv}")
-
-            # FIX: Force M&V requirements to True if all individual requirements are met
-            if mv_debug.get("all_requirements_met", False):
-                meets_mv = True
-                logger.error(
-                    f"🔧 M&V FIX: Forcing meets_mv_requirements to True because all requirements are met"
-                )
-
-            # TEMPORARY FIX: Always show success message for now
-            meets_mv = True
-            logger.error(
-                f"🔧 M&V FIX: Forcing meets_mv_requirements to True (temporary fix)"
-            )
-
-            if meets_mv:
-                mv_statement = '<div class="success">✓ Analysis meets all M&V requirements for utility rebate submission</div>'
-            else:
-                mv_statement = '<div class="error">⚠ Analysis does not meet all M&V requirements. See status table for details.</div>'
-
-            # Replace the hardcoded success message with dynamic message
-            html_content = html_content.replace(
-                '<div class="success">✓ Analysis meets all M&V requirements for utility rebate submission</div>',
-                mv_statement,
-            )
-            logger.info(
-                f"Report generation - Updated M&V requirements statement: {'meets' if meets_mv else 'does not meet'}"
-            )
-
-        # Fix capitalization of "Main Results Summary" heading
-        html_content = html_content.replace(
-            "<h2>main Results Summary</h2>", "<h2>Main Results Summary</h2>"
-        )
-        html_content = html_content.replace(
-            "main Results Summary", "Main Results Summary"
-        )
-
-        # Fix capitalization of "chiller Results Summary" heading
-        html_content = html_content.replace(
-            "<h2>chiller Results Summary</h2>", "<h2>Chiller Results Summary</h2>"
-        )
-        html_content = html_content.replace(
-            "chiller Results Summary", "Chiller Results Summary"
-        )
-
-        # Replace client information placeholders
-        client_profile = data.get("client_profile", {})
-        company = client_profile.get("company", "-")
-        facility = client_profile.get("facility", "-")
-        location = client_profile.get("location", "-")
-        contact = client_profile.get("contact", "-")
-        email = client_profile.get("email", "-")
-        phone = client_profile.get("phone", "-")
-
-        html_content = html_content.replace("{{company}}", company)
-        html_content = html_content.replace("{{facility}}", facility)
-        html_content = html_content.replace("{{location}}", location)
-        html_content = html_content.replace("{{contact}}", contact)
-        html_content = html_content.replace("{{email}}", email)
-        html_content = html_content.replace("{{phone}}", phone)
-
-        # Replace test parameter variables
-        test_type = config.get("test_type", "Power Quality Analysis")
-        # Capitalize test_type for all equipment types from dropdown (chiller, motor, pump, etc.)
-        if test_type and test_type.lower() in [
-            "chiller",
-            "motor",
-            "pump",
-            "compressor",
-            "fan",
-            "blower",
-            "conveyor",
-            "crusher",
-            "mixer",
-            "generator",
-            "transformer",
-            "vfd",
-            "inverter",
-            "ups",
-            "lighting",
-            "hvac",
-            "boiler",
-            "furnace",
-            "oven",
-            "dryer",
-            "extruder",
-            "press",
-            "mill",
-            "lathe",
-            "grinder",
-            "welder",
-            "crane",
-            "elevator",
-            "escalator",
-            "pump station",
-            "water treatment",
-            "wastewater",
-            "refrigeration",
-            "freezer",
-            "cooler",
-            "heater",
-            "steam",
-            "compressed air",
-            "vacuum",
-            "hydraulic",
-            "pneumatic",
-            "electric vehicle",
-            "charging station",
-            "solar",
-            "wind",
-            "battery",
-            "fuel cell",
-            "turbine",
-            "engine",
-            "diesel",
-            "gas",
-            "oil",
-            "coal",
-            "biomass",
-            "geothermal",
-            "nuclear",
-            "hydro",
-            "other",
-        ]:
-            test_type = test_type.capitalize()
-        test_circuit = config.get("test_circuit", "Main Circuit")
-        test_period = config.get("test_period", "N/A")
-        test_duration = config.get("test_duration", "N/A")
-        test_meter_spec = config.get("test_meter_spec", "N/A")
-        test_int_data = config.get("test_int_data", "1-Minute Interval Data")
-        test_pk_load_percent = config.get("test_pk_load_percent", "100")
-
-        # Replace company information variables
-        prepared_for = config.get("prepared_for", "N/A")
-        facility_address = config.get("facility_address", "N/A")
-        cp_address = config.get("cp_address", "N/A")
-        cp_company = config.get("cp_company") or config.get("prepared_for") or client_profile.get("company", "N/A")
-        cp_city = config.get("cp_city") or config.get("cp_location") or config.get("client_location", "N/A")
-        cp_state = config.get("cp_state", "N/A")
-        cp_location = ", ".join(p for p in [cp_city, cp_state] if p and p != "N/A") or "N/A"  # Combined for legacy {{cp_location}}
-        cp_zip = config.get("cp_zip") or config.get("client_zip", "N/A")
-        cp_contact = config.get("cp_contact") or config.get("contact_name", "N/A")
-        client_location = config.get("client_location", "N/A")
-        client_zip = config.get("client_zip", "N/A")
-        contact_name = config.get("contact_name", "N/A")
-        contact_email = config.get("contact_email", "N/A")
-        contact_phone = config.get("contact_phone", "N/A")
-
-        # Client Information section fields
-        project_name = config.get("project_name", "N/A")
-        project_contact = config.get("project_contact", "N/A")
-        project_email = config.get("project_email", "N/A")
-        project_phone = config.get("project_phone", "N/A")
-
-        # Use equipment description for the Equipment field instead of test_type
-        # The Equipment Description field (cp_equipment) is mapped to test_circuit in the JavaScript
-        equipment_description = config.get("test_circuit", test_type)
-        html_content = html_content.replace("{{test_type}}", equipment_description)
-        logger.info(
-            f"Report generation - Equipment field: using '{equipment_description}' (from test_circuit: {config.get('test_circuit', 'None')})"
-        )
-        html_content = html_content.replace("{{test_circuit}}", test_circuit)
-        html_content = html_content.replace("{{test_period}}", test_period)
-        html_content = html_content.replace("{{test_duration}}", test_duration)
-        html_content = html_content.replace("{{test_meter_spec}}", test_meter_spec)
-        html_content = html_content.replace("{{test_int_data}}", test_int_data)
-        html_content = html_content.replace(
-            "{{test_pk_load_percent}}", test_pk_load_percent
-        )
-        # Replace aliases for test parameters
-        html_content = html_content.replace("{{test_name}}", test_type)
-        html_content = html_content.replace("{{circuit_name}}", test_circuit)
-        html_content = html_content.replace("{{meter_spec}}", test_meter_spec)
-        html_content = html_content.replace("{{interval_data}}", test_int_data)
-        html_content = html_content.replace("{{total_load_pct}}", test_pk_load_percent)
-
-        # Replace company information variables
-        html_content = html_content.replace("{{prepared_for}}", prepared_for)
-        html_content = html_content.replace("{{facility_address}}", facility_address)
-        html_content = html_content.replace("{{cp_address}}", cp_address)
-        html_content = html_content.replace("{{cp_company}}", cp_company)
-        html_content = html_content.replace("{{cp_location}}", cp_location)
-        html_content = html_content.replace("{{cp_zip}}", cp_zip)
-        html_content = html_content.replace("{{cp_contact}}", cp_contact)
-        html_content = html_content.replace("{{client_location}}", client_location)
-        html_content = html_content.replace("{{client_zip}}", client_zip)
-        html_content = html_content.replace("{{contact_name}}", contact_name)
-        html_content = html_content.replace("{{contact_email}}", contact_email)
-        html_content = html_content.replace("{{contact_phone}}", contact_phone)
-
-        # Client Information section replacements
-        html_content = html_content.replace("{{project_name}}", project_name)
-        html_content = html_content.replace("{{project_contact}}", project_contact)
-        html_content = html_content.replace("{{project_email}}", project_email)
-        html_content = html_content.replace("{{project_phone}}", project_phone)
-
-        # Replace equipment information variables
-        equipment = config.get("equipment_type", "N/A")
-
-        # Get meter name, utility, and account from client_profile or direct config
-        client_profile = config.get("client_profile", {})
-        meter_name = (
-            client_profile.get("meter_name")
-            or config.get("test_meter_spec")
-            or config.get("cp_meter_name", "N/A")
-        )
-        utility = client_profile.get("utility") or config.get("utility", "N/A")
-        utility_program = client_profile.get("utility_program") or config.get("utility_program", "")
-        account = client_profile.get("account") or config.get("account", "N/A")
-
-        # Conditionally create utility_program line only if it has a value
-        if utility_program and utility_program.strip() and utility_program != "N/A":
-            utility_program_line = f'<div><strong>Utility Program:</strong> {utility_program}</div>'
-        else:
-            utility_program_line = ""
-
-        # Debug logging for client information
-        logger.info(f"Report generation - Client profile: {client_profile}")
-        logger.info(
-            f"Report generation - Direct config utility: {config.get('utility')}"
-        )
-        logger.info(
-            f"Report generation - Direct config utility_program: {config.get('utility_program')}"
-        )
-        logger.info(
-            f"Report generation - Direct config account: {config.get('account')}"
-        )
-        logger.info(f"Report generation - Final utility: {utility}")
-        logger.info(f"Report generation - Final utility_program: {utility_program}")
-        logger.info(f"Report generation - Final account: {account}")
-
-        html_content = html_content.replace("{{equipment}}", equipment)
-        html_content = html_content.replace("{{equipment_description}}", equipment_description)
-        html_content = html_content.replace("{{meter_name}}", meter_name)
-        html_content = html_content.replace("{{utility}}", utility)
-        html_content = html_content.replace("{{utility_program_line}}", utility_program_line)
-        html_content = html_content.replace("{{account}}", account)
-
-        logger.info(
-            f"Report generation - Updated client information: company={company}, facility={facility}, location={location}"
-        )
-        logger.info(
-            f"Report generation - Updated test parameters: test_type={test_type}, test_circuit={test_circuit}, test_period={test_period}"
-        )
-        logger.info(
-            f"Report generation - Updated equipment info: equipment={equipment}, meter_name={meter_name}, utility={utility}, account={account}"
-        )
-
-        # Add Comprehensive Audit Summary section to HTML report
-        try:
-            # Generate comprehensive client audit summary
-            client_info = {
-                "company": data.get("client_profile", {}).get("company", "N/A"),
-                "facility_address": data.get("client_profile", {}).get(
-                    "facility", "N/A"
-                ),
-                "location": data.get("client_profile", {}).get("location", "N/A"),
-                "contact": data.get("client_profile", {}).get("contact", "N/A"),
-                "email": data.get("client_profile", {}).get("email", "N/A"),
-                "phone": data.get("client_profile", {}).get("phone", "N/A"),
-            }
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            # Generate the comprehensive audit summary
-            comprehensive_audit_summary = generate_client_audit_summary(
-                data, client_info, timestamp
-            )
-
-            # Convert markdown to HTML for the report
-            import markdown
-
-            audit_html = markdown.markdown(
-                comprehensive_audit_summary, extensions=["tables", "fenced_code"]
-            )
-
-            audit_summary_html = f"""
-            <div class="audit-summary-section" style="margin-top: 40px; padding: 20px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
-                <h2 style="color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padding-bottom: 10px;">
-                    📋 Comprehensive Audit Summary
-                </h2>
-                <div style="background-color: white; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef;">
-                    {audit_html}
-                </div>
-                <div style="margin-top: 15px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">
-                    <strong style="color: #155724;">✅ System Status: UTILITY-GRADE EM&V SYSTEM</strong><br>
-                    <span style="color: #155724; font-size: 14px;">Version 3.8 - 100% Standards Compliant | Compliance Level: 100% | Updated December 2025</span>
-                </div>
-            </div>
-            """
-            # Insert the audit summary section before the closing body tag
-            if "</body>" in html_content:
-                html_content = html_content.replace(
-                    "</body>", f"{audit_summary_html}</body>"
-                )
-            else:
-                html_content += audit_summary_html
-            logger.info(
-                "Report generation - Added Comprehensive Audit Summary section to HTML report"
-            )
-        except Exception as e:
-            logger.warning(
-                f"Report generation - Could not add comprehensive audit summary section: {e}"
-            )
-
-        # Add timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        html_content = html_content.replace("Generated on", f"Generated on {timestamp}")
-
-        # Log success
-        logger.info(
-            f"Report generation - HTML content length: {len(html_content)} characters"
-        )
-        logger.info(
-            f"Report generation - Template replacements applied: {len(replacements)} items"
-        )
-        logger.info(
-            f"Report generation - IEC standards table generated with {len(iec_standards_table)} standards"
-        )
-        logger.info(
-            f"Report generation - Engineering Results section generated with 2 tables"
-        )
-
-        # Log IEC standards data
-        for i, standard in enumerate(iec_standards_table):
-            logger.info(
-                f"  Standard {i+1}: {standard['standard']} - {standard['before_status']} -> {standard['after_status']}"
-            )
-
-        # ALWAYS replace hardcoded Financial Calculations values - move outside conditional blocks
-        # Enhanced error handling for all HTML content replacements
-        try:
-            config = data.get("config", {})
-            financial = data.get("financial", {})
-
-            # Safe extraction of values with defaults
-            energy_rate = safe_float(config.get("energy_rate", 0.05645))
-            demand_rate = safe_float(config.get("demand_rate", 20.62))
-            project_cost = safe_float(config.get("project_cost", 1))
-            operating_hours = safe_float(config.get("operating_hours", 8760))
-            discount_rate = safe_float(config.get("discount_rate", 3.0))
-
-            # Replace financial calculation parameters
-            html_content = html_content.replace(
-                "• Energy Rate: <strong>$0.05645/kWh</strong>",
-                f"• Energy Rate: <strong>${energy_rate:.5f}/kWh</strong>",
-            )
-            html_content = html_content.replace(
-                "• Demand Rate: <strong>$20.62/kW-month</strong>",
-                f"• Demand Rate: <strong>${demand_rate:.2f}/kW-month</strong>",
-            )
-            html_content = html_content.replace(
-                "• Project Cost: <strong>$1</strong>",
-                f"• Project Cost: <strong>${project_cost:,.0f}</strong>",
-            )
-            html_content = html_content.replace(
-                "• Operating Hours: <strong>8760 hours/year</strong>",
-                f"• Operating Hours: <strong>{operating_hours:,.0f} hours/year</strong>",
-            )
-            html_content = html_content.replace(
-                "• Discount Rate: <strong>3.0% (assumed)</strong>",
-                f"• Discount Rate: <strong>{discount_rate:.1f}% (assumed)</strong>",
-            )
-
-            # Replace hardcoded financial values with calculated values only (no fallbacks)
-            html_content = html_content.replace(
-                "$40,444.14",
-                f'${safe_float(financial.get("total_savings_annual", 0)):,.2f}',
-            )
-            html_content = html_content.replace(
-                "$24,076.55",
-                f'${safe_float(financial.get("energy_savings_annual", 0)):,.2f}',
-            )
-            html_content = html_content.replace(
-                "$12,681.56",
-                f'${safe_float(financial.get("demand_savings_annual", 0)):,.2f}',
-            )
-            html_content = html_content.replace(
-                "$3,618.70",
-                f'${safe_float(financial.get("pf_penalty_savings", 0)):,.2f}',
-            )
-            html_content = html_content.replace(
-                "$57.94", f'${safe_float(financial.get("network_savings", 0)):,.2f}'
-            )
-            html_content = html_content.replace(
-                "$9.40", f'${safe_float(financial.get("om_savings", 0)):,.2f}'
-            )
-            html_content = html_content.replace(
-                "$10,000.00", f'${safe_float(financial.get("initial_cost", 0)):,.2f}'
-            )
-            html_content = html_content.replace(
-                "406.44%", f'{safe_float(financial.get("irr") or financial.get("internal_rate_return") or financial.get("internal_rate_of_return") or 0):.2f}%'
-            )
-            html_content = html_content.replace(
-                "$540,599.81", f'${safe_float(financial.get("npv") or financial.get("net_present_value") or 0):,.2f}'
-            )
-            html_content = html_content.replace(
-                "0.3 years",
-                f'{safe_float(financial.get("payback_years", 0)):.1f} years',
-            )
-
-        except Exception as e:
-            logger.warning(f"Error in financial value replacement: {e}")
-            # Continue with other replacements even if financial ones fail
-
-        # ALWAYS replace remaining hardcoded values - move outside conditional blocks to ensure they always execute
-        # Enhanced error handling for power quality data extraction
-        try:
-            # Get power quality data for replacements with safe extraction
-            pq = data.get("power_quality", {})
-            current_before = safe_float(
-                pq.get("current_before", 0)
-            )  # Use calculated current values from power quality analysis
-            current_after = safe_float(pq.get("current_after", 0))
-            # Extract voltage from actual CSV meter data - Use standard electrical voltages per IEC 61000-2-2
-            voltage_before = safe_float(
-                pq.get("voltage_before", 277.0)
-            )  # Standard L-N voltage for commercial systems
-            voltage_after = safe_float(
-                pq.get("voltage_after", 277.0)
-            )  # Standard L-N voltage for commercial systems
-            # Extract power factor from actual CSV meter data - NO HARDCODED VALUES
-            pf_before = safe_float(
-                pq.get("pf_before", 0)
-            )  # Use 0 if no data, not hardcoded values
-            pf_after = safe_float(
-                pq.get("pf_after", 0)
-            )  # Use 0 if no data, not hardcoded values
-            # Extract THD from actual CSV meter data - NO HARDCODED VALUES
-            thd_before = safe_float(
-                pq.get("thd_before", 0)
-            )  # Use 0 if no data, not hardcoded values
-            thd_after = safe_float(
-                pq.get("thd_after", 0)
-            )  # Use 0 if no data, not hardcoded values
-        except Exception as e:
-            logger.warning(f"Error extracting power quality data: {e}")
-            # Use safe defaults
-            current_before = 0.0
-            current_after = 0.0
-            # Use standard electrical voltages if no CSV meter data available per IEC 61000-2-2
-            voltage_before = (
-                277.0  # Standard L-N voltage for commercial systems (480V/√3)
-            )
-            voltage_after = (
-                277.0  # Standard L-N voltage for commercial systems (480V/√3)
-            )
-            logger.info(
-                "Using standard electrical voltages: 277V L-N (480V/√3) per IEC 61000-2-2"
-            )
-            # Use 0 if no CSV meter data available - NO HARDCODED VALUES
-            pf_before = 0.0  # No hardcoded values - must come from CSV meter data
-            pf_after = 0.0  # No hardcoded values - must come from CSV meter data
-            # Use 0 if no CSV meter data available - NO HARDCODED VALUES
-            thd_before = 0.0  # No hardcoded values - must come from CSV meter data
-            thd_after = 0.0  # No hardcoded values - must come from CSV meter data
-
-        # Replace remaining hardcoded current values with calculated values - with error handling
-        try:
-            html_content = html_content.replace("320.2 A", f"{current_before:.1f} A")
-            html_content = html_content.replace("259.4 A", f"{current_after:.1f} A")
-
-            # Replace remaining hardcoded voltage values
-            html_content = html_content.replace("480.0 V", f"{voltage_before:.0f} V")
-            html_content = html_content.replace("485.0 V", f"{voltage_after:.0f} V")
-
-            # Replace hardcoded voltage values in Engineering Results table with more specific patterns
-            html_content = html_content.replace(
-                ">480.0 V<", f">{voltage_before:.0f} V<"
-            )
-            html_content = html_content.replace(">485.0 V<", f">{voltage_after:.0f} V<")
-        except Exception as e:
-            logger.warning(f"Error in current/voltage replacement: {e}")
-            # Keep original values if replacement fails
-
-        # Replace hardcoded improvement percentages in Engineering Results table
-
-        try:
-            # Replace hardcoded improvement percentages with safe extraction
-            kw_improvement = safe_float(pq.get("kw_improvement", 0.0))
-            kva_improvement = safe_float(pq.get("kva_improvement", 0.0))
-            kvar_improvement = safe_float(pq.get("kvar_improvement", 0.0))
-            pf_improvement = safe_float(pq.get("pf_improvement", 0.0))
-            thd_improvement = safe_float(pq.get("thd_improvement", 0.0))
-
-          
-        except Exception as e:
-            logger.warning(f"Error in remaining value replacements: {e}")
-            # Continue processing even if some replacements fail
-
-        # Replace remaining hardcoded Executive Summary values with comprehensive error handling
-        try:
-            # Get financial data for replacements
-            financial_data = data.get("financial", {})
-            kw_savings = safe_float(financial_data.get("kw_savings", 0))
-            energy_kwh = safe_float(financial_data.get("energy_kwh", 0))
-            npv = safe_float(financial_data.get("npv", 0))
-            payback = safe_float(financial_data.get("payback", 0))
-            irr = safe_float(financial_data.get("irr", 0))
-            sir = safe_float(financial_data.get("sir", 0))
-
-  
-        except Exception as e:
-            logger.warning(f"Error in executive summary replacements: {e}")
-            # Continue processing even if executive summary replacements fail
-
-
-        # ALWAYS replace template variables - move outside conditional blocks to ensure they always execute
-        # Set default values for template variables with comprehensive error handling
-        try:
-            before_cv = safe_float(pq.get("before_cv", 15.0))  # Default value
-            after_cv = safe_float(pq.get("after_cv", 12.0))  # Default value
-        except Exception as e:
-            logger.warning(f"Error extracting CV values: {e}")
-            before_cv = 15.0  # Safe default
-            after_cv = 12.0  # Safe default
-        overall_compliant = "Yes"  # Default value
-        overall_quality_score = 85.0  # Default value
-
-        # Try to get actual values from data if available
-        if "power_quality" in data and isinstance(data["power_quality"], dict):
-            pq = data["power_quality"]
-            # Calculate CV values if available
-            if "kw_before" in pq and "kw_after" in pq:
-                kw_before = pq.get("kw_before", 0)
-                kw_after = pq.get("kw_after", 0)
-                if kw_before > 0:
-                    before_cv = 15.0  # Default CV
-                if kw_after > 0:
-                    after_cv = 12.0  # Default CV
-
-        # Replace template variables with actual or default values
-        html_content = html_content.replace(
-            "{{DATA_QUALITY_SCORE}}", f"{overall_quality_score:.1f}"
-        )
-
-        # Use client-friendly quality ratings (same as above)
-        def get_quality_rating(cv):
-            if cv < 5:
-                return "Excellent"
-            elif cv < 10:
-                return "Very Good"
-            elif cv < 15:
-                return "Good"
-            elif cv < 20:
-                return "Acceptable"
-            else:
-                return "Needs Review"
-
-        before_quality_rating = get_quality_rating(before_cv)
-        after_quality_rating = get_quality_rating(after_cv)
-
-        html_content = html_content.replace("{{BEFORE_CV}}", before_quality_rating)
-        html_content = html_content.replace("{{AFTER_CV}}", after_quality_rating)
-        html_content = html_content.replace("{{OVERALL_COMPLIANT}}", overall_compliant)
-
-        # Add confidence interval values
-        html_content = html_content.replace(
-            "{{CONFIDENCE_INTERVAL_BEFORE}}", "1018.06 - 1040.73"
-        )
-        html_content = html_content.replace(
-            "{{CONFIDENCE_INTERVAL_AFTER}}", "833.24 - 852.72"
-        )
-
-        # Replace ANSI C12 template variables with calculated values (no hardcoded defaults)
-        # These should be replaced by the actual calculated values from the compliance analysis
-
-        # Replace ANSI C57 template variables with default values
-        html_content = html_content.replace(
-            "{{ANSI_C57_12_00_BEFORE_STATUS}}", "✓ PASS"
-        )
-        html_content = html_content.replace(
-            "{{ANSI_C57_12_00_BEFORE_STATUS_CLASS}}", "compliant"
-        )
-        html_content = html_content.replace("{{ANSI_C57_12_00_BEFORE_VALUE}}", "0.5")
-        html_content = html_content.replace("{{ANSI_C57_12_00_AFTER_STATUS}}", "✓ PASS")
-        html_content = html_content.replace(
-            "{{ANSI_C57_12_00_AFTER_STATUS_CLASS}}", "compliant"
-        )
-        html_content = html_content.replace("{{ANSI_C57_12_00_AFTER_VALUE}}", "0.5")
-
-        logger.info(
-            "Report generation - Template variables replaced with default values"
-        )
-
-        # Final comprehensive error check - ensure HTML content is valid
-        try:
-            # Basic validation that HTML content is not empty and contains expected elements
-            if not html_content or len(html_content) < 1000:
-                logger.error("Generated HTML content is too short or empty")
-                raise ValueError("Generated HTML content is invalid")
-
-            # Check for any remaining template variables that weren't replaced
-            remaining_vars = []
-            import re
-
-            template_vars = re.findall(r"\{\{[^}]+\}\}", html_content)
-            if template_vars:
-                remaining_vars = list(set(template_vars))
-                logger.warning(
-                    f"Found {len(remaining_vars)} unreplaced template variables: {remaining_vars}"
-                )
-                # Replace any remaining template variables with safe defaults
-                for var in remaining_vars:
-                    html_content = html_content.replace(var, "N/A")
-
-            logger.info(
-                f"Report generation - HTML content validated successfully. Length: {len(html_content)} characters"
-            )
-
-        except Exception as e:
-            logger.error(f"Error in final HTML validation: {e}")
-            # Don't fail the entire request, just log the issue
-
-        # Note: Audit Summary Document is already added above at lines 15411-15441
-
-        # Add cache-busting parameter to force browser reload
-        cache_bust_url = f"?cache_bust={int(time.time() * 1000)}&normalization_fix=v2.0"
-        html_content = html_content.replace(
-            "</body>",
-            f'<script>console.log("Cache bust: {cache_bust_url}");</script></body>',
-        )
 
         return (
-            html_content,
+            upstream.text,
             200,
             {
                 "Content-Type": "text/html; charset=utf-8",
@@ -28196,9 +24096,9 @@ def _generate_report():
         )
 
     except Exception as e:
-        logger.error(f"Error generating report: {str(e)}")
-        logger.exception("Full traceback for report generation error:")
-        return jsonify({"error": f"Failed to generate report: {str(e)}"}), 500
+        logger.error(f"generate-report (proxy) error: {e}")
+        logger.exception("generate-report (proxy) traceback:")
+        return jsonify({"error": f"Failed to generate report: {e}"}), 500
 
 
 @app.route("/api/generate-esg-case-study-report", methods=["GET", "POST"])
@@ -28999,7 +24899,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
                 metrics_data.append(['Voltage Unbalance', f"{vu:.2f}%", 'NEMA MG1: ≤1.0%'])
             thd = _safe_float(eq.get('harmonic_thd'))
             if thd and thd != 0:
-                metrics_data.append(['Harmonic THD', f"{thd:.2f}%", 'IEEE 519: ≤5.0%'])
+                metrics_data.append(['Harmonic THD (equipment)', f"{thd:.2f}%", 'Equipment health: ≤5.0% (IEEE 519 compliance is evaluated on TDD at the PCC, not THD)'])
             pf = _safe_float(eq.get('power_factor'))
             if pf and pf != 0:
                 metrics_data.append(['Power Factor', f"{pf:.3f}", 'Target: ≥0.95'])
@@ -29051,7 +24951,7 @@ def generate_equipment_health_pdf(equipment_health_records, results_data=None):
         story.append(Paragraph("Standards References & Methodology", heading_style))
         story.append(Paragraph(
             "<b>NEMA MG1-2016:</b> Motor voltage unbalance limits (1% max).<br/><br/>"
-            "<b>IEEE 519-2014/2022:</b> Harmonic distortion limits — THD causes additional I²R losses.<br/><br/>"
+            "<b>IEEE 519-2014/2022:</b> Harmonic distortion limits defined against TDD (Total Demand Distortion at the PCC, scaled to the maximum demand load current I<sub>L</sub>). THD (scaled to the instantaneous fundamental I<sub>1</sub>) is reported separately because it causes additional I²R losses and equipment stress regardless of utility compliance.<br/><br/>"
             "<b>IEEE C57.110-2018:</b> Transformer harmonic loss calculations.<br/><br/>"
             "<b>IEEE C57.91-2011:</b> Transformer loading guidelines and aging acceleration.<br/><br/>"
             "<b>IEEE 141-1993:</b> Motor derating for voltage unbalance.<br/><br/>"
@@ -29397,7 +25297,22 @@ def serve_template_report():
                 logger.info(f"🔧 CONFIG DEBUG: Line 21240 - combined_data.config keys: {list(combined_data.get('config', {}).keys())}")
                 logger.info(f"🔧 CONFIG DEBUG: Line 21241 - combined_data.client_profile keys: {list(combined_data.get('client_profile', {}).keys())}")
                 
-                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=60)
+                # Forward show_dollars and submission_mode to 8084
+                if request.method == "GET":
+                    _sd_raw = request.args.get("show_dollars", "true")
+                    _sm_raw = request.args.get("submission_mode", "pe_review")
+                else:
+                    _sd_hidden = (form_data or {}).get("show_dollars_hidden", "on")
+                    _sd_raw = "false" if str(_sd_hidden).lower() in ("off", "false", "0") else "true"
+                    _sm_raw = (form_data or {}).get("submission_mode", "pe_review")
+                _show_dollars_q = "false" if str(_sd_raw).lower() in ("false", "off", "0") else "true"
+                logger.info(f"serve_template_report: forwarding show_dollars={_show_dollars_q} to 8084")
+                response = requests.get(
+                    f"{HTML_REPORT_URL}/generate"
+                    f"?show_dollars={_show_dollars_q}"
+                    f"&submission_mode={_sm_raw}",
+                    timeout=60,
+                )
                 if response.status_code == 200:
                     html_content = response.text
 
@@ -30875,17 +26790,34 @@ def analyze():
                     after_id_int = None
 
                 if before_id_int and after_id_int:
-                    # Resolve org_id from session; fall back through all orgs so files
-                    # uploaded under a different org (e.g. before multi-tenancy) still work.
+                    # Resolve org_id from the authenticated session.
                     try:
                         from main_hardened_ready_refactored import get_current_org_id as _get_org
                         _analysis_org_id = _get_org(request)
                     except Exception:
                         _analysis_org_id = None
 
-                    _orgs_to_try = []
-                    if _analysis_org_id:
-                        _orgs_to_try.append(_analysis_org_id)
+                    # If the session cannot be resolved the user must log in again —
+                    # do NOT fall back silently, as that would expose other orgs' data.
+                    if not _analysis_org_id:
+                        logger.warning(
+                            "ANALYSIS API - Session org could not be resolved; rejecting request."
+                        )
+                        return (
+                            jsonify(
+                                {
+                                    "error": "Your session has expired or could not be verified. "
+                                             "Please log in again and retry."
+                                }
+                            ),
+                            401,
+                        )
+
+                    # Authenticated: search the user's own org first, then the shared
+                    # admin org (files uploaded by admin are visible to all orgs).
+                    _orgs_to_try = [_analysis_org_id]
+                    if _analysis_org_id != "admin":
+                        _orgs_to_try.append("admin")
 
                     before_path = None
                     after_path = None
@@ -32971,25 +28903,19 @@ def generate_audit_package():
                 if isinstance(config, list):
                     config = {}
                 
-                # Extract IEEE 519 values from multiple sources
-                tdd_after = _safe_get(after_compliance, power_quality, compliance_status, compliance, key='tdd_after', default='N/A')
-                if tdd_after == 'N/A':
-                    tdd_after = _safe_get(after_compliance, power_quality, key='total_demand_distortion', default='N/A')
-                if tdd_after == 'N/A':
-                    tdd_after = _safe_get(power_quality, key='thd_after', default='N/A')
-                
-                isc_il_ratio = _safe_get(after_compliance, power_quality, compliance_status, compliance, config, key='isc_il_ratio', default='N/A')
-                if isc_il_ratio == 'N/A':
-                    # Try to calculate from isc_kA and il_A
-                    isc_kA = safe_float(_safe_get(config, key='isc_kA', default=0), 0)
-                    il_A = safe_float(_safe_get(config, key='il_A', default=0), 0)
-                    if isc_kA > 0 and il_A > 0:
-                        isc_il_ratio = f"{(isc_kA * 1000) / il_A:.1f}"
-                
-                tdd_limit = _safe_get(after_compliance, power_quality, compliance_status, compliance, key='tdd_limit', default='N/A')
-                tdd_after_val = safe_float(tdd_after, 0)
-                tdd_limit_val = safe_float(tdd_limit, 100)
-                compliance_status_ieee = 'PASS' if tdd_after_val <= tdd_limit_val else 'FAIL'
+                # IEEE 519 / TDD — single source of truth (see harmonics_snapshot).
+                _h = _harmonics_snapshot_audit(
+                    power_quality=power_quality,
+                    after_compliance=after_compliance,
+                    before_compliance=locals().get('before_compliance'),
+                    compliance_status=compliance_status,
+                    compliance=compliance,
+                    config=config,
+                )
+                tdd_after = _h["tdd"]["after"]
+                isc_il_ratio = _h["isc_il_ratio"] if _h["isc_il_ratio"] > 0 else 'N/A'
+                tdd_limit = _h["tdd"]["limit"]
+                compliance_status_ieee = _h["tdd"]["after_verdict"]
                 
                 ieee_519_report = f"""IEEE 519-2014/2022 COMPLIANCE REPORT
 =====================================
@@ -32998,14 +28924,14 @@ Generated: {datetime.now().isoformat()}
 
 COMPLIANCE METRICS:
 ------------------
-Total Demand Distortion (TDD): {tdd_after}%
+Total Demand Distortion (TDD): {tdd_after:.2f}%
 ISC/IL Ratio: {isc_il_ratio}
-TDD Limit: {tdd_limit}%
+TDD Limit: {tdd_limit:.1f}%
 Compliance Status: {compliance_status_ieee}
 
 HARMONIC ANALYSIS:
 -----------------
-Individual harmonic limits per IEEE 519 Table 10.3 based on ISC/IL ratio.
+Individual harmonic limits per IEEE 519-2014 Table 2 based on ISC/IL ratio.
 """
                 
                 # Convert to PDF
@@ -35093,10 +31019,18 @@ ISO 50015:2014 - Energy Savings Determination
                         if after_start != 'N/A' and after_end != 'N/A':
                             after_period = f"{after_start} to {after_end}"
                     
-                    # Extract key analysis metrics for verification
-                    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, results_data,
-                                                      keys=['tdd_after', 'total_demand_distortion', 'tdd'],
-                                                      default=0))
+                    # Extract key analysis metrics for verification.
+                    # IEEE 519 / TDD via the canonical snapshot.
+                    _h = _harmonics_snapshot_audit(
+                        power_quality=power_quality,
+                        after_compliance=after_compliance,
+                        before_compliance=locals().get('before_compliance'),
+                        compliance_status=compliance_status,
+                        after_data=after_data,
+                        results_data=results_data,
+                        config=locals().get('config'),
+                    )
+                    tdd_after = _h["tdd"]["after"]
                     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, results_data,
                                                   keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                                   default=0))
@@ -36042,64 +31976,26 @@ contains comprehensive documentation of all features, workflows, and procedures.
                         except (ValueError, TypeError):
                             return str(val)
                     
-                    # Extract IEEE 519 values with multiple fallbacks including before_data/after_data
-                    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, data,
-                                                      keys=['tdd_after', 'total_demand_distortion', 'tdd'],
-                                                      default=0))
-                    thd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, data,
-                                                     keys=['thd_after', 'total_harmonic_distortion', 'thd'],
-                                                     default=0))
-                    
-                    # Extract ISC/IL ratio with multiple fallbacks including before_data/after_data
-                    isc_il_ratio_raw = _safe_get(config, power_quality, before_data, after_data, data,
-                                                 keys=['isc_il_ratio', 'isc_il', 'isc_kA', 'il_A'],
-                                                 default=None)
-                    isc_il_ratio = _safe_float(isc_il_ratio_raw) if isc_il_ratio_raw is not None and isc_il_ratio_raw != 'N/A' else None
-                    
-                    if isc_il_ratio is None or isc_il_ratio == 0:
-                        # Try to calculate from isc_kA and il_A
-                        isc_kA = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
-                                                       keys=['isc_kA', 'isc_ka', 'short_circuit_current'],
-                                                       default=0))
-                        il_A = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
-                                                     keys=['il_A', 'il_a', 'load_current'],
-                                                     default=0))
-                        if isc_kA > 0 and il_A > 0:
-                            isc_il_ratio = (isc_kA * 1000) / il_A
-                        else:
-                            isc_il_ratio = None
-                    
-                    # Get IEEE TDD limit
-                    ieee_tdd_limit = _safe_float(_safe_get(power_quality, after_compliance, after_data, data,
-                                                           keys=['ieee_tdd_limit', 'tdd_limit', 'ieee_limit'],
-                                                           default=0))
-                    
-                    # Calculate IEEE TDD limit from ISC/IL ratio if not already stored
-                    if ieee_tdd_limit == 0 and isc_il_ratio > 0:
-                        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-                        if isc_il_ratio >= 1000:
-                            ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
-                        elif isc_il_ratio >= 100:
-                            ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
-                        elif isc_il_ratio >= 20:
-                            ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
-                        else:
-                            ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
-                    elif ieee_tdd_limit == 0:
-                        # Default limit if ISC/IL ratio is also not available
-                        ieee_tdd_limit = 5.0
-                    
-                    # Get IEEE compliance status
-                    ieee_519_compliant_val = _safe_get(compliance_status, after_compliance, data,
-                                                       keys=['ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                                       default='N/A')
-                    if isinstance(ieee_519_compliant_val, bool):
-                        ieee_519_compliant = ieee_519_compliant_val
-                    elif isinstance(ieee_519_compliant_val, str):
-                        ieee_519_compliant = ieee_519_compliant_val.lower() in ('true', 'yes', 'pass', 'compliant')
-                    else:
-                        # Determine from values if available
-                        ieee_519_compliant = (tdd_after <= ieee_tdd_limit and tdd_after != 0 and ieee_tdd_limit != 0) if (tdd_after != 0 and ieee_tdd_limit != 0) else False
+                    # IEEE 519 / TDD via canonical snapshot. See
+                    # `harmonics_snapshot` near top of module for the full
+                    # priority cascade. The audit-shape adapter pulls
+                    # values from the flat audit dicts (data / before_data
+                    # / after_data / etc.) and from compliance fallbacks.
+                    _h = _harmonics_snapshot_audit(
+                        power_quality=power_quality,
+                        after_compliance=after_compliance,
+                        before_compliance=locals().get('before_compliance'),
+                        compliance_status=compliance_status,
+                        after_data=after_data,
+                        before_data=before_data,
+                        data=data,
+                        config=config,
+                    )
+                    tdd_after = _h["tdd"]["after"]
+                    thd_after = _h["thd"]["after"]
+                    isc_il_ratio = _h["isc_il_ratio"] if _h["isc_il_ratio"] > 0 else None
+                    ieee_tdd_limit = _h["tdd"]["limit"]
+                    ieee_519_compliant = _h["tdd"]["after_pass"]
                     
                     # Extract ASHRAE values with multiple fallbacks including before_data/after_data
                     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data,
@@ -36408,21 +32304,27 @@ Project: {project_name}
                                          keys=['frequency', 'freq'],
                                          default='60')
                     
-                    # Extract analysis metrics
-                    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, data,
-                                                      keys=['tdd_after', 'total_demand_distortion', 'tdd'],
-                                                      default=0))
+                    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+                    _h = _harmonics_snapshot_audit(
+                        power_quality=power_quality,
+                        after_compliance=after_compliance,
+                        before_compliance=locals().get('before_compliance'),
+                        compliance_status=compliance_status,
+                        after_data=after_data,
+                        before_data=before_data,
+                        data=data,
+                        config=locals().get('config'),
+                    )
+                    tdd_after = _h["tdd"]["after"]
+                    # Preserve the legacy 'N/A' tri-state used by the
+                    # status-display formatting just below.
+                    ieee_519_compliant = _h["tdd"]["after_pass"] if tdd_after > 0 else 'N/A'
                     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data,
                                                   keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                                   default=0))
                     voltage_unbalance = _safe_float(_safe_get(after_compliance, power_quality, after_data, data,
                                                              keys=['nema_imbalance_value', 'voltage_unbalance', 'voltage_imbalance'],
                                                              default=0))
-                    
-                    # Get compliance statuses
-                    ieee_519_compliant = _safe_get(compliance_status, after_compliance, data,
-                                                   keys=['ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                                   default='N/A')
                     ashrae_compliant = _safe_get(compliance_status, after_compliance, data,
                                                 keys=['ashrae_compliant', 'ashrae_guideline_14_compliant'],
                                                 default='N/A')
@@ -38261,48 +34163,30 @@ def generate_calculation_methodologies_document(data, facility_type="general"):
     if isinstance(financial, list):
         financial = {}
     
-    # Extract actual calculated values - allow zero values for numeric metrics
-    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance, before_data,
-                                      keys=['tdd_after', 'total_demand_distortion', 'tdd', 'ieee_tdd'],
-                                      default=0, allow_zero=True), 0)
-    thd_after = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance, before_data,
-                                      keys=['thd_after', 'total_harmonic_distortion', 'thd'],
-                                      default=0, allow_zero=True), 0)
-    
-    # Get ISC and IL values separately first
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    # See harmonics_snapshot near top of module.
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=before_compliance,
+        after_data=after_data,
+        before_data=before_data,
+        data=data,
+        config=config,
+    )
+    tdd_after = _h["tdd"]["after"]
+    thd_after = _h["thd"]["after"]
+    isc_il_ratio = _h["isc_il_ratio"]
+    ieee_tdd_limit = _h["tdd"]["limit"]
+    # Raw isc_kA and il_A — kept here for the ISC/IL display row only.
+    # The snapshot already factored these into isc_il_ratio above.
     isc_kA = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
                                    keys=['isc_kA', 'isc_ka', 'short_circuit_current', 'isc'],
                                    default=0, allow_zero=True), 0)
     il_A = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
                                  keys=['il_A', 'il_a', 'load_current', 'il'],
                                  default=0, allow_zero=True), 0)
-    
-    # Calculate ISC/IL ratio if we have both values, otherwise try to get directly
-    isc_il_ratio = _safe_float(_safe_get(power_quality, config, before_data, after_data, data, after_compliance,
-                                         keys=['isc_il_ratio', 'isc_il'],
-                                         default=0, allow_zero=True), 0)
-    if isc_il_ratio == 0 and isc_kA > 0 and il_A > 0:
-        isc_il_ratio = (isc_kA * 1000) / il_A
-    
-    ieee_tdd_limit = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance,
-                                          keys=['ieee_tdd_limit', 'tdd_limit', 'ieee_limit', 'ieee_519_limit'],
-                                          default=0, allow_zero=True), 0)
-    
-    # Calculate IEEE TDD limit from ISC/IL ratio if not already stored
-    if ieee_tdd_limit == 0 and isc_il_ratio > 0:
-        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-        if isc_il_ratio >= 1000:
-            ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
-        elif isc_il_ratio >= 100:
-            ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
-        elif isc_il_ratio >= 20:
-            ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
-        else:
-            ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
-    elif ieee_tdd_limit == 0:
-        # Default limit if ISC/IL ratio is also not available
-        ieee_tdd_limit = 5.0
-    
+
     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data, before_compliance, before_data,
                                   keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                   default=0, allow_zero=True), 0)
@@ -38789,59 +34673,30 @@ def generate_standards_compliance_document(data, facility_type="general"):
     if isinstance(financial, list):
         financial = {}
     
-    # Extract IEEE 519 compliance values with multiple fallbacks - allow zero values
-    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, data, before_compliance, before_data,
-                                      keys=['tdd_after', 'total_demand_distortion', 'tdd', 'ieee_tdd'],
-                                      default=0, allow_zero=True), 0)
-    thd_after = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance, before_data,
-                                      keys=['thd_after', 'total_harmonic_distortion', 'thd'],
-                                      default=0, allow_zero=True), 0)
-    
-    # Get ISC and IL values separately first
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=before_compliance,
+        compliance_status=compliance_status,
+        after_data=after_data,
+        before_data=before_data,
+        data=data,
+        config=config,
+    )
+    tdd_after = _h["tdd"]["after"]
+    thd_after = _h["thd"]["after"]
+    isc_il_ratio = _h["isc_il_ratio"]
+    ieee_tdd_limit = _h["tdd"]["limit"]
+    ieee_519_compliant = _h["tdd"]["after_pass"]
+    # Raw isc_kA / il_A — used by the ISC/IL display row only. The snapshot
+    # already factored these into isc_il_ratio above.
     isc_kA = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
                                    keys=['isc_kA', 'isc_ka', 'short_circuit_current', 'isc'],
                                    default=0, allow_zero=True), 0)
     il_A = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
                                  keys=['il_A', 'il_a', 'load_current', 'il'],
                                  default=0, allow_zero=True), 0)
-    
-    # Calculate ISC/IL ratio if we have both values, otherwise try to get directly
-    isc_il_ratio = _safe_float(_safe_get(power_quality, config, before_data, after_data, data, after_compliance,
-                                         keys=['isc_il_ratio', 'isc_il'],
-                                         default=0, allow_zero=True), 0)
-    if isc_il_ratio == 0 and isc_kA > 0 and il_A > 0:
-        isc_il_ratio = (isc_kA * 1000) / il_A
-    
-    ieee_tdd_limit = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance,
-                                          keys=['ieee_tdd_limit', 'tdd_limit', 'ieee_limit', 'ieee_519_limit'],
-                                          default=0, allow_zero=True), 0)
-    
-    # Calculate IEEE TDD limit from ISC/IL ratio if not already stored
-    if ieee_tdd_limit == 0 and isc_il_ratio > 0:
-        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-        if isc_il_ratio >= 1000:
-            ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
-        elif isc_il_ratio >= 100:
-            ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
-        elif isc_il_ratio >= 20:
-            ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
-        else:
-            ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
-    elif ieee_tdd_limit == 0:
-        # Default limit if ISC/IL ratio is also not available
-        ieee_tdd_limit = 5.0
-    
-    # Get IEEE compliance status with multiple fallbacks - check nested structures
-    ieee_519_compliant_val = _safe_get_nested(after_compliance, compliance_status, data,
-                                              keys=[['ieee_519'], 'ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                              default='N/A')
-    if isinstance(ieee_519_compliant_val, bool):
-        ieee_519_compliant = ieee_519_compliant_val
-    elif isinstance(ieee_519_compliant_val, str):
-        ieee_519_compliant = ieee_519_compliant_val.lower() in ('true', 'yes', 'pass', 'compliant')
-    else:
-        # Determine from values if available
-        ieee_519_compliant = (tdd_after <= ieee_tdd_limit and tdd_after != 0 and ieee_tdd_limit != 0) if (tdd_after != 0 and ieee_tdd_limit != 0) else False
     
     # Extract ASHRAE metrics with multiple fallbacks - allow zero values
     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data, before_compliance, before_data,
@@ -40018,59 +35873,21 @@ def generate_quality_assurance_document(data, facility_type="general"):
         default=100.0, allow_zero=True
     ), 100.0)
     
-    # Extract IEEE 519 compliance with multiple fallbacks - allow zero values
-    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, data, before_compliance, before_data,
-                                      keys=['tdd_after', 'total_demand_distortion', 'tdd', 'ieee_tdd'],
-                                      default=0, allow_zero=True), 0)
-    
-    # Get ISC and IL values separately first
-    isc_kA = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
-                                   keys=['isc_kA', 'isc_ka', 'short_circuit_current', 'isc'],
-                                   default=0, allow_zero=True), 0)
-    il_A = _safe_float(_safe_get(config, power_quality, before_data, after_data, data,
-                                 keys=['il_A', 'il_a', 'load_current', 'il'],
-                                 default=0, allow_zero=True), 0)
-    
-    # Calculate ISC/IL ratio if we have both values, otherwise try to get directly
-    isc_il_ratio = _safe_float(_safe_get(power_quality, config, before_data, after_data, data, after_compliance,
-                                         keys=['isc_il_ratio', 'isc_il'],
-                                         default=0, allow_zero=True), 0)
-    if isc_il_ratio == 0 and isc_kA > 0 and il_A > 0:
-        isc_il_ratio = (isc_kA * 1000) / il_A
-    
-    ieee_tdd_limit = _safe_float(_safe_get(power_quality, after_compliance, after_data, data, before_compliance,
-                                          keys=['ieee_tdd_limit', 'tdd_limit', 'ieee_limit', 'ieee_519_limit'],
-                                          default=0, allow_zero=True), 0)
-    
-    # Calculate IEEE TDD limit from ISC/IL ratio if not already stored
-    if ieee_tdd_limit == 0 and isc_il_ratio > 0:
-        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-        if isc_il_ratio >= 1000:
-            ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
-        elif isc_il_ratio >= 100:
-            ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
-        elif isc_il_ratio >= 20:
-            ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
-        else:
-            ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
-    elif ieee_tdd_limit == 0:
-        # Default limit if ISC/IL ratio is also not available
-        ieee_tdd_limit = 5.0
-    
-    # Get IEEE compliance status - prioritize calculated value over stored value
-    ieee_519_compliant_val = _safe_get_nested(after_compliance, compliance_status, data,
-                                              keys=[['ieee_519'], 'ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                              default='N/A')
-    
-    # Use calculated value if we have TDD and limit, otherwise use stored value
-    if tdd_after != 0 and ieee_tdd_limit != 0:
-        ieee_519_compliant = (tdd_after <= ieee_tdd_limit)
-    elif isinstance(ieee_519_compliant_val, bool):
-        ieee_519_compliant = ieee_519_compliant_val
-    elif isinstance(ieee_519_compliant_val, str):
-        ieee_519_compliant = ieee_519_compliant_val.lower() in ('true', 'yes', 'pass', 'compliant')
-    else:
-        ieee_519_compliant = False
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=before_compliance,
+        compliance_status=compliance_status,
+        after_data=after_data,
+        before_data=before_data,
+        data=data,
+        config=config,
+    )
+    tdd_after = _h["tdd"]["after"]
+    isc_il_ratio = _h["isc_il_ratio"]
+    ieee_tdd_limit = _h["tdd"]["limit"]
+    ieee_519_compliant = _h["tdd"]["after_pass"]
     
     # Extract ASHRAE metrics with multiple fallbacks - allow zero values
     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data, before_compliance, before_data,
@@ -40935,44 +36752,21 @@ def generate_risk_assessment_document(data):
         elif facility_val and facility_val != 'N/A':
             project_name = facility_val
     
-    # Extract compliance and quality metrics for risk assessment
-    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, compliance_status, after_data, data,
-                                      keys=['tdd_after', 'total_demand_distortion', 'tdd'],
-                                      default=0))
-    ieee_tdd_limit = _safe_float(_safe_get(power_quality, after_compliance, after_data, data,
-                                          keys=['ieee_tdd_limit', 'tdd_limit', 'ieee_limit'],
-                                          default=0))
-    
-    # Calculate IEEE TDD limit from ISC/IL ratio if not already stored
-    # First, get ISC/IL ratio if available
-    isc_il_ratio = _safe_float(_safe_get(power_quality, config, after_compliance, after_data, data,
-                                        keys=['isc_il_ratio', 'isc_il'],
-                                        default=0))
-    if isc_il_ratio == 0:
-        # Try to calculate from isc_kA and il_A
-        isc_kA = _safe_float(_safe_get(config, power_quality, after_compliance, after_data, data,
-                                      keys=['isc_kA', 'isc_ka', 'short_circuit_current'],
-                                      default=0))
-        il_A = _safe_float(_safe_get(config, power_quality, after_compliance, after_data, data,
-                                    keys=['il_A', 'il_a', 'load_current'],
-                                    default=0))
-        if isc_kA > 0 and il_A > 0:
-            isc_il_ratio = (isc_kA * 1000) / il_A
-    
-    if ieee_tdd_limit == 0 and isc_il_ratio > 0:
-        # IEEE 519-2014/2022 TDD limits based on ISC/IL ratio (per IEEE 519-2014 Table 10.3)
-        if isc_il_ratio >= 1000:
-            ieee_tdd_limit = 5.0   # ISC/IL >= 1000: TDD limit = 5.0%
-        elif isc_il_ratio >= 100:
-            ieee_tdd_limit = 8.0   # ISC/IL 100-1000: TDD limit = 8.0%
-        elif isc_il_ratio >= 20:
-            ieee_tdd_limit = 12.0  # ISC/IL 20-100: TDD limit = 12.0%
-        else:
-            ieee_tdd_limit = 15.0  # ISC/IL < 20: TDD limit = 15.0%
-    elif ieee_tdd_limit == 0:
-        # Default limit if ISC/IL ratio is also not available
-        ieee_tdd_limit = 5.0
-    
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=locals().get('before_compliance'),
+        compliance_status=compliance_status,
+        after_data=after_data,
+        before_data=locals().get('before_data'),
+        data=data,
+        config=config,
+    )
+    tdd_after = _h["tdd"]["after"]
+    isc_il_ratio = _h["isc_il_ratio"]
+    ieee_tdd_limit = _h["tdd"]["limit"]
+
     cvrmse = _safe_float(_safe_get(statistical, after_compliance, after_data, data,
                                   keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                   default=0))
@@ -41001,25 +36795,14 @@ def generate_risk_assessment_document(data):
                                    keys=['statistical_p_value', 'p_value', 'pvalue'],
                                    default=1.0))
     
-    # Get compliance statuses - calculate from actual metric values if flags not available
-    ieee_519_compliant_val = _safe_get(compliance_status, after_compliance, data,
-                                       keys=['ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                       default='N/A')
-    if isinstance(ieee_519_compliant_val, bool):
-        ieee_519_compliant = ieee_519_compliant_val
-    elif isinstance(ieee_519_compliant_val, str):
-        ieee_519_compliant = ieee_519_compliant_val.lower() in ('true', 'yes', 'pass', 'compliant')
-    else:
-        # Calculate from actual metric values - if we have TDD and limit, use them
-        if tdd_after != 0 and ieee_tdd_limit != 0:
-            ieee_519_compliant = (tdd_after <= ieee_tdd_limit)
-        elif tdd_after != 0:
-            # If we have TDD but no limit, assume compliant if TDD is reasonable (< 15%)
-            ieee_519_compliant = (tdd_after <= 15.0)
-        else:
-            # Check if we have any TDD-related data to determine compliance
-            # If no TDD data at all, we can't determine compliance - default to True (assume compliant)
-            ieee_519_compliant = True
+    # IEEE 519 verdict from the canonical snapshot above. When TDD could
+    # not be determined (`from_thd_fallback`) we default-assume compliant
+    # to match prior behavior — risk assessment is otherwise blocked.
+    ieee_519_compliant = (
+        _h["tdd"]["after_pass"]
+        if _h["tdd"]["after"] > 0
+        else True
+    )
     
     ashrae_compliant_val = _safe_get(compliance_status, after_compliance, data,
                                     keys=['ashrae_compliant', 'ashrae_guideline_14_compliant'],
@@ -42450,16 +38233,19 @@ def enrich_audit_summary_markdown(markdown_content, data):
     nema_status = _format_compliance_status(nema_compliant)
     ipmvp_status = _format_compliance_status(ipmvp_compliant)
     
-    # Extract calculation values - allow zero values for numeric metrics
-    tdd_after = _safe_float(_safe_get(power_quality, after_compliance, data,
-                                      keys=['tdd_after', 'total_demand_distortion', 'tdd', 'ieee_tdd'],
-                                      default=0, allow_zero=True), 0)
-    thd_after = _safe_float(_safe_get(power_quality, after_compliance, data,
-                                      keys=['thd_after', 'total_harmonic_distortion', 'thd'],
-                                      default=0, allow_zero=True), 0)
-    isc_il_ratio = _safe_float(_safe_get(power_quality, config, data,
-                                         keys=['isc_il_ratio', 'isc_il', 'isc_kA', 'il_A'],
-                                         default=0, allow_zero=True), 0)
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=before_compliance,
+        compliance_status=compliance_status,
+        data=data,
+        config=config,
+    )
+    tdd_after = _h["tdd"]["after"]
+    thd_after = _h["thd"]["after"]
+    isc_il_ratio = _h["isc_il_ratio"]
+
     cvrmse = _safe_float(_safe_get(statistical, after_compliance, data,
                                   keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                   default=0, allow_zero=True), 0)
@@ -44917,16 +40703,9 @@ def generate_client_audit_summary(data, client_info, timestamp):
     elif irr == 'N/A':
         irr = 'N/A'
     
-    # Extract compliance values with multiple fallbacks including before_data/after_data
-    ieee_519_compliant_val = _safe_get(compliance_status, after_compliance, data,
-                                       keys=['ieee_519_compliant', 'ieee_compliant', 'ieee_519_status'],
-                                       default='N/A')
-    if isinstance(ieee_519_compliant_val, bool):
-        ieee_519_compliant = ieee_519_compliant_val
-    elif isinstance(ieee_519_compliant_val, str):
-        ieee_519_compliant = ieee_519_compliant_val.lower() in ('true', 'yes', 'pass', 'compliant')
-    else:
-        ieee_519_compliant = False
+    # IEEE 519 verdict — defer to the snapshot built earlier in this
+    # function for the single source of truth (see harmonics_snapshot).
+    ieee_519_compliant = _h["tdd"]["after_pass"]
     
     ashrae_compliant_val = _safe_get(compliance_status, after_compliance, data,
                                     keys=['ashrae_compliant', 'ashrae_guideline_14_compliant', 'ashrae_precision_compliant'],
@@ -45003,10 +40782,18 @@ def generate_client_audit_summary(data, client_info, timestamp):
         default=0
     ))
     
-    # Extract key analysis metrics for display
-    tdd_after = _safe_float_local(_safe_get(power_quality, after_compliance, compliance_status, after_data, data,
-                                           keys=['tdd_after', 'total_demand_distortion', 'tdd'],
-                                           default=0))
+    # IEEE 519 / TDD via canonical snapshot (single source of truth).
+    _h = _harmonics_snapshot_audit(
+        power_quality=power_quality,
+        after_compliance=after_compliance,
+        before_compliance=locals().get('before_compliance'),
+        compliance_status=compliance_status,
+        after_data=after_data,
+        before_data=locals().get('before_data'),
+        data=data,
+        config=locals().get('config'),
+    )
+    tdd_after = _h["tdd"]["after"]
     cvrmse = _safe_float_local(_safe_get(statistical, after_compliance, after_data, data,
                                         keys=['cvrmse', 'cv_rmse', 'coefficient_of_variation'],
                                         default=0))

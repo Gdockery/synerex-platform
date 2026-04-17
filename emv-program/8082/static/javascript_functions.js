@@ -5894,28 +5894,80 @@ async function viewEquipmentHealthReport(r) {
       if (thdBefore !== null && thdAfter !== null) {
         hasData = true;
         const thdImprovement = thdBefore > 0 ? ((thdBefore - thdAfter) / thdBefore * 100).toFixed(1) : '0.0';
+        // THD = Total Harmonic Distortion = ratio to fundamental current (I1).
+        // This is what equipment (motors, VFDs, transformers, UPSs) actually sees at
+        // its terminals. We intentionally do NOT show an IEEE 519 PASS/FAIL verdict
+        // against a TDD limit here — that comparison is unit-mismatched and lives in
+        // the dedicated TDD card below. Keep the color thresholds as a generic
+        // "equipment stress" heuristic (≤5% healthy, >5% elevated).
         html += `
           <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-            <h4 style="color: #1a237e; margin-top: 0;">Total Harmonic Distortion (THD)</h4>
+            <h4 style="color: #1a237e; margin-top: 0;">Total Harmonic Distortion (THD) &mdash; Equipment Exposure</h4>
+            <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">What equipment actually sees at its terminals. High THD accelerates motor/transformer heating, VFD/UPS component aging, and capacitor failures &mdash; regardless of utility billing. This is the number to watch when chasing <em>equipment reliability</em>.</p>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${thdBefore > (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${thdBefore > 5.0 ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
+                <div style="font-size: 11px; color: #666; margin-top: 3px;">${thdBefore > 5.0 ? 'Elevated &mdash; equipment stress' : 'Healthy for equipment'}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
-                <div style="font-size: 24px; font-weight: bold; color: ${thdAfter > (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
+                <div style="font-size: 24px; font-weight: bold; color: ${thdAfter > 5.0 ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
+                <div style="font-size: 11px; color: #666; margin-top: 3px;">${thdAfter > 5.0 ? 'Elevated &mdash; equipment stress' : 'Healthy for equipment'}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
                 <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(thdImprovement) > 0 ? '#28a745' : '#dc3545'};">${(function() { var thd = parseFloat(thdImprovement); return thd > 0 ? '+' : ''; })()}${thdImprovement}%</div>
               </div>
             </div>
-            <div style="margin-top: 10px; padding: 10px; background: ${thdAfter <= (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
-              <strong>IEEE 519 Compliance:</strong> ${thdAfter <= (r?.power_quality?.ieee_tdd_limit ?? 5.0) ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: ${(r?.power_quality?.ieee_tdd_limit ?? 5.0).toFixed(1)}% based on ISC/IL ratio)
+            <div style="margin-top: 10px; padding: 8px 10px; background: #e7f3ff; border-left: 3px solid #007bff; border-radius: 4px; font-size: 12px; color: #555;">
+              <strong>Note:</strong> IEEE 519 compliance is evaluated against <strong>TDD</strong> (referenced to the maximum demand load current, I<sub>L</sub>), not THD. See the TDD card below for the utility-facing verdict.
             </div>
           </div>
         `;
+
+        // ── TDD (Total Demand Distortion) — Utility / IEEE 519 card ─────────
+        // TDD is scaled to the maximum demand load current at the PCC (I_L),
+        // which is exactly what IEEE 519-2014/2022 Table 2 limits are defined
+        // against. This is the number the utility penalizes.
+        const tddBeforeLocal = r?.power_quality?.tdd_before ?? null;
+        const tddAfterLocal  = r?.power_quality?.tdd_after  ?? null;
+        const tddLimitLocal  = r?.power_quality?.ieee_tdd_limit ?? 5.0;
+        if (tddBeforeLocal !== null && tddAfterLocal !== null) {
+          const tddImprovement = tddBeforeLocal > 0 ? ((tddBeforeLocal - tddAfterLocal) / tddBeforeLocal * 100).toFixed(1) : '0.0';
+          html += `
+            <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+              <h4 style="color: #1a237e; margin-top: 0;">Total Demand Distortion (TDD) &mdash; Utility / IEEE 519 Compliance</h4>
+              <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">What the utility meters at the Point of Common Coupling (PCC). IEEE 519-2014/2022 Table 2 limits are defined against TDD, not THD, because TDD is referenced to the maximum demand load current (I<sub>L</sub>) rather than the instantaneous fundamental. This is the number to watch when chasing <em>utility penalties or interconnection approval</em>.</p>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
+                <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
+                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
+                  <div style="font-size: 24px; font-weight: bold; color: ${tddBeforeLocal > tddLimitLocal ? '#dc3545' : '#28a745'};">${tddBeforeLocal.toFixed(2)}%</div>
+                  <div style="font-size: 11px; color: #666; margin-top: 3px;">${tddBeforeLocal > tddLimitLocal ? 'Exceeds IEEE 519 limit' : 'Within IEEE 519 limit'}</div>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
+                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
+                  <div style="font-size: 24px; font-weight: bold; color: ${tddAfterLocal > tddLimitLocal ? '#dc3545' : '#28a745'};">${tddAfterLocal.toFixed(2)}%</div>
+                  <div style="font-size: 11px; color: #666; margin-top: 3px;">${tddAfterLocal > tddLimitLocal ? 'Exceeds IEEE 519 limit' : 'Within IEEE 519 limit'}</div>
+                </div>
+                <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
+                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Improvement</div>
+                  <div style="font-size: 24px; font-weight: bold; color: ${parseFloat(tddImprovement) > 0 ? '#28a745' : '#dc3545'};">${parseFloat(tddImprovement) > 0 ? '+' : ''}${tddImprovement}%</div>
+                </div>
+              </div>
+              <div style="margin-top: 10px; padding: 10px; background: ${tddAfterLocal <= tddLimitLocal ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
+                <strong>IEEE 519 Compliance:</strong> ${tddAfterLocal <= tddLimitLocal ? '[OK] PASS' : '[ERROR] FAIL'} (Limit: ${tddLimitLocal.toFixed(1)}% TDD, based on ISC/I<sub>L</sub> ratio per Table 2)
+              </div>
+            </div>
+          `;
+        } else {
+          html += `
+            <div style="margin-bottom: 20px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 8px;">
+              <h4 style="color: #856404; margin-top: 0;">Total Demand Distortion (TDD) &mdash; Not Available</h4>
+              <p style="color: #856404; font-size: 13px; margin: 0;">TDD could not be computed for this dataset (missing I<sub>L</sub> &mdash; maximum demand load current). IEEE 519 compliance requires TDD; the THD values above reflect equipment exposure but <strong>cannot be used directly</strong> to determine utility compliance. Provide the short-circuit / load-current study value (I<sub>L</sub>) in the configuration to enable the TDD verdict.</p>
+            </div>
+          `;
+        }
       }
 
       if (pfBefore !== null && pfAfter !== null) {
@@ -6627,22 +6679,50 @@ async function viewEquipmentHealthReport(r) {
       `;
 
       if (thdBefore !== null && thdAfter !== null) {
+        // THD here is about equipment stress, not utility compliance. The old
+        // "Exceeds IEEE 519 limit" text was a unit-mismatch: IEEE 519 limits are
+        // defined against TDD (scaled to I_L), not THD (scaled to I1). 5% is kept
+        // as a generic equipment-health threshold, not an IEEE 519 claim.
+        const thdDetailLimit = 5.0;
+        const tddDetailBefore = r?.power_quality?.tdd_before ?? null;
+        const tddDetailAfter  = r?.power_quality?.tdd_after  ?? null;
+        const tddDetailLimit  = r?.power_quality?.ieee_tdd_limit ?? 5.0;
         html += `
           <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
-            <h4 style="color: #1a237e; margin-top: 0;">Total Harmonic Distortion (THD)</h4>
+            <h4 style="color: #1a237e; margin-top: 0;">Total Harmonic Distortion (THD) &mdash; Equipment View</h4>
+            <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">THD quantifies harmonic current relative to the instantaneous fundamental (I<sub>1</sub>). It is the correct metric for <em>equipment stress</em> &mdash; motor rotor heating, transformer eddy losses, VFD front-end degradation &mdash; but <strong>not</strong> for IEEE 519 compliance (see TDD section).</p>
             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 15px;">
               <div style="padding: 15px; background: white; border-radius: 4px;">
                 <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Before Period</div>
-                <div style="font-size: 36px; font-weight: bold; color: ${thdBefore > 5 ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdBefore > 5 ? '[WARNING] Exceeds IEEE 519 limit' : '[OK] Within limits'}</div>
+                <div style="font-size: 36px; font-weight: bold; color: ${thdBefore > thdDetailLimit ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdBefore > thdDetailLimit ? '[WARNING] Elevated &mdash; equipment stress' : '[OK] Healthy for equipment'}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px;">
                 <div style="font-size: 14px; color: #666; margin-bottom: 10px;">After Period</div>
-                <div style="font-size: 36px; font-weight: bold; color: ${thdAfter > 5 ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
-                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdAfter > 5 ? '[WARNING] Exceeds IEEE 519 limit' : '[OK] Within limits'}</div>
+                <div style="font-size: 36px; font-weight: bold; color: ${thdAfter > thdDetailLimit ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${thdAfter > thdDetailLimit ? '[WARNING] Elevated &mdash; equipment stress' : '[OK] Healthy for equipment'}</div>
               </div>
             </div>
           </div>
+
+          ${tddDetailBefore !== null && tddDetailAfter !== null ? `
+          <div style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h4 style="color: #1a237e; margin-top: 0;">Total Demand Distortion (TDD) &mdash; IEEE 519 View</h4>
+            <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">TDD quantifies harmonic current relative to the maximum demand load current (I<sub>L</sub>) at the PCC. This is the metric used by IEEE 519-2014/2022 Table 2 limits and by utilities for penalty determinations.</p>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 15px;">
+              <div style="padding: 15px; background: white; border-radius: 4px;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Before Period</div>
+                <div style="font-size: 36px; font-weight: bold; color: ${tddDetailBefore > tddDetailLimit ? '#dc3545' : '#28a745'};">${tddDetailBefore.toFixed(2)}%</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${tddDetailBefore > tddDetailLimit ? '[WARNING] Exceeds IEEE 519 limit (' + tddDetailLimit.toFixed(1) + '%)' : '[OK] Within IEEE 519 limit'}</div>
+              </div>
+              <div style="padding: 15px; background: white; border-radius: 4px;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 10px;">After Period</div>
+                <div style="font-size: 36px; font-weight: bold; color: ${tddDetailAfter > tddDetailLimit ? '#dc3545' : '#28a745'};">${tddDetailAfter.toFixed(2)}%</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">${tddDetailAfter > tddDetailLimit ? '[WARNING] Exceeds IEEE 519 limit (' + tddDetailLimit.toFixed(1) + '%)' : '[OK] Within IEEE 519 limit'}</div>
+              </div>
+            </div>
+          </div>
+          ` : ''}
         `;
       }
 

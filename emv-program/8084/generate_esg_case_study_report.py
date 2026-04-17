@@ -16,9 +16,17 @@ from datetime import datetime
 from pathlib import Path
 import sys
 
-# Add parent directory to path to import from 8082 and 8084
-sys.path.insert(0, str(Path(__file__).parent.parent / "8082"))
-sys.path.insert(0, str(Path(__file__).parent))
+# Add 8084 (this dir) first so canonical modules like
+# generate_exact_template_html always resolve here, then 8082 (appended)
+# so that 8082-only helpers (sankey_diagram, main_hardened_ready_fixed)
+# are importable. NEVER insert 8082 at index 0 — that would shadow
+# canonical 8084 modules and silently load stale duplicates.
+_this_dir = str(Path(__file__).parent)
+_8082_path = str(Path(__file__).parent.parent / "8082")
+if _this_dir not in sys.path:
+    sys.path.insert(0, _this_dir)
+if _8082_path not in sys.path:
+    sys.path.append(_8082_path)
 
 # Import the existing report generator
 try:

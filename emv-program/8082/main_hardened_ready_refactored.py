@@ -10870,7 +10870,16 @@ def serve_template_report():
                 logger.info(f"[FIX] CONFIG DEBUG: combined_data.config keys: {list(combined_data.get('config', {}).keys())}")
                 logger.info(f"[FIX] CONFIG DEBUG: combined_data.client_profile keys: {list(combined_data.get('client_profile', {}).keys())}")
                 
-                response = requests.get(f"{HTML_REPORT_URL}/generate", timeout=10)
+                # Preserve show_dollars from the POSTed form_data
+                _sd_val = (form_data or {}).get("show_dollars_hidden", "on")
+                _show_dollars_q = "false" if str(_sd_val).lower() in ("off", "false", "0") else "true"
+                _submission_mode_q = (form_data or {}).get("submission_mode", "pe_review")
+                response = requests.get(
+                    f"{HTML_REPORT_URL}/generate"
+                    f"?show_dollars={_show_dollars_q}"
+                    f"&submission_mode={_submission_mode_q}",
+                    timeout=10
+                )
                 if response.status_code == 200:
                     return Response(
                         response.text,
