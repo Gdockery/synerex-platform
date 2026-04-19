@@ -42,7 +42,36 @@ The `.tmp/` directory and the Flask `app/` folder are both **mounted from the ho
 ```
 This means the **Docker image is NOT what serves the Angular app** — the host `.tmp/` directory is. When you rebuild the Docker image, the Angular files baked in are immediately overridden by the host mount.
 
-**To apply Angular changes (dev):**
+### ⚠️ PROD vs DEV — Angular Build (Critical, Learned the Hard Way)
+
+The Angular app is **NOT JIT-compiled in production**. Webpack pre-compiles all TypeScript into minified JS bundles in `.tmp/public/js/`. The browser only ever receives the compiled `.bundle.js` files.
+
+**What this means:**
+- Editing a `.ts` source file does NOT change what the browser runs — you must rebuild the bundle.
+- Rebuilding the Docker image (`docker compose build`) does NOT help — the `.tmp/` volume mount on the host overrides whatever is baked into the image.
+- The error stack traces show `user.ts:45` etc. because the bundle includes **source maps** — the browser is NOT fetching the raw `.ts` files.
+
+**To apply Angular changes in PROD (on server):**
+```bash
+# Option 1: Run webpack inside a Docker container with source mounted
+docker run --rm \
+  -v /root/synerex-platform/tracking-program/8087:/app \
+  -w /app \
+  node:18-slim \
+  sh -c "npm install --legacy-peer-deps && NODE_ENV=production npm run build"
+# No restart needed — the bundle is served from the volume-mounted .tmp/ directory
+
+# Option 2 (quick fix only): Directly patch the compiled bundle
+# Find the function in .tmp/public/js/main.bundle.js and use Python to replace it
+python3 -c "
+path = '/root/synerex-platform/tracking-program/8087/.tmp/public/js/main.bundle.js'
+with open(path, 'r') as f: content = f.read()
+content = content.replace('OLD_COMPILED_CODE', 'NEW_COMPILED_CODE')
+with open(path, 'w') as f: f.write(content)
+"
+```
+
+**To apply Angular changes in DEV (local):**
 ```bash
 cd tracking-program/8087
 npm run build
