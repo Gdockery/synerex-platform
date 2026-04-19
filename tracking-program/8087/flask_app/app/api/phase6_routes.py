@@ -755,6 +755,9 @@ def _user_can_access_user(current_user_obj, target_user):
     """True if current user can access target user (view/edit/delete). Role 8: all; 9,10: same org; 1-7: same org."""
     if not current_user_obj or not target_user:
         return False
+    # A user can always access their own record
+    if current_user_obj.id == target_user.id:
+        return True
     role = getattr(current_user_obj, "role", None)
     if role == 8:
         return True
