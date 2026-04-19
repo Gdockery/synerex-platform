@@ -936,11 +936,14 @@ def get_user(uid):
     proj_ids = [r[0] for r in db.session.query(project_user.c.project_users).filter(project_user.c.user_projects == u.id).all()]
     projs = [{"id": p.id, "name": p.name} for pid in proj_ids for p in [Project.query.get(pid)] if p]
     client = Client.query.get(u.client) if u.client else None
+    # Only expose resetPasswordToken when user has no password yet (pending invite)
+    pending_token = u.resetPasswordToken if not u.hashedPassword else None
     return jsonify({"meta": {}, "response": {
         "id": u.id, "email": u.email, "fullName": f"{u.firstName} {u.lastName}",
         "lastActiveAt": u.lastActiveAt, "role": u.role, "roleFriendlyName": _role_friendly_name(u.role),
         "client": {"id": client.id, "name": client.name} if client else None,
         "projects": projs, "hasPassword": bool(u.hashedPassword), "isDeleted": u.isDeleted,
+        "resetPasswordToken": pending_token,
     }})
 
 

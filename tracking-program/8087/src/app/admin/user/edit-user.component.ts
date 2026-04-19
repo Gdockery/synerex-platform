@@ -60,8 +60,7 @@ var _ = require('lodash');
             <div class="row">
               <div class="col-md-12">
                 <p>Since no password was explicitly defined, this user must currently visit a special link to choose their own password:</p>
-                <pre><code>{{inviteBaseUrl}}/invite/accept?token={{user.resetPasswordToken}}</code></pre>
-                <pre><code>{{inviteBaseUrl}}/invite/accept?token={{user.resetPasswordToken}}</code></pre>
+                <pre><code>{{inviteBaseUrl}}/tracking/invite/accept?token={{user.resetPasswordToken}}</code></pre>
                 <p><em>This user has not logged in yet.</em></p>
               </div>
             </div>
