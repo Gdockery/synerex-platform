@@ -42,7 +42,9 @@ export class User {
   }
 
   getInitials() {
-    return this.firstName[0].toUpperCase() + ' ' +this.lastName[0].toUpperCase();
+    const f = this.firstName ? this.firstName[0].toUpperCase() : 'F';
+    const l = this.lastName ? this.lastName[0].toUpperCase() : 'L';
+    return f + ' ' + l;
   }
 
   /**
