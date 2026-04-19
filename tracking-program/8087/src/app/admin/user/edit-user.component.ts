@@ -246,9 +246,9 @@ export class EditUserComponent implements OnInit {
         } else if (this.user.role == 8 || this.user.role === 8) {
           this.availableProjects = [];
         } else {
-          this.availableProjects = _.filter(this.allProjects, (project)=>{
-            return project.client === this.user.client.id;
-          });
+          this.availableProjects = this.user.client
+            ? _.filter(this.allProjects, (project) => project.client === this.user.client.id)
+            : [];
         } 
 
         // Set the values of the project checkboxes.
