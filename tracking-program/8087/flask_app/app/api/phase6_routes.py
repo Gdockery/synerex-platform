@@ -1003,9 +1003,10 @@ def create_user():
                          "Each organization may only have one admin account."
             }), 409
 
+    parts = full_name.split()
     if len(parts) < 2:
         return jsonify({"error": "fullName must have first and last name"}), 400
-    first_name, last_name = parts[0], parts[1]
+    first_name, last_name = parts[0], " ".join(parts[1:])
     if User.query.filter_by(email=email, isDeleted=False).first():
         return jsonify({"error": "Email already exists"}), 409
     existing = User.query.filter_by(email=email, isDeleted=True).first()
