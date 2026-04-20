@@ -13008,6 +13008,11 @@ def _static_base():
     return path if path else ""
 
 
+def _sql_now():
+    """Return current-timestamp SQL expression compatible with SQLite and MySQL."""
+    return "NOW()" if USE_MYSQL else "datetime('now')"
+
+
 def _main_dashboard_url():
     """Return main-dashboard URL (use EMV_BASE_URL when behind proxy at /emv/)."""
     base = EMV_BASE_URL or ""
