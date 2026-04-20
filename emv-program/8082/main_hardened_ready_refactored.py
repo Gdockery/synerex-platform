@@ -942,6 +942,11 @@ def ensure_sessions_tables(conn):
         )
         """
     )
+    # Migration: add org_id column if the table was created before it was introduced
+    try:
+        conn.execute("ALTER TABLE user_sessions ADD COLUMN org_id VARCHAR(255)")
+    except Exception:
+        pass  # Column already exists — safe to ignore
 
 
 def get_table_columns(conn, table_name: str) -> List[str]:
