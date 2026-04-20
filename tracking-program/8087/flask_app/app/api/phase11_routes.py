@@ -2,11 +2,14 @@
 Phase 11: Switch scheduling & events, Test reporting API.
 Ported from api/controllers/web/switch/* and api/controllers/web/test/*
 """
+import logging
 import time
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 from app.extensions import db
 from app.helpers.decorators import license_required
@@ -413,7 +416,6 @@ def schedule_switch_event():
     except (TypeError, ValueError):
         return jsonify({"error": "badCommandType"}), 400
 
-    from flask import current_app
     cmd_types = current_app.config.get("SWITCH_COMMAND_TYPES", {"POWER_ON": 1, "POWER_OFF": 2})
     if command_type not in list(cmd_types.values()):
         return jsonify({"error": "badCommandType"}), 400
@@ -425,7 +427,7 @@ def schedule_switch_event():
     if len(valid) != len(switch_ids):
         return jsonify({"error": "badSwitchIds"}), 400
 
-    from app.services.device_service import send_switch_command, cancel_switch_schedule
+    from app.services.device_service import send_switch_command
     from app.models.project import Project
     project = Project.query.get(project_id)
     sc = SwitchCommand(
@@ -448,27 +450,23 @@ def schedule_switch_event():
     db.session.commit()
 
     schedule_id = f"x-{sc.id}"
-    send_errors = []
-    for switch_id in switch_ids:
-        try:
-            send_switch_command(
-                project_slug=project.slug,
-                switch_id=switch_id,
-                command=command_type,
-                time_ms=start_at,
-                switch_command_id=sc.id,
-                schedule_id=schedule_id,
-            )
-            time.sleep(0.05)
-        except Exception:
-            send_errors.append(True)
-    if send_errors:
-        try:
-            sc.isCancelled = True
-            db.session.commit()
-            cancel_switch_schedule(project.slug, schedule_id)
-        except Exception:
-            pass
+    # Only attempt direct MQTT send when a broker is configured; otherwise
+    # DataSync propagates the command to the node which sends via MQTT.
+    iot_protocol = current_app.config.get("IOT_PROTOCOL", "none")
+    if iot_protocol and iot_protocol != "none":
+        for switch_id in switch_ids:
+            try:
+                send_switch_command(
+                    project_slug=project.slug,
+                    switch_id=switch_id,
+                    command=command_type,
+                    time_ms=start_at,
+                    switch_command_id=sc.id,
+                    schedule_id=schedule_id,
+                )
+                time.sleep(0.05)
+            except Exception as e:
+                logger.warning("send_switch_command failed for switch %s: %s", switch_id, e)
 
     return jsonify({
         "meta": {},
