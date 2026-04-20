@@ -318,14 +318,18 @@ def list_switch_events():
     switch_counts = {}
     if cmd_ids:
         ids_ph = ",".join(str(i) for i in cmd_ids)
-        res = db.session.execute(
-            text(
-                "SELECT switchcommand_switches, COUNT(*) FROM switch_switches_switch__switchcommand_switches "
-                f"WHERE switchcommand_switches IN ({ids_ph}) GROUP BY switchcommand_switches"
-            ),
-        )
-        for row in res:
-            switch_counts[row[0]] = row[1]
+        try:
+            res = db.session.execute(
+                text(
+                    "SELECT switchcommand_switches, COUNT(*) FROM switch_switches_switch__switchcommand_switches "
+                    f"WHERE switchcommand_switches IN ({ids_ph}) GROUP BY switchcommand_switches"
+                ),
+            )
+            for row in res:
+                switch_counts[row[0]] = row[1]
+        except Exception:
+            db.session.rollback()
+            switch_counts = {}
 
     items = []
     for sc in commands:

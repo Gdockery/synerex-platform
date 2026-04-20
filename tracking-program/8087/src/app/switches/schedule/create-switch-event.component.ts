@@ -68,6 +68,11 @@ export class CreateSwitchEventComponent {
     let params = {deviceType: 1, pageSize: 500};
     this.switchService.getAll(params).subscribe(switches => {
       this.switches = switches.response;
+      // Pre-select all switches so the user doesn't have to manually check each one
+      if (this.switches) {
+        this.switches.forEach(s => s.selected = true);
+      }
+      this.massSelectValue = true;
       this.initializeForm();
     });
   }
