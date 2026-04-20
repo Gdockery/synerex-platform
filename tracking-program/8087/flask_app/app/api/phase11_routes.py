@@ -399,7 +399,6 @@ def schedule_switch_event():
     """POST /api/switch/event - create one-off SwitchCommand and send to devices."""
     data = request.get_json() or {}
     project_id = data.get("project")
-    command_type = data.get("commandType")
     start_at = data.get("startAt")
     switches = data.get("switches", [])
     device_type = data.get("deviceType")
@@ -407,7 +406,11 @@ def schedule_switch_event():
         return jsonify({"error": "Unauthorized"}), 404
     if not switches or not all(isinstance(s, int) or (isinstance(s, str) and str(s).isdigit()) for s in switches):
         return jsonify({"error": "badSwitchIds"}), 400
-    if command_type is None:
+
+    # Angular sends commandType as a string from HTML selects; coerce to int
+    try:
+        command_type = int(data.get("commandType"))
+    except (TypeError, ValueError):
         return jsonify({"error": "badCommandType"}), 400
 
     from flask import current_app
