@@ -36,8 +36,11 @@ PUB = load_public_key(KEYS_DIR / "issuer_public.key")
 
 
 def _get_redirect_base_url(request: Request) -> str:
-    """Get browser-accessible base URL (e.g. http://localhost:8080) for redirects.
-    Uses X-Forwarded-* headers when behind proxy, else request URL."""
+    """Get browser-accessible base URL (e.g. https://synerexlabs.com) for redirects.
+    Prefers settings.website_url (always the public hostname) so internal Docker
+    container names like 'proxy' never leak into browser-facing redirects."""
+    if settings.website_url:
+        return settings.website_url.rstrip("/")
     proto = request.headers.get("X-Forwarded-Proto", request.url.scheme)
     host = request.headers.get("X-Forwarded-Host", request.url.netloc)
     return f"{proto}://{host}".rstrip("/")
