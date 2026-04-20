@@ -90,6 +90,7 @@ services:
     extra_hosts:
       - 'mysql-emv:172.18.0.5'
       - 'tracking-program:172.18.1.14'
+      - 'license-service:172.18.1.12'
       - 'html-report-service:172.18.1.15'
       - 'host.docker.internal:host-gateway'
     depends_on:
