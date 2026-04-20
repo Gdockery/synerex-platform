@@ -21,6 +21,7 @@ ORDERED_TABLES = [
     "user", "project", "gateway", "meter", "repeater", "switch",
     "test",
     "switchcommand",
+    "switch_switches_switch__switchcommand_switches",  # after switchcommand (FK dep)
     "schedule",
     "meterdata", "meterdataaggregate", "permeterdataaggregate",
 ]
@@ -236,7 +237,9 @@ def _table_needs_syncing(table, this_is_master, only_these_tables=None):
     if only_these_tables and table not in only_these_tables:
         return False
     if not this_is_master and table not in (
-        "schedule", "switch", "switchcommand", "test",
+        "schedule", "switch", "switchcommand",
+        "switch_switches_switch__switchcommand_switches",
+        "test",
     ):
         return False
     if this_is_master and table in ("user",):

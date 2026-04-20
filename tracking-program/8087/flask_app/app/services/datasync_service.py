@@ -52,6 +52,11 @@ def export_records(table, since, limit, ref_id):
     if table not in REFERENCES:
         return []
 
+    # The join table has no id/updatedAt columns — export it via the
+    # associated switchcommand's updatedAt so the sync point stays consistent.
+    if table == "switch_switches_switch__switchcommand_switches":
+        return _export_join_table(since, ref_id, limit)
+
     refs = REFERENCES[table]
     selects = ["mainTable.*"]
     joins = []
@@ -104,6 +109,54 @@ def export_records(table, since, limit, ref_id):
             if xuid_key in rec:
                 rec[field] = rec.get(xuid_key)
                 del rec[xuid_key]
+        records.append(rec)
+    return records
+
+
+def _export_join_table(since, ref_id, limit):
+    """
+    Export switch_switches_switch__switchcommand_switches rows.
+    The table has no updatedAt/id, so we piggyback on switchcommand.updatedAt
+    and use switchcommand_switches (the FK to switchcommand) as the refid.
+    """
+    from sqlalchemy import text
+    from app.extensions import db
+    ref_id = ref_id or 0
+    try:
+        if ref_id:
+            where = (
+                f"(sc.updatedAt = {since} AND jt.switchcommand_switches >= {ref_id}) "
+                f"OR sc.updatedAt > {since}"
+            )
+        else:
+            where = f"sc.updatedAt >= {since}"
+        sql = f"""
+            SELECT
+                jt.switchcommand_switches,
+                jt.switch_switches_switch,
+                sc.xuid  AS switchcommand_switches_xuid,
+                sw.xuid  AS switch_switches_switch_xuid,
+                sc.updatedAt,
+                jt.switchcommand_switches AS _refid
+            FROM switch_switches_switch__switchcommand_switches jt
+            INNER JOIN switchcommand sc ON jt.switchcommand_switches = sc.id
+            INNER JOIN switch       sw ON jt.switch_switches_switch  = sw.id
+            WHERE {where}
+            ORDER BY sc.updatedAt, jt.switchcommand_switches
+            LIMIT {limit}
+        """
+        result = db.session.execute(text(sql))
+        rows = result.fetchall()
+    except Exception:
+        return []
+
+    records = []
+    for row in rows:
+        rec = dict(row._mapping) if hasattr(row, "_mapping") else dict(zip(row._fields, row))
+        # Replace raw FK IDs with their xuid equivalents so the receiving
+        # node can resolve them to its own local IDs.
+        rec["switchcommand_switches"] = rec.pop("switchcommand_switches_xuid", None)
+        rec["switch_switches_switch"] = rec.pop("switch_switches_switch_xuid", None)
         records.append(rec)
     return records
 
