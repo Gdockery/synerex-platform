@@ -98,7 +98,7 @@ services:
     env_file:
       - ./emv-program/8082/.env
     environment:
-      EMV_BASE_URL: http://proxy:80/emv
+      EMV_BASE_URL: https://synerexlabs.com/emv
       EMV_DB_HOST: mysql-emv
       EMV_DB_PORT: "3306"
       TRACKING_PROGRAM_URL: http://tracking-program:8087
