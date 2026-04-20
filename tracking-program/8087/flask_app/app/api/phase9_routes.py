@@ -306,7 +306,7 @@ def node_sync(project_xuid, since=0):
         # Fetch switchcommands for this project newer than since
         sc_rows = db.session.execute(
             text("""
-                SELECT sc.xuid, sc.commandType, sc.startAt, sc.isTest,
+                SELECT sc.xuid, sc.commandType, sc.startAt,
                        sc.isCancelled, sc.updatedAt, sc.createdAt,
                        p.xuid AS project_xuid
                 FROM switchcommand sc
