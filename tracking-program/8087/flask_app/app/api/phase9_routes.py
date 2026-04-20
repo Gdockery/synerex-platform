@@ -269,6 +269,94 @@ def datasync(table, since=None, limit=None, ref_id=None):
         return jsonify({"error": str(e)}), 500
 
 
+# ----- NODE SYNC -----
+
+
+@phase9_bp.route("/api/node-sync/<project_xuid>/<int:since>", methods=["GET"])
+@phase9_bp.route("/api/node-sync/<project_xuid>", methods=["GET"])
+def node_sync(project_xuid, since=0):
+    """
+    GET /api/node-sync/<project_xuid>/<since_ms>
+
+    Called by field nodes on a polling interval. Returns all switch commands
+    and associated join-table rows for the given project that are newer than
+    `since` (epoch ms).  No auth required — the project xuid acts as the key.
+
+    Response:
+    {
+        "switchcommand": [ { xuid, commandType, startAt, project, ... }, ... ],
+        "joins":         [ { switchcommand_xuid, switch_xuid }, ... ]
+    }
+    """
+    from sqlalchemy import text
+    from app.extensions import db
+
+    since = since or request.args.get("since", 0, type=int)
+
+    try:
+        # Resolve project xuid to local id
+        proj_row = db.session.execute(
+            text("SELECT id FROM project WHERE xuid = :xuid LIMIT 1"),
+            {"xuid": project_xuid},
+        ).fetchone()
+        if not proj_row:
+            return jsonify({"error": "project not found"}), 404
+        project_id = proj_row[0]
+
+        # Fetch switchcommands for this project newer than since
+        sc_rows = db.session.execute(
+            text("""
+                SELECT sc.xuid, sc.commandType, sc.startAt, sc.isTest,
+                       sc.isCancelled, sc.updatedAt, sc.createdAt,
+                       p.xuid AS project_xuid
+                FROM switchcommand sc
+                INNER JOIN project p ON sc.project = p.id
+                WHERE sc.project = :pid
+                  AND (sc.updatedAt >= :since OR sc.createdAt >= :since)
+                ORDER BY COALESCE(sc.updatedAt, sc.createdAt), sc.id
+                LIMIT 500
+            """),
+            {"pid": project_id, "since": since},
+        ).fetchall()
+
+        switchcommands = []
+        sc_xuids = []
+        for row in sc_rows:
+            rec = dict(row._mapping) if hasattr(row, "_mapping") else dict(zip(row._fields, row))
+            # Rename project_xuid back to project so node resolves it
+            rec["project"] = rec.pop("project_xuid", None)
+            switchcommands.append(rec)
+            if rec.get("xuid"):
+                sc_xuids.append(rec["xuid"])
+
+        # Fetch join-table rows for those switchcommands
+        joins = []
+        if sc_xuids:
+            placeholders = ", ".join(f":x{i}" for i in range(len(sc_xuids)))
+            params = {f"x{i}": x for i, x in enumerate(sc_xuids)}
+            join_rows = db.session.execute(
+                text(f"""
+                    SELECT sc.xuid AS switchcommand_xuid,
+                           sw.xuid AS switch_xuid
+                    FROM switch_switches_switch__switchcommand_switches jt
+                    INNER JOIN switchcommand sc ON jt.switchcommand_switches = sc.id
+                    INNER JOIN switch       sw ON jt.switch_switches_switch  = sw.id
+                    WHERE sc.xuid IN ({placeholders})
+                """),
+                params,
+            ).fetchall()
+            for row in join_rows:
+                joins.append({
+                    "switchcommand_xuid": row[0],
+                    "switch_xuid": row[1],
+                })
+
+        return jsonify({"switchcommand": switchcommands, "joins": joins})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ----- XECO -----
 
 
