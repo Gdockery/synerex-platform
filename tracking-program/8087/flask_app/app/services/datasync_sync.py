@@ -19,8 +19,9 @@ logger = logging.getLogger(__name__)
 ORDERED_TABLES = [
     "serviceplan", "xeco", "piboard", "client",
     "user", "project", "gateway", "meter", "repeater", "switch",
+    "test",
     "switchcommand",
-    "test", "schedule",
+    "schedule",
     "meterdata", "meterdataaggregate", "permeterdataaggregate",
 ]
 

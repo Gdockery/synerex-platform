@@ -682,6 +682,11 @@ def list_tests():
 @login_required
 @license_required
 def create_test():
+    import time as _time
+    from app.models.switch_command import SwitchCommand
+    from app.models.project import Project
+    from app.services.device_service import send_switch_command
+
     data = request.get_json() or {}
     project = data.get("project")
     if not project or not _user_has_project_access(project):
@@ -692,20 +697,55 @@ def create_test():
     gateways = data.get("gateways") or []
     if start_at is None or duration is None:
         return jsonify({"error": "startAt and duration required"}), 400
-    import time
-    now = int(time.time() * 1000)
+    now = int(_time.time() * 1000)
     if start_at < now + 5 * 60 * 1000:
         return jsonify({"error": "startTimeTooSoon"}), 400
     if duration < 0 or int(duration) != duration:
         return jsonify({"error": "invalidDuration"}), 400
     if interval <= 0:
         return jsonify({"error": "invalidInterval"}), 400
+
     end_at = start_at + duration * 60 * 60 * 1000
     t = Test(project=project, startAt=start_at, endAt=end_at, duration=duration, interval=interval, isDeleted=False)
     db.session.add(t)
     db.session.flush()
     for gid in gateways:
         db.session.execute(gateway_test.insert().values(gateway_tests=gid, test_gateways=t.id))
+
+    proj = Project.query.get(project)
+    cmd_types = current_app.config.get("SWITCH_COMMAND_TYPES", {"POWER_ON": 1, "POWER_OFF": 2})
+    power_off = cmd_types.get("POWER_OFF", 2)
+    power_on = cmd_types.get("POWER_ON", 1)
+
+    switches = Switch.query.filter_by(project=project, isDeleted=False, deviceType=1).all()
+    num_segments = int(duration // interval)
+    schedule_id = f"t-{t.id}"
+
+    for seg in range(num_segments):
+        command_type = power_off if seg % 2 == 0 else power_on
+        seg_start_at = start_at + seg * int(interval) * 3600000
+        sc = SwitchCommand(
+            project=project,
+            commandType=command_type,
+            startAt=seg_start_at,
+            test=t.id,
+            deviceType=1,
+        )
+        db.session.add(sc)
+        db.session.flush()
+        for sw in switches:
+            try:
+                send_switch_command(
+                    project_slug=proj.slug if proj else str(project),
+                    switch_id=sw.id,
+                    command=command_type,
+                    time_ms=seg_start_at,
+                    switch_command_id=sc.id,
+                    schedule_id=schedule_id,
+                )
+            except Exception:
+                pass
+
     db.session.commit()
     return jsonify({"meta": {}, "response": {"id": t.id, "startAt": t.startAt, "duration": t.duration, "interval": t.interval}})
 
@@ -714,9 +754,11 @@ def create_test():
 @login_required
 @license_required
 def remove_test(tid):
+    from app.models.switch_command import SwitchCommand
     t = Test.query.get(tid)
     if not t or not _user_has_project_access(t.project):
         return jsonify({"error": "Not found"}), 404
+    SwitchCommand.query.filter_by(test=tid, isCancelled=False).update({"isCancelled": True})
     t.isDeleted = True
     db.session.commit()
     return jsonify({"meta": {}, "response": {"id": tid}})

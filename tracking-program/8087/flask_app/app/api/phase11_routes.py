@@ -932,8 +932,16 @@ def send_switch_command():
         return jsonify({"error": "Switch not found"}), 404
     project = Project.query.get(int(project_id))
     try:
+        import time as _time
         from app.services.device_service import send_switch_command as _send
-        _send(getattr(project, "slug", str(project_id)), str(switch_id), command_type or "toggle")
+        _send(
+            project_slug=project.slug,
+            switch_id=int(switch_id),
+            command=command_type,
+            time_ms=int(_time.time() * 1000),
+            switch_command_id=0,
+            schedule_id="x-manual",
+        )
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     return jsonify({"meta": {}, "response": {"ok": True, "switch": switch_id, "command": command_type}})

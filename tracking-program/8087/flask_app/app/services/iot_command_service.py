@@ -66,5 +66,7 @@ def publish(topic, payload):
         except Exception as e:
             logger.exception("MQTT publish failed: %s", e)
             raise
+    elif protocol == "none":
+        logger.debug("IOT_PROTOCOL=none — skipping publish to %s", topic)
     else:
         raise ValueError(f"Unknown IOT_PROTOCOL: {protocol}")
