@@ -739,6 +739,7 @@ def create_test():
         db.session.add(sc)
         db.session.flush()
         for sw in switches:
+            from sqlalchemy import text
             db.session.execute(
                 text(
                     "INSERT INTO switch_switches_switch__switchcommand_switches "
