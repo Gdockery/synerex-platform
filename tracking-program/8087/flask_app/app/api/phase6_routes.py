@@ -720,6 +720,7 @@ def create_test():
     power_off = cmd_types.get("POWER_OFF", 2)
     power_on = cmd_types.get("POWER_ON", 1)
 
+    from sqlalchemy import text
     switches = Switch.query.filter_by(project=project, isDeleted=False, deviceType=1).all()
     num_segments = int(duration // interval)
     schedule_id = f"t-{t.id}"
@@ -728,7 +729,9 @@ def create_test():
 
     for seg in range(num_segments):
         command_type = power_off if seg % 2 == 0 else power_on
-        seg_start_at = start_at + seg * int(interval) * 3600000
+        # Use float interval directly so sub-hour values (e.g. 0.5 h = 30 min) work correctly.
+        # int(seg * interval * 3600000) converts to ms without truncating the interval first.
+        seg_start_at = start_at + int(seg * interval * 3600000)
         sc = SwitchCommand(
             project=project,
             commandType=command_type,
@@ -739,7 +742,6 @@ def create_test():
         db.session.add(sc)
         db.session.flush()
         for sw in switches:
-            from sqlalchemy import text
             db.session.execute(
                 text(
                     "INSERT INTO switch_switches_switch__switchcommand_switches "
