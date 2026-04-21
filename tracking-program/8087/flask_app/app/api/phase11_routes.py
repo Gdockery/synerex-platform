@@ -404,7 +404,7 @@ def schedule_switch_event():
     project_id = data.get("project")
     start_at = data.get("startAt")
     switches = data.get("switches", [])
-    device_type = data.get("deviceType")
+    device_type = data.get("deviceType") or 1
     if not project_id or not _user_has_project_access(project_id):
         return jsonify({"error": "Unauthorized"}), 404
     if not switches or not all(isinstance(s, int) or (isinstance(s, str) and str(s).isdigit()) for s in switches):
