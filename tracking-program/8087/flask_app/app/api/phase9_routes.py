@@ -287,10 +287,6 @@ def node_sync(project_xuid, since=0):
         "joins":         [ { switchcommand_xuid, switch_xuid }, ... ]
     }
     """
-    remote = request.remote_addr or ""
-    if not (remote.startswith("100.") or remote.startswith("127.")):
-        return jsonify({"error": "forbidden"}), 403
-
     from sqlalchemy import text
     from app.extensions import db
 
