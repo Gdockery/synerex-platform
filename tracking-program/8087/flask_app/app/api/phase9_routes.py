@@ -278,9 +278,8 @@ def node_sync(project_xuid, since=0):
     """
     GET /api/node-sync/<project_xuid>/<since_ms>
 
-    Called by field nodes on a polling interval. Returns all switch commands
-    and associated join-table rows for the given project that are newer than
-    `since` (epoch ms).  No auth required — the project xuid acts as the key.
+    Called by field nodes over Tailscale VPN only. Restricted to 100.x.x.x
+    (Tailscale) and loopback — public Nginx-proxied requests are blocked.
 
     Response:
     {
@@ -288,6 +287,10 @@ def node_sync(project_xuid, since=0):
         "joins":         [ { switchcommand_xuid, switch_xuid }, ... ]
     }
     """
+    remote = request.remote_addr or ""
+    if not (remote.startswith("100.") or remote.startswith("127.")):
+        return jsonify({"error": "forbidden"}), 403
+
     from sqlalchemy import text
     from app.extensions import db
 
