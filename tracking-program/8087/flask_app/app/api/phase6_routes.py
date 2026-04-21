@@ -691,10 +691,13 @@ def create_test():
     project = data.get("project")
     if not project or not _user_has_project_access(project):
         return jsonify({"error": "Unauthorized"}), 404
-    start_at = data.get("startAt")
-    duration = data.get("duration")
-    interval = data.get("interval", 1)
     gateways = data.get("gateways") or []
+    try:
+        start_at = int(data.get("startAt"))
+        duration = float(data.get("duration"))
+        interval = float(data.get("interval") or 1)
+    except (TypeError, ValueError):
+        return jsonify({"error": "startAt, duration, and interval must be numbers"}), 400
     if start_at is None or duration is None:
         return jsonify({"error": "startAt and duration required"}), 400
     now = int(_time.time() * 1000)
