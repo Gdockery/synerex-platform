@@ -724,6 +724,8 @@ def create_test():
     num_segments = int(duration // interval)
     schedule_id = f"t-{t.id}"
 
+    iot_protocol = current_app.config.get("IOT_PROTOCOL", "none")
+
     for seg in range(num_segments):
         command_type = power_off if seg % 2 == 0 else power_on
         seg_start_at = start_at + seg * int(interval) * 3600000
@@ -737,17 +739,26 @@ def create_test():
         db.session.add(sc)
         db.session.flush()
         for sw in switches:
-            try:
-                send_switch_command(
-                    project_slug=proj.slug if proj else str(project),
-                    switch_id=sw.id,
-                    command=command_type,
-                    time_ms=seg_start_at,
-                    switch_command_id=sc.id,
-                    schedule_id=schedule_id,
-                )
-            except Exception:
-                pass
+            db.session.execute(
+                text(
+                    "INSERT INTO switch_switches_switch__switchcommand_switches "
+                    "(switchcommand_switches, switch_switches_switch) VALUES (:sc_id, :switch_id) "
+                    "ON DUPLICATE KEY UPDATE switchcommand_switches=switchcommand_switches"
+                ),
+                {"sc_id": sc.id, "switch_id": sw.id},
+            )
+            if iot_protocol and iot_protocol != "none":
+                try:
+                    send_switch_command(
+                        project_slug=proj.slug if proj else str(project),
+                        switch_id=sw.id,
+                        command=command_type,
+                        time_ms=seg_start_at,
+                        switch_command_id=sc.id,
+                        schedule_id=schedule_id,
+                    )
+                except Exception:
+                    pass
 
     db.session.commit()
     return jsonify({"meta": {}, "response": {"id": t.id, "startAt": t.startAt, "duration": t.duration, "interval": t.interval}})
