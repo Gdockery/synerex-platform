@@ -312,8 +312,8 @@ def node_sync(project_xuid, since=0):
                 FROM switchcommand sc
                 INNER JOIN project p ON sc.project = p.id
                 WHERE sc.project = :pid
-                  AND (sc.updatedAt >= :since OR sc.createdAt >= :since)
-                ORDER BY COALESCE(sc.updatedAt, sc.createdAt), sc.id
+                  AND COALESCE(sc.updatedAt, sc.createdAt, sc.startAt, 0) >= :since
+                ORDER BY COALESCE(sc.updatedAt, sc.createdAt, sc.startAt, 0), sc.id
                 LIMIT 500
             """),
             {"pid": project_id, "since": since},
