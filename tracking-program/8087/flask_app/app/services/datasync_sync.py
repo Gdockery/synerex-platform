@@ -397,5 +397,10 @@ def _sync_host(host, this_is_master, only_these_tables, base_url):
                 if table == "switchcommand" and not rec.get("_localId"):
                     _handle_switchcommand_side_effects(rec, rec.get("_localId"))
 
+        # Sanity cap: a bogus far-future updatedAt on any record would permanently
+        # poison the cursor, blocking all future syncs for that table/host.
+        # Cap to at most 1 day in the future so a bad record can never freeze sync.
+        now_ms = int(time.time() * 1000)
+        last_time = min(last_time, now_ms + 86_400_000)
         _set_last_sync_point(host, table, last_time, last_ref)
         logger.info("DataSync %s %s: imported %d", host, table, imported)
