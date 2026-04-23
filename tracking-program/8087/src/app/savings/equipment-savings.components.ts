@@ -71,7 +71,7 @@ public logoPath;
         this.refreshData();
       });   
     }
-    this.logoPath = '/images/client_company_logo/' + this.userService.user.client.id + '-client-logo';
+    this.logoPath = '/tracking-images/client_company_logo/' + this.userService.user.client.id + '-client-logo';
     this.client = {};
     this.fetch();
   }

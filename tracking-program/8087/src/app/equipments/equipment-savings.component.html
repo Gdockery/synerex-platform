@@ -20,11 +20,11 @@
       <p>VOLT THD: <strong style="text-align: center; font-size: 17px">{{meterReading.totalVoltTHD | number : '1.1-2'}}</strong></p>
       <p>AMP THD: <strong style="text-align: center; font-size: 17px">{{meterReading.totalAmpTHD| number : '1.1-2'}}</strong></p>
       <div>
-        <img width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Poweroff') || meterReading.scheduler.status.includes('Undefined') ? 'poweroff': 'na'}}.png"/>
+        <img width="25px" src="/tracking-images/switch-{{ meterReading.scheduler.status.includes('Poweroff') || meterReading.scheduler.status.includes('Undefined') ? 'poweroff': 'na'}}.png"/>
 
-        <img  width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('On') ? 'on': 'na'}}.png"/>
-        <img  width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Off') ? 'off': 'na'}}.png"/>
-        <img width="25px" src="/images/switch-{{ meterReading.scheduler.status.includes('Scheduled') ? 'test': 'na'}}.png"/>
+        <img  width="25px" src="/tracking-images/switch-{{ meterReading.scheduler.status.includes('On') ? 'on': 'na'}}.png"/>
+        <img  width="25px" src="/tracking-images/switch-{{ meterReading.scheduler.status.includes('Off') ? 'off': 'na'}}.png"/>
+        <img width="25px" src="/tracking-images/switch-{{ meterReading.scheduler.status.includes('Scheduled') ? 'test': 'na'}}.png"/>
       </div>
     </div>
     <div class="col-md-6" style="padding-top: 40px" *ngIf="meterReading">

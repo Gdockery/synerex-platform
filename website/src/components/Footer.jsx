@@ -18,7 +18,7 @@ export default function Footer(){
         <div className="space-y-2">
           <a href="/" className="inline-flex items-center gap-2">
             <img 
-              src="/images/Synerex_Logo_Transparent.png"
+              src="/web-images/Synerex_Logo_Transparent.png"
               alt="Synerex Laboratories, LLC" 
               className="h-10 w-auto brightness-0 invert"
               onError={(e) => {

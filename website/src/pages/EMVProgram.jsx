@@ -224,7 +224,7 @@ export default function EMVProgram() {
         <section className="text-center mb-16">
           <h1 className="text-[2.025rem] md:text-[2.7rem] font-bold mb-6 flex items-center justify-center gap-3">
             <img 
-              src="/images/synerex_logo.PNG" 
+              src="/web-images/synerex_logo.PNG" 
               alt="Synerex" 
               className="h-11 md:h-14 w-auto brightness-0 invert"
             />

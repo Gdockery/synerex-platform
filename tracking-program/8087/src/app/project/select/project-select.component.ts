@@ -36,7 +36,7 @@ import {DeviceService} from "../../electricityMeters/devices/device.service";
       <div class="col-md-2" *ngFor="let project of userService.user.projects;">
         <div class="box text-center" style="height: 200px;" [class.disabled]="isExpired(project)">
           <h3 style="padding-top: -10px"><strong>{{project.name}}</strong></h3>
-          <img *ngIf="project.logoImgSrc" width="120px" height="45px" src="/images/client_company_logo/{{project.client}}-client-logo"><br>
+          <img *ngIf="project.logoImgSrc" width="120px" height="45px" src="/tracking-images/client_company_logo/{{project.client}}-client-logo"><br>
           <div style="padding-top: 10px">
             <a class="btn btn-sm btn-primary" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10" [routerLink]="['/project/edit', project.id]"><span class="button-icon ss-write"></span></a>&nbsp;
             <button class="default-button green-button" (click)="select(project)" [disabled]="isExpired(project)">Select</button>

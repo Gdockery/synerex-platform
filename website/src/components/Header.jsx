@@ -31,7 +31,7 @@ export default function Header(){
       <nav className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <img 
-            src="/images/synerex_logo.PNG"
+            src="/web-images/synerex_logo.PNG"
             alt="Synerex Laboratories, LLC" 
             className="h-12 w-auto brightness-0 invert"
             onError={(e) => {

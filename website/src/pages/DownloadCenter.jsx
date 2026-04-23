@@ -27,14 +27,14 @@ export default function DownloadCenter(){
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
           style={{
-            backgroundImage: 'url(/images/Synerex_Documents.jpeg)',
+            backgroundImage: 'url(/web-images/Synerex_Documents.jpeg)',
             zIndex: 0
           }}
         />
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in relative" style={{ zIndex: 1 }}>
-          <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-4 w-[13.2rem] md:w-[16.5rem] logo-glow" />
+          <img src="/web-images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-4 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <h1 className="text-3xl font-bold text-purple-200 mb-6">Download Center</h1>
           <div className="max-w-4xl mx-auto">
             <p className="text-lg text-gray-200 mb-6">

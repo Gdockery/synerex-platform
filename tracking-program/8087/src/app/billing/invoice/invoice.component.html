@@ -12,28 +12,28 @@
       <h4>Financing Agreement</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.financeAgreement}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+        <a href="{{links.financeAgreement}}" target="_blank"><img src="/tracking-images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2">
       <h4>Bill Analytic</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.billAnalytic}}" target="_blank"><img src="/images/bill_analytic_cover.png" style="width:160px; height:210px;"/></a>
+        <a href="{{links.billAnalytic}}" target="_blank"><img src="/tracking-images/bill_analytic_cover.png" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2">
       <h4>Proposal</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.proposal}}" target="_blank"><img src="/images/xeco_proposal_cover.png" style="width:160px; height:210px;"/></a>
+        <a href="{{links.proposal}}" target="_blank"><img src="/tracking-images/xeco_proposal_cover.png" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2">
       <h4>Lost Savings Tracker</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.lsPotential}}" target="_blank"><img src="/images/xeco_lsp_cover.png" style="width:210px; height:160px;"/></a>
+        <a href="{{links.lsPotential}}" target="_blank"><img src="/tracking-images/xeco_lsp_cover.png" style="width:210px; height:160px;"/></a>
       </div></div>
     </div>
 
@@ -43,14 +43,14 @@
       <div *ngIf="hasAnalytic && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10) && !viewOwnerManuals" class="col-md-2">
         <h4>Xeco Hardware Install Guide</h4>
         <div><div class="well invoice-link">
-          <a href="/images/xeco-hardware-install-guide.pdf" target="_blank"><img src="/images/xeco-hardware-install-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/xeco-hardware-install-guide.pdf" target="_blank"><img src="/tracking-images/xeco-hardware-install-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
         <h4>Xeco Software Install Guide</h4>
         <p></p>
         <div><div class="well invoice-link">
-          <a href="/images/xeco-software-install-guide.pdf" target="_blank"><img src="/images/xeco-software-install-cover.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/xeco-software-install-guide.pdf" target="_blank"><img src="/tracking-images/xeco-software-install-cover.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
     </div>
@@ -61,25 +61,25 @@
       <div class="col-md-3">
         <h4>Deposit Invoice</h4>
         <div><div class="well invoice-link">
-          <a (click)="showModal(1);formModal.show();" target="_blank" #depositInvoice><img src="/images/deposit_invoice.png" style="width:230px; height:160px;"/></a>
+          <a (click)="showModal(1);formModal.show();" target="_blank" #depositInvoice><img src="/tracking-images/deposit_invoice.png" style="width:230px; height:160px;"/></a>
         </div></div>
       </div>
       <div class="col-md-3">
         <h4>Installation Invoice</h4>
         <div><div class="well invoice-link">
-          <a (click)="showModal(2);formModal.show();" target="_blank" #installationInvoice><img src="/images/installation_invoice.png" style="width:230px; height:160px;"/></a>
+          <a (click)="showModal(2);formModal.show();" target="_blank" #installationInvoice><img src="/tracking-images/installation_invoice.png" style="width:230px; height:160px;"/></a>
         </div></div>
       </div>
       <div class="col-md-3">
         <h4>Final Invoice</h4>
         <div><div class="well invoice-link">
-          <a (click)="showModal(3);formModal.show();" target="_blank" #finalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
+          <a (click)="showModal(3);formModal.show();" target="_blank" #finalInvoice><img src="/tracking-images/final_invoice.png" style="width:230px; height:160px;"/></a>
         </div></div>
       </div>
       <div class="col-md-3">
         <h4>Total Invoice</h4>
         <div><div class="well invoice-link">
-          <a href="{{links.totalInvoice}}" target="_blank" #totalInvoice><img src="/images/final_invoice.png" style="width:230px; height:160px;"/></a>
+          <a href="{{links.totalInvoice}}" target="_blank" #totalInvoice><img src="/tracking-images/final_invoice.png" style="width:230px; height:160px;"/></a>
         </div></div>
       </div>
     </div>
@@ -123,28 +123,28 @@
     <div *ngIf="hasAnalytic && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10) && !viewOwnerManuals" class="col-md-2">
       <h4>Parts Procurement</h4>
       <div><div class="well invoice-link">
-        <a href="{{links.partsProcurement}}" target="_blank"><img src="/images/parts_procurement_cover.png" style="width:160px; height:210px;"/></a>
+        <a href="{{links.partsProcurement}}" target="_blank"><img src="/tracking-images/parts_procurement_cover.png" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
       <h4>Shipping Docs</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.shippingDocuments}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+        <a href="{{links.shippingDocuments}}" target="_blank"><img src="/tracking-images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
       <h4>EU Declaration</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="/images/EU-declaration.pdf" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+        <a href="/tracking-images/EU-declaration.pdf" target="_blank"><img src="/tracking-images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
     <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
       <h4>Meter Certificate</h4>
       <p></p>
       <div><div class="well invoice-link">
-        <a href="{{links.meterCertificate}}" target="_blank"><img src="/images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
+        <a href="{{links.meterCertificate}}" target="_blank"><img src="/tracking-images/xeco-equipment-finance-agreement.jpg" style="width:160px; height:210px;"/></a>
       </div></div>
     </div>
   </div>
@@ -153,7 +153,7 @@
   <div *ngIf="!viewOwnerManuals" class="col-md-2">
     <h3>Owner Manuals</h3>
     <div><div class="well invoice-link">
-      <img (click)="viewOwnerManuals=true" src="/images/view-owner-manuals.jpg" style="width:160px; height:210px;"/>
+      <img (click)="viewOwnerManuals=true" src="/tracking-images/view-owner-manuals.jpg" style="width:160px; height:210px;"/>
     </div></div>
   </div>
 
@@ -163,31 +163,31 @@
       <div class="col-md-2">
         <h4>ES 40 Manual</h4>
         <div><div class="well invoice-link">
-          <a href="/images/es-40-owners-manual.pdf" target="_blank"><img src="/images/es-40-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/es-40-owners-manual.pdf" target="_blank"><img src="/tracking-images/es-40-owners-manual.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>ES 60 Manual</h4>
         <div><div class="well invoice-link">
-          <a href="/images/es-60-owners-manual.pdf" target="_blank"><img src="/images/es-60-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/es-60-owners-manual.pdf" target="_blank"><img src="/tracking-images/es-60-owners-manual.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>ES 90 Manual</h4>
         <div><div class="well invoice-link">
-          <a href="/images/es-90-owners-manual.pdf" target="_blank"><img src="/images/es-90-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/es-90-owners-manual.pdf" target="_blank"><img src="/tracking-images/es-90-owners-manual.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>LC 600 Manual</h4>
         <div><div class="well invoice-link">
-          <a href="/images/lc-600-owners-manual.pdf" target="_blank"><img src="/images/lc-600-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/lc-600-owners-manual.pdf" target="_blank"><img src="/tracking-images/lc-600-owners-manual.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>XPS 3037 Manual</h4>
         <div><div class="well invoice-link">
-          <a href="/images/xps-3037-owners-manual.pdf" target="_blank"><img src="/images/xps-3037-owners-manual.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/xps-3037-owners-manual.pdf" target="_blank"><img src="/tracking-images/xps-3037-owners-manual.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
     </div>
@@ -197,19 +197,19 @@
       <div class="col-md-2">
         <h4>Load Controller</h4>
         <div><div class="well invoice-link">
-          <a href="/images/load-controll-install.pdf" target="_blank"><img src="/images/load-controller-install-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/load-controll-install.pdf" target="_blank"><img src="/tracking-images/load-controller-install-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>Network Setup</h4>
         <div><div class="well invoice-link">
-          <a href="/images/network-install.pdf" target="_blank"><img src="/images/network-install-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/network-install.pdf" target="_blank"><img src="/tracking-images/network-install-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>Switch Gear</h4>
         <div><div class="well invoice-link">
-          <a href="/images/switch-install.pdf" target="_blank"><img src="/images/switch-gear-install-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/switch-install.pdf" target="_blank"><img src="/tracking-images/switch-gear-install-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
     </div>
@@ -219,25 +219,25 @@
       <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
         <h4>Identifier Worksheet</h4>
         <div><div class="well invoice-link">
-          <a href="/images/identifier-code-worksheet.pdf" target="_blank"><img src="/images/identifier-code-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/identifier-code-worksheet.pdf" target="_blank"><img src="/tracking-images/identifier-code-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2" *ngIf="userService.user.role === 8 || userService.user.role === 2">
         <h4>Walk Through Worksheet</h4>
         <div><div class="well invoice-link">
-          <a href="/images/walk-through-worksheet.pdf" target="_blank"><img src="/images/walk-through-cover.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/walk-through-worksheet.pdf" target="_blank"><img src="/tracking-images/walk-through-cover.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>PM Safety Handbook</h4>
         <div><div class="well invoice-link">
-          <a href="/images/pm-safety-handbook.pdf" target="_blank"><img src="/images/xeco-pm-safety-handbook.png" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/pm-safety-handbook.pdf" target="_blank"><img src="/tracking-images/xeco-pm-safety-handbook.png" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
       <div class="col-md-2">
         <h4>Xeco Quick User Guide</h4>
         <div><div class="well invoice-link">
-          <a href="/images/quick_user_guide.pdf" target="_blank"><img src="/images/quick_user_guide.jpg" style="width:160px; height:210px;"/></a>
+          <a href="/tracking-images/quick_user_guide.pdf" target="_blank"><img src="/tracking-images/quick_user_guide.jpg" style="width:160px; height:210px;"/></a>
         </div></div>
       </div>
     </div>

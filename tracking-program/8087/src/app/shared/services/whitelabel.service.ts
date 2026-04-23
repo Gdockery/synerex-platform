@@ -60,7 +60,7 @@ export class WhitelabelService {
     const base = (typeof window !== 'undefined' &&
                   window['BOOTSTRAP_DATA'] &&
                   window['BOOTSTRAP_DATA'].apiBasePath) || '';
-    return `${base}/images/${filename}`;
+    return `${base}/tracking-images/${filename}`;
   }
 
   /**
@@ -82,7 +82,7 @@ export class WhitelabelService {
    * @returns URL path to the client logo
    */
   getClientLogoUrl(clientId: number): string {
-    return `/images/client_company_logo/${clientId}-client-logo`;
+    return `/tracking-images/client_company_logo/${clientId}-client-logo`;
   }
 
   /**
@@ -145,7 +145,7 @@ export class WhitelabelService {
    * @returns URL path to the user logo
    */
   getUserLogoUrl(userId: number): string {
-    return `/images/user_company_logo/${userId}-user-logo`;
+    return `/tracking-images/user_company_logo/${userId}-user-logo`;
   }
 
   /**

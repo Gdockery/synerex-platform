@@ -4,7 +4,7 @@
     <div [routerLink]="['/welcome']" class="header">
       <img *ngIf="!logoFailed" class="logo-image" [src]="logoUrl" [class.logo-invert]="logoUseInvert" (error)="onLogoError()" />
       <span *ngIf="logoFailed && logoFallbackText" class="logo-fallback-text">{{ logoFallbackText }}</span>
-      <img *ngIf="logoFailed && !logoFallbackText" class="logo-image" src="/images/synerex_logo_white.png" style="filter: brightness(0) invert(1);" />
+      <img *ngIf="logoFailed && !logoFallbackText" class="logo-image" src="/tracking-images/synerex_logo_white.png" style="filter: brightness(0) invert(1);" />
     </div>
     <a class="sidebarToggle ss-menu" (click)="_toggleSidebar()"></a>
     <div class="clearfix"></div>

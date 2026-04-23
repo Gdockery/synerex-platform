@@ -127,7 +127,7 @@ export class MyAccountComponent {
     this.url = '/api/account/' + this.currentUserService.user.id + '/upload-logo';
 
     if (this.currentUserService.user.userLogo) {
-      this.logoPath = '/images/user_company_logo/' + this.currentUserService.user.id + '-user-logo';
+      this.logoPath = '/tracking-images/user_company_logo/' + this.currentUserService.user.id + '-user-logo';
     }
 
     let password = new FormControl('', [Validators.required, Validators.minLength(6)]);

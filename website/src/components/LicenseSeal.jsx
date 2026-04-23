@@ -2,7 +2,7 @@ export default function LicenseSeal() {
   return (
     <div className="absolute top-20 right-4 z-50">
       <img 
-        src="/images/Synerex License Seal.png" 
+        src="/web-images/Synerex License Seal.png" 
         alt="Synerex License Seal" 
         className="h-32 w-auto opacity-90 hover:opacity-100 transition-all duration-200 border-0 outline-none"
         style={{

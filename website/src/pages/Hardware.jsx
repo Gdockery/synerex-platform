@@ -26,14 +26,14 @@ export default function Hardware() {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40"
           style={{
-            backgroundImage: 'url(/images/Synerex_Hardware_Patented_Technology.jpeg)',
+            backgroundImage: 'url(/web-images/Synerex_Hardware_Patented_Technology.jpeg)',
             zIndex: 0
           }}
         />
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in relative" style={{ zIndex: 1 }}>
-          <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
+          <img src="/web-images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <h1 className="text-5xl font-bold mb-4 drop-shadow-2xl" style={{ fontSize: '1.92rem', textShadow: '0 4px 12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4)' }}>Patented Network-Wide Power Optimization Platform</h1>
           <h2 className="text-2xl font-bold mb-4 text-purple-200">U.S. Patented (#12,375,324 B2) ECBS Hardware Technology</h2>
           <div className="max-w-4xl mx-auto">

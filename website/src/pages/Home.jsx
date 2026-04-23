@@ -58,7 +58,7 @@ export default function Home() {
         </video>
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60 z-[1]" />
         <div className="relative fade-in z-[2]">
-          <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-8 w-[13.2rem] md:w-[16.5rem] logo-glow" />
+          <img src="/web-images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-8 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <p className="text-gray-200 mb-6 text-[1.6875rem] md:text-[2.025rem] font-bold" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 0.7)' }}>The &quot;Network-wide&quot; Solution for making Single-Circuit Applications Obsolete.</p>
           <h1 className="text-5xl md:text-6xl font-bold mb-6 drop-shadow-2xl" style={{ fontSize: '2.4rem', textShadow: '0 4px 12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4)' }}>
             <strong className="text-purple-200">SYN</strong>ergistic <strong className="text-purple-200">E</strong>nergy <strong className="text-purple-200">R</strong>esearch and <strong className="text-purple-200">EX</strong>ecution
@@ -81,7 +81,7 @@ export default function Home() {
       <section className="relative bg-gradient-to-b from-gray-900 via-gray-950 to-gray-950 py-20 px-3">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20"
-          style={{ backgroundImage: 'url(/images/Synerex_Laboratory.jpeg)', zIndex: 0 }}
+          style={{ backgroundImage: 'url(/web-images/Synerex_Laboratory.jpeg)', zIndex: 0 }}
         />
         <div className="max-w-7xl mx-auto px-4 fade-in relative z-10">
           <div className="text-center mb-12">
@@ -195,7 +195,7 @@ export default function Home() {
         <div 
           className="absolute inset-0 bg-cover bg-no-repeat opacity-20"
           style={{
-            backgroundImage: 'url(/images/Synerex_Hardware_Software_Development.jpeg)',
+            backgroundImage: 'url(/web-images/Synerex_Hardware_Software_Development.jpeg)',
             backgroundPosition: 'left center',
             zIndex: 0
           }}

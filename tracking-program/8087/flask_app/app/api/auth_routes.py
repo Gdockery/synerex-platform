@@ -80,7 +80,7 @@ def show_login_page():
                     brand_name = b.brand_name
                 if b.logo_path:
                     safe_org = "".join(c if c.isalnum() or c in "-_" else "_" for c in oem_ref)
-                    oem_logo_url = f"{base_path}/images/oem_logo/{safe_org}"
+                    oem_logo_url = f"{base_path}/tracking-images/oem_logo/{safe_org}"
                 oem_primary_color = b.primary_color
                 portal_title = b.portal_title
         except Exception:

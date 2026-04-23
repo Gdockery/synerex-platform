@@ -27,7 +27,7 @@ export default function About() {
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
-          <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
+          <img src="/web-images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <h1 className="text-5xl font-bold mb-4 drop-shadow-2xl" style={{ fontSize: '1.92rem', textShadow: '0 4px 12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4)' }}>A Unified Hardware and Software Solution for Electrical Network Optimization</h1>
           <div className="max-w-4xl mx-auto">
             <p className="text-lg text-gray-200 mb-6">

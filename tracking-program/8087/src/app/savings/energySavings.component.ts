@@ -90,7 +90,7 @@ public logoPath;
       });   
     }
     const clientId = this.userService.user.client ? this.userService.user.client.id : null;
-    this.logoPath = clientId ? '/images/client_company_logo/' + clientId + '-client-logo' : '';
+    this.logoPath = clientId ? '/tracking-images/client_company_logo/' + clientId + '-client-logo' : '';
     this.client = {};
     if (clientId) this.fetch();
   }

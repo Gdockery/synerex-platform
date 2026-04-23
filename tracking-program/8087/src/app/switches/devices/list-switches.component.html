@@ -88,10 +88,10 @@
             </p>
           </ng-template>
           <ng-template let-col let-row="rowData" pTemplate="body">
-            <img width="20px" src="/images/switch-{{ row.status.includes('Poweroff') || row.status.includes('Undefined') ? 'poweroff': 'na'}}.png"/>
-            <img width="20px" src="/images/switch-{{ row.status.includes('Off') ? 'off': 'na'}}.png"/>
-            <img width="20px" src="/images/switch-{{ row.status.includes('On') ? 'on': 'na'}}.png"/>
-            <img width="20px" src="/images/switch-{{ row.status.includes('Test') ? 'test': 'na'}}.png"/>
+            <img width="20px" src="/tracking-images/switch-{{ row.status.includes('Poweroff') || row.status.includes('Undefined') ? 'poweroff': 'na'}}.png"/>
+            <img width="20px" src="/tracking-images/switch-{{ row.status.includes('Off') ? 'off': 'na'}}.png"/>
+            <img width="20px" src="/tracking-images/switch-{{ row.status.includes('On') ? 'on': 'na'}}.png"/>
+            <img width="20px" src="/tracking-images/switch-{{ row.status.includes('Test') ? 'test': 'na'}}.png"/>
           </ng-template>
         </p-column>
         <p-column field="name">

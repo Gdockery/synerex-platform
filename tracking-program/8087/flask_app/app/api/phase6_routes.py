@@ -218,7 +218,7 @@ def _get_oem_smtp_for_current_user():
                     try:
                         base = _req.host_url.rstrip("/")
                         app_root = current_app.config.get("APPLICATION_ROOT", "").rstrip("/")
-                        cfg["logo_url"] = f"{base}{app_root}/images/oem_logo/{safe_org}"
+                        cfg["logo_url"] = f"{base}{app_root}/tracking-images/oem_logo/{safe_org}"
                     except Exception:
                         cfg["logo_url"] = ""
 

@@ -27,7 +27,7 @@ export default function Contact(){
         {/* Gradient Overlay - Blue shade */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 via-blue-900/50 to-gray-900/60" style={{ zIndex: 0.5 }}></div>
         <div className="fade-in" style={{ zIndex: 1 }}>
-          <img src="/images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
+          <img src="/web-images/SynerexLogo.png" alt="Synerex Logo" className="mx-auto mb-6 w-[13.2rem] md:w-[16.5rem] logo-glow" />
           <p className="text-gray-200 mb-6 text-[1.6875rem] md:text-[2.025rem] font-bold" style={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.9), 1px 1px 2px rgba(0, 0, 0, 0.7)' }}>The &quot;Network-wide&quot; Solution for making Single-Circuit Applications Obsolete.</p>
         </div>
       </section>

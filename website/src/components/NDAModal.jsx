@@ -20,7 +20,7 @@ export default function NDAModal({ open, onClose }) {
       >
         <div className="flex items-center gap-3">
           <img
-            src="/images/synerex_logo.PNG"
+            src="/web-images/synerex_logo.PNG"
             alt="Synerex"
             className="h-9 w-auto opacity-80 brightness-0 invert"
             onError={(e) => { e.target.style.display = "none"; }}

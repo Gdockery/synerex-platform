@@ -1823,7 +1823,7 @@ def upload_client_logo(cid):
     upload_dir = storage / "images" / "client_company_logo"
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    # Frontend expects /images/client_company_logo/{id}-client-logo (no ext)
+    # Frontend expects /tracking-images/client_company_logo/{id}-client-logo (no ext)
     basename = f"{cid}-client-logo"
     dest = upload_dir / basename
     try:
@@ -1950,8 +1950,8 @@ def get_oem_branding():
             return jsonify({"response": {
                 "org_id": b.org_id,
                 "brand_name": b.brand_name,
-                "logo_url": f"{app_root}/images/oem_logo/{safe_org}" if b.logo_path else None,
-                "white_logo_url": f"{app_root}/images/oem_logo/{safe_org}_white" if b.white_logo_path else None,
+                "logo_url": f"{app_root}/tracking-images/oem_logo/{safe_org}" if b.logo_path else None,
+                "white_logo_url": f"{app_root}/tracking-images/oem_logo/{safe_org}_white" if b.white_logo_path else None,
                 "primary_color": b.primary_color,
                 "secondary_color": b.secondary_color,
                 "support_email": b.support_email,
@@ -2175,7 +2175,7 @@ def upload_oem_logo():
     except Exception:
         pass
     app_root = current_app.config.get("APPLICATION_ROOT", "") or ""
-    serve_url = f"{app_root}/images/oem_logo/{filename}"
+    serve_url = f"{app_root}/tracking-images/oem_logo/{filename}"
     return jsonify({"response": serve_url, "logo_url": serve_url, "logo_type": logo_type})
 
 
@@ -2209,7 +2209,7 @@ def get_oem_branding_by_org():
         if b:
             logo_url = None
             if b.logo_path:
-                logo_url = f"/images/oem_logo/{b.org_id}"
+                logo_url = f"/tracking-images/oem_logo/{b.org_id}"
             return jsonify({
                 "org_id": b.org_id,
                 "brand_name": b.brand_name or "",
@@ -2240,7 +2240,7 @@ def get_client_logo_by_org_info():
         ).first()
         if not client or not getattr(client, "logoImgSrc", None):
             return jsonify({"logo_url": ""}), 200
-        logo_url = f"/images/client_company_logo/{client.logoImgSrc}"
+        logo_url = f"/tracking-images/client_company_logo/{client.logoImgSrc}"
         return jsonify({"logo_url": logo_url}), 200
     except Exception as e:
         return jsonify({}), 200
@@ -2279,19 +2279,22 @@ def upload_client_logo_by_org():
         client.logoImgSrc = basename
         sess.commit()
 
-        logo_url = f"/images/client_company_logo/{basename}"
+        logo_url = f"/tracking-images/client_company_logo/{basename}"
         return jsonify({"message": "Logo uploaded successfully", "logo_url": logo_url})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @web_bp.route("/js/<path:path>")
 @web_bp.route("/css/<path:path>")
+@web_bp.route("/tracking-images/<path:path>")
 @web_bp.route("/images/<path:path>")
 @web_bp.route("/fonts/<path:path>")
 @web_bp.route("/scripts/<path:path>")
 def serve_static(path):
     """Serve static assets. Production: redirect to S3. Images: check whitelabel first."""
     prefix = request.path.split("/", 2)[1]
+    if prefix == "tracking-images":
+        prefix = "images"
     # S3 redirect in production (skip when test_prod)
     s3_bucket = current_app.config.get("S3_BUCKET_NAME")
     env = current_app.config.get("ENV", "development")
@@ -2300,7 +2303,8 @@ def serve_static(path):
         region = current_app.config.get("S3_REGION", "")
         region_part = f".{region}" if region else ""
         app_ver = current_app.config.get("APP_VERSION", "1.0.0")
-        s3_url = f"https://s3{region_part}.amazonaws.com/{s3_bucket}/{app_ver}/static{request.path}"
+        s3_path = request.path.replace("/tracking-images/", "/images/", 1)
+        s3_url = f"https://s3{region_part}.amazonaws.com/{s3_bucket}/{app_ver}/static{s3_path}"
         return redirect(s3_url, code=302)
     # Whitelabel image lookup for /images/*
     if prefix == "images":
@@ -2368,7 +2372,7 @@ def upload_company_logo_legacy():
     dest = upload_dir / basename
     try:
         file.save(str(dest))
-        return jsonify({"filename": basename, "path": f"/images/company_logo/{basename}"})
+        return jsonify({"filename": basename, "path": f"/tracking-images/company_logo/{basename}"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

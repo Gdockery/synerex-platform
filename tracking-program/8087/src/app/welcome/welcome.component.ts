@@ -40,7 +40,7 @@ export class WelcomeComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     // Remove legacy welcome image from DOM once rendered.
-    const welcomeImage = document.querySelector('img[src="/images/xeco-welcome2.png"]');
+    const welcomeImage = document.querySelector('img[src="/tracking-images/xeco-welcome2.png"]');
     if (welcomeImage && welcomeImage.parentNode) {
       welcomeImage.parentNode.removeChild(welcomeImage);
     }

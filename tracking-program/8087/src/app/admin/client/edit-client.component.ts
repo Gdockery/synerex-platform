@@ -90,7 +90,7 @@ export class ClientEditComponent implements OnInit {
     this.apiService.get('/api/client/'+this.selectedClientId).subscribe(responseData =>{
       this.syncingFormData = false;
       this.client = responseData.response;
-      this.logoPath = '/images/client_company_logo/' + this.client.name + '-logo';
+      this.logoPath = '/tracking-images/client_company_logo/' + this.client.name + '-logo';
       this.form.patchValue(this.client);
       this.url = '/api/client/' + this.selectedClientId + '/upload-logo';
     });

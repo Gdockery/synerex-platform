@@ -12,8 +12,8 @@ class OemBranding(BaseModel):
 
     org_id = db.Column(db.String(255), nullable=False, unique=True, index=True)
     brand_name = db.Column(db.String(255), nullable=True)       # e.g. "Acme Energy"
-    logo_path = db.Column(db.String(512), nullable=True)        # color logo — served at /images/oem_logo/{org_id}
-    white_logo_path = db.Column(db.String(512), nullable=True)  # white logo — served at /images/oem_logo/{org_id}_white
+    logo_path = db.Column(db.String(512), nullable=True)        # color logo — served at /tracking-images/oem_logo/{org_id}
+    white_logo_path = db.Column(db.String(512), nullable=True)  # white logo — served at /tracking-images/oem_logo/{org_id}_white
     primary_color = db.Column(db.String(32), nullable=True)     # hex e.g. "#1a73e8"
     secondary_color = db.Column(db.String(32), nullable=True)
     support_email = db.Column(db.String(255), nullable=True)
