@@ -8,6 +8,8 @@ ARG VITE_TRACKING_PROGRAM_URL=/tracking
 ARG VITE_SERVICE_MANAGER_URL=/service-manager
 ARG VITE_WEBSITE_FRONTEND_URL=
 ARG VITE_WEBSITE_BACKEND_URL=
+# Optional post-build JS obfuscation. Default 0 = plain `npm run build`.
+ARG ENABLE_JS_OBFUSCATION=0
 ENV VITE_LICENSE_SERVICE_URL=$VITE_LICENSE_SERVICE_URL
 ENV VITE_EMV_URL=$VITE_EMV_URL
 ENV VITE_TRACKING_PROGRAM_URL=$VITE_TRACKING_PROGRAM_URL
@@ -20,7 +22,7 @@ COPY package.json package-lock.json* /app/
 RUN npm install
 
 COPY . /app
-RUN npm run build
+RUN if [ "$ENABLE_JS_OBFUSCATION" = "1" ]; then npm run build:obfuscate; else npm run build; fi
 
 FROM nginx:1.27-alpine
 

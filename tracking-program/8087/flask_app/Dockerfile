@@ -2,6 +2,10 @@
 FROM node:18-slim AS angular-build
 WORKDIR /build
 
+# Optional post-build JS obfuscation. Default 0 = plain `npm run build` (safe rollback).
+# Enable with: docker build --build-arg ENABLE_JS_OBFUSCATION=1 ...
+ARG ENABLE_JS_OBFUSCATION=0
+
 # Copy 8087 package files and install deps
 COPY 8087/package.json 8087/package-lock.json* ./
 RUN npm install --legacy-peer-deps
@@ -9,7 +13,7 @@ RUN npm install --legacy-peer-deps
 # Copy 8087 source and build (NODE_ENV=production enables minification)
 COPY 8087/ ./
 ENV NODE_ENV=production
-RUN npm run build
+RUN if [ "$ENABLE_JS_OBFUSCATION" = "1" ]; then npm run build:obfuscate; else npm run build; fi
 
 # Stage 2 - Flask app
 FROM python:3.11-slim
