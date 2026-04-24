@@ -201,8 +201,17 @@ def _project_to_dict(p, include_meters=False, sess=None):
     if include_meters:
         sess = sess or get_session()
         try:
-            rows = sess.query(Meter.id, Meter.name).filter_by(project=p.id, isDeleted=False).all()
-            d["meters"] = [{"id": r[0], "name": r[1]} for r in rows]
+            rows = (
+                sess.query(Meter.id, Meter.name, Meter.isReporting)
+                .filter_by(project=p.id, isDeleted=False)
+                .all()
+            )
+            # Include isReporting so Angular ViewTestComponent can auto-check reporting meters
+            # (it uses meter.isReporting == 1; omitted field was always undefined before).
+            d["meters"] = [
+                {"id": r[0], "name": r[1], "isReporting": 1 if r[2] else 0}
+                for r in rows
+            ]
         except Exception:
             d["meters"] = []  # Schema mismatch (e.g. missing columns) - skip meters
     return d
