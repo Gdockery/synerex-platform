@@ -53,7 +53,7 @@ export class ViewTestComponent implements OnInit {
         meter.checked = true;
       }
     });
-    if (this.getSelected().length = this.meters.length) {
+    if (this.getSelected().length === this.meters.length) {
       this.allSelected = true;
     }
   }
@@ -67,16 +67,17 @@ export class ViewTestComponent implements OnInit {
  
  select() {
    if (this.getSelected().length < this.meters.length) {
-     this.meters.forEach(function(meter) {
-       meter.checked = true;
-     });
-     this.allSelected = true;
+    this.meters.forEach(function(meter) {
+      meter.checked = true;
+    });
+    this.allSelected = true;
    } else {
-     this.meters.forEach(function(meter) {
-       meter.checked = false;
-     });
-     this.allSelected = false;
-   }  
+    this.meters.forEach(function(meter) {
+      meter.checked = false;
+    });
+    this.allSelected = false;
+   }
+   this.refreshTestResults();
  }  
 
  getSelected() {
@@ -92,6 +93,7 @@ export class ViewTestComponent implements OnInit {
    } else {
     this.allSelected = true;
    }
+   this.refreshTestResults();
   }  
 
  //update database first then currently selected project

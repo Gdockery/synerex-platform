@@ -23,30 +23,7 @@
          </label>
         </div>
         <div class="col-md-3">
-           <font [hidden]="!selectMeterError" style="color: darkred">Please select 1 or more meters to view test results.</font><br>
-         <button type="button" class="default-button green-button pull-right" (click)="refreshTestResults()">Show Test Results</button>
-        </div>
-        <div class="col-md-12" style="margin-top: 10px;">
-          <div class="col-md-3">
-            <label for="minutesToAverage">Minutes to average:</label>
-          </div>
-          <div class="col-md-3">
-            <input type="number" id="minutesToAverage" class="form-control" [(ngModel)]="minutesToAverage" min="1" max="50" step="1">
-          </div>
-          <div class="col-md-6">
-            <small class="text-muted">Number of minutes before and after the change from off to on to average (1-50)</small>
-          </div>
-        </div>
-        <div class="col-md-12" style="margin-top: 10px;">
-          <div class="col-md-3">
-            <label for="minutesToIgnore">Minutes to ignore:</label>
-          </div>
-          <div class="col-md-3">
-            <input type="number" id="minutesToIgnore" class="form-control" [(ngModel)]="minutesToIgnore" min="0" max="10" step="1">
-          </div>
-          <div class="col-md-6">
-            <small class="text-muted">Minutes to ignore at the transition from off to on (default: 1 ignores last minute of off and first minute of on)</small>
-          </div>
+           <font [hidden]="!selectMeterError" style="color: darkred">Please select 1 or more meters to view test results.</font>
         </div>
       </div>
       <div class="col-md-5"></div>
