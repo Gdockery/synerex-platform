@@ -3195,13 +3195,15 @@ EQUIPMENT_CONFIGS = {
         "max_imbalance": 2.0,
         "ieee_519_thd_limit": Config.IEEE_519_THD_LIMIT,
     },
-    # ── Weather-independent equipment ─────────────────────────────────────
-    # Indoor motor, distribution, and panel loads are driven by production
-    # schedule, not outdoor temperature.  Weather normalization must NOT be
-    # applied; doing so would introduce fictitious savings adjustments.
+    # ── Whole-facility / network-wide metering ("main") ───────────────────
+    # Main-meter projects aggregate HVAC, envelope, and process loads. Weather
+    # normalization may apply when baseline vs reporting-period weather differs;
+    # eligibility is enforced downstream (temps fetched, ΔT threshold, ML R²).
+    # Sensitivity uses the same order of magnitude as mixed HVAC (stipulated
+    # prior; regression R² is the real guard).
     "main": {
-        "temp_adjustment_factor": 0.0,   # No temperature sensitivity for main meter
-        "applies_weather_normalization": False,
+        "temp_adjustment_factor": 0.015,  # 1.5% per °F — same as `hvac` (building-level default)
+        "applies_weather_normalization": True,
         "min_pf": 0.90,
         "typical_thd": Config.IEEE_519_THD_LIMIT,
         "capacity_unit": "kW",
