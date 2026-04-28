@@ -141,7 +141,7 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str) -> None:
         resp = _requests.post(
             f"{platform_url}/bills",
             files={"file": (filename, pdf_buffer, "application/pdf")},
-            timeout=30,
+            timeout=60,
         )
         resp.raise_for_status()
         bill_id = resp.json()["id"]
@@ -152,6 +152,10 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str) -> None:
         while time.time() < deadline:
             time.sleep(poll_interval)
             poll = _requests.get(f"{platform_url}/bills/{bill_id}", timeout=15)
+            if poll.status_code == 404:
+                # Platform returns 404 while the bill is still being parsed — keep waiting
+                logger.info("Bill job %s: platform returned 404 (still processing)", job_id)
+                continue
             poll.raise_for_status()
             data = poll.json()
             status = data.get("status")
