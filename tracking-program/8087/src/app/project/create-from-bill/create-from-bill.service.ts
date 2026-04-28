@@ -14,10 +14,13 @@ export class CreateFromBillService {
    * Emits { status: 'pending' } updates while running, then final { success, data } or { success: false, error }.
    * onProgress(msg) is called with human-readable status strings while polling.
    */
-  analyzeBill(file: File, onProgress?: (msg: string) => void): Observable<any> {
+  analyzeBill(file: File, meters?: string, onProgress?: (msg: string) => void): Observable<any> {
     return new Observable(observer => {
       const formData = new FormData();
       formData.append('bill', file, file.name);
+      if (meters && meters.trim()) {
+        formData.append('meters', meters.trim());
+      }
 
       // Step 1 — submit
       this.apiRequestService.post('/api/bill/analyze', formData).subscribe(
