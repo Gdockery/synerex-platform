@@ -49,9 +49,13 @@ def send_email(
             msg.attach(MIMEText(body_text, 'plain'))
         msg.attach(MIMEText(body_html, 'html'))
         
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        if settings.smtp_port == 465:
+            _smtp_ctx = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port)
+        else:
+            _smtp_ctx = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
             if settings.smtp_use_tls:
-                server.starttls()
+                _smtp_ctx.starttls()
+        with _smtp_ctx as server:
             if settings.smtp_username and settings.smtp_password:
                 server.login(settings.smtp_username, settings.smtp_password)
             server.send_message(msg)

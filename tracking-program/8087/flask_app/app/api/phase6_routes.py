@@ -273,9 +273,13 @@ def _send_email_via_smtp(smtp_cfg, to_address, subject, body_text, body_html=Non
 
         port = smtp_cfg.get("port", 587)
         use_tls = smtp_cfg.get("use_tls", True)
-        with smtplib.SMTP(server, port) as s:
+        if port == 465:
+            _smtp_ctx = smtplib.SMTP_SSL(server, port)
+        else:
+            _smtp_ctx = smtplib.SMTP(server, port)
             if use_tls:
-                s.starttls()
+                _smtp_ctx.starttls()
+        with _smtp_ctx as s:
             if password:
                 s.login(username, password)
             s.sendmail(from_addr, [to_address], msg.as_string())
