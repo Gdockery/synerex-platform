@@ -197,6 +197,7 @@ services:
       OLLAMA_LOCAL_URL: http://100.106.19.30:11434
       OLLAMA_BILL_VISION_MODEL: qwen2.5vl:32b
       BILL_PLATFORM_URL: http://100.106.19.30:8000
+      BILL_PLATFORM_TIMEOUT: "1200"
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
       EMAIL_HOST: https://tracking.synerexlabs.com
