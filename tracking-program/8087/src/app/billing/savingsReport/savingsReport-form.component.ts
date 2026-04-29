@@ -355,7 +355,7 @@ export class SavingsReportFormComponent implements OnInit {
     this.scanning = true;
     this.scanError = null;
     this.scanSuccess = false;
-    this.createFromBillService.analyzeBill(this.selectedFile, undefined, (msg: string) => { this.scanError = null; this.scanSuccess = false; }).subscribe(
+    this.createFromBillService.analyzeBill(this.selectedFile, undefined, undefined, (msg: string) => { this.scanError = null; this.scanSuccess = false; }).subscribe(
       (res: any) => {
         this.scanning = false;
         const data = res.data || res;

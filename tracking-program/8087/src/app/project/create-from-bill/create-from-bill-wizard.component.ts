@@ -24,6 +24,7 @@ export class CreateFromBillWizardComponent implements OnInit {
   createdProject: any = null;
   selectedFile: File = null;
   metersInput: string = '';
+  pageRangeInput: string = '';
   useExistingClient = false;
   selectedClientId: number | null = null;
   clients: any[] = [];
@@ -116,7 +117,7 @@ export class CreateFromBillWizardComponent implements OnInit {
     this.scanError = null;
     this.uploadError = null;
     this.uploading = true;
-    this.createFromBillService.analyzeBill(this.selectedFile, this.metersInput || undefined).subscribe(
+    this.createFromBillService.analyzeBill(this.selectedFile, this.metersInput || undefined, this.pageRangeInput || undefined).subscribe(
       (res: any) => {
         this.uploading = false;
         const data = res.data || res;

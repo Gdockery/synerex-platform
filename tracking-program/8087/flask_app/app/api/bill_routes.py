@@ -126,7 +126,7 @@ def _map_platform_result(parse: dict) -> dict:
     }
 
 
-def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str = None) -> None:
+def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str = None, page_range: str = None) -> None:
     """
     Background thread: POST the PDF to bill-platform, poll until done,
     then store the mapped result in _JOBS.
@@ -137,10 +137,12 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str =
 
     try:
         # 1. Submit PDF to bill-platform
-        logger.info("Bill job %s: POSTing to %s/bills (meters=%s)", job_id, platform_url, meters)
+        logger.info("Bill job %s: POSTing to %s/bills (meters=%s page_range=%s)", job_id, platform_url, meters, page_range)
         extra_data = {}
         if meters:
             extra_data["meters"] = meters
+        if page_range:
+            extra_data["page_range"] = page_range
         resp = _requests.post(
             f"{platform_url}/bills",
             files={"file": (filename, pdf_buffer, "application/pdf")},
@@ -243,6 +245,7 @@ def analyze_bill():
         return jsonify({"success": False, "error": "File appears empty or corrupted", "data": {}}), 400
 
     meters_field = request.form.get("meters", "").strip() or None
+    page_range_field = request.form.get("page_range", "").strip() or None
 
     _prune_jobs()
 
@@ -251,7 +254,7 @@ def analyze_bill():
         _JOBS[job_id] = {"status": "pending", "created_at": time.time()}
 
     filename = file.filename or "bill.pdf"
-    t = threading.Thread(target=_run_extraction, args=(job_id, pdf_buffer, filename, meters_field), daemon=True)
+    t = threading.Thread(target=_run_extraction, args=(job_id, pdf_buffer, filename, meters_field, page_range_field), daemon=True)
     t.start()
 
     logger.info("Bill analyze job %s started", job_id)

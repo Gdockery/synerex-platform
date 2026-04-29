@@ -20,8 +20,14 @@
     <div class="form-group mt-3" style="max-width:400px;">
       <label for="metersInput">Meter number(s) <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
       <input id="metersInput" type="text" class="form-control" [(ngModel)]="metersInput" [ngModelOptions]="{standalone: true}"
-             placeholder="e.g. E1983028, E1983029 — leave blank to auto-select">
-      <small class="text-muted">For multi-meter bills, enter the meter(s) to use for kWh/demand calculations.</small>
+             placeholder="e.g. E1983028">
+      <small class="text-muted">For multi-meter bills, enter the meter(s) to use for kWh/demand calculations. Leave blank to auto-detect.</small>
+    </div>
+    <div class="form-group mt-2" style="max-width:400px;">
+      <label for="pageRangeInput">Page range <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+      <input id="pageRangeInput" type="text" class="form-control" [(ngModel)]="pageRangeInput" [ngModelOptions]="{standalone: true}"
+             placeholder="e.g. 23,24 — leave blank for all pages">
+      <small class="text-muted">Only needed for large consolidated invoices. Leave blank for normal single-meter bills.</small>
     </div>
     <div *ngIf="scanError" class="alert alert-danger mt-2">{{ scanError }}</div>
     <div class="mt-2">
