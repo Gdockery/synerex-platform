@@ -25,6 +25,7 @@ export class CreateFromBillWizardComponent implements OnInit {
   selectedFile: File = null;
   metersInput: string = '';
   pageRangeInput: string = '';
+  pdfPageCount: number = 0;
   useExistingClient = false;
   selectedClientId: number | null = null;
   clients: any[] = [];
@@ -102,7 +103,34 @@ export class CreateFromBillWizardComponent implements OnInit {
     if (file) {
       this.selectedFile = file;
       this.scanError = null;
+      this.pdfPageCount = 0;
+      this.readPdfPageCount(file);
     }
+  }
+
+  private readPdfPageCount(file: File): void {
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const bytes = new Uint8Array(e.target.result as ArrayBuffer);
+        // Convert to latin-1 string — /Count is always plain ASCII in a PDF
+        let str = '';
+        for (let i = 0; i < bytes.length; i++) {
+          str += String.fromCharCode(bytes[i]);
+        }
+        const matches = str.match(/\/Count\s+(\d+)/g) || [];
+        let max = 0;
+        for (const m of matches) {
+          const n = parseInt(m.replace(/\/Count\s+/, ''), 10);
+          if (n > max) { max = n; }
+        }
+        this.pdfPageCount = max;
+      } catch (_) {
+        this.pdfPageCount = 0;
+      }
+    };
+    reader.onerror = () => { this.pdfPageCount = 0; };
+    reader.readAsArrayBuffer(file);
   }
 
   uploadAndAnalyze() {

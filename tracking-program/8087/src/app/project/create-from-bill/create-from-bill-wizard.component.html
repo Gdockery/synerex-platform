@@ -29,6 +29,9 @@
              placeholder="e.g. 23-24, or 23,24, or 20-27,32">
       <small class="text-muted">Use standard print-range format: <strong>23-24</strong> for a range, <strong>23,24</strong> for specific pages, <strong>20-27,32</strong> for a range plus an extra page. Leave blank to process all pages automatically.</small>
     </div>
+    <div *ngIf="pdfPageCount > 8 && !pageRangeInput" class="alert alert-warning mt-2">
+      <strong>Large bill detected ({{ pdfPageCount }} pages).</strong> Processing may take longer — entering a page range is recommended to speed things up.
+    </div>
     <div *ngIf="scanError" class="alert alert-danger mt-2">{{ scanError }}</div>
     <div class="mt-2">
       <button class="btn btn-primary" (click)="uploadAndAnalyze()" [disabled]="!selectedFile || uploading">
