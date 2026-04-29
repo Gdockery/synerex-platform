@@ -58,11 +58,16 @@ export class CreateFromBillService {
                 }
                 return;
               }
-              if (pollRes.status === 'retrying') {
+              if (pollRes.status && pollRes.status.startsWith('retrying_')) {
                 // AI found nothing on the specified page range — widening and retrying.
-                // Reset the timeout counter so the full wait budget applies from here.
+                // Reset the timeout counter so the full wait budget applies from each retry.
                 pollCount = 0;
-                if (onProgress) onProgress('Re-scanning nearby pages…');
+                const messages: { [key: string]: string } = {
+                  retrying_1: 'Scanning nearby pages (attempt 2 of 3)…',
+                  retrying_2: 'Scanning nearby pages (attempt 3 of 3)…',
+                  retrying_3: 'Final scan attempt…',
+                };
+                if (onProgress) onProgress(messages[pollRes.status] || 'Re-scanning nearby pages…');
                 return;
               }
               // done or error — emit and complete
