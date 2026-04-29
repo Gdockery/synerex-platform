@@ -58,6 +58,13 @@ export class CreateFromBillService {
                 }
                 return;
               }
+              if (pollRes.status === 'retrying') {
+                // AI found nothing on the specified page range — widening and retrying.
+                // Reset the timeout counter so the full wait budget applies from here.
+                pollCount = 0;
+                if (onProgress) onProgress('Re-scanning nearby pages…');
+                return;
+              }
               // done or error — emit and complete
               stop$.next();
               observer.next(pollRes);
