@@ -106,28 +106,14 @@ export class ProjectListComponent implements OnInit {
     event.preventDefault();
     const projectId = row && (row.id || row);
     if (!projectId) return;
-    const inUserProjects = (this.currentUserService.user.projects || []).some((p: any) => p.id == projectId);
-    if (inUserProjects) {
-      this.currentUserService.selectProject(projectId);
-      this.router.navigate(['/savings/energy-savings']);
-      return;
-    }
-    // Project not in user.projects (e.g. OEM viewing client's projects) - use row or fetch
-    const proj = row && typeof row === 'object' && row.id ? row : null;
-    if (proj) {
-      const existing = this.currentUserService.user.projects || [];
-      this.currentUserService.user.projects = [proj, ...existing];
-      if (typeof window !== 'undefined' && window['BOOTSTRAP_DATA'] && window['BOOTSTRAP_DATA'].user) {
-        window['BOOTSTRAP_DATA'].user.projects = this.currentUserService.user.projects;
-      }
-      this.currentUserService.selectProject(projectId);
-      this.router.navigate(['/savings/energy-savings']);
-      return;
-    }
+    // Always fetch the full project shape (electricBillAnalysis, reportFields, etc.) so the
+    // bill analytic page has complete data regardless of how the user navigated here.
+    // The admin list returns slim rows without these fields, so we cannot use `row` directly.
     this.projectService.get(projectId).subscribe((res: any) => {
       const p = res.response || res;
       if (p && p.id) {
-        const existing = this.currentUserService.user.projects || [];
+        // Replace any stale/slim entry for this project, then prepend the full version.
+        const existing = (this.currentUserService.user.projects || []).filter((x: any) => x.id != projectId);
         this.currentUserService.user.projects = [p, ...existing];
         if (typeof window !== 'undefined' && window['BOOTSTRAP_DATA'] && window['BOOTSTRAP_DATA'].user) {
           window['BOOTSTRAP_DATA'].user.projects = this.currentUserService.user.projects;
@@ -135,7 +121,14 @@ export class ProjectListComponent implements OnInit {
         this.currentUserService.selectProject(projectId);
         this.router.navigate(['/savings/energy-savings']);
       }
-    }, () => {});
+    }, () => {
+      // Fallback: if fetch fails, use whatever is already in user.projects
+      const inUserProjects = (this.currentUserService.user.projects || []).some((x: any) => x.id == projectId);
+      if (inUserProjects) {
+        this.currentUserService.selectProject(projectId);
+        this.router.navigate(['/savings/energy-savings']);
+      }
+    });
   }
 
   calculateSavings(){
