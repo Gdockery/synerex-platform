@@ -9,6 +9,7 @@ import { PdfLinkService } from "../../shared/pdfLink.service";
 import { FileUpload } from "primeng/components/fileupload/fileupload";
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CreateFromBillService } from "../../project/create-from-bill/create-from-bill.service";
+import { ClientService } from "../../admin/client/client.service";
 
 let moment = require('moment');
 
@@ -903,6 +904,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     private pdfLinkService: PdfLinkService,
     private sanitizer: DomSanitizer,
     private createFromBillService: CreateFromBillService,
+    private clientService: ClientService,
   ) { }
 
   ngOnDestroy() {
@@ -992,6 +994,23 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       if (rf['onpeak_fraction_pct'])this.emvOnPeakShare       = String(rf['onpeak_fraction_pct']);
       if (rf['ratchet_percent'])    this.emvRatchetPct        = String(rf['ratchet_percent']);
       if (rf['ratchet_ref_peak'])   this.emvRatchetRefPeak    = String(rf['ratchet_ref_peak']);
+    }
+
+    // If client information fields are still empty (no saved reportFields), fetch from client record.
+    const clientId = proj && (typeof proj.client === 'object' ? proj.client.id : proj.client);
+    if (clientId && !this.emvClientName) {
+      this.clientService.get(clientId).subscribe((res: any) => {
+        const c = res.response || res;
+        if (!c) return;
+        if (!this.emvClientName)    this.emvClientName    = c.legalName || c.name || '';
+        if (!this.emvClientAddress) this.emvClientAddress = c.address || '';
+        if (!this.emvClientCity)    this.emvClientCity    = c.city || '';
+        if (!this.emvClientState)   this.emvClientState   = c.state || '';
+        if (!this.emvClientZip)     this.emvClientZip     = c.zip || '';
+        if (!this.emvContactName)   this.emvContactName   = c.contactName || '';
+        if (!this.emvContactPhone)  this.emvContactPhone  = c.contactPhone || '';
+        if (!this.emvContactEmail)  this.emvContactEmail  = c.financeEmail || '';
+      }, () => {});
     }
   }
 
