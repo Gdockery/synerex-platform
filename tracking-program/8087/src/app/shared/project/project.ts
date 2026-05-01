@@ -7,6 +7,8 @@ export class Project {
   public savings;
   public documentShareToken:string;
   public electricBillAnalysis;
+  public placements;
+  public sldAnalysis;
   public reportFields;
   public equipmentInfo;
   public timezoneAbbreviation;

@@ -126,7 +126,7 @@ def _map_platform_result(parse: dict) -> dict:
     }
 
 
-def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str = None, page_range: str = None) -> None:
+def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str) -> None:
     """
     Background thread: POST the PDF to bill-platform, poll until done,
     then store the mapped result in _JOBS.
@@ -137,17 +137,11 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str =
 
     try:
         # 1. Submit PDF to bill-platform
-        logger.info("Bill job %s: POSTing to %s/bills (meters=%s page_range=%s)", job_id, platform_url, meters, page_range)
-        extra_data = {}
-        if meters:
-            extra_data["meters"] = meters
-        if page_range:
-            extra_data["page_range"] = page_range
+        logger.info("Bill job %s: POSTing to %s/bills", job_id, platform_url)
         resp = _requests.post(
             f"{platform_url}/bills",
             files={"file": (filename, pdf_buffer, "application/pdf")},
-            data=extra_data,
-            timeout=60,
+            timeout=30,
         )
         resp.raise_for_status()
         bill_id = resp.json()["id"]
@@ -155,13 +149,10 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str =
 
         # 2. Poll until status changes from "processing"
         deadline = time.time() + max_wait
+        last_retrying_status = None   # track which retrying_N we last surfaced
         while time.time() < deadline:
             time.sleep(poll_interval)
             poll = _requests.get(f"{platform_url}/bills/{bill_id}", timeout=15)
-            if poll.status_code == 404:
-                # Platform returns 404 while the bill is still being parsed — keep waiting
-                logger.info("Bill job %s: platform returned 404 (still processing)", job_id)
-                continue
             poll.raise_for_status()
             data = poll.json()
             status = data.get("status")
@@ -185,14 +176,14 @@ def _run_extraction(job_id: str, pdf_buffer: bytes, filename: str, meters: str =
                         "error": "Bill parsing failed on the AI server. Please try again or enter data manually.",
                     })
                 return
-            # status == "processing" → keep polling
-
-        # Timed out
-        with _JOBS_LOCK:
-            _JOBS[job_id].update({
-                "status": "error",
-                "error": "AI extraction timed out. The bill may be very complex. Please try again or enter data manually.",
-            })
+            elif status and status.startswith("retrying_") and status != last_retrying_status:
+                # Server is scanning a wider page range — surface to frontend and reset deadline.
+                last_retrying_status = status
+                deadline = time.time() + max_wait   # full reset per retry
+                with _JOBS_LOCK:
+                    _JOBS[job_id]["status"] = status
+                logger.info("Bill job %s: %s — deadline extended", job_id, status)
+            # status in ("processing", "retrying_N") → keep polling
 
     except _requests.ConnectionError:
         logger.warning("Bill job %s: cannot reach bill-platform at %s", job_id, platform_url)
@@ -244,9 +235,6 @@ def analyze_bill():
     if not pdf_buffer or len(pdf_buffer) < 100:
         return jsonify({"success": False, "error": "File appears empty or corrupted", "data": {}}), 400
 
-    meters_field = request.form.get("meters", "").strip() or None
-    page_range_field = request.form.get("page_range", "").strip() or None
-
     _prune_jobs()
 
     job_id = str(uuid.uuid4())
@@ -254,7 +242,7 @@ def analyze_bill():
         _JOBS[job_id] = {"status": "pending", "created_at": time.time()}
 
     filename = file.filename or "bill.pdf"
-    t = threading.Thread(target=_run_extraction, args=(job_id, pdf_buffer, filename, meters_field, page_range_field), daemon=True)
+    t = threading.Thread(target=_run_extraction, args=(job_id, pdf_buffer, filename), daemon=True)
     t.start()
 
     logger.info("Bill analyze job %s started", job_id)
@@ -278,8 +266,8 @@ def analyze_bill_status(job_id: str):
     if not job:
         return jsonify({"success": False, "error": "Job not found or expired"}), 404
 
-    if job["status"] == "pending":
-        return jsonify({"status": "pending", "success": True}), 200
+    if job["status"] == "pending" or (job["status"] or "").startswith("retrying"):
+        return jsonify({"status": job["status"], "success": True}), 200
 
     if job["status"] == "error":
         return jsonify({"status": "error", "success": False, "error": job.get("error", "Unknown error"), "data": {}}), 200

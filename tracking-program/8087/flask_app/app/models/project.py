@@ -65,6 +65,8 @@ class Project(BaseModel):
     highAmpsThreshold = db.Column(db.Float, nullable=True)
     lastThresholdSwitchState = db.Column(db.String(255), nullable=True)
     electricBillAnalysis = db.Column(db.JSON, default=None)
+    placements = db.Column(db.JSON, default=None)
+    sldAnalysis = db.Column(db.JSON, default=None)
     equipmentInfo = db.Column(db.JSON, default=dict)
     reportFields = db.Column(db.JSON, default=dict)
     active_emv_analysis_id = db.Column(db.Integer, nullable=True)  # FK to emv_analysis.id, set via migration

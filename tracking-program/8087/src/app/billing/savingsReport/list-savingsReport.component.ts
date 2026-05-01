@@ -10,6 +10,7 @@ import { FileUpload } from "primeng/components/fileupload/fileupload";
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CreateFromBillService } from "../../project/create-from-bill/create-from-bill.service";
 import { ClientService } from "../../admin/client/client.service";
+import { SldService } from "./sld.service";
 
 let moment = require('moment');
 
@@ -398,6 +399,123 @@ let moment = require('moment');
           <span *ngIf="billScanSuccess" style="color:#2a7a2a; font-size:0.9em;">&#10003; Scanned — {{ billScanLineItemCount }} line item(s) loaded. Review fields below before generating.</span>
         </div>
         <div *ngIf="billScanError" style="color:#c00; font-size:0.9em;">{{ billScanError }}</div>
+      </div>
+
+      <!-- ───────────────────────────────────────────────────────────────── -->
+      <!-- Upload Single-Line Drawing                                       -->
+      <!-- ───────────────────────────────────────────────────────────────── -->
+      <div *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10"
+           style="background:#f0f4ff; border:1px solid #b0c4e0; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
+        <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a3a6a;">Upload Single-Line Drawing
+          <small style="font-size:0.65em; color:#555; font-weight:normal;">— AI identifies equipment placement recommendations from your electrical SLD</small>
+        </h3>
+
+        <!-- Already-accepted banner -->
+        <div *ngIf="userService.user.selectedProject?.sldAnalysis?.status === 'accepted' && !sldShowRescan"
+             style="margin-bottom:0.75em; padding:0.6em 1em; background:#d4edda; border-radius:4px; color:#155724; font-size:0.9em;">
+          &#10003; SLD accepted — {{ userService.user.selectedProject?.sldAnalysis?.summary }}
+          <button type="button" class="btn btn-xs btn-default" style="margin-left:1em;" (click)="sldShowRescan = true">Re-scan</button>
+        </div>
+
+        <div *ngIf="!userService.user.selectedProject?.sldAnalysis || userService.user.selectedProject?.sldAnalysis?.status !== 'accepted' || sldShowRescan">
+          <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.5em;">
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" (change)="onSldFileSelect($event)" style="max-width:360px;" />
+            <div class="form-group" style="margin:0; display:flex; align-items:center; gap:6px;">
+              <label style="margin:0; white-space:nowrap; font-weight:normal; font-size:0.9em;">Bill peak kW <span class="text-muted" style="font-weight:normal;">(optional):</span></label>
+              <input type="number" class="form-control" [(ngModel)]="sldPeakKw" [ngModelOptions]="{standalone: true}"
+                     placeholder="e.g. 450" style="width:110px;" />
+            </div>
+            <button type="button" class="default-button green-button" (click)="analyzeSldDrawing()" [disabled]="!sldFile || sldScanning">
+              {{ sldScanning ? sldScanStatus : 'Analyze Drawing' }}
+            </button>
+          </div>
+          <div *ngIf="sldError" style="color:#c00; font-size:0.9em; margin-bottom:0.5em;">{{ sldError }}</div>
+
+          <!-- Review card -->
+          <div *ngIf="sldResult && !sldSaved"
+               style="margin-top:1em; border:1px solid #b0c4e0; border-radius:5px; background:#fff; padding:1em 1.25em;">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:0.75em;">
+              <div>
+                <strong>{{ sldResult.summary }}</strong>
+                <span *ngIf="sldResult.extraction?.vfdsFound"
+                      style="margin-left:0.75em; padding:2px 9px; border-radius:10px; background:#d4edda; color:#155724; font-size:0.82em; font-weight:bold;">VFDs Present</span>
+                <span *ngIf="sldResult.extraction && !sldResult.extraction.vfdsFound"
+                      style="margin-left:0.75em; padding:2px 9px; border-radius:10px; background:#e9ecef; color:#495057; font-size:0.82em;">No VFDs</span>
+              </div>
+              <div style="white-space:nowrap;">
+                <button type="button" class="btn btn-success btn-sm" (click)="acceptSldRecommendations()" style="margin-right:6px;">Accept Recommendations</button>
+                <button type="button" class="btn btn-default btn-sm" (click)="dismissSldRecommendations()">Dismiss</button>
+              </div>
+            </div>
+
+            <!-- Placements table -->
+            <div *ngIf="sldResult.placements?.length > 0" style="margin-bottom:1em;">
+              <h5 style="margin:0 0 0.4em; font-size:0.92em; color:#333; text-transform:uppercase; letter-spacing:.04em;">Placement Recommendations</h5>
+              <table class="table table-condensed table-bordered" style="font-size:0.88em; margin-bottom:0;">
+                <thead style="background:#f0f4ff;">
+                  <tr>
+                    <th>Panel</th>
+                    <th>Equipment Type</th>
+                    <th>kVA Band</th>
+                    <th>VFD</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let pl of sldResult.placements">
+                    <td>{{ pl.panelName }}</td>
+                    <td>{{ pl.equipmentType }}</td>
+                    <td>{{ pl.ratingBand }}</td>
+                    <td>
+                      <span *ngIf="pl.vfdPresent" style="color:#155724;">&#10003;</span>
+                      <span *ngIf="!pl.vfdPresent" style="color:#aaa;">—</span>
+                    </td>
+                    <td style="color:#666; font-size:0.9em;">{{ pl.notes }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Power quality / code issue warnings -->
+            <div *ngIf="sldResult.extraction?.powerQualityRisks?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#fff3cd; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#856404;">&#9888; Power Quality Risks</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let r of sldResult.extraction.powerQualityRisks" style="color:#856404;">{{ r }}</li>
+              </ul>
+            </div>
+            <div *ngIf="sldResult.extraction?.codeIssues?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#f8d7da; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#721c24;">&#9888; Code Issues</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let c of sldResult.extraction.codeIssues" style="color:#721c24;">{{ c }}</li>
+              </ul>
+            </div>
+            <div *ngIf="sldResult.extraction?.nonStandardConfigurations?.length > 0"
+                 style="margin-bottom:0.5em; padding:0.5em 0.75em; background:#d1ecf1; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#0c5460;">&#8505; Non-Standard Configurations</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let n of sldResult.extraction.nonStandardConfigurations" style="color:#0c5460;">{{ n }}</li>
+              </ul>
+            </div>
+
+            <!-- Per-panel flags -->
+            <div *ngIf="hasPanelFlags(sldResult)" style="font-size:0.85em; color:#555; margin-top:0.25em;">
+              <strong>Panel Flags:</strong>
+              <ng-container *ngFor="let pan of sldResult.extraction?.panels">
+                <span *ngFor="let flag of pan.flags"
+                      style="display:inline-block; margin:2px 4px; padding:1px 7px; background:#ffeeba; border-radius:10px; color:#856404; font-size:0.85em;">
+                  {{ pan.panelName }}: {{ flag }}
+                </span>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Saved confirmation -->
+          <div *ngIf="sldSaved" style="margin-top:0.75em; padding:0.5em 0.75em; background:#d4edda; border-radius:4px; color:#155724; font-size:0.9em;">
+            &#10003; Recommendations saved to project.
+          </div>
+        </div>
       </div>
 
       <!-- Bill Analytic Data Fields (populated from scan, editable before generating report) -->
@@ -829,6 +947,16 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public billScanSuccess = false;
   public billScanLineItemCount = 0;
 
+  // SLD (Single-Line Drawing) scan state
+  public sldFile: File | null = null;
+  public sldPeakKw: number | null = null;
+  public sldScanning = false;
+  public sldScanStatus = 'Analyzing drawing…';
+  public sldError: string | null = null;
+  public sldResult: any = null;
+  public sldSaved = false;
+  public sldShowRescan = false;
+
   // Bill Analytic fields (populated from scan, drive report generation)
   public baBillReference: string = '';
   public baElectricCompanyName: string = '';
@@ -905,6 +1033,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private createFromBillService: CreateFromBillService,
     private clientService: ClientService,
+    private sldService: SldService,
   ) { }
 
   ngOnDestroy() {
@@ -1846,6 +1975,85 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   hidePDF() {
     this.pdfSource = null
+  }
+
+  // ────────── SLD (Single-Line Drawing) methods ──────────
+
+  onSldFileSelect(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.sldFile = (input && input.files && input.files[0]) ? input.files[0] : null;
+    this.sldError = null;
+    this.sldResult = null;
+    this.sldSaved = false;
+  }
+
+  analyzeSldDrawing() {
+    if (!this.sldFile) return;
+    this.sldScanning = true;
+    this.sldError = null;
+    this.sldResult = null;
+    this.sldSaved = false;
+    this.sldScanStatus = 'Analyzing drawing…';
+
+    const peakKw = (this.sldPeakKw != null && !isNaN(Number(this.sldPeakKw))) ? Number(this.sldPeakKw) : undefined;
+
+    this.sldService.analyzeSld(this.sldFile, peakKw, (msg: string) => {
+      this.sldScanStatus = msg;
+    }).subscribe(
+      (res: any) => {
+        this.sldScanning = false;
+        if (res.status === 'error') {
+          this.sldError = res.error || 'SLD analysis failed. Please try again.';
+        } else {
+          this.sldResult = res.result || {};
+        }
+      },
+      (err: any) => {
+        this.sldScanning = false;
+        const msg = (err && err.error && err.error.error) || 'SLD analysis failed. Please try again.';
+        this.sldError = msg;
+      }
+    );
+  }
+
+  acceptSldRecommendations() {
+    const proj: any = this.userService.user.selectedProject;
+    const projectId = proj && proj.id;
+    if (!projectId || !this.sldResult) return;
+
+    const sldAnalysis = {
+      status: 'accepted',
+      summary: this.sldResult.summary || '',
+      vfdsFound: this.sldResult.extraction ? this.sldResult.extraction.vfdsFound : false,
+      powerQualityRisks: (this.sldResult.extraction && this.sldResult.extraction.powerQualityRisks) || [],
+      codeIssues: (this.sldResult.extraction && this.sldResult.extraction.codeIssues) || [],
+      nonStandardConfigurations: (this.sldResult.extraction && this.sldResult.extraction.nonStandardConfigurations) || [],
+      panels: (this.sldResult.extraction && this.sldResult.extraction.panels) || [],
+      facilityName: (this.sldResult.extraction && this.sldResult.extraction.facilityName) || '',
+    };
+
+    this.sldService.acceptSld(projectId, this.sldResult.placements || [], sldAnalysis).subscribe(
+      () => {
+        this.sldSaved = true;
+        // Update local project state so the "already accepted" banner shows on next visit
+        proj.placements = this.sldResult.placements || [];
+        proj.sldAnalysis = sldAnalysis;
+      },
+      (err: any) => {
+        this.sldError = 'Failed to save recommendations. Please try again.';
+      }
+    );
+  }
+
+  dismissSldRecommendations() {
+    this.sldResult = null;
+    this.sldError = null;
+    this.sldSaved = false;
+  }
+
+  hasPanelFlags(result: any): boolean {
+    if (!result || !result.extraction || !result.extraction.panels) return false;
+    return result.extraction.panels.some((p: any) => p.flags && p.flags.length > 0);
   }
 
 }
