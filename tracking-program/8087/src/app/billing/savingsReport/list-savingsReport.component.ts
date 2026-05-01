@@ -1067,6 +1067,8 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         if (rf['tariff']           && !merged.tariff)            { merged.tariff            = rf['tariff']; }
       }
       this.populateFromScan(merged);
+      // Pre-fill SLD peak kW from the bill analysis so the user doesn't have to retype it.
+      if (eba.kwPeak) { this.sldPeakKw = parseFloat(eba.kwPeak) || null; }
     }
 
     // Restore all EM&V Pre-fill fields from project.reportFields so they show on every page load.
