@@ -2063,6 +2063,11 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   analyzeSldDrawing() {
     if (!this.sldFile) return;
+    const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+    if (this.sldFile.size > MAX_BYTES) {
+      this.sldError = `File is too large (${(this.sldFile.size / 1024 / 1024).toFixed(1)} MB). Maximum upload size is 50 MB. Try selecting fewer pages or splitting the SLD.`;
+      return;
+    }
     this.sldScanning = true;
     this.sldError = null;
     this.sldResult = null;
@@ -2084,8 +2089,13 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       },
       (err: any) => {
         this.sldScanning = false;
-        const msg = (err && err.error && err.error.error) || 'SLD analysis failed. Please try again.';
-        this.sldError = msg;
+        const status = err && err.status;
+        if (status === 413) {
+          this.sldError = 'File is too large for the server (max 50 MB). Try selecting fewer SLD sheets or splitting the file.';
+        } else {
+          const msg = (err && err.error && err.error.error) || 'SLD analysis failed. Please try again.';
+          this.sldError = msg;
+        }
       }
     );
   }
