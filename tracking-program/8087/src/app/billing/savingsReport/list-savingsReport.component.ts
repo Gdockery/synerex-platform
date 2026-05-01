@@ -423,7 +423,7 @@ let moment = require('moment');
             <div class="form-group" style="margin:0; display:flex; align-items:center; gap:6px;">
               <label style="margin:0; white-space:nowrap; font-weight:normal; font-size:0.9em;">Bill peak kW <span class="text-muted" style="font-weight:normal;">(optional):</span></label>
               <input type="number" class="form-control" [(ngModel)]="sldPeakKw" [ngModelOptions]="{standalone: true}"
-                     placeholder="e.g. 450" style="width:110px;" />
+                     [placeholder]="kwPeak ? kwPeak : 'e.g. 450'" style="width:110px;" />
             </div>
             <button type="button" class="default-button green-button" (click)="analyzeSldDrawing()" [disabled]="!sldFile || sldScanning">
               {{ sldScanning ? sldScanStatus : 'Analyze Drawing' }}
@@ -1184,6 +1184,13 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   displaySavingsReport(event, savingsReport) {
     this.selectedSavingsReport = savingsReport;
+    // Reset SLD state when switching bills so the peak kW re-populates correctly
+    this.sldFile = null;
+    this.sldPeakKw = null;
+    this.sldResult = null;
+    this.sldSaved = false;
+    this.sldError = null;
+    this.sldShowRescan = false;
 
     this.kwhUsage = this.selectedSavingsReport.reportData.usageKWH;
     this.kwPeak = this.selectedSavingsReport.reportData.kwPeak;
@@ -1985,6 +1992,10 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.sldError = null;
     this.sldResult = null;
     this.sldSaved = false;
+    // Pre-fill peak kW from the selected bill if the field is still empty
+    if (this.sldPeakKw == null && this.kwPeak) {
+      this.sldPeakKw = parseFloat(String(this.kwPeak)) || null;
+    }
   }
 
   analyzeSldDrawing() {
