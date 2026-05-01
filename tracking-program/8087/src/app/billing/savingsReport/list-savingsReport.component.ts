@@ -13,6 +13,7 @@ import { ClientService } from "../../admin/client/client.service";
 import { SldService } from "./sld.service";
 
 let moment = require('moment');
+const { PDFDocument } = require('pdf-lib');
 
 @Component({
   template: `
@@ -419,14 +420,17 @@ let moment = require('moment');
 
         <div *ngIf="!userService.user.selectedProject?.sldAnalysis || userService.user.selectedProject?.sldAnalysis?.status !== 'accepted' || sldShowRescan">
           <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.5em;">
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" (change)="onSldFileSelect($event)" style="max-width:360px;" />
+            <div>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple (change)="onSldFileSelect($event)" style="max-width:380px;" />
+              <div *ngIf="sldMergeStatus" style="font-size:0.82em; color:#555; margin-top:3px;">{{ sldMergeStatus }}</div>
+            </div>
             <div class="form-group" style="margin:0; display:flex; align-items:center; gap:6px;">
               <label style="margin:0; white-space:nowrap; font-weight:normal; font-size:0.9em;">Bill peak kW <span class="text-muted" style="font-weight:normal;">(optional):</span></label>
               <input type="number" class="form-control" [(ngModel)]="sldPeakKw" [ngModelOptions]="{standalone: true}"
                      [placeholder]="kwPeak ? kwPeak : 'e.g. 450'" style="width:110px;" />
             </div>
-            <button type="button" class="default-button green-button" (click)="analyzeSldDrawing()" [disabled]="!sldFile || sldScanning">
-              {{ sldScanning ? sldScanStatus : 'Analyze Drawing' }}
+            <button type="button" class="default-button green-button" (click)="analyzeSldDrawing()" [disabled]="!sldFile || sldScanning || sldMerging">
+              {{ sldScanning ? sldScanStatus : (sldMerging ? 'Merging PDFs…' : 'Analyze Drawing') }}
             </button>
           </div>
           <div *ngIf="sldError" style="color:#c00; font-size:0.9em; margin-bottom:0.5em;">{{ sldError }}</div>
@@ -951,6 +955,8 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public sldFile: File | null = null;
   public sldPeakKw: number | null = null;
   public sldScanning = false;
+  public sldMerging = false;
+  public sldMergeStatus: string | null = null;
   public sldScanStatus = 'Analyzing drawing…';
   public sldError: string | null = null;
   public sldResult: any = null;
@@ -1990,14 +1996,69 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   onSldFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    this.sldFile = (input && input.files && input.files[0]) ? input.files[0] : null;
+    const files = input && input.files ? Array.from(input.files) : [];
     this.sldError = null;
     this.sldResult = null;
     this.sldSaved = false;
-    // Pre-fill peak kW from the selected bill if the field is still empty
+    this.sldMergeStatus = null;
+
+    if (files.length === 0) {
+      this.sldFile = null;
+      return;
+    }
+
     if (this.sldPeakKw == null && this.kwPeak) {
       this.sldPeakKw = parseFloat(String(this.kwPeak)) || null;
     }
+
+    const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    const nonPdfs = files.filter(f => !f.name.toLowerCase().endsWith('.pdf'));
+
+    // Single file or non-PDF: no merging needed
+    if (files.length === 1 || pdfs.length <= 1) {
+      this.sldFile = files[0];
+      if (files.length > 1) {
+        this.sldMergeStatus = `${files.length} files selected`;
+      }
+      return;
+    }
+
+    // Multiple PDFs: merge them with pdf-lib
+    this.sldMerging = true;
+    this.sldFile = null;
+    this.sldMergeStatus = `Merging ${pdfs.length} PDFs…`;
+
+    this._mergePdfs(pdfs).then(merged => {
+      this.sldFile = merged;
+      const names = pdfs.map(f => f.name).join(', ');
+      this.sldMergeStatus = `Merged ${pdfs.length} PDFs — ready to analyze`;
+      this.sldMerging = false;
+    }).catch(err => {
+      this.sldError = 'Failed to merge PDFs. Try combining them manually first.';
+      this.sldFile = pdfs[0]; // fallback: just use the first one
+      this.sldMergeStatus = null;
+      this.sldMerging = false;
+    });
+  }
+
+  private async _mergePdfs(files: File[]): Promise<File> {
+    const merged = await PDFDocument.create();
+    for (const file of files) {
+      const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e: any) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+      const doc = await PDFDocument.load(buf);
+      const pageIndices = doc.getPageIndices();
+      const copied = await merged.copyPages(doc, pageIndices);
+      copied.forEach((page: any) => merged.addPage(page));
+    }
+    const mergedBytes = await merged.save();
+    const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+    const baseName = files[0].name.replace(/\.pdf$/i, '');
+    return new File([blob], `${baseName} + ${files.length - 1} others.pdf`, { type: 'application/pdf' });
   }
 
   analyzeSldDrawing() {
