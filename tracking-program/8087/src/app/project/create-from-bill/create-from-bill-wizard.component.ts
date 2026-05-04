@@ -25,6 +25,7 @@ export class CreateFromBillWizardComponent implements OnInit {
   submitted = false;          // true after fire-and-forget bill submit succeeds
   resuming = false;           // true while fetching result for ?resume= flow
   resumeError: string = null; // set if resume fetch fails or job still pending
+  billFormTouched = false;    // shows step-4 error alert after failed Next attempt
   submitting = false;
   createdProject: any = null;
   selectedFile: File = null;
@@ -276,6 +277,11 @@ export class CreateFromBillWizardComponent implements OnInit {
     }
     if (this.step === 4 && !this.billForm.valid) {
       this.billForm.markAllAsTouched();
+      this.billFormTouched = true;
+      const invalid = Object.entries(this.billForm.controls)
+        .filter(([, c]) => c.invalid)
+        .map(([k]) => k);
+      console.warn('[Wizard] billForm invalid on step 4, invalid fields:', invalid);
       return;
     }
     if (this.step < this.maxStep) {

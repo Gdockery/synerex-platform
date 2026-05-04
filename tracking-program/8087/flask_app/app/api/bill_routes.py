@@ -46,11 +46,14 @@ def _map_platform_result(parse: dict) -> dict:
             "quantity": qty,
         })
 
-    bill_amount_raw = str(parse.get("billAmount") or "")
-    bill_amount = bill_amount_raw.strip()
-    for sym in ("NT$", "$", "€", "£", "¥", "₩"):
-        bill_amount = bill_amount.replace(sym, "")
-    bill_amount = bill_amount.replace(",", "").strip()
+    def _clean_currency(val) -> str:
+        """Strip currency symbols and thousands commas so Angular number validators accept it."""
+        s = str(val or "").strip()
+        for sym in ("NT$", "$", "€", "£", "¥", "₩"):
+            s = s.replace(sym, "")
+        return s.replace(",", "").strip()
+
+    bill_amount = _clean_currency(parse.get("billAmount"))
 
     bill_date = None
     bill_date_str = parse.get("billDate")
@@ -88,8 +91,8 @@ def _map_platform_result(parse: dict) -> dict:
         "kwhRate":                parse.get("kwhRate") or "",
         "kwRatePerTariff":        parse.get("kwRatePerTariff") or "",
         "daysBilled":             parse.get("daysBilled") or "",
-        "customerCharge":         parse.get("customerCharge") or "",
-        "taxAmount":              parse.get("taxAmount") or "",
+        "taxAmount":              _clean_currency(parse.get("taxAmount")),
+        "customerCharge":         _clean_currency(parse.get("customerCharge")),
         "tariff":                 parse.get("tariff") or "",
         "billReference":          parse.get("billReference") or "",
         "voltage":                parse.get("voltage") or "",

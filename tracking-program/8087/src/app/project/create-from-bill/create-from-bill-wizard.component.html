@@ -231,6 +231,9 @@
         </div>
       </div>
     </form>
+    <div *ngIf="step === 4 && billForm.invalid && billFormTouched" class="alert alert-danger mt-2" style="font-size:0.9em;">
+      Please fill in the required fields: Total KWH, KW Peak, and Bill Amount.
+    </div>
     <button class="btn btn-primary" (click)="nextStep()">Next</button>
     <button class="btn btn-default ml-1" (click)="prevStep()">Back</button>
   </div>
