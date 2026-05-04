@@ -390,7 +390,9 @@ const { PDFDocument } = require('pdf-lib');
       <!-- Scan Bill for Bill Analytic                                      -->
       <!-- ───────────────────────────────────────────────────────────────── -->
       <div id="bill-scan-section" style="background:#f0fff4; border:1px solid #b0d8b8; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
-        <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a6a1a;">Scan Bill for Bill Analytic
+        <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a6a1a;">
+          <span *ngIf="billScanSuccess || userService.user.selectedProject?.electricBillAnalysis?.totalKwh"
+                style="color:#2a7a2a; margin-right:0.15em;">&#10003;</span>Scan Bill for Bill Analytic
           <small style="font-size:0.65em; color:#555; font-weight:normal;">— auto-fill Bill Analytic fields and EM&amp;V billing rates from a scanned PDF</small>
         </h3>
         <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.5em;">
@@ -408,7 +410,9 @@ const { PDFDocument } = require('pdf-lib');
       <!-- ───────────────────────────────────────────────────────────────── -->
       <div id="sld-upload-section" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10"
            style="background:#f0f4ff; border:1px solid #b0c4e0; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
-        <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a3a6a;">Upload Single-Line Drawing
+        <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a3a6a;">
+          <span *ngIf="userService.user.selectedProject?.sldAnalysis?.status === 'accepted'"
+                style="color:#155724; margin-right:0.15em;">&#10003;</span>Upload Single-Line Drawing
           <small style="font-size:0.65em; color:#555; font-weight:normal;">— AI identifies equipment placement recommendations from your electrical SLD</small>
         </h3>
 
@@ -1755,9 +1759,24 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   onBillScanFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
-    this.billScanFile = (input && input.files && input.files[0]) ? input.files[0] : null;
+    const newFile = (input && input.files && input.files[0]) ? input.files[0] : null;
+    if (!newFile) { this.billScanFile = null; return; }
+
+    const alreadyScanned = this.billScanSuccess ||
+      !!(this.userService.user.selectedProject?.electricBillAnalysis?.totalKwh ||
+         this.userService.user.selectedProject?.electricBillAnalysis?.kwPeak);
+
+    if (alreadyScanned) {
+      const ok = confirm('A bill has already been scanned for this project. Scanning a new one will replace the current data. Continue?');
+      if (!ok) {
+        input.value = '';
+        return;
+      }
+      this.billScanSuccess = false;
+    }
+
+    this.billScanFile = newFile;
     this.billScanError = null;
-    this.billScanSuccess = false;
   }
 
   scanBillForAnalytic() {
@@ -2221,15 +2240,27 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   onSldFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     const files = input && input.files ? Array.from(input.files) : [];
-    this.sldError = null;
-    this.sldResult = null;
-    this.sldSaved = false;
-    this.sldMergeStatus = null;
 
     if (files.length === 0) {
       this.sldFile = null;
       return;
     }
+
+    const alreadyAnalyzed = !!(this.sldResult) ||
+      this.userService.user.selectedProject?.sldAnalysis?.status === 'accepted';
+
+    if (alreadyAnalyzed) {
+      const ok = confirm('An SLD has already been analyzed for this project. Uploading a new one will replace the current result. Continue?');
+      if (!ok) {
+        input.value = '';
+        return;
+      }
+    }
+
+    this.sldError = null;
+    this.sldResult = null;
+    this.sldSaved = false;
+    this.sldMergeStatus = null;
 
     if (this.sldPeakKw == null && this.kwPeak) {
       this.sldPeakKw = parseFloat(String(this.kwPeak)) || null;
