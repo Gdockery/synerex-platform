@@ -1,5 +1,12 @@
 import { Component, OnInit, Inject } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+
+function numericValidator(control: AbstractControl): ValidationErrors | null {
+  const v = control.value;
+  if (v === null || v === undefined || v === '') { return null; }
+  return /^-?[0-9]+(\.[0-9]+)?$/.test(String(v)) ? null : { number: true };
+}
+
 import { ActivatedRoute, Router } from '@angular/router';
 import { CustomValidators } from 'ng2-validation';
 import { IMyOptions } from 'mydatepicker';
@@ -110,13 +117,13 @@ export class CreateFromBillWizardComponent implements OnInit {
       electricCompanyZip: [''],
       accountNumber: [''],
       meterNumber: [''],
-      totalKwh: ['', [Validators.required, CustomValidators.number]],
-      kwPeak: ['', [Validators.required, CustomValidators.number]],
-      billAmount: ['', [Validators.required, CustomValidators.number]],
-      daysBilled: ['', CustomValidators.number],
-      voltage: ['', CustomValidators.number],
-      kwRatePerTariff: ['', CustomValidators.number],
-      customerCharge: ['', CustomValidators.number],
+      totalKwh: ['', [Validators.required, numericValidator]],
+      kwPeak: ['', [Validators.required, numericValidator]],
+      billAmount: ['', [Validators.required, numericValidator]],
+      daysBilled: ['', numericValidator],
+      voltage: ['', numericValidator],
+      kwRatePerTariff: ['', numericValidator],
+      customerCharge: ['', numericValidator],
       tariff: ['']
     });
   }
