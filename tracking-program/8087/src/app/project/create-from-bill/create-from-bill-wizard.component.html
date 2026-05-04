@@ -11,35 +11,67 @@
   </ul>
 
   <div *ngIf="step === 1" class="content-box">
-    <h4>Upload Electric Bill PDF</h4>
-    <input #pdfFileInput type="file" accept=".pdf,application/pdf" (change)="onFileSelect($event); pdfFileInput.value=''" style="display:none">
-    <button type="button" class="btn btn-default" (click)="pdfFileInput.click()">
-      <span class="fa fa-plus"></span> Choose PDF
-    </button>
-    <span *ngIf="selectedFile" class="ml-2 text-muted">{{ selectedFile.name }}</span>
-    <div class="form-group mt-3" style="max-width:400px;">
-      <label for="metersInput">Meter number(s) <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
-      <input id="metersInput" type="text" class="form-control" [(ngModel)]="metersInput" [ngModelOptions]="{standalone: true}"
-             placeholder="e.g. E1983028">
-      <small class="text-muted">For multi-meter bills, enter the meter(s) to use for kWh/demand calculations. Leave blank to auto-detect.</small>
+
+    <!-- Resuming: loading GPU result via ?resume= param -->
+    <div *ngIf="resuming" style="padding:1.5em; text-align:center; color:#555;">
+      <span class="fa fa-spinner fa-spin" style="font-size:1.5em; margin-right:0.5em;"></span>
+      Loading bill data... please wait.
     </div>
-    <div class="form-group mt-2" style="max-width:400px;">
-      <label for="pageRangeInput">Page Range <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
-      <input id="pageRangeInput" type="text" class="form-control" [(ngModel)]="pageRangeInput" [ngModelOptions]="{standalone: true}"
-             placeholder="e.g. 23-24, or 23,24, or 20-27,32">
-      <small class="text-muted">Use standard print-range format: <strong>23-24</strong> for a range, <strong>23,24</strong> for specific pages, <strong>20-27,32</strong> for a range plus an extra page. Leave blank to process all pages automatically.</small>
+
+    <!-- Resume error -->
+    <div *ngIf="resumeError && !resuming" class="alert alert-warning" style="margin-top:0.5em;">
+      <strong>Could not resume:</strong> {{ resumeError }}
+      <div class="mt-2">
+        <button class="btn btn-default btn-sm" (click)="resumeError = null">Try uploading a new bill</button>
+      </div>
     </div>
-    <div *ngIf="pdfPageCount > 8 && !pageRangeInput" class="alert alert-warning mt-2">
-      <strong>Large bill detected ({{ pdfPageCount }} pages).</strong> Processing may take longer — entering a page range is recommended to speed things up.
+
+    <!-- Submitted (fire-and-forget success) state -->
+    <div *ngIf="submitted && !resuming" style="padding:1.5em; background:#f5f0ff; border:1px solid #c8b4e0; border-radius:6px;">
+      <h4 style="color:#4a1a5c; margin-top:0;">&#10003; Bill submitted for analysis</h4>
+      <p style="margin-bottom:0.5em;">
+        The AI is scanning your bill in the background &mdash; this usually takes <strong>5&ndash;15 minutes</strong>.
+        You can safely navigate away. When it's ready, a <strong>Continue Setup &rarr;</strong> button
+        will appear on the project list page.
+      </p>
+      <div class="mt-2">
+        <button class="btn btn-default" (click)="cancel()">Go to Project List</button>
+        <button class="btn btn-link ml-2" style="font-size:0.9em;" (click)="submitted = false">Upload a different bill instead</button>
+      </div>
     </div>
-    <div *ngIf="scanError" class="alert alert-danger mt-2">{{ scanError }}</div>
-    <div class="mt-2">
-      <button class="btn btn-primary" (click)="uploadAndAnalyze()" [disabled]="!selectedFile || uploading">
-        <span *ngIf="uploading">Analyzing...</span>
-        <span *ngIf="!uploading">Analyze Bill</span>
+
+    <!-- Normal upload form -->
+    <ng-container *ngIf="!submitted && !resuming && !resumeError">
+      <h4>Upload Electric Bill PDF</h4>
+      <input #pdfFileInput type="file" accept=".pdf,application/pdf" (change)="onFileSelect($event); pdfFileInput.value=''" style="display:none">
+      <button type="button" class="btn btn-default" (click)="pdfFileInput.click()">
+        <span class="fa fa-plus"></span> Choose PDF
       </button>
-      <button class="btn btn-default ml-1" (click)="cancel()">Cancel</button>
-    </div>
+      <span *ngIf="selectedFile" class="ml-2 text-muted">{{ selectedFile.name }}</span>
+      <div class="form-group mt-3" style="max-width:400px;">
+        <label for="metersInput">Meter number(s) <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+        <input id="metersInput" type="text" class="form-control" [(ngModel)]="metersInput" [ngModelOptions]="{standalone: true}"
+               placeholder="e.g. E1983028">
+        <small class="text-muted">For multi-meter bills, enter the meter(s) to use for kWh/demand calculations. Leave blank to auto-detect.</small>
+      </div>
+      <div class="form-group mt-2" style="max-width:400px;">
+        <label for="pageRangeInput">Page Range <span class="text-muted" style="font-weight:normal;">(optional)</span></label>
+        <input id="pageRangeInput" type="text" class="form-control" [(ngModel)]="pageRangeInput" [ngModelOptions]="{standalone: true}"
+               placeholder="e.g. 23-24, or 23,24, or 20-27,32">
+        <small class="text-muted">Use standard print-range format: <strong>23-24</strong> for a range, <strong>23,24</strong> for specific pages, <strong>20-27,32</strong> for a range plus an extra page. Leave blank to process all pages automatically.</small>
+      </div>
+      <div *ngIf="pdfPageCount > 8 && !pageRangeInput" class="alert alert-warning mt-2">
+        <strong>Large bill detected ({{ pdfPageCount }} pages).</strong> Processing may take longer &mdash; entering a page range is recommended to speed things up.
+      </div>
+      <div *ngIf="scanError" class="alert alert-danger mt-2">{{ scanError }}</div>
+      <div class="mt-2">
+        <button class="btn btn-primary" (click)="uploadAndAnalyze()" [disabled]="!selectedFile || uploading">
+          <span *ngIf="uploading"><span class="fa fa-spinner fa-spin"></span> Submitting...</span>
+          <span *ngIf="!uploading">Analyze Bill</span>
+        </button>
+        <button class="btn btn-default ml-1" (click)="cancel()">Cancel</button>
+      </div>
+    </ng-container>
   </div>
 
   <div *ngIf="step === 2" class="content-box">
@@ -138,7 +170,7 @@
   </div>
 
   <div *ngIf="step === 4" class="content-box">
-    <h4>Bill Analytic (Review & Edit)</h4>
+    <h4>Bill Analytic (Review &amp; Edit)</h4>
     <form [formGroup]="billForm">
       <div class="row">
         <div class="col-md-3">

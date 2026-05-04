@@ -87,6 +87,14 @@ export class CreateFromBillService {
   }
 
   /**
+   * GET /api/bill/analyze/<gpu_id> — fetch a completed bill result from the GPU proxy.
+   * Used by the wizard resume flow to pre-fill forms from a fire-and-forget submission.
+   */
+  getBillResult(gpuJobId: number): Observable<any> {
+    return this.apiRequestService.get(`/api/bill/analyze/${gpuJobId}`);
+  }
+
+  /**
    * POST /api/bill/analyze — fire-and-forget submit.
    * Returns { job_id (GPU int), job_type, filename, estimated_minutes } immediately.
    * Caller saves to localStorage; My Jobs section handles polling.

@@ -1,12 +1,14 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { CustomValidators } from 'ng2-validation';
 import { IMyOptions } from 'mydatepicker';
 import { CreateFromBillService } from './create-from-bill.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 import { UserService } from '../../shared/user/user.service';
 import { TimeHelpers } from '../../shared/helpers/timeHelpers.service';
+
+export const PENDING_BILL_PROJECT_KEY = 'pending_bill_project';
 
 @Component({
   selector: 'create-from-bill-wizard',
@@ -20,6 +22,9 @@ export class CreateFromBillWizardComponent implements OnInit {
   scanError: string = null;
   uploadError: string = null;
   uploading = false;
+  submitted = false;          // true after fire-and-forget bill submit succeeds
+  resuming = false;           // true while fetching result for ?resume= flow
+  resumeError: string = null; // set if resume fetch fails or job still pending
   submitting = false;
   createdProject: any = null;
   selectedFile: File = null;
@@ -40,6 +45,7 @@ export class CreateFromBillWizardComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private router: Router,
+    private route: ActivatedRoute,
     private createFromBillService: CreateFromBillService,
     private userService: CurrentUserService,
     private usrService: UserService,
@@ -50,6 +56,30 @@ export class CreateFromBillWizardComponent implements OnInit {
   ngOnInit() {
     this.buildForms();
     this.clients = (window['BOOTSTRAP_DATA'] && window['BOOTSTRAP_DATA'].clients) || [];
+
+    // Resume flow: ?resume=<gpu_job_id> — fetch result, pre-fill forms, skip to step 2
+    const resumeId = this.route.snapshot.queryParamMap.get('resume');
+    if (resumeId) {
+      this.resuming = true;
+      this.createFromBillService.getBillResult(Number(resumeId)).subscribe(
+        (res: any) => {
+          this.resuming = false;
+          if (res.status === 'done' && res.data) {
+            this.scanData = res.data;
+            this.prefillFromScan();
+            this.step = 2;
+          } else if (res.status === 'error') {
+            this.resumeError = 'The bill scan failed. Please try uploading again.';
+          } else {
+            this.resumeError = 'The bill scan is still processing — check back in a moment.';
+          }
+        },
+        () => {
+          this.resuming = false;
+          this.resumeError = 'Could not load the bill result. Please try again.';
+        }
+      );
+    }
   }
 
   private buildForms() {
@@ -138,30 +168,46 @@ export class CreateFromBillWizardComponent implements OnInit {
       this.scanError = 'Please select a PDF file.';
       return;
     }
-    if (this.selectedFile.size > 10 * 1024 * 1024) {
-      this.scanError = 'File must be 10 MB or smaller.';
+    if (this.selectedFile.size > 50 * 1024 * 1024) {
+      this.scanError = 'File must be 50 MB or smaller.';
       return;
     }
     this.scanError = null;
     this.uploadError = null;
     this.uploading = true;
-    this.createFromBillService.analyzeBill(this.selectedFile, this.metersInput || undefined, this.pageRangeInput || undefined).subscribe(
+
+    // Fire-and-forget: submit to GPU and return immediately.
+    // Save GPU job ID to localStorage; project list page will poll and offer resume.
+    this.createFromBillService.submitBillAnalysis(
+      this.selectedFile,
+      this.metersInput || undefined,
+      this.pageRangeInput || undefined
+    ).subscribe(
       (res: any) => {
         this.uploading = false;
-        const data = res.data || res;
-        if (res.success !== false && data && Object.keys(data).length > 0) {
-          this.scanData = data;
-          this.prefillFromScan();
-          this.step = 2;
+        if (res && res.success && res.job_id) {
+          try {
+            localStorage.setItem(PENDING_BILL_PROJECT_KEY, JSON.stringify({
+              gpu_job_id: res.job_id,
+              filename: res.filename || this.selectedFile.name,
+              submitted_at: Date.now(),
+              estimated_minutes: res.estimated_minutes || 10,
+            }));
+          } catch (_) {}
+          this.submitted = true;
         } else {
-          this.scanError = res.error || 'Could not extract bill data. Please enter information manually.';
+          this.scanError = (res && res.error) || 'Submission failed. Please try again.';
         }
       },
       err => {
         this.uploading = false;
-        const msg = err && err.error ? (err.error.error || err.error.message || 'Upload failed') : 'Upload failed. Please try again.';
-        this.scanError = msg;
-        this.uploadError = msg;
+        const status = err && err.status;
+        if (status === 413) {
+          this.scanError = 'File is too large for the server (max 50 MB). Try a smaller file.';
+        } else {
+          const msg = err && err.error ? (err.error.error || err.error.message || 'Upload failed') : 'Upload failed. Please try again.';
+          this.scanError = msg;
+        }
       }
     );
   }
@@ -355,6 +401,8 @@ export class CreateFromBillWizardComponent implements OnInit {
           }
         }
         this.step = this.maxStep;
+        // Project created — remove pending resume marker
+        try { localStorage.removeItem(PENDING_BILL_PROJECT_KEY); } catch (_) {}
       },
       err => {
         this.submitting = false;
