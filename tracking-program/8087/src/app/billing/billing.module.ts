@@ -30,6 +30,8 @@ import {DeviceService} from "../electricityMeters/devices/device.service";
 import {CreateFromBillService} from "../project/create-from-bill/create-from-bill.service";
 import {ClientService} from "../admin/client/client.service";
 import {SldService} from "./savingsReport/sld.service";
+import {MyJobsService} from "./savingsReport/my-jobs.service";
+import {GpuQueueComponent} from "./savingsReport/gpu-queue.component";
 import {NgPipesModule} from "angular-pipes";
 import {EnergySavingsService} from "../savings/energySavings.service";
 import {CommonModule} from "@angular/common";
@@ -63,7 +65,8 @@ import { TimepickerModule } from "ngx-bootstrap/timepicker";
     CreateSavingsReportComponent,
     SavingsReportFormComponent,
     LineItemFormComponent,
-    InvoiceComponent
+    InvoiceComponent,
+    GpuQueueComponent,
   ],
   exports: [],
   providers: [
@@ -79,6 +82,7 @@ import { TimepickerModule } from "ngx-bootstrap/timepicker";
     EnergySavingsService,
     ClientService,
     SldService,
+    MyJobsService,
   ]
 })
 export class BillingModule { }

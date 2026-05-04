@@ -1,16 +1,13 @@
 """
 SLD (Single-Line Drawing) routes.
 
-POST /api/sld/analyze              — submit PDF or image, returns job_id immediately
-GET  /api/sld/analyze/<job_id>     — poll for result (pending / done / error)
+POST /api/sld/analyze              — submit file to GPU, return GPU job ID immediately
+GET  /api/sld/analyze/<gpu_id>     — pure GPU proxy
 POST /api/project/<id>/sld/accept  — save placements + sldAnalysis to project
-POST /api/project/<id>/sld/dismiss — dismiss review (front-end only, no DB change)
+POST /api/project/<id>/sld/dismiss — front-end only acknowledgment
 """
 import logging
 import os
-import threading
-import time
-import uuid
 
 import requests as _requests
 from flask import Blueprint, jsonify, request
@@ -25,22 +22,7 @@ logger = logging.getLogger(__name__)
 
 sld_bp = Blueprint("sld", __name__, url_prefix="")
 
-# Shared with bill_routes — same GPU server, same port
 SLD_PLATFORM_URL = os.environ.get("BILL_PLATFORM_URL", "http://100.106.19.30:8000")
-SLD_PLATFORM_TIMEOUT = int(os.environ.get("BILL_PLATFORM_TIMEOUT", "600"))
-
-_SLD_JOBS: dict = {}
-_SLD_JOBS_LOCK = threading.Lock()
-_SLD_JOB_TTL = 1800  # 30 minutes
-
-
-def _prune_sld_jobs() -> None:
-    now = time.time()
-    with _SLD_JOBS_LOCK:
-        stale = [k for k, v in _SLD_JOBS.items() if now - v.get("created_at", 0) > _SLD_JOB_TTL]
-        for k in stale:
-            del _SLD_JOBS[k]
-
 
 _CONTENT_TYPES = {
     "pdf": "application/pdf",
@@ -51,88 +33,16 @@ _CONTENT_TYPES = {
 }
 
 
-def _run_sld_extraction(job_id: str, file_bytes: bytes, filename: str, bill_peak_kw=None) -> None:
-    platform_url = SLD_PLATFORM_URL
-    poll_interval = 5
-    max_wait = SLD_PLATFORM_TIMEOUT
-
-    try:
-        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "pdf"
-        ct = _CONTENT_TYPES.get(ext, "application/octet-stream")
-
-        extra_data = {}
-        if bill_peak_kw is not None:
-            extra_data["bill_peak_kw"] = str(bill_peak_kw)
-
-        logger.info("SLD job %s: POSTing to %s/slds (file=%s peak_kw=%s)", job_id, platform_url, filename, bill_peak_kw)
-        resp = _requests.post(
-            f"{platform_url}/slds",
-            files={"file": (filename, file_bytes, ct)},
-            data=extra_data,
-            timeout=60,
-        )
-        resp.raise_for_status()
-        sld_id = resp.json()["id"]
-        logger.info("SLD job %s: platform sld_id=%s", job_id, sld_id)
-
-        deadline = time.time() + max_wait
-        while time.time() < deadline:
-            time.sleep(poll_interval)
-            poll = _requests.get(f"{platform_url}/slds/{sld_id}", timeout=15)
-            if poll.status_code == 404:
-                logger.info("SLD job %s: 404 while polling sld_id=%s — still processing", job_id, sld_id)
-                continue
-            poll.raise_for_status()
-            data = poll.json()
-            status = data.get("status")
-            logger.info("SLD job %s: poll status=%s", job_id, status)
-
-            if status == "pending_review":
-                with _SLD_JOBS_LOCK:
-                    _SLD_JOBS[job_id].update({
-                        "status": "done",
-                        "sld_id": sld_id,
-                        "result": data.get("result") or {},
-                    })
-                return
-            elif status == "failed":
-                raw = (data.get("raw_notes") or "").strip()
-                with _SLD_JOBS_LOCK:
-                    _SLD_JOBS[job_id].update({
-                        "status": "error",
-                        "error": f"SLD parsing failed: {raw}" if raw else "SLD parsing failed. Please try again.",
-                    })
-                return
-            # status == "processing" → keep polling
-
-        # Timeout
-        with _SLD_JOBS_LOCK:
-            _SLD_JOBS[job_id].update({
-                "status": "error",
-                "error": "SLD analysis timed out. Please try again with a smaller file or narrower page range.",
-            })
-
-    except _requests.ConnectionError:
-        logger.warning("SLD job %s: cannot reach platform at %s", job_id, platform_url)
-        with _SLD_JOBS_LOCK:
-            _SLD_JOBS[job_id].update({
-                "status": "error",
-                "error": "Cannot connect to the SLD processing service. Please try again later.",
-            })
-    except Exception:
-        logger.exception("SLD extraction error for job %s", job_id)
-        with _SLD_JOBS_LOCK:
-            _SLD_JOBS[job_id].update({
-                "status": "error",
-                "error": "SLD analysis failed. Please try again.",
-            })
-
-
 @sld_bp.route("/api/sld/analyze", methods=["POST"])
 @login_required
 @license_required
 def analyze_sld():
-    """POST /api/sld/analyze — submit SLD file for async AI extraction."""
+    """
+    POST /api/sld/analyze
+    Submits SLD file to GPU server, returns GPU job ID immediately.
+    Angular saves { gpu_job_id, filename, estimated_minutes } to localStorage
+    and polls GET /api/sld/analyze/<gpu_id> via My Jobs.
+    """
     role = getattr(current_user, "role", None)
     if role not in (8, 9, 10):
         return jsonify({"success": False, "error": "Unauthorized"}), 403
@@ -167,44 +77,89 @@ def analyze_sld():
     except (ValueError, TypeError):
         pass
 
-    _prune_sld_jobs()
-    job_id = str(uuid.uuid4())
-    with _SLD_JOBS_LOCK:
-        _SLD_JOBS[job_id] = {"status": "pending", "created_at": time.time()}
-
     filename = file.filename or "sld.pdf"
-    t = threading.Thread(
-        target=_run_sld_extraction,
-        args=(job_id, file_bytes, filename, bill_peak_kw),
-        daemon=True,
-    )
-    t.start()
+    ct = _CONTENT_TYPES.get(ext, "application/octet-stream")
 
-    logger.info("SLD analyze job %s started (file=%s)", job_id, filename)
-    return jsonify({"success": True, "job_id": job_id, "status": "pending"}), 202
+    extra_data = {}
+    if bill_peak_kw is not None:
+        extra_data["bill_peak_kw"] = str(bill_peak_kw)
+
+    try:
+        resp = _requests.post(
+            f"{SLD_PLATFORM_URL}/slds",
+            files={"file": (filename, file_bytes, ct)},
+            data=extra_data,
+            timeout=60,
+        )
+        resp.raise_for_status()
+    except _requests.ConnectionError:
+        return jsonify({"success": False, "error": "Cannot connect to the SLD processing service. Please try again later."}), 503
+    except _requests.HTTPError as e:
+        return jsonify({"success": False, "error": f"GPU server error: {e.response.status_code}"}), 502
+    except Exception as e:
+        logger.exception("Failed to submit SLD to GPU")
+        return jsonify({"success": False, "error": f"Failed to submit SLD: {e}"}), 500
+
+    gpu_data = resp.json()
+    gpu_id = gpu_data.get("id")
+    estimated_minutes = gpu_data.get("estimated_minutes", 30)
+
+    logger.info("SLD submitted to GPU: gpu_id=%s file=%s peak_kw=%s", gpu_id, filename, bill_peak_kw)
+    return jsonify({
+        "success": True,
+        "job_id": gpu_id,
+        "job_type": "sld",
+        "filename": filename,
+        "estimated_minutes": estimated_minutes,
+        "status": "pending",
+    }), 202
 
 
-@sld_bp.route("/api/sld/analyze/<job_id>", methods=["GET"])
+@sld_bp.route("/api/sld/analyze/<gpu_id>", methods=["GET"])
 @login_required
-def analyze_sld_status(job_id: str):
-    """GET /api/sld/analyze/<job_id> — poll for result."""
-    with _SLD_JOBS_LOCK:
-        job = _SLD_JOBS.get(job_id)
-    if not job:
-        return jsonify({"status": "error", "error": "Job not found or expired"}), 404
+def analyze_sld_status(gpu_id: str):
+    """
+    GET /api/sld/analyze/<gpu_id>
+    Pure GPU proxy — maps GPU response to Angular-expected format.
+    GPU is the source of truth; no in-memory state needed.
+    """
+    try:
+        poll = _requests.get(f"{SLD_PLATFORM_URL}/slds/{gpu_id}", timeout=15)
+    except _requests.ConnectionError:
+        return jsonify({"status": "error", "error": "Cannot reach GPU server"}), 503
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
-    status = job.get("status", "pending")
-    if status == "done":
+    if poll.status_code == 404:
+        return jsonify({"status": "pending", "success": True}), 200
+
+    try:
+        poll.raise_for_status()
+    except _requests.HTTPError:
+        return jsonify({"status": "error", "error": f"GPU error: {poll.status_code}"}), 200
+
+    data = poll.json()
+    status = data.get("status", "")
+
+    if status == "pending_review":
         return jsonify({
             "status": "done",
             "success": True,
-            "sld_id": job.get("sld_id"),
-            "result": job.get("result", {}),
-        })
-    elif status == "error":
-        return jsonify({"status": "error", "success": False, "error": job.get("error", "Unknown error")})
+            "result": data.get("result") or {},
+        }), 200
+
+    elif status == "failed":
+        error_notes = data.get("error_notes") or ""
+        return jsonify({
+            "status": "error",
+            "success": False,
+            "error": "SLD parsing failed on the AI server. Please try again.",
+            "error_notes": error_notes,
+        }), 200
+
     else:
-        return jsonify({"status": status})
+        # processing or unknown
+        return jsonify({"status": "pending", "success": True}), 200
 
 
 @sld_bp.route("/api/project/<int:project_id>/sld/accept", methods=["POST"])

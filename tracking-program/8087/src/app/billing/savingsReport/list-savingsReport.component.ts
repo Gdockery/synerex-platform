@@ -11,6 +11,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CreateFromBillService } from "../../project/create-from-bill/create-from-bill.service";
 import { ClientService } from "../../admin/client/client.service";
 import { SldService } from "./sld.service";
+import { MyJobsService, MyJob } from "./my-jobs.service";
 
 let moment = require('moment');
 const { PDFDocument } = require('pdf-lib');
@@ -388,7 +389,7 @@ const { PDFDocument } = require('pdf-lib');
       <!-- ───────────────────────────────────────────────────────────────── -->
       <!-- Scan Bill for Bill Analytic                                      -->
       <!-- ───────────────────────────────────────────────────────────────── -->
-      <div style="background:#f0fff4; border:1px solid #b0d8b8; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
+      <div id="bill-scan-section" style="background:#f0fff4; border:1px solid #b0d8b8; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
         <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a6a1a;">Scan Bill for Bill Analytic
           <small style="font-size:0.65em; color:#555; font-weight:normal;">— auto-fill Bill Analytic fields and EM&amp;V billing rates from a scanned PDF</small>
         </h3>
@@ -405,7 +406,7 @@ const { PDFDocument } = require('pdf-lib');
       <!-- ───────────────────────────────────────────────────────────────── -->
       <!-- Upload Single-Line Drawing                                       -->
       <!-- ───────────────────────────────────────────────────────────────── -->
-      <div *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10"
+      <div id="sld-upload-section" *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10"
            style="background:#f0f4ff; border:1px solid #b0c4e0; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
         <h3 style="margin-top:0; margin-bottom:0.4em; color:#1a3a6a;">Upload Single-Line Drawing
           <small style="font-size:0.65em; color:#555; font-weight:normal;">— AI identifies equipment placement recommendations from your electrical SLD</small>
@@ -436,7 +437,7 @@ const { PDFDocument } = require('pdf-lib');
           <div *ngIf="sldError" style="color:#c00; font-size:0.9em; margin-bottom:0.5em;">{{ sldError }}</div>
 
           <!-- Review card -->
-          <div *ngIf="sldResult && !sldSaved"
+          <div id="sld-review-card" *ngIf="sldResult && !sldSaved"
                style="margin-top:1em; border:1px solid #b0c4e0; border-radius:5px; background:#fff; padding:1em 1.25em;">
             <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:0.75em;">
               <div>
@@ -522,8 +523,83 @@ const { PDFDocument } = require('pdf-lib');
         </div>
       </div>
 
+      <!-- ───────────────────────────────────────────────────────────────── -->
+      <!-- My Jobs                                                          -->
+      <!-- ───────────────────────────────────────────────────────────────── -->
+      <div *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10"
+           style="background:#f5f0ff; border:1px solid #c8b4e0; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.25em;">
+        <h3 style="margin-top:0; margin-bottom:0.75em; color:#4a1a5c;">My Jobs
+          <small style="font-size:0.65em; color:#777; font-weight:normal;">— AI analysis running in the background</small>
+          <a *ngIf="userService.user.role === 8" [routerLink]="['/billing/gpu-queue']"
+             style="font-size:0.58em; margin-left:1.25em; color:#4a1a5c; text-decoration:underline; font-weight:normal;">View all active jobs ›</a>
+        </h3>
+
+        <!-- Toast -->
+        <div *ngIf="myJobsToast"
+             style="padding:0.5em 1em; background:#4a1a5c; color:#fff; border-radius:4px; margin-bottom:0.75em; font-size:0.9em;">
+          {{ myJobsToast }}
+        </div>
+
+        <div *ngIf="myJobs.length === 0" style="color:#888; font-style:italic; font-size:0.9em;">
+          No jobs in progress. Submit a bill scan or SLD above to get started.
+        </div>
+
+        <!-- Job cards -->
+        <div *ngFor="let job of myJobs"
+             style="border:1px solid #d4c0e8; border-radius:4px; background:#fff; padding:0.75em 1em; margin-bottom:0.5em;">
+          <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+            <div>
+              <span style="font-weight:bold; color:#4a1a5c;">{{ job.job_type === 'bill' ? 'Bill Scan' : 'SLD Analysis' }}</span>
+              <span style="margin-left:0.5em; color:#555; font-size:0.9em;">{{ job.filename }}</span>
+
+              <!-- Pending / processing -->
+              <span *ngIf="!job._status || job._status === 'pending'"
+                    style="margin-left:0.75em; padding:2px 8px; border-radius:10px; background:#e9ecef; color:#555; font-size:0.8em;">
+                Processing&#8230; ({{ getElapsedMin(job) }} min elapsed, est. {{ job.estimated_minutes }} min)
+              </span>
+              <!-- Retrying -->
+              <span *ngIf="job._status && job._status.startsWith('retrying_')"
+                    style="margin-left:0.75em; padding:2px 8px; border-radius:10px; background:#fff3cd; color:#856404; font-size:0.8em; font-weight:bold;">
+                &#x21BA; Retrying (attempt {{ getRetryAttempt(job._status) }}/3)&#8230;
+              </span>
+              <!-- Ready -->
+              <span *ngIf="job._status === 'done'"
+                    style="margin-left:0.75em; padding:2px 8px; border-radius:10px; background:#d4edda; color:#155724; font-size:0.8em; font-weight:bold;">
+                &#10003; Ready
+              </span>
+              <!-- Failed -->
+              <span *ngIf="job._status === 'error'"
+                    style="margin-left:0.75em; padding:2px 8px; border-radius:10px; background:#f8d7da; color:#721c24; font-size:0.8em; font-weight:bold;">
+                &#10007; Failed
+              </span>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+              <button *ngIf="job._status === 'done'" type="button"
+                      class="btn btn-success btn-sm" (click)="viewJobResult(job)">View Result</button>
+              <button *ngIf="job._status === 'error' && isRecoverableError(job)" type="button"
+                      class="btn btn-warning btn-sm" (click)="retryJob(job)">Retry</button>
+              <button *ngIf="job._status === 'error'" type="button"
+                      class="btn btn-default btn-sm" (click)="dismissJob(job)">Dismiss</button>
+            </div>
+          </div>
+
+          <!-- Error details -->
+          <div *ngIf="job._status === 'error'" style="margin-top:0.4em;">
+            <div style="color:#721c24; font-size:0.85em;">{{ job._errorMsg }}</div>
+            <a *ngIf="job._errorNotes" href="javascript:void(0)"
+               style="font-size:0.8em; color:#888;" (click)="job._showError = !job._showError">
+              {{ job._showError ? 'Hide details' : 'Show details' }}
+            </a>
+            <pre *ngIf="job._showError && job._errorNotes"
+                 style="font-size:0.75em; background:#f8f8f8; padding:0.5em; border-radius:3px; overflow:auto; max-height:120px; margin-top:4px; white-space:pre-wrap;">{{ job._errorNotes }}</pre>
+          </div>
+        </div>
+      </div>
+
       <!-- Bill Analytic Data Fields (populated from scan, editable before generating report) -->
-      <div style="background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
+      <div id="bill-analytic-section" style="background:#fff; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
         <h3 style="margin-top:0; margin-bottom:0.75em; color:#333;">Bill Analytic Data
           <small style="font-size:0.65em; color:#888; font-weight:normal;">Review and adjust before generating the report</small>
         </h3>
@@ -963,6 +1039,12 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public sldSaved = false;
   public sldShowRescan = false;
 
+  // My Jobs state
+  public myJobs: MyJob[] = [];
+  public myJobsToast: string | null = null;
+  private _myJobsPollInterval: any = null;
+  private _myJobsToastTimer: any = null;
+
   // Bill Analytic fields (populated from scan, drive report generation)
   public baBillReference: string = '';
   public baElectricCompanyName: string = '';
@@ -1040,10 +1122,13 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     private createFromBillService: CreateFromBillService,
     private clientService: ClientService,
     private sldService: SldService,
+    private myJobsService: MyJobsService,
   ) { }
 
   ngOnDestroy() {
     if (this._billAnalyticSaveTimeout) clearTimeout(this._billAnalyticSaveTimeout);
+    if (this._myJobsPollInterval) clearInterval(this._myJobsPollInterval);
+    if (this._myJobsToastTimer) clearTimeout(this._myJobsToastTimer);
   }
 
   ngOnInit() {
@@ -1149,6 +1234,10 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         if (!this.emvContactEmail)  this.emvContactEmail  = c.financeEmail || '';
       }, () => {});
     }
+
+    // My Jobs — load from localStorage and start 30s polling
+    this._loadMyJobs();
+    this._myJobsPollInterval = setInterval(() => this._pollMyJobs(), 30000);
   }
 
   refreshTable() {
@@ -1674,24 +1763,39 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   scanBillForAnalytic() {
     if (!this.billScanFile) { this.billScanError = 'Please select a PDF file.'; return; }
     if (!this.billScanFile.name.toLowerCase().endsWith('.pdf')) { this.billScanError = 'File must be a PDF.'; return; }
-    if (this.billScanFile.size > 10 * 1024 * 1024) { this.billScanError = 'File must be 10 MB or smaller.'; return; }
+    if (this.billScanFile.size > 50 * 1024 * 1024) { this.billScanError = 'File must be 50 MB or smaller.'; return; }
     this.billScanning = true;
     this.billScanError = null;
     this.billScanSuccess = false;
-    this.createFromBillService.analyzeBill(this.billScanFile, undefined, undefined, (msg: string) => { this.billScanError = null; }).subscribe(
+    this.createFromBillService.submitBillAnalysis(this.billScanFile).subscribe(
       (res: any) => {
         this.billScanning = false;
-        const data = res.data || res;
-        if (res.success !== false && data && Object.keys(data).length > 0) {
-          this.billScanSuccess = true;
-          this.populateFromScan(data);
+        if (res && res.success && res.job_id) {
+          const proj: any = this.userService.user.selectedProject;
+          if (proj && proj.id) {
+            this.myJobsService.addJob(proj.id, {
+              job_type: 'bill',
+              gpu_job_id: res.job_id,
+              filename: res.filename || this.billScanFile.name,
+              estimated_minutes: res.estimated_minutes || 10,
+            });
+            this._loadMyJobs();
+            this._pollMyJobs();
+          }
+          this._showToast(`Bill scan submitted — estimated ${res.estimated_minutes || 10} min. Find it in My Jobs below when ready.`);
+          this.billScanFile = null;
         } else {
-          this.billScanError = res.error || 'Could not extract bill data. Please enter fields manually.';
+          this.billScanError = (res && res.error) || 'Submission failed. Please try again.';
         }
       },
       (err: any) => {
         this.billScanning = false;
-        this.billScanError = (err && err.error && (err.error.error || err.error.message)) || 'Upload failed. Please try again.';
+        const status = err && err.status;
+        if (status === 413) {
+          this.billScanError = 'File is too large for the server (max 50 MB).';
+        } else {
+          this.billScanError = (err && err.error && (err.error.error || err.error.message)) || 'Upload failed. Please try again.';
+        }
       }
     );
   }
@@ -1730,6 +1834,126 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     if (proj && proj.id && this.billScanSuccess === true) {
       this.persistBillAnalytic();
     }
+  }
+
+  // ── My Jobs ──────────────────────────────────────────────────────────────
+
+  private _loadMyJobs() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) { this.myJobs = []; return; }
+    const stored = this.myJobsService.getJobs(proj.id);
+    // Restore runtime state from previous poll if the same GPU ID is already in myJobs
+    const existing = new Map(this.myJobs.map(j => [`${j.job_type}_${j.gpu_job_id}`, j]));
+    this.myJobs = stored.map(j => {
+      const prev = existing.get(`${j.job_type}_${j.gpu_job_id}`);
+      return prev ? { ...j, _status: prev._status, _errorMsg: prev._errorMsg, _errorNotes: prev._errorNotes, _showError: prev._showError } : { ...j };
+    });
+  }
+
+  private _pollMyJobs() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.myJobs.forEach(job => {
+      // Don't re-poll terminal states that the user hasn't dismissed yet
+      if (job._status === 'done' || job._status === 'error') return;
+      const obs = job.job_type === 'bill'
+        ? this.myJobsService.pollBill(job.gpu_job_id)
+        : this.myJobsService.pollSld(job.gpu_job_id);
+      obs.subscribe(
+        (res: any) => {
+          job._status = res.status || 'pending';
+          if (res.status === 'error') {
+            job._errorNotes = res.error_notes || '';
+            const isNonRec = this.myJobsService.isNonRecoverableError(job._errorNotes);
+            job._errorMsg = isNonRec
+              ? 'Could not extract data — try manual entry.'
+              : 'Analysis failed — you can retry or enter data manually.';
+          }
+        },
+        () => { /* network error — will retry on next tick */ }
+      );
+    });
+  }
+
+  viewJobResult(job: MyJob) {
+    const obs = job.job_type === 'bill'
+      ? this.myJobsService.pollBill(job.gpu_job_id)
+      : this.myJobsService.pollSld(job.gpu_job_id);
+    obs.subscribe(
+      (res: any) => {
+        if (job.job_type === 'bill' && res.status === 'done' && res.data) {
+          this.billScanSuccess = true;
+          this.populateFromScan(res.data);
+          this._removeMyJob(job);
+          this._showToast('Bill data loaded and pre-filled below.');
+          setTimeout(() => {
+            const el = document.getElementById('bill-analytic-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        } else if (job.job_type === 'sld' && res.status === 'done') {
+          this.sldResult = res.result || {};
+          this.sldSaved = false;
+          this._removeMyJob(job);
+          this._showToast('SLD analysis loaded — review and accept below.');
+          setTimeout(() => {
+            const el = document.getElementById('sld-review-card');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        } else if (res.status !== 'done') {
+          this._showToast('Result not ready yet — try again in a moment.');
+        }
+      },
+      () => this._showToast('Could not load result. Please try again.')
+    );
+  }
+
+  retryJob(job: MyJob) {
+    this._removeMyJob(job);
+    if (job.job_type === 'bill') {
+      this.billScanFile = null;
+      this._showToast('Removed from queue — select the bill PDF again to re-submit.');
+      setTimeout(() => {
+        const el = document.getElementById('bill-scan-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } else {
+      this.sldFile = null;
+      this.sldMergeStatus = null;
+      this._showToast('Removed from queue — select the SLD file again to re-submit.');
+      setTimeout(() => {
+        const el = document.getElementById('sld-upload-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }
+
+  dismissJob(job: MyJob) {
+    this._removeMyJob(job);
+  }
+
+  getElapsedMin(job: MyJob): number {
+    return this.myJobsService.getElapsedMin(job);
+  }
+
+  getRetryAttempt(status: string): string {
+    return status.replace('retrying_', '') || '?';
+  }
+
+  isRecoverableError(job: MyJob): boolean {
+    return this.myJobsService.isRecoverableError(job._errorNotes || '');
+  }
+
+  private _removeMyJob(job: MyJob) {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.myJobsService.removeJob(proj.id, job.gpu_job_id, job.job_type);
+    this._loadMyJobs();
+  }
+
+  private _showToast(msg: string) {
+    this.myJobsToast = msg;
+    if (this._myJobsToastTimer) clearTimeout(this._myJobsToastTimer);
+    this._myJobsToastTimer = setTimeout(() => { this.myJobsToast = null; }, 7000);
   }
 
   lookupTariffRates() {
@@ -2063,7 +2287,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
 
   analyzeSldDrawing() {
     if (!this.sldFile) return;
-    const MAX_BYTES = 50 * 1024 * 1024; // 50 MB
+    const MAX_BYTES = 50 * 1024 * 1024;
     if (this.sldFile.size > MAX_BYTES) {
       this.sldError = `File is too large (${(this.sldFile.size / 1024 / 1024).toFixed(1)} MB). Maximum upload size is 50 MB. Try selecting fewer pages or splitting the SLD.`;
       return;
@@ -2072,19 +2296,29 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.sldError = null;
     this.sldResult = null;
     this.sldSaved = false;
-    this.sldScanStatus = 'Analyzing drawing…';
 
     const peakKw = (this.sldPeakKw != null && !isNaN(Number(this.sldPeakKw))) ? Number(this.sldPeakKw) : undefined;
 
-    this.sldService.analyzeSld(this.sldFile, peakKw, (msg: string) => {
-      this.sldScanStatus = msg;
-    }).subscribe(
+    this.sldService.submitSldAnalysis(this.sldFile, peakKw).subscribe(
       (res: any) => {
         this.sldScanning = false;
-        if (res.status === 'error') {
-          this.sldError = res.error || 'SLD analysis failed. Please try again.';
+        if (res && res.success && res.job_id) {
+          const proj: any = this.userService.user.selectedProject;
+          if (proj && proj.id) {
+            this.myJobsService.addJob(proj.id, {
+              job_type: 'sld',
+              gpu_job_id: res.job_id,
+              filename: res.filename || this.sldFile.name,
+              estimated_minutes: res.estimated_minutes || 30,
+            });
+            this._loadMyJobs();
+            this._pollMyJobs();
+          }
+          this._showToast(`SLD submitted — estimated ${res.estimated_minutes || 30} min. Find it in My Jobs below when ready.`);
+          this.sldFile = null;
+          this.sldMergeStatus = null;
         } else {
-          this.sldResult = res.result || {};
+          this.sldError = (res && res.error) || 'Submission failed. Please try again.';
         }
       },
       (err: any) => {
@@ -2093,8 +2327,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         if (status === 413) {
           this.sldError = 'File is too large for the server (max 50 MB). Try selecting fewer SLD sheets or splitting the file.';
         } else {
-          const msg = (err && err.error && err.error.error) || 'SLD analysis failed. Please try again.';
-          this.sldError = msg;
+          this.sldError = (err && err.error && err.error.error) || 'SLD submission failed. Please try again.';
         }
       }
     );

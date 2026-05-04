@@ -4,6 +4,7 @@ import {CreateBillAnalyticComponent} from "./billAnalytic/create-billAnalytic.co
 import {ViewEditEquipmentsComponent} from "./billAnalytic/view-edit-equipments.component";
 import {ListBillAnalyticComponent} from "./billAnalytic/list-billAnalytic.component";
 import {ListSavingsReportComponent} from "./savingsReport/list-savingsReport.component";
+import {GpuQueueComponent} from "./savingsReport/gpu-queue.component";
 import {CreateSavingsReportComponent} from "./savingsReport/create-savingsReport.component";
 import {InvoiceComponent} from "./invoice/invoice.component";
 import {BillingComponent} from "./billing.component";
@@ -13,6 +14,7 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
 @NgModule({
   imports: [
     RouterModule.forChild([
+      { path: 'gpu-queue', component: GpuQueueComponent, data: {title: 'GPU Job Queue'} },
       { path: '', component: BillingComponent, canActivate:[ProjectSelectedGuard], children: [
         { path: 'bill-analytic', children: [
           { path: 'create', component: CreateBillAnalyticComponent, data: {title: 'Create Bill Analytic'}, },

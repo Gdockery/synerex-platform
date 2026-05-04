@@ -62,6 +62,20 @@ export class SldService {
     });
   }
 
+  /**
+   * POST /api/sld/analyze — fire-and-forget submit.
+   * Returns { job_id (GPU int), job_type, filename, estimated_minutes } immediately.
+   * Caller saves to localStorage; My Jobs section handles polling.
+   */
+  submitSldAnalysis(file: File, billPeakKw?: number): Observable<any> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    if (billPeakKw != null && !isNaN(billPeakKw)) {
+      formData.append('bill_peak_kw', String(billPeakKw));
+    }
+    return this.apiRequestService.post('/api/sld/analyze', formData);
+  }
+
   acceptSld(projectId: number, placements: any[], sldAnalysis: any): Observable<any> {
     return this.apiRequestService.post(`/api/project/${projectId}/sld/accept`, { placements, sldAnalysis });
   }

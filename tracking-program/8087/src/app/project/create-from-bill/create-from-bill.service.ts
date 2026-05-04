@@ -87,6 +87,19 @@ export class CreateFromBillService {
   }
 
   /**
+   * POST /api/bill/analyze — fire-and-forget submit.
+   * Returns { job_id (GPU int), job_type, filename, estimated_minutes } immediately.
+   * Caller saves to localStorage; My Jobs section handles polling.
+   */
+  submitBillAnalysis(file: File, meters?: string, pageRange?: string): Observable<any> {
+    const formData = new FormData();
+    formData.append('bill', file, file.name);
+    if (meters && meters.trim()) formData.append('meters', meters.trim());
+    if (pageRange && pageRange.trim()) formData.append('page_range', pageRange.trim());
+    return this.apiRequestService.post('/api/bill/analyze', formData);
+  }
+
+  /**
    * POST /api/project/create-from-bill - create Client + Project + Bill Analytic.
    */
   createFromBill(payload: {
