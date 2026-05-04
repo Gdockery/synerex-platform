@@ -278,9 +278,8 @@ export class CreateFromBillWizardComponent implements OnInit {
     if (this.step === 4 && !this.billForm.valid) {
       this.billForm.markAllAsTouched();
       this.billFormTouched = true;
-      const invalid = Object.entries(this.billForm.controls)
-        .filter(([, c]) => c.invalid)
-        .map(([k]) => k);
+      const invalid = Object.keys(this.billForm.controls)
+        .filter(k => this.billForm.controls[k].invalid);
       console.warn('[Wizard] billForm invalid on step 4, invalid fields:', invalid);
       return;
     }
