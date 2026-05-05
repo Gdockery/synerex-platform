@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       nodejs \
       libpango-1.0-0 libpangocairo-1.0-0 libcairo2 \
       libgdk-pixbuf2.0-0 libffi-dev shared-mime-info \
-      fonts-liberation fonts-dejavu-core && \
+      fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 COPY 8087/flask_app/requirements.txt ./
