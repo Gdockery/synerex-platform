@@ -813,6 +813,8 @@ def add_missing_model_columns():
         ("oem_branding", "smtp_from_name",    "ALTER TABLE `oem_branding` ADD COLUMN `smtp_from_name` VARCHAR(255) NULL"),
         ("oem_branding", "smtp_use_tls",      "ALTER TABLE `oem_branding` ADD COLUMN `smtp_use_tls` TINYINT(1) NOT NULL DEFAULT 1"),
         ("user",         "org_id",             "ALTER TABLE `user` ADD COLUMN `org_id` VARCHAR(255) NULL"),
+        # project — ECBS proposal inputs cache
+        ("project",      "proposalData",       "ALTER TABLE `project` ADD COLUMN `proposalData` JSON NULL"),
     ]
 
     results = {}

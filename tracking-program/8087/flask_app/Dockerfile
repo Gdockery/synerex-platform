@@ -19,7 +19,12 @@ RUN if [ "$ENABLE_JS_OBFUSCATION" = "1" ]; then npm run build:obfuscate; else np
 FROM python:3.11-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      nodejs \
+      libpango-1.0-0 libpangocairo-1.0-0 libcairo2 \
+      libgdk-pixbuf2.0-0 libffi-dev shared-mime-info \
+      fonts-liberation fonts-dejavu-core && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY 8087/flask_app/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

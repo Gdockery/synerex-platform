@@ -192,6 +192,7 @@ def _project_to_dict(p, include_meters=False, sess=None):
         "electricBillAnalysisUpdatedAt": getattr(p, "electricBillAnalysisUpdatedAt", None),
         "placements": getattr(p, "placements", None),
         "sldAnalysis": getattr(p, "sldAnalysis", None),
+        "proposalData": getattr(p, "proposalData", None),
         "equipmentInfo": getattr(p, "equipmentInfo", None) or None,
         "salesTax": getattr(p, "salesTax", None),
         "discount": getattr(p, "discount", None),

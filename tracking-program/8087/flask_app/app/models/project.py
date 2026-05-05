@@ -67,6 +67,7 @@ class Project(BaseModel):
     electricBillAnalysis = db.Column(db.JSON, default=None)
     placements = db.Column(db.JSON, default=None)
     sldAnalysis = db.Column(db.JSON, default=None)
+    proposalData = db.Column(db.JSON, default=None)  # ECBS proposal inputs cache
     equipmentInfo = db.Column(db.JSON, default=dict)
     reportFields = db.Column(db.JSON, default=dict)
     active_emv_analysis_id = db.Column(db.Integer, nullable=True)  # FK to emv_analysis.id, set via migration

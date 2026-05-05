@@ -14,6 +14,7 @@ from app.api.phase6_routes import phase6_bp
 from app.api.bill_routes import bill_bp
 from app.api.sld_routes import sld_bp
 from app.api.gpu_routes import gpu_bp
+from app.api.proposal_routes import proposal_bp
 from app.api.phase7_routes import phase7_bp
 from app.api.phase8_routes import phase8_bp
 from app.api.phase9_routes import phase9_bp
@@ -90,6 +91,7 @@ def create_app(config_class=Config):
     app.register_blueprint(bill_bp)
     app.register_blueprint(sld_bp)
     app.register_blueprint(gpu_bp)
+    app.register_blueprint(proposal_bp)
     app.register_blueprint(device_bp)
     app.register_blueprint(phase6_bp)
     app.register_blueprint(phase7_bp)

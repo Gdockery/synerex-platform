@@ -12,6 +12,7 @@ import { CreateFromBillService } from "../../project/create-from-bill/create-fro
 import { ClientService } from "../../admin/client/client.service";
 import { SldService } from "./sld.service";
 import { MyJobsService, MyJob } from "./my-jobs.service";
+import { ProposalService } from "./proposal.service";
 
 let moment = require('moment');
 const { PDFDocument } = require('pdf-lib');
@@ -769,6 +770,69 @@ const { PDFDocument } = require('pdf-lib');
         </div>
       </div>
 
+      <!-- ── ECBS Proposal Section ─────────────────────────────────────────── -->
+      <div style="margin-top:1.5em; padding:1.25em; background:#0f1e35; border:1px solid #1c3a5e; border-radius:8px;">
+        <h3 style="color:#00aaff; margin-bottom:0.75em; font-size:1.15em; font-weight:700;">
+          &#128196; ECBS Optimization Proposal
+        </h3>
+        <p style="color:#6b8099; font-size:0.9em; margin-bottom:1em;">
+          Automatically size equipment, calculate ROI, and generate a professional 9-page proposal PDF based on the scanned bill data above.
+        </p>
+
+        <!-- Facility context row -->
+        <div style="margin-bottom:0.9em;">
+          <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Facility Description (used in proposal narrative)</label>
+          <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
+            <textarea [(ngModel)]="proposalFacilityContext" rows="2"
+              style="flex:1; min-width:220px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:6px 10px; font-size:0.9em; resize:vertical;"
+              placeholder="e.g. operating injection moulding presses typical in plastics manufacturing"></textarea>
+            <button type="button" class="default-button" [disabled]="proposalFetchingContext"
+              (click)="fetchFacilityContext()"
+              style="background:#0a3060; border-color:#1c3a5e; color:#e8eef5; white-space:nowrap;">
+              {{ proposalFetchingContext ? 'Searching...' : '&#128269; Auto-fill' }}
+            </button>
+          </div>
+          <span *ngIf="proposalContextStatus" style="font-size:0.82em; margin-top:4px; display:block;"
+            [style.color]="proposalContextError ? '#c00' : '#00e5a0'">{{ proposalContextStatus }}</span>
+        </div>
+
+        <!-- Savings % and meters row -->
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:0.9em; align-items:flex-end;">
+          <div>
+            <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Savings % (default 6%)</label>
+            <input type="number" step="0.1" min="1" max="30" [(ngModel)]="proposalSavingsPct"
+              style="width:90px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:5px 8px; font-size:0.9em;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Qualifying Meters</label>
+            <input type="number" step="1" min="1" [(ngModel)]="proposalNMeters"
+              style="width:70px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:5px 8px; font-size:0.9em;" />
+          </div>
+          <div *ngIf="userService.user.selectedProject.sldAnalysis">
+            <label style="display:block; font-size:0.85em; color:#00e5a0; margin-bottom:4px;">&#10003; SLD overrides loaded</label>
+          </div>
+        </div>
+
+        <!-- Generate button -->
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button type="button" class="default-button green-button" [disabled]="proposalGenerating || !baTotalKwh"
+            (click)="generateEcbsProposal()"
+            style="background:#006633; border-color:#006633; font-weight:700; padding:9px 22px;">
+            {{ proposalGenerating ? 'Generating PDF...' : '&#128196; Generate ECBS Proposal PDF' }}
+          </button>
+          <button type="button" class="default-button" [disabled]="proposalSaving"
+            (click)="saveProposalSettings()"
+            style="background:#0a3060; border-color:#1c3a5e; color:#e8eef5;">
+            {{ proposalSaving ? 'Saving...' : 'Save Settings' }}
+          </button>
+          <span *ngIf="proposalStatus" style="font-size:0.88em;"
+            [style.color]="proposalError ? '#c00' : '#00e5a0'">{{ proposalStatus }}</span>
+        </div>
+        <div *ngIf="!baTotalKwh" style="font-size:0.82em; color:#6b8099; margin-top:6px;">
+          &#9432; Scan a bill above first to populate bill data for the proposal.
+        </div>
+      </div>
+
       <div *ngIf="billAnalytic===false">
         <h3>Electric Bill Analytics</h3>
         <p>Create a new monthly cost savings report for this project or review reports from this client past electric bills.</p>
@@ -1077,6 +1141,18 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   private _billAnalyticSaveTimeout: any = null;
   private readonly _billAnalyticSaveDebounceMs = 1500;
 
+  // ── ECBS Proposal ─────────────────────────────────────────────────────────
+  public proposalGenerating = false;
+  public proposalSaving = false;
+  public proposalStatus = '';
+  public proposalError = false;
+  public proposalFacilityContext = '';
+  public proposalFetchingContext = false;
+  public proposalContextStatus = '';
+  public proposalContextError = false;
+  public proposalSavingsPct: number = 6;
+  public proposalNMeters: number = 1;
+
   protected pdfSource: SafeResourceUrl;
 
   /**
@@ -1127,6 +1203,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     private clientService: ClientService,
     private sldService: SldService,
     private myJobsService: MyJobsService,
+    private proposalService: ProposalService,
   ) { }
 
   ngOnDestroy() {
@@ -1220,6 +1297,14 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       if (rf['onpeak_fraction_pct'])this.emvOnPeakShare       = String(rf['onpeak_fraction_pct']);
       if (rf['ratchet_percent'])    this.emvRatchetPct        = String(rf['ratchet_percent']);
       if (rf['ratchet_ref_peak'])   this.emvRatchetRefPeak    = String(rf['ratchet_ref_peak']);
+    }
+
+    // Restore ECBS Proposal settings from proposalData
+    const pd = proj && proj.proposalData;
+    if (pd && typeof pd === 'object') {
+      if (pd['facilityContext'] != null) this.proposalFacilityContext = pd['facilityContext'];
+      if (pd['savingsPct'] != null)      this.proposalSavingsPct      = parseFloat(pd['savingsPct']) * 100 || 6;
+      if (pd['nMeters'] != null)         this.proposalNMeters          = parseInt(pd['nMeters'], 10) || 1;
     }
 
     // If client information fields are still empty (no saved reportFields), fetch from client record.
@@ -2402,6 +2487,90 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   hasPanelFlags(result: any): boolean {
     if (!result || !result.extraction || !result.extraction.panels) return false;
     return result.extraction.panels.some((p: any) => p.flags && p.flags.length > 0);
+  }
+
+  // ── ECBS Proposal methods ──────────────────────────────────────────────────
+
+  fetchFacilityContext() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.proposalFetchingContext = true;
+    this.proposalContextStatus  = 'Searching online for facility description...';
+    this.proposalContextError   = false;
+    this.proposalService.fetchFacilityContext(proj.id).subscribe(
+      (res: any) => {
+        this.proposalFetchingContext = false;
+        const ctx = (res && (res.facilityContext || res.facility_context)) || '';
+        if (ctx) {
+          this.proposalFacilityContext = ctx;
+          this.proposalContextStatus   = 'Facility description found.';
+          this.proposalContextError    = false;
+        } else {
+          this.proposalContextStatus = 'No description returned. Enter manually.';
+          this.proposalContextError  = true;
+        }
+      },
+      (err: any) => {
+        this.proposalFetchingContext = false;
+        this.proposalContextStatus  = (err && err.error && err.error.error) || 'Could not fetch facility context.';
+        this.proposalContextError   = true;
+      }
+    );
+  }
+
+  saveProposalSettings() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.proposalSaving = true;
+    const body = {
+      facilityContext: this.proposalFacilityContext,
+      savingsPct:      this.proposalSavingsPct / 100,
+      nMeters:         this.proposalNMeters,
+    };
+    this.proposalService.saveProposalData(proj.id, body).subscribe(
+      (res: any) => {
+        this.proposalSaving = false;
+        if (res && res.proposalData) { proj.proposalData = res.proposalData; }
+        this.proposalStatus = 'Settings saved.';
+        this.proposalError  = false;
+        setTimeout(() => { this.proposalStatus = ''; }, 3000);
+      },
+      () => {
+        this.proposalSaving = false;
+        this.proposalStatus = 'Failed to save settings.';
+        this.proposalError  = true;
+      }
+    );
+  }
+
+  generateEcbsProposal() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.proposalGenerating = true;
+    this.proposalStatus     = 'Saving settings...';
+    this.proposalError      = false;
+
+    const body = {
+      facilityContext: this.proposalFacilityContext,
+      savingsPct:      this.proposalSavingsPct / 100,
+      nMeters:         this.proposalNMeters,
+    };
+    this.proposalService.saveProposalData(proj.id, body).subscribe(
+      (res: any) => {
+        if (res && res.proposalData) { proj.proposalData = res.proposalData; }
+        // Open the PDF in a new tab — Flask streams it inline
+        window.open(this.proposalService.getPdfUrl(proj.id), '_blank');
+        this.proposalGenerating = false;
+        this.proposalStatus     = 'Proposal opened in new tab.';
+        this.proposalError      = false;
+        setTimeout(() => { this.proposalStatus = ''; }, 4000);
+      },
+      () => {
+        this.proposalGenerating = false;
+        this.proposalStatus     = 'Failed to save settings before generating.';
+        this.proposalError      = true;
+      }
+    );
   }
 
 }

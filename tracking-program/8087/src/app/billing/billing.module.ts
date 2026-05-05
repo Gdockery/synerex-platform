@@ -31,6 +31,7 @@ import {CreateFromBillService} from "../project/create-from-bill/create-from-bil
 import {ClientService} from "../admin/client/client.service";
 import {SldService} from "./savingsReport/sld.service";
 import {MyJobsService} from "./savingsReport/my-jobs.service";
+import {ProposalService} from "./savingsReport/proposal.service";
 import {GpuQueueComponent} from "./savingsReport/gpu-queue.component";
 import {NgPipesModule} from "angular-pipes";
 import {EnergySavingsService} from "../savings/energySavings.service";
@@ -83,6 +84,7 @@ import { TimepickerModule } from "ngx-bootstrap/timepicker";
     ClientService,
     SldService,
     MyJobsService,
+    ProposalService,
   ]
 })
 export class BillingModule { }
