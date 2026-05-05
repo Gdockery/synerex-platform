@@ -1,14 +1,7 @@
 import { Component, OnInit, Inject } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
-
-function numericValidator(control: AbstractControl): ValidationErrors | null {
-  const v = control.value;
-  if (v === null || v === undefined || v === '') { return null; }
-  return /^-?[0-9]+(\.[0-9]+)?$/.test(String(v)) ? null : { number: true };
-}
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 import { ActivatedRoute, Router } from '@angular/router';
-import { CustomValidators } from 'ng2-validation';
 import { IMyOptions } from 'mydatepicker';
 import { CreateFromBillService } from './create-from-bill.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
@@ -32,7 +25,8 @@ export class CreateFromBillWizardComponent implements OnInit {
   submitted = false;          // true after fire-and-forget bill submit succeeds
   resuming = false;           // true while fetching result for ?resume= flow
   resumeError: string = null; // set if resume fetch fails or job still pending
-  billFormTouched = false;    // shows step-4 error alert after failed Next attempt
+  billFormTouched = false;
+  step4MissingFields: string[] = [];
   submitting = false;
   createdProject: any = null;
   selectedFile: File = null;
@@ -117,13 +111,13 @@ export class CreateFromBillWizardComponent implements OnInit {
       electricCompanyZip: [''],
       accountNumber: [''],
       meterNumber: [''],
-      totalKwh: ['', [Validators.required, numericValidator]],
-      kwPeak: ['', [Validators.required, numericValidator]],
-      billAmount: ['', [Validators.required, numericValidator]],
-      daysBilled: ['', numericValidator],
-      voltage: ['', numericValidator],
-      kwRatePerTariff: ['', numericValidator],
-      customerCharge: ['', numericValidator],
+      totalKwh: [''],
+      kwPeak: [''],
+      billAmount: [''],
+      daysBilled: [''],
+      voltage: [''],
+      kwRatePerTariff: [''],
+      customerCharge: [''],
       tariff: ['']
     });
   }
@@ -282,13 +276,20 @@ export class CreateFromBillWizardComponent implements OnInit {
       this.projectForm.markAllAsTouched();
       return;
     }
-    if (this.step === 4 && !this.billForm.valid) {
-      this.billForm.markAllAsTouched();
-      this.billFormTouched = true;
-      const invalid = Object.keys(this.billForm.controls)
-        .filter(k => this.billForm.controls[k].invalid);
-      console.warn('[Wizard] billForm invalid on step 4, invalid fields:', invalid);
-      return;
+    if (this.step === 4) {
+      const v = this.billForm.value;
+      const missing: string[] = [];
+      if (!String(v.totalKwh || '').trim()) { missing.push('Total KWH'); }
+      if (!String(v.kwPeak || '').trim())   { missing.push('KW Peak'); }
+      if (!String(v.billAmount || '').trim()) { missing.push('Bill Amount'); }
+      console.log('[Wizard step4] values:', JSON.stringify(v));
+      console.log('[Wizard step4] missing:', missing);
+      if (missing.length) {
+        this.billFormTouched = true;
+        this.step4MissingFields = missing;
+        return;
+      }
+      this.billFormTouched = false;
     }
     if (this.step < this.maxStep) {
       this.step++;
@@ -307,9 +308,8 @@ export class CreateFromBillWizardComponent implements OnInit {
       if (!this.useExistingClient) this.clientForm.markAllAsTouched();
       return;
     }
-    if (!this.projectForm.valid || !this.billForm.valid) {
+    if (!this.projectForm.valid) {
       this.projectForm.markAllAsTouched();
-      this.billForm.markAllAsTouched();
       return;
     }
 
