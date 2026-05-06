@@ -105,8 +105,13 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
     bill = getattr(project, "electricBillAnalysis", None) or {}
     sld  = getattr(project, "sldAnalysis", None) or {}
     eba  = bill  # shorthand
+    meter_bills = bill.get("meterBills") or []
+    primary_mb  = meter_bills[0] if meter_bills else bill
 
-    customer   = (client.name if client else project.name) or ""
+    # Legal name from the bill takes priority over the internal client/project label
+    customer   = (primary_mb.get("customerName") or bill.get("customerName") or "").strip()
+    if not customer:
+        customer = (client.name if client else project.name) or ""
     address    = " ".join(filter(None, [
         getattr(client, "address", None) or "",
         getattr(client, "city", None) or "",
@@ -211,8 +216,16 @@ def get_facility_context(project_id):
     if not project:
         return jsonify({"error": "Project not found or access denied"}), 404
 
+    bill = getattr(project, "electricBillAnalysis", None) or {}
+    meter_bills = bill.get("meterBills") or []
+    primary_bill = meter_bills[0] if meter_bills else bill
+
+    # Prefer the legal name on the bill, fall back to client/project label
+    customer = (primary_bill.get("customerName") or bill.get("customerName") or "").strip()
     client = sess.query(Client).get(project.client) if project.client else None
-    customer = (client.name if client else project.name) or ""
+    if not customer:
+        customer = (client.name if client else project.name) or ""
+
     address  = " ".join(filter(None, [
         getattr(client, "address", None) or "",
         getattr(client, "city", None) or "",
