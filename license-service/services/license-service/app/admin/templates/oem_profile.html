@@ -160,13 +160,39 @@
     </div>
 
     <div class="card">
-      <h2>Proposal &amp; Compliance</h2>
+      <h2>Certificate of Insurance</h2>
+      <p style="color:#718096; font-size:0.9rem; margin-bottom:1.5rem;">Optional. If provided, this table appears on the proposal warranty page. Enter your limits exactly as they appear on your COI.</p>
       <div class="form-section">
         <div class="form-group">
-          <label for="insurance_policy">Insurance Policy</label>
-          <textarea id="insurance_policy" name="insurance_policy" rows="2" placeholder="e.g. General liability and professional indemnity — Policy #ABC-123456, Insurer: XYZ Insurance Co.">{{ oem_org.insurance_policy or '' }}</textarea>
-          <small style="color:#718096;">Optional. If provided, this statement appears on the proposal warranty page.</small>
+          <label for="ins_carrier">Insurance Carrier</label>
+          <input type="text" id="ins_carrier" name="ins_carrier" value="{{ ins.carrier if ins else '' }}" placeholder="e.g. Hiscox Insurance Co." autocomplete="off">
         </div>
+        <table style="width:100%; border-collapse:collapse; margin-top:0.75rem;">
+          <thead>
+            <tr style="background:#edf2f7;">
+              <th style="text-align:left; padding:0.5rem 0.75rem; font-size:0.85rem; color:#4a5568; font-weight:600; border:1px solid #e2e8f0;">COVERAGE TYPE</th>
+              <th style="text-align:left; padding:0.5rem 0.75rem; font-size:0.85rem; color:#4a5568; font-weight:600; border:1px solid #e2e8f0; width:200px;">LIMIT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set rows = [
+              ("EACH OCCURRENCE",                          "ins_each_occurrence",  ins.each_occurrence  if ins else ""),
+              ("DAMAGE TO RENTED PREMISES (Ea occurrence)","ins_damage_rented",    ins.damage_rented    if ins else ""),
+              ("MED EXP (Any one person)",                 "ins_med_exp",          ins.med_exp          if ins else ""),
+              ("PERSONAL & ADV INJURY",                   "ins_personal_adv",     ins.personal_adv     if ins else ""),
+              ("GENERAL AGGREGATE",                       "ins_general_agg",      ins.general_agg      if ins else ""),
+              ("PRODUCTS - COMP/OP AGG",                  "ins_products_comp",    ins.products_comp    if ins else ""),
+            ] %}
+            {% for label, fname, val in rows %}
+            <tr>
+              <td style="padding:0.4rem 0.75rem; border:1px solid #e2e8f0; font-size:0.9rem;">{{ label }}</td>
+              <td style="padding:0.25rem 0.5rem; border:1px solid #e2e8f0;">
+                <input type="text" name="{{ fname }}" value="{{ val or '' }}" placeholder="$ 0" style="width:100%; border:none; background:transparent; font-size:0.9rem; padding:0.15rem 0.25rem;" autocomplete="off">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
 

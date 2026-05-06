@@ -112,13 +112,18 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
             if _b and _b.brand_name:
                 prepared_by_org = _b.brand_name
 
-            # Insurance policy from license service org profile (source of truth)
-            import requests as _ls_req
+            # Insurance COI from license service org profile (source of truth)
+            import requests as _ls_req, json as _json
             _ls_url = os.environ.get("LICENSE_SERVICE_URL", "http://license-service:8000")
             try:
                 _r = _ls_req.get(f"{_ls_url}/api/orgs/{org_id}", timeout=3)
                 if _r.ok:
-                    insurance_policy = _r.json().get("insurance_policy") or None
+                    _raw = _r.json().get("insurance_policy") or None
+                    if _raw:
+                        try:
+                            insurance_policy = _json.loads(_raw)
+                        except Exception:
+                            insurance_policy = {"carrier": _raw}
             except Exception:
                 pass
     except Exception:

@@ -194,6 +194,15 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
 
     oem_branding = _fetch_oem_branding(org_id)
 
+    # Parse stored COI JSON for pre-filling the form
+    import json as _json
+    ins = None
+    if org.insurance_policy:
+        try:
+            ins = _json.loads(org.insurance_policy)
+        except Exception:
+            pass
+
     return templates.TemplateResponse(
         "oem_profile.html",
         {
@@ -205,6 +214,7 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
             "brand_logo_url": oem_branding["brand_logo_url"],
             "brand_name": oem_branding["brand_name"] or org.org_name,
             "primary_color": oem_branding["primary_color"],
+            "ins": ins,
         },
     )
 
@@ -229,7 +239,13 @@ def oem_profile_update(
     physical_zip: str = Form(None),
     physical_phone: str = Form(None),
     physical_cell: str = Form(None),
-    insurance_policy: str = Form(None),
+    ins_carrier: str = Form(None),
+    ins_each_occurrence: str = Form(None),
+    ins_damage_rented: str = Form(None),
+    ins_med_exp: str = Form(None),
+    ins_personal_adv: str = Form(None),
+    ins_general_agg: str = Form(None),
+    ins_products_comp: str = Form(None),
     db: Session = Depends(db_session),
 ):
     """Save OEM's own company profile updates."""
@@ -278,8 +294,26 @@ def oem_profile_update(
         org.physical_phone = physical_phone or None
     if physical_cell is not None:
         org.physical_cell = physical_cell or None
-    if insurance_policy is not None:
-        org.insurance_policy = insurance_policy or None
+
+    # Serialize COI fields to JSON
+    import json as _json
+    coi_any = any(v for v in [ins_carrier, ins_each_occurrence, ins_damage_rented,
+                               ins_med_exp, ins_personal_adv, ins_general_agg, ins_products_comp])
+    if coi_any is not None:
+        coi = {
+            "carrier":           (ins_carrier or "").strip(),
+            "each_occurrence":   (ins_each_occurrence or "").strip(),
+            "damage_rented":     (ins_damage_rented or "").strip(),
+            "med_exp":           (ins_med_exp or "").strip(),
+            "personal_adv":      (ins_personal_adv or "").strip(),
+            "general_agg":       (ins_general_agg or "").strip(),
+            "products_comp":     (ins_products_comp or "").strip(),
+        }
+        # Only save if at least carrier or one limit is filled
+        if any(coi.values()):
+            org.insurance_policy = _json.dumps(coi)
+        else:
+            org.insurance_policy = None
 
     db.commit()
 

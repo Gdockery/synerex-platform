@@ -261,7 +261,34 @@ th { background:#e8ecf0; color:#4a5568; font-weight:600; font-size:8pt; text-tra
   </div>
   <div class="slabel">Warranty</div>
   {% if insurance_policy %}
-  <div class="card card-blue" style="margin-top:0.15in;"><p style="font-size:9pt;line-height:1.6;"><strong>Insurance Coverage:</strong> {{ insurance_policy }}</p></div>
+  <div class="card card-blue" style="margin-top:0.15in; padding:0.15in 0.18in;">
+    <h3 style="font-size:10pt;color:#0055cc;margin-bottom:8px;">Certificate of Insurance</h3>
+    {% if insurance_policy.carrier %}<p style="font-size:9pt;font-weight:700;margin-bottom:8px;">Carrier: {{ insurance_policy.carrier }}</p>{% endif %}
+    <table style="width:100%;border-collapse:collapse;font-size:8.5pt;">
+      <thead>
+        <tr style="background:#e8ecf0;">
+          <th style="text-align:left;padding:5px 8px;border:1px solid #ccd5e0;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#4a5568;">Coverage Type</th>
+          <th style="text-align:right;padding:5px 8px;border:1px solid #ccd5e0;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#4a5568;width:130px;">Limits</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set coi_rows = [
+          ("EACH OCCURRENCE",                           insurance_policy.each_occurrence),
+          ("DAMAGE TO RENTED PREMISES (Ea occurrence)", insurance_policy.damage_rented),
+          ("MED EXP (Any one person)",                  insurance_policy.med_exp),
+          ("PERSONAL &amp; ADV INJURY",                 insurance_policy.personal_adv),
+          ("GENERAL AGGREGATE",                         insurance_policy.general_agg),
+          ("PRODUCTS - COMP/OP AGG",                    insurance_policy.products_comp),
+        ] %}
+        {% for label, val in coi_rows %}{% if val %}
+        <tr style="background:{{ '#f8f9fb' if loop.index is odd else '#ffffff' }};">
+          <td style="padding:5px 8px;border:1px solid #ccd5e0;">{{ label }}</td>
+          <td style="padding:5px 8px;border:1px solid #ccd5e0;text-align:right;font-weight:600;">{{ val }}</td>
+        </tr>
+        {% endif %}{% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% endif %}
   <div class="card card-blue"><p style="font-size:9pt;line-height:1.6;">The ECBS system is covered by a <strong>5-year manufacturer's warranty</strong> from commissioning, covering all major components against defects in materials and workmanship. Xeco provides remote diagnostics and will repair or replace defective components to ensure continued performance.</p></div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 9 of 9 &#183; Confidential &#183; Prepared by {{ prepared_by_org }}</span></div>
