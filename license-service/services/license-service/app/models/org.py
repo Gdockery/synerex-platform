@@ -61,5 +61,8 @@ class Organization(Base):
     # Insurance policy description — shown on ECBS proposals
     insurance_policy: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Payment schedule — JSON array of {pct, desc} rows shown on ECBS proposal commercial terms
+    payment_schedule: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Relationship to users
     users: Mapped[List["User"]] = relationship("User", back_populates="organization")

@@ -196,6 +196,34 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>Payment Schedule</h2>
+      <p style="color:#718096; font-size:0.9rem; margin-bottom:1.5rem;">Optional. If provided, this table appears on the proposal commercial terms page. Enter up to 4 payment milestones.</p>
+      <div class="form-section">
+        <table style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr style="background:#edf2f7;">
+              <th style="text-align:left; padding:0.5rem 0.75rem; font-size:0.85rem; color:#4a5568; font-weight:600; border:1px solid #e2e8f0; width:80px;">%</th>
+              <th style="text-align:left; padding:0.5rem 0.75rem; font-size:0.85rem; color:#4a5568; font-weight:600; border:1px solid #e2e8f0;">Description / Trigger</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(1, 5) %}
+            {% set r = pay_rows[i-1] %}
+            <tr>
+              <td style="padding:0.25rem 0.5rem; border:1px solid #e2e8f0;">
+                <input type="number" name="pay_pct_{{ i }}" value="{{ r.pct or '' }}" min="0" max="100" placeholder="30" style="width:100%; border:none; background:transparent; font-size:0.9rem; padding:0.15rem 0.25rem;" autocomplete="off">
+              </td>
+              <td style="padding:0.25rem 0.5rem; border:1px solid #e2e8f0;">
+                <input type="text" name="pay_desc_{{ i }}" value="{{ r.desc or '' }}" placeholder="e.g. Deposit due upon execution of agreement" style="width:100%; border:none; background:transparent; font-size:0.9rem; padding:0.15rem 0.25rem;" autocomplete="off">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="form-actions">
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">Cancel</a>
       <button type="submit" class="btn">Save Changes</button>

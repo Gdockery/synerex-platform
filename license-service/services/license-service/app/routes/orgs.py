@@ -129,6 +129,7 @@ def get_org(org_id: str, db: Session = Depends(db_session)):
         "org_name": org.org_name,
         "org_type": org.org_type,
         "insurance_policy": org.insurance_policy,
+        "payment_schedule": org.payment_schedule,
     }
 
 

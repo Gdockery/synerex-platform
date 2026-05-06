@@ -101,8 +101,9 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
                      f"{getattr(user, 'firstName', '') or ''} {getattr(user, 'lastName', '') or ''}".strip()
                      or "")
 
-    # OEM branding — pull brand name and insurance policy from license service + local oem_branding
+    # OEM branding — pull brand name, insurance policy, and payment schedule from license service
     insurance_policy = None
+    payment_schedule = None
     try:
         from app.models.oem_branding import OemBranding as _OemBranding
         org_id = getattr(user, "org_id", None)
@@ -112,18 +113,27 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
             if _b and _b.brand_name:
                 prepared_by_org = _b.brand_name
 
-            # Insurance COI from license service org profile (source of truth)
+            # COI + payment schedule from license service org profile (source of truth)
             import requests as _ls_req, json as _json
             _ls_url = os.environ.get("LICENSE_SERVICE_URL", "http://license-service:8000")
+            payment_schedule = None
             try:
                 _r = _ls_req.get(f"{_ls_url}/api/orgs/{org_id}", timeout=3)
                 if _r.ok:
-                    _raw = _r.json().get("insurance_policy") or None
-                    if _raw:
+                    _org_data = _r.json()
+                    _raw_ins = _org_data.get("insurance_policy") or None
+                    if _raw_ins:
                         try:
-                            insurance_policy = _json.loads(_raw)
+                            insurance_policy = _json.loads(_raw_ins)
                         except Exception:
-                            insurance_policy = {"carrier": _raw}
+                            insurance_policy = {"carrier": _raw_ins}
+                    _raw_pay = _org_data.get("payment_schedule") or None
+                    if _raw_pay:
+                        try:
+                            _rows = _json.loads(_raw_pay)
+                            payment_schedule = [r for r in _rows if r.get("pct") or r.get("desc")]
+                        except Exception:
+                            pass
             except Exception:
                 pass
     except Exception:
@@ -225,6 +235,7 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
         "contact_phone":   overrides.get("contactPhone") or contact_phone,
 
         "insurance_policy": insurance_policy,
+        "payment_schedule": payment_schedule,
 
         "xeco_logo_b64":       _load_xeco_logo_b64(),
         "customer_logo_b64":   cust_logo_b64,

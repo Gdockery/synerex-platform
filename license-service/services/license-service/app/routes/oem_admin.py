@@ -194,7 +194,7 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
 
     oem_branding = _fetch_oem_branding(org_id)
 
-    # Parse stored COI JSON for pre-filling the form
+    # Parse stored COI + payment schedule JSON for pre-filling the form
     import json as _json
     ins = None
     if org.insurance_policy:
@@ -202,6 +202,16 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
             ins = _json.loads(org.insurance_policy)
         except Exception:
             pass
+
+    pay_rows = []
+    if org.payment_schedule:
+        try:
+            pay_rows = _json.loads(org.payment_schedule) or []
+        except Exception:
+            pass
+    # Pad to 4 rows for the form
+    while len(pay_rows) < 4:
+        pay_rows.append({"pct": "", "desc": ""})
 
     return templates.TemplateResponse(
         "oem_profile.html",
@@ -215,6 +225,7 @@ def oem_profile_page(request: Request, db: Session = Depends(db_session)):
             "brand_name": oem_branding["brand_name"] or org.org_name,
             "primary_color": oem_branding["primary_color"],
             "ins": ins,
+            "pay_rows": pay_rows,
         },
     )
 
@@ -246,6 +257,10 @@ def oem_profile_update(
     ins_personal_adv: str = Form(None),
     ins_general_agg: str = Form(None),
     ins_products_comp: str = Form(None),
+    pay_pct_1: str = Form(None), pay_desc_1: str = Form(None),
+    pay_pct_2: str = Form(None), pay_desc_2: str = Form(None),
+    pay_pct_3: str = Form(None), pay_desc_3: str = Form(None),
+    pay_pct_4: str = Form(None), pay_desc_4: str = Form(None),
     db: Session = Depends(db_session),
 ):
     """Save OEM's own company profile updates."""
@@ -314,6 +329,16 @@ def oem_profile_update(
             org.insurance_policy = _json.dumps(coi)
         else:
             org.insurance_policy = None
+
+    # Serialize payment schedule rows to JSON
+    pay_rows = []
+    for pct, desc in [(pay_pct_1, pay_desc_1), (pay_pct_2, pay_desc_2),
+                      (pay_pct_3, pay_desc_3), (pay_pct_4, pay_desc_4)]:
+        pct_s = (pct or "").strip()
+        desc_s = (desc or "").strip()
+        if pct_s or desc_s:
+            pay_rows.append({"pct": pct_s, "desc": desc_s})
+    org.payment_schedule = _json.dumps(pay_rows) if pay_rows else None
 
     db.commit()
 
