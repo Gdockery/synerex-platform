@@ -101,17 +101,26 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
                      f"{getattr(user, 'firstName', '') or ''} {getattr(user, 'lastName', '') or ''}".strip()
                      or "")
 
-    # OEM branding — insurance policy
+    # OEM branding — pull brand name and insurance policy from license service + local oem_branding
     insurance_policy = None
     try:
         from app.models.oem_branding import OemBranding as _OemBranding
         org_id = getattr(user, "org_id", None)
         if org_id:
-            _b = Client.query.session.query(_OemBranding).filter_by(org_id=org_id).first() if False else \
-                 _OemBranding.query.filter_by(org_id=org_id).first()
-            if _b:
-                prepared_by_org = _b.brand_name or prepared_by_org
-                insurance_policy = _b.insurance_policy or None
+            # Brand name from local oem_branding table
+            _b = _OemBranding.query.filter_by(org_id=org_id).first()
+            if _b and _b.brand_name:
+                prepared_by_org = _b.brand_name
+
+            # Insurance policy from license service org profile (source of truth)
+            import requests as _ls_req
+            _ls_url = os.environ.get("LICENSE_SERVICE_URL", "http://license-service:8000")
+            try:
+                _r = _ls_req.get(f"{_ls_url}/api/orgs/{org_id}", timeout=3)
+                if _r.ok:
+                    insurance_policy = _r.json().get("insurance_policy") or None
+            except Exception:
+                pass
     except Exception:
         pass
 

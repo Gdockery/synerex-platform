@@ -149,17 +149,6 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
         </div>
       </div>
 
-      <div class="row">
-        <div class="col-md-8">
-          <div class="form-group">
-            <label>Insurance Policy</label>
-            <textarea class="form-control" [(ngModel)]="form.insurance_policy" rows="2"
-                      placeholder="e.g. General liability and professional indemnity — Policy #ABC-123456, Insurer: XYZ Insurance Co."></textarea>
-            <p class="help-block">Optional. If provided, this statement appears on the proposal's warranty page.</p>
-          </div>
-        </div>
-      </div>
-
       <div class="row" style="margin-top: 1em;">
         <div class="col-md-12 text-right">
           <button class="btn btn-primary btn-lg" (click)="saveSettings()" [disabled]="saving">

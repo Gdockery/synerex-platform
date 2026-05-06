@@ -229,6 +229,7 @@ def oem_profile_update(
     physical_zip: str = Form(None),
     physical_phone: str = Form(None),
     physical_cell: str = Form(None),
+    insurance_policy: str = Form(None),
     db: Session = Depends(db_session),
 ):
     """Save OEM's own company profile updates."""
@@ -277,6 +278,8 @@ def oem_profile_update(
         org.physical_phone = physical_phone or None
     if physical_cell is not None:
         org.physical_cell = physical_cell or None
+    if insurance_policy is not None:
+        org.insurance_policy = insurance_policy or None
 
     db.commit()
 

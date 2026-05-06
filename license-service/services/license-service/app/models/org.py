@@ -58,5 +58,8 @@ class Organization(Base):
     # Stripe Customer ID — stored on OEM orgs after they save a payment method
     stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Insurance policy description — shown on ECBS proposals
+    insurance_policy: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Relationship to users
     users: Mapped[List["User"]] = relationship("User", back_populates="organization")

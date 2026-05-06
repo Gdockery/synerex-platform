@@ -159,6 +159,17 @@
       </div>
     </div>
 
+    <div class="card">
+      <h2>Proposal &amp; Compliance</h2>
+      <div class="form-section">
+        <div class="form-group">
+          <label for="insurance_policy">Insurance Policy</label>
+          <textarea id="insurance_policy" name="insurance_policy" rows="2" placeholder="e.g. General liability and professional indemnity — Policy #ABC-123456, Insurer: XYZ Insurance Co.">{{ oem_org.insurance_policy or '' }}</textarea>
+          <small style="color:#718096;">Optional. If provided, this statement appears on the proposal warranty page.</small>
+        </div>
+      </div>
+    </div>
+
     <div class="form-actions">
       <a href="{% if path_prefix %}{{ path_prefix }}{% endif %}/oem-admin" class="btn btn-secondary">Cancel</a>
       <button type="submit" class="btn">Save Changes</button>

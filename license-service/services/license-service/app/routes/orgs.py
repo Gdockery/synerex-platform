@@ -124,7 +124,12 @@ def get_org(org_id: str, db: Session = Depends(db_session)):
     org = db.get(Organization, org_id)
     if not org:
         raise HTTPException(404, "Organization not found")
-    return {"org_id": org.org_id, "org_name": org.org_name, "org_type": org.org_type}
+    return {
+        "org_id": org.org_id,
+        "org_name": org.org_name,
+        "org_type": org.org_type,
+        "insurance_policy": org.insurance_policy,
+    }
 
 
 @router.post("/orgs")
