@@ -27,36 +27,31 @@ from flask_login import current_user, login_required
 from pathlib import Path
 
 from app.extensions import db
+from app.db.request_session import get_session
 from app.models.project import Project
 from app.models.client import Client
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
 proposal_bp = Blueprint("proposal", __name__, url_prefix="")
 
 GPU_PLATFORM_URL = os.environ.get("BILL_PLATFORM_URL", "http://100.106.19.30:8000")
-GPU_ADMIN_TOKEN  = os.environ.get("GPU_ADMIN_TOKEN", "")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_project_for_user(project_id):
-    """Return the project if the current user has access, else None."""
-    p = Project.query.filter_by(id=project_id, isDeleted=False).first()
+    """Return (session, project) if current user has access, else (None, None)."""
+    from app.api.web_routes import _user_can_access_project
+    sess = get_session()
+    p = sess.query(Project).filter_by(id=project_id, isDeleted=False).first()
     if p is None:
-        return None
-    role = getattr(current_user, "role", None)
-    if role in (7, 8):  # Synerex staff / admin
-        return p
-    # Check project is associated with this user
-    user_id = getattr(current_user, "id", None)
-    if any(u.id == user_id for u in getattr(p, "users", [])):
-        return p
-    # Fall back: same client
-    if getattr(p, "client", None) and getattr(current_user, "client", None):
-        if p.client == current_user.client:
-            return p
-    return None
+        return None, None
+    user = sess.query(User).get(current_user.id)
+    if not _user_can_access_project(sess, user, p):
+        return None, None
+    return sess, p
 
 
 def _load_logo_b64(logo_src: str, logo_type: str) -> str | None:
@@ -212,11 +207,11 @@ def get_facility_context(project_id):
     Body: {} (uses existing client/address data from project)
     Calls GPU /facility/context, saves to project.proposalData.facilityContext.
     """
-    project = _get_project_for_user(project_id)
+    sess, project = _get_project_for_user(project_id)
     if not project:
-        return jsonify({"error": "Project not found"}), 404
+        return jsonify({"error": "Project not found or access denied"}), 404
 
-    client = Client.query.get(project.client) if project.client else None
+    client = sess.query(Client).get(project.client) if project.client else None
     customer = (client.name if client else project.name) or ""
     address  = " ".join(filter(None, [
         getattr(client, "address", None) or "",
@@ -228,13 +223,10 @@ def get_facility_context(project_id):
     if not customer:
         return jsonify({"error": "No customer name available on this project"}), 400
 
-    if not GPU_ADMIN_TOKEN:
-        logger.warning("GPU_ADMIN_TOKEN not set; facility context endpoint will fail auth")
-
     try:
         resp = _requests.post(
             f"{GPU_PLATFORM_URL}/facility/context",
-            headers={"X-Admin-Token": GPU_ADMIN_TOKEN, "Content-Type": "application/json"},
+            headers={"Content-Type": "application/json"},
             json={"customer": customer, "address": address},
             timeout=25,
         )
@@ -251,7 +243,8 @@ def get_facility_context(project_id):
     pd = dict(project.proposalData or {})
     pd["facilityContext"] = facility_context
     project.proposalData = pd
-    db.session.commit()
+    sess.add(project)
+    sess.commit()
 
     return jsonify({"facilityContext": facility_context})
 
@@ -265,9 +258,9 @@ def save_proposal_data(project_id):
             facilityContext, rampUpNote, siteName, region, peakSource, shippingRate, ... }
     Merges into project.proposalData.
     """
-    project = _get_project_for_user(project_id)
+    sess, project = _get_project_for_user(project_id)
     if not project:
-        return jsonify({"error": "Project not found"}), 404
+        return jsonify({"error": "Project not found or access denied"}), 404
 
     body = request.get_json(force=True) or {}
     pd = dict(project.proposalData or {})
@@ -283,7 +276,8 @@ def save_proposal_data(project_id):
         if k in allowed:
             pd[k] = v
     project.proposalData = pd
-    db.session.commit()
+    sess.add(project)
+    sess.commit()
     return jsonify({"ok": True, "proposalData": pd})
 
 
@@ -294,9 +288,9 @@ def preview_proposal(project_id):
     GET /api/project/<id>/proposal/preview
     Returns computed values (equipment counts, costs, ROI) without generating PDF.
     """
-    project = _get_project_for_user(project_id)
+    sess, project = _get_project_for_user(project_id)
     if not project:
-        return jsonify({"error": "Project not found"}), 404
+        return jsonify({"error": "Project not found or access denied"}), 404
 
     overrides = dict(project.proposalData or {})
     try:
@@ -320,9 +314,9 @@ def generate_proposal_pdf(project_id):
     Generates and streams the ECBS Proposal PDF.
     Optional query/body param: inline=1 to view in browser (default: attachment).
     """
-    project = _get_project_for_user(project_id)
+    sess, project = _get_project_for_user(project_id)
     if not project:
-        return jsonify({"error": "Project not found"}), 404
+        return jsonify({"error": "Project not found or access denied"}), 404
 
     overrides = dict(project.proposalData or {})
     # Allow one-off body overrides without saving (e.g. preview with different savings %)
