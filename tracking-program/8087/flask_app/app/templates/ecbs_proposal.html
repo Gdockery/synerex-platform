@@ -260,6 +260,9 @@ th { background:#e8ecf0; color:#4a5568; font-weight:600; font-size:8pt; text-tra
     <div class="step"><div class="step-num">4</div><div><h4 style="font-size:13pt;margin-bottom:3px;">Monitoring &amp; Ongoing Support</h4><p style="font-size:9pt;line-height:1.5;">Live energy dashboard activated. Monthly energy reports delivered to {{ customer }}. Annual software subscription ({{ sw_yr2_fmt }}/meter/year) covers platform access, remote diagnostics, and performance guarantees.</p></div></div>
   </div>
   <div class="slabel">Warranty</div>
+  {% if insurance_policy %}
+  <div class="card card-blue" style="margin-top:0.15in;"><p style="font-size:9pt;line-height:1.6;"><strong>Insurance Coverage:</strong> {{ insurance_policy }}</p></div>
+  {% endif %}
   <div class="card card-blue"><p style="font-size:9pt;line-height:1.6;">The ECBS system is covered by a <strong>5-year manufacturer's warranty</strong> from commissioning, covering all major components against defects in materials and workmanship. Xeco provides remote diagnostics and will repair or replace defective components to ensure continued performance.</p></div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 9 of 9 &#183; Confidential &#183; Prepared by {{ prepared_by_org }}</span></div>
 </div>

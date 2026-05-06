@@ -1977,6 +1977,7 @@ def get_oem_branding():
                 "smtp_password_set": bool(b.smtp_password),
                 "smtp_from_address": b.smtp_from_address,
                 "smtp_from_name": b.smtp_from_name,
+                "insurance_policy": b.insurance_policy,
             }})
         return jsonify({"response": {"org_id": org_id}})
     except Exception as e:
@@ -2041,6 +2042,8 @@ def save_oem_branding():
             b.smtp_from_address = data["smtp_from_address"] or None
         if "smtp_from_name" in data:
             b.smtp_from_name = data["smtp_from_name"] or None
+        if "insurance_policy" in data:
+            b.insurance_policy = data["insurance_policy"] or None
         sess.commit()
         return jsonify({"response": "saved"})
     except Exception as e:

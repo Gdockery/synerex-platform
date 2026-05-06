@@ -815,6 +815,8 @@ def add_missing_model_columns():
         ("user",         "org_id",             "ALTER TABLE `user` ADD COLUMN `org_id` VARCHAR(255) NULL"),
         # project — ECBS proposal inputs cache
         ("project",      "proposalData",       "ALTER TABLE `project` ADD COLUMN `proposalData` JSON NULL"),
+        # oem_branding — insurance policy for proposals
+        ("oem_branding", "insurance_policy",   "ALTER TABLE `oem_branding` ADD COLUMN `insurance_policy` TEXT NULL"),
     ]
 
     results = {}

@@ -29,3 +29,4 @@ class OemBranding(BaseModel):
     smtp_from_address = db.Column(db.String(255), nullable=True)  # "From" address, defaults to smtp_username
     smtp_from_name = db.Column(db.String(255), nullable=True)   # "From" display name, defaults to brand_name
     smtp_use_tls = db.Column(db.Boolean, nullable=True, default=True)
+    insurance_policy = db.Column(db.Text, nullable=True)  # e.g. "General liability and E&O — Policy #ABC123"

@@ -94,12 +94,26 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
     """
     client: Client | None = Client.query.get(project.client) if project.client else None
 
-    # Preparer info: from user record
+    # Preparer info: from user record + OEM branding
     user = current_user
     prepared_by_org = getattr(user, "company", None) or "Xeco Energy Corporation"
     preparer_name = (getattr(user, "name", None) or
                      f"{getattr(user, 'firstName', '') or ''} {getattr(user, 'lastName', '') or ''}".strip()
                      or "")
+
+    # OEM branding — insurance policy
+    insurance_policy = None
+    try:
+        from app.models.oem_branding import OemBranding as _OemBranding
+        org_id = getattr(user, "org_id", None)
+        if org_id:
+            _b = Client.query.session.query(_OemBranding).filter_by(org_id=org_id).first() if False else \
+                 _OemBranding.query.filter_by(org_id=org_id).first()
+            if _b:
+                prepared_by_org = _b.brand_name or prepared_by_org
+                insurance_policy = _b.insurance_policy or None
+    except Exception:
+        pass
 
     # Bill analytic data (used for bill fields)
     bill = getattr(project, "electricBillAnalysis", None) or {}
@@ -195,6 +209,8 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
         "contact_name":    overrides.get("contactName") or contact_name,
         "contact_title":   overrides.get("contactTitle") or contact_title,
         "contact_phone":   overrides.get("contactPhone") or contact_phone,
+
+        "insurance_policy": insurance_policy,
 
         "xeco_logo_b64":       _load_xeco_logo_b64(),
         "customer_logo_b64":   cust_logo_b64,

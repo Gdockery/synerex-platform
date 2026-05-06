@@ -149,6 +149,17 @@ import {WhitelabelService} from '../../shared/services/whitelabel.service';
         </div>
       </div>
 
+      <div class="row">
+        <div class="col-md-8">
+          <div class="form-group">
+            <label>Insurance Policy</label>
+            <textarea class="form-control" [(ngModel)]="form.insurance_policy" rows="2"
+                      placeholder="e.g. General liability and professional indemnity — Policy #ABC-123456, Insurer: XYZ Insurance Co."></textarea>
+            <p class="help-block">Optional. If provided, this statement appears on the proposal's warranty page.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="row" style="margin-top: 1em;">
         <div class="col-md-12 text-right">
           <button class="btn btn-primary btn-lg" (click)="saveSettings()" [disabled]="saving">
@@ -229,6 +240,7 @@ export class OemBrandingComponent implements OnInit {
     smtp_password: '',
     smtp_from_address: '',
     smtp_from_name: '',
+    insurance_policy: '',
   };
 
   constructor(
@@ -264,6 +276,7 @@ export class OemBrandingComponent implements OnInit {
           this.form.smtp_username = b.smtp_username || '';
           this.form.smtp_from_address = b.smtp_from_address || '';
           this.form.smtp_from_name = b.smtp_from_name || '';
+          this.form.insurance_policy = b.insurance_policy || '';
           // Never pre-fill the password field — leave blank so existing password is preserved
           this.form.smtp_password = '';
           if (b.logo_url) {
