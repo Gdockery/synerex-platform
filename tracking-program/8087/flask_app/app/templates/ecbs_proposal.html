@@ -5,40 +5,40 @@
 <title>{{ customer }} — ECBS Optimization Proposal</title>
 <style>
 *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-body { background:#08101f; color:#e8eef5; font-family:Arial,Helvetica,sans-serif; font-size:10pt; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-.page { width:8.5in; min-height:11in; background:#08101f; padding:0.55in 0.65in; position:relative; overflow:hidden; }
+body { background:#ffffff; color:#1a2a3a; font-family:Arial,Helvetica,sans-serif; font-size:10pt; line-height:1.5; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+.page { width:8.5in; min-height:11in; background:#ffffff; padding:0.55in 0.65in; position:relative; overflow:hidden; }
 @media print { @page { size:letter; margin:0; } .page { page-break-after:always; break-after:page; min-height:11in; } .page:last-child { page-break-after:avoid; } }
-h2 { font-size:22pt; font-weight:700; color:#e8eef5; margin-bottom:0.18in; }
+h2 { font-size:22pt; font-weight:700; color:#1a2a3a; margin-bottom:0.18in; }
 table { width:100%; border-collapse:collapse; font-size:9.5pt; }
-th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-transform:uppercase; letter-spacing:0.06em; padding:7px 10px; text-align:left; border-bottom:1px solid #1c3a5e; }
-.total-row td { background:#0a1828 !important; font-weight:700; color:#00e5a0; border-top:1px solid #1c3a5e; }
-.subtotal-row td { background:#0d1f36 !important; font-weight:600; color:#e8eef5 !important; }
-.card { background:#0f1e35; border:1px solid #1c3a5e; border-radius:6px; padding:0.18in 0.2in; }
+th { background:#e8ecf0; color:#4a5568; font-weight:600; font-size:8pt; text-transform:uppercase; letter-spacing:0.06em; padding:7px 10px; text-align:left; border-bottom:1px solid #d0d8e4; }
+.total-row td { background:#e8ecf0 !important; font-weight:700; color:#0a6e4f; border-top:1px solid #d0d8e4; }
+.subtotal-row td { background:#f0f3f6 !important; font-weight:600; color:#1a2a3a !important; }
+.card { background:#f5f7fa; border:1px solid #ccd5e0; border-radius:6px; padding:0.18in 0.2in; }
 .card-green { border-left:3px solid #00e5a0; }
 .card-blue  { border-left:3px solid #00aaff; }
-.slabel { font-size:10pt; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#00aaff; border-bottom:1px solid #1c3a5e; padding-bottom:4px; margin-bottom:0.18in; }
-.ph { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1c3a5e; padding-bottom:0.1in; margin-bottom:0.25in; }
-.pf { position:absolute; bottom:0.35in; left:0.65in; right:0.65in; display:flex; justify-content:space-between; border-top:1px solid #1c3a5e; padding-top:8px; font-size:8pt; color:#6b8099; }
+.slabel { font-size:10pt; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#0055cc; border-bottom:1px solid #d0d8e4; padding-bottom:4px; margin-bottom:0.18in; }
+.ph { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #d0d8e4; padding-bottom:0.1in; margin-bottom:0.25in; }
+.pf { position:absolute; bottom:0.35in; left:0.65in; right:0.65in; display:flex; justify-content:space-between; border-top:1px solid #d0d8e4; padding-top:8px; font-size:8pt; color:#4a5568; }
 .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.12in; margin:0.35in 0 0.3in; }
-.kpi { background:#0f1e35; border:1px solid #1c3a5e; border-radius:6px; padding:0.18in 0.15in; text-align:center; }
-.kpi-val { font-weight:800; font-size:24pt; color:#e8eef5; line-height:1; }
-.kpi-lbl { font-size:8pt; color:#6b8099; margin-top:5px; text-transform:uppercase; letter-spacing:0.08em; }
+.kpi { background:#f5f7fa; border:1px solid #ccd5e0; border-radius:6px; padding:0.18in 0.15in; text-align:center; }
+.kpi-val { font-weight:800; font-size:24pt; color:#1a2a3a; line-height:1; }
+.kpi-lbl { font-size:8pt; color:#4a5568; margin-top:5px; text-transform:uppercase; letter-spacing:0.08em; }
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:0.25in; }
 .three-col { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.2in; }
 .itable td { padding:3px 10px 3px 0; border:none; background:transparent; font-size:9pt; }
-.lbl { color:#6b8099; white-space:nowrap; }
-.badge { display:inline-block; background:#0d2a44; color:#00aaff; font-size:8pt; padding:2px 8px; border-radius:3px; margin-bottom:8px; font-weight:600; }
+.lbl { color:#4a5568; white-space:nowrap; }
+.badge { display:inline-block; background:#ddeeff; color:#0055cc; font-size:8pt; padding:2px 8px; border-radius:3px; margin-bottom:8px; font-weight:600; }
 .step { display:flex; gap:0.18in; margin-bottom:0.22in; }
-.step-num { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:#00aaff; color:#000; font-weight:800; font-size:14pt; display:flex; align-items:center; justify-content:center; }
+.step-num { flex-shrink:0; width:32px; height:32px; border-radius:50%; background:#0055cc; color:#ffffff; font-weight:800; font-size:14pt; display:flex; align-items:center; justify-content:center; }
 </style>
 </head>
 <body>
 
 <div class="page" style="display:flex;flex-direction:column;justify-content:space-between;padding:0.75in 0.9in;">
   <div>
-    <div style="margin-bottom:0.45in;font-size:22pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div>
-    <div style="font-size:9pt;color:#6b8099;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.08in;">Prepared for</div>
-    <div style="font-weight:800;font-size:28pt;line-height:1.05;margin-bottom:0.35in;">{{ customer }}<br><span style="font-size:16pt;font-weight:600;color:#6b8099;">{{ site_name }}</span></div>
+    <div style="margin-bottom:0.45in;font-size:22pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div>
+    <div style="font-size:9pt;color:#4a5568;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.08in;">Prepared for</div>
+    <div style="font-weight:800;font-size:28pt;line-height:1.05;margin-bottom:0.35in;">{{ customer }}<br><span style="font-size:16pt;font-weight:600;color:#4a5568;">{{ site_name }}</span></div>
     <p style="font-size:10.5pt;line-height:1.75;margin-bottom:0.25in;">Thank you for the opportunity to present this analysis. We have reviewed your {{ energy_provider }} account and identified a clear path to meaningful, sustained reductions in your monthly energy costs.</p>
     <div class="slabel">The Opportunity</div>
     <p style="font-size:9.5pt;line-height:1.75;margin-bottom:0.25in;">Your {{ site_name }} facility is operating at <strong>{{ peak_kw_fmt }} kW peak demand</strong> with a monthly utility bill of approximately <strong>{{ monthly_bill_fmt }}</strong>. Facilities {{ facility_context }} at this load level consistently carry measurable harmonic distortion and reactive power inefficiencies that inflate both demand and consumption charges without adding output.</p>
@@ -47,7 +47,7 @@ th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-tra
     <div class="slabel">Savings Verification — IPMVP Option C</div>
     <p style="font-size:9.5pt;line-height:1.75;margin:0;">Savings are measured and verified using <strong>IPMVP Option C</strong> (Whole Facility) — a comparison of utility bills before and after installation, normalized for production and weather where applicable. Monthly reports are delivered through the ECBS cloud platform, providing transparent, auditable performance data.</p>
   </div>
-  <div style="border-top:1px solid #1c3a5e;padding-top:0.18in;display:flex;justify-content:space-between;font-size:8.5pt;color:#6b8099;">
+  <div style="border-top:1px solid #d0d8e4;padding-top:0.18in;display:flex;justify-content:space-between;font-size:8.5pt;color:#4a5568;">
     <span>Confidential &#183; {{ proposal_month }} &#183; Prepared by {{ prepared_by_org }}</span>
     <span>{{ preparer_name }} &#183; {{ contact_name }} &#183; {{ contact_phone }}</span>
   </div>
@@ -55,76 +55,76 @@ th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-tra
 
 <div class="page" style="display:flex;flex-direction:column;justify-content:space-between;padding:0.6in 0.75in;">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-    <div style="font-size:22pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div>
-    <div style="text-align:right;font-size:9pt;color:#6b8099;">Prepared by<br><strong style="color:#e8eef5;">{{ prepared_by_org }}</strong><br>{{ preparer_name }}</div>
+    <div style="font-size:22pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div>
+    <div style="text-align:right;font-size:9pt;color:#4a5568;">Prepared by<br><strong style="color:#1a2a3a;">{{ prepared_by_org }}</strong><br>{{ preparer_name }}</div>
   </div>
   <div style="flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:0.5in 0;">
-    <div style="color:#00aaff;font-size:11pt;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.2in;font-weight:600;">ECBS Optimization Proposal</div>
+    <div style="color:#0055cc;font-size:11pt;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.2in;font-weight:600;">ECBS Optimization Proposal</div>
     <div style="font-weight:800;font-size:40pt;line-height:1.05;">{{ customer }}</div>
-    <div style="color:#6b8099;font-size:11pt;margin-top:0.15in;">{{ site_name }} &#183; {{ energy_provider }} &#183; {{ proposal_month }}</div>
+    <div style="color:#4a5568;font-size:11pt;margin-top:0.15in;">{{ site_name }} &#183; {{ energy_provider }} &#183; {{ proposal_month }}</div>
     <div class="kpi-grid">
       <div class="kpi"><div class="kpi-val">{{ hw_k_fmt }}</div><div class="kpi-lbl">Hardware Cost</div></div>
       <div class="kpi"><div class="kpi-val">{{ yr1_k_fmt }}</div><div class="kpi-lbl">Year 1 All-In</div></div>
-      <div class="kpi" style="border-color:#00e5a0;"><div class="kpi-val" style="color:#00e5a0;">{{ mo_sav_fmt }}/mo</div><div class="kpi-lbl">Est. Monthly Savings</div></div>
+      <div class="kpi" style="border-color:#0a6e4f;"><div class="kpi-val" style="color:#0a6e4f;">{{ mo_sav_fmt }}/mo</div><div class="kpi-lbl">Est. Monthly Savings</div></div>
       <div class="kpi"><div class="kpi-val">{{ roi_cover_fmt }}</div><div class="kpi-lbl">Payback Period</div></div>
     </div>
     <div class="card" style="max-width:5.5in;margin:0 auto;"><p style="font-size:9pt;line-height:1.6;text-align:center;">This ECBS solution is sized based on the <strong>power quality profile of the facility's current load</strong> — derived directly from the utility electric bill, including peak demand, consumption history, and rate structure.</p></div>
   </div>
-  <div style="border-top:1px solid #1c3a5e;padding-top:0.15in;display:flex;justify-content:space-between;align-items:center;">
-    <div style="font-size:9.5pt;color:#6b8099;">Submitted to <span style="color:#e8eef5;font-weight:500;">{{ customer }}</span> &#183; {{ contact_name }}, {{ contact_title }}</div>
-    <div style="font-size:9pt;color:#6b8099;">Confidential &#183; {{ proposal_month }}</div>
+  <div style="border-top:1px solid #d0d8e4;padding-top:0.15in;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:9.5pt;color:#4a5568;">Submitted to <span style="color:#1a2a3a;font-weight:500;">{{ customer }}</span> &#183; {{ contact_name }}, {{ contact_title }}</div>
+    <div style="font-size:9pt;color:#4a5568;">Confidential &#183; {{ proposal_month }}</div>
   </div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Scope &amp; Investment at a Glance</h2>
   <div class="two-col" style="margin-bottom:0.25in;">
     <div>
       <div class="slabel">Cost Breakdown</div>
       <table>
         <tr><th>Component</th><th style="text-align:right;">Amount</th></tr>
-        <tr style="background:#0c1929;"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Hardware &amp; Equipment</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ hw_fmt }}</td></tr>
-        <tr><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Engineering &amp; Installation (15%)</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ engineering_fmt }}</td></tr>
-        <tr style="background:#0c1929;"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Software Subscription — Year 1</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ sw_yr1_fmt }}</td></tr>
-        <tr><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Freight &amp; Logistics ({{ pallets }} pallet{{ 's' if pallets > 1 else '' }})</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ shipping_fmt }}</td></tr>
-        <tr class="total-row"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;"><strong>Year 1 Total Investment</strong></td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;"><strong>{{ yr1_fmt }}</strong></td></tr>
+        <tr style="background:#f8f9fb;"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Hardware &amp; Equipment</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ hw_fmt }}</td></tr>
+        <tr><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Engineering &amp; Installation (15%)</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ engineering_fmt }}</td></tr>
+        <tr style="background:#f8f9fb;"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Software Subscription — Year 1</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ sw_yr1_fmt }}</td></tr>
+        <tr><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Freight &amp; Logistics ({{ pallets }} pallet{{ 's' if pallets > 1 else '' }})</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ shipping_fmt }}</td></tr>
+        <tr class="total-row"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;"><strong>Year 1 Total Investment</strong></td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;"><strong>{{ yr1_fmt }}</strong></td></tr>
       </table>
-      <div style="margin-top:0.1in;font-size:8.5pt;color:#6b8099;">Annual software fee (Year 2+): <strong style="color:#e8eef5;">{{ sw_yr2_fmt }}/meter/year</strong></div>
+      <div style="margin-top:0.1in;font-size:8.5pt;color:#4a5568;">Annual software fee (Year 2+): <strong style="color:#1a2a3a;">{{ sw_yr2_fmt }}/meter/year</strong></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:0.15in;">
       <div class="card card-green">
-        <div style="font-weight:800;font-size:30pt;color:#00e5a0;line-height:1;">{{ mo_sav_fmt }}</div>
-        <div style="font-size:8.5pt;color:#6b8099;text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">Estimated Monthly Savings</div>
-        <div style="font-size:8.5pt;color:#6b8099;margin-top:6px;">Based on {{ savings_pct_fmt }} reduction of avg monthly bill</div>
+        <div style="font-weight:800;font-size:30pt;color:#0a6e4f;line-height:1;">{{ mo_sav_fmt }}</div>
+        <div style="font-size:8.5pt;color:#4a5568;text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">Estimated Monthly Savings</div>
+        <div style="font-size:8.5pt;color:#4a5568;margin-top:6px;">Based on {{ savings_pct_fmt }} reduction of avg monthly bill</div>
       </div>
       <div class="card card-blue">
-        <div style="font-weight:800;font-size:30pt;color:#00aaff;line-height:1;">{{ roi_body_fmt }} months</div>
-        <div style="font-size:8.5pt;color:#6b8099;text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">Payback Period</div>
+        <div style="font-weight:800;font-size:30pt;color:#0055cc;line-height:1;">{{ roi_body_fmt }} months</div>
+        <div style="font-size:8.5pt;color:#4a5568;text-transform:uppercase;letter-spacing:0.07em;margin-top:3px;">Payback Period</div>
       </div>
       <div class="card">
-        <div style="font-size:9pt;color:#6b8099;margin-bottom:6px;">EQUIPMENT SCOPE SUMMARY</div>
+        <div style="font-size:9pt;color:#4a5568;margin-bottom:6px;">EQUIPMENT SCOPE SUMMARY</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:9pt;">
-          <div><span style="color:#6b8099;">Units:</span> <strong>{{ budget }}</strong></div>
-          <div><span style="color:#6b8099;">ECBS-600:</span> <strong>{{ s600 }}</strong></div>
-          <div><span style="color:#6b8099;">APF Units:</span> <strong>{{ total_apf }}</strong></div>
-          <div><span style="color:#6b8099;">Peak kW:</span> <strong>{{ peak_kw_fmt }}</strong></div>
-          <div><span style="color:#6b8099;">Meters:</span> <strong>{{ n_meters }}</strong></div>
+          <div><span style="color:#4a5568;">Units:</span> <strong>{{ budget }}</strong></div>
+          <div><span style="color:#4a5568;">ECBS-600:</span> <strong>{{ s600 }}</strong></div>
+          <div><span style="color:#4a5568;">APF Units:</span> <strong>{{ total_apf }}</strong></div>
+          <div><span style="color:#4a5568;">Peak kW:</span> <strong>{{ peak_kw_fmt }}</strong></div>
+          <div><span style="color:#4a5568;">Meters:</span> <strong>{{ n_meters }}</strong></div>
         </div>
       </div>
     </div>
   </div>
   <div class="slabel">How ECBS Delivers Savings</div>
   <div class="three-col">
-    <div class="card card-blue"><h3 style="font-size:11pt;color:#00aaff;margin-bottom:8px;">What It Is</h3><p style="font-size:8.5pt;line-height:1.7;">ECBS optimizes how electricity flows across your entire facility by balancing current across all three phases, reducing kVA losses, eliminating harmonics, and improving overall system efficiency — resulting in lower demand, less waste, and smoother operation.</p></div>
-    <div class="card card-blue"><h3 style="font-size:11pt;color:#00aaff;margin-bottom:8px;">How It Works</h3><p style="font-size:8.5pt;line-height:1.7;">Think of ECBS like balancing water in pipes — when power flows unevenly across phases, it creates turbulence (harmonics) and inefficiency, so ECBS redistributes and smooths the flow across the network, resulting in clean, even, optimized power.</p></div>
-    <div class="card card-blue"><h3 style="font-size:11pt;color:#00aaff;margin-bottom:8px;">What It's Doing</h3><p style="font-size:8.5pt;line-height:1.7;">Behind the scenes, ECBS dynamically balances phase currents, filters harmonics from non-linear loads, improves power factor by aligning voltage and current, and stabilizes voltage — all as a coordinated, network-wide system.</p></div>
+    <div class="card card-blue"><h3 style="font-size:11pt;color:#0055cc;margin-bottom:8px;">What It Is</h3><p style="font-size:8.5pt;line-height:1.7;">ECBS optimizes how electricity flows across your entire facility by balancing current across all three phases, reducing kVA losses, eliminating harmonics, and improving overall system efficiency — resulting in lower demand, less waste, and smoother operation.</p></div>
+    <div class="card card-blue"><h3 style="font-size:11pt;color:#0055cc;margin-bottom:8px;">How It Works</h3><p style="font-size:8.5pt;line-height:1.7;">Think of ECBS like balancing water in pipes — when power flows unevenly across phases, it creates turbulence (harmonics) and inefficiency, so ECBS redistributes and smooths the flow across the network, resulting in clean, even, optimized power.</p></div>
+    <div class="card card-blue"><h3 style="font-size:11pt;color:#0055cc;margin-bottom:8px;">What It's Doing</h3><p style="font-size:8.5pt;line-height:1.7;">Behind the scenes, ECBS dynamically balances phase currents, filters harmonics from non-linear loads, improves power factor by aligning voltage and current, and stabilizes voltage — all as a coordinated, network-wide system.</p></div>
   </div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 3 of 9 &#183; Confidential</span></div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Site Overview</h2>
   <div class="slabel">Facility Profile</div>
   <div class="two-col" style="margin-bottom:0.2in;">
@@ -152,7 +152,7 @@ th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-tra
   <div class="slabel">Utility Account Details</div>
   <div class="two-col" style="margin-bottom:0.22in;">
     <div class="card card-blue">
-      <div style="font-size:9pt;color:#6b8099;margin-bottom:0.1in;">{{ tariff_name }}</div>
+      <div style="font-size:9pt;color:#4a5568;margin-bottom:0.1in;">{{ tariff_name }}</div>
       <table class="itable">
         <tr><td class="lbl">Meter #</td><td>{{ meter_number }}</td></tr>
         <tr><td class="lbl">Period</td><td>{{ billing_period }}</td></tr>
@@ -165,64 +165,64 @@ th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-tra
       </table>
     </div>
     <div>
-      {% if excluded_meters %}<div class="card" style="margin-bottom:0.12in;"><div style="font-size:9pt;color:#6b8099;margin-bottom:6px;">EXCLUDED METERS</div>{% for e in excluded_meters %}<div style="font-size:8.5pt;line-height:1.8;"><strong>{{ e.item }}</strong> — {{ e.description }} — {{ e.reason }}</div>{% endfor %}</div>{% endif %}
-      <div class="card card-green"><div style="font-size:9pt;color:#6b8099;margin-bottom:4px;">EST. ANNUAL SAVINGS</div><div style="font-weight:800;font-size:24pt;color:#00e5a0;line-height:1;">{{ annual_savings_fmt }}</div><div style="font-size:8.5pt;color:#6b8099;">Based on {{ savings_pct_fmt }} reduction</div></div>
+      {% if excluded_meters %}<div class="card" style="margin-bottom:0.12in;"><div style="font-size:9pt;color:#4a5568;margin-bottom:6px;">EXCLUDED METERS</div>{% for e in excluded_meters %}<div style="font-size:8.5pt;line-height:1.8;"><strong>{{ e.item }}</strong> — {{ e.description }} — {{ e.reason }}</div>{% endfor %}</div>{% endif %}
+      <div class="card card-green"><div style="font-size:9pt;color:#4a5568;margin-bottom:4px;">EST. ANNUAL SAVINGS</div><div style="font-weight:800;font-size:24pt;color:#0a6e4f;line-height:1;">{{ annual_savings_fmt }}</div><div style="font-size:8.5pt;color:#4a5568;">Based on {{ savings_pct_fmt }} reduction</div></div>
     </div>
   </div>
-  {% if ramp_up_note %}<div class="card card-green" style="display:flex;align-items:flex-start;gap:0.15in;"><div style="flex-shrink:0;font-size:18pt;color:#00e5a0;">&#x2191;</div><div style="font-size:8.5pt;line-height:1.6;">{{ ramp_up_note }}</div></div>{% endif %}
+  {% if ramp_up_note %}<div class="card card-green" style="display:flex;align-items:flex-start;gap:0.15in;"><div style="flex-shrink:0;font-size:18pt;color:#0a6e4f;">&#x2191;</div><div style="font-size:8.5pt;line-height:1.6;">{{ ramp_up_note }}</div></div>{% endif %}
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 4 of 9 &#183; Confidential</span></div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Bill of Materials — {{ region }}</h2>
   <div class="slabel">{{ site_name }} — Equipment List</div>
   <table>
     <tr><th>Line Item</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Unit Price</th><th style="text-align:right;">Line Total</th></tr>
     {% for item in bom_items %}
-    <tr style="background:{{ '#0c1929' if loop.index is odd else 'transparent' }};"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">{{ item.name }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ item.qty }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ item.unit_fmt }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ item.total_fmt }}</td></tr>
+    <tr style="background:{{ '#f8f9fb' if loop.index is odd else 'transparent' }};"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">{{ item.name }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ item.qty }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ item.unit_fmt }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ item.total_fmt }}</td></tr>
     {% endfor %}
     <tr class="subtotal-row"><td style="padding:7px 10px;" colspan="3"><strong>Equipment Subtotal</strong></td><td style="padding:7px 10px;text-align:right;"><strong>{{ bom_subtotal_fmt }}</strong></td></tr>
     <tr class="total-row"><td style="padding:7px 10px;" colspan="3"><strong>Hardware Total (incl. wire &amp; conduit)</strong></td><td style="padding:7px 10px;text-align:right;"><strong>{{ hw_fmt }}</strong></td></tr>
   </table>
-  <div style="margin-top:0.15in;font-size:8.5pt;color:#6b8099;">Wire, conduit, couplers, and installation materials included in hardware total. Price does not include electrical connections to breakers and fuse disconnects. All prices in USD. Equipment ships from Georgetown, TX.</div>
+  <div style="margin-top:0.15in;font-size:8.5pt;color:#4a5568;">Wire, conduit, couplers, and installation materials included in hardware total. Price does not include electrical connections to breakers and fuse disconnects. All prices in USD. Equipment ships from Georgetown, TX.</div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 5 of 9 &#183; Confidential</span></div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Portfolio Equipment Total</h2>
   <div class="slabel">Equipment Count by Category</div>
   <table style="margin-bottom:0.25in;">
     <tr><th>Category</th><th style="text-align:right;">Qty</th><th style="text-align:right;">Unit</th><th style="text-align:right;">Subtotal</th></tr>
-    {% for r in portfolio_rows %}<tr style="background:{{ '#0c1929' if loop.index is odd else 'transparent' }};"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">{{ r.label }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ r.qty }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ r.unit }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ r.subtotal }}</td></tr>{% endfor %}
+    {% for r in portfolio_rows %}<tr style="background:{{ '#f8f9fb' if loop.index is odd else 'transparent' }};"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">{{ r.label }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ r.qty }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ r.unit }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ r.subtotal }}</td></tr>{% endfor %}
     <tr class="total-row"><td style="padding:7px 10px;" colspan="3"><strong>Portfolio Hardware Total</strong></td><td style="padding:7px 10px;text-align:right;"><strong>{{ hw_fmt }}</strong></td></tr>
   </table>
   <div class="slabel">Capacity Summary</div>
   <div class="three-col">
-    <div class="card card-blue" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#00aaff;line-height:1;">{{ budget }}</div><div style="font-size:8.5pt;color:#6b8099;text-transform:uppercase;margin-top:3px;">Total ECBS Units</div><div style="font-size:8pt;color:#6b8099;margin-top:4px;">{{ s600 }} &#215; ECBS-600 | {{ apf100 }} &#215; APF-100 | {{ apf50 }} &#215; APF-50</div></div>
-    <div class="card card-green" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#00e5a0;line-height:1;">{{ peak_kw_fmt }}</div><div style="font-size:8.5pt;color:#6b8099;text-transform:uppercase;margin-top:3px;">kW Peak Demand Served</div><div style="font-size:8pt;color:#6b8099;margin-top:4px;">{{ peak_source }} from {{ energy_provider }} bill</div></div>
-    <div class="card" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#00aaff;line-height:1;">{{ n_meters }}</div><div style="font-size:8.5pt;color:#6b8099;text-transform:uppercase;margin-top:3px;">Monitored Service Points</div><div style="font-size:8pt;color:#6b8099;margin-top:4px;">Revenue-grade metering per point</div></div>
+    <div class="card card-blue" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#0055cc;line-height:1;">{{ budget }}</div><div style="font-size:8.5pt;color:#4a5568;text-transform:uppercase;margin-top:3px;">Total ECBS Units</div><div style="font-size:8pt;color:#4a5568;margin-top:4px;">{{ s600 }} &#215; ECBS-600 | {{ apf100 }} &#215; APF-100 | {{ apf50 }} &#215; APF-50</div></div>
+    <div class="card card-green" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#0a6e4f;line-height:1;">{{ peak_kw_fmt }}</div><div style="font-size:8.5pt;color:#4a5568;text-transform:uppercase;margin-top:3px;">kW Peak Demand Served</div><div style="font-size:8pt;color:#4a5568;margin-top:4px;">{{ peak_source }} from {{ energy_provider }} bill</div></div>
+    <div class="card" style="text-align:center;"><div style="font-weight:800;font-size:36pt;color:#0055cc;line-height:1;">{{ n_meters }}</div><div style="font-size:8.5pt;color:#4a5568;text-transform:uppercase;margin-top:3px;">Monitored Service Points</div><div style="font-size:8pt;color:#4a5568;margin-top:4px;">Revenue-grade metering per point</div></div>
   </div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 6 of 9 &#183; Confidential</span></div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Investment Summary</h2>
   <div class="slabel">Year 1 Investment — {{ site_name }}</div>
   <table style="margin-bottom:0.25in;">
     <tr><th>Component</th><th style="text-align:right;">Amount</th></tr>
-    <tr style="background:#0c1929;"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Hardware &amp; Equipment</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ hw_fmt }}</td></tr>
-    <tr><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Engineering &amp; Installation (15%)</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ engineering_fmt }}</td></tr>
-    <tr style="background:#0c1929;"><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Software Subscription — Year 1</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ sw_yr1_fmt }}</td></tr>
-    <tr><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">Freight &amp; Logistics ({{ pallets }} pallets)</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ shipping_fmt }}</td></tr>
+    <tr style="background:#f8f9fb;"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Hardware &amp; Equipment</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ hw_fmt }}</td></tr>
+    <tr><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Engineering &amp; Installation (15%)</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ engineering_fmt }}</td></tr>
+    <tr style="background:#f8f9fb;"><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Software Subscription — Year 1</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ sw_yr1_fmt }}</td></tr>
+    <tr><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">Freight &amp; Logistics ({{ pallets }} pallets)</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ shipping_fmt }}</td></tr>
     <tr class="total-row"><td style="padding:7px 10px;"><strong>Year 1 Total Investment</strong></td><td style="padding:7px 10px;text-align:right;"><strong>{{ yr1_fmt }}</strong></td></tr>
   </table>
   <div class="slabel">Ongoing Annual Fee (Year 2+)</div>
   <table style="margin-bottom:0.25in;">
     <tr><th>Site</th><th style="text-align:right;">Meters</th><th style="text-align:right;">Rate/Meter/Year</th><th style="text-align:right;">Annual Fee</th></tr>
-    <tr><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;">{{ site_name }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ sw_pts }}</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">$799.00</td><td style="padding:7px 10px;border-bottom:1px solid #1c3a5e;text-align:right;">{{ sw_yr2_fmt }}</td></tr>
+    <tr><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;">{{ site_name }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ sw_pts }}</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">$799.00</td><td style="padding:7px 10px;border-bottom:1px solid #d0d8e4;text-align:right;">{{ sw_yr2_fmt }}</td></tr>
     <tr class="total-row"><td style="padding:7px 10px;" colspan="3"><strong>Total Annual Subscription</strong></td><td style="padding:7px 10px;text-align:right;"><strong>{{ sw_yr2_fmt }}</strong></td></tr>
   </table>
   <div class="slabel">Shipping Detail</div>
@@ -231,26 +231,26 @@ th { background:#0a1828; color:#6b8099; font-weight:600; font-size:8pt; text-tra
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>ECBS Equipment Details</h2>
   <div class="slabel">What Each Unit Does</div>
   <div class="two-col" style="margin-bottom:0.18in;">
-    <div class="card"><div class="badge">ECBS-600 · XPS600</div><h4 style="font-size:14pt;color:#00aaff;margin-bottom:6px;">Power Line Conditioner/Extractor</h4><p style="font-size:9pt;line-height:1.55;">The ECBS-600 is the core power quality unit, combining narrow-band tuning and reactive power compensation in a single 480V cabinet. Each unit serves up to 75 kW of load. At this site, <strong>{{ s600 }} unit{{ 's' if s600 != 1 else '' }}</strong> {{ 'are' if s600 != 1 else 'is' }} deployed, {{ facility_context }}. Reduces harmonics to IEEE 519 compliance levels.</p></div>
-    <div class="card"><div class="badge">APF-100 · Active Power Filter</div><h4 style="font-size:14pt;color:#00aaff;margin-bottom:6px;">High-Capacity Active Power Filter</h4><p style="font-size:9pt;line-height:1.55;">The APF-100 delivers double the capacity of the APF-50. At this site, <strong>{{ apf100 }} APF-100 unit{{ 's' if apf100 != 1 else '' }}</strong> provide{{ '' if apf100 != 1 else 's' }} continuous real-time harmonic cancellation for non-linear loads including VFDs, rectifiers, and CNC-controlled equipment. Corrects up to the 51st harmonic order.</p></div>
-    <div class="card"><div class="badge">APF-50 · XPF480-50</div><h4 style="font-size:14pt;color:#00aaff;margin-bottom:6px;">Active Power Filter — Standard</h4><p style="font-size:9pt;line-height:1.55;">The APF-50 provides active harmonic mitigation for 480V distribution panels. <strong>{{ apf50 }} APF-50 unit{{ 's' if apf50 != 1 else '' }}</strong> supplement the APF-100s, targeting sub-panels and ancillary machinery. Each unit includes a built-in power quality energy meter.</p></div>
-    <div class="card"><div class="badge">Gateway + Server</div><h4 style="font-size:14pt;color:#00aaff;margin-bottom:6px;">Communication &amp; Cloud Infrastructure</h4><p style="font-size:9pt;line-height:1.55;"><strong>{{ gw }} gateway{{ 's' if gw != 1 else '' }}</strong> collect real-time data from all ECBS units via Modbus/RS-485. The on-site <strong>server</strong> provides local data buffering and site-level dashboards. The platform supports 12 units per gateway — this site uses {{ gw }} to cover all {{ budget }} units.</p></div>
+    <div class="card"><div class="badge">ECBS-600 · XPS600</div><h4 style="font-size:14pt;color:#0055cc;margin-bottom:6px;">Power Line Conditioner/Extractor</h4><p style="font-size:9pt;line-height:1.55;">The ECBS-600 is the core power quality unit, combining narrow-band tuning and reactive power compensation in a single 480V cabinet. Each unit serves up to 75 kW of load. At this site, <strong>{{ s600 }} unit{{ 's' if s600 != 1 else '' }}</strong> {{ 'are' if s600 != 1 else 'is' }} deployed, {{ facility_context }}. Reduces harmonics to IEEE 519 compliance levels.</p></div>
+    <div class="card"><div class="badge">APF-100 · Active Power Filter</div><h4 style="font-size:14pt;color:#0055cc;margin-bottom:6px;">High-Capacity Active Power Filter</h4><p style="font-size:9pt;line-height:1.55;">The APF-100 delivers double the capacity of the APF-50. At this site, <strong>{{ apf100 }} APF-100 unit{{ 's' if apf100 != 1 else '' }}</strong> provide{{ '' if apf100 != 1 else 's' }} continuous real-time harmonic cancellation for non-linear loads including VFDs, rectifiers, and CNC-controlled equipment. Corrects up to the 51st harmonic order.</p></div>
+    <div class="card"><div class="badge">APF-50 · XPF480-50</div><h4 style="font-size:14pt;color:#0055cc;margin-bottom:6px;">Active Power Filter — Standard</h4><p style="font-size:9pt;line-height:1.55;">The APF-50 provides active harmonic mitigation for 480V distribution panels. <strong>{{ apf50 }} APF-50 unit{{ 's' if apf50 != 1 else '' }}</strong> supplement the APF-100s, targeting sub-panels and ancillary machinery. Each unit includes a built-in power quality energy meter.</p></div>
+    <div class="card"><div class="badge">Gateway + Server</div><h4 style="font-size:14pt;color:#0055cc;margin-bottom:6px;">Communication &amp; Cloud Infrastructure</h4><p style="font-size:9pt;line-height:1.55;"><strong>{{ gw }} gateway{{ 's' if gw != 1 else '' }}</strong> collect real-time data from all ECBS units via Modbus/RS-485. The on-site <strong>server</strong> provides local data buffering and site-level dashboards. The platform supports 12 units per gateway — this site uses {{ gw }} to cover all {{ budget }} units.</p></div>
   </div>
   <div class="slabel">Performance Standards</div>
   <div class="three-col">
-    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#6b8099;margin-bottom:4px;">TOTAL HARMONIC DISTORTION</div><div style="font-weight:800;font-size:28pt;color:#00aaff;line-height:1;">&lt; 5%</div><div style="font-size:8.5pt;color:#6b8099;margin-top:4px;">IEEE 519 compliant</div></div>
-    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#6b8099;margin-bottom:4px;">EST. POWER FACTOR</div><div style="font-weight:800;font-size:28pt;color:#00aaff;line-height:1;">0.98+</div><div style="font-size:8.5pt;color:#6b8099;margin-top:4px;">Continuous dynamic correction</div></div>
-    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#6b8099;margin-bottom:4px;">RESPONSE TIME</div><div style="font-weight:800;font-size:28pt;color:#00aaff;line-height:1;">&lt; 20&#x3bc;s</div><div style="font-size:8.5pt;color:#6b8099;margin-top:4px;">Real-time compensation cycle</div></div>
+    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#4a5568;margin-bottom:4px;">TOTAL HARMONIC DISTORTION</div><div style="font-weight:800;font-size:28pt;color:#0055cc;line-height:1;">&lt; 5%</div><div style="font-size:8.5pt;color:#4a5568;margin-top:4px;">IEEE 519 compliant</div></div>
+    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#4a5568;margin-bottom:4px;">EST. POWER FACTOR</div><div style="font-weight:800;font-size:28pt;color:#0055cc;line-height:1;">0.98+</div><div style="font-size:8.5pt;color:#4a5568;margin-top:4px;">Continuous dynamic correction</div></div>
+    <div class="card" style="text-align:center;"><div style="font-size:10pt;color:#4a5568;margin-bottom:4px;">RESPONSE TIME</div><div style="font-weight:800;font-size:28pt;color:#0055cc;line-height:1;">&lt; 20&#x3bc;s</div><div style="font-size:8.5pt;color:#4a5568;margin-top:4px;">Real-time compensation cycle</div></div>
   </div>
   <div class="pf"><span>{{ customer }} — ECBS Optimization Proposal</span><span>Page 8 of 9 &#183; Confidential</span></div>
 </div>
 
 <div class="page">
-  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#00aaff;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#6b8099;">{{ customer }} &#183; {{ proposal_month }}</div></div>
+  <div class="ph"><div style="font-size:16pt;font-weight:800;color:#0055cc;">{{ prepared_by_org }}</div><div style="font-size:9pt;color:#4a5568;">{{ customer }} &#183; {{ proposal_month }}</div></div>
   <h2>Next Steps</h2>
   <div class="slabel">Path to Commissioning</div>
   <div style="margin-bottom:0.3in;">
