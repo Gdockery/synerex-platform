@@ -333,8 +333,8 @@ def build_html(d: dict) -> str:
   <thead><tr><th>Equipment Type</th><th>Quantity</th></tr></thead>
   <tbody>
     <tr><td>ECBS-600 Current Balancing Units</td><td class="val-col">{s600}</td></tr>
-    {"<tr><td>APF-100 Harmonic Mitigation Units (hw)</td><td class=\"val-col\">" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
-    {"<tr><td>APF-50 Harmonic Mitigation Units</td><td class=\"val-col\">" + str(apf50) + "</td></tr>" if apf50 > 0 else ""}
+    {"<tr><td>APF-100 Harmonic Mitigation Units (hw)</td><td class='val-col'>" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
+    {"<tr><td>APF-50 Harmonic Mitigation Units</td><td class='val-col'>" + str(apf50) + "</td></tr>" if apf50 > 0 else ""}
     <tr><td>Revenue Grade Meter (utility supply point)</td><td class="val-col">{n_meters}</td></tr>
     <tr><td>IoT Communications Gateways</td><td class="val-col">{gw}</td></tr>
     <tr><td>Local Monitoring Server</td><td class="val-col">{srv}</td></tr>
@@ -677,7 +677,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       <tr><td>{pf_reference_month} Power Factor</td><td class="val-col">{pf_reference}</td></tr>
       <tr><td>Main Distribution Boards</td><td class="val-col">{num_mdps}</td></tr>
       <tr><td>Proposed ECBS-600 Units</td><td class="val-col">{s600}</td></tr>
-      {"<tr><td>Proposed APF-100 Units (hw)</td><td class=\"val-col\">" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
+      {"<tr><td>Proposed APF-100 Units (hw)</td><td class='val-col'>" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
     </tbody>
   </table>
 </div>

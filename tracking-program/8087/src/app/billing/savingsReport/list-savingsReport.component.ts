@@ -836,13 +836,13 @@ const { PDFDocument } = require('pdf-lib');
         </div>
       </div>
 
-      <!-- ── ECBS Proposal Section ─────────────────────────────────────────── -->
+      <!-- ── Bill Analytic Section ─────────────────────────────────────────── -->
       <div style="margin-top:1.5em; padding:1.25em; background:#0f1e35; border:1px solid #1c3a5e; border-radius:8px;">
         <h3 style="color:#00aaff; margin-bottom:0.75em; font-size:1.15em; font-weight:700;">
-          &#128196; ECBS Optimization Proposal
+          &#128196; Bill Analytic
         </h3>
         <p style="color:#6b8099; font-size:0.9em; margin-bottom:1em;">
-          Automatically size equipment, calculate ROI, and generate a professional 9-page proposal PDF based on the scanned bill data above.
+          Automatically size equipment, calculate ROI, and generate a professional proposal PDF based on the scanned bill data above.
         </p>
 
         <!-- Facility context row -->
@@ -884,7 +884,7 @@ const { PDFDocument } = require('pdf-lib');
           <button type="button" class="default-button green-button" [disabled]="proposalGenerating || !baTotalKwh"
             (click)="generateEcbsProposal()"
             style="background:#006633; border-color:#006633; font-weight:700; padding:9px 22px;">
-            {{ proposalGenerating ? 'Generating PDF...' : '&#128196; Generate ECBS Proposal PDF' }}
+            {{ proposalGenerating ? 'Generating PDF...' : '&#128196; Generate Bill Analytic PDF' }}
           </button>
           <button type="button" class="default-button" [disabled]="proposalSaving"
             (click)="saveProposalSettings()"
@@ -898,27 +898,41 @@ const { PDFDocument } = require('pdf-lib');
           &#9432; Scan a bill above first to populate bill data for the proposal.
         </div>
 
-        <!-- SLD-based Report buttons (require sldAnalysis.buses from GPU) -->
+        <!-- Proposal Contract (no SLD required) -->
         <div style="margin-top:14px; border-top:1px solid #1c3a5e; padding-top:14px;">
-          <div style="font-size:0.88em; color:#3a7abf; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">
-            SLD-Based Engineering Reports
+          <div style="font-size:0.88em; color:#a8c8f0; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">
+            Proposal Contract
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="default-button" [disabled]="reportPcGenerating"
+              (click)="openProposalContract()"
+              style="background:#1a3a6b; border-color:#005fa3; color:#fff; font-weight:700; padding:9px 20px;">
+              {{ reportPcGenerating ? 'Generating...' : '&#128196; Proposal Contract PDF' }}
+            </button>
+            <span *ngIf="reportStatus && !reportNaGenerating" style="font-size:0.88em;"
+              [style.color]="reportError ? '#c00' : '#00e5a0'">{{ reportStatus }}</span>
+          </div>
+          <div style="font-size:0.80em; color:#a8c8f0; margin-top:6px;">
+            &#9432; Uses bill data. If no SLD has been accepted, equipment mix defaults to 30% APF.
+          </div>
+        </div>
+
+        <!-- Network Assessment (requires accepted SLD) -->
+        <div style="margin-top:14px; border-top:1px solid #1c3a5e; padding-top:14px;">
+          <div style="font-size:0.88em; color:#a8c8f0; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">
+            SLD-Based Engineering Report
           </div>
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <button type="button" class="default-button" [disabled]="reportNaGenerating"
               (click)="openNetworkAssessment()"
-              style="background:#005fa3; border-color:#005fa3; font-weight:700; padding:9px 20px;">
+              style="background:#005fa3; border-color:#005fa3; color:#fff; font-weight:700; padding:9px 20px;">
               {{ reportNaGenerating ? 'Generating...' : '&#128202; Network Assessment PDF' }}
             </button>
-            <button type="button" class="default-button" [disabled]="reportPcGenerating"
-              (click)="openProposalContract()"
-              style="background:#1a3a6b; border-color:#1a3a6b; font-weight:700; padding:9px 20px;">
-              {{ reportPcGenerating ? 'Generating...' : '&#128196; Proposal Contract PDF' }}
-            </button>
-            <span *ngIf="reportStatus" style="font-size:0.88em;"
+            <span *ngIf="reportStatus && !reportPcGenerating" style="font-size:0.88em;"
               [style.color]="reportError ? '#c00' : '#00e5a0'">{{ reportStatus }}</span>
           </div>
-          <div style="font-size:0.80em; color:#6b8099; margin-top:6px;">
-            &#9432; These reports use the SLD topology (buses array) from the accepted Single-Line Drawing analysis. Accept an SLD analysis first.
+          <div style="font-size:0.80em; color:#a8c8f0; margin-top:6px;">
+            &#9432; Requires an accepted Single-Line Drawing analysis (SLD topology).
           </div>
         </div>
       </div>

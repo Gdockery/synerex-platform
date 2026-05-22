@@ -327,6 +327,11 @@ def proposal_contract_pdf(project_id):
             return Response(html, status=200, content_type="text/html; charset=utf-8")
 
         pdf_bytes = render_pdf(html)
+
+        # Mark proposal as generated so pipeline stage turns green
+        project.proposalSrc = f"/api/project/{project_id}/report/proposal-contract"
+        sess.commit()
+
         fname = f"{data['customer']} Proposal Contract.pdf"
         return Response(
             pdf_bytes,

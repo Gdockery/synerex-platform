@@ -46,8 +46,8 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
         <div class="section-header">Documents</div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
           <a *ngIf="project.proposal_src" class="btn btn-xs btn-default"
-             href="/tracking-static/proposals/{{ project.proposal_src }}" target="_blank">
-            View Proposal PDF
+             href="{{ project.proposal_src }}" target="_blank">
+            View Proposal Contract PDF
           </a>
           <a *ngIf="!project.proposal_src" class="btn btn-xs btn-default disabled">
             Proposal not generated
