@@ -162,6 +162,37 @@ def analyze_sld_status(gpu_id: str):
         return jsonify({"status": "pending", "success": True}), 200
 
 
+
+@sld_bp.route("/api/sld/<gpu_id>/diagram", methods=["GET"])
+@login_required
+def sld_diagram(gpu_id: str):
+    """
+    GET /api/sld/<gpu_id>/diagram?fmt=png|pdf
+    Proxies to GPU GET /slds/{id}/diagram?fmt=... and streams the binary back.
+    Only available when the SLD status is pending_review (done).
+    """
+    fmt = request.args.get("fmt", "png").lower()
+    if fmt not in ("png", "pdf"):
+        return jsonify({"error": "fmt must be png or pdf"}), 400
+    try:
+        resp = _requests.get(
+            f"{SLD_PLATFORM_URL}/slds/{gpu_id}/diagram",
+            params={"fmt": fmt},
+            timeout=15,
+            stream=True,
+        )
+        resp.raise_for_status()
+    except _requests.ConnectionError:
+        return jsonify({"error": "Cannot reach GPU server"}), 503
+    except _requests.HTTPError as e:
+        return jsonify({"error": f"GPU error: {e.response.status_code}"}), 502
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    content_type = "image/png" if fmt == "png" else "application/pdf"
+    from flask import Response
+    return Response(resp.content, status=200, content_type=content_type)
+
 @sld_bp.route("/api/project/<int:project_id>/sld/accept", methods=["POST"])
 @login_required
 @license_required

@@ -13,6 +13,9 @@ import {ProjectComponent} from './project.component';
 import {ProjectOverviewComponent} from "./overview/project-overview.component";
 import {PowerQualityComponent} from "./powerQuality/power-quality.component";
 import {EmvBaselineComponent} from "./emv/emv-baseline.component";
+import {PipelineListComponent} from "./pipeline/pipeline-list.component";
+import {PipelineDetailComponent} from "./pipeline/pipeline-detail.component";
+import {InstalledListComponent} from "./pipeline/installed-list.component";
 
 @NgModule({
   imports: [
@@ -31,6 +34,9 @@ import {EmvBaselineComponent} from "./emv/emv-baseline.component";
         { path: 'overview', component: ProjectOverviewComponent, data: {title: 'Project Overview'}, canActivate: [ProjectSelectedGuard]},
         { path: 'power-quality', component: PowerQualityComponent, data: {title: 'Power Quality'}, canActivate: [ProjectSelectedGuard]},
         { path: 'emv-baseline', component: EmvBaselineComponent, data: {title: 'EM&V Baseline'}, canActivate: [ProjectSelectedGuard]},
+        { path: 'pipeline', component: PipelineListComponent, data: {title: 'Pipeline Projects'}},
+        { path: 'pipeline/:id', component: PipelineDetailComponent, data: {title: 'Project Pipeline'}},
+        { path: 'installed', component: InstalledListComponent, data: {title: 'Installed Projects'}},
       ]}
     ])
   ],

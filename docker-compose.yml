@@ -201,6 +201,7 @@ services:
       ADMIN_RESTART_SECRET: ${ADMIN_RESTART_SECRET:-synerex-admin-restart-secret}
       RESTART_VIA_EXIT: "1"
       EMAIL_HOST: https://tracking.synerexlabs.com
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-synerex-internal-2026}
     depends_on:
       mysql-tracking:
         condition: service_healthy
@@ -418,8 +419,84 @@ services:
     volumes:
       - mysql_tracking_data:/var/lib/mysql
 
+  xeco-deploy:
+    build:
+      context: ../xeco_deployment_scanner
+      dockerfile: Dockerfile
+    networks:
+      synerex:
+        ipv4_address: 172.18.1.21
+    ports:
+      - "8092:8092"
+    environment:
+      DB_HOST: 172.18.0.8
+      DB_PORT: 3306
+      DB_NAME: deploy
+      DB_USER: deploy_user
+      DB_PASS: DeployPass123
+      PHOTO_PATH: /data/photos
+      TOKEN_TTL_DAYS: 30
+      TRACKING_URL: http://172.18.1.10:8087
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-synerex-internal-2026}
+    volumes:
+      - xeco_deploy_data:/data
+    restart: unless-stopped
+    depends_on:
+      mysql-deploy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8092/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  mysql-deploy:
+    image: mysql:8.0
+    networks:
+      synerex:
+        ipv4_address: 172.18.0.8
+    environment:
+      MYSQL_DATABASE: deploy
+      MYSQL_USER: deploy_user
+      MYSQL_PASSWORD: DeployPass123
+      MYSQL_ROOT_PASSWORD: rootpass123
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass123"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_deploy_data:/var/lib/mysql
+
+  xeco-inventory:
+    build:
+      context: ../xeco_inventory_refactored
+      dockerfile: Dockerfile
+    networks:
+      synerex:
+        ipv4_address: 172.18.1.20
+    ports:
+      - "8091:8091"
+    environment:
+      DB_PATH: /data/xeco.db
+      STORAGE_PATH: /data/storage
+      SECRET_KEY: xeco-inventory-secret-2024
+      SEED_USERS: "landon.dockery@xecoenergy.com:Amarillo12!"
+    volumes:
+      - xeco_inventory_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8091/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   mysql_data:
   mysql_emv_data:
   mysql_tracking_data:
   chroma_data:
+  xeco_inventory_data:
+  xeco_deploy_data:
+  mysql_deploy_data:

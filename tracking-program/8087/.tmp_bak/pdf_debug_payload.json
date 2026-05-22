@@ -1,0 +1,226 @@
+{
+  "data": {
+    "projectCurrency": "USD",
+    "date": "February 06, 2026",
+    "reportNumber": "B-00002845",
+    "clientName": "Ochsner Health System",
+    "clientAddress": "155 Hospital Dr #A-1\nLafayette, LA 70503-0000",
+    "clientAccount": "4010431000",
+    "clientSupplier": "LUS",
+    "location": "155 Hospital Dr, Lafayette, LA 70503-2852, Lafayette, LA",
+    "preparedFor": "Ochsner Health System\n155 Hospital Dr #A-1\nLafayette, LA 70503-0000",
+    "preparedBy": "",
+    "auditedBy": "",
+    "attn": "Neil Bourgeois, Facility Manager",
+    "estimatedSavingsPercent": "8.49",
+    "baselineSavingsPercent": "5.78",
+    "estimatedROI": 0,
+    "baselineROI": 0,
+    "recommendedUnits": 0,
+    "reference": "",
+    "reportDate": "February 06, 2026",
+    "version": "1",
+    "regulatoryCharges": "$3,272.88",
+    "greenChoicePatron15": "$41,800.00",
+    "powerSupplyAdjustment": "$67,708.67",
+    "loadProfile": "$60,00",
+    "estimatedSavings": {
+      "totalCharges": "$202,599.48",
+      "monthEndCharge": "$202,549.48",
+      "customerCharge": "$50.00",
+      "totalSavings": "$11,705.66",
+      "bill": "$190,893.82",
+      "annualSavings": "$140,467.97",
+      "xecoEquipmentCost": "$0.00",
+      "partCost": "$0.00",
+      "projectManagementCost": "$0.00",
+      "meteringFee": "$0.00",
+      "shippingFee": "$0.00",
+      "discount": "-$0.00",
+      "totalCost": "$0.00",
+      "co2Reduction": 121.08,
+      "charges": [
+        {
+          "description": "Customer Chg",
+          "amount": "$50.00",
+          "savings": "$2.89",
+          "reference": 2
+        },
+        {
+          "description": "Energy Chg for 2,331,000 kWh @ $0.02215",
+          "amount": "$51,631.65",
+          "savings": "$2,983.88",
+          "reference": 2
+        },
+        {
+          "description": "Demand Chg for 4,035,780 kW @ $9.00",
+          "amount": "$36,322.02",
+          "savings": "$2,099.11",
+          "reference": 2
+        },
+        {
+          "description": "Primary Svc Disc for 4,035,780 kW @ $-1.00",
+          "amount": "$-4,035.78",
+          "savings": "$-233.23",
+          "reference": 2
+        },
+        {
+          "description": "Energy Svc Disc for 2,331,000 kWh @ $-0.00033225",
+          "amount": "$-774.47",
+          "savings": "$-44.76",
+          "reference": 2
+        },
+        {
+          "description": "Fuel Adj Chg for 2,331,000 kWh @ $0.0495",
+          "amount": "$115,384.50",
+          "savings": "$6,668.26",
+          "reference": 2
+        },
+        {
+          "description": "State Tax",
+          "amount": "$3,971.56",
+          "savings": "$229.52",
+          "reference": 2
+        }
+      ],
+      "salesTax": 0
+    },
+    "billAnalysis": {
+      "bill": "$202,549.48",
+      "kwhConsumed": 2331000,
+      "kwhTotalRate": 0.071318,
+      "demandChargeRate": "$9.00",
+      "baselineKwh": "1,869,927",
+      "demand": "461,073",
+      "totalOverageCost": "$32,882.72",
+      "totalCharges": "$202,599.48",
+      "totalReference2Section1Charges": "$83,967.89",
+      "reference2Section1Charges": [
+        {
+          "name": "Customer Chg",
+          "cost": 50,
+          "amount": "$50.00"
+        },
+        {
+          "name": "Energy Chg for 2,331,000 kWh @ $0.02215",
+          "cost": 51631.65,
+          "amount": "$51,631.65"
+        },
+        {
+          "name": "Demand Chg for 4,035,780 kW @ $9.00",
+          "cost": 36322.02,
+          "amount": "$36,322.02"
+        },
+        {
+          "name": "Primary Svc Disc for 4,035,780 kW @ $-1.00",
+          "cost": -4035.78,
+          "amount": "$-4,035.78"
+        }
+      ],
+      "totalReference2Section2Charges": "$114,545.81",
+      "reference2Section2Charges": [
+        {
+          "name": "Primary Svc Disc for 4,035,780 kW @ $-1.00",
+          "cost": -4035.78,
+          "amount": "$-4,035.78"
+        },
+        {
+          "name": "Energy Svc Disc for 2,331,000 kWh @ $-0.00033225",
+          "cost": -774.47,
+          "amount": "$-774.47"
+        },
+        {
+          "name": "Fuel Adj Chg for 2,331,000 kWh @ $0.0495",
+          "cost": 115384.5,
+          "amount": "$115,384.50"
+        },
+        {
+          "name": "State Tax",
+          "cost": 3971.56,
+          "amount": "$3,971.56"
+        },
+        {
+          "name": "",
+          "amount": ""
+        },
+        {
+          "name": "",
+          "amount": ""
+        },
+        {
+          "name": "",
+          "amount": ""
+        },
+        {
+          "name": "",
+          "amount": ""
+        },
+        {
+          "name": "",
+          "amount": ""
+        },
+        {
+          "name": "",
+          "amount": ""
+        }
+      ],
+      "reference3Charges": []
+    },
+    "calculatedWaste": {
+      "kwhConsumed": "2,331,000",
+      "Kw15Min": "3,238",
+      "avgAmpDraw": "6,745",
+      "avgAmpDrawNum": 6744.791666666667,
+      "powerFactor": 80.22,
+      "reactiveKvarWaste": 19.78,
+      "reactiveKvarSupplyWasteAmps": 1334,
+      "ampSavings": "534",
+      "kwSavings": "256",
+      "kwhSavings": "170,853"
+    },
+    "reference3": {
+      "customerCharge": "$50.00",
+      "totalAdditional": "$50.00",
+      "totalCurrent": "$202,599.48"
+    },
+    "supplySide": {
+      "billedKw": 4036,
+      "billedKWAsOf": "February 06, 2026",
+      "current": {
+        "kwUsage": "3,238",
+        "kwSupplyReserve": "----",
+        "kwSavings": "",
+        "rateKw": ""
+      },
+      "afterXeco": {
+        "kwUsage": "2,981",
+        "kwSupplyReserve": "3,429",
+        "kwSavings": "607",
+        "rateKw": "$5,463.00"
+      }
+    },
+    "reserveCalculations": {
+      "current": {
+        "reserve": "25",
+        "unusedKwOversupply": "798",
+        "overbill": "$7,182.00"
+      },
+      "recommended": {
+        "reserve": "15",
+        "unusedKwOversupply": "486",
+        "overbill": "$4,365.00"
+      },
+      "savings": {
+        "reserve": "10",
+        "unusedKwOversupply": "313",
+        "overbill": "$2,817.00"
+      }
+    },
+    "totalReserveSavings": "$14,522.66",
+    "totalReserveSavingsPercent": "0",
+    "brandName": "Xeco Energy"
+  },
+  "paths": {
+    "logo": "/app/8087/assets/images/oem_logo/OEM-XECO-ENERGY"
+  }
+}

@@ -23,11 +23,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       nodejs \
       libpango-1.0-0 libpangocairo-1.0-0 libcairo2 \
       libffi8 shared-mime-info \
-      fonts-dejavu-core && \
+      fonts-dejavu-core \
+      libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+      libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+      libxfixes3 libxrandr2 libgbm1 libasound2 \
+      libx11-xcb1 libxcb-dri3-0 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY 8087/flask_app/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    playwright install chromium --with-deps
 
 # Copy Flask app to /app/8087-flask (rollup/errands expect sibling 8087-flask)
 COPY 8087/flask_app/ /app/8087-flask/

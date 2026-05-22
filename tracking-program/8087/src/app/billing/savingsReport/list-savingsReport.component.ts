@@ -398,6 +398,10 @@ const { PDFDocument } = require('pdf-lib');
         </h3>
         <div style="display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.5em;">
           <input type="file" accept=".pdf" (change)="onBillScanFileSelect($event)" style="max-width:340px;" />
+          <input type="text" [(ngModel)]="billScanMeterNumber" [ngModelOptions]="{standalone: true}"
+                 placeholder="Meter # (optional, comma-sep for multi-meter)" style="width:240px;" />
+          <input type="text" [(ngModel)]="billScanPageRange" [ngModelOptions]="{standalone: true}"
+                 placeholder="Page range e.g. 1-3 (optional)" style="width:180px;" />
           <button type="button" class="default-button green-button" (click)="scanBillForAnalytic()" [disabled]="!billScanFile || billScanning">
             {{ billScanning ? 'Scanning...' : 'Scan Bill' }}
           </button>
@@ -453,9 +457,18 @@ const { PDFDocument } = require('pdf-lib');
                       style="margin-left:0.75em; padding:2px 9px; border-radius:10px; background:#e9ecef; color:#495057; font-size:0.82em;">No VFDs</span>
               </div>
               <div style="white-space:nowrap;">
+                <a *ngIf="sldGpuJobId" [href]="'/api/sld/' + sldGpuJobId + '/diagram?fmt=pdf'" target="_blank"
+                   class="btn btn-default btn-sm" style="margin-right:6px;">&#128196; Diagram PDF</a>
                 <button type="button" class="btn btn-success btn-sm" (click)="acceptSldRecommendations()" style="margin-right:6px;">Accept Recommendations</button>
                 <button type="button" class="btn btn-default btn-sm" (click)="dismissSldRecommendations()">Dismiss</button>
               </div>
+            </div>
+
+            <!-- Rendered SLD diagram -->
+            <div *ngIf="sldGpuJobId" style="margin-bottom:1em;text-align:center;">
+              <img [src]="'/api/sld/' + sldGpuJobId + '/diagram?fmt=png'"
+                   style="max-width:100%;border:1px solid #d0d8e4;border-radius:4px;"
+                   alt="Single-Line Diagram" />
             </div>
 
             <!-- Placements table -->
@@ -491,31 +504,84 @@ const { PDFDocument } = require('pdf-lib');
                  style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#fff3cd; border-radius:4px; font-size:0.87em;">
               <strong style="color:#856404;">&#9888; Power Quality Risks</strong>
               <ul style="margin:0.3em 0 0 1em; padding:0;">
-                <li *ngFor="let r of sldResult.extraction.powerQualityRisks" style="color:#856404;">{{ r }}</li>
+                <li *ngFor="let r of sldResult.extraction.powerQualityRisks" style="color:#856404;">
+                  <span *ngIf="r?.label; else pqrStr"><strong>{{ r.label }}</strong><span *ngIf="r.location"> — {{ r.location }}</span></span>
+                  <ng-template #pqrStr>{{ r }}</ng-template>
+                </li>
               </ul>
             </div>
             <div *ngIf="sldResult.extraction?.codeIssues?.length > 0"
                  style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#f8d7da; border-radius:4px; font-size:0.87em;">
               <strong style="color:#721c24;">&#9888; Code Issues</strong>
               <ul style="margin:0.3em 0 0 1em; padding:0;">
-                <li *ngFor="let c of sldResult.extraction.codeIssues" style="color:#721c24;">{{ c }}</li>
+                <li *ngFor="let c of sldResult.extraction.codeIssues" style="color:#721c24;">
+                  <span *ngIf="c?.label; else ciStr"><strong>{{ c.label }}</strong><span *ngIf="c.location"> — {{ c.location }}</span></span>
+                  <ng-template #ciStr>{{ c }}</ng-template>
+                </li>
               </ul>
             </div>
             <div *ngIf="sldResult.extraction?.nonStandardConfigurations?.length > 0"
                  style="margin-bottom:0.5em; padding:0.5em 0.75em; background:#d1ecf1; border-radius:4px; font-size:0.87em;">
               <strong style="color:#0c5460;">&#8505; Non-Standard Configurations</strong>
               <ul style="margin:0.3em 0 0 1em; padding:0;">
-                <li *ngFor="let n of sldResult.extraction.nonStandardConfigurations" style="color:#0c5460;">{{ n }}</li>
+                <li *ngFor="let n of sldResult.extraction.nonStandardConfigurations" style="color:#0c5460;">
+                  <span *ngIf="n?.label; else nscStr"><strong>{{ n.label }}</strong><span *ngIf="n.location"> — {{ n.location }}</span></span>
+                  <ng-template #nscStr>{{ n }}</ng-template>
+                </li>
               </ul>
             </div>
 
-            <!-- Per-panel flags -->
+            <!-- VFD findings -->
+            <div *ngIf="sldResult.extraction?.vfdFindings?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#d4edda; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#155724;">&#9889; VFDs Identified</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let v of sldResult.extraction.vfdFindings" style="color:#155724;">
+                  <strong>{{ v.label }}</strong><span *ngIf="v.location"> — {{ v.location }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Generators -->
+            <div *ngIf="sldResult.extraction?.generatorsFound?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#e2d9f3; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#4b2c7a;">&#9889; Generators / ATS</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let g of sldResult.extraction.generatorsFound" style="color:#4b2c7a;">
+                  <strong>{{ g.label }}</strong><span *ngIf="g.location"> — {{ g.location }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- UPS -->
+            <div *ngIf="sldResult.extraction?.upsFound?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#d1ecf1; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#0c5460;">&#128268; UPS Units</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let u of sldResult.extraction.upsFound" style="color:#0c5460;">
+                  <strong>{{ u.label }}</strong><span *ngIf="u.location"> — {{ u.location }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Cap banks / PFC -->
+            <div *ngIf="sldResult.extraction?.pfcOrCapacitorBanks?.length > 0"
+                 style="margin-bottom:0.75em; padding:0.5em 0.75em; background:#f3e8ff; border-radius:4px; font-size:0.87em;">
+              <strong style="color:#6a0dad;">&#9672; Capacitor Banks / PFC</strong>
+              <ul style="margin:0.3em 0 0 1em; padding:0;">
+                <li *ngFor="let cb of sldResult.extraction.pfcOrCapacitorBanks" style="color:#6a0dad;">
+                  <strong>{{ cb.label }}</strong><span *ngIf="cb.location"> — {{ cb.location }}</span>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Per-panel flags + feedSource -->
             <div *ngIf="hasPanelFlags(sldResult)" style="font-size:0.85em; color:#555; margin-top:0.25em;">
               <strong>Panel Flags:</strong>
               <ng-container *ngFor="let pan of sldResult.extraction?.panels">
                 <span *ngFor="let flag of pan.flags"
                       style="display:inline-block; margin:2px 4px; padding:1px 7px; background:#ffeeba; border-radius:10px; color:#856404; font-size:0.85em;">
-                  {{ pan.panelName }}: {{ flag }}
+                  {{ pan.panelName }}<span *ngIf="pan.feedSource"> (fed from {{ pan.feedSource }})</span>: {{ flag }}
                 </span>
               </ng-container>
             </div>
@@ -831,6 +897,30 @@ const { PDFDocument } = require('pdf-lib');
         <div *ngIf="!baTotalKwh" style="font-size:0.82em; color:#6b8099; margin-top:6px;">
           &#9432; Scan a bill above first to populate bill data for the proposal.
         </div>
+
+        <!-- SLD-based Report buttons (require sldAnalysis.buses from GPU) -->
+        <div style="margin-top:14px; border-top:1px solid #1c3a5e; padding-top:14px;">
+          <div style="font-size:0.88em; color:#3a7abf; font-weight:600; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">
+            SLD-Based Engineering Reports
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="default-button" [disabled]="reportNaGenerating"
+              (click)="openNetworkAssessment()"
+              style="background:#005fa3; border-color:#005fa3; font-weight:700; padding:9px 20px;">
+              {{ reportNaGenerating ? 'Generating...' : '&#128202; Network Assessment PDF' }}
+            </button>
+            <button type="button" class="default-button" [disabled]="reportPcGenerating"
+              (click)="openProposalContract()"
+              style="background:#1a3a6b; border-color:#1a3a6b; font-weight:700; padding:9px 20px;">
+              {{ reportPcGenerating ? 'Generating...' : '&#128196; Proposal Contract PDF' }}
+            </button>
+            <span *ngIf="reportStatus" style="font-size:0.88em;"
+              [style.color]="reportError ? '#c00' : '#00e5a0'">{{ reportStatus }}</span>
+          </div>
+          <div style="font-size:0.80em; color:#6b8099; margin-top:6px;">
+            &#9432; These reports use the SLD topology (buses array) from the accepted Single-Line Drawing analysis. Accept an SLD analysis first.
+          </div>
+        </div>
       </div>
 
       <div *ngIf="billAnalytic===false">
@@ -1094,6 +1184,8 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public billScanError: string | null = null;
   public billScanSuccess = false;
   public billScanLineItemCount = 0;
+  public billScanMeterNumber: string = '';
+  public billScanPageRange: string = '';
 
   // SLD (Single-Line Drawing) scan state
   public sldFile: File | null = null;
@@ -1104,6 +1196,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public sldScanStatus = 'Analyzing drawing…';
   public sldError: string | null = null;
   public sldResult: any = null;
+  public sldGpuJobId: number | null = null;
   public sldSaved = false;
   public sldShowRescan = false;
 
@@ -1146,6 +1239,12 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public proposalSaving = false;
   public proposalStatus = '';
   public proposalError = false;
+
+  // ── SLD-Based Engineering Reports ─────────────────────────────────────────
+  public reportNaGenerating = false;
+  public reportPcGenerating = false;
+  public reportStatus = '';
+  public reportError = false;
   public proposalFacilityContext = '';
   public proposalFetchingContext = false;
   public proposalContextStatus = '';
@@ -1871,7 +1970,11 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.billScanning = true;
     this.billScanError = null;
     this.billScanSuccess = false;
-    this.createFromBillService.submitBillAnalysis(this.billScanFile).subscribe(
+    this.createFromBillService.submitBillAnalysis(
+      this.billScanFile,
+      this.billScanMeterNumber || undefined,
+      this.billScanPageRange || undefined
+    ).subscribe(
       (res: any) => {
         this.billScanning = false;
         if (res && res.success && res.job_id) {
@@ -1933,6 +2036,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     if (d.serviceCity)         { this.emvFacilityCity = d.serviceCity; }
     if (d.serviceState)        { this.emvFacilityState = d.serviceState; }
     if (d.serviceZip)          { this.emvFacilityZip = d.serviceZip; }
+    if (d.kwPeak != null)        { this.sldPeakKw = parseFloat(String(d.kwPeak)) || null; }
 
     const proj: any = this.userService.user.selectedProject;
     if (proj && proj.id && this.billScanSuccess === true) {
@@ -1996,6 +2100,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
           }, 100);
         } else if (job.job_type === 'sld' && res.status === 'done') {
           this.sldResult = res.result || {};
+          this.sldGpuJobId = job.gpu_job_id || null;
           this.sldSaved = false;
           this._removeMyJob(job);
           this._showToast('SLD analysis loaded — review and accept below.');
@@ -2411,6 +2516,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.sldScanning = true;
     this.sldError = null;
     this.sldResult = null;
+    this.sldGpuJobId = null;
     this.sldSaved = false;
 
     const peakKw = (this.sldPeakKw != null && !isNaN(Number(this.sldPeakKw))) ? Number(this.sldPeakKw) : undefined;
@@ -2454,15 +2560,23 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     const projectId = proj && proj.id;
     if (!projectId || !this.sldResult) return;
 
+    const ext = this.sldResult.extraction || {};
     const sldAnalysis = {
       status: 'accepted',
       summary: this.sldResult.summary || '',
-      vfdsFound: this.sldResult.extraction ? this.sldResult.extraction.vfdsFound : false,
-      powerQualityRisks: (this.sldResult.extraction && this.sldResult.extraction.powerQualityRisks) || [],
-      codeIssues: (this.sldResult.extraction && this.sldResult.extraction.codeIssues) || [],
-      nonStandardConfigurations: (this.sldResult.extraction && this.sldResult.extraction.nonStandardConfigurations) || [],
-      panels: (this.sldResult.extraction && this.sldResult.extraction.panels) || [],
-      facilityName: (this.sldResult.extraction && this.sldResult.extraction.facilityName) || '',
+      vfdsFound: ext.vfdsFound || false,
+      vfdFindings: ext.vfdFindings || [],
+      generatorsFound: ext.generatorsFound || [],
+      upsFound: ext.upsFound || [],
+      pfcOrCapacitorBanks: ext.pfcOrCapacitorBanks || [],
+      powerQualityRisks: ext.powerQualityRisks || [],
+      codeIssues: ext.codeIssues || [],
+      nonStandardConfigurations: ext.nonStandardConfigurations || [],
+      panels: ext.panels || [],
+      facilityName: ext.facilityName || '',
+      billPeakKw: ext.billPeakKw || null,
+      peakKvaUsed: ext.peakKvaUsed || null,
+      gpuJobId: this.sldGpuJobId || null,
     };
 
     this.sldService.acceptSld(projectId, this.sldResult.placements || [], sldAnalysis).subscribe(
@@ -2558,7 +2672,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.proposalService.saveProposalData(proj.id, body).subscribe(
       (res: any) => {
         if (res && res.proposalData) { proj.proposalData = res.proposalData; }
-        // Open the PDF in a new tab — Flask streams it inline
         window.open(this.proposalService.getPdfUrl(proj.id), '_blank');
         this.proposalGenerating = false;
         this.proposalStatus     = 'Proposal opened in new tab.';
@@ -2571,6 +2684,32 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         this.proposalError      = true;
       }
     );
+  }
+
+  openNetworkAssessment() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.reportNaGenerating = true;
+    this.reportStatus = '';
+    this.reportError  = false;
+    const url = `/api/project/${proj.id}/report/network-assessment?inline=1`;
+    window.open(url, '_blank');
+    this.reportNaGenerating = false;
+    this.reportStatus = 'Network Assessment opened in new tab.';
+    setTimeout(() => { this.reportStatus = ''; }, 4000);
+  }
+
+  openProposalContract() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+    this.reportPcGenerating = true;
+    this.reportStatus = '';
+    this.reportError  = false;
+    const url = `/api/project/${proj.id}/report/proposal-contract?inline=1`;
+    window.open(url, '_blank');
+    this.reportPcGenerating = false;
+    this.reportStatus = 'Proposal Contract opened in new tab.';
+    setTimeout(() => { this.reportStatus = ''; }, 4000);
   }
 
 }

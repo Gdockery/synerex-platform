@@ -32,7 +32,10 @@ import {ProjectCurrencyPipe} from "../pipes/projectCurrencyPipe.pipe";
 import {PipesModule} from "../pipes/pipes.module";
 import {EnergySavingsService} from "../savings/energySavings.service";
 import {AdminProjectService} from "./select/admin-project.service";
-import { FileUploadModule } from 'primeng/components/fileupload/fileupload'; 
+import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
+import {PipelineListComponent} from "./pipeline/pipeline-list.component";
+import {PipelineDetailComponent} from "./pipeline/pipeline-detail.component";
+import {InstalledListComponent} from "./pipeline/installed-list.component";
 
 
 @NgModule({
@@ -64,7 +67,9 @@ import { FileUploadModule } from 'primeng/components/fileupload/fileupload';
     PowerQualityComponent,
     SnapshotGaugeComponent,
     EmvBaselineComponent,
-
+    PipelineListComponent,
+    PipelineDetailComponent,
+    InstalledListComponent,
   ],
   exports: [],
   providers: [

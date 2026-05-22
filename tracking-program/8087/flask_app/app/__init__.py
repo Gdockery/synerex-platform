@@ -15,6 +15,7 @@ from app.api.bill_routes import bill_bp
 from app.api.sld_routes import sld_bp
 from app.api.gpu_routes import gpu_bp
 from app.api.proposal_routes import proposal_bp
+from app.api.report_routes import report_bp
 from app.api.phase7_routes import phase7_bp
 from app.api.phase8_routes import phase8_bp
 from app.api.phase9_routes import phase9_bp
@@ -23,6 +24,8 @@ from app.api.phase11_routes import phase11_bp
 from app.api.web_routes import web_bp
 from app.api.emv_routes import emv_bp
 from app.api.tariff_routes import tariff_bp
+from app.api.internal_routes import internal_bp
+from app.api.pipeline_routes import pipeline_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -92,6 +95,7 @@ def create_app(config_class=Config):
     app.register_blueprint(sld_bp)
     app.register_blueprint(gpu_bp)
     app.register_blueprint(proposal_bp)
+    app.register_blueprint(report_bp)
     app.register_blueprint(device_bp)
     app.register_blueprint(phase6_bp)
     app.register_blueprint(phase7_bp)
@@ -102,6 +106,8 @@ def create_app(config_class=Config):
     app.register_blueprint(web_bp)
     app.register_blueprint(emv_bp)
     app.register_blueprint(tariff_bp)
+    app.register_blueprint(internal_bp)
+    app.register_blueprint(pipeline_bp)
     # Register admin blueprint after db init to avoid import-order issues
     from app.api.admin_routes import admin_bp
     app.register_blueprint(admin_bp)
