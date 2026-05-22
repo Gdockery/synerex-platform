@@ -78,3 +78,18 @@ class Project(BaseModel):
     servicePlan = db.Column(db.Integer, nullable=True)  # FK to serviceplan.id
     lastBudgetInvoice = db.Column(db.JSON, default=dict)
     lastBudget = db.Column(db.JSON, default=dict)
+    installationConfirmedAt = db.Column(db.BigInteger, nullable=True, default=None)
+
+    # Pipeline commercial tracking
+    proposal_sent_at        = db.Column(db.BigInteger, nullable=True, default=None)
+    proposal_status         = db.Column(db.String(50), nullable=True, default=None)  # approved / rejected
+    deposit_invoice_sent_at = db.Column(db.BigInteger, nullable=True, default=None)
+    deposit_paid_at         = db.Column(db.BigInteger, nullable=True, default=None)
+    po_received_at          = db.Column(db.BigInteger, nullable=True, default=None)
+    install_invoice_sent_at = db.Column(db.BigInteger, nullable=True, default=None)
+    final_invoice_sent_at   = db.Column(db.BigInteger, nullable=True, default=None)
+    tracking_number         = db.Column(db.String(100), nullable=True, default=None)
+    carrier                 = db.Column(db.String(50),  nullable=True, default=None)  # arcbest / freightos
+    delivered_at            = db.Column(db.BigInteger, nullable=True, default=None)
+    release_status          = db.Column(db.SmallInteger, nullable=False, default=0)
+    released_at             = db.Column(db.BigInteger, nullable=True, default=None)

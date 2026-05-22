@@ -50,12 +50,21 @@
         <span class="text">Clients</span>
       </a>
     </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/synerex-administrator/project']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-industry"></span>
-        <span class="text">Projects</span>
+    <!-- Pipeline Projects — ops_admin, OEM users -->
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8)">
+      <a [routerLink]="['/project/pipeline']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-tasks"></span>
+        <span class="text">Pipeline Projects</span>
       </a>
     </li>
+    <!-- Installed Projects — ops_admin, OEM users -->
+    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8)">
+      <a [routerLink]="['/project/installed']" [routerLinkActive]="['router-link-active']">
+        <span class="icon fa fa-check-circle"></span>
+        <span class="text">Installed Projects</span>
+      </a>
+    </li>
+    <!-- Projects — standard client users -->
     <li *ngIf="!userService.user.selectedProject && (userService.user.role <= 7)">
       <a [routerLink]="['/project/select']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-industry"></span>

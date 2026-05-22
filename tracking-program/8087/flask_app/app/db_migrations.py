@@ -817,6 +817,19 @@ def add_missing_model_columns():
         ("project",      "proposalData",       "ALTER TABLE `project` ADD COLUMN `proposalData` JSON NULL"),
         # oem_branding — insurance policy for proposals
         ("oem_branding", "insurance_policy",   "ALTER TABLE `oem_branding` ADD COLUMN `insurance_policy` TEXT NULL"),
+        # project — pipeline commercial tracking
+        ("project", "proposal_sent_at",        "ALTER TABLE `project` ADD COLUMN `proposal_sent_at` BIGINT NULL"),
+        ("project", "proposal_status",         "ALTER TABLE `project` ADD COLUMN `proposal_status` VARCHAR(50) NULL"),
+        ("project", "deposit_invoice_sent_at", "ALTER TABLE `project` ADD COLUMN `deposit_invoice_sent_at` BIGINT NULL"),
+        ("project", "deposit_paid_at",         "ALTER TABLE `project` ADD COLUMN `deposit_paid_at` BIGINT NULL"),
+        ("project", "po_received_at",          "ALTER TABLE `project` ADD COLUMN `po_received_at` BIGINT NULL"),
+        ("project", "install_invoice_sent_at", "ALTER TABLE `project` ADD COLUMN `install_invoice_sent_at` BIGINT NULL"),
+        ("project", "final_invoice_sent_at",   "ALTER TABLE `project` ADD COLUMN `final_invoice_sent_at` BIGINT NULL"),
+        ("project", "tracking_number",         "ALTER TABLE `project` ADD COLUMN `tracking_number` VARCHAR(100) NULL"),
+        ("project", "carrier",                 "ALTER TABLE `project` ADD COLUMN `carrier` VARCHAR(50) NULL"),
+        ("project", "delivered_at",            "ALTER TABLE `project` ADD COLUMN `delivered_at` BIGINT NULL"),
+        ("project", "release_status",          "ALTER TABLE `project` ADD COLUMN `release_status` TINYINT(1) NOT NULL DEFAULT 0"),
+        ("project", "released_at",             "ALTER TABLE `project` ADD COLUMN `released_at` BIGINT NULL"),
     ]
 
     results = {}
