@@ -388,11 +388,69 @@ class WeatherServiceClient:
 
         except Exception as e:
             error_msg = f"Weather service error: {str(e)}"
-            logger.error("=== WEATHER SERVICE ERROR ===")
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error message: {str(e)}")
-            logger.error(f"Full error details: {repr(e)}")
-            logger.error(error_msg)
+            logger.error("=== WEATHER SERVICE ERROR — trying direct Open-Meteo fallback ===")
+            logger.error(f"Error type: {type(e).__name__}, message: {str(e)}")
+            # Direct Open-Meteo fallback when internal weather microservice is unavailable
+            try:
+                import re as _re
+                _zip_m = _re.search(r"\b(\d{5})\b", address or "")
+                _zip = _zip_m.group(1) if _zip_m else ""
+                _lat, _lon, _prov = _geocode_to_latlon(address or "", _zip)
+                if _lat is None:
+                    raise ValueError("Geocoding failed for direct Open-Meteo fallback")
+                logger.info(f"Direct Open-Meteo fallback: geocoded to {_lat},{_lon} via {_prov}")
+                _om_url = "https://archive-api.open-meteo.com/v1/archive"
+                _hourly_data = []
+                _summary = {}
+                for _period, _ps, _pe in [("before", before_start, before_end), ("after", after_start, after_end)]:
+                    _om_params = {
+                        "latitude": _lat, "longitude": _lon,
+                        "start_date": _ps, "end_date": _pe,
+                        "hourly": "temperature_2m,relative_humidity_2m,dewpoint_2m",
+                        "temperature_unit": "celsius",
+                        "timezone": "auto",
+                    }
+                    _om_resp = requests.get(_om_url, params=_om_params, timeout=60)
+                    _om_resp.raise_for_status()
+                    _om_data = _om_resp.json().get("hourly", {})
+                    _times = _om_data.get("time", [])
+                    _temps = _om_data.get("temperature_2m", [])
+                    _hums  = _om_data.get("relative_humidity_2m", [])
+                    _dps   = _om_data.get("dewpoint_2m", [])
+                    _valid_t = [t for t in _temps if t is not None]
+                    _valid_h = [h for h in _hums if h is not None]
+                    _valid_d = [d for d in _dps if d is not None]
+                    _summary[_period] = {
+                        "temp":     sum(_valid_t) / len(_valid_t) if _valid_t else None,
+                        "humidity": sum(_valid_h) / len(_valid_h) if _valid_h else None,
+                        "dewpoint": sum(_valid_d) / len(_valid_d) if _valid_d else None,
+                    }
+                    for _tt, _tc, _hc, _dc in zip(_times, _temps, _hums if _hums else [None]*len(_times), _dps if _dps else [None]*len(_times)):
+                        if _tc is not None:
+                            _hourly_data.append({"timestamp": _tt, "temp_c": _tc, "temp": _tc, "humidity": _hc, "dewpoint": _dc, "period": _period})
+                    logger.info(f"Open-Meteo direct: period={_period} avg={_summary[_period][temp]:.1f}C pts={len(_valid_t)}")
+                _direct_result = {
+                    "temp_before":            _summary["before"]["temp"],
+                    "temp_after":             _summary["after"]["temp"],
+                    "humidity_before":        _summary["before"]["humidity"],
+                    "humidity_after":         _summary["after"]["humidity"],
+                    "dewpoint_before":        _summary["before"]["dewpoint"],
+                    "dewpoint_after":         _summary["after"]["dewpoint"],
+                    "wind_speed_before":      None,
+                    "wind_speed_after":       None,
+                    "solar_radiation_before": None,
+                    "solar_radiation_after":  None,
+                    "coordinates": {"latitude": _lat, "longitude": _lon},
+                    "before_period": f"{before_start} to {before_end}",
+                    "after_period":  f"{after_start} to {after_end}",
+                    "hourly_data":   _hourly_data,
+                    "success": True,
+                    "api_source": "open-meteo-direct-fallback",
+                }
+                logger.info(f"Open-Meteo direct fallback OK: before={_direct_result[temp_before]:.1f}C after={_direct_result[temp_after]:.1f}C pts={len(_hourly_data)}")
+                return _direct_result
+            except Exception as _fallback_e:
+                logger.error(f"Direct Open-Meteo fallback also failed: {_fallback_e}")
             return {
                 "error": error_msg,
                 "temp_before": None,
@@ -4861,23 +4919,52 @@ class WeatherNormalization:
                 )
 
         elif total_cdd > total_hdd:
-            logger.info(f"🔧 WEATHER FALLBACK: COOLING SEASON — proportional CDD adjustment "
+            logger.info(f"🔧 WEATHER FALLBACK: COOLING SEASON — CDD/linear adjustment "
                         f"(not ASHRAE GL14-2023 regression method)")
 
-            if cdd_before > cdd_after:
-                # Before period was hotter — normalize after up
-                weather_factor = cdd_before / cdd_after
+            # Use temperature sensitivity (linear additive) instead of CDD ratio when
+            # either CDD is near-zero (ratio becomes unstable, e.g. 72x factor).
+            # Linear approach: kW_adjusted = kW * (1 + sensitivity * |ΔT|)
+            # and direct the adjustment so the hotter period is scaled up.
+            _MIN_CDD = 1.0   # below this, CDD ratio is unreliable
+            _MAX_FACTOR = 2.0  # hard cap to prevent runaway normalization
+            _sensitivity = self.config.get("temp_adjustment_factor", 0.020)  # per °C
+
+            _use_linear = (cdd_before < _MIN_CDD or cdd_after < _MIN_CDD
+                           or (max(cdd_before, cdd_after) / max(0.01, min(cdd_before, cdd_after))) > _MAX_FACTOR)
+
+            if _use_linear:
+                # Linear temp-sensitivity fallback
+                _delta_t = abs(temp_before - temp_after)
+                weather_factor = min(1.0 + _sensitivity * _delta_t, _MAX_FACTOR)
+                if temp_before > temp_after:
+                    # Baseline was hotter → scale baseline UP to before-conditions is already raw;
+                    # instead scale after UP to before conditions for fair comparison
+                    normalized_kw_before = kw_before
+                    normalized_kw_after = kw_after * weather_factor
+                else:
+                    # Post-install was hotter → scale after DOWN to baseline conditions
+                    normalized_kw_before = kw_before
+                    normalized_kw_after = kw_after / weather_factor
+                logger.info(
+                    f"🔧 WEATHER FALLBACK (linear temp-sensitivity): factor={weather_factor:.3f} "
+                    f"sensitivity={_sensitivity}/°C delta_T={_delta_t:.1f}°C "
+                    f"(CDD before={cdd_before:.2f} after={cdd_after:.2f} — ratio unstable)"
+                )
+            elif cdd_before > cdd_after:
+                # Before period was hotter — normalize after UP to before conditions
+                weather_factor = min(cdd_before / cdd_after, _MAX_FACTOR)
                 normalized_kw_before = kw_before
-                normalized_kw_after = kw_after * (1.0 / weather_factor)
+                normalized_kw_after = kw_after * weather_factor
                 logger.info(
                     f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
                     f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
                 )
             else:
-                # After period was hotter — normalize before up
-                weather_factor = cdd_after / cdd_before
-                normalized_kw_before = kw_before * weather_factor
-                normalized_kw_after = kw_after
+                # After period was hotter — normalize after DOWN to before conditions
+                weather_factor = min(cdd_after / cdd_before, _MAX_FACTOR)
+                normalized_kw_before = kw_before
+                normalized_kw_after = kw_after / weather_factor
                 logger.info(
                     f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
                     f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
@@ -4904,28 +4991,11 @@ class WeatherNormalization:
             f"🔧 WEATHER DEBUG: Final normalized values - before: {normalized_kw_before:.1f}kW, after: {normalized_kw_after:.1f}kW"
         )
 
-        # CRITICAL SAFETY: Ensure normalized values show energy savings (after < before)
-        # ASHRAE Guideline 14-2014 Section 14.3.4: Weather normalization must show energy savings
+        # NOTE: normalized_after > normalized_before is valid in cooling seasons
+        # when the baseline period was hotter than the post-install period.
         if normalized_kw_after > normalized_kw_before:
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Normalized 'after' ({normalized_kw_after:.1f}kW) > 'before' ({normalized_kw_before:.1f}kW)"
-            )
-            logger.warning(
-                f"🔧 WEATHER SAFETY: This indicates weather normalization produced invalid results"
-            )
-            logger.warning(
-                f"🔧 STANDARDS COMPLIANCE: ASHRAE Guideline 14-2014 Section 14.3.4 - Energy savings validation"
-            )
-
-            # If weather normalization produced invalid results, use raw values
-            # Do NOT apply artificial enhancements - weather normalization should be based on actual weather differences
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Weather normalization failed - using raw values instead"
-            )
-            normalized_kw_before = kw_before
-            normalized_kw_after = kw_after
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Reset to raw values - before: {normalized_kw_before:.1f}kW, after: {normalized_kw_after:.1f}kW"
+            logger.info(
+                "Weather normalization: baseline was hotter; normalized after exceeds before."
             )
 
         # SAFETY: Prevent extreme normalized values (more than 10x difference)
@@ -5039,8 +5109,7 @@ class WeatherNormalization:
             "temp_after": temp_after,
             "temp_sensitivity_used": temp_sensitivity_used,
             "dewpoint_sensitivity_used": dewpoint_sensitivity_used,
-            # Mark as NOT applied so the report labels this result as a proportional estimate
-            "normalization_applied": False,
+            "normalization_applied": (abs(normalized_kw_before - kw_before) > 0.01 or abs(normalized_kw_after - kw_after) > 0.01),
             "standards_validation": (
                 "NOT APPLIED — Proportional degree-day fallback used (baseline interval data unavailable). "
                 "For ASHRAE GL14-2023 compliant normalization, baseline interval temperature and energy "
