@@ -8872,8 +8872,6 @@ function displayResults(r) {
     } else {
       console.log('[WARNING] kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
     }
-    
-    } // end fallback for peak_kw_before
 
     if (peak_kw_after === 0 && afterData.avgKw) {
       if (afterData.avgKw.values && Array.isArray(afterData.avgKw.values) && afterData.avgKw.values.length > 0) {
