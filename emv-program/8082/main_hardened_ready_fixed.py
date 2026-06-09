@@ -232,7 +232,7 @@ class WeatherServiceClient:
                 logger.error("Weather service may not be running on port 8200")
 
             response = self.session.post(
-                f"{self.weather_service_url}/weather/batch", json=payload, timeout=120  # Increased from 30 to 120 seconds to allow for Open-Meteo API calls (60s) + processing time
+                f"{self.weather_service_url}/weather/batch", json=payload, timeout=5  # Quick timeout; if internal service down, fallback to Open-Meteo direct
             )
             logger.info(f"Weather service response status: {response.status_code}")
             logger.info(f"Weather service response headers: {dict(response.headers)}")
