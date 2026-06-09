@@ -428,7 +428,7 @@ class WeatherServiceClient:
                     for _tt, _tc, _hc, _dc in zip(_times, _temps, _hums if _hums else [None]*len(_times), _dps if _dps else [None]*len(_times)):
                         if _tc is not None:
                             _hourly_data.append({"timestamp": _tt, "temp_c": _tc, "temp": _tc, "humidity": _hc, "dewpoint": _dc, "period": _period})
-                    logger.info(f"Open-Meteo direct: period={_period} avg={_summary[_period][temp]:.1f}C pts={len(_valid_t)}")
+                    t_avg = _summary[_period]["temp"]; logger.info(f"Open-Meteo direct: period={_period} avg={t_avg}C pts={len(_valid_t)}")
                 _direct_result = {
                     "temp_before":            _summary["before"]["temp"],
                     "temp_after":             _summary["after"]["temp"],
