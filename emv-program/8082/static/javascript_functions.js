@@ -8798,15 +8798,29 @@ function displayResults(r) {
     const avg_kw_before = powerQuality.kw_before || 0;
     const avg_kw_after = powerQuality.kw_after || 0;
     
-    // Get peak kW - simply the highest value from the 'totalKw' column for each test period
-    // kW Peak = maximum value in the totalKw column for that period (no calculations, just the max)
+    // Get peak kW using 15-minute billing demand intervals (utility standard).
+    // Priority: peak_demand.maximum (15-min intervals, raw kW) > avgKw.values max > avgKw.max
+    // NOTE: avgKw.values and avgKw.max reflect Chauvenet-cleaned data which can strip the true
+    // billing peak. peak_demand.maximum is computed from raw values on 15-min averages.
     let peak_kw_before = 0;
     let peak_kw_after = 0;
     let peak_source_before = 'unknown';
     let peak_source_after = 'unknown';
-    
-    // Get peak from totalKw column (primary source)
-    if (beforeData.avgKw) {
+
+    // HIGHEST PRIORITY: use backend-computed billing demand peak (15-min intervals, raw kW)
+    if (beforeData.peak_demand && beforeData.peak_demand.maximum != null && Number(beforeData.peak_demand.maximum) > 0) {
+      peak_kw_before = Number(beforeData.peak_demand.maximum);
+      peak_source_before = 'peak_demand.maximum (15-min billing intervals, raw kW)';
+      console.log('[PEAK] Before: Using peak_demand.maximum =', peak_kw_before, '(15-min billing demand, raw)');
+    }
+    if (afterData.peak_demand && afterData.peak_demand.maximum != null && Number(afterData.peak_demand.maximum) > 0) {
+      peak_kw_after = Number(afterData.peak_demand.maximum);
+      peak_source_after = 'peak_demand.maximum (15-min billing intervals, raw kW)';
+      console.log('[PEAK] After: Using peak_demand.maximum =', peak_kw_after, '(15-min billing demand, raw)');
+    }
+
+    // Fallback to avgKw-based calculation only when peak_demand is absent
+    if (peak_kw_before === 0 && beforeData.avgKw) {
       if (beforeData.avgKw.values && Array.isArray(beforeData.avgKw.values) && beforeData.avgKw.values.length > 0) {
         // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
         const validBeforeValues = beforeData.avgKw.values.map(v => Number(v)).filter(v => 
@@ -8859,7 +8873,9 @@ function displayResults(r) {
       console.log('[WARNING] kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
     }
     
-    if (afterData.avgKw) {
+    } // end fallback for peak_kw_before
+
+    if (peak_kw_after === 0 && afterData.avgKw) {
       if (afterData.avgKw.values && Array.isArray(afterData.avgKw.values) && afterData.avgKw.values.length > 0) {
         // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
         const validAfterValues = afterData.avgKw.values.map(v => Number(v)).filter(v => 
