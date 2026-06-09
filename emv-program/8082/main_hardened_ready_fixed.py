@@ -4078,7 +4078,12 @@ class EnhancedDataProcessor:
                     )
 
             # Peak demand analysis
+            # IMPORTANT: Peak demand must use RAW values — never Chauvenet-cleaned data.
+            # Chauvenet's criterion removes statistical outliers for energy (kWh) analysis,
+            # but for demand the actual maximum IS the billing peak. Stripping it produces
+            # an artificially low number that does not match the utility bill.
             if "peakKw" in column_mapping:
+                # Dedicated peak column present — use raw values directly
                 peak_values = pd.to_numeric(
                     df[column_mapping["peakKw"]], errors="coerce"
                 ).dropna()
@@ -4087,7 +4092,60 @@ class EnhancedDataProcessor:
                         "maximum": float(peak_values.max()),
                         "average_peak": float(peak_values.mean()),
                         "95th_percentile": float(peak_values.quantile(0.95)),
+                        "interval_minutes": 1,
+                        "source": "peakKw_raw",
                     }
+
+            # Demand peak fallback: when no dedicated peakKw column exists, derive
+            # billing demand from avgKw using 15-minute interval averaging
+            # (utility standard per ANSI/IEEE and most tariff structures).
+            # Uses RAW meter values before any outlier removal.
+            if "peak_demand" not in results and "avgKw" in column_mapping:
+                try:
+                    raw_kw = pd.to_numeric(
+                        df[column_mapping["avgKw"]], errors="coerce"
+                    ).dropna()
+                    if len(raw_kw) > 0:
+                        if "timestamp" in column_mapping:
+                            ts_raw = pd.to_datetime(
+                                df[column_mapping["timestamp"]], errors="coerce"
+                            )
+                            # Align index lengths — use positional alignment
+                            ts_aligned = ts_raw.iloc[raw_kw.index].reset_index(drop=True)
+                            kw_aligned = raw_kw.reset_index(drop=True)
+                            kw_series = pd.Series(
+                                kw_aligned.values, index=ts_aligned
+                            ).dropna()
+                            if len(kw_series) > 0:
+                                demand_15min = kw_series.resample("15min").mean().dropna()
+                                results["peak_demand"] = {
+                                    "maximum": float(demand_15min.max()),
+                                    "average_peak": float(demand_15min.mean()),
+                                    "95th_percentile": float(demand_15min.quantile(0.95)),
+                                    "interval_minutes": 15,
+                                    "source": "avgKw_15min_resample",
+                                }
+                                logger.info(
+                                    f"Peak demand (15-min billing intervals): "
+                                    f"max={demand_15min.max():.1f} kW, "
+                                    f"mean={demand_15min.mean():.1f} kW"
+                                )
+                            else:
+                                raise ValueError("Empty kw_series after alignment")
+                        else:
+                            # No timestamp column — fall back to 1-minute raw max
+                            results["peak_demand"] = {
+                                "maximum": float(raw_kw.max()),
+                                "average_peak": float(raw_kw.mean()),
+                                "95th_percentile": float(raw_kw.quantile(0.95)),
+                                "interval_minutes": 1,
+                                "source": "avgKw_1min_raw_no_ts",
+                            }
+                            logger.warning(
+                                "No timestamp column — peak demand using raw 1-min max"
+                            )
+                except Exception as _peak_e:
+                    logger.warning(f"Peak demand fallback calculation failed: {_peak_e}")
 
             # ── Per-order harmonic spectrum extraction (upgraded meter) ────────
             # Auto-detect whether the CSV contains individual harmonic columns.
