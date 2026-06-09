@@ -19869,6 +19869,61 @@ def perform_comprehensive_analysis(
                 if dewpoint_after is not None:
                     results["weather_normalization"]["dewpoint_after"] = dewpoint_after
             
+            # ── ASHRAE GL14-2023 R² GATE ─────────────────────────────────────────────
+            # Regardless of which normalization path ran, verify that weather
+            # normalization is actually valid by checking R² of energy vs temperature.
+            # If R² < 0.75 (ASHRAE GL14-2023 §5.2) AND normalization changed the values,
+            # override with raw savings and report R² to the UI.
+            _wn = results.get("weather_normalization", {})
+            if isinstance(_wn, dict) and _wn.get("normalization_applied", False):
+                _norm_after_wn  = _wn.get("normalized_kw_after")
+                _raw_after_wn   = _wn.get("raw_kw_after")
+                _changed = (_norm_after_wn is not None and _raw_after_wn is not None
+                            and abs(_norm_after_wn - _raw_after_wn) > 0.5)
+                if _changed:
+                    logger.info("🔬 ASHRAE R² GATE: normalization changed values — computing R² to validate")
+                    _r2g = _compute_ashrae_r2(before_data, after_data, config)
+                    if _r2g is not None:
+                        _r2_val = _r2g["r2"]
+                        _slope  = _r2g["slope_kw_per_degc"]
+                        _n      = _r2g["n_points"]
+                        logger.info(f"🔬 R² GATE RESULT: R²={_r2_val:.4f}, slope={_slope:+.3f} kW/°C, n={_n}")
+                        if _r2_val < 0.75:
+                            logger.info(f"🔬 R²={_r2_val:.3f} < 0.75 → OVERRIDING normalization with raw values (ASHRAE GL14-2023)")
+                            _tb = float(config.get("temp_before") or 0)
+                            _ta = float(config.get("temp_after") or 0)
+                            _wx_est   = _slope * (_tb - _ta)
+                            _xeco_est = (kw_before - kw_after) - _wx_est
+                            results["weather_normalization"].update({
+                                "method": "Not applied — R² below ASHRAE GL14-2023 threshold",
+                                "standards_compliance": (
+                                    f"ASHRAE GL14-2023 §5.2: R²={_r2_val:.3f} < 0.75 required; "
+                                    "weather normalization overridden. Raw savings reported."
+                                ),
+                                "normalization_applied": False,
+                                "regression_r2": _r2_val,
+                                "regression_slope_kw_per_degc": _slope,
+                                "regression_n_points": _n,
+                                "normalized_kw_before": kw_before,
+                                "normalized_kw_after":  kw_after,
+                                "weather_adjusted_savings": kw_before - kw_after,
+                                "estimated_weather_effect_kw": round(_wx_est, 2),
+                                "estimated_xeco_effect_kw":    round(_xeco_est, 2),
+                                "reason": (
+                                    f"R²={_r2_val:.3f}: energy consumption is not significantly "
+                                    "correlated with outdoor temperature at this facility. "
+                                    f"Raw savings ({kw_before - kw_after:.1f} kW = "
+                                    f"{(kw_before - kw_after) / kw_before * 100:.1f}%) "
+                                    "reported without weather adjustment per ASHRAE GL14-2023."
+                                ),
+                            })
+                        else:
+                            logger.info(f"🔬 R²={_r2_val:.3f} >= 0.75 → normalization valid, keeping result")
+                            results["weather_normalization"]["regression_r2"] = _r2_val
+                            results["weather_normalization"]["regression_slope_kw_per_degc"] = _slope
+                    else:
+                        logger.warning("🔬 R² GATE: could not compute R² — keeping existing normalization result")
+
             # CRITICAL FIX: Ensure temp_sensitivity_used is always present in weather_normalization
             # This prevents the frontend warning about hardcoded fallback values
             if isinstance(results.get("weather_normalization"), dict):
