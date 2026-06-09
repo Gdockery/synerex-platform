@@ -1110,7 +1110,11 @@ class MainDashboard {
                 
                 try {
                     // Add user ID to form data (you might want to get this from session)
-                    formData.append('uploaded_by', 'current_user');
+                    // Get real user ID from dashboard instance
+                    const _uploadUserId = (window.mainDashboard && window.mainDashboard.currentUser && window.mainDashboard.currentUser.id)
+                        ? window.mainDashboard.currentUser.id
+                        : (this.currentUser && this.currentUser.id ? this.currentUser.id : 1);
+                    formData.append('uploaded_by', _uploadUserId);
                     
                     const response = await fetch((window.SYNEREX_EMV_BASE||'')+'/api/raw-meter-data/upload', {
                         method: 'POST',

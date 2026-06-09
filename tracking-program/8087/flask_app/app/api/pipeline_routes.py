@@ -88,20 +88,21 @@ def _ms():
 def _stage_summary(p: Project) -> dict:
     """Derive the current pipeline stage name and whether it's waiting on customer."""
     stages = [
-        ("Bill Scanned",              p.electricBillAnalysis is not None,   False),
-        ("SLD Uploaded",              p.sldAnalysis is not None,            False),
-        ("Proposal Generated",        p.proposalData is not None,           False),
-        ("Proposal Sent",             p.proposal_sent_at is not None,       True),
-        ("Proposal Approved",         p.proposal_status == "approved",      True),
+        ("Bill Scanned",              p.electricBillAnalysis is not None,    False),
+        ("SLD Uploaded",              p.sldAnalysis is not None,             False),
+        ("Proposal Generated",        p.proposalData is not None,            False),
+        ("Proposal Sent",             p.proposal_sent_at is not None,        True),
+        ("Proposal Approved",         p.proposal_status == "approved",       True),
         ("Deposit Invoice Sent",      p.deposit_invoice_sent_at is not None, True),
-        ("Deposit Paid",              p.deposit_paid_at is not None,        True),
+        ("Deposit Paid",              p.deposit_paid_at is not None,         True),
         ("PO Received",               p.po_received_at is not None,         True),
-        ("Install Invoice Sent",      p.install_invoice_sent_at is not None, True),
-        ("Final Invoice Sent",        p.final_invoice_sent_at is not None,  True),
-        ("Shipped",                   p.tracking_number is not None,        False),
-        ("Delivered",                 p.delivered_at is not None,           False),
-        ("Released to Deploy",        p.release_status == 1,                False),
+        ("Shipped",                   p.tracking_number is not None,         False),
+        ("Delivered",                 p.delivered_at is not None,            False),
+        ("Released to Deploy",        p.release_status == 1,                 False),
         ("Installation Complete",     p.installationConfirmedAt is not None, False),
+        ("Install Invoice Sent",      p.install_invoice_sent_at is not None, True),
+        ("EM&V Report Generated",     p.active_emv_analysis_id is not None,  False),
+        ("Final Invoice Sent",        p.final_invoice_sent_at is not None,   True),
     ]
     current_stage = "Pending"
     waiting = False
@@ -137,9 +138,9 @@ def _project_detail(p: Project, client: Client) -> dict:
         "install_invoice_src":      p.installationInvoiceSrc,
         "final_invoice_src":        p.finalInvoiceSrc,
         # Stage timestamps
-        "bill_scanned_at":          p.electricBillAnalysisUpdatedAt,
+        "bill_scanned_at":          p.electricBillAnalysisUpdatedAt if p.electricBillAnalysisUpdatedAt else (1 if p.electricBillAnalysis is not None else None),
         "sld_uploaded":             p.sldAnalysis is not None,
-        "proposal_generated":       p.proposalData is not None,
+        "proposal_generated":       bool(p.proposalSrc),
         "proposal_sent_at":         p.proposal_sent_at,
         "proposal_status":          p.proposal_status,
         "deposit_invoice_sent_at":  p.deposit_invoice_sent_at,
@@ -155,6 +156,7 @@ def _project_detail(p: Project, client: Client) -> dict:
         "release_status":           p.release_status,
         "released_at":              p.released_at,
         "installation_confirmed_at": p.installationConfirmedAt,
+        "emv_analysis_id":          p.active_emv_analysis_id,
     }
 
 

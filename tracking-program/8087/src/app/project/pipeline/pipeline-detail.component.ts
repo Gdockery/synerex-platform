@@ -46,8 +46,8 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
         <div class="section-header">Documents</div>
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px;">
           <a *ngIf="project.proposal_src" class="btn btn-xs btn-default"
-             href="/tracking-static/proposals/{{ project.proposal_src }}" target="_blank">
-            View Proposal PDF
+             href="{{ project.proposal_src }}" target="_blank">
+            View Proposal Contract PDF
           </a>
           <a *ngIf="!project.proposal_src" class="btn btn-xs btn-default disabled">
             Proposal not generated
@@ -99,7 +99,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
             <div class="stage-body">
               <div class="stage-name">Proposal Generated</div>
               <div class="stage-date text-muted" *ngIf="!project.proposal_generated">Generate on Bill Analytic page</div>
-              <div class="stage-date" *ngIf="project.proposal_generated">Ready</div>
+              <div class="stage-date" *ngIf="project.proposal_generated">PDF generated ✓</div>
             </div>
           </div>
 
@@ -136,7 +136,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
               <div class="stage-name">Proposal Approved</div>
               <div class="stage-date" *ngIf="project.proposal_status === 'approved'">Approved ✓ — Landon notified</div>
               <div class="stage-date text-muted" *ngIf="project.proposal_sent_at && project.proposal_status !== 'approved'">Waiting for client approval</div>
-              <div class="stage-actions" *ngIf="project.proposal_sent_at && project.proposal_status !== 'approved' && isAdmin">
+              <div class="stage-actions" *ngIf="project.proposal_status !== 'approved' && isAdmin">
                 <button class="btn btn-xs btn-success" (click)="approveProposal()" [disabled]="saving">✓ Mark Approved</button>
               </div>
             </div>
@@ -172,7 +172,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
               <div class="stage-name">Deposit Paid</div>
               <div class="stage-date" *ngIf="project.deposit_paid_at">Received {{ fmtMs(project.deposit_paid_at) }}</div>
               <div class="stage-date text-muted" *ngIf="project.deposit_invoice_sent_at && !project.deposit_paid_at">Waiting for deposit payment</div>
-              <div class="stage-actions" *ngIf="!project.deposit_paid_at && project.deposit_invoice_sent_at && isAdmin">
+              <div class="stage-actions" *ngIf="!project.deposit_paid_at && isAdmin">
                 <button class="btn btn-xs btn-success" (click)="mark('deposit_paid_at', true)" [disabled]="saving">Mark Paid</button>
               </div>
             </div>
@@ -198,45 +198,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
             </div>
           </div>
 
-          <!-- 9. Install Invoice Sent (30%) -->
-          <div class="stage-row">
-            <div class="stage-dot"
-              [class.dot-done]="project.install_invoice_sent_at"
-              [class.dot-waiting]="!project.install_invoice_sent_at && project.po_received_at"
-              [class.dot-pending]="!project.install_invoice_sent_at && !project.po_received_at">
-            </div>
-            <div class="stage-body">
-              <div class="stage-name">
-                Install Invoice Sent <small class="text-muted">(30%)</small>
-                <span class="waiting-badge" *ngIf="project.install_invoice_sent_at && !project.final_invoice_sent_at">Awaiting Payment</span>
-              </div>
-              <div class="stage-date" *ngIf="project.install_invoice_sent_at">Sent {{ fmtMs(project.install_invoice_sent_at) }}</div>
-              <div class="stage-actions" *ngIf="!project.install_invoice_sent_at && isAdmin">
-                <button class="btn btn-xs btn-primary" (click)="mark('install_invoice_sent_at', true)" [disabled]="saving">Mark Sent</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 10. Final Invoice Sent (40%) -->
-          <div class="stage-row">
-            <div class="stage-dot"
-              [class.dot-done]="project.final_invoice_sent_at"
-              [class.dot-waiting]="!project.final_invoice_sent_at && project.install_invoice_sent_at"
-              [class.dot-pending]="!project.final_invoice_sent_at && !project.install_invoice_sent_at">
-            </div>
-            <div class="stage-body">
-              <div class="stage-name">
-                Final Invoice Sent <small class="text-muted">(40%)</small>
-                <span class="waiting-badge" *ngIf="project.final_invoice_sent_at && !project.delivered_at">Awaiting Payment</span>
-              </div>
-              <div class="stage-date" *ngIf="project.final_invoice_sent_at">Sent {{ fmtMs(project.final_invoice_sent_at) }}</div>
-              <div class="stage-actions" *ngIf="!project.final_invoice_sent_at && isAdmin">
-                <button class="btn btn-xs btn-primary" (click)="mark('final_invoice_sent_at', true)" [disabled]="saving">Mark Sent</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- 11. Shipped -->
+          <!-- 9. Shipped -->
           <div class="stage-row">
             <div class="stage-dot"
               [class.dot-done]="project.tracking_number"
@@ -271,7 +233,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
             <div class="stage-body">
               <div class="stage-name">Delivered / Received</div>
               <div class="stage-date" *ngIf="project.delivered_at">{{ fmtMs(project.delivered_at) }}</div>
-              <div class="stage-actions" *ngIf="!project.delivered_at && project.tracking_number && isAdmin">
+              <div class="stage-actions" *ngIf="!project.delivered_at && isAdmin">
                 <button class="btn btn-xs btn-success" (click)="mark('delivered_at', true)" [disabled]="saving">Mark Delivered</button>
               </div>
             </div>
@@ -288,18 +250,15 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
               <div class="stage-name">Released to Deploy</div>
               <div class="stage-date" *ngIf="project.released_at">Released {{ fmtMs(project.released_at) }}</div>
               <div class="stage-date text-muted" *ngIf="project.release_status && !project.released_at">Released</div>
-              <div class="stage-actions" *ngIf="!project.release_status && project.delivered_at && isAdmin">
+              <div class="stage-actions" *ngIf="!project.release_status && isAdmin">
                 <button class="btn btn-xs btn-success" (click)="releaseProject()" [disabled]="saving">
                   🚀 Release to Deploy App
                 </button>
               </div>
-              <div class="stage-date text-muted" *ngIf="!project.release_status && !project.delivered_at">
-                Requires delivery confirmation
-              </div>
             </div>
           </div>
 
-          <!-- 14. Installation Complete -->
+          <!-- 12. Installation Complete -->
           <div class="stage-row">
             <div class="stage-dot"
               [class.dot-done]="project.installation_confirmed_at"
@@ -311,6 +270,59 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
               <div class="stage-date" *ngIf="project.installation_confirmed_at">Confirmed {{ fmtMs(project.installation_confirmed_at) }}</div>
               <div class="stage-date text-muted" *ngIf="!project.installation_confirmed_at && project.release_status">
                 In progress — confirmed via Deploy App
+              </div>
+            </div>
+          </div>
+
+          <!-- 13. Install Invoice Sent (30%) -->
+          <div class="stage-row">
+            <div class="stage-dot"
+              [class.dot-done]="project.install_invoice_sent_at"
+              [class.dot-waiting]="!project.install_invoice_sent_at && project.installation_confirmed_at"
+              [class.dot-pending]="!project.install_invoice_sent_at && !project.installation_confirmed_at">
+            </div>
+            <div class="stage-body">
+              <div class="stage-name">
+                Install Invoice Sent <small class="text-muted">(30%)</small>
+                <span class="waiting-badge" *ngIf="project.install_invoice_sent_at && !project.final_invoice_sent_at">Awaiting Payment</span>
+              </div>
+              <div class="stage-date" *ngIf="project.install_invoice_sent_at">Sent {{ fmtMs(project.install_invoice_sent_at) }}</div>
+              <div class="stage-actions" *ngIf="!project.install_invoice_sent_at && isAdmin">
+                <button class="btn btn-xs btn-primary" (click)="mark('install_invoice_sent_at', true)" [disabled]="saving">Mark Sent</button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- 14. EM&V Report Generated -->
+          <div class="stage-row">
+            <div class="stage-dot"
+              [class.dot-done]="project.emv_analysis_id"
+              [class.dot-waiting]="!project.emv_analysis_id && project.install_invoice_sent_at"
+              [class.dot-pending]="!project.emv_analysis_id && !project.install_invoice_sent_at">
+            </div>
+            <div class="stage-body">
+              <div class="stage-name">EM&amp;V Report Generated</div>
+              <div class="stage-date" *ngIf="project.emv_analysis_id">Generated — <a [routerLink]="['/project/emv-baseline']" (click)="selectProject()">View report →</a></div>
+              <div class="stage-date text-muted" *ngIf="!project.emv_analysis_id">Generated on EM&amp;V Baseline page after installation</div>
+            </div>
+          </div>
+
+          <!-- 15. Final Invoice Sent (40%) -->
+          <div class="stage-row">
+            <div class="stage-dot"
+              [class.dot-done]="project.final_invoice_sent_at"
+              [class.dot-waiting]="!project.final_invoice_sent_at && project.emv_analysis_id"
+              [class.dot-pending]="!project.final_invoice_sent_at && !project.emv_analysis_id">
+            </div>
+            <div class="stage-body">
+              <div class="stage-name">
+                Final Invoice Sent <small class="text-muted">(40%)</small>
+                <span class="waiting-badge" *ngIf="project.final_invoice_sent_at">Awaiting Payment</span>
+              </div>
+              <div class="stage-date" *ngIf="project.final_invoice_sent_at">Sent {{ fmtMs(project.final_invoice_sent_at) }}</div>
+              <div class="stage-actions" *ngIf="!project.final_invoice_sent_at && isAdmin">
+                <button class="btn btn-xs btn-primary" (click)="mark('final_invoice_sent_at', true)" [disabled]="saving">Mark Sent</button>
               </div>
             </div>
           </div>

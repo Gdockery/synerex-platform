@@ -16383,3 +16383,90 @@ document.addEventListener('DOMContentLoaded', function() {
   if (sel) updateHarmonicModeUI(sel.value);
 });
 
+
+// ── Auto-load project from URL ?autoload=<id> or sessionStorage (dashboard→legacy) ──
+(function() {
+  function autoLoadProject() {
+    // Priority: URL param ?autoload=N > sessionStorage.currentProjectId > sessionStorage.loadProjectId
+    var params = new URLSearchParams(window.location.search || '');
+    var projectId = params.get('autoload')
+      || sessionStorage.getItem('currentProjectId')
+      || sessionStorage.getItem('loadProjectId');
+
+    if (!projectId) return;
+
+    // Clear sessionStorage keys so navigating Back doesn't re-trigger
+    sessionStorage.removeItem('currentProjectId');
+    sessionStorage.removeItem('loadProjectId');
+    // Clean URL param without reload
+    if (params.get('autoload')) history.replaceState({}, '', window.location.pathname);
+
+    var sessionToken = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+      || localStorage.getItem('session_token')
+      || sessionStorage.getItem('session_token');
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken.trim();
+
+    var base = (window.SYNEREX_EMV_BASE || '');
+
+    console.log('[AUTO-LOAD] Loading project id:', projectId);
+
+    function doLoad() {
+      fetch(base + '/api/projects/load', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ project_id: parseInt(projectId) })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) { console.error('[AUTO-LOAD] Error:', data.error); return; }
+
+        var project = data.project || {};
+        // Store project id in hidden field
+        var pidField = document.getElementById('current_project_id');
+        if (pidField && project.id) pidField.value = project.id;
+
+        // Parse and populate form fields
+        var projectData = {};
+        try {
+          var parsed = JSON.parse(project.data || '{}');
+          projectData = parsed.payload
+            ? (typeof parsed.payload === 'string' ? JSON.parse(parsed.payload) : parsed.payload)
+            : parsed;
+        } catch(e) { console.warn('[AUTO-LOAD] Parse error', e); }
+
+        // Populate each form field
+        Object.keys(projectData).forEach(function(key) {
+          var val = projectData[key];
+          if (val === null || val === undefined || typeof val === 'object') return;
+          var el = document.getElementById(key) || document.querySelector('[name="' + key + '"]');
+          if (!el) return;
+          if (el.type === 'checkbox') { el.checked = !!val; }
+          else { el.value = val; }
+        });
+
+        // Update project name display
+        var nameField = document.getElementById('projectName') || document.getElementById('company');
+        if (nameField && projectData.company) nameField.value = projectData.company;
+
+        if (typeof showNotification === 'function') {
+          showNotification('Project "' + (project.name || projectId) + '" loaded.', 'success');
+        }
+        console.log('[AUTO-LOAD] Done — project', project.name || projectId, 'loaded.');
+      })
+      .catch(function(e) { console.error('[AUTO-LOAD] Fetch error:', e); });
+    }
+
+    // If DOM isn't ready yet, wait for it
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', doLoad);
+    } else {
+      // Small delay so other DOMContentLoaded handlers (field init, etc.) run first
+      setTimeout(doLoad, 200);
+    }
+  }
+
+  // Run immediately — sessionStorage is readable before DOMContentLoaded
+  autoLoadProject();
+})();

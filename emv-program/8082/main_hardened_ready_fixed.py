@@ -28374,6 +28374,12 @@ def index():
     return redirect("/main-dashboard")
 
 
+
+@app.route("/open/<int:project_id>")
+def open_project_direct(project_id):
+    """Redirect to legacy page with ?autoload=<project_id> so JS auto-loads the project."""
+    return redirect("/emv/legacy?autoload={}".format(project_id))
+
 @app.route("/legacy")
 def legacy_index():
     # Build context with logo URLs and other template variables
@@ -45116,8 +45122,16 @@ def get_file_for_clipping(file_id):
                 f"CSV parsing - Found header at row {header_row_index}, using {len(csv_lines)} lines"
             )
 
-            csv_reader = csv.DictReader(io.StringIO(csv_content_clean))
-            all_rows = list(csv_reader)
+            # restkey=None is DictReader's default for extra columns; use a named key instead
+            # to avoid None dict keys which break Flask's JSON_SORT_KEYS serialization.
+            csv_reader = csv.DictReader(io.StringIO(csv_content_clean), restkey='_extra')
+            all_rows = []
+            for row in csv_reader:
+                # Remove any overflow/extra-column keys so JSON serialization doesn't fail
+                row.pop('_extra', None)
+                # Also drop any None keys (legacy restkey behavior)
+                cleaned = {k: v for k, v in row.items() if k is not None}
+                all_rows.append(cleaned)
             total_rows = len(all_rows)
 
             logger.info(
