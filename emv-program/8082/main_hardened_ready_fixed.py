@@ -447,7 +447,7 @@ class WeatherServiceClient:
                     "success": True,
                     "api_source": "open-meteo-direct-fallback",
                 }
-                logger.info(f"Open-Meteo direct fallback OK: before={_direct_result[temp_before]:.1f}C after={_direct_result[temp_after]:.1f}C pts={len(_hourly_data)}")
+                logger.info(f"Open-Meteo direct fallback OK: before={_direct_result['temp_before']:.1f}C after={_direct_result['temp_after']:.1f}C pts={len(_hourly_data)}")
                 return _direct_result
             except Exception as _fallback_e:
                 logger.error(f"Direct Open-Meteo fallback also failed: {_fallback_e}")
