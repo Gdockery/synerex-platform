@@ -1249,8 +1249,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         if has_raw:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Baseline (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Reporting (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
             color = 'green' if raw_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_kw, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">{format_number(kw_before, 2)} - {format_number(kw_after, 2)}</td></tr>')
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_percent, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">({format_number(raw_savings_kw, 2)} / {format_number(kw_before, 2)}) x 100</td></tr>')
@@ -1266,7 +1266,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         
         if has_weather:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             
             # Base temperature display - MUST come from baseline 'before' data
             # Match UI Analysis display logic
@@ -1298,7 +1298,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         after_formula = f"max(0, {format_number(temp_diff_after, 1)} × {format_number(temp_sensitivity, 4)}) = {format_number(temp_effect_after * 100, 2)}%"
                     
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {before_formula}<br/>After: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
             
             if dewpoint_before is not None and dewpoint_after is not None and base_temp is not None:
                 dewpoint_diff_before = dewpoint_before - base_temp
@@ -1319,7 +1319,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         # Show max(0, ...) when dewpoint is below base (same as calculation)
                         after_formula = f"max(0, {format_number(dewpoint_diff_after, 1)} × {format_number(dewpoint_sensitivity_display, 4)}) = {format_number(dewpoint_effect_after * 100, 2)}%"
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {before_formula}<br/>After: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
             
             if weather_effect_before is not None and weather_effect_after is not None:
                 html.append(f'<tr style="background: #e1f5fe;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Combined Weather Effect</strong><br/><small style="color: #666;">Temp + Dewpoint</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{format_number(temp_effect_before * 100, 2) if temp_effect_before is not None else "N/A"}% + {format_number(dewpoint_effect_before * 100, 2) if dewpoint_effect_before is not None else "N/A"}% = {format_number(weather_effect_before * 100, 2)}%<br/>{format_number(temp_effect_after * 100, 2) if temp_effect_after is not None else "N/A"}% + {format_number(dewpoint_effect_after * 100, 2) if dewpoint_effect_after is not None else "N/A"}% = {format_number(weather_effect_after * 100, 2)}%</td></tr>')
@@ -1379,7 +1379,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             color = 'green' if weather_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW</strong><br/><small style="color: #666;">After adjusted to before weather</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>')
             # Weather Normalized kW calculation formula row
-            weather_calc_text = f'Before: {format_number(kw_before, 2)} (unchanged)<br/>After: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (After) ÷ Raw kW (After)'
+            weather_calc_text = f'Baseline: {format_number(kw_before, 2)} (unchanged)<br/>Reporting: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (Reporting) ÷ Raw kW (Reporting)'
             html.append(f'<tr style="background: #f1f8e9;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{weather_calc_text}</td></tr>')
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: {color};">{format_number(weather_savings_kw, 2)} kW</td></tr>')
             html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(weather_savings_percent, 2)}%</td></tr>')
@@ -1399,6 +1399,14 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('</td></tr>')
             
             html.append('</table>')
+            # Show dynamic reason if normalization was not applied
+            _wn_applied = weather_norm.get('normalization_applied', True) if isinstance(weather_norm, dict) else True
+            if _wn_applied is False or _wn_applied == 'false':
+                _wn_sc = weather_norm.get('standards_compliance') or weather_norm.get('reason') or ''
+                _reason_str = _wn_sc if _wn_sc else 'See weather normalization report section for details.'
+                html.append('<div style="margin-top: 10px; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">'
+                            '<strong style="color: #e65100;">Note: Weather normalization was not applied to savings calculation.</strong><br/>'
+                            '<span style="color: #bf360c; font-size: 0.9em;">Reason: ' + _reason_str + '</span></div>')
         else:
             html.append('<p style="color: #999; font-style: italic;">Weather normalization data not available</p>')
         html.append('</div>')
@@ -1417,7 +1425,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             pf_adjustment_after = normalization_pf / pf_after if pf_after > 0 else 1.0
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             # Display Power Factor as percentage (e.g., 99.9% instead of 0.999)
             pf_before_pct_display = (pf_before * 100) if pf_before > 0 else 0
             pf_after_pct_display = (pf_after * 100) if pf_after > 0 else 0
@@ -1425,7 +1433,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF (user-specified) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>')
             # PF Adjustment Factor calculation formula
-            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Before: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>After: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Normalization PF ÷ Actual PF'
+            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Baseline: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>Reporting: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Target PF ÷ Actual PF'
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_before, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_after, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{pf_factor_calc_text}</td></tr>')
             
             html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} × {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(weather_normalized_kw_after, 2)} × {format_number(pf_adjustment_after, 4)} = {format_number(normalized_kw_after, 2)}</td></tr>')
@@ -1465,8 +1473,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Baseline)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Reporting)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
             
@@ -1500,7 +1508,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">')
             html.append('<strong>Detailed Calculation Breakdown:</strong><br/>')
             html.append('<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Before (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">After (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Baseline (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Reporting (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
             
             # Step 1: Raw Data
             raw_savings_kw = kw_before - kw_after if has_raw else 0
@@ -5784,8 +5792,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Product Weight</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Storage Capacity:</strong></td>
                 </tr>
                 <tr>
@@ -5798,8 +5806,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Intensity (kWh per {product_weight_unit})</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -5812,8 +5820,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -5848,8 +5856,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Storage Efficiency</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Efficiency - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Efficiency - After:</strong></td>
+                    <td style="width: 33%;"><strong>Efficiency - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Efficiency - Reporting:</strong></td>
                     <td style="width: 33%;"><strong>Turnover Rate:</strong></td>
                 </tr>
                 <tr>
@@ -5976,8 +5984,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Usage Effectiveness (PUE)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -5990,8 +5998,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">IT Equipment Efficiency (ITE)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>Before Period:</strong></td>
-                    <td style="width: 50%;"><strong>After Period:</strong></td>
+                    <td style="width: 50%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 50%;"><strong>Reporting Period:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ite_before, 3) if ite_before > 0 else 'N/A'}</td>
@@ -6002,8 +6010,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Cooling Load Factor (CLF)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6016,9 +6024,9 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Density Metrics</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Power per Rack - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Power per Rack - After:</strong></td>
-                    <td style="width: 33%;"><strong>Power per sqft - Before:</strong></td>
+                    <td style="width: 33%;"><strong>Power per Rack - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Power per Rack - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Power per sqft - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(power_density_per_rack_before, 2) if power_density_per_rack_before > 0 else 'N/A'} kW/rack</td>
@@ -6028,9 +6036,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Power per sqft - After:</strong></td>
-                    {('<td style="width: 33%;"><strong>Power per GPU - Before:</strong></td>' if num_gpus > 0 else '<td></td>')}
-                    {('<td style="width: 33%;"><strong>Power per GPU - After:</strong></td>' if num_gpus > 0 else '<td></td>')}
+                    <td style="width: 33%;"><strong>Power per sqft - Reporting:</strong></td>
+                    {('<td style="width: 33%;"><strong>Power per GPU - Baseline:</strong></td>' if num_gpus > 0 else '<td></td>')}
+                    {('<td style="width: 33%;"><strong>Power per GPU - Reporting:</strong></td>' if num_gpus > 0 else '<td></td>')}
                 </tr>
                 <tr>
                     <td>{format_number(power_density_per_sqft_after, 2) if power_density_per_sqft_after > 0 else 'N/A'} kW/sqft</td>
@@ -6048,8 +6056,8 @@ def generate_exact_template_html(r):
                     data_center_html += f"""
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>kWh per GPU-hour - Before:</strong></td>
-                    <td style="width: 50%;"><strong>kWh per GPU-hour - After:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per GPU-hour - Baseline:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per GPU-hour - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(kwh_per_gpu_hour_before, 4) if kwh_per_gpu_hour_before > 0 else 'N/A'} kWh/GPU-hour</td>
@@ -6061,8 +6069,8 @@ def generate_exact_template_html(r):
                     data_center_html += f"""
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>kWh per Teraflop - Before:</strong></td>
-                    <td style="width: 50%;"><strong>kWh per Teraflop - After:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per Teraflop - Baseline:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per Teraflop - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(kwh_per_tflop_before, 4) if kwh_per_tflop_before > 0 else 'N/A'} kWh/TF</td>
@@ -6078,7 +6086,7 @@ def generate_exact_template_html(r):
                 <tr>
                     <td style="width: 33%;"><strong>UPS Capacity:</strong></td>
                     <td style="width: 33%;"><strong>UPS Efficiency:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Loading - Before:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Loading - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ups_capacity_kva, 0)} kVA</td>
@@ -6088,9 +6096,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>UPS Loading - After:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Losses - Before:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Losses - After:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Loading - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Losses - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Losses - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ups_loading_after, 1) if ups_loading_after > 0 else 'N/A'}%</td>
@@ -6110,9 +6118,9 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Breakdown</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>IT Power - Before:</strong></td>
-                    <td style="width: 33%;"><strong>IT Power - After:</strong></td>
-                    <td style="width: 33%;"><strong>Cooling Power - Before:</strong></td>
+                    <td style="width: 33%;"><strong>IT Power - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>IT Power - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Cooling Power - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(it_power_before, 2) if it_power_before > 0 else 'N/A'} kW</td>
@@ -6122,9 +6130,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Cooling Power - After:</strong></td>
-                    <td style="width: 33%;"><strong>Total Facility Power - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Total Facility Power - After:</strong></td>
+                    <td style="width: 33%;"><strong>Cooling Power - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Total Facility Power - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Total Facility Power - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(cooling_power_after, 2) if cooling_power_after > 0 else 'N/A'} kW</td>
@@ -6234,9 +6242,9 @@ def generate_exact_template_html(r):
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
                     <td style="width: 25%;"><strong>Number of Operating Rooms:</strong></td>
-                    <td style="width: 25%;"><strong>Patient Days - Before:</strong></td>
-                    <td style="width: 25%;"><strong>Patient Days - After:</strong></td>
-                    <td style="width: 25%;"><strong>Avg Occupancy - Before:</strong></td>
+                    <td style="width: 25%;"><strong>Patient Days - Baseline:</strong></td>
+                    <td style="width: 25%;"><strong>Patient Days - Reporting:</strong></td>
+                    <td style="width: 25%;"><strong>Avg Occupancy - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(num_operating_rooms, 0)}</td>
@@ -6247,7 +6255,7 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 25%;"><strong>Avg Occupancy - After:</strong></td>
+                    <td style="width: 25%;"><strong>Avg Occupancy - Reporting:</strong></td>
                     <td style="width: 25%;"></td>
                     <td style="width: 25%;"></td>
                     <td style="width: 25%;"></td>
@@ -6265,8 +6273,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Patient Day (kWh/patient-day)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6282,8 +6290,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Bed (kWh/bed/year)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6298,8 +6306,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6396,8 +6404,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Operating Room Energy Intensity</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6426,8 +6434,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -6572,8 +6580,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Occupied Room-Night (kWh/room-night)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6590,8 +6598,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Guest (kWh/guest)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6608,8 +6616,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Meal (kWh/meal)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6624,8 +6632,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6788,8 +6796,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Occupancy Analysis</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Avg Occupancy - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Avg Occupancy - After:</strong></td>
+                    <td style="width: 33%;"><strong>Avg Occupancy - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Avg Occupancy - Reporting:</strong></td>
                     <td style="width: 33%;"><strong>Occupancy-Adjusted Energy:</strong></td>
                 </tr>
                 <tr>
@@ -6817,8 +6825,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -6971,8 +6979,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Unit Produced (kWh/unit)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6989,8 +6997,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Machine Hour (kWh/machine-hour)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -7023,8 +7031,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Equipment Utilization</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Change:</strong></td>
                 </tr>
                 <tr>
@@ -7207,8 +7215,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -7221,8 +7229,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -7678,7 +7686,7 @@ def generate_exact_template_html(r):
       <tr style="background:#f9f9f9;">
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Sample sizes (n / n<sub>eff</sub>)</td>
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0; font-family:monospace; font-size:0.9em;">n<sub>eff</sub> = autocorrelation-corrected effective sample size (ASHRAE GL14-2023 Annex B, AR(1): n<sub>eff</sub> = n×(1−ρ₁)/(1+ρ₁)). SE, CI, p-value, and RP use n<sub>eff</sub>.</td>
-        <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Before: <strong>{_n_bef_str}</strong><br/>After: <strong>{_n_aft_str}</strong></td>
+        <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Baseline: <strong>{_n_bef_str}</strong><br/>Reporting: <strong>{_n_aft_str}</strong></td>
       </tr>
       <tr>
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Annual kWh extrapolation</td>
