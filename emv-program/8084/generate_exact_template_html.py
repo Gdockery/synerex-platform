@@ -1123,11 +1123,10 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
         weather_savings_percent = (weather_savings_kw / weather_normalized_kw_before * 100) if has_weather and weather_normalized_kw_before > 0 else 0
         
-        # Calculate total normalized savings - EXACTLY as Analysis does
-        # Analysis: totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4
-        total_savings_kw = weather_normalized_kw_before - normalized_kw_after
-        # Analysis: totalNormalizedPercentStep4 = (totalSavingsKwStep4 / weatherBeforeForStep4) * 100
-        total_normalized_percent = (total_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+        # Total normalized savings: both before and after values must be at the same normalization level (PF+weather)
+        # normalized_kw_before = PF+weather normalized before; normalized_kw_after = PF+weather normalized after
+        total_savings_kw = normalized_kw_before - normalized_kw_after
+        total_normalized_percent = (total_savings_kw / normalized_kw_before * 100) if normalized_kw_before > 0 else 0
         
         # Calculate weather savings
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
@@ -4993,7 +4992,16 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{ASHRAE_MODEL_SELECTED}}', ashrae_model_selected)
     template_content = template_content.replace('{{ASHRAE_CVRMSE}}', f"{format_number(ashrae_cvrmse, 1)}%")
     template_content = template_content.replace('{{ASHRAE_NMBE}}', f"{format_number(ashrae_nmbe, 1)}%")
-    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', f"{format_number(ashrae_r_squared, 2)}")
+    # R² display: 3 decimals, fallback to regression_r2 when baseline_model_r_squared is 0
+    _wn_data = safe_get(r, 'weather_normalization', default={})
+    _reg_r2 = safe_get(_wn_data, 'regression_r2')
+    if ashrae_r_squared and float(ashrae_r_squared) > 0:
+        _r2_display = format_number(ashrae_r_squared, 3)
+    elif _reg_r2 is not None:
+        _r2_display = format_number(_reg_r2, 3) + ' (below 0.75 - normalization not applied per ASHRAE GL14-2023)'
+    else:
+        _r2_display = format_number(ashrae_r_squared, 3)
+    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', _r2_display)
     template_content = template_content.replace('{{ASHRAE_TEMPERATURE_UNITS}}', ashrae_temperature_units)
     template_content = template_content.replace('{{ASHRAE_RELATIVE_PRECISION}}', f"{format_number(ashrae_relative_precision, 1)}%")
     template_content = template_content.replace('{{ASHRAE_PRECISION_STATUS}}', ashrae_precision_status)
