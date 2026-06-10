@@ -8075,8 +8075,8 @@ function displayResults(r) {
   );
 
   // Build the label strings for display
-  const beforeLabelDisplay = beforeLabel ? `Before ${beforeLabel}` : "Before";
-  const afterLabelDisplay = afterLabel ? `After ${afterLabel}` : "After";
+  const beforeLabelDisplay = beforeLabel ? `Baseline Period ${beforeLabel}` : "Baseline Period";
+  const afterLabelDisplay = afterLabel ? `Reporting Period ${afterLabel}` : "Reporting Period";
 
   html += `<h3>Performance</h3>`;
   html +=
@@ -9466,7 +9466,17 @@ function displayResults(r) {
     html +=
       `<strong>THD</strong> shows IEEE 519 harmonic distortion reduction, and <strong>Voltage Unbalance</strong> shows IEEE 519 three-phase voltage balance improvement. `;
     html +=
-      `<em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2023.</em>`;
+      (function(){
+        var wn = r && r.weather_normalization ? r.weather_normalization : {};
+        var applied = wn.normalization_applied;
+        if (applied === false || applied === 'false') {
+          var sc = wn.standards_compliance || wn.reason || '';
+          return '<em>Note: Weather normalization was not applied. ' +
+            (sc ? 'Reason: ' + sc : 'See weather normalization section for details.') +
+            '</em>';
+        }
+        return '<em>Note: Weather normalization applied per ASHRAE Guideline 14-2023 §5.2–5.4.</em>';
+      })();
     html += `</div>`;
     html += `<table class="compliance-table">`;
     html +=
@@ -10430,12 +10440,10 @@ function displayResults(r) {
         }
         
         // Calculate total normalized savings using the values from IEEE 519 section
-        // CRITICAL FIX: Total Utility Billing Impact = weather_normalized_before - pf_normalized_after
-        // This represents the total impact from both weather normalization AND power factor normalization
-        // NOT: pf_normalized_before - pf_normalized_after (which only shows PF impact)
-        const totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4;
-        // CRITICAL: Use weather_normalized_kw_before as denominator (same as Weather Savings % and PF Contribution %)
-        // This ensures: Weather Savings % + PF Contribution % = Total Utility Billing Impact %
+        // FIXED: Total Normalized Savings = PF-normalized before minus PF-normalized after
+        // Both values are at the same normalization level (weather + PF), so the subtraction is consistent.
+        const totalSavingsKwStep4 = pfNormalizedKwBeforeStep4 - pfNormalizedKwAfterStep4;
+        // Use pfNormalizedKwBeforeStep4 as denominator so savings % is computed on a consistent PF-normalized basis
         // DEBUG: Log values to verify calculation
         console.log('[SEARCH] [STEP 4 DEBUG] weatherBeforeForStep4 =', weatherBeforeForStep4);
         console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
@@ -10448,7 +10456,7 @@ function displayResults(r) {
           console.warn('[WARNING] [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
         }
         
-        const totalNormalizedPercentStep4 = (weatherBeforeForStep4 > 0) ? (totalSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
+        const totalNormalizedPercentStep4 = (pfNormalizedKwBeforeStep4 > 0) ? (totalSavingsKwStep4 / pfNormalizedKwBeforeStep4) * 100 : 0;
         console.log('[SEARCH] [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
         console.log('[SEARCH] [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
         
@@ -10488,8 +10496,8 @@ function displayResults(r) {
         // Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
         const totKw = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
         const totPct = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
-        // Use weather-normalized before as denominator (same as Weather Savings % and PF Contribution %)
-        const wBeforeForTotal = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
+        // Use pfNormalized before as denominator (consistent PF-normalized basis)
+        const wBeforeForTotal = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
         const totColor = (totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
         html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">🔋 Billing Demand Relief — Utility Tariff PF Clause (%)<br/><small style="color: #2e7d32; font-style: italic;">Demand charge reduction from PF improvement per utility tariff PF clause</small><br/><small style="color: #b71c1c; font-weight: bold;">⚠ Not additional energy savings — a separate financial benefit under the utility rate schedule</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + wBeforeForTotal + ') × 100<br/><small style="color: #666;"><em>Citation: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings).<br/>Do not add to energy savings %.</em></small></td></tr>';
         html += `</table>`;
@@ -10876,8 +10884,12 @@ function displayResults(r) {
     if (beforeComp && beforeComp.baseline_model_nmbe != null) {
       nmbe = fmt(beforeComp.baseline_model_nmbe, 1);
     }
-    if (beforeComp && beforeComp.baseline_model_r_squared != null) {
-      rSquared = fmt(beforeComp.baseline_model_r_squared, 1);
+    if (beforeComp && beforeComp.baseline_model_r_squared != null && beforeComp.baseline_model_r_squared > 0) {
+      rSquared = fmt(beforeComp.baseline_model_r_squared, 3);
+    } else if (r0.weather_normalization && r0.weather_normalization.regression_r2 != null) {
+      rSquared = fmt(r0.weather_normalization.regression_r2, 3) + ' (below 0.75 - normalization not applied per ASHRAE GL14-2023)';
+    } else if (beforeComp && beforeComp.baseline_model_r_squared != null) {
+      rSquared = fmt(beforeComp.baseline_model_r_squared, 3);
     }
 
 

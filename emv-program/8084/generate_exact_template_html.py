@@ -874,7 +874,7 @@ def generate_verification_certificate_html(r):
         html.append(f'<tr><td style="padding: 8px; width: 30%; font-weight: bold;">Project Name:</td><td style="padding: 8px;">{project_name}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Client:</td><td style="padding: 8px;">{company}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Facility Address:</td><td style="padding: 8px;">{facility}</td></tr>')
-        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Before: {before_period}<br/>After: {after_period}</td></tr>')
+        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Baseline Period: {before_period}<br/>Reporting Period: {after_period}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Session ID:</td><td style="padding: 8px; font-family: monospace; font-size: 0.9em;">{analysis_session_id}</td></tr>')
         html.append('</table>')
         
@@ -883,7 +883,7 @@ def generate_verification_certificate_html(r):
         html.append('<div style="margin: 15px 0;">')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] Original Data Files Verified</p>')
         html.append('<div style="margin-left: 20px; margin-top: 10px;">')
-        html.append('<p><strong>Before Period File:</strong></p>')
+        html.append('<p><strong>Baseline Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {before_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{before_fingerprint}</code></li>')
@@ -891,7 +891,7 @@ def generate_verification_certificate_html(r):
         html.append(f'<li>Upload Date: {format_date(before_upload_date)}</li>')
         html.append('<li>Integrity Status: <span style="color: #28a745; font-weight: bold;">VERIFIED (No tampering detected)</span></li>')
         html.append('</ul>')
-        html.append('<p><strong>After Period File:</strong></p>')
+        html.append('<p><strong>Reporting Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {after_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{after_fingerprint}</code></li>')
@@ -1406,7 +1406,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # STEP 3: Power Factor Normalization
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">')
         html.append('<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor (the better of before/after/target) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Normalization PF / Actual PF), where Normalization PF = max(PF Before, PF After, Target PF)</p>')
+        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor target for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF ÷ Actual PF), where Target PF is the user-specified normalization reference (default 0.950 per IEEE 519 standard)</p>')
         
         if has_fully and pf_before and pf_after:
             # Use the better PF (higher value) as normalization target to show true savings benefit
@@ -1422,7 +1422,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             pf_before_pct_display = (pf_before * 100) if pf_before > 0 else 0
             pf_after_pct_display = (pf_after * 100) if pf_after > 0 else 0
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_before_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_after_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">max(Before, After, Target) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF (user-specified) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>')
             # PF Adjustment Factor calculation formula
             pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Before: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>After: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Normalization PF ÷ Actual PF'
@@ -2189,11 +2189,28 @@ def generate_exact_template_html(r):
         "Utility-grade power quality analyzer"
     )
     
+    # Derive interval string from detected_interval_minutes if available
+    _det_min = (
+        safe_get(statistical, 'detected_interval_minutes') or
+        safe_get(r, 'detected_interval_minutes') or
+        safe_get(config, 'detected_interval_minutes')
+    )
+    if _det_min is not None:
+        _det_min = float(_det_min)
+        if _det_min <= 1.5:    _auto_interval = '1-minute interval'
+        elif _det_min <= 7.5:  _auto_interval = '5-minute interval'
+        elif _det_min <= 22.5: _auto_interval = '15-minute interval'
+        elif _det_min <= 90:   _auto_interval = 'hourly interval'
+        else:                  _auto_interval = str(int(round(_det_min))) + '-minute interval'
+    else:
+        _auto_interval = None
+
     interval_data = (
-        safe_get(config, "test_int_data") or 
-        safe_get(config, "interval_data") or 
-        safe_get(r, "test_int_data") or 
-        "15-minute interval"
+        _auto_interval or
+        safe_get(config, 'test_int_data') or
+        safe_get(config, 'interval_data') or
+        safe_get(r, 'test_int_data') or
+        '1-minute interval'
     )
     
     # Normalize interval_data: if it ends with "interval" (singular), change to "intervals" (plural)

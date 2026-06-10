@@ -16550,12 +16550,13 @@ def _compute_ashrae_r2(before_data: Dict, after_data: Dict, config: Dict) -> Dic
             ts_list = data.get("timestamps", [])
             kw_dict = data.get("avgKw", {})
             kw_vals = kw_dict.get("values", []) if isinstance(kw_dict, dict) else []
-            if not ts_list or not kw_vals or len(ts_list) != len(kw_vals):
+            if not ts_list or not kw_vals:
                 continue
             try:
+                _ml = min(len(ts_list), len(kw_vals))
                 df = pd.DataFrame({
-                    "ts": pd.to_datetime(ts_list, utc=True, errors="coerce"),
-                    "kw": pd.to_numeric(kw_vals, errors="coerce"),
+                    "ts": pd.to_datetime(ts_list[:_ml], utc=True, errors="coerce"),
+                    "kw": pd.to_numeric(kw_vals[:_ml], errors="coerce"),
                 }).dropna()
                 df["hour"] = df["ts"].dt.floor("1h")
                 hourly = df.groupby("hour")["kw"].mean()
