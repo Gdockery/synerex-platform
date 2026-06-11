@@ -5595,12 +5595,14 @@ def generate_exact_template_html(r):
         baseline_energy_cost      # base kWh + network/harmonic kWh (no double-count)
         + demand_savings_cost
         + power_factor_savings_cost
-        + envelope_smoothing_cost
+        # envelope_smoothing_cost intentionally excluded — flagged as proprietary /
+        # non-IPMVP-verified. It is displayed on the card for informational purposes
+        # but must not inflate the auditable Total Attributed figure.
         + cp_plc_cost
         + om_savings_cost
     )
     reconciles_status = "PASS YES"
-    includes_categories = "Baseline Energy (metered base + harmonic sub-component) + Demand + PF Penalties + Envelope + O&M"
+    includes_categories = "Baseline Energy (metered base + harmonic sub-component) + Demand + PF Penalties + O&M (Envelope Smoothing excluded — non-IPMVP)"
     
     # Replace Savings Attribution Card template variables
     # {{BASELINE_ENERGY}} shows the metered base only (not including network/harmonic sub-component)
