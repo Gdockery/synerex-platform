@@ -27997,7 +27997,10 @@ def analyze():
                 "annual_total_dollars": financial_total,
                 "annual_energy_dollars": energy_dollars,
                 "annual_demand_dollars": demand_savings,
-                "delta_kw_avg": float(results.get("financial", {}).get("delta_kw_avg", 0.0) or 0.0),  # actual kW savings, not kVA
+                "delta_kw_avg": float(
+                    (before_data.get("avgKw", {}).get("mean") or 0.0)
+                    - (after_data.get("avgKw", {}).get("mean") or 0.0)
+                ),  # actual avg kW savings from meter data (avgKw.mean before − after)
                 "kva_demand_dollars": demand_savings,
                 "pf_adjustment_dollars": 0.0,  # Not separately calculated
                 "reactive_adder_dollars": 0.0,  # Not separately calculated
