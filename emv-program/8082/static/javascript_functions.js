@@ -9886,6 +9886,42 @@ function displayResults(r) {
         // Calculate actual adjustment factor from results
         const weatherAdjustmentFactor = powerQualityNormalized.kw_after > 0 ? powerQualityNormalized.weather_normalized_kw_after / powerQualityNormalized.kw_after : 1.0;
         
+        // ── Weather normalization skip banner ────────────────────────────────
+        // Show a prominent notice when normalization ran but was suppressed
+        // (R² gate, temp-diff gate, or explicit normalization_applied=false).
+        const wnApplied = weatherNorm.normalization_applied;
+        if (wnApplied === false || wnApplied === "false" || wnApplied === 0) {
+          let skipReason = "";
+          const wnReason = weatherNorm.reason || weatherNorm.standards_compliance || "";
+          const wnR2 = weatherNorm.regression_r2 ?? weatherNorm.r_squared ?? null;
+          const wnTempDiff = (tempBefore !== undefined && tempAfter !== undefined)
+            ? Math.abs(tempBefore - tempAfter) : null;
+          if (wnReason && wnReason.toLowerCase().includes("r2")) {
+            skipReason = "R\u00B2 = " + (wnR2 !== null ? Number(wnR2).toFixed(3) : "N/A") +
+              " is below the ASHRAE Guideline 14-2023 threshold of 0.75. " +
+              "Regression model is not statistically valid; raw meter readings used.";
+          } else if (wnReason && wnReason.toLowerCase().includes("temp")) {
+            skipReason = "Temperature difference between periods (" +
+              (wnTempDiff !== null ? wnTempDiff.toFixed(1) + "\u00B0C" : "N/A") +
+              ") does not meet the minimum threshold for normalization.";
+          } else if (wnR2 !== null && wnR2 < 0.75) {
+            skipReason = "R\u00B2 = " + Number(wnR2).toFixed(3) +
+              " is below the ASHRAE Guideline 14-2023 threshold of 0.75. " +
+              "Weather normalization was not applied; adjustment factor fixed at 1.0000.";
+          } else {
+            skipReason = wnReason || "Normalization criteria not met per ASHRAE Guideline 14-2023.";
+          }
+          html += `<div style="background:#fff3cd;border:1px solid #ffc107;border-left:5px solid #e65100;border-radius:4px;padding:12px 16px;margin-bottom:14px;font-size:0.93em;">
+            <strong style="color:#e65100;">\u26A0\uFE0F Weather Normalization Not Applied</strong><br/>
+            <span style="color:#5d4037;">${skipReason}</span><br/>
+            <span style="color:#888;font-size:0.88em;margin-top:4px;display:block;">
+              The table below shows the normalization machinery but with a fixed factor of 1.0000,
+              meaning raw meter readings pass through unchanged. Reported savings are based on raw \u0394kW only.
+            </span>
+          </div>`;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         

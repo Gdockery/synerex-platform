@@ -1326,6 +1326,32 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with sensitivity factors (2.5% per deg C for temp, 1.5% per deg C for dewpoint).</p>')
         
         if has_weather:
+            # ── Skip banner: show BEFORE the table so reader sees the reason first ──
+            _wn_applied = weather_norm.get('normalization_applied', True) if isinstance(weather_norm, dict) else True
+            _wn_r2      = float(weather_norm.get('regression_r2') or weather_norm.get('r_squared') or 0)
+            _wn_reason  = weather_norm.get('standards_compliance') or weather_norm.get('reason') or ''
+            if _wn_applied is False or str(_wn_applied).lower() == 'false' or _wn_applied == 0 or (0 < _wn_r2 < 0.75):
+                if 0 < _wn_r2 < 0.75:
+                    _skip_msg = (
+                        'R\u00B2 = {:.3f} is below the ASHRAE Guideline 14-2023 threshold of 0.75. '
+                        'The regression model is not statistically valid for weather correction; '
+                        'adjustment factor is fixed at 1.0000 and raw meter readings are used.'.format(_wn_r2)
+                    )
+                elif 'temp' in _wn_reason.lower():
+                    _skip_msg = 'Temperature difference between periods does not meet the minimum threshold. Adjustment factor fixed at 1.0000.'
+                else:
+                    _skip_msg = _wn_reason or 'Normalization criteria not met per ASHRAE Guideline 14-2023. Adjustment factor fixed at 1.0000.'
+                html.append(
+                    '<div style="background:#fff3cd;border:1px solid #ffc107;border-left:5px solid #e65100;'
+                    'border-radius:4px;padding:12px 16px;margin-bottom:14px;font-size:0.93em;">'
+                    '<strong style="color:#e65100;">\u26A0\uFE0F Weather Normalization Not Applied</strong><br/>'
+                    '<span style="color:#5d4037;">' + _skip_msg + '</span><br/>'
+                    '<span style="color:#888;font-size:0.88em;margin-top:4px;display:block;">'
+                    'The table below shows normalization parameters but with a fixed factor of 1.0000 \u2014 '
+                    'raw meter readings pass through unchanged.'
+                    '</span></div>'
+                )
+            # ─────────────────────────────────────────────────────────────────────
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             
@@ -1460,14 +1486,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('</td></tr>')
             
             html.append('</table>')
-            # Show dynamic reason if normalization was not applied
-            _wn_applied = weather_norm.get('normalization_applied', True) if isinstance(weather_norm, dict) else True
-            if _wn_applied is False or _wn_applied == 'false':
-                _wn_sc = weather_norm.get('standards_compliance') or weather_norm.get('reason') or ''
-                _reason_str = _wn_sc if _wn_sc else 'See weather normalization report section for details.'
-                html.append('<div style="margin-top: 10px; padding: 10px; background: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">'
-                            '<strong style="color: #e65100;">Note: Weather normalization was not applied to savings calculation.</strong><br/>'
-                            '<span style="color: #bf360c; font-size: 0.9em;">Reason: ' + _reason_str + '</span></div>')
+            # (skip banner now shown before table — see block above)
         else:
             html.append('<p style="color: #999; font-style: italic;">Weather normalization data not available</p>')
         html.append('</div>')
