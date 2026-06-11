@@ -27997,7 +27997,7 @@ def analyze():
                 "annual_total_dollars": financial_total,
                 "annual_energy_dollars": energy_dollars,
                 "annual_demand_dollars": demand_savings,
-                "delta_kw_avg": kva_reduction,
+                "delta_kw_avg": float(results.get("financial", {}).get("delta_kw_avg", 0.0) or 0.0),  # actual kW savings, not kVA
                 "kva_demand_dollars": demand_savings,
                 "pf_adjustment_dollars": 0.0,  # Not separately calculated
                 "reactive_adder_dollars": 0.0,  # Not separately calculated

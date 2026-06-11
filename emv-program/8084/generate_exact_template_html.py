@@ -839,7 +839,7 @@ def generate_verification_certificate_html(r):
         # Also check TDD if available, as IEEE 519 uses TDD limits
         thd_after = safe_float(power_quality.get('thd_after', 0) if isinstance(power_quality, dict) else 0, 0)
         tdd_after = safe_float(power_quality.get('tdd_after', 0) if isinstance(power_quality, dict) else 0, 0)
-        ieee_thd_limit = safe_float(power_quality.get('ieee_thd_limit', 5.0) if isinstance(power_quality, dict) else 5.0, 5.0)
+        ieee_thd_limit = _ieee_519_tdd_limit_for(_compute_isc_il_from_config(r))
         
         # Use TDD if available, otherwise use THD
         if tdd_after > 0:
@@ -4987,8 +4987,11 @@ def generate_exact_template_html(r):
     # Network savings (I²R and transformer losses)
     network_annual_savings = get_financial_value("network_annual_dollars", 0)
     
-    # Total annual savings
-    total_annual_savings = get_financial_value("annual_total_dollars", 0)
+    # Total annual savings — sum only the rows actually shown in the table
+    # (energy + demand + network). The all-inclusive annual_total_dollars
+    # also contains PF penalties and O&M which have no rows in this table,
+    # making the total look larger than the visible items.
+    total_annual_savings = energy_annual_savings + demand_annual_savings + network_annual_savings
     
     # Average kW savings
     average_kw_savings = get_financial_value("delta_kw_avg", 0)
@@ -7317,17 +7320,22 @@ def generate_exact_template_html(r):
     _letter_energy_full = f"{_kes_kwh:,.0f} kWh/year  ({_kes_kw:.2f} kW avg demand reduction)"
     template_content = template_content.replace('{{LETTER_ENERGY_SAVINGS_FULL}}', _letter_energy_full)
 
-    # BASE_KWH_SAVINGS / NETWORK_KWH_SAVINGS – kWh savings breakdown
-    _fin = financial if isinstance(financial, dict) else {}
+    # BASE_KWH_SAVINGS / NETWORK_KWH_SAVINGS – kWh savings breakdown.
+    # Primary source: attribution.energy.components (same split used by attribution card).
+    # This prevents the summary page showing "Metered base (534,691) + Network (0)"
+    # when the split is actually base=457,112 + network=77,579.
+    _attr = safe_get(r, "attribution", default={}) or {}
+    _attr_energy_comps = safe_get(_attr, "energy", default={}).get("components", {}) or {}
     _base_kwh = _safe_float(
-        _fin.get("annual_kwh_savings") or
-        _fin.get("base_kwh_savings") or
-        _fin.get("delta_kwh_annual") or
+        _attr_energy_comps.get("base_kwh") or
+        (financial or {}).get("base_kwh_savings") or
+        (financial or {}).get("delta_kwh_annual") or
         annual_kwh_savings or 0
     )
     _net_kwh = _safe_float(
-        _fin.get("network_kwh_savings") or
-        _fin.get("annual_network_kwh") or 0
+        _attr_energy_comps.get("network_kwh") or
+        (financial or {}).get("network_kwh_savings") or
+        (financial or {}).get("annual_network_kwh") or 0
     )
     template_content = template_content.replace('{{BASE_KWH_SAVINGS}}',    f"{_base_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_KWH_SAVINGS}}', f"{_net_kwh:,.0f}")
@@ -7611,10 +7619,16 @@ def generate_exact_template_html(r):
         _thd_aft     = _f(safe_get(_pq, "thd_after"),   0.0)
         _tdd_bef     = _f(safe_get(_pq, "tdd_before"),  0.0)
         _tdd_aft     = _f(safe_get(_pq, "tdd_after"),   0.0)
-        _isc         = _f(safe_get(_pq, "isc_kA") or safe_get(_pq, "isc_current"), 0.0)
-        _il          = _f(safe_get(_pq, "il_A")  or safe_get(_pq, "il_current"),  0.0)
-        _isc_il      = _f(safe_get(_pq, "isc_il_ratio"), 0.0)
-        _thd_limit   = _f(safe_get(_pq, "ieee_thd_limit") or safe_get(_ac, "ieee_thd_limit"), 8.0)
+        # ISC/IL come from project config (not power_quality, which doesn't store them).
+        # Use the same helper as the main body so appendix and body are always consistent.
+        _isc_il_ratio_app = _compute_isc_il_from_config(r)
+        _cfg_app  = safe_get(r, "config", default={}) or {}
+        _isc_kA_v = _f(safe_get(_cfg_app, "isc_kA"), 0.0)
+        _il_A_v   = _f(safe_get(_cfg_app, "il_A"), 0.0)
+        _isc         = _isc_kA_v * 1000          # convert kA → A for display
+        _il          = _il_A_v
+        _isc_il      = _isc_il_ratio_app
+        _thd_limit   = _ieee_519_tdd_limit_for(_isc_il_ratio_app)
 
         # ── A.3 meter info ───────────────────────────────────────────────────
         _cp          = safe_get(r, "client_profile", default={}) or {}
