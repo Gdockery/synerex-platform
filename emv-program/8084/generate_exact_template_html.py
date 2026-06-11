@@ -275,6 +275,63 @@ def _remove_dollar_blocks(html_content, show_dollars):
 # blocks can then be deleted one at a time without functional risk.
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _ieee_519_tdd_limit_for(isc_il_ratio):
+    """IEEE 519-2014/2022 Table 2 TDD limit for a given ISC/IL ratio.
+    Returns 5.0 (strictest / conservative) when ratio is unknown or <= 0."""
+    try:
+        r = float(isc_il_ratio) if isc_il_ratio is not None else 0.0
+    except (TypeError, ValueError):
+        r = 0.0
+    if r >= 1000:
+        return 20.0
+    if r >= 100:
+        return 15.0
+    if r >= 50:
+        return 12.0
+    if r >= 20:
+        return 8.0
+    return 5.0
+
+
+def _compute_isc_il_from_config(r):
+    """Compute ISC/IL ratio from project config — single source of truth.
+
+    Priority:
+      1. config.isc_kA and config.il_A (direct short-circuit study values)
+      2. Transformer estimation: config.xfmr_kva, voltage_nominal,
+         xfmr_impedance_pct (default 5.75 %)
+      3. power_quality.isc_il_ratio stored by 8082 (last resort)
+      4. 0.0 (ratio unknown → 5 % TDD limit via _ieee_519_tdd_limit_for)
+    """
+    cfg = safe_get(r, "config", default={}) or {}
+    pq  = safe_get(r, "power_quality", default={}) or {}
+
+    def _f(x, default=0.0):
+        try:
+            v = float(x) if x not in (None, "", "N/A") else 0.0
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+
+    isc_kA = _f(cfg.get("isc_kA"))
+    il_A   = _f(cfg.get("il_A"))
+    if isc_kA > 0 and il_A > 0:
+        return (isc_kA * 1000) / il_A
+
+    # Transformer-based estimation
+    xfmr_kva      = _f(cfg.get("xfmr_kva"))
+    v_nom          = _f(cfg.get("voltage_nominal"))
+    z_pct          = _f(cfg.get("xfmr_impedance_pct"), default=5.75) / 100.0
+    if xfmr_kva > 0 and v_nom > 0:
+        rated_A = (xfmr_kva * 1000) / (v_nom * 1.732)
+        isc_A   = rated_A / z_pct
+        il_A    = rated_A * 0.60
+        return (isc_A / 1000 * 1000) / il_A if il_A > 0 else 0.0
+
+    # Last resort — use whatever 8082 stored
+    return _f(pq.get("isc_il_ratio"))
+
+
 def _build_harmonics_snapshot(r):
     """
     Build the canonical THD/TDD snapshot consumed by _apply_harmonics.
@@ -338,7 +395,11 @@ def _build_harmonics_snapshot(r):
     tdd_b = _num(raw_tdd_b, default=thd_b)
     tdd_a = _num(raw_tdd_a, default=thd_a)
 
-    tdd_limit = _num(pq.get("ieee_tdd_limit"), default=5.0)
+    # Single source of truth: derive ISC/IL from config (not from whatever
+    # 8082 happened to store in power_quality.ieee_tdd_limit, which may
+    # have been computed from different inputs than the display value).
+    _isc_il = _compute_isc_il_from_config(r)
+    tdd_limit = _ieee_519_tdd_limit_for(_isc_il)
 
     def _impr(b, a):
         if b and b > 0:
@@ -369,6 +430,7 @@ def _build_harmonics_snapshot(r):
             "after_verdict":  "PASS" if tdd_a <= tdd_limit else "FAIL",
             "from_thd_fallback": tdd_from_thd_fallback,
         },
+        "isc_il_ratio": _isc_il,
     }
 
 
@@ -3964,49 +4026,12 @@ def generate_exact_template_html(r):
     # TDD limit, TDD values, PASS/FAIL verdicts and the improvement text
     # are set exclusively by _apply_harmonics (single source of truth,
     # runs at top of this function).
-    ieee_519_isc_il_ratio = 0
-    try:
-        isc_kA = safe_get(config, "isc_kA", default=0)
-        il_A = safe_get(config, "il_A", default=0)
-        try:
-            isc_kA = float(isc_kA) if isc_kA else 0
-        except (ValueError, TypeError):
-            isc_kA = 0
-        try:
-            il_A = float(il_A) if il_A else 0
-        except (ValueError, TypeError):
-            il_A = 0
-        print(f"DEBUG: METHODS & FORMULAS VALIDATION: IEEE 519 ISC/IL calculation using CSV data - isc_kA={isc_kA}, il_A={il_A}")
-        if isc_kA > 0 and il_A > 0:
-            ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A
-        else:
-            xfmr_kva = safe_get(config, "xfmr_kva", default=0)
-            voltage_nominal = safe_get(config, "voltage_nominal", default=0)
-            try:
-                xfmr_kva = float(xfmr_kva) if xfmr_kva else 0
-            except (ValueError, TypeError):
-                xfmr_kva = 0
-            try:
-                voltage_nominal = float(voltage_nominal) if voltage_nominal else 0
-            except (ValueError, TypeError):
-                voltage_nominal = 0
-            xfmr_impedance_pct_raw = safe_get(config, "xfmr_impedance_pct", default=5.75)
-            try:
-                xfmr_impedance_pct = float(xfmr_impedance_pct_raw) if xfmr_impedance_pct_raw else 5.75
-            except (ValueError, TypeError):
-                xfmr_impedance_pct = 5.75
-            xfmr_impedance_pct = xfmr_impedance_pct / 100
-            if xfmr_kva > 0 and voltage_nominal > 0:
-                rated_current = (xfmr_kva * 1000) / (voltage_nominal * 1.732)
-                isc_A = rated_current / xfmr_impedance_pct
-                isc_kA = isc_A / 1000
-                il_A = rated_current * 0.60
-                ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A if il_A > 0 else 0
-    except Exception as e:
-        print(f"[WARN] Error computing ISC/IL ratio: {e}", flush=True)
+    # Single source of truth — same helper used by _build_harmonics_snapshot.
+    ieee_519_isc_il_ratio = _compute_isc_il_from_config(r)
     
     template_content = template_content.replace('{{IEEE_519_EDITION}}', ieee_519_edition)
-    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
+    _ratio_fmt = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', _ratio_fmt)
     # {{IEEE_519_TDD_LIMIT}}, {{IEEE_519_BEFORE_TDD}}, {{IEEE_519_AFTER_TDD}},
     # {{IEEE_519_BEFORE_COMPLIANCE}}, {{IEEE_519_AFTER_COMPLIANCE}},
     # {{IEEE_519_IMPROVEMENT}} are owned by _apply_harmonics (top of fn).
@@ -5263,21 +5288,25 @@ def generate_exact_template_html(r):
 
     ieee_519_standard_reference = "IEEE Std 519-2014 - IEEE Recommended Practice and Requirements for Harmonic Control in Electric Power Systems"
     ieee_519_pcc_status = safe_get(r, "pcc_location", default="Main Service")
-    ieee_519_isc_il_ratio = safe_get(power_quality, "isc_il_ratio", default=0)
+    # Use the same single-source-of-truth helper so every section of the
+    # report shows the same ISC/IL ratio.
+    ieee_519_isc_il_ratio = _compute_isc_il_from_config(r)
     ieee_519_harmonic_depth = safe_get(r, "harmonic_analysis_depth", default="50th order")
     ieee_519_measurement_method = safe_get(r, "ieee_519_measurement_method", default="Standardized harmonic measurement per IEEE 519 Section 4.2.1")
     ieee_519_tdd_formula = "TDD = √(Σ(h=2 to 50) Ih²) / IL × 100%"
     ieee_519_voltage_tdd_limit = safe_get(r, "ieee_519_voltage_tdd_limit", default=0)
     ieee_519_before_voltage_tdd = safe_get(before_compliance, "ieee_519_voltage_tdd", default=0)
     ieee_519_after_voltage_tdd = safe_get(after_compliance, "ieee_519_voltage_tdd", default=0)
-    ieee_519_individual_limits = f"Individual harmonic limits based on ISC/IL ratio of {ieee_519_isc_il_ratio}"
+    _indiv_ratio = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    ieee_519_individual_limits = f"Individual harmonic limits based on ISC/IL ratio of {_indiv_ratio} (TDD limit: {_ieee_519_tdd_limit_for(ieee_519_isc_il_ratio):.1f}%)"
     ieee_c57_110_applied = safe_get(r, "ieee_c57_110_method", default="THD approximation method")
     ieee_519_transformer_loss_method = safe_get(r, "ieee_519_transformer_loss_method", default="Harmonic-based transformer loss calculation per IEEE C57.110")
     ieee_519_steady_state_analysis = safe_get(r, "ieee_519_steady_state_analysis", default="Steady-state harmonic limits as per IEEE 519 Section 4.1")
 
     template_content = template_content.replace('{{IEEE_519_STANDARD_REFERENCE}}', ieee_519_standard_reference)
     template_content = template_content.replace('{{IEEE_519_PCC_STATUS}}', ieee_519_pcc_status)
-    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
+    _ratio_fmt2 = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', _ratio_fmt2)
     template_content = template_content.replace('{{IEEE_519_HARMONIC_DEPTH}}', ieee_519_harmonic_depth)
     template_content = template_content.replace('{{IEEE_519_MEASUREMENT_METHOD}}', ieee_519_measurement_method)
     template_content = template_content.replace('{{IEEE_519_TDD_FORMULA}}', ieee_519_tdd_formula)
