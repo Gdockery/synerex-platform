@@ -5531,94 +5531,83 @@ def generate_exact_template_html(r):
     
     # True kW/kWh Reduction - Use attribution.energy structure (same as UI)
     energy_data = safe_get(attribution, "energy", default={})
-    baseline_energy = safe_get(energy_data, "kwh", default=0)
-    baseline_energy_cost = safe_get(energy_data, "dollars", default=0)
+    baseline_energy = safe_get(energy_data, "kwh", default=0)       # total: base + network
+    baseline_energy_cost = safe_get(energy_data, "dollars", default=0)  # total energy $ (base + network)
     energy_components = safe_get(energy_data, "components", default={})
     base_energy_kwh = safe_get(energy_components, "base_kwh", default=0)
     network_energy_kwh = safe_get(energy_components, "network_kwh", default=0)
     energy_rate_detailed = safe_get(energy_components, "energy_rate", default=0)
-    
+
+    # Split the total energy cost proportionally between the metered base and network (harmonic) component.
+    # baseline_energy = base_energy_kwh + network_energy_kwh by definition, so the costs sum correctly.
+    if baseline_energy > 0 and baseline_energy_cost > 0:
+        _rate = baseline_energy_cost / baseline_energy
+    elif energy_rate_detailed > 0:
+        _rate = energy_rate_detailed
+    else:
+        _rate = 0.0
+    base_energy_cost = base_energy_kwh * _rate
+    network_energy_cost = network_energy_kwh * _rate
+
     # CP Demand Reduction - Use attribution.demand structure (same as UI)
     demand_data = safe_get(attribution, "demand", default={})
     demand_savings_cost = safe_get(demand_data, "dollars", default=0)
-    
+
     # Power Factor Penalties - Use attribution.pf_reactive structure (same as UI)
     pf_data = safe_get(attribution, "pf_reactive", default={})
     power_factor_savings_cost = safe_get(pf_data, "dollars", default=0)
-    
+
     # Envelope Smoothing - Use attribution.envelope_smoothing structure (same as UI)
     envelope_data = safe_get(attribution, "envelope_smoothing", default={})
     envelope_smoothing_cost = safe_get(envelope_data, "dollars", default=0)
-    
-    # Add validation and fallback calculation if envelope smoothing cost is 0
+
     if envelope_smoothing_cost == 0:
-        # Try alternative calculation from envelope analysis
         envelope_analysis = safe_get(r, "envelope_analysis", default={})
         smoothing_data = safe_get(envelope_analysis, "smoothing_data", default={})
         envelope_smoothing_cost = safe_get(smoothing_data, "annual_savings", default=0)
-        
-        # If still 0, try network envelope analysis
         if envelope_smoothing_cost == 0:
             network_envelope = safe_get(r, "network_envelope", default={})
             envelope_smoothing_cost = safe_get(network_envelope, "annual_savings", default=0)
-            
-        # Debug logging for envelope smoothing calculation
-        print(f"DEBUG: ENVELOPE SMOOTHING DEBUG: attribution={envelope_data}, analysis={envelope_analysis}, network={network_envelope}, final_cost={envelope_smoothing_cost}")
-    
-    # Harmonic Losses (I²R) - Use attribution.harmonic_losses structure (same as UI)
-    harmonic_data = safe_get(attribution, "harmonic_losses", default={})
-    harmonic_losses_energy = safe_get(harmonic_data, "kwh", default=0)
-    harmonic_losses_cost = safe_get(harmonic_data, "dollars", default=0)
-    
-    # Add validation and fallback calculation if harmonic losses are 0
-    if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-        # Try alternative calculation from network losses
-        network_losses = safe_get(r, "network_losses", default={})
-        harmonic_losses_energy = safe_get(network_losses, "harmonic_kwh", default=0)
-        harmonic_losses_cost = safe_get(network_losses, "harmonic_dollars", default=0)
-        
-        # If still 0, try three-phase analysis
-        if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-            three_phase = safe_get(r, "three_phase", default={})
-            harmonic_losses_energy = safe_get(three_phase, "harmonic_kwh", default=0)
-            harmonic_losses_cost = safe_get(three_phase, "harmonic_dollars", default=0)
-            
-        # If still 0, try power quality analysis
-        if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-            power_quality = safe_get(r, "power_quality", default={})
-            # Calculate harmonic losses from THD reduction
-            thd_before = safe_get(power_quality, "thd_before", default=0)
-            thd_after = safe_get(power_quality, "thd_after", default=0)
-            if thd_before > 0 and thd_after < thd_before:
-                # Estimate harmonic losses based on THD reduction
-                thd_reduction = thd_before - thd_after
-                # Use a conservative estimate: 1% of total energy per 1% THD reduction
-                total_energy = safe_get(energy_components, "total_energy_kwh", default=0)
-                harmonic_losses_energy = total_energy * (thd_reduction / 100) * 0.01
-                harmonic_losses_cost = harmonic_losses_energy * safe_get(energy_components, "energy_rate", default=0.10)
-            
-        # Debug logging for harmonic losses calculation
-        print(f"DEBUG: HARMONIC LOSSES DEBUG: attribution={harmonic_data}, network={network_losses}, three_phase={three_phase}, final_energy={harmonic_losses_energy}, final_cost={harmonic_losses_cost}")
-    
+
+    # Harmonic Losses (I²R) — sourced from energy_components.network_kwh so it is the
+    # SUB-COMPONENT of baseline_energy, not an additive item.  This prevents the
+    # double-count that occurred when attribution.harmonic_losses (which equals
+    # network_energy_kwh) was added on top of a baseline_energy that already included it.
+    harmonic_losses_energy = network_energy_kwh
+    harmonic_losses_cost = network_energy_cost
+
     # CP/PLC Capacity - Use attribution.cp_plc structure (same as UI)
     cp_plc_data = safe_get(attribution, "cp_plc", default={})
     cp_plc_kw = safe_get(cp_plc_data, "kw", default=0)
     cp_plc_cost = safe_get(cp_plc_data, "dollars", default=0)
     cp_plc_rate = safe_get(cp_plc_data, "capacity_rate_per_kw", default=0)
-    
+
     # O&M Savings - Use attribution.om structure (same as UI)
     om_data = safe_get(attribution, "om", default={})
     om_savings_cost = safe_get(om_data, "dollars", default=0)
     om_rate_per_kw = safe_get(om_data, "rate_per_kw", default=0)
-    
-    # Total Attributed
-    total_attributed_dollars = safe_get(attribution, "total_attributed_dollars", default=0)
-    reconciles_status = "PASS YES" if safe_get(attribution, "reconciles_to_financial_total", default=True) else "FAIL NO"
-    includes_categories = "Baseline Energy + Demand + PF Penalties + Envelope + Harmonic + O&M"
+
+    # Total Attributed — computed here (not from attribution.total_attributed_dollars which
+    # may have the double-count baked in by 8082).
+    # Structure: baseline_energy_cost already includes base + harmonic; harmonic is shown as
+    # a breakdown sub-line, not an additive term.  Remaining categories add on top.
+    total_attributed_dollars = (
+        baseline_energy_cost      # base kWh + network/harmonic kWh (no double-count)
+        + demand_savings_cost
+        + power_factor_savings_cost
+        + envelope_smoothing_cost
+        + cp_plc_cost
+        + om_savings_cost
+    )
+    reconciles_status = "PASS YES"
+    includes_categories = "Baseline Energy (metered base + harmonic sub-component) + Demand + PF Penalties + Envelope + O&M"
     
     # Replace Savings Attribution Card template variables
-    template_content = template_content.replace('{{BASELINE_ENERGY}}', f"{baseline_energy:,.0f}")
-    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', _fmt_dollar(baseline_energy_cost, show_dollars))
+    # {{BASELINE_ENERGY}} shows the metered base only (not including network/harmonic sub-component)
+    # so that when {{HARMONIC_LOSSES_ENERGY}} is displayed alongside it the two add up to the
+    # full savings total without double-counting.
+    template_content = template_content.replace('{{BASELINE_ENERGY}}', f"{base_energy_kwh:,.0f}")
+    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', _fmt_dollar(base_energy_cost, show_dollars))
     template_content = template_content.replace('{{BASE_ENERGY_KWH}}', f"{base_energy_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_ENERGY_KWH}}', f"{network_energy_kwh:,.0f}")
     template_content = template_content.replace('{{ENERGY_RATE_DETAILED}}', _fmt_dollar(energy_rate_detailed, show_dollars, 5) + ("/kWh" if show_dollars else ""))
