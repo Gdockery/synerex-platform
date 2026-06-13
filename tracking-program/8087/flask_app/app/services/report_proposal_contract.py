@@ -168,7 +168,7 @@ def _insurance_html(insurance_policy: dict | None) -> str:
 
 # ── Main build function ────────────────────────────────────────────────────────
 
-def build_html(d: dict) -> str:
+def build_html(d: dict, doc_no: str | None = None) -> str:
     """Build the Proposal Contract HTML from a data dict."""
 
     # Identity / site
@@ -182,9 +182,10 @@ def build_html(d: dict) -> str:
     contact_first      = contact_name.split()[0] if contact_name else "Sir/Madam"
     date_label         = d.get("date_label", "")
     cover_location     = d.get("cover_location", address)
-    facility_type      = d.get("facility_type", "facility")
-    facility_desc      = d.get("facility_desc", "")
+    facility_type       = d.get("facility_type", "facility")
+    facility_desc       = d.get("facility_desc", "")
     facility_site_label = d.get("facility_site_label", facility_type)
+    facility_city       = d.get("facility_city", d.get("address_city", ""))
     sq_ft              = d.get("sq_ft", "")
     sld_source         = d.get("sld_source", "Site SLD")
     bus_amp_range      = d.get("bus_amp_range", "")
@@ -226,27 +227,37 @@ def build_html(d: dict) -> str:
     gw                 = math.ceil(total_units / 12) if total_units else 1
     srv                = 1
 
+    # OEM location
+    prepared_by_location = d.get("prepared_by_location", "Georgetown, Texas")
+
+    # Customer owns meters flag
+    customer_owns_meters = bool(d.get("customer_owns_meters", False))
+
     # Pricing
     pricing = d.get("pricing", {
         "ecbs600": 3625, "apf50": 7995, "apf100": 7500,
         "meter": 2500, "lc90": 780, "lc60": 620,
-        "rocoil_ct": 150, "gateway": 129, "server": 2475, "ethernet": 10,
+        "rocoil_ct": 150, "apf_ct": 300, "booster": 600,
+        "gateway": 129, "server": 2475, "ethernet": 10,
         "sw_yr1": 2400, "shipping": 275,
     })
-    lc60_qty    = max(0, s600 - 2 * n_meters)
-    cost_ecbs   = s600    * pricing["ecbs600"]
-    cost_apf50  = apf50   * pricing["apf50"]
-    cost_apf100 = apf100  * pricing["apf100"]
-    cost_meters = n_meters * pricing["meter"]
-    cost_lc90   = n_meters * pricing["lc90"]
-    cost_lc60   = lc60_qty * pricing["lc60"]
-    cost_cts    = (3*n_meters) * pricing["rocoil_ct"]
-    cost_gw     = gw * pricing["gateway"]
-    cost_srv    = pricing["server"]
-    cost_eth    = (gw + 1) * pricing["ethernet"]
-    hw_total    = (cost_ecbs + cost_apf50 + cost_apf100
-                   + cost_meters + cost_lc90 + cost_lc60
-                   + cost_cts + cost_gw + cost_srv + cost_eth)
+    lc60_qty     = max(0, s600 - 2 * n_meters)
+    cost_ecbs    = s600    * pricing["ecbs600"]
+    cost_apf50   = apf50   * pricing["apf50"]
+    cost_apf100  = apf100  * pricing["apf100"]
+    cost_meters  = n_meters * pricing["meter"]
+    cost_lc90    = n_meters * pricing["lc90"]
+    cost_lc60    = lc60_qty * pricing["lc60"]
+    cost_cts     = (3*n_meters) * pricing["rocoil_ct"]
+    cost_booster = n_meters * pricing.get("booster", 600)
+    cost_apf_cts = (3 * (apf100 + apf50)) * pricing.get("apf_ct", 300)
+    cost_gw      = gw * pricing["gateway"]
+    cost_srv     = pricing["server"]
+    cost_eth     = (gw + 1) * pricing["ethernet"]
+    hw_total     = (cost_ecbs + cost_apf50 + cost_apf100
+                    + cost_meters + cost_lc90 + cost_lc60
+                    + cost_cts + cost_booster + cost_apf_cts
+                    + cost_gw + cost_srv + cost_eth)
     eng_fee     = round(hw_total * 0.15)
     sw_yr1      = int(d.get("sw_yr1", pricing.get("sw_yr1", 2400)))
     n_pallets   = (math.ceil(apf50/3) + math.ceil(apf100/3)
@@ -327,17 +338,24 @@ def build_html(d: dict) -> str:
   <tbody>{nw_rows}</tbody>
 </table>"""
 
+    _infra_meter_rows = (
+        f'<tr><td>Revenue Grade Meter (utility supply point)</td><td class="val-col">{n_meters}</td></tr>'
+        if not customer_owns_meters else
+        f'<tr><td>LC90 Communication Module (customer-provided meters)</td><td class="val-col">{n_meters}</td></tr>'
+    )
     infra_table = f"""
 <div class="subsubsection-title">Total Deployment Infrastructure</div>
 <table class="doc-table">
   <thead><tr><th>Equipment Type</th><th>Quantity</th></tr></thead>
   <tbody>
     <tr><td>ECBS-600 Current Balancing Units</td><td class="val-col">{s600}</td></tr>
-    {"<tr><td>APF-100 Harmonic Mitigation Units (hw)</td><td class='val-col'>" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
-    {"<tr><td>APF-50 Harmonic Mitigation Units</td><td class='val-col'>" + str(apf50) + "</td></tr>" if apf50 > 0 else ""}
-    <tr><td>Revenue Grade Meter (utility supply point)</td><td class="val-col">{n_meters}</td></tr>
+    {"<tr><td>APF-100 Power Filter Units</td><td class='val-col'>" + str(apf100) + "</td></tr>" if apf100 > 0 else ""}
+    {"<tr><td>APF-50 Power Filter Units</td><td class='val-col'>" + str(apf50) + "</td></tr>" if apf50 > 0 else ""}
+    {_infra_meter_rows}
+    {"<tr><td>APF Current Transformers (3 per APF unit)</td><td class='val-col'>" + str(3*(apf100+apf50)) + "</td></tr>" if (apf100+apf50) > 0 else ""}
+    <tr><td>Signal Booster (1 per meter location)</td><td class="val-col">{n_meters}</td></tr>
     <tr><td>IoT Communications Gateways</td><td class="val-col">{gw}</td></tr>
-    <tr><td>Local Monitoring Server</td><td class="val-col">{srv}</td></tr>
+    <tr><td>Edge Energy Datalogger</td><td class="val-col">{srv}</td></tr>
   </tbody>
 </table>"""
 
@@ -367,6 +385,22 @@ def build_html(d: dict) -> str:
     payment_html   = _payment_schedule_html(payment_schedule, customer, net_total)
     insurance_html = _insurance_html(insurance_policy)
 
+    # Pre-compute conditional MV&V rows (no backslashes allowed inside f-string expressions)
+    _vc = 'val-col'
+    _mvv_meter_row = (
+        f'<tr><td>Revenue Grade Meter (Xeco)</td><td class="{_vc}">Electrical usage and operating data collection at utility supply point</td></tr>'
+        if not customer_owns_meters else
+        f'<tr><td>LC90 Communication Module</td><td class="{_vc}">Communication interface integrating customer-owned utility meters into ECBS monitoring platform</td></tr>'
+    )
+    _mvv_ct_row = (
+        f'<tr><td>Rocoil CTs (3&times;)</td><td class="{_vc}">Current sensing at meter location; no switchgear shutdown required</td></tr>'
+        if not customer_owns_meters else ""
+    )
+    _customer_owns_note = (
+        f'<p style="margin-top:.1in;font-size:9.5pt;color:#555;">Note: Existing utility revenue meters at this facility are owned and maintained by {customer}. XECO will provide communication interfaces, Rocoil current sensing devices, and associated monitoring infrastructure necessary to integrate utility metering data into the ECBS monitoring platform.</p>'
+        if customer_owns_meters else ""
+    )
+
     # ── Timeline visual ───────────────────────────────────────────────────────
     timeline_labels = [
         "Engineering<br>Verification", "Site<br>Coordination", "Procurement",
@@ -395,6 +429,7 @@ def build_html(d: dict) -> str:
 <style>
 @page {{ size: letter; margin: 1in; }}
 @page cover {{ margin: 0; }}
+{("@page { @top-right { content: '" + doc_no + "'; font-family: monospace; font-size: 8px; color: #aaaaaa; } }") if doc_no else ""}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
   font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
@@ -470,6 +505,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 <!-- ═══ COVER PAGE ═══════════════════════════════════════════════════════════ -->
 <div class="cover-page">
   <img class="cover-bg" src="data:image/png;base64,{_COVER_BG_B64}" alt="">
+  {('<div style="position:absolute;top:.25in;right:.3in;font-family:monospace;font-size:16px;color:#ffffff;opacity:0.9;z-index:10;">' + doc_no + '</div>') if doc_no else ''}
   <div class="cover-overlay">
     <div class="cover-top">
       <div style="margin-bottom:.3in;">
@@ -555,8 +591,8 @@ ul.body-list li {{ margin-bottom: .05in; }}
       {"<li>" + capacitor_bank_bullet + "</li>" if capacitor_bank_bullet else ""}
     </ul>
     <p>
-      <strong>Proposed solution:</strong> A full-facility deployment of <strong>{total_units} XECO hardware units ({total_fu} formula units)</strong>
-      ({s600} &times; ECBS-600{(", " + str(apf100) + " &times; APF-100 [= " + str(2*apf100) + " FU]") if apf100 > 0 else ""}) sized to serve all {num_mdps} production switchgear sections, paired with a
+      <strong>Proposed solution:</strong> A full-facility deployment of <strong>{total_units} XECO hardware units</strong>
+      ({s600} &times; ECBS-600{(", " + str(apf100) + " &times; APF-100") if apf100 > 0 else ""}) sized to serve all {num_mdps} production switchgear sections, paired with a
       revenue-grade XECO metering kit at the utility supply point. The equipment will correct reactive demand,
       suppress harmonics on VFD-driven circuits, and raise power factor to <strong>98%+</strong>{pf_proposal_suffix}.
     </p>
@@ -677,7 +713,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       <tr><td>{pf_reference_month} Power Factor</td><td class="val-col">{pf_reference}</td></tr>
       <tr><td>Main Distribution Boards</td><td class="val-col">{num_mdps}</td></tr>
       <tr><td>Proposed ECBS-600 Units</td><td class="val-col">{s600}</td></tr>
-      {"<tr><td>Proposed APF-100 Units (hw)</td><td class='val-col'>" + str(apf100) + " (" + str(2*apf100) + " formula units)</td></tr>" if apf100 > 0 else ""}
+      {"<tr><td>Proposed APF-100 Power Filter Units</td><td class='val-col'>" + str(apf100) + "</td></tr>" if apf100 > 0 else ""}
     </tbody>
   </table>
 </div>
@@ -706,15 +742,17 @@ ul.body-list li {{ margin-bottom: .05in; }}
   <table class="doc-table">
     <thead><tr><th>Monitoring Component</th><th>Function</th></tr></thead>
     <tbody>
-      <tr><td>Revenue Grade Meter (Xeco)</td><td class="val-col">Electrical usage and operating data collection at utility supply point</td></tr>
-      <tr><td>Rocoil CTs (3&times;)</td><td class="val-col">Current sensing at meter location; no switchgear shutdown required</td></tr>
+      {_mvv_meter_row}
+      {_mvv_ct_row}
+      <tr><td>Signal Booster</td><td class="val-col">Signal amplification for reliable telemetry at each meter location</td></tr>
       <tr><td>IoT Gateways</td><td class="val-col">Secure communications and data integration</td></tr>
-      <tr><td>Local Monitoring Server</td><td class="val-col">On-site monitoring and analytics</td></tr>
+      <tr><td>Edge Energy Datalogger</td><td class="val-col">On-site monitoring and analytics</td></tr>
       <tr><td>Monitoring Platform</td><td class="val-col">Real-time operational visibility</td></tr>
       <tr><td>Historical Data Logging</td><td class="val-col">Long-term operating trend analysis</td></tr>
       <tr><td>Baseline Verification</td><td class="val-col">Initial post-commissioning performance review</td></tr>
     </tbody>
   </table>
+  {_customer_owns_note}
   <p>Industry standards referenced: IPMVP, IEEE 1459, IEEE 519, ANSI C12, IEC 61000, {utility_name} {utility_tariff}-based demand evaluation methodologies.</p>
 </div>
 
@@ -790,41 +828,251 @@ ul.body-list li {{ margin-bottom: .05in; }}
   <div class="section-title">Commercial Considerations</div>
   <div class="subsection-title">Commercial Integration Summary</div>
   <p>
-    The commercial proposal investment includes monitoring infrastructure, IoT gateways, local server hardware,
-    engineering coordination, commissioning support, and logistics not included within hardware-only estimates.
+    The ECBS Electrical Network-Wide Assessment &amp; Proposed Deployment Scope document reflects
+    preliminary hardware deployment sizing and associated base equipment costs derived from utility
+    analytics, electrical network review, and engineering evaluation. The base hardware cost identified
+    in the assessment represents the primary XECO electrical optimization equipment only, including
+    ECBS-600 current balancing units, APF-100 active harmonic filtering equipment, and revenue-grade
+    metering hardware.
+  </p>
+  <p>
+    The final proposal investment additionally includes the following infrastructure, services, and
+    project support activities necessary for a fully commissioned deployment:
   </p>
   <table class="doc-table">
     <thead><tr><th>Item</th><th>Description</th></tr></thead>
     <tbody>
-      <tr><td>Revenue-Grade Monitoring Infrastructure</td><td class="val-col">{n_meters} meter + Rocoil CT set at utility supply incomer</td></tr>
-      <tr><td>IoT Communications Gateways</td><td class="val-col">{gw} gateway(s) supporting network-wide telemetry</td></tr>
-      <tr><td>Local Monitoring Server</td><td class="val-col">On-site data aggregation and analytics platform</td></tr>
-      <tr><td>Engineering Coordination</td><td class="val-col">Pre-installation site verification and design finalization</td></tr>
+      <tr><td>Revenue-Grade Metering Hardware</td><td class="val-col">Revenue-grade meters and Rocoil CT sets installed at utility supply points</td></tr>
+      <tr><td>IoT Communications Gateways</td><td class="val-col">Network-wide telemetry and communications infrastructure</td></tr>
+      <tr><td>Edge Energy Datalogger</td><td class="val-col">On-site data aggregation, monitoring, and analytics platform</td></tr>
+      <tr><td>Installation Coordination</td><td class="val-col">Pre-installation site verification, deployment planning, and design finalization</td></tr>
       <tr><td>Commissioning Support</td><td class="val-col">System startup, integration testing, and baseline validation</td></tr>
-      <tr><td>Logistics &amp; Project Administration</td><td class="val-col">Freight, deployment coordination, and procurement management</td></tr>
+      <tr><td>Logistics &amp; Project Administration</td><td class="val-col">Freight coordination, procurement management, and deployment scheduling</td></tr>
     </tbody>
   </table>
-
-  <div class="subsection-title">Payment Schedule</div>
-  {payment_html}
-
   <p>
-    All invoices shall be payable within the timeframes stated above. Any amounts not paid when due may,
-    at Contractor&rsquo;s option, accrue interest at the rate of one and one-half percent (1.5%) per month,
-    or the maximum rate permitted by law, whichever is less.
+    Accordingly, the commercial proposal investment supersedes preliminary hardware-only estimates
+    contained within the engineering assessment package. The assessment document should be considered
+    the technical deployment scope, while this proposal represents the complete commercial engagement,
+    including all equipment, infrastructure, services, coordination, commissioning support, and
+    integration activities required for a fully commissioned system.
+  </p>
+  <div class="subsection-title">Estimates Disclaimer</div>
+  <p>
+    Projected savings, performance improvements, and operating benefits represent engineering estimates
+    derived from historical operating data, utility billing information, site observations, and
+    preliminary system analysis. Actual results may vary based on facility loading conditions,
+    production schedules, utility tariffs, operating practices, seasonal conditions, and other factors
+    beyond XECO&rsquo;s control. Accordingly, projected savings and performance estimates are not
+    intended as a guarantee of future utility cost reduction or operational performance.
+  </p>
+  <div class="subsection-title">Installation Responsibilities</div>
+  <p>
+    Equipment pricing reflected within this proposal includes proposed XECO hardware deployment,
+    monitoring infrastructure, mounting hardware, commissioning support, and associated project
+    coordination activities.
   </p>
   <p>
-    <strong>Substantial Completion</strong> shall mean the stage at which the equipment and systems are
-    installed and operational for their intended use, as reasonably determined by Contractor in coordination with Client.
+    Electrical tie-in work, breaker modifications, shutdown coordination, and final installation
+    activities shall be coordinated between XECO Energy Corporation and facility personnel.
+    XECO&rsquo;s installation team will manage equipment installation, inspection, wiring,
+    commissioning, and startup activities. Hot-wire connections, breaker additions, panel
+    modifications, and any facility-specific electrical work required beyond the proposed XECO scope
+    shall remain the responsibility of the facility and/or its designated electrical contractor
+    unless otherwise agreed in writing.
   </p>
-
+  <div class="subsection-title">Excluded Scope</div>
+  <p>The following items are specifically excluded from XECO&rsquo;s scope of supply and services
+  unless otherwise identified within this proposal or authorized through a written change order:</p>
+  <ul class="body-list">
+    <li>Ethernet cable routing beyond designated XECO equipment locations</li>
+    <li>Breaker additions, panel modifications, and facility electrical upgrades</li>
+    <li>Shutdown coordination and production outage scheduling</li>
+    <li>Facility network infrastructure modifications</li>
+    <li>Customer IT support and network administration activities</li>
+    <li>Utility service modifications</li>
+    <li>Site-specific permitting requirements unless otherwise identified herein</li>
+  </ul>
+  <div class="subsection-title">Proposal Validity</div>
+  <p>
+    Unless otherwise agreed in writing, the pricing, equipment quantities, scope of work, and
+    associated commercial terms contained within this proposal shall remain valid for thirty (30)
+    days from the proposal date.
+  </p>
+  <div class="subsection-title">Change Orders</div>
+  <p>
+    The proposed deployment scope, equipment quantities, installation requirements, and project
+    pricing have been developed based upon available utility billing data, engineering assumptions,
+    site information, and electrical drawings available at the time of proposal preparation.
+  </p>
+  <p>
+    Should field verification, site conditions, customer-requested modifications, operational
+    requirements, code requirements, or changes to the facility electrical infrastructure result in
+    a material change to the project scope, equipment quantities, installation requirements,
+    monitoring infrastructure, commissioning requirements, or project schedule, XECO reserves the
+    right to issue a written Change Order reflecting any necessary adjustment to equipment
+    quantities, installation requirements, project pricing, project schedule, or commissioning
+    activities. No Change Order shall become effective until accepted by both parties.
+  </p>
+  <div class="subsection-title">Termination and Cancellation</div>
+  <p>
+    Following acceptance of this proposal and issuance of a purchase order, either party may
+    terminate the project upon written notice.
+  </p>
+  <p>
+    In the event of termination by the customer, the customer shall remain responsible for payment
+    of all engineering services performed, equipment procured, manufacturing costs incurred,
+    software configuration activities completed, project administration costs incurred, and any
+    non-cancelable commitments made by XECO prior to the effective date of termination.
+  </p>
+  <p>
+    Any completed work, delivered equipment, or services rendered prior to termination shall be
+    invoiced and payable in accordance with the payment terms of this proposal. Any
+    custom-manufactured or non-returnable equipment shall remain the responsibility of the customer.
+  </p>
+  <div class="subsection-title">Limitation of Liability</div>
+  <p>
+    To the fullest extent permitted by applicable law, XECO Energy Corporation&rsquo;s total
+    liability arising from or relating to the products, services, engineering activities,
+    installation support, monitoring systems, software, or this proposal shall not exceed the total
+    amount paid to XECO under the applicable purchase order or agreement.
+  </p>
+  <p>
+    In no event shall XECO Energy Corporation be liable for any indirect, incidental, consequential,
+    special, exemplary, or punitive damages, including but not limited to lost profits, lost revenue,
+    loss of production, business interruption, loss of data, loss of goodwill, increased operating
+    costs, or other consequential losses.
+  </p>
+  <div class="subsection-title">Force Majeure</div>
+  <p>
+    Neither party shall be liable for delays or failure to perform resulting from causes beyond its
+    reasonable control, including but not limited to acts of God, natural disasters, severe weather
+    events, fire, flood, labor disputes, transportation disruptions, supply chain interruptions,
+    material shortages, governmental actions, regulatory changes, pandemics, utility interruptions,
+    acts of terrorism, civil disturbances, or other events beyond the reasonable control of the
+    affected party.
+  </p>
+  <p>
+    In the event of such delay, project schedules, delivery dates, and performance obligations shall
+    be extended for a period reasonably necessary to accommodate the impact of the force majeure
+    event.
+  </p>
+  <div class="subsection-title">Customer Access &amp; Cooperation</div>
+  <p>
+    Customer shall provide reasonable access to electrical rooms, switchgear, network access points,
+    utility metering locations, and authorized personnel necessary to support installation,
+    commissioning, verification, and monitoring activities. Delays caused by restricted access,
+    unavailable personnel, or customer scheduling constraints may result in adjustments to project
+    schedules.
+  </p>
+  <div class="subsection-title">Intellectual Property Rights</div>
+  <p>
+    Upon full payment, title to all equipment supplied under this proposal shall transfer to the
+    customer. The customer shall have the unrestricted right to own, operate, maintain, repair,
+    replace, and utilize the equipment within its facilities.
+  </p>
+  <p>
+    The purchase of equipment does not transfer ownership of any XECO patents, patent rights,
+    trademarks, copyrights, trade secrets, software source code, proprietary methodologies,
+    engineering processes, deployment architectures, technical designs, or other intellectual
+    property associated with the equipment or services provided.
+  </p>
+  <p>
+    The customer may use the equipment and associated documentation for its internal business
+    operations but shall not manufacture, reproduce for commercial sale, reverse engineer for
+    commercial purposes, license, sublicense, market, or resell XECO intellectual property without
+    the prior written consent of XECO Energy Corporation.
+  </p>
+  <p>
+    Nothing contained herein shall restrict the customer&rsquo;s ownership and normal use of the
+    equipment purchased under this proposal.
+  </p>
+  <div class="subsection-title">Shipping Terms</div>
+  <p>
+    Unless otherwise stated herein, equipment shall be shipped FOB Georgetown, Texas. Freight,
+    customs, import duties, taxes, permits, and any site-specific installation requirements are
+    excluded unless specifically identified within this proposal.
+  </p>
+  <div class="subsubsection-title">Commercial Summary</div>
+  <table class="doc-table">
+    <thead><tr><th>Description</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Hardware &amp; Monitoring</td><td class="val-col">${hw_total:,.0f} USD</td></tr>
+      <tr><td>Engineering (15%)</td><td class="val-col">${eng_fee:,.0f} USD</td></tr>
+      <tr><td>Software &amp; Shipping</td><td class="val-col">${sw_yr1 + shipping:,.0f} USD</td></tr>
+      <tr style="font-weight:700;"><td>Total Project Investment</td><td class="val-col">${net_total:,.0f} USD</td></tr>
+      <tr><td>Shipping Terms</td><td class="val-col">FOB Georgetown, Texas</td></tr>
+      <tr><td>Proposal Validity</td><td class="val-col">30 Days</td></tr>
+      <tr><td>Estimated Lead Time</td><td class="val-col">Approximately 2&ndash;6 Weeks</td></tr>
+      <tr><td>Commissioning Support</td><td class="val-col">Provided by XECO</td></tr>
+      <tr><td>Payment Schedule</td><td class="val-col">30% at Execution &bull; 30% on Completion of Install &bull; 40% Net 60 at Final Commissioning</td></tr>
+    </tbody>
+  </table>
+  <div class="subsection-title">Payment Terms</div>
+  <p>
+    The Contract Price shall be paid by Client to Contractor in accordance with the following schedule:
+  </p>
+  <p>
+    <strong>a.</strong> Thirty percent (30%) of the Contract Price shall be due upon execution of
+    this Agreement and issuance of Client Purchase Order and receipt of Contractor&rsquo;s initial
+    invoice to support procurement of equipment and project mobilization.
+  </p>
+  <p>
+    <strong>b.</strong> Thirty percent (30%) of the Contract Price shall be due upon Completion of
+    Install of the equipment and systems described in the Scope of Work.
+  </p>
+  <p>
+    <strong>c.</strong> The remaining forty percent (40%) of the Contract Price shall be due Net 60
+    (within sixty (60) days) from the date of Contractor&rsquo;s final invoice following
+    commissioning of the system.
+  </p>
+  <p>
+    All invoices shall be payable within the timeframes stated above. Any amounts not paid when due
+    may, at Contractor&rsquo;s option, accrue interest at the rate of one and one-half percent
+    (1.5%) per month, or the maximum rate permitted by law, whichever is less.
+  </p>
+  <p>
+    <strong>Completion of Install</strong> shall mean the stage at which the equipment and systems
+    are installed and operational for their intended use, notwithstanding minor punch list items
+    that do not materially affect functionality or performance, as reasonably determined by
+    Contractor in coordination with Client.
+  </p>
+  <p>
+    Contractor reserves the right, upon written notice to Client, to suspend work, withhold delivery
+    of equipment, and/or delay commissioning in the event of non-payment until such time as payment
+    is brought current. Any delays resulting from such suspension shall not be the responsibility of
+    the Contractor.
+  </p>
   <div class="subsection-title">Warranty &amp; Insurance</div>
-  {insurance_html}
+  <p>
+    XECO equipment included within the proposed deployment is manufactured and tested prior to
+    shipment and is intended for installation within commercial and industrial electrical
+    environments operating under standard electrical conditions. XECO will provide a standard
+    manufacturer warranty covering defects in materials and workmanship for the equipment supplied
+    under the final project agreement.
+  </p>
+  <p>
+    The warranty applies to equipment operating under normal use and installed in accordance with
+    applicable electrical codes, manufacturer recommendations, and approved installation practices.
+    Warranty coverage does not extend to damage resulting from improper use of controls,
+    unauthorized modifications, or improper electrical connection.
+  </p>
+  <p>
+    During the commissioning period, XECO will provide reasonable remote engineering support
+    associated with system startup, monitoring integration, and initial operational verification of
+    the deployed equipment.
+  </p>
+  <p>
+    XECO maintains commercial general liability insurance coverage appropriate for its operations.
+    Certificates of insurance may be provided upon request following project award and execution of
+    the final project agreement.
+  </p>
   <div class="subsubsection-title">Preliminary Warranty &amp; Coverage Summary</div>
   <table class="doc-table">
     <thead><tr><th>Description</th><th>Coverage</th></tr></thead>
     <tbody>
-      <tr><td>Equipment Warranty</td><td class="val-col">Manufacturer defect coverage — materials and workmanship</td></tr>
+      <tr><td>Equipment Warranty</td><td class="val-col">Manufacturer defect coverage</td></tr>
+      <tr><td>Warranty Scope</td><td class="val-col">Materials and workmanship</td></tr>
       <tr><td>Commissioning Support</td><td class="val-col">Included</td></tr>
       <tr><td>Remote Engineering Support</td><td class="val-col">Included during startup</td></tr>
       <tr><td>Commercial Liability Insurance</td><td class="val-col">Maintained by {prepared_by_org}</td></tr>
@@ -880,28 +1128,28 @@ ul.body-list li {{ margin-bottom: .05in; }}
   <div class="subsubsection-title">Proposal Acceptance — Authorized Signatures</div>
   <div class="sig-grid">
     <div class="sig-block">
-      <div class="sig-party">{customer.upper()}<br><span style="font-size:8pt;font-weight:400;opacity:.75;">{customer_legal}</span></div>
-      <div class="sig-line-label">Authorized Signature</div>
-      <div style="display:flex;align-items:flex-end;gap:.1in;margin-bottom:.18in;">
-        <div style="flex:1;border-bottom:1px solid #555;padding-bottom:.02in;">&nbsp;</div>
-        <div style="font-size:8.5pt;color:#555;">Date __________</div>
+      <div class="sig-party">{prepared_by_org.upper()}<br>
+        <span style="font-size:8pt;font-weight:400;opacity:.75;">{prepared_by_location}</span>
       </div>
+      <div style="display:flex;align-items:flex-end;gap:.1in;margin-bottom:.04in;">
+        <div style="flex:1;border-bottom:1px solid #555;padding-bottom:.02in;">&nbsp;</div>
+        <div style="font-size:8.5pt;color:#555;white-space:nowrap;">Date __________</div>
+      </div>
+      <div class="sig-line-label" style="margin-bottom:.22in;">Authorized Signature</div>
+      <div class="sig-line">&nbsp;</div>
       <div class="sig-line-label">Printed Name / Title</div>
-      <div class="sig-line">&nbsp;</div>
-      <div class="sig-line-label">Purchase Order / Reference Number</div>
-      <div class="sig-line">&nbsp;</div>
     </div>
     <div class="sig-block">
-      <div class="sig-party">{prepared_by_org.upper()}</div>
-      <div class="sig-line-label">Authorized Signature</div>
-      <div style="display:flex;align-items:flex-end;gap:.1in;margin-bottom:.18in;">
-        <div style="flex:1;border-bottom:1px solid #555;padding-bottom:.02in;">&nbsp;</div>
-        <div style="font-size:8.5pt;color:#555;">Date __________</div>
+      <div class="sig-party">{(customer_legal.upper() if customer_legal else customer.upper())}<br>
+        <span style="font-size:8pt;font-weight:400;opacity:.75;">{facility_city}</span>
       </div>
+      <div style="display:flex;align-items:flex-end;gap:.1in;margin-bottom:.04in;">
+        <div style="flex:1;border-bottom:1px solid #555;padding-bottom:.02in;">&nbsp;</div>
+        <div style="font-size:8.5pt;color:#555;white-space:nowrap;">Date __________</div>
+      </div>
+      <div class="sig-line-label" style="margin-bottom:.22in;">Authorized Signature</div>
+      <div class="sig-line">&nbsp;</div>
       <div class="sig-line-label">Printed Name / Title</div>
-      <div class="sig-line">&nbsp;</div>
-      <div class="sig-line-label">Proposal Number / Date</div>
-      <div class="sig-line">&nbsp;</div>
     </div>
   </div>
 </div>

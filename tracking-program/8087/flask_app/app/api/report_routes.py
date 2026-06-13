@@ -31,7 +31,8 @@ report_bp = Blueprint("report", __name__, url_prefix="")
 DEFAULT_PRICING = {
     "ecbs600": 3625, "apf50": 7995, "apf100": 7500,
     "meter": 2500, "lc90": 780, "lc60": 620,
-    "rocoil_ct": 150, "gateway": 129, "server": 2475, "ethernet": 10,
+    "rocoil_ct": 150, "apf_ct": 300, "booster": 600,
+    "gateway": 129, "server": 2475, "ethernet": 10,  # server = Edge Energy Datalogger
     "sw_yr1": 2400, "shipping": 275,
 }
 
@@ -65,11 +66,12 @@ def _load_logo_b64(logo_src: str, logo_type: str) -> str | None:
 
 
 def _get_oem_data():
-    """Return (prepared_by_org, preparer_name, insurance_policy, payment_schedule)."""
+    """Return (prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location)."""
     prepared_by_org = "Xeco Energy Corporation"
     preparer_name   = ""
     insurance_policy = None
     payment_schedule = None
+    prepared_by_location = "Georgetown, Texas"
     try:
         from app.models.oem_branding import OemBranding as _Branding
         org_id = getattr(current_user, "org_id", None)
@@ -96,6 +98,9 @@ def _get_oem_data():
                             payment_schedule = [r2 for r2 in rows if r2.get("pct") or r2.get("desc")]
                         except Exception:
                             pass
+                    _org_city  = org_d.get("city", "") or ""
+                    _org_state = org_d.get("state", "") or ""
+                    prepared_by_location = ", ".join(filter(None, [_org_city, _org_state])) or "Georgetown, Texas"
             except Exception:
                 pass
     except Exception:
@@ -107,7 +112,7 @@ def _get_oem_data():
         or f"{getattr(u,'firstName','') or ''} {getattr(u,'lastName','') or ''}".strip()
         or ""
     )
-    return prepared_by_org, preparer_name, insurance_policy, payment_schedule
+    return prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location
 
 
 def _assemble_report_data(project: Project) -> dict:
@@ -212,6 +217,7 @@ def _assemble_report_data(project: Project) -> dict:
         f"{utility_short} utility supply point ({utility_account})"
         if utility_account else f"{utility_name} utility supply point"
     )
+    facility_city = getattr(client, "city", None) or city_state or address
 
     # Customer logo
     cust_logo_b64 = None
@@ -219,7 +225,7 @@ def _assemble_report_data(project: Project) -> dict:
         cust_logo_b64 = _load_logo_b64(client.logoImgSrc, "client_company_logo")
 
     # OEM branding
-    prepared_by_org, preparer_name, insurance_policy, payment_schedule = _get_oem_data()
+    prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location = _get_oem_data()
 
     return {
         "customer":          customer,
@@ -262,6 +268,7 @@ def _assemble_report_data(project: Project) -> dict:
         "buses":             buses,
         "num_mdps":          num_mdps,
         "n_meters":          n_meters,
+        "facility_city":     facility_city,
         "capacitor_bank_bullet": capacitor_bank_bullet,
         "meter_location_desc":   meter_loc_desc,
 
@@ -270,10 +277,11 @@ def _assemble_report_data(project: Project) -> dict:
         "apf50":             apf50,
         "pricing":           DEFAULT_PRICING,
 
-        "prepared_by_org":   prepared_by_org,
-        "preparer_name":     preparer_name,
-        "insurance_policy":  insurance_policy,
-        "payment_schedule":  payment_schedule,
+        "prepared_by_org":      prepared_by_org,
+        "prepared_by_location": prepared_by_location,
+        "preparer_name":        preparer_name,
+        "insurance_policy":     insurance_policy,
+        "payment_schedule":     payment_schedule,
 
         "customer_logo_b64": cust_logo_b64,
     }
@@ -284,6 +292,7 @@ def _assemble_report_data(project: Project) -> dict:
 @report_bp.route("/api/project/<int:project_id>/report/network-assessment", methods=["GET"])
 @login_required
 def network_assessment_pdf(project_id):
+    import random as _random
     sess, project = _get_project_for_user(project_id)
     if project is None:
         return jsonify({"error": "Not found"}), 404
@@ -291,6 +300,18 @@ def network_assessment_pdf(project_id):
     try:
         from app.services.report_network_assessment import build_html, render_pdf
         data = _assemble_report_data(project)
+
+        # Doc number — persist so re-renders use the same number
+        pd = getattr(project, "proposalData", None) or {}
+        na_doc_no = pd.get("naDocNo")
+        if not na_doc_no:
+            _prefix = (data.get("customer", "XX")[:2]).upper()
+            na_doc_no = f"{_prefix}-A{_random.randint(10000000, 99999999)}"
+            pd["naDocNo"] = na_doc_no
+            project.proposalData = pd
+            sess.commit()
+        data["doc_no"] = na_doc_no
+
         html = build_html(data)
 
         inline = request.args.get("inline", "0") == "1"
@@ -298,7 +319,8 @@ def network_assessment_pdf(project_id):
             return Response(html, status=200, content_type="text/html; charset=utf-8")
 
         pdf_bytes = render_pdf(html)
-        fname = f"{data['customer']} Network Assessment.pdf"
+        slug = (data["customer"] or "").replace(" ", "-").lower()
+        fname = f"ecbs-assessment-{slug} {na_doc_no}.pdf"
         return Response(
             pdf_bytes,
             status=200,
@@ -313,6 +335,7 @@ def network_assessment_pdf(project_id):
 @report_bp.route("/api/project/<int:project_id>/report/proposal-contract", methods=["GET"])
 @login_required
 def proposal_contract_pdf(project_id):
+    import random as _random
     sess, project = _get_project_for_user(project_id)
     if project is None:
         return jsonify({"error": "Not found"}), 404
@@ -320,7 +343,18 @@ def proposal_contract_pdf(project_id):
     try:
         from app.services.report_proposal_contract import build_html, render_pdf
         data = _assemble_report_data(project)
-        html = build_html(data)
+
+        # Doc number — persist so re-renders use the same number
+        pd = getattr(project, "proposalData", None) or {}
+        doc_no = pd.get("docNo")
+        if not doc_no:
+            _prefix = (data.get("customer", "XX")[:2]).upper()
+            doc_no = f"{_prefix}-P{_random.randint(10000000, 99999999)}"
+            pd["docNo"] = doc_no
+            project.proposalData = pd
+            sess.commit()
+
+        html = build_html(data, doc_no=doc_no)
 
         inline = request.args.get("inline", "0") == "1"
         if inline:
@@ -332,7 +366,8 @@ def proposal_contract_pdf(project_id):
         project.proposalSrc = f"/api/project/{project_id}/report/proposal-contract"
         sess.commit()
 
-        fname = f"{data['customer']} Proposal Contract.pdf"
+        slug = (data["customer"] or "").replace(" ", "-").lower()
+        fname = f"ecbs-proposal-{slug} {doc_no}.pdf"
         return Response(
             pdf_bytes,
             status=200,

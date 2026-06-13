@@ -123,7 +123,7 @@ def _make_bus_svg(bus):
 
 # ── Main build function ────────────────────────────────────────────────────────
 
-def build_html(d: dict) -> str:
+def build_html(d: dict, doc_no: str | None = None) -> str:
     """Build the Network Assessment HTML from a data dict."""
 
     # Identity / site
@@ -165,12 +165,22 @@ def build_html(d: dict) -> str:
     capacitor_bank_bullet = d.get("capacitor_bank_bullet", "")
     meter_location_desc   = d.get("meter_location_desc", f"{utility_short} utility supply point ({utility_account})")
 
+    # Flags
+    customer_owns_meters = bool(d.get("customer_owns_meters", False))
+    is_upgrade           = bool(d.get("is_upgrade", False))
+    doc_no               = d.get("doc_no") or doc_no
+
     # Pricing
     pricing = d.get("pricing", {
         "ecbs600": 3625, "apf50": 7995, "apf100": 7500,
         "meter": 2500, "lc90": 780, "lc60": 620,
-        "rocoil_ct": 150, "gateway": 129, "server": 2475, "ethernet": 10,
+        "rocoil_ct": 150, "apf_ct": 300, "booster": 600,
+        "gateway": 129, "server": 2475, "ethernet": 10,  # server = Edge Energy Datalogger
     })
+    # Ensure new pricing keys are always present even if caller passed old dict
+    pricing.setdefault("apf_ct", 300)
+    pricing.setdefault("booster", 600)
+    pricing.setdefault("lc60", 620)
 
     # Logos
     customer_logo_b64 = d.get("customer_logo_b64")
@@ -190,17 +200,27 @@ def build_html(d: dict) -> str:
     apf100_buses    = [b for b in buses if any(c["n_apf100"] > 0 for c in b["circuits"])]
     apf100_bus_labels = " &amp; ".join(b["badge"] for b in apf100_buses)
 
-    cost_ecbs    = total_ecbs   * pricing["ecbs600"]
+    # For upgrade sites, ECBS-600 line items use the LC60RC retrofit price
+    _ecbs_unit_price = pricing["lc60"] if is_upgrade else pricing["ecbs600"]
+    _ecbs_label      = "LC60RC" if is_upgrade else "ECBS-600"
+    cost_ecbs    = total_ecbs   * _ecbs_unit_price
     cost_apf50   = total_apf50  * pricing["apf50"]
     cost_apf100  = total_apf100 * pricing["apf100"]
-    cost_meters  = N_METERS     * pricing["meter"]
+    cost_booster = N_METERS     * pricing["booster"]
+    cost_apf_cts = (3 * (total_apf100 + total_apf50)) * pricing["apf_ct"]
+    if customer_owns_meters:
+        cost_meters = 0
+        cost_cts    = 0
+    else:
+        cost_meters = N_METERS     * pricing["meter"]
+        cost_cts    = (3*N_METERS) * pricing["rocoil_ct"]
     cost_lc90    = N_METERS     * pricing["lc90"]
     cost_lc60    = LC60_QTY     * pricing["lc60"]
-    cost_cts     = (3*N_METERS) * pricing["rocoil_ct"]
     cost_gw      = GW           * pricing["gateway"]
     cost_srv     =                pricing["server"]
     cost_eth     = (GW + 1)     * pricing["ethernet"]
-    cost_monitor = cost_meters + cost_lc90 + cost_lc60 + cost_cts + cost_gw + cost_srv + cost_eth
+    cost_monitor = (cost_meters + cost_lc90 + cost_lc60 + cost_cts
+                    + cost_booster + cost_apf_cts + cost_gw + cost_srv + cost_eth)
     cost_total   = cost_ecbs + cost_apf50 + cost_apf100 + cost_monitor
 
     monthly_savings = total_savings
@@ -298,8 +318,8 @@ def build_html(d: dict) -> str:
             for c in bus["circuits"]:
                 if c["n_apf100"]:   eq_str = f'{c["n_apf100"]}×APF-100'
                 elif c["n_apf50"]:  eq_str = f'{c["n_apf50"]}×APF-50'
-                else:               eq_str = f'{c["n_ecbs"]}×ECBS-600'
-                cc = (c["n_ecbs"]*pricing["ecbs600"] + c["n_apf50"]*pricing["apf50"]
+                else:               eq_str = f'{c["n_ecbs"]}×{_ecbs_label}'
+                cc = (c["n_ecbs"]*_ecbs_unit_price + c["n_apf50"]*pricing["apf50"]
                       + c["n_apf100"]*pricing["apf100"])
                 rows += f"""<tr>
                   <td style="padding-left:22px">{c["name"]}</td>
@@ -309,9 +329,29 @@ def build_html(d: dict) -> str:
                   <td class="tr">${cc:,.0f}</td>
                 </tr>"""
 
-        n_cts = 3 * N_METERS
         n_eth = GW + 1
         total_hw_units = total_ecbs + total_apf50 + total_apf100
+        _meter_row = (
+            f'<tr><td style="padding-left:22px">Revenue Grade Meter (Xeco) — utility supply point</td>'
+            f'<td class="tc">—</td><td class="tc">{N_METERS} Meter</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_meters:,.0f}</td></tr>'
+            if not customer_owns_meters else
+            f'<tr><td style="padding-left:22px">LC90 Communication Module (customer-provided meters)</td>'
+            f'<td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_lc90:,.0f}</td></tr>'
+        )
+        _ct_row = (
+            f'<tr><td style="padding-left:22px">Rocoil Current Transformers (3 per meter)</td>'
+            f'<td class="tc">—</td><td class="tc">{3*N_METERS} CTs</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_cts:,.0f}</td></tr>'
+            if not customer_owns_meters else ""
+        )
+        _apf_ct_row = (
+            f'<tr><td style="padding-left:22px">APF Current Transformers (3 per APF unit)</td>'
+            f'<td class="tc">—</td><td class="tc">{3*(total_apf100+total_apf50)} CTs</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_apf_cts:,.0f}</td></tr>'
+            if (total_apf100 + total_apf50) > 0 else ""
+        )
 
         return f"""<table class="bom">
   <thead><tr>
@@ -320,71 +360,36 @@ def build_html(d: dict) -> str:
   <tbody>
     {rows}
     <tr class="sub-row"><td colspan="5">Monitoring &amp; Communications Infrastructure</td></tr>
-    <tr><td style="padding-left:22px">Revenue Grade Meter (Xeco) — utility supply point</td>
-      <td class="tc">—</td><td class="tc">{N_METERS} Meter</td><td class="tc">—</td>
-      <td class="tr">${cost_meters:,.0f}</td></tr>
+    {_meter_row}
     <tr><td style="padding-left:22px">LC90 Communication Module</td>
       <td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>
       <td class="tr">${cost_lc90:,.0f}</td></tr>
     <tr><td style="padding-left:22px">LC60 Communication Modules</td>
       <td class="tc">—</td><td class="tc">{LC60_QTY} Units</td><td class="tc">—</td>
       <td class="tr">${cost_lc60:,.0f}</td></tr>
-    <tr><td style="padding-left:22px">Rocoil Current Transformers (3 per meter)</td>
-      <td class="tc">—</td><td class="tc">{n_cts} CTs</td><td class="tc">—</td>
-      <td class="tr">${cost_cts:,.0f}</td></tr>
+    {_ct_row}
+    {_apf_ct_row}
+    <tr><td style="padding-left:22px">Signal Booster (1 per meter location)</td>
+      <td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>
+      <td class="tr">${cost_booster:,.0f}</td></tr>
     <tr><td style="padding-left:22px">IoT Communications Gateways</td>
       <td class="tc">—</td><td class="tc">{GW} Gateways</td><td class="tc">—</td>
       <td class="tr">${cost_gw:,.0f}</td></tr>
-    <tr><td style="padding-left:22px">Local Monitoring Server</td>
-      <td class="tc">—</td><td class="tc">1 Server</td><td class="tc">—</td>
+    <tr><td style="padding-left:22px">Edge Energy Datalogger</td>
+      <td class="tc">—</td><td class="tc">1 Unit</td><td class="tc">—</td>
       <td class="tr">${cost_srv:,.0f}</td></tr>
     <tr><td style="padding-left:22px">Ethernet Cables</td>
       <td class="tc">—</td><td class="tc">{n_eth} Runs</td><td class="tc">—</td>
       <td class="tr">${cost_eth:,.0f}</td></tr>
     <tr class="grand-row">
-      <td colspan="3">TOTAL — {total_ecbs} ECBS-600 · {total_apf100} APF-100 · {N_METERS} Meter · {GW} Gateways · 1 Server</td>
-      <td class="tc">{total_hw_units} hw / {total_fu} FU</td>
+      <td colspan="4">TOTAL</td>
       <td class="tr">${cost_total:,.0f}</td>
     </tr>
   </tbody>
 </table>
 <p style="font-size:9px;color:#6b7e96;margin-top:6px;line-height:1.5;font-style:italic;">
   &#9432;&nbsp; The above Bill of Materials reflects primary electrical optimization hardware and complete monitoring infrastructure.
-</p>
-<div style="margin-top:.25in;border-top:2px solid var(--blue);padding-top:.15in;">
-  <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--blue);letter-spacing:.03em;margin-bottom:8px;text-transform:uppercase;">Monitoring Architecture Overview</div>
-  <table style="width:100%;border-collapse:collapse;font-size:10.5px;color:var(--text);">
-    <thead>
-      <tr style="background:var(--surface);border-bottom:2px solid var(--dim);">
-        <th style="text-align:left;padding:6px 10px;font-weight:700;">Component</th>
-        <th style="text-align:center;padding:6px 10px;font-weight:700;">Qty</th>
-        <th style="text-align:left;padding:6px 10px;font-weight:700;">Function</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="border-bottom:1px solid var(--dim);">
-        <td style="padding:6px 10px;">Revenue-Grade Meter (Xeco)</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{N_METERS}</td>
-        <td style="padding:6px 10px;">Installed at {meter_location_desc}; measures kW, kVAR, kWh, PF, and harmonic data</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);background:var(--surface);">
-        <td style="padding:6px 10px;">Rocoil Current Transformers</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{3*N_METERS}</td>
-        <td style="padding:6px 10px;">3 CTs per meter location; flexible Rogowski coil design for installation in existing switchgear without service interruption</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);">
-        <td style="padding:6px 10px;">IoT Communications Gateways</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{GW}</td>
-        <td style="padding:6px 10px;">Aggregate meter and unit data; transmit to local server; one gateway per 12-unit zone; wired Ethernet communication</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);background:var(--surface);">
-        <td style="padding:6px 10px;">Local Monitoring Server</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">1</td>
-        <td style="padding:6px 10px;">On-site data aggregation and analytics platform; stores real-time and historical performance data; accessible on facility network</td>
-      </tr>
-    </tbody>
-  </table>
-</div>"""
+</p>"""
 
     # ── Build image tags ───────────────────────────────────────────────────────
     xeco_img = f'<img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Xeco" style="height:40px;object-fit:contain">'
@@ -536,6 +541,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
     <div class="report-tag">
       <div class="tag">NETWORK ASSESSMENT</div>
       <div class="dt">Prepared {date_label} &nbsp;&middot;&nbsp; Confidential &nbsp;&middot;&nbsp; XECO Energy Corporation</div>
+      {('<div style="font-family:monospace;font-size:9px;color:#aaaaaa;margin-top:3px;">' + doc_no + '</div>') if doc_no else ''}
     </div>
     <div class="logo-group">{cust_img}</div>
   </div>
@@ -579,6 +585,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
       {"⚠ " + capacitor_bank_bullet if capacitor_bank_bullet else ""}
       All amp values to be confirmed with clamp meter during site survey before final installation.
     </div>
+    {('<p style="font-style:italic;font-size:10.5px;color:#5a7090;margin-top:8px;">Note: ' + str(total_fu) + ' formula units correspond to ' + str(total_hw) + ' physical devices due to APF-100 units satisfying two formula-unit allocations.</p>') if total_apf100 > 0 else ""}
   </div>
   <p style="margin:14px 44px 0;font-size:10px;color:var(--muted);line-height:1.6;font-style:italic;border-top:1px solid var(--dim);padding-top:10px;">
     Preliminary deployment architecture derived from facility operating demand, switchgear topology review, and network-wide optimization analysis. Final equipment placement and integration subject to field verification prior to deployment.
