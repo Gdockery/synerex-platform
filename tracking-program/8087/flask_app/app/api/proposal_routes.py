@@ -250,29 +250,39 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
 def get_facility_context(project_id):
     """
     POST /api/project/<id>/proposal/facility-context
-    Body: {} (uses existing client/address data from project)
-    Calls GPU /facility/context, saves to project.proposalData.facilityContext.
+    Body (all optional overrides):
+      { "customer": str, "address": str }
+    Calls GPU /facility/context → returns facility_type + facility_context.
+    Also derives billingMonthsLabel from bill date, sldSource + capacitorBankBullet
+    from accepted SLD analysis. Saves all to project.proposalData.
     """
     sess, project = _get_project_for_user(project_id)
     if not project:
         return jsonify({"error": "Project not found or access denied"}), 404
 
+    body = request.get_json(silent=True) or {}
+
     bill = getattr(project, "electricBillAnalysis", None) or {}
     meter_bills = bill.get("meterBills") or []
     primary_bill = meter_bills[0] if meter_bills else bill
 
-    # Prefer the legal name on the bill, fall back to client/project label
-    customer = (primary_bill.get("customerName") or bill.get("customerName") or "").strip()
+    # customer: accept from request body, otherwise pull from bill / client
+    customer = (body.get("customer") or "").strip()
+    if not customer:
+        customer = (primary_bill.get("customerName") or bill.get("customerName") or "").strip()
     client = sess.query(Client).get(project.client) if project.client else None
     if not customer:
         customer = (client.name if client else project.name) or ""
 
-    address  = " ".join(filter(None, [
-        getattr(client, "address", None) or "",
-        getattr(client, "city", None) or "",
-        getattr(client, "state", None) or "",
-        getattr(client, "country", None) or "",
-    ])).strip() if client else (project.location or "")
+    # address: accept from request body, otherwise build from client record
+    address = (body.get("address") or "").strip()
+    if not address:
+        address = " ".join(filter(None, [
+            getattr(client, "address", None) or "",
+            getattr(client, "city", None) or "",
+            getattr(client, "state", None) or "",
+            getattr(client, "country", None) or "",
+        ])).strip() if client else (project.location or "")
 
     if not customer:
         return jsonify({"error": "No customer name available on this project"}), 400
@@ -287,20 +297,271 @@ def get_facility_context(project_id):
         resp.raise_for_status()
         result = resp.json()
         facility_context = result.get("facility_context", "")
+        facility_type    = result.get("facility_type", "")
     except _requests.exceptions.Timeout:
         return jsonify({"error": "GPU server timed out. Try again."}), 504
     except _requests.exceptions.RequestException as e:
         logger.error("GPU facility-context error: %s", e)
         return jsonify({"error": "Could not fetch facility context from GPU server"}), 502
 
-    # Save to project.proposalData
+    # Derive billing period label from bill date
+    billing_months_label = ""
+    try:
+        bill_date_ms = primary_bill.get("billDate") or bill.get("billDate")
+        if bill_date_ms:
+            from datetime import datetime as _dt
+            bd = _dt.utcfromtimestamp(int(bill_date_ms) / 1000)
+            billing_months_label = bd.strftime("%b %Y")
+    except Exception:
+        pass
+
+    # Derive SLD drawing reference and capacitor bank note from accepted SLD
+    sld_source            = ""
+    capacitor_bank_bullet = ""
+    sld = getattr(project, "sldAnalysis", None) or {}
+    if sld.get("status") == "accepted":
+        buses = sld.get("buses") or []
+        if buses:
+            sld_source = buses[0].get("dwg") or sld.get("sldSource") or ""
+        capacitor_bank_bullet = sld.get("capacitorBankBullet") or ""
+
+    # Save all to project.proposalData
     pd = dict(project.proposalData or {})
-    pd["facilityContext"] = facility_context
+    pd["facilityContext"]      = facility_context
+    pd["overviewPara"]         = facility_context   # seed overview paragraph
+    if facility_type:
+        pd["facilityType"]     = facility_type
+    if billing_months_label:
+        pd["billingMonthsLabel"] = billing_months_label
+    if sld_source:
+        pd["sldSource"]        = sld_source
+    if capacitor_bank_bullet:
+        pd["capacitorBankBullet"] = capacitor_bank_bullet
+
     project.proposalData = pd
     sess.add(project)
     sess.commit()
 
-    return jsonify({"facilityContext": facility_context})
+    return jsonify({
+        "facilityContext":      facility_context,
+        "facilityType":         facility_type,
+        "overviewPara":         facility_context,
+        "billingMonthsLabel":   billing_months_label,
+        "sldSource":            sld_source,
+        "capacitorBankBullet":  capacitor_bank_bullet,
+    })
+
+
+@proposal_bp.route("/api/project/<int:project_id>/proposal/autofill", methods=["POST"])
+@login_required
+def autofill_proposal(project_id):
+    """
+    POST /api/project/<id>/proposal/autofill
+    Body (all optional):
+      { "bill_id": int, "sld_id": int, "customer": str, "address": str }
+
+    Calls GPU /proposal/autofill, maps the full response, and saves everything
+    to project.proposalData + project.reportFields in one shot.
+    Returns the full mapped payload + a sources dict telling the UI which
+    sections were actually filled (has_bill, has_sld, has_context_ai).
+    """
+    sess, project = _get_project_for_user(project_id)
+    if not project:
+        return jsonify({"error": "Project not found or access denied"}), 404
+
+    body = request.get_json(silent=True) or {}
+
+    # Resolve bill_id: request body > electricBillAnalysis.gpuJobId
+    bill_id = body.get("bill_id")
+    if not bill_id:
+        eba = getattr(project, "electricBillAnalysis", None) or {}
+        bill_id = eba.get("gpuJobId") or eba.get("gpu_job_id")
+
+    # Resolve sld_id: request body > sldAnalysis.gpuJobId
+    sld_id = body.get("sld_id")
+    if not sld_id:
+        sld = getattr(project, "sldAnalysis", None) or {}
+        sld_id = sld.get("gpuJobId") or sld.get("gpu_job_id")
+
+    # Resolve customer / address fallbacks from project data
+    customer = (body.get("customer") or "").strip()
+    address  = (body.get("address") or "").strip()
+    if not customer or not address:
+        client = sess.query(Client).get(project.client) if project.client else None
+        eba = getattr(project, "electricBillAnalysis", None) or {}
+        if not customer:
+            customer = (
+                eba.get("customerName") or
+                (client.name if client else None) or
+                project.name or ""
+            ).strip()
+        if not address:
+            address = " ".join(filter(None, [
+                eba.get("serviceAddress") or (getattr(client, "address", None) or ""),
+                eba.get("serviceZip")     or (getattr(client, "zip", None) or ""),
+            ])).strip()
+
+    # Build GPU request payload
+    gpu_body = {}
+    if bill_id:
+        gpu_body["bill_id"] = int(bill_id)
+    if sld_id:
+        gpu_body["sld_id"] = int(sld_id)
+    if customer:
+        gpu_body["customer"] = customer
+    if address:
+        gpu_body["address"] = address
+
+    if not gpu_body:
+        return jsonify({"error": "No bill_id, sld_id, customer, or address available"}), 400
+
+    try:
+        resp = _requests.post(
+            f"{GPU_PLATFORM_URL}/proposal/autofill",
+            headers={"Content-Type": "application/json"},
+            json=gpu_body,
+            timeout=40,
+        )
+        resp.raise_for_status()
+        result = resp.json()
+    except _requests.exceptions.Timeout:
+        return jsonify({"error": "GPU server timed out. Try again."}), 504
+    except _requests.exceptions.RequestException as e:
+        logger.error("GPU autofill error: %s", e)
+        return jsonify({"error": "Could not reach GPU server"}), 502
+
+    sources = result.get("sources", {})
+    identity = result.get("identity", {})
+    narrative = result.get("facility_narrative", {})
+    utility = result.get("utility_billing", {})
+    commercial = result.get("commercial", {})
+    equip = result.get("equipment_counts", {})
+    topo = result.get("topology", {})
+
+    # ── Update proposalData ─────────────────────────────────────────────────
+    pd = dict(project.proposalData or {})
+
+    # Facility Narrative
+    if narrative.get("facility_type"):      pd["facilityType"]         = narrative["facility_type"]
+    if narrative.get("overview_paragraph"): pd["overviewPara"]         = narrative["overview_paragraph"]
+    if narrative.get("facility_context"):   pd["facilityContext"]      = narrative["facility_context"]
+    if narrative.get("sld_drawing_ref"):    pd["sldSource"]            = narrative["sld_drawing_ref"]
+    if narrative.get("billing_period_label"): pd["billingMonthsLabel"] = narrative["billing_period_label"]
+    if narrative.get("capacitor_bank_bullet"): pd["capacitorBankBullet"] = narrative["capacitor_bank_bullet"]
+    if narrative.get("facility_site_label"): pd["facilitySiteLabel"]   = narrative["facility_site_label"]
+
+    # Meters
+    n_meters = commercial.get("qualifying_meters") or equip.get("n_meters")
+    if n_meters:
+        pd["nMeters"] = int(n_meters)
+
+    # Equipment overrides (only set if SLD not present — SLD buses take precedence)
+    if equip.get("s600") is not None and not topo.get("buses"):
+        pd["s600Override"]   = int(equip["s600"])
+    if equip.get("apf100") is not None and not topo.get("buses"):
+        pd["apf100Override"] = int(equip["apf100"])
+    if equip.get("apf50") is not None and not topo.get("buses"):
+        pd["apf50Override"]  = int(equip["apf50"])
+
+    # Topology buses
+    buses = topo.get("buses") or []
+    if buses:
+        pd["buses"] = buses
+        # Build topoMeters tree: group buses under meter_numbers
+        meter_numbers = (commercial.get("meter_numbers") or "").split(",") if commercial.get("meter_numbers") else [""]
+        pd["topoMeters"] = [{"meterNo": m.strip(), "buses": []} for m in meter_numbers if m.strip()]
+        if not pd["topoMeters"]:
+            pd["topoMeters"] = [{"meterNo": "", "buses": []}]
+        # Assign all buses to the first meter for now (user can reassign)
+        pd["topoMeters"][0]["buses"] = [
+            {
+                "badge":    b.get("badge", ""),
+                "dwg":      b.get("dwg", ""),
+                "xfKva":    b.get("xf_kva", ""),
+                "mainA":    b.get("main_a", ""),
+                "pctLoad":  b.get("pct_load", ""),
+                "varc":     b.get("varc", ""),
+                "circuits": [
+                    {
+                        "name":     c.get("name", ""),
+                        "amps":     c.get("amps", ""),
+                        "nEcbs":    c.get("n_ecbs", 0),
+                        "nApf50":   c.get("n_apf50", 0),
+                        "nApf100":  c.get("n_apf100", 0),
+                        "note":     c.get("note", ""),
+                    }
+                    for c in b.get("circuits", [])
+                ],
+            }
+            for b in buses
+        ]
+
+    project.proposalData = pd
+
+    # ── Update reportFields ─────────────────────────────────────────────────
+    rf = dict(project.reportFields or {})
+
+    if identity.get("customer"):      rf["company"]          = identity["customer"]
+    if identity.get("address_street"): rf["facility_address"] = identity["address_street"]
+    if identity.get("address_city"):   rf["facility_city"]    = identity["address_city"]
+    if identity.get("date_label"):     rf["billing_period"]   = identity["date_label"]
+
+    if utility.get("utility_name"):   rf["utility"]          = utility["utility_name"]
+    if utility.get("utility_tariff"): rf["tariff"]           = utility["utility_tariff"]
+    if utility.get("utility_account"): rf["account"]         = utility["utility_account"]
+    if utility.get("energy_rate"):    rf["energy_rate"]      = utility["energy_rate"]
+    if utility.get("demand_rate"):    rf["demand_rate"]      = utility["demand_rate"]
+    if commercial.get("meter_numbers"): rf["meter_numbers"]  = commercial["meter_numbers"]
+    if n_meters:                        rf["numberOfMeters"] = str(n_meters)
+
+    project.reportFields = rf
+
+    # ── Update electricBillAnalysis with peak_kw + avg_bill if from bill ───
+    if sources.get("has_bill") and utility.get("peak_kw"):
+        eba2 = dict(getattr(project, "electricBillAnalysis", None) or {})
+        if utility.get("peak_kw"):    eba2["kwPeak"]     = utility["peak_kw"]
+        if utility.get("avg_bill_usd"): eba2["billAmount"] = utility["avg_bill_usd"]
+        project.electricBillAnalysis = eba2
+
+    sess.add(project)
+    sess.commit()
+
+    # Build the full UI-ready response
+    return jsonify({
+        "sources":    sources,
+        # Identity
+        "customer":          identity.get("customer", ""),
+        "addressStreet":     identity.get("address_street", ""),
+        "addressCity":       identity.get("address_city", ""),
+        "dateLabel":         identity.get("date_label", ""),
+        "coverLocation":     identity.get("cover_location", ""),
+        # Facility Narrative
+        "facilityType":         narrative.get("facility_type", ""),
+        "overviewPara":         narrative.get("overview_paragraph") or narrative.get("facility_context", ""),
+        "facilityContext":      narrative.get("facility_context", ""),
+        "sldSource":            narrative.get("sld_drawing_ref", ""),
+        "billingMonthsLabel":   narrative.get("billing_period_label", ""),
+        "capacitorBankBullet":  narrative.get("capacitor_bank_bullet", ""),
+        "facilitySiteLabel":    narrative.get("facility_site_label", ""),
+        # Utility / Billing
+        "utilityName":    utility.get("utility_name", ""),
+        "utilityTariff":  utility.get("utility_tariff", ""),
+        "utilityAccount": utility.get("utility_account", ""),
+        "energyRate":     utility.get("energy_rate", ""),
+        "demandRate":     utility.get("demand_rate", ""),
+        "peakKw":         utility.get("peak_kw", ""),
+        "avgBillUsd":     utility.get("avg_bill_usd", ""),
+        # Commercial
+        "nMeters":        n_meters or "",
+        "meterNumbers":   commercial.get("meter_numbers", ""),
+        # Equipment
+        "s600":    equip.get("s600", ""),
+        "apf100":  equip.get("apf100", ""),
+        "apf50":   equip.get("apf50", ""),
+        # Topology
+        "buses":      buses,
+        "topoMeters": pd.get("topoMeters", []),
+    })
 
 
 @proposal_bp.route("/api/project/<int:project_id>/proposal/save", methods=["POST"])

@@ -62,7 +62,17 @@ const { PDFDocument } = require('pdf-lib');
 
       <!-- EM&V Pre-fill Panel — always visible once a project is selected -->
       <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
-        <h3 style="margin-top:0; margin-bottom:0.25em;">EM&amp;V Program Pre-fill <small style="font-size:0.7em; color:#888; font-weight:normal;">Fill in the fields below then click "Send to EM&amp;V Program"</small></h3>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:0.75em; flex-wrap:wrap;">
+          <h3 style="margin:0; flex:1;">EM&amp;V Program Pre-fill <small style="font-size:0.7em; color:#888; font-weight:normal;">Fill in the fields below then click "Send to EM&amp;V Program"</small></h3>
+          <button type="button" class="btn btn-primary btn-sm"
+                  [disabled]="emvAutoFillAllFetching"
+                  (click)="autoFillAll()"
+                  style="white-space:nowrap; font-weight:600;">
+            {{ emvAutoFillAllFetching ? '⏳ Filling…' : '⚡ Auto-fill from Bill + SLD' }}
+          </button>
+          <span *ngIf="emvAutoFillAllStatus" style="font-size:0.85em; white-space:nowrap;"
+                [style.color]="emvAutoFillAllError ? '#c00' : '#2a7a2a'">{{ emvAutoFillAllStatus }}</span>
+        </div>
 
         <!-- CLIENT INFORMATION -->
         <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Client Information</h4>
@@ -120,28 +130,14 @@ const { PDFDocument } = require('pdf-lib');
         </div>
 
         <!-- PROJECT INFORMATION -->
-        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Project Information</h4>
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Project / Facility Information</h4>
         <div class="row">
-          <div class="col-md-4">
-            <div class="form-group">
-              <label>Project Name</label>
-              <input class="form-control" [(ngModel)]="emvClientName" placeholder="e.g. Acme Corp Phase 1" />
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="form-group">
-              <label>Project Type</label>
-              <input class="form-control" [(ngModel)]="emvProjectType" placeholder="e.g. Commercial, Industrial" />
-            </div>
-          </div>
-          <div class="col-md-4">
+          <div class="col-md-5">
             <div class="form-group">
               <label>Facility Address</label>
               <input class="form-control" [(ngModel)]="emvFacilityAddress" placeholder="123 Main St" />
             </div>
           </div>
-        </div>
-        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>City</label>
@@ -156,28 +152,96 @@ const { PDFDocument } = require('pdf-lib');
           </div>
           <div class="col-md-2">
             <div class="form-group">
-              <label>Zip Code</label>
+              <label>Zip</label>
               <input class="form-control" [(ngModel)]="emvFacilityZip" placeholder="75001" />
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="form-group">
-              <label>Point of Contact</label>
-              <input class="form-control" [(ngModel)]="emvContactName" placeholder="Jane Smith" />
-            </div>
-          </div>
-          <div class="col-md-2">
-            <div class="form-group">
-              <label>Phone</label>
-              <input class="form-control" [(ngModel)]="emvContactPhone" placeholder="555-1234" />
-            </div>
-          </div>
+        </div>
+
+        <!-- FACILITY NARRATIVE -->
+        <div style="display:flex; align-items:center; gap:12px; margin:1em 0 0.5em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">
+          <h4 style="margin:0; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; flex:1;">Facility Narrative <small style="font-size:0.75em; font-weight:normal; color:#888;">(used in proposal &amp; network assessment reports)</small></h4>
+          <button type="button" class="btn btn-sm btn-default" [disabled]="emvNarrativeFetching" (click)="autoFillFacilityNarrative()"
+                  style="white-space:nowrap; font-size:0.82em;">
+            {{ emvNarrativeFetching ? 'Looking up…' : '&#128269; Auto-fill' }}
+          </button>
+          <span *ngIf="emvNarrativeStatus" style="font-size:0.82em; white-space:nowrap;"
+                [style.color]="emvNarrativeError ? '#c00' : '#2a7a2a'">{{ emvNarrativeStatus }}</span>
         </div>
         <div class="row">
           <div class="col-md-4">
             <div class="form-group">
-              <label>Email</label>
-              <input class="form-control" [(ngModel)]="emvContactEmail" placeholder="jane@company.com" />
+              <label>Facility Type</label>
+              <input class="form-control" [(ngModel)]="emvFacilityType" placeholder="e.g. Electronics Contract Manufacturing" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Site Label</label>
+              <input class="form-control" [(ngModel)]="emvFacilitySiteLabel" placeholder="e.g. Campus" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>Billing Period Label</label>
+              <input class="form-control" [(ngModel)]="emvBillingMonthsLabel" placeholder="e.g. Apr–May 2026" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>SLD Drawing Reference</label>
+              <input class="form-control" [(ngModel)]="emvSldSource" placeholder="e.g. Dwg 22276.059" />
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="form-group">
+              <label>Overview Paragraph (facility description for reports)</label>
+              <textarea class="form-control" rows="3" [(ngModel)]="emvOverviewPara" placeholder="Describe facility operations, major loads, switchgear, utility supply..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="form-group">
+              <label>Capacitor Bank / Resonance Note <small style="font-weight:normal; color:#888;">(equipment note for reports)</small></label>
+              <textarea class="form-control" rows="2" [(ngModel)]="emvCapacitorBankBullet" placeholder="Note any capacitor banks, resonance risks, or power-conditioning equipment..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- POWER FACTOR -->
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Power Factor</h4>
+        <div class="row">
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Est. PF (0–1)</label>
+              <input class="form-control" type="number" step="0.01" min="0" max="1" [(ngModel)]="emvPfReference" placeholder="0.88" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
+              <label>PF Reference Month</label>
+              <input class="form-control" [(ngModel)]="emvPfReferenceMonth" placeholder="e.g. Apr–May 2026" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Worst PF (0–1)</label>
+              <input class="form-control" type="number" step="0.01" min="0" max="1" [(ngModel)]="emvPfWorst" placeholder="0.85" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>PF Penalty?</label>
+              <div style="padding-top:8px;"><label style="font-weight:normal;"><input type="checkbox" [(ngModel)]="emvHasPfPenalty" style="margin-right:4px;" /> Yes</label></div>
+            </div>
+          </div>
+          <div class="col-md-3" *ngIf="emvHasPfPenalty">
+            <div class="form-group">
+              <label>PF Penalty Value ($/mo)</label>
+              <input class="form-control" type="number" [(ngModel)]="emvPfPenaltyUsd" placeholder="0" />
             </div>
           </div>
         </div>
@@ -185,31 +249,19 @@ const { PDFDocument } = require('pdf-lib');
         <!-- BILLING INFORMATION -->
         <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Billing Information</h4>
         <div class="row">
-          <div class="col-md-3">
-            <div class="form-group">
-              <label>Project Cost ($)</label>
-              <input class="form-control" type="number" [(ngModel)]="emvProjectCost" placeholder="0.00" />
-            </div>
-          </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <div class="form-group">
               <label>Utility</label>
               <input class="form-control" [(ngModel)]="emvUtility" placeholder="e.g. Oncor Electric" />
             </div>
           </div>
-          <div class="col-md-3">
-            <div class="form-group">
-              <label>Utility Program Name</label>
-              <input class="form-control" [(ngModel)]="emvUtilityProgram" placeholder="e.g. DR Program" />
-            </div>
-          </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <div class="form-group">
               <label>Tariff / Rate Schedule</label>
               <input class="form-control" [(ngModel)]="emvTariff" placeholder="e.g. TOU-GS-3-B" />
             </div>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <div class="form-group">
               <label>Account #</label>
               <input class="form-control" [(ngModel)]="emvAccountNumber" placeholder="Account number" />
@@ -365,19 +417,152 @@ const { PDFDocument } = require('pdf-lib');
               <input class="form-control" type="number" step="0.1" [(ngModel)]="emvRatchetRefPeak" placeholder="0" />
             </div>
           </div>
-          <div class="col-md-3">
+        </div>
+
+        <!-- COMMERCIAL / BOM -->
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Commercial / BOM</h4>
+        <div class="row">
+          <div class="col-md-2">
             <div class="form-group">
-              <label>Electric Utility / Company</label>
-              <input class="form-control" [(ngModel)]="emvUtilityName" placeholder="e.g. Oncor Electric" />
+              <label>Savings % (default 6%)</label>
+              <input class="form-control" type="number" step="0.1" [(ngModel)]="proposalSavingsPct" placeholder="6" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Qualifying Meters</label>
+              <input class="form-control" type="number" step="1" [(ngModel)]="proposalNMeters" placeholder="1" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Engineering Fee ($)</label>
+              <input class="form-control" type="number" [(ngModel)]="emvEngineeringFee" placeholder="0" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Yr 1 Software ($)</label>
+              <input class="form-control" type="number" [(ngModel)]="emvSwYr1" placeholder="0" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Discount ($)</label>
+              <input class="form-control" type="number" [(ngModel)]="emvDiscount" placeholder="0" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>Shipping ($)</label>
+              <input class="form-control" type="number" [(ngModel)]="emvShipping" placeholder="0" />
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:0.5em;">
+          <div class="col-md-12" style="display:flex; gap:24px; align-items:center; padding-top:4px;">
+            <label style="font-weight:normal; margin:0;"><input type="checkbox" [(ngModel)]="emvCustomerOwnsMeters" style="margin-right:5px;" /> Customer owns meters (exclude from BOM)</label>
+            <label style="font-weight:normal; margin:0;"><input type="checkbox" [(ngModel)]="emvIsUpgrade" style="margin-right:5px;" /> Upgrade / Add-on (uses upgrade contract language)</label>
+          </div>
+        </div>
+
+        <!-- EQUIPMENT OVERRIDE COUNTS -->
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Equipment Counts <small style="font-size:0.75em; font-weight:normal; color:#888;">(leave blank = auto from topology or peak kW)</small></h4>
+        <div class="row">
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>ECBS-600</label>
+              <input class="form-control" type="number" [(ngModel)]="emvS600Override" placeholder="auto" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>APF-100</label>
+              <input class="form-control" type="number" [(ngModel)]="emvApf100Override" placeholder="auto" />
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="form-group">
+              <label>APF-50</label>
+              <input class="form-control" type="number" [(ngModel)]="emvApf50Override" placeholder="auto" />
             </div>
           </div>
         </div>
 
-        <div class="row" style="margin-top:0.5em;">
+        <!-- ELECTRICAL TOPOLOGY TREE -->
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Electrical Topology <small style="font-size:0.75em; font-weight:normal; color:#888;">(auto-populated from SLD if available; edit or build manually)</small></h4>
+        <div *ngFor="let meter of topoMeters; let mi = index"
+             style="border:1px solid #ced4da; border-radius:6px; padding:0.8em 1em; margin-bottom:1em; background:#fff;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.6em;">
+            <strong style="white-space:nowrap;">Meter {{ mi + 1 }}</strong>
+            <input class="form-control" [(ngModel)]="meter.meterNo" style="width:180px;" placeholder="Meter #" />
+            <button type="button" class="btn btn-xs btn-danger" (click)="removeMeter(mi)" *ngIf="topoMeters.length > 1">Remove</button>
+          </div>
+
+          <!-- Buses for this meter -->
+          <div *ngFor="let bus of meter.buses; let bi = index"
+               style="border:1px solid #dee2e6; border-radius:4px; padding:0.7em 0.8em; margin:0 0 0.5em 1em; background:#f8f9fa;">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:0.5em; align-items:flex-end;">
+              <div>
+                <label style="font-size:0.82em; margin-bottom:2px; display:block;">Switchgear Label</label>
+                <input class="form-control input-sm" [(ngModel)]="bus.badge" style="width:110px;" placeholder="MSB-1" />
+              </div>
+              <div>
+                <label style="font-size:0.82em; margin-bottom:2px; display:block;">Transformer kVA</label>
+                <input class="form-control input-sm" [(ngModel)]="bus.xfKva" style="width:130px;" placeholder="2500 kVA" />
+              </div>
+              <div>
+                <label style="font-size:0.82em; margin-bottom:2px; display:block;">Main Amps</label>
+                <input class="form-control input-sm" type="number" [(ngModel)]="bus.mainA" style="width:90px;" placeholder="3600" />
+              </div>
+              <div>
+                <label style="font-size:0.82em; margin-bottom:2px; display:block;">% Load</label>
+                <input class="form-control input-sm" type="number" [(ngModel)]="bus.pctLoad" style="width:65px;" placeholder="14" />
+              </div>
+              <div>
+                <label style="font-size:0.82em; margin-bottom:2px; display:block;">Drawing Ref</label>
+                <input class="form-control input-sm" [(ngModel)]="bus.dwg" style="width:170px;" placeholder="22276.059 · E.01" />
+              </div>
+              <button type="button" class="btn btn-xs btn-danger" (click)="removeBus(meter, bi)">Remove Bus</button>
+            </div>
+
+            <!-- Circuits table -->
+            <div *ngIf="bus.circuits && bus.circuits.length > 0" style="overflow-x:auto; margin-bottom:0.4em;">
+              <table style="width:100%; min-width:600px; font-size:0.82em; border-collapse:collapse;">
+                <thead>
+                  <tr style="background:#e9ecef; text-align:left;">
+                    <th style="padding:4px 6px;">Circuit / Load</th>
+                    <th style="padding:4px 6px;">Amps</th>
+                    <th style="padding:4px 6px; text-align:center;">ECBS-600</th>
+                    <th style="padding:4px 6px; text-align:center;">APF-50</th>
+                    <th style="padding:4px 6px; text-align:center;">APF-100</th>
+                    <th style="padding:4px 4px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let circuit of bus.circuits; let ci = index" style="border-top:1px solid #dee2e6;">
+                    <td style="padding:2px 4px;"><input class="form-control input-sm" [(ngModel)]="circuit.name" placeholder="Circuit name" style="min-width:160px;" /></td>
+                    <td style="padding:2px 4px;"><input class="form-control input-sm" type="number" [(ngModel)]="circuit.amps" style="width:70px;" placeholder="0" /></td>
+                    <td style="padding:2px 4px; text-align:center;"><input class="form-control input-sm" type="number" [(ngModel)]="circuit.nEcbs" style="width:55px;" placeholder="0" /></td>
+                    <td style="padding:2px 4px; text-align:center;"><input class="form-control input-sm" type="number" [(ngModel)]="circuit.nApf50" style="width:55px;" placeholder="0" /></td>
+                    <td style="padding:2px 4px; text-align:center;"><input class="form-control input-sm" type="number" [(ngModel)]="circuit.nApf100" style="width:55px;" placeholder="0" /></td>
+                    <td style="padding:2px 4px;"><button type="button" class="btn btn-xs btn-danger" (click)="removeCircuit(bus, ci)">×</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="btn btn-xs btn-default" (click)="addCircuit(bus)">+ Circuit</button>
+          </div>
+
+          <button type="button" class="btn btn-xs btn-default" (click)="addBus(meter)" style="margin-left:1em;">+ Switchgear / Bus</button>
+        </div>
+        <button type="button" class="btn btn-xs btn-default" (click)="addMeter()" style="margin-bottom:0.5em;">+ Meter</button>
+
+        <div class="row" style="margin-top:0.75em;">
           <div class="col-md-12" style="display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
             <button class="default-button" (click)="saveAll()"
                     style="background:#0a6e3f; border-color:#0a6e3f; color:#fff; font-weight:600; padding:8px 20px;">
-              &#128190; Save
+              &#128190; Save All
             </button>
             <button class="default-button green-button" (click)="sendToEmv()" style="background:#1a6eb5; border-color:#1a6eb5;">
               Save for EM&amp;V Analysis
@@ -845,40 +1030,6 @@ const { PDFDocument } = require('pdf-lib');
           Automatically size equipment, calculate ROI, and generate a professional proposal PDF based on the scanned bill data above.
         </p>
 
-        <!-- Facility context row -->
-        <div style="margin-bottom:0.9em;">
-          <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Facility Description (used in proposal narrative)</label>
-          <div style="display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap;">
-            <textarea [(ngModel)]="proposalFacilityContext" rows="2"
-              style="flex:1; min-width:220px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:6px 10px; font-size:0.9em; resize:vertical;"
-              placeholder="e.g. operating injection moulding presses typical in plastics manufacturing"></textarea>
-            <button type="button" class="default-button" [disabled]="proposalFetchingContext"
-              (click)="fetchFacilityContext()"
-              style="background:#0a3060; border-color:#1c3a5e; color:#e8eef5; white-space:nowrap;">
-              {{ proposalFetchingContext ? 'Searching...' : '&#128269; Auto-fill' }}
-            </button>
-          </div>
-          <span *ngIf="proposalContextStatus" style="font-size:0.82em; margin-top:4px; display:block;"
-            [style.color]="proposalContextError ? '#c00' : '#00e5a0'">{{ proposalContextStatus }}</span>
-        </div>
-
-        <!-- Savings % and meters row -->
-        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:0.9em; align-items:flex-end;">
-          <div>
-            <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Savings % (default 6%)</label>
-            <input type="number" step="0.1" min="1" max="30" [(ngModel)]="proposalSavingsPct"
-              style="width:90px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:5px 8px; font-size:0.9em;" />
-          </div>
-          <div>
-            <label style="display:block; font-size:0.85em; color:#6b8099; margin-bottom:4px;">Qualifying Meters</label>
-            <input type="number" step="1" min="1" [(ngModel)]="proposalNMeters"
-              style="width:70px; background:#08101f; border:1px solid #1c3a5e; color:#e8eef5; border-radius:4px; padding:5px 8px; font-size:0.9em;" />
-          </div>
-          <div *ngIf="userService.user.selectedProject.sldAnalysis">
-            <label style="display:block; font-size:0.85em; color:#00e5a0; margin-bottom:4px;">&#10003; SLD overrides loaded</label>
-          </div>
-        </div>
-
         <!-- Generate button -->
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <button type="button" class="default-button green-button" [disabled]="proposalGenerating || !baTotalKwh"
@@ -886,16 +1037,14 @@ const { PDFDocument } = require('pdf-lib');
             style="background:#006633; border-color:#006633; font-weight:700; padding:9px 22px;">
             {{ proposalGenerating ? 'Generating PDF...' : '&#128196; Generate Bill Analytic PDF' }}
           </button>
-          <button type="button" class="default-button" [disabled]="proposalSaving"
-            (click)="saveProposalSettings()"
-            style="background:#0a3060; border-color:#1c3a5e; color:#e8eef5;">
-            {{ proposalSaving ? 'Saving...' : 'Save Settings' }}
-          </button>
           <span *ngIf="proposalStatus" style="font-size:0.88em;"
             [style.color]="proposalError ? '#c00' : '#00e5a0'">{{ proposalStatus }}</span>
         </div>
         <div *ngIf="!baTotalKwh" style="font-size:0.82em; color:#6b8099; margin-top:6px;">
           &#9432; Scan a bill above first to populate bill data for the proposal.
+        </div>
+        <div *ngIf="userService.user.selectedProject.sldAnalysis" style="font-size:0.82em; color:#00e5a0; margin-top:4px;">
+          &#10003; SLD topology loaded &mdash; set equipment counts in the pre-fill panel above.
         </div>
 
         <!-- Proposal Contract (no SLD required) -->
@@ -1192,6 +1341,37 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public saveAllStatus: string = '';
   public saveAllError: boolean = false;
 
+  // Facility Narrative
+  public emvFacilityType: string = '';
+  public emvFacilitySiteLabel: string = '';
+  public emvSldSource: string = '';
+  public emvBillingMonthsLabel: string = '';
+  public emvOverviewPara: string = '';
+  public emvCapacitorBankBullet: string = '';
+
+  // Power Factor
+  public emvPfReference: string = '';
+  public emvPfReferenceMonth: string = '';
+  public emvPfWorst: string = '';
+  public emvHasPfPenalty: boolean = false;
+  public emvPfPenaltyUsd: string = '';
+
+  // Commercial / BOM flags
+  public emvCustomerOwnsMeters: boolean = false;
+  public emvIsUpgrade: boolean = false;
+  public emvEngineeringFee: string = '';
+  public emvSwYr1: string = '';
+  public emvDiscount: string = '';
+  public emvShipping: string = '';
+
+  // Equipment override counts (blank = auto)
+  public emvS600Override: string = '';
+  public emvApf100Override: string = '';
+  public emvApf50Override: string = '';
+
+  // Electrical topology tree: Meter → Buses → Circuits
+  public topoMeters: any[] = [];
+
   // Bill scan state (for Bill Analytic generation)
   public billScanFile: File | null = null;
   public billScanning = false;
@@ -1265,6 +1445,16 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public proposalContextError = false;
   public proposalSavingsPct: number = 6;
   public proposalNMeters: number = 1;
+
+  // Facility Narrative auto-fill state
+  public emvNarrativeFetching = false;
+  public emvNarrativeStatus = '';
+  public emvNarrativeError = false;
+
+  // Global "Auto-fill All" state
+  public emvAutoFillAllFetching = false;
+  public emvAutoFillAllStatus = '';
+  public emvAutoFillAllError = false;
 
   protected pdfSource: SafeResourceUrl;
 
@@ -1415,9 +1605,69 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     // Restore ECBS Proposal settings from proposalData
     const pd = proj && proj.proposalData;
     if (pd && typeof pd === 'object') {
-      if (pd['facilityContext'] != null) this.proposalFacilityContext = pd['facilityContext'];
-      if (pd['savingsPct'] != null)      this.proposalSavingsPct      = parseFloat(pd['savingsPct']) * 100 || 6;
-      if (pd['nMeters'] != null)         this.proposalNMeters          = parseInt(pd['nMeters'], 10) || 1;
+      if (pd['facilityContext'] != null)       this.proposalFacilityContext  = pd['facilityContext'];
+      if (pd['savingsPct'] != null)            this.proposalSavingsPct       = parseFloat(pd['savingsPct']) * 100 || 6;
+      if (pd['nMeters'] != null)               this.proposalNMeters           = parseInt(pd['nMeters'], 10) || 1;
+      // Facility Narrative
+      if (pd['facilityType'] != null)          this.emvFacilityType          = pd['facilityType'];
+      if (pd['facilitySiteLabel'] != null)     this.emvFacilitySiteLabel     = pd['facilitySiteLabel'];
+      if (pd['sldSource'] != null)             this.emvSldSource             = pd['sldSource'];
+      if (pd['billingMonthsLabel'] != null)    this.emvBillingMonthsLabel    = pd['billingMonthsLabel'];
+      if (pd['overviewPara'] != null)          this.emvOverviewPara          = pd['overviewPara'];
+      if (pd['capacitorBankBullet'] != null)   this.emvCapacitorBankBullet   = pd['capacitorBankBullet'];
+      // Power Factor
+      if (pd['pfReference'] != null)           this.emvPfReference           = String(pd['pfReference']);
+      if (pd['pfReferenceMonth'] != null)      this.emvPfReferenceMonth      = pd['pfReferenceMonth'];
+      if (pd['pfWorst'] != null)               this.emvPfWorst               = String(pd['pfWorst']);
+      if (pd['hasPfPenalty'] != null)          this.emvHasPfPenalty          = !!pd['hasPfPenalty'];
+      if (pd['pfPenaltyUsd'] != null)          this.emvPfPenaltyUsd          = String(pd['pfPenaltyUsd']);
+      // Commercial / BOM
+      if (pd['customerOwnsMeters'] != null)    this.emvCustomerOwnsMeters    = !!pd['customerOwnsMeters'];
+      if (pd['isUpgrade'] != null)             this.emvIsUpgrade             = !!pd['isUpgrade'];
+      if (pd['engineeringFee'] != null)        this.emvEngineeringFee        = String(pd['engineeringFee']);
+      if (pd['swYr1'] != null)                 this.emvSwYr1                 = String(pd['swYr1']);
+      if (pd['discount'] != null)              this.emvDiscount              = String(pd['discount']);
+      if (pd['shipping'] != null)              this.emvShipping              = String(pd['shipping']);
+      // Equipment overrides
+      if (pd['s600Override'] != null)          this.emvS600Override          = String(pd['s600Override']);
+      if (pd['apf100Override'] != null)        this.emvApf100Override        = String(pd['apf100Override']);
+      if (pd['apf50Override'] != null)         this.emvApf50Override         = String(pd['apf50Override']);
+      // Topology
+      if (pd['topoMeters'] != null && Array.isArray(pd['topoMeters']) && pd['topoMeters'].length) {
+        this.topoMeters = pd['topoMeters'];
+      }
+    }
+
+    // Auto-init topology if not yet saved
+    if (!this.topoMeters.length) {
+      const sldBuses: any[] = (proj && proj.sldAnalysis && proj.sldAnalysis.buses) || [];
+      if (sldBuses.length) {
+        this.topoMeters = [{
+          meterNo: this.baMeterNumber || '',
+          buses: sldBuses.map((b: any) => ({
+            badge: b.badge || '',
+            dwg: b.dwg || '',
+            xfKva: b.xf_kva || '',
+            mainA: b.main_a || '',
+            pctLoad: b.pct_load || '',
+            varc: b.varc || '',
+            circuits: (b.circuits || []).map((c: any) => ({
+              name: c.name || '',
+              amps: c.amps || '',
+              nEcbs: c.n_ecbs || 0,
+              nApf50: c.n_apf50 || 0,
+              nApf100: c.n_apf100 || 0,
+              note: c.note || ''
+            }))
+          }))
+        }];
+      } else {
+        const meterNos = (this.baMeterNumber || '').split(',').map((m: string) => m.trim()).filter((m: string) => m);
+        this.topoMeters = (meterNos.length ? meterNos : ['']).map((m: string) => ({
+          meterNo: m,
+          buses: []
+        }));
+      }
     }
 
     // If client information fields are still empty (no saved reportFields), fetch from client record.
@@ -1848,6 +2098,9 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         });
       }
     }
+
+    // Also save new proposal-specific fields (topology, narrative, PF, BOM flags)
+    this._saveProposalDataFields();
   }
 
   saveBillAnalyticFields() {
@@ -2724,6 +2977,248 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportPcGenerating = false;
     this.reportStatus = 'Proposal Contract opened in new tab.';
     setTimeout(() => { this.reportStatus = ''; }, 4000);
+  }
+
+  // ── Global "Auto-fill All" ─────────────────────────────────────────────────
+  autoFillAll() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+
+    this.emvAutoFillAllFetching = true;
+    this.emvAutoFillAllStatus   = 'Filling from Bill + SLD…';
+    this.emvAutoFillAllError    = false;
+
+    // Bill GPU job ID — most recent 'bill' job stored in localStorage
+    const billJobs: any[] = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
+    const billId: number | null = billJobs.length ? billJobs[billJobs.length - 1].gpu_job_id : null;
+
+    // SLD GPU job ID — stored in project.sldAnalysis.gpuJobId
+    const sldId: number | null = (proj.sldAnalysis && proj.sldAnalysis.gpuJobId) ? proj.sldAnalysis.gpuJobId : null;
+
+    // Customer + address from current UI fields or bill data
+    const bill: any = proj.electricBillAnalysis || {};
+    const customer = this.emvClientName || bill.customerName || '';
+    const address = [
+      this.emvFacilityAddress || bill.serviceAddress || '',
+      this.emvFacilityZip     || bill.serviceZip     || '',
+    ].filter(Boolean).join(' ');
+
+    this.proposalService.autoFill(proj.id, billId, sldId, customer, address).subscribe(
+      (res: any) => {
+        this.emvAutoFillAllFetching = false;
+
+        // ── Identity / Client fields ───────────────────────────────────────
+        if (res.customer)      this.emvClientName       = res.customer;
+        if (res.addressStreet) this.emvFacilityAddress  = res.addressStreet;
+        if (res.addressCity)   this.emvFacilityCity     = res.addressCity;
+        if (res.coverLocation) {
+          // Split "City, State ZIP" into parts if possible
+          const loc = res.coverLocation;
+          const m = loc.match(/^(.*),\s*([A-Z]{2})\s*(\d{5}(-\d{4})?)?$/);
+          if (m) {
+            if (!this.emvFacilityCity)  this.emvFacilityCity  = m[1].trim();
+            if (!this.emvFacilityState) this.emvFacilityState = m[2].trim();
+            if (m[3] && !this.emvFacilityZip) this.emvFacilityZip = m[3].trim();
+          }
+        }
+
+        // ── Facility Narrative ─────────────────────────────────────────────
+        if (res.facilityType)        this.emvFacilityType        = res.facilityType;
+        if (res.facilitySiteLabel)   this.emvFacilitySiteLabel   = res.facilitySiteLabel;
+        if (res.overviewPara)        this.emvOverviewPara         = res.overviewPara;
+        if (res.billingMonthsLabel)  this.emvBillingMonthsLabel  = res.billingMonthsLabel;
+        if (res.sldSource)           this.emvSldSource           = res.sldSource;
+        if (res.capacitorBankBullet) this.emvCapacitorBankBullet = res.capacitorBankBullet;
+
+        // ── Utility / Billing ──────────────────────────────────────────────
+        if (res.utilityName)    { this.emvUtility = res.utilityName; this.emvUtilityName = res.utilityName; }
+        if (res.utilityTariff)  this.baTariff       = res.utilityTariff;
+        if (res.utilityAccount) this.baAccountNumber = res.utilityAccount;
+        if (res.meterNumbers)   this.baMeterNumber   = res.meterNumbers;
+
+        // ── Equipment Counts ───────────────────────────────────────────────
+        if (res.s600 != null && res.s600 !== '')   this.emvS600Override   = String(res.s600);
+        if (res.apf100 != null && res.apf100 !== '') this.emvApf100Override = String(res.apf100);
+        if (res.apf50 != null && res.apf50 !== '')  this.emvApf50Override  = String(res.apf50);
+
+        // ── Electrical Topology ────────────────────────────────────────────
+        if (res.topoMeters && res.topoMeters.length) {
+          this.topoMeters = res.topoMeters.map((m: any) => ({
+            meterNo: m.meterNo || m.meter_no || '',
+            buses: (m.buses || []).map((b: any) => ({
+              badge:    b.badge    || b.bus_id   || '',
+              dwg:      b.dwg      || '',
+              xfKva:    b.xfKva    || b.xf_kva   || '',
+              mainA:    b.mainA    || b.main_a    || '',
+              pctLoad:  b.pctLoad  || b.pct_load  || '',
+              varc:     b.varc     || '',
+              circuits: (b.circuits || []).map((c: any) => ({
+                name:    c.name    || '',
+                amps:    c.amps    || '',
+                nEcbs:   c.nEcbs   || c.n_ecbs   || 0,
+                nApf50:  c.nApf50  || c.n_apf50  || 0,
+                nApf100: c.nApf100 || c.n_apf100 || 0,
+                note:    c.note    || '',
+              })),
+            })),
+          }));
+        }
+
+        // Update in-memory project.proposalData
+        if (proj.proposalData) { Object.assign(proj.proposalData, res); }
+        else { proj.proposalData = res; }
+
+        // Build sources status label
+        const src = res.sources || {};
+        const used: string[] = [];
+        if (src.has_bill)       used.push('Bill ✓');
+        if (src.has_sld)        used.push('SLD ✓');
+        if (src.has_context_ai) used.push('AI Context ✓');
+        const sourceStr = used.length ? ` (${used.join(' | ')})` : '';
+        this.emvAutoFillAllStatus = `Filled${sourceStr} — review and adjust as needed.`;
+        this.emvAutoFillAllError  = false;
+        setTimeout(() => { this.emvAutoFillAllStatus = ''; }, 8000);
+      },
+      (err: any) => {
+        this.emvAutoFillAllFetching = false;
+        const msg = (err && err.error && err.error.error) || 'Auto-fill failed. Try again.';
+        this.emvAutoFillAllStatus = msg;
+        this.emvAutoFillAllError  = true;
+      }
+    );
+  }
+
+  // ── Facility Narrative auto-fill ─────────────────────────────────────────
+  autoFillFacilityNarrative() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+
+    this.emvNarrativeFetching = true;
+    this.emvNarrativeStatus   = 'Looking up facility…';
+    this.emvNarrativeError    = false;
+
+    // Build customer + address from bill scan data and pre-fill fields
+    const bill: any = proj.electricBillAnalysis || {};
+    const customer = this.emvClientName
+      || bill.customerName
+      || bill.electricCompanyName
+      || '';
+    const address = [
+      this.emvFacilityAddress || bill.serviceAddress || '',
+      this.emvFacilityZip     || bill.serviceZip     || '',
+    ].filter(Boolean).join(' ');
+
+    this.proposalService.fetchFacilityNarrative(proj.id, customer, address).subscribe(
+      (res: any) => {
+        this.emvNarrativeFetching = false;
+        if (res.facilityType)         this.emvFacilityType         = res.facilityType;
+        if (res.overviewPara)         this.emvOverviewPara         = res.overviewPara;
+        if (res.billingMonthsLabel)   this.emvBillingMonthsLabel   = res.billingMonthsLabel;
+        if (res.sldSource)            this.emvSldSource            = res.sldSource;
+        if (res.capacitorBankBullet)  this.emvCapacitorBankBullet  = res.capacitorBankBullet;
+        // Also seed the legacy facilityContext for the Bill Analytic proposal
+        if (res.facilityContext)      this.proposalFacilityContext = res.facilityContext;
+        // Update in-memory proposalData
+        if (res && proj.proposalData) { Object.assign(proj.proposalData, res); }
+        else if (res) { proj.proposalData = res; }
+        this.emvNarrativeStatus = 'Filled in — review and adjust as needed.';
+        this.emvNarrativeError  = false;
+        setTimeout(() => { this.emvNarrativeStatus = ''; }, 5000);
+      },
+      (err: any) => {
+        this.emvNarrativeFetching = false;
+        const msg = (err && err.error && err.error.error) || 'Auto-fill failed. Try again.';
+        this.emvNarrativeStatus = msg;
+        this.emvNarrativeError  = true;
+      }
+    );
+  }
+
+  // ── Topology tree helpers ─────────────────────────────────────────────────
+  addMeter() {
+    this.topoMeters.push({ meterNo: '', buses: [] });
+  }
+
+  removeMeter(idx: number) {
+    this.topoMeters.splice(idx, 1);
+  }
+
+  addBus(meter: any) {
+    meter.buses.push({ badge: '', dwg: '', xfKva: '', mainA: '', pctLoad: '', varc: '', circuits: [] });
+  }
+
+  removeBus(meter: any, busIdx: number) {
+    meter.buses.splice(busIdx, 1);
+  }
+
+  addCircuit(bus: any) {
+    bus.circuits.push({ name: '', amps: '', nEcbs: 0, nApf50: 0, nApf100: 0, note: '' });
+  }
+
+  removeCircuit(bus: any, circuitIdx: number) {
+    bus.circuits.splice(circuitIdx, 1);
+  }
+
+  // ── Save topology + new proposal fields to proposalData ──────────────────
+  private _saveProposalDataFields() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+
+    // Flatten topology into snake_case bus array for report consumption
+    const flatBuses: any[] = [];
+    for (const meter of this.topoMeters) {
+      for (const bus of (meter.buses || [])) {
+        flatBuses.push({
+          badge:    bus.badge || '',
+          dwg:      bus.dwg || '',
+          xf_kva:   bus.xfKva || '',
+          main_a:   parseFloat(bus.mainA) || 0,
+          pct_load: parseFloat(bus.pctLoad) || 0,
+          varc:     bus.varc || null,
+          circuits: (bus.circuits || []).map((c: any) => ({
+            name:     c.name || '',
+            amps:     parseFloat(c.amps) || 0,
+            n_ecbs:   parseInt(c.nEcbs, 10) || 0,
+            n_apf50:  parseInt(c.nApf50, 10) || 0,
+            n_apf100: parseInt(c.nApf100, 10) || 0,
+            note:     c.note || ''
+          }))
+        });
+      }
+    }
+
+    const body: any = {
+      facilityContext:       this.proposalFacilityContext,
+      savingsPct:            this.proposalSavingsPct / 100,
+      nMeters:               this.proposalNMeters,
+      facilityType:          this.emvFacilityType,
+      facilitySiteLabel:     this.emvFacilitySiteLabel,
+      sldSource:             this.emvSldSource,
+      billingMonthsLabel:    this.emvBillingMonthsLabel,
+      overviewPara:          this.emvOverviewPara,
+      capacitorBankBullet:   this.emvCapacitorBankBullet,
+      pfReference:           this.emvPfReference !== '' ? parseFloat(this.emvPfReference) : null,
+      pfReferenceMonth:      this.emvPfReferenceMonth,
+      pfWorst:               this.emvPfWorst !== '' ? parseFloat(this.emvPfWorst) : null,
+      hasPfPenalty:          this.emvHasPfPenalty,
+      pfPenaltyUsd:          this.emvPfPenaltyUsd !== '' ? parseFloat(this.emvPfPenaltyUsd) : null,
+      customerOwnsMeters:    this.emvCustomerOwnsMeters,
+      isUpgrade:             this.emvIsUpgrade,
+      engineeringFee:        this.emvEngineeringFee !== '' ? parseFloat(this.emvEngineeringFee) : null,
+      swYr1:                 this.emvSwYr1 !== '' ? parseFloat(this.emvSwYr1) : null,
+      discount:              this.emvDiscount !== '' ? parseFloat(this.emvDiscount) : null,
+      shipping:              this.emvShipping !== '' ? parseFloat(this.emvShipping) : null,
+      s600Override:          this.emvS600Override !== '' ? parseInt(this.emvS600Override, 10) : null,
+      apf100Override:        this.emvApf100Override !== '' ? parseInt(this.emvApf100Override, 10) : null,
+      apf50Override:         this.emvApf50Override !== '' ? parseInt(this.emvApf50Override, 10) : null,
+      topoMeters:            this.topoMeters,
+    };
+    if (flatBuses.length) { body['buses'] = flatBuses; }
+
+    this.proposalService.saveProposalData(proj.id, body).subscribe(
+      (res: any) => { if (res && res.proposalData) { proj.proposalData = res.proposalData; } },
+      () => {}
+    );
   }
 
 }
