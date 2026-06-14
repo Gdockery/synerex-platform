@@ -149,7 +149,15 @@ const { PDFDocument } = require('pdf-lib');
         </div>
 
         <!-- FACILITY NARRATIVE -->
-        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Facility Narrative <small style="font-size:0.75em; font-weight:normal; color:#888;">(used in proposal &amp; network assessment reports)</small></h4>
+        <div style="display:flex; align-items:center; gap:12px; margin:1em 0 0.5em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">
+          <h4 style="margin:0; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; flex:1;">Facility Narrative <small style="font-size:0.75em; font-weight:normal; color:#888;">(used in proposal &amp; network assessment reports)</small></h4>
+          <button type="button" class="btn btn-sm btn-default" [disabled]="emvNarrativeFetching" (click)="autoFillFacilityNarrative()"
+                  style="white-space:nowrap; font-size:0.82em;">
+            {{ emvNarrativeFetching ? 'Looking up…' : '&#128269; Auto-fill' }}
+          </button>
+          <span *ngIf="emvNarrativeStatus" style="font-size:0.82em; white-space:nowrap;"
+                [style.color]="emvNarrativeError ? '#c00' : '#2a7a2a'">{{ emvNarrativeStatus }}</span>
+        </div>
         <div class="row">
           <div class="col-md-4">
             <div class="form-group">
@@ -1427,6 +1435,11 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public proposalContextError = false;
   public proposalSavingsPct: number = 6;
   public proposalNMeters: number = 1;
+
+  // Facility Narrative auto-fill state
+  public emvNarrativeFetching = false;
+  public emvNarrativeStatus = '';
+  public emvNarrativeError = false;
 
   protected pdfSource: SafeResourceUrl;
 
@@ -2949,6 +2962,52 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportPcGenerating = false;
     this.reportStatus = 'Proposal Contract opened in new tab.';
     setTimeout(() => { this.reportStatus = ''; }, 4000);
+  }
+
+  // ── Facility Narrative auto-fill ─────────────────────────────────────────
+  autoFillFacilityNarrative() {
+    const proj: any = this.userService.user.selectedProject;
+    if (!proj || !proj.id) return;
+
+    this.emvNarrativeFetching = true;
+    this.emvNarrativeStatus   = 'Looking up facility…';
+    this.emvNarrativeError    = false;
+
+    // Build customer + address from bill scan data and pre-fill fields
+    const bill: any = proj.electricBillAnalysis || {};
+    const customer = this.emvClientName
+      || bill.customerName
+      || bill.electricCompanyName
+      || '';
+    const address = [
+      this.emvFacilityAddress || bill.serviceAddress || '',
+      this.emvFacilityZip     || bill.serviceZip     || '',
+    ].filter(Boolean).join(' ');
+
+    this.proposalService.fetchFacilityNarrative(proj.id, customer, address).subscribe(
+      (res: any) => {
+        this.emvNarrativeFetching = false;
+        if (res.facilityType)         this.emvFacilityType         = res.facilityType;
+        if (res.overviewPara)         this.emvOverviewPara         = res.overviewPara;
+        if (res.billingMonthsLabel)   this.emvBillingMonthsLabel   = res.billingMonthsLabel;
+        if (res.sldSource)            this.emvSldSource            = res.sldSource;
+        if (res.capacitorBankBullet)  this.emvCapacitorBankBullet  = res.capacitorBankBullet;
+        // Also seed the legacy facilityContext for the Bill Analytic proposal
+        if (res.facilityContext)      this.proposalFacilityContext = res.facilityContext;
+        // Update in-memory proposalData
+        if (res && proj.proposalData) { Object.assign(proj.proposalData, res); }
+        else if (res) { proj.proposalData = res; }
+        this.emvNarrativeStatus = 'Filled in — review and adjust as needed.';
+        this.emvNarrativeError  = false;
+        setTimeout(() => { this.emvNarrativeStatus = ''; }, 5000);
+      },
+      (err: any) => {
+        this.emvNarrativeFetching = false;
+        const msg = (err && err.error && err.error.error) || 'Auto-fill failed. Try again.';
+        this.emvNarrativeStatus = msg;
+        this.emvNarrativeError  = true;
+      }
+    );
   }
 
   // ── Topology tree helpers ─────────────────────────────────────────────────

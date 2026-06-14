@@ -11,6 +11,13 @@ export class ProposalService {
     return this.apiRequestService.post(`/tracking/api/project/${projectId}/proposal/facility-context`, {});
   }
 
+  fetchFacilityNarrative(projectId: number, customer: string, address: string): Observable<any> {
+    return this.apiRequestService.post(
+      `/tracking/api/project/${projectId}/proposal/facility-context`,
+      { customer, address }
+    );
+  }
+
   saveProposalData(projectId: number, body: object): Observable<any> {
     return this.apiRequestService.post(`/tracking/api/project/${projectId}/proposal/save`, body);
   }

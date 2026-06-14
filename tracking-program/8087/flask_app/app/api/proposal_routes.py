@@ -250,29 +250,39 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
 def get_facility_context(project_id):
     """
     POST /api/project/<id>/proposal/facility-context
-    Body: {} (uses existing client/address data from project)
-    Calls GPU /facility/context, saves to project.proposalData.facilityContext.
+    Body (all optional overrides):
+      { "customer": str, "address": str }
+    Calls GPU /facility/context → returns facility_type + facility_context.
+    Also derives billingMonthsLabel from bill date, sldSource + capacitorBankBullet
+    from accepted SLD analysis. Saves all to project.proposalData.
     """
     sess, project = _get_project_for_user(project_id)
     if not project:
         return jsonify({"error": "Project not found or access denied"}), 404
 
+    body = request.get_json(silent=True) or {}
+
     bill = getattr(project, "electricBillAnalysis", None) or {}
     meter_bills = bill.get("meterBills") or []
     primary_bill = meter_bills[0] if meter_bills else bill
 
-    # Prefer the legal name on the bill, fall back to client/project label
-    customer = (primary_bill.get("customerName") or bill.get("customerName") or "").strip()
+    # customer: accept from request body, otherwise pull from bill / client
+    customer = (body.get("customer") or "").strip()
+    if not customer:
+        customer = (primary_bill.get("customerName") or bill.get("customerName") or "").strip()
     client = sess.query(Client).get(project.client) if project.client else None
     if not customer:
         customer = (client.name if client else project.name) or ""
 
-    address  = " ".join(filter(None, [
-        getattr(client, "address", None) or "",
-        getattr(client, "city", None) or "",
-        getattr(client, "state", None) or "",
-        getattr(client, "country", None) or "",
-    ])).strip() if client else (project.location or "")
+    # address: accept from request body, otherwise build from client record
+    address = (body.get("address") or "").strip()
+    if not address:
+        address = " ".join(filter(None, [
+            getattr(client, "address", None) or "",
+            getattr(client, "city", None) or "",
+            getattr(client, "state", None) or "",
+            getattr(client, "country", None) or "",
+        ])).strip() if client else (project.location or "")
 
     if not customer:
         return jsonify({"error": "No customer name available on this project"}), 400
@@ -287,20 +297,59 @@ def get_facility_context(project_id):
         resp.raise_for_status()
         result = resp.json()
         facility_context = result.get("facility_context", "")
+        facility_type    = result.get("facility_type", "")
     except _requests.exceptions.Timeout:
         return jsonify({"error": "GPU server timed out. Try again."}), 504
     except _requests.exceptions.RequestException as e:
         logger.error("GPU facility-context error: %s", e)
         return jsonify({"error": "Could not fetch facility context from GPU server"}), 502
 
-    # Save to project.proposalData
+    # Derive billing period label from bill date
+    billing_months_label = ""
+    try:
+        bill_date_ms = primary_bill.get("billDate") or bill.get("billDate")
+        if bill_date_ms:
+            from datetime import datetime as _dt
+            bd = _dt.utcfromtimestamp(int(bill_date_ms) / 1000)
+            billing_months_label = bd.strftime("%b %Y")
+    except Exception:
+        pass
+
+    # Derive SLD drawing reference and capacitor bank note from accepted SLD
+    sld_source            = ""
+    capacitor_bank_bullet = ""
+    sld = getattr(project, "sldAnalysis", None) or {}
+    if sld.get("status") == "accepted":
+        buses = sld.get("buses") or []
+        if buses:
+            sld_source = buses[0].get("dwg") or sld.get("sldSource") or ""
+        capacitor_bank_bullet = sld.get("capacitorBankBullet") or ""
+
+    # Save all to project.proposalData
     pd = dict(project.proposalData or {})
-    pd["facilityContext"] = facility_context
+    pd["facilityContext"]      = facility_context
+    pd["overviewPara"]         = facility_context   # seed overview paragraph
+    if facility_type:
+        pd["facilityType"]     = facility_type
+    if billing_months_label:
+        pd["billingMonthsLabel"] = billing_months_label
+    if sld_source:
+        pd["sldSource"]        = sld_source
+    if capacitor_bank_bullet:
+        pd["capacitorBankBullet"] = capacitor_bank_bullet
+
     project.proposalData = pd
     sess.add(project)
     sess.commit()
 
-    return jsonify({"facilityContext": facility_context})
+    return jsonify({
+        "facilityContext":      facility_context,
+        "facilityType":         facility_type,
+        "overviewPara":         facility_context,
+        "billingMonthsLabel":   billing_months_label,
+        "sldSource":            sld_source,
+        "capacitorBankBullet":  capacitor_bank_bullet,
+    })
 
 
 @proposal_bp.route("/api/project/<int:project_id>/proposal/save", methods=["POST"])
