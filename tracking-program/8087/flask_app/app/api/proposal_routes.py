@@ -39,6 +39,18 @@ proposal_bp = Blueprint("proposal", __name__, url_prefix="")
 GPU_PLATFORM_URL = os.environ.get("BILL_PLATFORM_URL", "http://100.106.19.30:8000")
 
 
+def _to_float(value):
+    """Strip currency formatting ($, commas) and return float, or None on failure."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).replace("$", "").replace(",", "").strip())
+    except (ValueError, TypeError):
+        return None
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _get_project_for_user(project_id):
@@ -509,18 +521,23 @@ def autofill_proposal(project_id):
     if utility.get("utility_name"):   rf["utility"]          = utility["utility_name"]
     if utility.get("utility_tariff"): rf["tariff"]           = utility["utility_tariff"]
     if utility.get("utility_account"): rf["account"]         = utility["utility_account"]
-    if utility.get("energy_rate"):    rf["energy_rate"]      = utility["energy_rate"]
-    if utility.get("demand_rate"):    rf["demand_rate"]      = utility["demand_rate"]
+    energy_rate_f = _to_float(utility.get("energy_rate"))
+    demand_rate_f = _to_float(utility.get("demand_rate"))
+    peak_kw_f     = _to_float(utility.get("peak_kw"))
+    avg_bill_f    = _to_float(utility.get("avg_bill_usd"))
+
+    if energy_rate_f is not None: rf["energy_rate"] = energy_rate_f
+    if demand_rate_f is not None: rf["demand_rate"] = demand_rate_f
     if commercial.get("meter_numbers"): rf["meter_numbers"]  = commercial["meter_numbers"]
     if n_meters:                        rf["numberOfMeters"] = str(n_meters)
 
     project.reportFields = rf
 
     # ── Update electricBillAnalysis with peak_kw + avg_bill if from bill ───
-    if sources.get("has_bill") and utility.get("peak_kw"):
+    if sources.get("has_bill"):
         eba2 = dict(getattr(project, "electricBillAnalysis", None) or {})
-        if utility.get("peak_kw"):    eba2["kwPeak"]     = utility["peak_kw"]
-        if utility.get("avg_bill_usd"): eba2["billAmount"] = utility["avg_bill_usd"]
+        if peak_kw_f  is not None: eba2["kwPeak"]    = peak_kw_f
+        if avg_bill_f is not None: eba2["billAmount"] = avg_bill_f
         project.electricBillAnalysis = eba2
 
     sess.add(project)
@@ -547,10 +564,10 @@ def autofill_proposal(project_id):
         "utilityName":    utility.get("utility_name", ""),
         "utilityTariff":  utility.get("utility_tariff", ""),
         "utilityAccount": utility.get("utility_account", ""),
-        "energyRate":     utility.get("energy_rate", ""),
-        "demandRate":     utility.get("demand_rate", ""),
-        "peakKw":         utility.get("peak_kw", ""),
-        "avgBillUsd":     utility.get("avg_bill_usd", ""),
+        "energyRate":     energy_rate_f if energy_rate_f is not None else utility.get("energy_rate", ""),
+        "demandRate":     demand_rate_f if demand_rate_f is not None else utility.get("demand_rate", ""),
+        "peakKw":         peak_kw_f    if peak_kw_f    is not None else utility.get("peak_kw", ""),
+        "avgBillUsd":     avg_bill_f   if avg_bill_f   is not None else utility.get("avg_bill_usd", ""),
         # Commercial
         "nMeters":        n_meters or "",
         "meterNumbers":   commercial.get("meter_numbers", ""),
