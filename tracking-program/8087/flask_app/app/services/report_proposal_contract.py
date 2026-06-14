@@ -258,12 +258,17 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
                     + cost_meters + cost_lc90 + cost_lc60
                     + cost_cts + cost_booster + cost_apf_cts
                     + cost_gw + cost_srv + cost_eth)
-    eng_fee     = round(hw_total * 0.15)
-    sw_yr1      = int(d.get("sw_yr1", pricing.get("sw_yr1", 2400)))
+    _eng_override = d.get("engineering_fee_override")
+    eng_fee     = int(_eng_override) if _eng_override is not None else round(hw_total * 0.15)
+    _sw_override  = d.get("sw_yr1_override")
+    sw_yr1      = int(_sw_override)  if _sw_override  is not None else int(d.get("sw_yr1", pricing.get("sw_yr1", 2400)))
     n_pallets   = (math.ceil(apf50/3) + math.ceil(apf100/3)
                    + math.ceil(s600/50) + 1)
-    shipping    = int(d.get("shipping", n_pallets * pricing.get("shipping", 275)))
-    net_total   = hw_total + eng_fee + sw_yr1 + shipping
+    _ship_override = d.get("shipping_override")
+    shipping    = int(_ship_override) if _ship_override is not None else int(d.get("shipping", n_pallets * pricing.get("shipping", 275)))
+    _disc_override = d.get("discount_override")
+    discount    = int(_disc_override) if _disc_override is not None else 0
+    net_total   = hw_total + eng_fee + sw_yr1 + shipping - discount
     annual_savings = total_savings * 12
 
     # OEM branding
@@ -385,7 +390,15 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
     payment_html   = _payment_schedule_html(payment_schedule, customer, net_total)
     insurance_html = _insurance_html(insurance_policy)
 
-    # Pre-compute conditional MV&V rows (no backslashes allowed inside f-string expressions)
+    # Pre-compute conditional HTML (no backslashes / nested f-strings allowed inside f-string expressions)
+    _discount_row_1 = (
+        f'<tr><td>Discount / Adjustment</td><td class="amt" style="color:#c00;">-${discount:,.0f}</td><td></td></tr>'
+        if discount else ""
+    )
+    _discount_row_2 = (
+        f'<tr><td>Discount / Adjustment</td><td class="val-col" style="color:#c00;">-${discount:,.0f} USD</td></tr>'
+        if discount else ""
+    )
     _vc = 'val-col'
     _mvv_meter_row = (
         f'<tr><td>Revenue Grade Meter (Xeco)</td><td class="{_vc}">Electrical usage and operating data collection at utility supply point</td></tr>'
@@ -620,7 +633,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
         <td></td>
       </tr>
       <tr>
-        <td>Engineering (15%)</td>
+        <td>Engineering</td>
         <td class="amt">${eng_fee:,.0f}</td>
         <td></td>
       </tr>
@@ -629,6 +642,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
         <td class="amt">${sw_yr1 + shipping:,.0f}</td>
         <td></td>
       </tr>
+      {_discount_row_1}
       <tr style="font-weight:700;background:#e8f4ed;">
         <td>Total Project Investment</td>
         <td class="amt">${net_total:,.0f}</td>
@@ -765,8 +779,9 @@ ul.body-list li {{ margin-bottom: .05in; }}
     <thead><tr><th>Description</th><th>Estimated Value</th></tr></thead>
     <tbody>
       <tr><td>Hardware &amp; Monitoring</td><td class="val-col">${hw_total:,.0f} USD</td></tr>
-      <tr><td>Engineering (15%)</td><td class="val-col">${eng_fee:,.0f} USD</td></tr>
+      <tr><td>Engineering</td><td class="val-col">${eng_fee:,.0f} USD</td></tr>
       <tr><td>Software &amp; Shipping</td><td class="val-col">${sw_yr1 + shipping:,.0f} USD</td></tr>
+      {_discount_row_2}
       <tr style="font-weight:700;"><td>Total Project Investment</td><td class="val-col highlight">${net_total:,.0f} USD</td></tr>
       <tr><td>Estimated Monthly Electrical Efficiency Savings</td><td class="val-col">${energy_savings:,.0f} USD</td></tr>
       <tr class="total-row"><td>Total Estimated Monthly Savings</td><td class="val-col">${total_savings:,.0f} USD</td></tr>
@@ -998,8 +1013,9 @@ ul.body-list li {{ margin-bottom: .05in; }}
     <thead><tr><th>Description</th><th>Value</th></tr></thead>
     <tbody>
       <tr><td>Hardware &amp; Monitoring</td><td class="val-col">${hw_total:,.0f} USD</td></tr>
-      <tr><td>Engineering (15%)</td><td class="val-col">${eng_fee:,.0f} USD</td></tr>
+      <tr><td>Engineering</td><td class="val-col">${eng_fee:,.0f} USD</td></tr>
       <tr><td>Software &amp; Shipping</td><td class="val-col">${sw_yr1 + shipping:,.0f} USD</td></tr>
+      {_discount_row_2}
       <tr style="font-weight:700;"><td>Total Project Investment</td><td class="val-col">${net_total:,.0f} USD</td></tr>
       <tr><td>Shipping Terms</td><td class="val-col">FOB Georgetown, Texas</td></tr>
       <tr><td>Proposal Validity</td><td class="val-col">30 Days</td></tr>

@@ -178,12 +178,17 @@ def _assemble_report_data(project: Project) -> dict:
     energy_savings = round(avg_bill_usd * savings_pct)
     total_savings  = energy_savings  # no PF penalty assumed unless flagged
 
-    # Power factor
-    pf_reference = bill.get("powerFactor") or "≈1.0"
-    pf_month     = primary_mb.get("billPeriod") or bill.get("billingPeriod") or ""
+    # Power factor — prefer user-edited values from proposalData
+    _pf_ref_raw  = pd.get("pfReference")
+    pf_reference = str(_pf_ref_raw) if _pf_ref_raw is not None else (bill.get("powerFactor") or "≈1.0")
+    pf_month     = pd.get("pfReferenceMonth") or primary_mb.get("billPeriod") or bill.get("billingPeriod") or ""
+    pf_worst_raw = pd.get("pfWorst")
+    pf_worst     = str(pf_worst_raw) if pf_worst_raw is not None else pf_reference
+    has_pf_penalty = bool(pd.get("hasPfPenalty", False))
+    pf_penalty_usd = float(pd.get("pfPenaltyUsd") or 0)
 
-    # SLD / topology from GPU extended output
-    buses = sld.get("buses") or []
+    # SLD / topology — prefer user-edited buses from proposalData over GPU result
+    buses = pd.get("buses") or sld.get("buses") or []
 
     # Connected / contracted demand estimates
     connected_kw  = float(sld.get("connectedKw") or peak_kw * 1.3)
@@ -192,21 +197,30 @@ def _assemble_report_data(project: Project) -> dict:
     # n_meters
     n_meters = int(pd.get("nMeters") or sld.get("nMeters") or 1)
 
-    # Equipment counts from SLD or auto-sized
-    if buses:
-        s600   = sum(c["n_ecbs"]   for b in buses for c in b["circuits"])
-        apf100 = sum(c["n_apf100"] for b in buses for c in b["circuits"])
-        apf50  = sum(c["n_apf50"]  for b in buses for c in b["circuits"])
+    # Equipment counts: topology first, then manual overrides, then auto-size
+    if buses and not pd.get("s600Override") and not pd.get("apf100Override") and not pd.get("apf50Override"):
+        s600   = sum(c.get("n_ecbs",   0) for b in buses for c in b.get("circuits", []))
+        apf100 = sum(c.get("n_apf100", 0) for b in buses for c in b.get("circuits", []))
+        apf50  = sum(c.get("n_apf50",  0) for b in buses for c in b.get("circuits", []))
     else:
-        s600   = int(pd.get("s600Override") or sld.get("s600Count") or math.ceil(0.60 * peak_kw / 75))
-        apf100 = int(pd.get("apf100Override") or sld.get("apf100Count") or math.ceil(0.20 * peak_kw / 150))
-        apf50  = int(pd.get("apf50Override") or sld.get("apf50Count") or math.ceil(0.20 * peak_kw / 75))
+        s600   = int(pd.get("s600Override")   or (sum(c.get("n_ecbs",   0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("s600Count")   or math.ceil(0.60 * peak_kw / 75))
+        apf100 = int(pd.get("apf100Override") or (sum(c.get("n_apf100", 0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("apf100Count") or math.ceil(0.20 * peak_kw / 150))
+        apf50  = int(pd.get("apf50Override")  or (sum(c.get("n_apf50",  0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("apf50Count")  or math.ceil(0.20 * peak_kw / 75))
 
-    num_mdps            = int(sld.get("numMdps") or len(buses) or 1)
-    bus_amp_range       = sld.get("busAmpRange") or ""
-    capacitor_bank_bullet = sld.get("capacitorBankBullet") or ""
-    sld_source          = sld.get("sldSource") or "Preliminary SLD review"
-    facility_context    = pd.get("facilityContext") or ""
+    num_mdps              = int(sld.get("numMdps") or len(buses) or 1)
+    bus_amp_range         = sld.get("busAmpRange") or ""
+    capacitor_bank_bullet = pd.get("capacitorBankBullet") or sld.get("capacitorBankBullet") or ""
+    sld_source            = pd.get("sldSource") or sld.get("sldSource") or "Preliminary SLD review"
+    facility_context      = pd.get("facilityContext") or ""
+    overview_para         = pd.get("overviewPara") or facility_context
+    facility_site_label   = pd.get("facilitySiteLabel") or ""
+    billing_months_label  = pd.get("billingMonthsLabel") or ""
+    engineering_fee_override = pd.get("engineeringFee")
+    sw_yr1_override          = pd.get("swYr1")
+    discount_override        = pd.get("discount")
+    shipping_override        = pd.get("shipping")
+    customer_owns_meters     = bool(pd.get("customerOwnsMeters", False))
+    is_upgrade               = bool(pd.get("isUpgrade", False))
 
     # Date / heading
     date_label     = datetime.now().strftime("%B %Y")
@@ -237,14 +251,14 @@ def _assemble_report_data(project: Project) -> dict:
         "contact_title":     contact_title,
         "date_label":        date_label,
         "cover_location":    cover_location,
-        "facility_type":     facility_type,
-        "facility_desc":     facility_context,
-        "facility_site_label": facility_type + " facility",
+        "facility_type":     pd.get("facilityType") or facility_type,
+        "facility_desc":     overview_para or facility_context,
+        "facility_site_label": facility_site_label or (facility_type + " facility"),
         "sq_ft":             getattr(client, "sqFt", None) or "",
         "sld_source":        sld_source,
         "bus_amp_range":     bus_amp_range,
-        "billing_months_label": billing_months,
-        "overview_para":     facility_context,
+        "billing_months_label": billing_months_label or billing_months,
+        "overview_para":     overview_para or facility_context,
 
         "utility_name":      utility_name,
         "utility_short":     utility_short,
@@ -257,13 +271,13 @@ def _assemble_report_data(project: Project) -> dict:
         "avg_bill_usd":      avg_bill_usd,
         "pf_reference":      pf_reference,
         "pf_reference_month": pf_month,
-        "pf_worst":          pf_reference,
-        "has_pf_penalty":    False,
-        "pf_penalty_usd":    0.0,
+        "pf_worst":          pf_worst,
+        "has_pf_penalty":    has_pf_penalty,
+        "pf_penalty_usd":    pf_penalty_usd,
         "energy_savings":    energy_savings,
         "energy_pct":        str(round(savings_pct * 100)),
-        "pf_savings":        0.0,
-        "total_savings":     total_savings,
+        "pf_savings":        pf_penalty_usd if has_pf_penalty else 0.0,
+        "total_savings":     total_savings + (pf_penalty_usd if has_pf_penalty else 0),
 
         "buses":             buses,
         "num_mdps":          num_mdps,
@@ -276,6 +290,13 @@ def _assemble_report_data(project: Project) -> dict:
         "apf100":            apf100,
         "apf50":             apf50,
         "pricing":           DEFAULT_PRICING,
+
+        "customer_owns_meters":    customer_owns_meters,
+        "is_upgrade":              is_upgrade,
+        "engineering_fee_override": engineering_fee_override,
+        "sw_yr1_override":          sw_yr1_override,
+        "discount_override":        discount_override,
+        "shipping_override":        shipping_override,
 
         "prepared_by_org":      prepared_by_org,
         "prepared_by_location": prepared_by_location,
