@@ -474,14 +474,16 @@ def autofill_proposal(project_id):
     if narrative.get("facility_site_label"): pd["facilitySiteLabel"]   = narrative["facility_site_label"]
 
     # Power Factor (from utility_billing)
-    pf_current     = _to_float(utility.get("pf_current"))
-    pf_worst       = _to_float(utility.get("pf_worst"))
-    pf_penalty_usd = _to_float(utility.get("pf_penalty_usd"))
-    if pf_current     is not None: pd["pfReference"]  = pf_current
-    if pf_worst       is not None: pd["pfWorst"]       = pf_worst
-    if pf_penalty_usd is not None:
+    pf_current        = _to_float(utility.get("pf_current"))
+    pf_worst          = _to_float(utility.get("pf_worst"))
+    pf_penalty_usd    = _to_float(utility.get("pf_penalty_usd"))
+    pf_reference_month = utility.get("pf_reference_month") or ""
+    if pf_current        is not None: pd["pfReference"]      = pf_current
+    if pf_worst          is not None: pd["pfWorst"]          = pf_worst
+    if pf_penalty_usd    is not None:
         pd["pfPenaltyUsd"] = pf_penalty_usd
         pd["hasPfPenalty"] = pf_penalty_usd > 0
+    if pf_reference_month:           pd["pfReferenceMonth"] = pf_reference_month
 
     # Meters
     n_meters = commercial.get("qualifying_meters") or equip.get("n_meters")
@@ -589,9 +591,10 @@ def autofill_proposal(project_id):
         "demandRate":     demand_rate_f if demand_rate_f is not None else utility.get("demand_rate", ""),
         "peakKw":         peak_kw_f    if peak_kw_f    is not None else utility.get("peak_kw", ""),
         "avgBillUsd":     avg_bill_f   if avg_bill_f   is not None else utility.get("avg_bill_usd", ""),
-        "pfCurrent":      pf_current,
-        "pfWorst":        pf_worst,
-        "pfPenaltyUsd":   pf_penalty_usd,
+        "pfCurrent":         pf_current,
+        "pfWorst":           pf_worst,
+        "pfPenaltyUsd":      pf_penalty_usd,
+        "pfReferenceMonth":  pf_reference_month,
         # Commercial
         "nMeters":        n_meters or "",
         "meterNumbers":   commercial.get("meter_numbers", ""),

@@ -3061,8 +3061,9 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         if (res.meterNumbers)   this.baMeterNumber   = res.meterNumbers;
 
         // ── Power Factor ───────────────────────────────────────────────────
-        if (res.pfCurrent != null)    this.emvPfReference  = String(res.pfCurrent);
-        if (res.pfWorst != null)      this.emvPfWorst      = String(res.pfWorst);
+        if (res.pfCurrent != null)       this.emvPfReference      = String(res.pfCurrent);
+        if (res.pfWorst != null)         this.emvPfWorst          = String(res.pfWorst);
+        if (res.pfReferenceMonth)        this.emvPfReferenceMonth = res.pfReferenceMonth;
         if (res.pfPenaltyUsd != null) {
           this.emvPfPenaltyUsd = String(res.pfPenaltyUsd);
           if (res.pfPenaltyUsd > 0 && !this.emvHasPfPenalty) { this.emvHasPfPenalty = true; }
