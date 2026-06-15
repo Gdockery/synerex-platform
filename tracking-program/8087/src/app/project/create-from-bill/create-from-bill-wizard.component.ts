@@ -19,6 +19,7 @@ export class CreateFromBillWizardComponent implements OnInit {
   step = 1;
   maxStep = 5;
   scanData: any = null;
+  billGpuJobId: number | null = null;   // GPU integer id from POST /bills response
   scanError: string = null;
   uploadError: string = null;
   uploading = false;
@@ -62,12 +63,15 @@ export class CreateFromBillWizardComponent implements OnInit {
     // Resume flow: ?resume=<gpu_job_id> — fetch result, pre-fill forms, skip to step 2
     const resumeId = this.route.snapshot.queryParamMap.get('resume');
     if (resumeId) {
+      this.billGpuJobId = Number(resumeId);
       this.resuming = true;
       this.createFromBillService.getBillResult(Number(resumeId)).subscribe(
         (res: any) => {
           this.resuming = false;
+          console.log('[wizard] getBillResult raw response:', JSON.stringify(res).slice(0, 800));
           if (res.status === 'done' && res.data) {
             this.scanData = res.data;
+            console.log('[wizard] scanData assigned:', JSON.stringify(this.scanData).slice(0, 500));
             this.prefillFromScan();
             this.step = 2;
           } else if (res.status === 'error') {
@@ -188,6 +192,7 @@ export class CreateFromBillWizardComponent implements OnInit {
       (res: any) => {
         this.uploading = false;
         if (res && res.success && res.job_id) {
+          this.billGpuJobId = Number(res.job_id);
           try {
             localStorage.setItem(PENDING_BILL_PROJECT_KEY, JSON.stringify({
               gpu_job_id: res.job_id,
@@ -224,8 +229,44 @@ export class CreateFromBillWizardComponent implements OnInit {
     }
   }
 
+  /**
+   * Parse a bill date (epoch ms number, numeric string, or human string like "Oct 8, 2025")
+   * and return the full IMyDateModel that mydatepicker v1.x requires:
+   * { date, jsdate, formatted, epoc }
+   */
+  private parseBillDate(val: any): any | null {
+    if (val === null || val === undefined || val === '') return null;
+    let dt: Date | null = null;
+    const n = Number(val);
+    if (!isNaN(n) && n > 0) {
+      // Epoch ms — use UTC to avoid timezone shifting the date by one day
+      dt = new Date(n);
+    } else if (typeof val === 'string' && val.trim()) {
+      dt = new Date(val.trim());
+    }
+    if (!dt || isNaN(dt.getTime())) return null;
+    // Use UTC values to match what the server stored (midnight UTC = the correct calendar date)
+    const year  = dt.getUTCFullYear();
+    const month = dt.getUTCMonth() + 1;
+    const day   = dt.getUTCDate();
+    const pad   = (n: number) => (n < 10 ? '0' : '') + n;
+    return {
+      date:      { year, month, day },
+      jsdate:    dt,
+      formatted: year + '-' + pad(month) + '-' + pad(day),
+      epoc:      Math.floor(dt.getTime() / 1000),
+    };
+  }
+
   private prefillFromScan() {
-    const d = this.scanData || {};
+    const raw = this.scanData || {};
+    // Bill fields live under initial_parse; fall back to flat object for older API responses.
+    const d = raw.initial_parse || raw;
+    console.log('[wizard] scanData (raw):', JSON.stringify(raw).slice(0, 500));
+    console.log('[wizard] using d (initial_parse or raw):', JSON.stringify(d).slice(0, 500));
+    console.log('[wizard] d.billDate:', d.billDate, '| type:', typeof d.billDate);
+    const _testParsed = this.parseBillDate(d.billDate);
+    console.log('[wizard] parseBillDate result:', JSON.stringify(_testParsed));
     this.clientForm.patchValue({
       name: d.serviceAddress ? `Client - ${d.serviceAddress}` : '',
       address: d.serviceAddress || '',
@@ -238,7 +279,7 @@ export class CreateFromBillWizardComponent implements OnInit {
       location: [d.serviceAddress, d.serviceCity, d.serviceState].filter(Boolean).join(', ') || '',
       timeZoneId: 'America/Chicago'
     });
-    const billDateVal = d.billDate ? this.getDatepickerFromEpoch(Number(d.billDate)) : null;
+    const billDateVal = this.parseBillDate(d.billDate);
     this.billForm.patchValue({
       billReference: d.billReference || '',
       billDate: billDateVal,
@@ -362,16 +403,38 @@ export class CreateFromBillWizardComponent implements OnInit {
       totalSavings: 0
     };
 
-    const electricBillAnalysis = {
+    const electricBillAnalysis: any = {
       meterBills: [meterBill],
-      ...meterBill
+      ...meterBill,
     };
+    if (this.billGpuJobId) {
+      electricBillAnalysis.gpuJobId = this.billGpuJobId;
+    }
 
+    // Pull address fields from scan data so the savings report page pre-populates them
+    const _sd = this.scanData || {};
+    const _clientVals = this.clientForm ? this.clientForm.value : {};
     const payload: any = {
       project: {
         ...this.projectForm.value,
         currencyExchangeRate,
-        reportFields: { numberOfMeters: meterCount },
+        reportFields: {
+          numberOfMeters: meterCount,
+          // Project facility address (from bill scan service location)
+          facility_address: _sd.serviceAddress || _clientVals.address || '',
+          facility_city:    _sd.serviceCity    || _clientVals.city    || '',
+          facility_state:   _sd.serviceState   || _clientVals.state   || '',
+          facility_zip:     _sd.serviceZip     || _clientVals.zip     || '',
+          // Client billing address (cp_ prefix = "client/counterparty")
+          cp_address: _clientVals.address || _sd.serviceAddress || '',
+          cp_city:    _clientVals.city    || _sd.serviceCity    || '',
+          cp_state:   _clientVals.state   || _sd.serviceState   || '',
+          cp_zip:     _clientVals.zip     || _sd.serviceZip     || '',
+          // Client contact
+          company:       _clientVals.name        || '',
+          contact:       _clientVals.contactName || '',
+          contact_phone: _clientVals.contactPhone || '',
+        },
       },
       electricBillAnalysis
     };
@@ -426,13 +489,12 @@ export class CreateFromBillWizardComponent implements OnInit {
 
   goToProject() {
     if (this.createdProject && this.createdProject.id) {
-      this.userService.selectProject(this.createdProject.id);
-      this.router.navigate(['/savings/energy-savings']);
+      this.router.navigate(['/project/pipeline', this.createdProject.id]);
     }
   }
 
   cancel() {
-    this.router.navigate(['/project/select']);
+    this.router.navigate(['/project/pipeline']);
   }
 
   /** Client name for summary step - avoids arrow function in template (Angular parse error). */

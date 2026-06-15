@@ -2104,6 +2104,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   }
 
   saveBillAnalyticFields() {
+    const proj: any = this.userService.user.selectedProject;
     const analyticData: any = {
       billReference:       this.baBillReference,
       electricCompanyName: this.baElectricCompanyName,
@@ -2118,6 +2119,16 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
       lineItems:           this.baLineItems,
     };
+    // Preserve existing gpuJobId if already stored, or pull from most recent bill job in localStorage
+    const existingGpuJobId = proj && proj.electricBillAnalysis && proj.electricBillAnalysis.gpuJobId;
+    if (existingGpuJobId) {
+      analyticData.gpuJobId = existingGpuJobId;
+    } else if (proj && proj.id) {
+      const billJobs = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
+      if (billJobs.length) {
+        analyticData.gpuJobId = billJobs[billJobs.length - 1].gpu_job_id;
+      }
+    }
     this.saveAllStatus = 'Saving...';
     this.saveAllError = false;
     this.billAnalyticService.updateAnalytic(analyticData).subscribe(
