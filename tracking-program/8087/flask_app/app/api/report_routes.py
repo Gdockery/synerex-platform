@@ -31,7 +31,8 @@ report_bp = Blueprint("report", __name__, url_prefix="")
 DEFAULT_PRICING = {
     "ecbs600": 3625, "apf50": 7995, "apf100": 7500,
     "meter": 2500, "lc90": 780, "lc60": 620,
-    "rocoil_ct": 150, "gateway": 129, "server": 2475, "ethernet": 10,
+    "rocoil_ct": 150, "apf_ct": 300, "booster": 600,
+    "gateway": 129, "server": 2475, "ethernet": 10,  # server = Edge Energy Datalogger
     "sw_yr1": 2400, "shipping": 275,
 }
 
@@ -65,11 +66,12 @@ def _load_logo_b64(logo_src: str, logo_type: str) -> str | None:
 
 
 def _get_oem_data():
-    """Return (prepared_by_org, preparer_name, insurance_policy, payment_schedule)."""
+    """Return (prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location)."""
     prepared_by_org = "Xeco Energy Corporation"
     preparer_name   = ""
     insurance_policy = None
     payment_schedule = None
+    prepared_by_location = "Georgetown, Texas"
     try:
         from app.models.oem_branding import OemBranding as _Branding
         org_id = getattr(current_user, "org_id", None)
@@ -96,6 +98,9 @@ def _get_oem_data():
                             payment_schedule = [r2 for r2 in rows if r2.get("pct") or r2.get("desc")]
                         except Exception:
                             pass
+                    _org_city  = org_d.get("city", "") or ""
+                    _org_state = org_d.get("state", "") or ""
+                    prepared_by_location = ", ".join(filter(None, [_org_city, _org_state])) or "Georgetown, Texas"
             except Exception:
                 pass
     except Exception:
@@ -107,7 +112,7 @@ def _get_oem_data():
         or f"{getattr(u,'firstName','') or ''} {getattr(u,'lastName','') or ''}".strip()
         or ""
     )
-    return prepared_by_org, preparer_name, insurance_policy, payment_schedule
+    return prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location
 
 
 def _assemble_report_data(project: Project) -> dict:
@@ -173,12 +178,17 @@ def _assemble_report_data(project: Project) -> dict:
     energy_savings = round(avg_bill_usd * savings_pct)
     total_savings  = energy_savings  # no PF penalty assumed unless flagged
 
-    # Power factor
-    pf_reference = bill.get("powerFactor") or "≈1.0"
-    pf_month     = primary_mb.get("billPeriod") or bill.get("billingPeriod") or ""
+    # Power factor — prefer user-edited values from proposalData
+    _pf_ref_raw  = pd.get("pfReference")
+    pf_reference = str(_pf_ref_raw) if _pf_ref_raw is not None else (bill.get("powerFactor") or "≈1.0")
+    pf_month     = pd.get("pfReferenceMonth") or primary_mb.get("billPeriod") or bill.get("billingPeriod") or ""
+    pf_worst_raw = pd.get("pfWorst")
+    pf_worst     = str(pf_worst_raw) if pf_worst_raw is not None else pf_reference
+    has_pf_penalty = bool(pd.get("hasPfPenalty", False))
+    pf_penalty_usd = float(pd.get("pfPenaltyUsd") or 0)
 
-    # SLD / topology from GPU extended output
-    buses = sld.get("buses") or []
+    # SLD / topology — prefer user-edited buses from proposalData over GPU result
+    buses = pd.get("buses") or sld.get("buses") or []
 
     # Connected / contracted demand estimates
     connected_kw  = float(sld.get("connectedKw") or peak_kw * 1.3)
@@ -187,21 +197,38 @@ def _assemble_report_data(project: Project) -> dict:
     # n_meters
     n_meters = int(pd.get("nMeters") or sld.get("nMeters") or 1)
 
-    # Equipment counts from SLD or auto-sized
-    if buses:
-        s600   = sum(c["n_ecbs"]   for b in buses for c in b["circuits"])
-        apf100 = sum(c["n_apf100"] for b in buses for c in b["circuits"])
-        apf50  = sum(c["n_apf50"]  for b in buses for c in b["circuits"])
-    else:
-        s600   = int(pd.get("s600Override") or sld.get("s600Count") or math.ceil(0.60 * peak_kw / 75))
-        apf100 = int(pd.get("apf100Override") or sld.get("apf100Count") or math.ceil(0.20 * peak_kw / 150))
-        apf50  = int(pd.get("apf50Override") or sld.get("apf50Count") or math.ceil(0.20 * peak_kw / 75))
+    # Equipment counts — check None explicitly so 0 overrides are respected
+    def _equip(override_key, bus_key, sld_key, formula_val):
+        ov = pd.get(override_key)
+        if ov is not None:              # user-set override (0 = "none", still valid)
+            return int(ov)
+        if buses:                       # sum from topology tree
+            total = sum(c.get(bus_key, 0) for b in buses for c in b.get("circuits", []))
+            if total:
+                return total
+        sld_val = sld.get(sld_key)
+        if sld_val:
+            return int(sld_val)
+        return formula_val              # auto-size from peak kW
 
-    num_mdps            = int(sld.get("numMdps") or len(buses) or 1)
-    bus_amp_range       = sld.get("busAmpRange") or ""
-    capacitor_bank_bullet = sld.get("capacitorBankBullet") or ""
-    sld_source          = sld.get("sldSource") or "Preliminary SLD review"
-    facility_context    = pd.get("facilityContext") or ""
+    s600   = _equip("s600Override",   "n_ecbs",   "s600Count",   math.ceil(0.60 * peak_kw / 75))
+    apf100 = _equip("apf100Override", "n_apf100", "apf100Count", math.ceil(0.20 * peak_kw / 150))
+    apf50  = _equip("apf50Override",  "n_apf50",  "apf50Count",  math.ceil(0.20 * peak_kw / 75))
+
+    num_mdps              = int(sld.get("numMdps") or len(buses) or 1)
+    bus_amp_range         = sld.get("busAmpRange") or ""
+    capacitor_bank_bullet = pd.get("capacitorBankBullet") or sld.get("capacitorBankBullet") or ""
+    sld_source            = pd.get("sldSource") or sld.get("sldSource") or "Preliminary SLD review"
+    facility_context      = pd.get("facilityContext") or ""
+    overview_para         = pd.get("overviewPara") or facility_context
+    facility_site_label   = pd.get("facilitySiteLabel") or ""
+    billing_months_label  = pd.get("billingMonthsLabel") or ""
+    engineering_fee_override = pd.get("engineeringFee")
+    sw_yr1_override          = pd.get("swYr1")
+    discount_override        = pd.get("discount")
+    shipping_override        = pd.get("shipping")
+    customer_owns_meters     = bool(pd.get("customerOwnsMeters", False))
+    is_upgrade               = bool(pd.get("isUpgrade", False))
 
     # Date / heading
     date_label     = datetime.now().strftime("%B %Y")
@@ -212,6 +239,7 @@ def _assemble_report_data(project: Project) -> dict:
         f"{utility_short} utility supply point ({utility_account})"
         if utility_account else f"{utility_name} utility supply point"
     )
+    facility_city = getattr(client, "city", None) or city_state or address
 
     # Customer logo
     cust_logo_b64 = None
@@ -219,7 +247,7 @@ def _assemble_report_data(project: Project) -> dict:
         cust_logo_b64 = _load_logo_b64(client.logoImgSrc, "client_company_logo")
 
     # OEM branding
-    prepared_by_org, preparer_name, insurance_policy, payment_schedule = _get_oem_data()
+    prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location = _get_oem_data()
 
     return {
         "customer":          customer,
@@ -231,14 +259,14 @@ def _assemble_report_data(project: Project) -> dict:
         "contact_title":     contact_title,
         "date_label":        date_label,
         "cover_location":    cover_location,
-        "facility_type":     facility_type,
-        "facility_desc":     facility_context,
-        "facility_site_label": facility_type + " facility",
+        "facility_type":     pd.get("facilityType") or facility_type,
+        "facility_desc":     overview_para or facility_context,
+        "facility_site_label": facility_site_label or (facility_type + " facility"),
         "sq_ft":             getattr(client, "sqFt", None) or "",
         "sld_source":        sld_source,
         "bus_amp_range":     bus_amp_range,
-        "billing_months_label": billing_months,
-        "overview_para":     facility_context,
+        "billing_months_label": billing_months_label or billing_months,
+        "overview_para":     overview_para or facility_context,
 
         "utility_name":      utility_name,
         "utility_short":     utility_short,
@@ -251,17 +279,18 @@ def _assemble_report_data(project: Project) -> dict:
         "avg_bill_usd":      avg_bill_usd,
         "pf_reference":      pf_reference,
         "pf_reference_month": pf_month,
-        "pf_worst":          pf_reference,
-        "has_pf_penalty":    False,
-        "pf_penalty_usd":    0.0,
+        "pf_worst":          pf_worst,
+        "has_pf_penalty":    has_pf_penalty,
+        "pf_penalty_usd":    pf_penalty_usd,
         "energy_savings":    energy_savings,
         "energy_pct":        str(round(savings_pct * 100)),
-        "pf_savings":        0.0,
-        "total_savings":     total_savings,
+        "pf_savings":        pf_penalty_usd if has_pf_penalty else 0.0,
+        "total_savings":     total_savings + (pf_penalty_usd if has_pf_penalty else 0),
 
         "buses":             buses,
         "num_mdps":          num_mdps,
         "n_meters":          n_meters,
+        "facility_city":     facility_city,
         "capacitor_bank_bullet": capacitor_bank_bullet,
         "meter_location_desc":   meter_loc_desc,
 
@@ -270,10 +299,18 @@ def _assemble_report_data(project: Project) -> dict:
         "apf50":             apf50,
         "pricing":           DEFAULT_PRICING,
 
-        "prepared_by_org":   prepared_by_org,
-        "preparer_name":     preparer_name,
-        "insurance_policy":  insurance_policy,
-        "payment_schedule":  payment_schedule,
+        "customer_owns_meters":    customer_owns_meters,
+        "is_upgrade":              is_upgrade,
+        "engineering_fee_override": engineering_fee_override,
+        "sw_yr1_override":          sw_yr1_override,
+        "discount_override":        discount_override,
+        "shipping_override":        shipping_override,
+
+        "prepared_by_org":      prepared_by_org,
+        "prepared_by_location": prepared_by_location,
+        "preparer_name":        preparer_name,
+        "insurance_policy":     insurance_policy,
+        "payment_schedule":     payment_schedule,
 
         "customer_logo_b64": cust_logo_b64,
     }
@@ -284,6 +321,7 @@ def _assemble_report_data(project: Project) -> dict:
 @report_bp.route("/api/project/<int:project_id>/report/network-assessment", methods=["GET"])
 @login_required
 def network_assessment_pdf(project_id):
+    import random as _random
     sess, project = _get_project_for_user(project_id)
     if project is None:
         return jsonify({"error": "Not found"}), 404
@@ -291,6 +329,18 @@ def network_assessment_pdf(project_id):
     try:
         from app.services.report_network_assessment import build_html, render_pdf
         data = _assemble_report_data(project)
+
+        # Doc number — persist so re-renders use the same number
+        pd = getattr(project, "proposalData", None) or {}
+        na_doc_no = pd.get("naDocNo")
+        if not na_doc_no:
+            _prefix = (data.get("customer", "XX")[:2]).upper()
+            na_doc_no = f"{_prefix}-A{_random.randint(10000000, 99999999)}"
+            pd["naDocNo"] = na_doc_no
+            project.proposalData = pd
+            sess.commit()
+        data["doc_no"] = na_doc_no
+
         html = build_html(data)
 
         inline = request.args.get("inline", "0") == "1"
@@ -298,7 +348,8 @@ def network_assessment_pdf(project_id):
             return Response(html, status=200, content_type="text/html; charset=utf-8")
 
         pdf_bytes = render_pdf(html)
-        fname = f"{data['customer']} Network Assessment.pdf"
+        slug = (data["customer"] or "").replace(" ", "-").lower()
+        fname = f"ecbs-assessment-{slug} {na_doc_no}.pdf"
         return Response(
             pdf_bytes,
             status=200,
@@ -313,6 +364,7 @@ def network_assessment_pdf(project_id):
 @report_bp.route("/api/project/<int:project_id>/report/proposal-contract", methods=["GET"])
 @login_required
 def proposal_contract_pdf(project_id):
+    import random as _random
     sess, project = _get_project_for_user(project_id)
     if project is None:
         return jsonify({"error": "Not found"}), 404
@@ -320,7 +372,18 @@ def proposal_contract_pdf(project_id):
     try:
         from app.services.report_proposal_contract import build_html, render_pdf
         data = _assemble_report_data(project)
-        html = build_html(data)
+
+        # Doc number — persist so re-renders use the same number
+        pd = getattr(project, "proposalData", None) or {}
+        doc_no = pd.get("docNo")
+        if not doc_no:
+            _prefix = (data.get("customer", "XX")[:2]).upper()
+            doc_no = f"{_prefix}-P{_random.randint(10000000, 99999999)}"
+            pd["docNo"] = doc_no
+            project.proposalData = pd
+            sess.commit()
+
+        html = build_html(data, doc_no=doc_no)
 
         inline = request.args.get("inline", "0") == "1"
         if inline:
@@ -332,7 +395,8 @@ def proposal_contract_pdf(project_id):
         project.proposalSrc = f"/api/project/{project_id}/report/proposal-contract"
         sess.commit()
 
-        fname = f"{data['customer']} Proposal Contract.pdf"
+        slug = (data["customer"] or "").replace(" ", "-").lower()
+        fname = f"ecbs-proposal-{slug} {doc_no}.pdf"
         return Response(
             pdf_bytes,
             status=200,
