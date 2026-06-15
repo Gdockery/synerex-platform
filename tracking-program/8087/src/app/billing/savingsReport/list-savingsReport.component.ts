@@ -467,7 +467,11 @@ const { PDFDocument } = require('pdf-lib');
         </div>
 
         <!-- EQUIPMENT OVERRIDE COUNTS -->
-        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Equipment Counts <small style="font-size:0.75em; font-weight:normal; color:#888;">(leave blank = auto from topology or peak kW)</small></h4>
+        <div style="display:flex; align-items:center; gap:10px; margin:1em 0 0.5em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">
+          <h4 style="margin:0; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; flex:1;">Equipment Counts <small style="font-size:0.75em; font-weight:normal; color:#888;">(leave blank = auto from topology or peak kW)</small></h4>
+          <span *ngIf="emvEquipSource === 'sld_confirmed'" style="font-size:0.8em; color:#2a7a2a; white-space:nowrap;">&#10003; SLD confirmed</span>
+          <span *ngIf="emvEquipSource && emvEquipSource !== 'sld_confirmed'" style="font-size:0.8em; color:#b8860b; white-space:nowrap;">&#9888; estimated ({{ emvEquipSource }})</span>
+        </div>
         <div class="row">
           <div class="col-md-2">
             <div class="form-group">
@@ -1368,6 +1372,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public emvS600Override: string = '';
   public emvApf100Override: string = '';
   public emvApf50Override: string = '';
+  public emvEquipSource: string = '';   // e.g. "peak_kw_formula" or "sld_confirmed"
 
   // Electrical topology tree: Meter → Buses → Circuits
   public topoMeters: any[] = [];
@@ -1632,6 +1637,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       if (pd['s600Override'] != null)          this.emvS600Override          = String(pd['s600Override']);
       if (pd['apf100Override'] != null)        this.emvApf100Override        = String(pd['apf100Override']);
       if (pd['apf50Override'] != null)         this.emvApf50Override         = String(pd['apf50Override']);
+      if (pd['equipSource'])                   this.emvEquipSource           = pd['equipSource'];
       // Topology
       if (pd['topoMeters'] != null && Array.isArray(pd['topoMeters']) && pd['topoMeters'].length) {
         this.topoMeters = pd['topoMeters'];
@@ -3070,9 +3076,10 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         }
 
         // ── Equipment Counts ───────────────────────────────────────────────
-        if (res.s600 != null && res.s600 !== '')   this.emvS600Override   = String(res.s600);
+        if (res.s600 != null && res.s600 !== '')    this.emvS600Override   = String(res.s600);
         if (res.apf100 != null && res.apf100 !== '') this.emvApf100Override = String(res.apf100);
-        if (res.apf50 != null && res.apf50 !== '')  this.emvApf50Override  = String(res.apf50);
+        if (res.apf50 != null && res.apf50 !== '')   this.emvApf50Override  = String(res.apf50);
+        if (res.equipSource)                         this.emvEquipSource    = res.equipSource;
 
         // ── Electrical Topology ────────────────────────────────────────────
         if (res.topoMeters && res.topoMeters.length) {
@@ -3244,6 +3251,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       s600Override:          this.emvS600Override !== '' ? parseInt(this.emvS600Override, 10) : null,
       apf100Override:        this.emvApf100Override !== '' ? parseInt(this.emvApf100Override, 10) : null,
       apf50Override:         this.emvApf50Override !== '' ? parseInt(this.emvApf50Override, 10) : null,
+      equipSource:           this.emvEquipSource || null,
       topoMeters:            this.topoMeters,
     };
     if (flatBuses.length) { body['buses'] = flatBuses; }

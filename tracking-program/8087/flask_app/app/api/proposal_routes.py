@@ -490,13 +490,16 @@ def autofill_proposal(project_id):
     if n_meters:
         pd["nMeters"] = int(n_meters)
 
-    # Equipment overrides (only set if SLD not present — SLD buses take precedence)
-    if equip.get("s600") is not None and not topo.get("buses"):
-        pd["s600Override"]   = int(equip["s600"])
-    if equip.get("apf100") is not None and not topo.get("buses"):
-        pd["apf100Override"] = int(equip["apf100"])
-    if equip.get("apf50") is not None and not topo.get("buses"):
-        pd["apf50Override"]  = int(equip["apf50"])
+    # Equipment overrides — GPU returns ecbs_600/apf_100/apf_50 (SLD buses take precedence)
+    equip_source = equip.get("source", "")
+    s600_val   = equip.get("ecbs_600") if equip.get("ecbs_600") is not None else equip.get("s600")
+    apf100_val = equip.get("apf_100")  if equip.get("apf_100")  is not None else equip.get("apf100")
+    apf50_val  = equip.get("apf_50")   if equip.get("apf_50")   is not None else equip.get("apf50")
+    if not topo.get("buses"):
+        if s600_val   is not None: pd["s600Override"]   = int(s600_val)
+        if apf100_val is not None: pd["apf100Override"] = int(apf100_val)
+        if apf50_val  is not None: pd["apf50Override"]  = int(apf50_val)
+    if equip_source: pd["equipSource"] = equip_source
 
     # Topology buses
     buses = topo.get("buses") or []
@@ -599,9 +602,10 @@ def autofill_proposal(project_id):
         "nMeters":        n_meters or "",
         "meterNumbers":   commercial.get("meter_numbers", ""),
         # Equipment
-        "s600":    equip.get("s600", ""),
-        "apf100":  equip.get("apf100", ""),
-        "apf50":   equip.get("apf50", ""),
+        "s600":        s600_val   if s600_val   is not None else "",
+        "apf100":      apf100_val if apf100_val is not None else "",
+        "apf50":       apf50_val  if apf50_val  is not None else "",
+        "equipSource": equip_source,
         # Topology
         "buses":      buses,
         "topoMeters": pd.get("topoMeters", []),
