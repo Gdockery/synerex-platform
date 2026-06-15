@@ -279,10 +279,13 @@ def set_electric_bill_analysis(project_id):
     if analysis is None:
         return jsonify({"error": "electricBillAnalysis required"}), 400
     import time
-    p.electricBillAnalysis = analysis
+    # Merge into existing so fields like gpuJobId are not lost
+    merged = dict(p.electricBillAnalysis or {})
+    merged.update(analysis)
+    p.electricBillAnalysis = merged
     p.electricBillAnalysisUpdatedAt = int(time.time() * 1000)
     db.session.commit()
-    return jsonify({"meta": {}, "response": analysis})
+    return jsonify({"meta": {}, "response": merged})
 
 
 @phase7_bp.route("/api/project/<int:project_id>/equipment-info", methods=["PUT"])

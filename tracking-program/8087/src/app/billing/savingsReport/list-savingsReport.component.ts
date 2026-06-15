@@ -2368,6 +2368,11 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     obs.subscribe(
       (res: any) => {
         if (job.job_type === 'bill' && res.status === 'done' && res.data) {
+          // Stamp gpuJobId BEFORE populateFromScan so persistBillAnalytic picks it up
+          const _projForGpu: any = this.userService.user.selectedProject;
+          if (_projForGpu) {
+            _projForGpu.electricBillAnalysis = Object.assign(_projForGpu.electricBillAnalysis || {}, { gpuJobId: job.gpu_job_id });
+          }
           this.billScanSuccess = true;
           this.populateFromScan(res.data);
           this._removeMyJob(job);
@@ -2569,6 +2574,14 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       kwhRate:             parseFloat(this.emvEnergyRate) || 0,
       lineItems:           this.baLineItems,
     };
+    // Always carry gpuJobId forward so autofill can use it
+    const existingGpuJobId = proj.electricBillAnalysis && proj.electricBillAnalysis.gpuJobId;
+    if (existingGpuJobId) {
+      analyticData.gpuJobId = existingGpuJobId;
+    } else {
+      const billJobs = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
+      if (billJobs.length) { analyticData.gpuJobId = billJobs[billJobs.length - 1].gpu_job_id; }
+    }
     this.billAnalyticService.updateAnalytic(analyticData).subscribe(() => {}, () => {});
   }
 
@@ -3046,6 +3059,14 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
         if (res.utilityTariff)  this.baTariff       = res.utilityTariff;
         if (res.utilityAccount) this.baAccountNumber = res.utilityAccount;
         if (res.meterNumbers)   this.baMeterNumber   = res.meterNumbers;
+
+        // ── Power Factor ───────────────────────────────────────────────────
+        if (res.pfCurrent != null)    this.emvPfReference  = String(res.pfCurrent);
+        if (res.pfWorst != null)      this.emvPfWorst      = String(res.pfWorst);
+        if (res.pfPenaltyUsd != null) {
+          this.emvPfPenaltyUsd = String(res.pfPenaltyUsd);
+          if (res.pfPenaltyUsd > 0 && !this.emvHasPfPenalty) { this.emvHasPfPenalty = true; }
+        }
 
         // ── Equipment Counts ───────────────────────────────────────────────
         if (res.s600 != null && res.s600 !== '')   this.emvS600Override   = String(res.s600);

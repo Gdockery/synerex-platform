@@ -385,15 +385,21 @@ def autofill_proposal(project_id):
 
     # Resolve bill_id: request body > electricBillAnalysis.gpuJobId
     bill_id = body.get("bill_id")
+    eba = getattr(project, "electricBillAnalysis", None) or {}
     if not bill_id:
-        eba = getattr(project, "electricBillAnalysis", None) or {}
         bill_id = eba.get("gpuJobId") or eba.get("gpu_job_id")
 
     # Resolve sld_id: request body > sldAnalysis.gpuJobId
     sld_id = body.get("sld_id")
+    sld = getattr(project, "sldAnalysis", None) or {}
     if not sld_id:
-        sld = getattr(project, "sldAnalysis", None) or {}
         sld_id = sld.get("gpuJobId") or sld.get("gpu_job_id")
+
+    logger.warning(
+        "autofill project=%s body_bill=%s body_sld=%s eba_gpuJobId=%s resolved bill_id=%s sld_id=%s",
+        project_id, body.get("bill_id"), body.get("sld_id"),
+        eba.get("gpuJobId"), bill_id, sld_id
+    )
 
     # Resolve customer / address fallbacks from project data
     customer = (body.get("customer") or "").strip()
@@ -448,7 +454,12 @@ def autofill_proposal(project_id):
     utility = result.get("utility_billing", {})
     commercial = result.get("commercial", {})
     equip = result.get("equipment_counts", {})
-    topo = result.get("topology", {})
+    _topo_raw = result.get("topology", {})
+    # GPU may return topology as a list (buses array) or as {"buses": [...]}
+    if isinstance(_topo_raw, list):
+        topo = {"buses": _topo_raw}
+    else:
+        topo = _topo_raw or {}
 
     # ── Update proposalData ─────────────────────────────────────────────────
     pd = dict(project.proposalData or {})
@@ -461,6 +472,16 @@ def autofill_proposal(project_id):
     if narrative.get("billing_period_label"): pd["billingMonthsLabel"] = narrative["billing_period_label"]
     if narrative.get("capacitor_bank_bullet"): pd["capacitorBankBullet"] = narrative["capacitor_bank_bullet"]
     if narrative.get("facility_site_label"): pd["facilitySiteLabel"]   = narrative["facility_site_label"]
+
+    # Power Factor (from utility_billing)
+    pf_current     = _to_float(utility.get("pf_current"))
+    pf_worst       = _to_float(utility.get("pf_worst"))
+    pf_penalty_usd = _to_float(utility.get("pf_penalty_usd"))
+    if pf_current     is not None: pd["pfReference"]  = pf_current
+    if pf_worst       is not None: pd["pfWorst"]       = pf_worst
+    if pf_penalty_usd is not None:
+        pd["pfPenaltyUsd"] = pf_penalty_usd
+        pd["hasPfPenalty"] = pf_penalty_usd > 0
 
     # Meters
     n_meters = commercial.get("qualifying_meters") or equip.get("n_meters")
@@ -568,6 +589,9 @@ def autofill_proposal(project_id):
         "demandRate":     demand_rate_f if demand_rate_f is not None else utility.get("demand_rate", ""),
         "peakKw":         peak_kw_f    if peak_kw_f    is not None else utility.get("peak_kw", ""),
         "avgBillUsd":     avg_bill_f   if avg_bill_f   is not None else utility.get("avg_bill_usd", ""),
+        "pfCurrent":      pf_current,
+        "pfWorst":        pf_worst,
+        "pfPenaltyUsd":   pf_penalty_usd,
         # Commercial
         "nMeters":        n_meters or "",
         "meterNumbers":   commercial.get("meter_numbers", ""),
