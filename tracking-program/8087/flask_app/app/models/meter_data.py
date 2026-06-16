@@ -1,4 +1,9 @@
-"""MeterData model - api/models/MeterData.js"""
+"""MeterData model - api/models/MeterData.js
+
+Phase 5 additions (PQ Meter Data Collection Layer):
+  - frequency: supply frequency in Hz (Phase 5 required measurement)
+  - site_id:   direct link to Phase 2 site table for analytics scoping
+"""
 from app.extensions import db
 from app.models.base import BaseModel
 
@@ -13,6 +18,10 @@ class MeterData(BaseModel):
     minute = db.Column(db.Integer, nullable=False)
     intervalId = db.Column(db.String(255), nullable=False)
     knownRead = db.Column(db.Boolean, default=False)
+
+    # Phase 5 — PQ Meter Data Collection Layer
+    frequency = db.Column(db.Float, nullable=True)            # Hz, e.g. 60.0
+    site_id   = db.Column(db.Integer, db.ForeignKey("site.id"), nullable=True, index=True)
     l1Volt = db.Column(db.Float)
     l1Amp = db.Column(db.Float)
     l1Kw = db.Column(db.Float)

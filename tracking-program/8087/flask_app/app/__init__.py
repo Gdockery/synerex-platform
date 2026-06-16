@@ -40,6 +40,8 @@ from app.api.digital_twin_routes import dt_bp
 from app.api.device_registry_routes import device_reg_bp
 # Phase 4
 from app.api.deployment_routes import deployment_bp
+# Phase 5
+from app.api.pq_data_routes import pq_data_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -139,6 +141,8 @@ def create_app(config_class=Config):
     app.register_blueprint(device_reg_bp)
     # Phase 4 blueprints
     app.register_blueprint(deployment_bp)
+    # Phase 5 blueprints
+    app.register_blueprint(pq_data_bp)
 
     @app.route("/health")
     def health():
@@ -301,6 +305,13 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase5-migrate")
+    def phase5_migrate():
+        """Phase 5 — add frequency + site_id columns to meterdata. Run: flask phase5-migrate"""
+        from app.db_migrations import phase5_add_columns
+        results = phase5_add_columns()
+        print(f"phase5-migrate: {results}")
 
     @app.cli.command("phase4-migrate")
     def phase4_migrate():

@@ -888,6 +888,46 @@ def fix_device_timestamp_columns():
 # Phase 1 — Core Platform Foundation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def phase5_add_columns():
+    """
+    Phase 5 — PQ Meter Data Collection Layer.
+
+    Adds two columns to the existing meterdata table:
+      - frequency  FLOAT  (Hz reading from PQ meter)
+      - site_id    INT    (FK to site.id for analytics scoping)
+
+    Idempotent — skips columns that already exist.
+    """
+    from flask import current_app
+    from sqlalchemy import text, inspect
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    results = {}
+    inspector = inspect(db.engine)
+    existing = {col["name"] for col in inspector.get_columns("meterdata")}
+
+    with db.engine.begin() as conn:
+        if "frequency" not in existing:
+            conn.execute(text("ALTER TABLE meterdata ADD COLUMN frequency FLOAT NULL"))
+            results["frequency"] = "added"
+            print("phase5_add_columns: meterdata.frequency added.")
+        else:
+            results["frequency"] = "exists"
+
+        if "site_id" not in existing:
+            conn.execute(text("ALTER TABLE meterdata ADD COLUMN site_id INT NULL"))
+            conn.execute(text("ALTER TABLE meterdata ADD INDEX idx_meterdata_site_id (site_id)"))
+            results["site_id"] = "added"
+            print("phase5_add_columns: meterdata.site_id added + indexed.")
+        else:
+            results["site_id"] = "exists"
+
+    return results
+
+
 def phase4_create_tables():
     """
     Create Phase-4 tables if they don't exist:
