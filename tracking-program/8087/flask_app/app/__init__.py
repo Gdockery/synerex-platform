@@ -26,6 +26,12 @@ from app.api.emv_routes import emv_bp
 from app.api.tariff_routes import tariff_bp
 from app.api.internal_routes import internal_bp
 from app.api.pipeline_routes import pipeline_bp
+# Phase 1
+from app.api.oem_routes import oem_bp
+from app.api.mfa_routes import mfa_bp
+from app.api.oauth_routes import oauth_bp
+from app.api.license_routes import license_bp
+from app.api.audit_routes import audit_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -111,6 +117,12 @@ def create_app(config_class=Config):
     # Register admin blueprint after db init to avoid import-order issues
     from app.api.admin_routes import admin_bp
     app.register_blueprint(admin_bp)
+    # Phase 1 blueprints
+    app.register_blueprint(oem_bp)
+    app.register_blueprint(mfa_bp)
+    app.register_blueprint(oauth_bp)
+    app.register_blueprint(license_bp)
+    app.register_blueprint(audit_bp)
 
     @app.route("/health")
     def health():
@@ -269,6 +281,14 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase1-migrate")
+    def phase1_migrate():
+        """Phase 1 — create new tables + add user columns. Run: flask phase1-migrate"""
+        from app.db_migrations import phase1_create_tables, phase1_add_user_columns
+        tables = phase1_create_tables()
+        cols   = phase1_add_user_columns()
+        print(f"phase1-migrate: tables={tables} cols={cols}")
 
     @app.cli.command("org-db-init")
     def org_db_init():

@@ -233,6 +233,13 @@ def login():
                     current_app.logger.warning("Client backfill failed for %s: %s", email, _bce)
 
     login_user(user, remember=True)
+    try:
+        from app.services.audit import audit as _audit
+        _audit("user.login", user_id=user.id,
+               org_id=getattr(user, "org_id", None),
+               detail={"role": user.role})
+    except Exception:
+        pass
     session["userId"] = user.id
     session["user"] = {
         "id": user.id,
@@ -314,7 +321,12 @@ def login():
     return redirect(request.args.get("next") or f"{base}/")
 
 
-def _login_fail():
+def _login_fail(email: str = ""):
+    try:
+        from app.services.audit import audit as _audit
+        _audit("user.login_failed", detail={"email": email} if email else None)
+    except Exception:
+        pass
     if _wants_json_response():
         return {"status": "error", "error": "Invalid credentials"}, 404
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
@@ -355,9 +367,17 @@ def logout():
     # Capture role BEFORE clearing session
     from flask_login import current_user as _cu
     user_role = getattr(_cu, "role", None) if _cu.is_authenticated else None
+    _logout_uid = _cu.id if _cu.is_authenticated else None
+    _logout_org  = getattr(_cu, "org_id", None) if _cu.is_authenticated else None
 
     logout_user()
     session.clear()
+
+    try:
+        from app.services.audit import audit as _audit
+        _audit("user.logout", user_id=_logout_uid, org_id=_logout_org)
+    except Exception:
+        pass
 
     # Session expired: redirect to tracking login with message
     if request.args.get("expired"):

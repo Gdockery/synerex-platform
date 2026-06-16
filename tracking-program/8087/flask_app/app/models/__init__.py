@@ -36,3 +36,8 @@ from app.models.service_plan import ServicePlan
 from app.models.pi_board import PiBoard
 from app.models.emv_analysis import EmvAnalysis
 from app.models.oem_branding import OemBranding
+# Phase 1 — Core Platform Foundation
+from app.models.oem import Oem
+from app.models.audit_log import AuditLog
+from app.models.user_mfa import UserMfa
+from app.models.meter_license import MeterLicense

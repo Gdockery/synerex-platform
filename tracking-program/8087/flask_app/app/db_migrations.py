@@ -882,3 +882,88 @@ def fix_device_timestamp_columns():
             print(f"fix_device_timestamp_columns: ERROR {key}: {e}")
             results[key] = f"error: {e}"
     return results
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — Core Platform Foundation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def phase1_create_tables():
+    """
+    Create the Phase-1 tables if they don't exist:
+      oem, audit_log, user_mfa, meter_license
+
+    SQLAlchemy's create_all(checkfirst=True) is idempotent — safe to run every
+    startup.  New columns on *existing* tables must still use ALTER TABLE below.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    from app.models.oem import Oem
+    from app.models.audit_log import AuditLog
+    from app.models.user_mfa import UserMfa
+    from app.models.meter_license import MeterLicense
+
+    tables = [
+        Oem.__table__,
+        AuditLog.__table__,
+        UserMfa.__table__,
+        MeterLicense.__table__,
+    ]
+    try:
+        db.engine.execute  # noqa — just check engine is available
+    except AttributeError:
+        pass
+
+    created = []
+    for t in tables:
+        try:
+            t.create(db.engine, checkfirst=True)
+            print(f"phase1_create_tables: {t.name} ready.")
+            created.append(t.name)
+        except Exception as e:
+            print(f"phase1_create_tables: {t.name} — {e}")
+    return created
+
+
+def phase1_add_user_columns():
+    """
+    Add Phase-1 columns to the existing `user` table:
+      role          — replace the old plain integer with a documented set:
+                      2=Default, 3=Enterprise Admin, 7=Installer,
+                      8=Synerex Super Admin, 9=OEM Admin, 11=Installer, 12=Executive
+                      [COMPAT] Existing role integers stay as-is; 11 and 12 are additive.
+      mfa_pending   — TINYINT flag set to 1 after password-auth, cleared after TOTP success.
+                      [COMPAT] Login flow unchanged until Angular MFA screen is deployed.
+      oauth_provider — "google" | "microsoft" | NULL (local login)
+      oauth_sub      — provider subject identifier (maps to user after first OAuth login)
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    COLUMN_DDLS = [
+        ("user", "mfa_pending",    "ALTER TABLE `user` ADD COLUMN `mfa_pending`    TINYINT(1) NOT NULL DEFAULT 0"),
+        ("user", "oauth_provider", "ALTER TABLE `user` ADD COLUMN `oauth_provider` VARCHAR(50)  NULL"),
+        ("user", "oauth_sub",      "ALTER TABLE `user` ADD COLUMN `oauth_sub`      VARCHAR(255) NULL"),
+    ]
+
+    results = {}
+    for table, col, sql in COLUMN_DDLS:
+        key = f"{table}.{col}"
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"phase1_add_user_columns: added {key}.")
+            results[key] = "added"
+        except Exception as e:
+            err = str(e).lower()
+            if "duplicate column" in err or "already exists" in err or "1060" in err:
+                results[key] = "exists"
+            else:
+                print(f"phase1_add_user_columns: ERROR {key}: {e}")
+                results[key] = f"error: {e}"
+    return results

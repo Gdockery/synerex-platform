@@ -130,7 +130,24 @@ class Config:
         WHITELABEL_DOMAIN_MAPPINGS = {}
     DEFAULT_BRANDING = os.environ.get("WHITELABEL_DEFAULT_BRANDING", "tracking")
     # App version for S3 static paths
-    APP_VERSION = os.environ.get("APP_VERSION", "1.3.1")
+    APP_VERSION = os.environ.get("APP_VERSION", "1.3.2")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 1 — OAuth SSO (Google + Microsoft Entra ID)
+    # Set all four vars in .env to activate SSO.  If any are absent the OAuth
+    # routes still exist but return 501 gracefully.
+    # ─────────────────────────────────────────────────────────────────────────
+    GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    MICROSOFT_CLIENT_ID     = os.environ.get("MICROSOFT_CLIENT_ID", "")
+    MICROSOFT_CLIENT_SECRET = os.environ.get("MICROSOFT_CLIENT_SECRET", "")
+    # Redirect base (must match what's registered in Google / Azure portals)
+    # e.g. https://synerexlabs.com/tracking
+    OAUTH_REDIRECT_BASE = os.environ.get("OAUTH_REDIRECT_BASE", "").rstrip("/")
+
+    # Phase 1 — MFA: roles for which TOTP is enforced at login
+    # Roles: 3=Enterprise Admin, 8=Synerex Super Admin, 9=OEM Admin
+    MFA_REQUIRED_ROLES = {3, 8, 9}
 
     # PDF: Path to Node pdf-bridge.js for full PDF layouts. When set, Flask uses it for
     # billAnalytic, costSavings, lsPotential, co2Savings, partsProcurement, shippingDocuments, financeAgreement.
@@ -144,12 +161,17 @@ class Config:
     DEFAULT_PAGE_SIZE = 10
 
     USER_ROLES = {
-        "CLIENT_USER": 1,
-        "CLIENT_ADMIN": 2,
-        "CLIENT_MANAGER": 3,
-        "ACCOUNT_MANAGER": 7,
-        "XECO_USER": 4,
-        "XECO_ADMIN": 8,
+        "CLIENT_USER":      1,
+        "CLIENT_ADMIN":     2,
+        "CLIENT_MANAGER":   3,
+        "XECO_USER":        4,
+        "ACCOUNT_MANAGER":  7,
+        "XECO_ADMIN":       8,
+        "OEM_ADMIN":        9,
+        "OEM_USER":         10,
+        # Phase 1 additions (additive — no existing role integers changed)
+        "INSTALLER":        11,   # [COMPAT] overlaps with old ACCOUNT_MANAGER alias; treated as field technician
+        "EXECUTIVE":        12,   # Read-only executive dashboard access
     }
 
     METER_ALERT_TYPES = {"HIGH_DEMAND": 1, "GATEWAY_ERROR": 2}
