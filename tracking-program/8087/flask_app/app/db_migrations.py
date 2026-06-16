@@ -888,6 +888,36 @@ def fix_device_timestamp_columns():
 # Phase 1 — Core Platform Foundation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def phase7_create_tables():
+    """
+    Phase 7 — Current Balance Intelligence™.
+
+    Creates:
+      - current_balance_metrics table
+
+    Idempotent — safe to re-run.
+    """
+    from flask import current_app
+    from sqlalchemy import text, inspect
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    from app.models.current_balance_metrics import CurrentBalanceMetrics
+    results = {}
+
+    try:
+        CurrentBalanceMetrics.__table__.create(db.engine, checkfirst=True)
+        print("phase7_create_tables: current_balance_metrics ready.")
+        results["current_balance_metrics"] = "ready"
+    except Exception as e:
+        print(f"phase7_create_tables: current_balance_metrics — {e}")
+        results["current_balance_metrics"] = str(e)
+
+    return results
+
+
 def phase6_create_tables():
     """
     Phase 6 — EM&V Baseline Manager™.

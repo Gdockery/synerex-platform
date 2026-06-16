@@ -53,6 +53,8 @@ from app.models.commissioning_test import CommissioningTest
 from app.models.deployment import Deployment
 # Phase 6 — EM&V Baseline Manager
 from app.models.baseline import Baseline
+# Phase 7 — Current Balance Intelligence™
+from app.models.current_balance_metrics import CurrentBalanceMetrics
 from app.models.deployment_device import DeploymentDevice
 from app.models.site_discovery import SiteDiscovery
 from app.models.engineering_review import EngineeringReview

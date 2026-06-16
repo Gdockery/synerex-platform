@@ -44,6 +44,8 @@ from app.api.deployment_routes import deployment_bp
 from app.api.pq_data_routes import pq_data_bp
 # Phase 6
 from app.api.baseline_routes import baseline_bp
+# Phase 7
+from app.api.current_balance_routes import current_balance_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -147,6 +149,8 @@ def create_app(config_class=Config):
     app.register_blueprint(pq_data_bp)
     # Phase 6 blueprints
     app.register_blueprint(baseline_bp)
+    # Phase 7 blueprints
+    app.register_blueprint(current_balance_bp)
 
     @app.route("/health")
     def health():
@@ -309,6 +313,13 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase7-migrate")
+    def phase7_migrate():
+        """Phase 7 — create current_balance_metrics table. Run: flask phase7-migrate"""
+        from app.db_migrations import phase7_create_tables
+        result = phase7_create_tables()
+        print(f"phase7-migrate: {result}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():
