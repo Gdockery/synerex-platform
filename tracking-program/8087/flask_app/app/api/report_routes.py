@@ -115,13 +115,6 @@ def _get_oem_data():
     return prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location
 
 
-def _scalar(v) -> str:
-    """Return a plain string from a value that might be a list (GPU returns list for multi-meter fields)."""
-    if isinstance(v, list):
-        return ", ".join(str(x) for x in v if x)
-    return str(v).strip() if v else ""
-
-
 def _assemble_report_data(project: Project) -> dict:
     """
     Build the data dict for both report types from project/client/SLD/bill records.
@@ -166,20 +159,18 @@ def _assemble_report_data(project: Project) -> dict:
         address = address_street = project.location or ""
         city_state = ""
 
-    contact_name  = pd.get("contact_name")  or getattr(client, "contactName",  None) or ""
-    contact_title = pd.get("contact_title") or getattr(client, "contactTitle", None) or ""
-    contact_email = pd.get("contact_email") or getattr(client, "financeEmail",  None) or ""
-    contact_phone = pd.get("contact_phone") or getattr(client, "contactPhone",  None) or ""
+    contact_name  = getattr(client, "contactName", None) or ""
+    contact_title = getattr(client, "contactTitle", None) or ""
     facility_type = getattr(client, "marketSegment", None) or "industrial facility"
 
     # Bill data
     peak_kw       = float(pd.get("peakKw") or primary_mb.get("kwPeak") or bill.get("kwPeak") or 0)
     avg_bill_usd  = float(pd.get("monthlyBill") or primary_mb.get("billAmount") or bill.get("billAmount") or 0)
     kwh           = float(primary_mb.get("totalKwh") or bill.get("totalKwh") or 0)
-    utility_name  = _scalar(primary_mb.get("electricCompanyName") or bill.get("electricCompanyName") or "")
+    utility_name  = (primary_mb.get("electricCompanyName") or bill.get("electricCompanyName") or "").strip()
     utility_short = utility_name.split()[0] if utility_name else ""
-    utility_tariff = _scalar(primary_mb.get("tariff") or bill.get("tariff") or "")
-    utility_account = _scalar(primary_mb.get("meterNumber") or bill.get("meterNumber") or bill.get("accountNumber") or "")
+    utility_tariff = (primary_mb.get("tariff") or bill.get("tariff") or "").strip()
+    utility_account = (primary_mb.get("meterNumber") or bill.get("meterNumber") or bill.get("accountNumber") or "").strip()
     utility_acct_no = utility_account
 
     # Savings
@@ -199,29 +190,6 @@ def _assemble_report_data(project: Project) -> dict:
     # SLD / topology — prefer user-edited buses from proposalData over GPU result
     buses = pd.get("buses") or sld.get("buses") or []
 
-    # Per-meter kWh distribution ──────────────────────────────────────────────
-    # If topoMeters has a meter→bus mapping and the bill has per-meter lineItems,
-    # fetch kWh per meter from the GPU bill and store for the report to use.
-    _topo_meters = pd.get("topoMeters") or []
-    _bill_gpu_id = (bill.get("gpuJobId") or "") if isinstance(bill, dict) else ""
-    _meter_kwh: dict = {}   # {meterNo: kwh}
-
-    if _topo_meters and _bill_gpu_id:
-        try:
-            import requests as _req
-            _gpu_url = os.environ.get("GPU_PLATFORM_URL", "http://100.106.19.30:8000")
-            _r = _req.get(f"{_gpu_url}/bills/{_bill_gpu_id}", timeout=10)
-            if _r.ok:
-                _raw_items = (_r.json().get("initial_parse") or {}).get("lineItems") or []
-                _seen: set = set()
-                for _li in _raw_items:
-                    _mn = str(_li.get("meterNumber") or "")
-                    if _mn and _mn not in _seen:
-                        _meter_kwh[_mn] = int(_li.get("meterKwh") or 0)
-                        _seen.add(_mn)
-        except Exception:
-            pass  # fall back to equal split
-
     # Connected / contracted demand estimates
     connected_kw  = float(sld.get("connectedKw") or peak_kw * 1.3)
     contracted_kw = float(sld.get("contractedKw") or peak_kw)
@@ -229,78 +197,15 @@ def _assemble_report_data(project: Project) -> dict:
     # n_meters
     n_meters = int(pd.get("nMeters") or sld.get("nMeters") or 1)
 
-    # Equipment counts — check None explicitly so 0 overrides are respected
-    def _equip(override_key, bus_key, sld_key, formula_val):
-        ov = pd.get(override_key)
-        if ov is not None:              # user-set override (0 = "none", still valid)
-            return int(ov)
-        if buses:                       # sum from topology tree
-            total = sum(c.get(bus_key, 0) for b in buses for c in b.get("circuits", []))
-            if total:
-                return total
-        sld_val = sld.get(sld_key)
-        if sld_val:
-            return int(sld_val)
-        return formula_val              # auto-size from peak kW
-
-    s600   = _equip("s600Override",   "n_ecbs",   "s600Count",   math.ceil(0.60 * peak_kw / 75))
-    apf100 = _equip("apf100Override", "n_apf100", "apf100Count", math.ceil(0.20 * peak_kw / 150))
-    apf50  = _equip("apf50Override",  "n_apf50",  "apf50Count",  math.ceil(0.20 * peak_kw / 75))
-
-    # Auto-distribute equipment into buses when topology has no circuit detail ─
-    # (bill-only autofill: buses exist but circuits are empty)
-    # Runs here so BOTH proposal and network assessment reports benefit.
-    _has_circuit_equip = any(
-        c.get("n_ecbs", 0) or c.get("n_apf100", 0) or c.get("n_apf50", 0)
-        for b in buses for c in b.get("circuits", [])
-    )
-    if buses and not _has_circuit_equip and (s600 or apf100 or apf50):
-        # Build bus→kWh weight from topoMeters + GPU bill lineItems
-        _bus_kwh: dict = {}
-        if _meter_kwh and _topo_meters:
-            for _tm in _topo_meters:
-                _mn = str(_tm.get("meterNo") or "")
-                _kwh = _meter_kwh.get(_mn, 0)
-                for _b in (_tm.get("buses") or []):
-                    _badge = _b.get("badge") or ""
-                    if _badge:
-                        _bus_kwh[_badge] = _bus_kwh.get(_badge, 0) + _kwh
-        _total_kwh = sum(_bus_kwh.get(b.get("badge", ""), 0) for b in buses)
-
-        def _proportional(total_units: int) -> list:
-            if not total_units:
-                return [0] * len(buses)
-            fracs = (
-                [_bus_kwh.get(b.get("badge", ""), 0) / _total_kwh for b in buses]
-                if _total_kwh > 0
-                else [1 / len(buses)] * len(buses)
-            )
-            floored = [math.floor(f * total_units) for f in fracs]
-            remainder = total_units - sum(floored)
-            order = sorted(range(len(buses)),
-                           key=lambda i: fracs[i] * total_units - floored[i],
-                           reverse=True)
-            for i in range(remainder):
-                floored[order[i]] += 1
-            return floored
-
-        _ecbs_per   = _proportional(s600)
-        _apf100_per = _proportional(apf100)
-        _apf50_per  = _proportional(apf50)
-
-        for i, bus in enumerate(buses):
-            ne, na, nf = _ecbs_per[i], _apf100_per[i], _apf50_per[i]
-            if ne or na or nf:
-                label = bus.get("badge") or f"MDP-{i+1}"
-                bus.setdefault("circuits", []).append({
-                    "name":    label,
-                    "amps":    int(bus.get("main_a") or 0),
-                    "type":    "Mixed",
-                    "n_ecbs":   ne,
-                    "n_apf100": na,
-                    "n_apf50":  nf,
-                    "note":    "auto-distributed by kWh",
-                })
+    # Equipment counts: topology first, then manual overrides, then auto-size
+    if buses and not pd.get("s600Override") and not pd.get("apf100Override") and not pd.get("apf50Override"):
+        s600   = sum(c.get("n_ecbs",   0) for b in buses for c in b.get("circuits", []))
+        apf100 = sum(c.get("n_apf100", 0) for b in buses for c in b.get("circuits", []))
+        apf50  = sum(c.get("n_apf50",  0) for b in buses for c in b.get("circuits", []))
+    else:
+        s600   = int(pd.get("s600Override")   or (sum(c.get("n_ecbs",   0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("s600Count")   or math.ceil(0.60 * peak_kw / 75))
+        apf100 = int(pd.get("apf100Override") or (sum(c.get("n_apf100", 0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("apf100Count") or math.ceil(0.20 * peak_kw / 150))
+        apf50  = int(pd.get("apf50Override")  or (sum(c.get("n_apf50",  0) for b in buses for c in b.get("circuits", [])) if buses else 0) or sld.get("apf50Count")  or math.ceil(0.20 * peak_kw / 75))
 
     num_mdps              = int(sld.get("numMdps") or len(buses) or 1)
     bus_amp_range         = sld.get("busAmpRange") or ""
@@ -344,8 +249,6 @@ def _assemble_report_data(project: Project) -> dict:
         "address_city":      city_state,
         "contact_name":      contact_name,
         "contact_title":     contact_title,
-        "contact_email":     contact_email,
-        "contact_phone":     contact_phone,
         "date_label":        date_label,
         "cover_location":    cover_location,
         "facility_type":     pd.get("facilityType") or facility_type,
@@ -377,8 +280,6 @@ def _assemble_report_data(project: Project) -> dict:
         "total_savings":     total_savings + (pf_penalty_usd if has_pf_penalty else 0),
 
         "buses":             buses,
-        "topo_meters":       _topo_meters,
-        "meter_kwh":         _meter_kwh,
         "num_mdps":          num_mdps,
         "n_meters":          n_meters,
         "facility_city":     facility_city,
@@ -438,7 +339,7 @@ def network_assessment_pdf(project_id):
         if inline:
             return Response(html, status=200, content_type="text/html; charset=utf-8")
 
-        pdf_bytes = render_pdf(html, doc_no=na_doc_no)
+        pdf_bytes = render_pdf(html)
         slug = (data["customer"] or "").replace(" ", "-").lower()
         fname = f"ecbs-assessment-{slug} {na_doc_no}.pdf"
         return Response(
@@ -480,7 +381,7 @@ def proposal_contract_pdf(project_id):
         if inline:
             return Response(html, status=200, content_type="text/html; charset=utf-8")
 
-        pdf_bytes = render_pdf(html, doc_no=doc_no)
+        pdf_bytes = render_pdf(html)
 
         # Mark proposal as generated so pipeline stage turns green
         project.proposalSrc = f"/api/project/{project_id}/report/proposal-contract"

@@ -18,15 +18,6 @@ export class ProposalService {
     );
   }
 
-  autoFill(projectId: number, billId: number | null, sldId: number | null, customer: string, address: string): Observable<any> {
-    const body: any = {};
-    if (billId)   body.bill_id  = billId;
-    if (sldId)    body.sld_id   = sldId;
-    if (customer) body.customer = customer;
-    if (address)  body.address  = address;
-    return this.apiRequestService.post(`/tracking/api/project/${projectId}/proposal/autofill`, body);
-  }
-
   saveProposalData(projectId: number, body: object): Observable<any> {
     return this.apiRequestService.post(`/tracking/api/project/${projectId}/proposal/save`, body);
   }

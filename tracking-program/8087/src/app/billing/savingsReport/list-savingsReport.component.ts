@@ -62,17 +62,7 @@ const { PDFDocument } = require('pdf-lib');
 
       <!-- EM&V Pre-fill Panel — always visible once a project is selected -->
       <div style="background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:1.25em 1.5em; margin-bottom:1.5em;">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:0.75em; flex-wrap:wrap;">
-          <h3 style="margin:0; flex:1;">EM&amp;V Program Pre-fill <small style="font-size:0.7em; color:#888; font-weight:normal;">Fill in the fields below then click "Send to EM&amp;V Program"</small></h3>
-          <button type="button" class="btn btn-primary btn-sm"
-                  [disabled]="emvAutoFillAllFetching"
-                  (click)="autoFillAll()"
-                  style="white-space:nowrap; font-weight:600;">
-            {{ emvAutoFillAllFetching ? '⏳ Filling…' : '⚡ Auto-fill from Bill + SLD' }}
-          </button>
-          <span *ngIf="emvAutoFillAllStatus" style="font-size:0.85em; white-space:nowrap;"
-                [style.color]="emvAutoFillAllError ? '#c00' : '#2a7a2a'">{{ emvAutoFillAllStatus }}</span>
-        </div>
+        <h3 style="margin-top:0; margin-bottom:0.25em;">EM&amp;V Program Pre-fill <small style="font-size:0.7em; color:#888; font-weight:normal;">Fill in the fields below then click "Send to EM&amp;V Program"</small></h3>
 
         <!-- CLIENT INFORMATION -->
         <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Client Information</h4>
@@ -107,8 +97,6 @@ const { PDFDocument } = require('pdf-lib');
               <input class="form-control" [(ngModel)]="emvClientZip" placeholder="75001" />
             </div>
           </div>
-        </div>
-        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>Contact Name</label>
@@ -117,16 +105,12 @@ const { PDFDocument } = require('pdf-lib');
           </div>
           <div class="col-md-3">
             <div class="form-group">
-              <label>Contact Title</label>
-              <input class="form-control" [(ngModel)]="emvContactTitle" placeholder="Facilities Manager" />
-            </div>
-          </div>
-          <div class="col-md-3">
-            <div class="form-group">
               <label>Email</label>
               <input class="form-control" [(ngModel)]="emvContactEmail" placeholder="jane@company.com" />
             </div>
           </div>
+        </div>
+        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>Phone</label>
@@ -473,11 +457,7 @@ const { PDFDocument } = require('pdf-lib');
         </div>
 
         <!-- EQUIPMENT OVERRIDE COUNTS -->
-        <div style="display:flex; align-items:center; gap:10px; margin:1em 0 0.5em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">
-          <h4 style="margin:0; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; flex:1;">Equipment Counts <small style="font-size:0.75em; font-weight:normal; color:#888;">(leave blank = auto from topology or peak kW)</small></h4>
-          <span *ngIf="emvEquipSource === 'sld_confirmed'" style="font-size:0.8em; color:#2a7a2a; white-space:nowrap;">&#10003; SLD confirmed</span>
-          <span *ngIf="emvEquipSource && emvEquipSource !== 'sld_confirmed'" style="font-size:0.8em; color:#b8860b; white-space:nowrap;">&#9888; estimated ({{ emvEquipSource }})</span>
-        </div>
+        <h4 style="margin:1em 0 0.5em; color:#555; font-size:1em; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #dee2e6; padding-bottom:4px;">Equipment Counts <small style="font-size:0.75em; font-weight:normal; color:#888;">(leave blank = auto from topology or peak kW)</small></h4>
         <div class="row">
           <div class="col-md-2">
             <div class="form-group">
@@ -1308,7 +1288,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public emvClientState: string = '';
   public emvClientZip: string = '';
   public emvContactName: string = '';
-  public emvContactTitle: string = '';
   public emvContactEmail: string = '';
   public emvContactPhone: string = '';
   // Project Information
@@ -1379,7 +1358,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public emvS600Override: string = '';
   public emvApf100Override: string = '';
   public emvApf50Override: string = '';
-  public emvEquipSource: string = '';   // e.g. "peak_kw_formula" or "sld_confirmed"
 
   // Electrical topology tree: Meter → Buses → Circuits
   public topoMeters: any[] = [];
@@ -1462,11 +1440,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public emvNarrativeFetching = false;
   public emvNarrativeStatus = '';
   public emvNarrativeError = false;
-
-  // Global "Auto-fill All" state
-  public emvAutoFillAllFetching = false;
-  public emvAutoFillAllStatus = '';
-  public emvAutoFillAllError = false;
 
   protected pdfSource: SafeResourceUrl;
 
@@ -1644,7 +1617,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       if (pd['s600Override'] != null)          this.emvS600Override          = String(pd['s600Override']);
       if (pd['apf100Override'] != null)        this.emvApf100Override        = String(pd['apf100Override']);
       if (pd['apf50Override'] != null)         this.emvApf50Override         = String(pd['apf50Override']);
-      if (pd['equipSource'])                   this.emvEquipSource           = pd['equipSource'];
       // Topology
       if (pd['topoMeters'] != null && Array.isArray(pd['topoMeters']) && pd['topoMeters'].length) {
         this.topoMeters = pd['topoMeters'];
@@ -1775,8 +1747,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.emvClientCity        = rd.client_city || legacyCity || '';
     this.emvClientState       = rd.client_state || legacyState || '';
     this.emvClientZip         = rd.client_zip || '';
-    this.emvContactName       = rd.contact_name  || '';
-    this.emvContactTitle      = rd.contact_title || '';
+    this.emvContactName       = rd.contact_name || '';
     this.emvContactEmail      = rd.contact_email || '';
     this.emvContactPhone      = rd.contact_phone || '';
     // Project Information
@@ -1896,7 +1867,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     newData.client_state        = this.emvClientState;
     newData.client_zip          = this.emvClientZip;
     newData.contact_name        = this.emvContactName;
-    newData.contact_title       = this.emvContactTitle;
     newData.contact_email       = this.emvContactEmail;
     newData.contact_phone       = this.emvContactPhone;
     // Project Information
@@ -1987,7 +1957,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       newData.client_state        = this.emvClientState;
       newData.client_zip          = this.emvClientZip;
       newData.contact_name        = this.emvContactName;
-      newData.contact_title       = this.emvContactTitle;
       newData.contact_email       = this.emvContactEmail;
       newData.contact_phone       = this.emvContactPhone;
       // Project Info
@@ -2120,7 +2089,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   }
 
   saveBillAnalyticFields() {
-    const proj: any = this.userService.user.selectedProject;
     const analyticData: any = {
       billReference:       this.baBillReference,
       electricCompanyName: this.baElectricCompanyName,
@@ -2135,16 +2103,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       kwRatePerTariff:     parseFloat(this.baKwRatePerTariff) || 0,
       lineItems:           this.baLineItems,
     };
-    // Preserve existing gpuJobId if already stored, or pull from most recent bill job in localStorage
-    const existingGpuJobId = proj && proj.electricBillAnalysis && proj.electricBillAnalysis.gpuJobId;
-    if (existingGpuJobId) {
-      analyticData.gpuJobId = existingGpuJobId;
-    } else if (proj && proj.id) {
-      const billJobs = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
-      if (billJobs.length) {
-        analyticData.gpuJobId = billJobs[billJobs.length - 1].gpu_job_id;
-      }
-    }
     this.saveAllStatus = 'Saving...';
     this.saveAllError = false;
     this.billAnalyticService.updateAnalytic(analyticData).subscribe(
@@ -2384,11 +2342,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     obs.subscribe(
       (res: any) => {
         if (job.job_type === 'bill' && res.status === 'done' && res.data) {
-          // Stamp gpuJobId BEFORE populateFromScan so persistBillAnalytic picks it up
-          const _projForGpu: any = this.userService.user.selectedProject;
-          if (_projForGpu) {
-            _projForGpu.electricBillAnalysis = Object.assign(_projForGpu.electricBillAnalysis || {}, { gpuJobId: job.gpu_job_id });
-          }
           this.billScanSuccess = true;
           this.populateFromScan(res.data);
           this._removeMyJob(job);
@@ -2590,14 +2543,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       kwhRate:             parseFloat(this.emvEnergyRate) || 0,
       lineItems:           this.baLineItems,
     };
-    // Always carry gpuJobId forward so autofill can use it
-    const existingGpuJobId = proj.electricBillAnalysis && proj.electricBillAnalysis.gpuJobId;
-    if (existingGpuJobId) {
-      analyticData.gpuJobId = existingGpuJobId;
-    } else {
-      const billJobs = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
-      if (billJobs.length) { analyticData.gpuJobId = billJobs[billJobs.length - 1].gpu_job_id; }
-    }
     this.billAnalyticService.updateAnalytic(analyticData).subscribe(() => {}, () => {});
   }
 
@@ -2999,7 +2944,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportNaGenerating = true;
     this.reportStatus = '';
     this.reportError  = false;
-    const url = `/api/project/${proj.id}/report/network-assessment`;
+    const url = `/api/project/${proj.id}/report/network-assessment?inline=1`;
     window.open(url, '_blank');
     this.reportNaGenerating = false;
     this.reportStatus = 'Network Assessment opened in new tab.';
@@ -3012,141 +2957,11 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportPcGenerating = true;
     this.reportStatus = '';
     this.reportError  = false;
-    const url = `/api/project/${proj.id}/report/proposal-contract`;
+    const url = `/api/project/${proj.id}/report/proposal-contract?inline=1`;
     window.open(url, '_blank');
     this.reportPcGenerating = false;
-    this.reportStatus = 'Proposal Contract PDF opened in new tab.';
+    this.reportStatus = 'Proposal Contract opened in new tab.';
     setTimeout(() => { this.reportStatus = ''; }, 4000);
-  }
-
-  // ── Global "Auto-fill All" ─────────────────────────────────────────────────
-  // Calls Flask /proposal/autofill which proxies GPU /proposal/autofill.
-  // That endpoint runs facility context internally alongside bill + SLD data,
-  // returning the full set: narrative, utility, PF, equipment, topology.
-  // _retryCount is internal — callers always call autoFillAll() with no args.
-  autoFillAll(_retryCount: number = 0) {
-    const proj: any = this.userService.user.selectedProject;
-    if (!proj || !proj.id) return;
-
-    this.emvAutoFillAllFetching = true;
-    this.emvAutoFillAllStatus   = _retryCount > 0
-      ? 'GPU was busy — retrying…'
-      : 'Generating… this may take up to 60 seconds';
-    this.emvAutoFillAllError    = false;
-
-    const bill: any = proj.electricBillAnalysis || {};
-
-    // Bill GPU job ID from stored electricBillAnalysis or localStorage jobs
-    const billGpuId = bill.gpuJobId || null;
-    const billJobs: any[] = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
-    const billId: number | null = billGpuId || (billJobs.length ? billJobs[billJobs.length - 1].gpu_job_id : null);
-
-    // SLD GPU job ID
-    const sldId: number | null = (proj.sldAnalysis && proj.sldAnalysis.gpuJobId) ? proj.sldAnalysis.gpuJobId : null;
-
-    // Customer + address — Flask falls back to client record if these are empty
-    const customer = this.emvClientName || '';
-    const address = [
-      this.emvFacilityAddress || '',
-      this.emvFacilityZip     || '',
-    ].filter(Boolean).join(' ');
-
-    this.proposalService.autoFill(proj.id, billId, sldId, customer, address).subscribe(
-      (res: any) => {
-        this.emvAutoFillAllFetching = false;
-
-        // ── Identity ────────────────────────────────────────────────────────
-        if (res.customer)      this.emvClientName      = res.customer;
-        if (res.addressStreet) this.emvFacilityAddress = res.addressStreet;
-        if (res.addressCity)   this.emvFacilityCity    = res.addressCity;
-        if (res.coverLocation) {
-          const m = res.coverLocation.match(/^(.*),\s*([A-Z]{2})\s*(\d{5}(-\d{4})?)?$/);
-          if (m) {
-            if (!this.emvFacilityCity)  this.emvFacilityCity  = m[1].trim();
-            if (!this.emvFacilityState) this.emvFacilityState = m[2].trim();
-            if (m[3] && !this.emvFacilityZip) this.emvFacilityZip = m[3].trim();
-          }
-        }
-
-        // ── Facility Narrative ───────────────────────────────────────────────
-        if (res.facilityType)        this.emvFacilityType        = res.facilityType;
-        if (res.facilitySiteLabel)   this.emvFacilitySiteLabel   = res.facilitySiteLabel;
-        if (res.overviewPara)        this.emvOverviewPara        = res.overviewPara;
-        if (res.billingMonthsLabel)  this.emvBillingMonthsLabel  = res.billingMonthsLabel;
-        if (res.sldSource)           this.emvSldSource           = res.sldSource;
-        if (res.capacitorBankBullet) this.emvCapacitorBankBullet = res.capacitorBankBullet;
-
-        // ── Utility / Billing ───────────────────────────────────────────────
-        if (res.utilityName)    { this.emvUtility = res.utilityName; this.emvUtilityName = res.utilityName; }
-        if (res.utilityTariff)  this.baTariff       = res.utilityTariff;
-        if (res.utilityAccount) this.baAccountNumber = res.utilityAccount;
-        if (res.meterNumbers)   this.baMeterNumber   = res.meterNumbers;
-
-        // ── Power Factor ─────────────────────────────────────────────────────
-        if (res.pfCurrent != null)    this.emvPfReference      = String(res.pfCurrent);
-        if (res.pfWorst != null)      this.emvPfWorst          = String(res.pfWorst);
-        if (res.pfReferenceMonth)     this.emvPfReferenceMonth = res.pfReferenceMonth;
-        if (res.pfPenaltyUsd != null) {
-          this.emvPfPenaltyUsd = String(res.pfPenaltyUsd);
-          if (res.pfPenaltyUsd > 0 && !this.emvHasPfPenalty) { this.emvHasPfPenalty = true; }
-        }
-
-        // ── Equipment Counts ─────────────────────────────────────────────────
-        if (res.s600 != null && res.s600 !== '')     this.emvS600Override   = String(res.s600);
-        if (res.apf100 != null && res.apf100 !== '') this.emvApf100Override = String(res.apf100);
-        if (res.apf50 != null && res.apf50 !== '')   this.emvApf50Override  = String(res.apf50);
-        if (res.equipSource)                         this.emvEquipSource    = res.equipSource;
-
-        // ── Electrical Topology ──────────────────────────────────────────────
-        if (res.topoMeters && res.topoMeters.length) {
-          this.topoMeters = res.topoMeters.map((m: any) => ({
-            meterNo: m.meterNo || m.meter_no || '',
-            buses: (m.buses || []).map((b: any) => ({
-              badge: b.badge || b.bus_id || '', dwg: b.dwg || '',
-              xfKva: b.xfKva || b.xf_kva || '', mainA: b.mainA || b.main_a || '',
-              pctLoad: b.pctLoad || b.pct_load || '', varc: b.varc || '',
-              circuits: (b.circuits || []).map((c: any) => ({
-                name: c.name || '', amps: c.amps || '',
-                nEcbs: c.nEcbs || c.n_ecbs || 0,
-                nApf50: c.nApf50 || c.n_apf50 || 0,
-                nApf100: c.nApf100 || c.n_apf100 || 0,
-                note: c.note || '',
-              })),
-            })),
-          }));
-        }
-
-        if (proj.proposalData) { Object.assign(proj.proposalData, res); }
-        else { proj.proposalData = res; }
-
-        const src = res.sources || {};
-        const used: string[] = [];
-        if (src.has_bill)       used.push('Bill ✓');
-        if (src.has_sld)        used.push('SLD ✓');
-        if (src.has_context_ai) used.push('AI ✓');
-        this.emvAutoFillAllStatus = `Filled${used.length ? ' (' + used.join(' | ') + ')' : ''} — review and adjust.`;
-        this.emvAutoFillAllError  = false;
-        setTimeout(() => { this.emvAutoFillAllStatus = ''; }, 8000);
-      },
-      (err: any) => {
-        this.emvAutoFillAllFetching = false;
-        // err.code is the HTTP status set by ApiRequestService.handleError()
-        const httpStatus = err?.code || err?.status || 0;
-        // Auto-retry once on 504 (GPU busy) or 502 (GPU unreachable)
-        if ((httpStatus === 504 || httpStatus === 502) && _retryCount < 1) {
-          this.emvAutoFillAllError  = false;
-          this.emvAutoFillAllStatus = 'GPU is busy — retrying in 5 seconds…';
-          setTimeout(() => this.autoFillAll(1), 5000);
-          return;
-        }
-        // Extract the plain-text message from the nested error structure
-        const body = err?.error?.error;   // HttpErrorResponse body (parsed JSON)
-        const msg  = (typeof body === 'object' ? body?.error : body)
-                     || 'Auto-fill failed. Try again.';
-        this.emvAutoFillAllStatus = msg;
-        this.emvAutoFillAllError  = true;
-      }
-    );
   }
 
   // ── Facility Narrative auto-fill ─────────────────────────────────────────
@@ -3272,7 +3087,6 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       s600Override:          this.emvS600Override !== '' ? parseInt(this.emvS600Override, 10) : null,
       apf100Override:        this.emvApf100Override !== '' ? parseInt(this.emvApf100Override, 10) : null,
       apf50Override:         this.emvApf50Override !== '' ? parseInt(this.emvApf50Override, 10) : null,
-      equipSource:           this.emvEquipSource || null,
       topoMeters:            this.topoMeters,
     };
     if (flatBuses.length) { body['buses'] = flatBuses; }
