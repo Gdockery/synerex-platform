@@ -275,6 +275,63 @@ def _remove_dollar_blocks(html_content, show_dollars):
 # blocks can then be deleted one at a time without functional risk.
 # ═══════════════════════════════════════════════════════════════════════════
 
+def _ieee_519_tdd_limit_for(isc_il_ratio):
+    """IEEE 519-2014/2022 Table 2 TDD limit for a given ISC/IL ratio.
+    Returns 5.0 (strictest / conservative) when ratio is unknown or <= 0."""
+    try:
+        r = float(isc_il_ratio) if isc_il_ratio is not None else 0.0
+    except (TypeError, ValueError):
+        r = 0.0
+    if r >= 1000:
+        return 20.0
+    if r >= 100:
+        return 15.0
+    if r >= 50:
+        return 12.0
+    if r >= 20:
+        return 8.0
+    return 5.0
+
+
+def _compute_isc_il_from_config(r):
+    """Compute ISC/IL ratio from project config — single source of truth.
+
+    Priority:
+      1. config.isc_kA and config.il_A (direct short-circuit study values)
+      2. Transformer estimation: config.xfmr_kva, voltage_nominal,
+         xfmr_impedance_pct (default 5.75 %)
+      3. power_quality.isc_il_ratio stored by 8082 (last resort)
+      4. 0.0 (ratio unknown → 5 % TDD limit via _ieee_519_tdd_limit_for)
+    """
+    cfg = safe_get(r, "config", default={}) or {}
+    pq  = safe_get(r, "power_quality", default={}) or {}
+
+    def _f(x, default=0.0):
+        try:
+            v = float(x) if x not in (None, "", "N/A") else 0.0
+            return v if v > 0 else default
+        except (TypeError, ValueError):
+            return default
+
+    isc_kA = _f(cfg.get("isc_kA"))
+    il_A   = _f(cfg.get("il_A"))
+    if isc_kA > 0 and il_A > 0:
+        return (isc_kA * 1000) / il_A
+
+    # Transformer-based estimation
+    xfmr_kva      = _f(cfg.get("xfmr_kva"))
+    v_nom          = _f(cfg.get("voltage_nominal"))
+    z_pct          = _f(cfg.get("xfmr_impedance_pct"), default=5.75) / 100.0
+    if xfmr_kva > 0 and v_nom > 0:
+        rated_A = (xfmr_kva * 1000) / (v_nom * 1.732)
+        isc_A   = rated_A / z_pct
+        il_A    = rated_A * 0.60
+        return (isc_A / 1000 * 1000) / il_A if il_A > 0 else 0.0
+
+    # Last resort — use whatever 8082 stored
+    return _f(pq.get("isc_il_ratio"))
+
+
 def _build_harmonics_snapshot(r):
     """
     Build the canonical THD/TDD snapshot consumed by _apply_harmonics.
@@ -338,7 +395,11 @@ def _build_harmonics_snapshot(r):
     tdd_b = _num(raw_tdd_b, default=thd_b)
     tdd_a = _num(raw_tdd_a, default=thd_a)
 
-    tdd_limit = _num(pq.get("ieee_tdd_limit"), default=5.0)
+    # Single source of truth: derive ISC/IL from config (not from whatever
+    # 8082 happened to store in power_quality.ieee_tdd_limit, which may
+    # have been computed from different inputs than the display value).
+    _isc_il = _compute_isc_il_from_config(r)
+    tdd_limit = _ieee_519_tdd_limit_for(_isc_il)
 
     def _impr(b, a):
         if b and b > 0:
@@ -369,6 +430,7 @@ def _build_harmonics_snapshot(r):
             "after_verdict":  "PASS" if tdd_a <= tdd_limit else "FAIL",
             "from_thd_fallback": tdd_from_thd_fallback,
         },
+        "isc_il_ratio": _isc_il,
     }
 
 
@@ -777,7 +839,7 @@ def generate_verification_certificate_html(r):
         # Also check TDD if available, as IEEE 519 uses TDD limits
         thd_after = safe_float(power_quality.get('thd_after', 0) if isinstance(power_quality, dict) else 0, 0)
         tdd_after = safe_float(power_quality.get('tdd_after', 0) if isinstance(power_quality, dict) else 0, 0)
-        ieee_thd_limit = safe_float(power_quality.get('ieee_thd_limit', 5.0) if isinstance(power_quality, dict) else 5.0, 5.0)
+        ieee_thd_limit = _ieee_519_tdd_limit_for(_compute_isc_il_from_config(r))
         
         # Use TDD if available, otherwise use THD
         if tdd_after > 0:
@@ -874,7 +936,7 @@ def generate_verification_certificate_html(r):
         html.append(f'<tr><td style="padding: 8px; width: 30%; font-weight: bold;">Project Name:</td><td style="padding: 8px;">{project_name}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Client:</td><td style="padding: 8px;">{company}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Facility Address:</td><td style="padding: 8px;">{facility}</td></tr>')
-        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Before: {before_period}<br/>After: {after_period}</td></tr>')
+        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Baseline Period: {before_period}<br/>Reporting Period: {after_period}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Session ID:</td><td style="padding: 8px; font-family: monospace; font-size: 0.9em;">{analysis_session_id}</td></tr>')
         html.append('</table>')
         
@@ -883,7 +945,7 @@ def generate_verification_certificate_html(r):
         html.append('<div style="margin: 15px 0;">')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] Original Data Files Verified</p>')
         html.append('<div style="margin-left: 20px; margin-top: 10px;">')
-        html.append('<p><strong>Before Period File:</strong></p>')
+        html.append('<p><strong>Baseline Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {before_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{before_fingerprint}</code></li>')
@@ -891,7 +953,7 @@ def generate_verification_certificate_html(r):
         html.append(f'<li>Upload Date: {format_date(before_upload_date)}</li>')
         html.append('<li>Integrity Status: <span style="color: #28a745; font-weight: bold;">VERIFIED (No tampering detected)</span></li>')
         html.append('</ul>')
-        html.append('<p><strong>After Period File:</strong></p>')
+        html.append('<p><strong>Reporting Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {after_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{after_fingerprint}</code></li>')
@@ -1123,11 +1185,10 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
         weather_savings_percent = (weather_savings_kw / weather_normalized_kw_before * 100) if has_weather and weather_normalized_kw_before > 0 else 0
         
-        # Calculate total normalized savings - EXACTLY as Analysis does
-        # Analysis: totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4
-        total_savings_kw = weather_normalized_kw_before - normalized_kw_after
-        # Analysis: totalNormalizedPercentStep4 = (totalSavingsKwStep4 / weatherBeforeForStep4) * 100
-        total_normalized_percent = (total_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+        # Total normalized savings: both before and after values must be at the same normalization level (PF+weather)
+        # normalized_kw_before = PF+weather normalized before; normalized_kw_after = PF+weather normalized after
+        total_savings_kw = normalized_kw_before - normalized_kw_after
+        total_normalized_percent = (total_savings_kw / normalized_kw_before * 100) if normalized_kw_before > 0 else 0
         
         # Calculate weather savings
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
@@ -1249,8 +1310,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         if has_raw:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Baseline (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Reporting (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
             color = 'green' if raw_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_kw, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">{format_number(kw_before, 2)} - {format_number(kw_after, 2)}</td></tr>')
             html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_percent, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">({format_number(raw_savings_kw, 2)} / {format_number(kw_before, 2)}) x 100</td></tr>')
@@ -1265,8 +1326,34 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with sensitivity factors (2.5% per deg C for temp, 1.5% per deg C for dewpoint).</p>')
         
         if has_weather:
+            # ── Skip banner: show BEFORE the table so reader sees the reason first ──
+            _wn_applied = weather_norm.get('normalization_applied', True) if isinstance(weather_norm, dict) else True
+            _wn_r2      = float(weather_norm.get('regression_r2') or weather_norm.get('r_squared') or 0)
+            _wn_reason  = weather_norm.get('standards_compliance') or weather_norm.get('reason') or ''
+            if _wn_applied is False or str(_wn_applied).lower() == 'false' or _wn_applied == 0 or (0 < _wn_r2 < 0.75):
+                if 0 < _wn_r2 < 0.75:
+                    _skip_msg = (
+                        'R\u00B2 = {:.3f} is below the ASHRAE Guideline 14-2023 threshold of 0.75. '
+                        'The regression model is not statistically valid for weather correction; '
+                        'adjustment factor is fixed at 1.0000 and raw meter readings are used.'.format(_wn_r2)
+                    )
+                elif 'temp' in _wn_reason.lower():
+                    _skip_msg = 'Temperature difference between periods does not meet the minimum threshold. Adjustment factor fixed at 1.0000.'
+                else:
+                    _skip_msg = _wn_reason or 'Normalization criteria not met per ASHRAE Guideline 14-2023. Adjustment factor fixed at 1.0000.'
+                html.append(
+                    '<div style="background:#fff3cd;border:1px solid #ffc107;border-left:5px solid #e65100;'
+                    'border-radius:4px;padding:12px 16px;margin-bottom:14px;font-size:0.93em;">'
+                    '<strong style="color:#e65100;">\u26A0\uFE0F Weather Normalization Not Applied</strong><br/>'
+                    '<span style="color:#5d4037;">' + _skip_msg + '</span><br/>'
+                    '<span style="color:#888;font-size:0.88em;margin-top:4px;display:block;">'
+                    'The table below shows normalization parameters but with a fixed factor of 1.0000 \u2014 '
+                    'raw meter readings pass through unchanged.'
+                    '</span></div>'
+                )
+            # ─────────────────────────────────────────────────────────────────────
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             
             # Base temperature display - MUST come from baseline 'before' data
             # Match UI Analysis display logic
@@ -1298,7 +1385,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         after_formula = f"max(0, {format_number(temp_diff_after, 1)} × {format_number(temp_sensitivity, 4)}) = {format_number(temp_effect_after * 100, 2)}%"
                     
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {before_formula}<br/>After: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
             
             if dewpoint_before is not None and dewpoint_after is not None and base_temp is not None:
                 dewpoint_diff_before = dewpoint_before - base_temp
@@ -1319,7 +1406,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         # Show max(0, ...) when dewpoint is below base (same as calculation)
                         after_formula = f"max(0, {format_number(dewpoint_diff_after, 1)} × {format_number(dewpoint_sensitivity_display, 4)}) = {format_number(dewpoint_effect_after * 100, 2)}%"
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {before_formula}<br/>After: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
             
             if weather_effect_before is not None and weather_effect_after is not None:
                 html.append(f'<tr style="background: #e1f5fe;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Combined Weather Effect</strong><br/><small style="color: #666;">Temp + Dewpoint</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{format_number(temp_effect_before * 100, 2) if temp_effect_before is not None else "N/A"}% + {format_number(dewpoint_effect_before * 100, 2) if dewpoint_effect_before is not None else "N/A"}% = {format_number(weather_effect_before * 100, 2)}%<br/>{format_number(temp_effect_after * 100, 2) if temp_effect_after is not None else "N/A"}% + {format_number(dewpoint_effect_after * 100, 2) if dewpoint_effect_after is not None else "N/A"}% = {format_number(weather_effect_after * 100, 2)}%</td></tr>')
@@ -1379,7 +1466,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             color = 'green' if weather_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW</strong><br/><small style="color: #666;">After adjusted to before weather</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>')
             # Weather Normalized kW calculation formula row
-            weather_calc_text = f'Before: {format_number(kw_before, 2)} (unchanged)<br/>After: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (After) ÷ Raw kW (After)'
+            weather_calc_text = f'Baseline: {format_number(kw_before, 2)} (unchanged)<br/>Reporting: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (Reporting) ÷ Raw kW (Reporting)'
             html.append(f'<tr style="background: #f1f8e9;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{weather_calc_text}</td></tr>')
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: {color};">{format_number(weather_savings_kw, 2)} kW</td></tr>')
             html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(weather_savings_percent, 2)}%</td></tr>')
@@ -1399,6 +1486,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('</td></tr>')
             
             html.append('</table>')
+            # (skip banner now shown before table — see block above)
         else:
             html.append('<p style="color: #999; font-style: italic;">Weather normalization data not available</p>')
         html.append('</div>')
@@ -1406,7 +1494,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         # STEP 3: Power Factor Normalization
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">')
         html.append('<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor (the better of before/after/target) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Normalization PF / Actual PF), where Normalization PF = max(PF Before, PF After, Target PF)</p>')
+        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor target for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF ÷ Actual PF), where Target PF is the user-specified normalization reference (default 0.950 per IEEE 519 standard)</p>')
         
         if has_fully and pf_before and pf_after:
             # Use the better PF (higher value) as normalization target to show true savings benefit
@@ -1417,15 +1505,15 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             pf_adjustment_after = normalization_pf / pf_after if pf_after > 0 else 1.0
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             # Display Power Factor as percentage (e.g., 99.9% instead of 0.999)
             pf_before_pct_display = (pf_before * 100) if pf_before > 0 else 0
             pf_after_pct_display = (pf_after * 100) if pf_after > 0 else 0
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_before_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_after_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">max(Before, After, Target) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF (user-specified) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>')
             # PF Adjustment Factor calculation formula
-            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Before: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>After: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Normalization PF ÷ Actual PF'
+            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Baseline: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>Reporting: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Target PF ÷ Actual PF'
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_before, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_after, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{pf_factor_calc_text}</td></tr>')
             
             html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} × {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(weather_normalized_kw_after, 2)} × {format_number(pf_adjustment_after, 4)} = {format_number(normalized_kw_after, 2)}</td></tr>')
@@ -1465,8 +1553,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Before)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (After)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Baseline)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Reporting)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
             color = 'green' if total_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
             
@@ -1500,7 +1588,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">')
             html.append('<strong>Detailed Calculation Breakdown:</strong><br/>')
             html.append('<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Before (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">After (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Baseline (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Reporting (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
             
             # Step 1: Raw Data
             raw_savings_kw = kw_before - kw_after if has_raw else 0
@@ -2189,11 +2277,28 @@ def generate_exact_template_html(r):
         "Utility-grade power quality analyzer"
     )
     
+    # Derive interval string from detected_interval_minutes if available
+    _det_min = (
+        safe_get(statistical, 'detected_interval_minutes') or
+        safe_get(r, 'detected_interval_minutes') or
+        safe_get(config, 'detected_interval_minutes')
+    )
+    if _det_min is not None:
+        _det_min = float(_det_min)
+        if _det_min <= 1.5:    _auto_interval = '1-minute interval'
+        elif _det_min <= 7.5:  _auto_interval = '5-minute interval'
+        elif _det_min <= 22.5: _auto_interval = '15-minute interval'
+        elif _det_min <= 90:   _auto_interval = 'hourly interval'
+        else:                  _auto_interval = str(int(round(_det_min))) + '-minute interval'
+    else:
+        _auto_interval = None
+
     interval_data = (
-        safe_get(config, "test_int_data") or 
-        safe_get(config, "interval_data") or 
-        safe_get(r, "test_int_data") or 
-        "15-minute interval"
+        _auto_interval or
+        safe_get(config, 'test_int_data') or
+        safe_get(config, 'interval_data') or
+        safe_get(r, 'test_int_data') or
+        '1-minute interval'
     )
     
     # Normalize interval_data: if it ends with "interval" (singular), change to "intervals" (plural)
@@ -3940,49 +4045,12 @@ def generate_exact_template_html(r):
     # TDD limit, TDD values, PASS/FAIL verdicts and the improvement text
     # are set exclusively by _apply_harmonics (single source of truth,
     # runs at top of this function).
-    ieee_519_isc_il_ratio = 0
-    try:
-        isc_kA = safe_get(config, "isc_kA", default=0)
-        il_A = safe_get(config, "il_A", default=0)
-        try:
-            isc_kA = float(isc_kA) if isc_kA else 0
-        except (ValueError, TypeError):
-            isc_kA = 0
-        try:
-            il_A = float(il_A) if il_A else 0
-        except (ValueError, TypeError):
-            il_A = 0
-        print(f"DEBUG: METHODS & FORMULAS VALIDATION: IEEE 519 ISC/IL calculation using CSV data - isc_kA={isc_kA}, il_A={il_A}")
-        if isc_kA > 0 and il_A > 0:
-            ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A
-        else:
-            xfmr_kva = safe_get(config, "xfmr_kva", default=0)
-            voltage_nominal = safe_get(config, "voltage_nominal", default=0)
-            try:
-                xfmr_kva = float(xfmr_kva) if xfmr_kva else 0
-            except (ValueError, TypeError):
-                xfmr_kva = 0
-            try:
-                voltage_nominal = float(voltage_nominal) if voltage_nominal else 0
-            except (ValueError, TypeError):
-                voltage_nominal = 0
-            xfmr_impedance_pct_raw = safe_get(config, "xfmr_impedance_pct", default=5.75)
-            try:
-                xfmr_impedance_pct = float(xfmr_impedance_pct_raw) if xfmr_impedance_pct_raw else 5.75
-            except (ValueError, TypeError):
-                xfmr_impedance_pct = 5.75
-            xfmr_impedance_pct = xfmr_impedance_pct / 100
-            if xfmr_kva > 0 and voltage_nominal > 0:
-                rated_current = (xfmr_kva * 1000) / (voltage_nominal * 1.732)
-                isc_A = rated_current / xfmr_impedance_pct
-                isc_kA = isc_A / 1000
-                il_A = rated_current * 0.60
-                ieee_519_isc_il_ratio = (isc_kA * 1000) / il_A if il_A > 0 else 0
-    except Exception as e:
-        print(f"[WARN] Error computing ISC/IL ratio: {e}", flush=True)
+    # Single source of truth — same helper used by _build_harmonics_snapshot.
+    ieee_519_isc_il_ratio = _compute_isc_il_from_config(r)
     
     template_content = template_content.replace('{{IEEE_519_EDITION}}', ieee_519_edition)
-    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
+    _ratio_fmt = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', _ratio_fmt)
     # {{IEEE_519_TDD_LIMIT}}, {{IEEE_519_BEFORE_TDD}}, {{IEEE_519_AFTER_TDD}},
     # {{IEEE_519_BEFORE_COMPLIANCE}}, {{IEEE_519_AFTER_COMPLIANCE}},
     # {{IEEE_519_IMPROVEMENT}} are owned by _apply_harmonics (top of fn).
@@ -4938,8 +5006,11 @@ def generate_exact_template_html(r):
     # Network savings (I²R and transformer losses)
     network_annual_savings = get_financial_value("network_annual_dollars", 0)
     
-    # Total annual savings
-    total_annual_savings = get_financial_value("annual_total_dollars", 0)
+    # Total annual savings — sum only the rows actually shown in the table
+    # (energy + demand + network). The all-inclusive annual_total_dollars
+    # also contains PF penalties and O&M which have no rows in this table,
+    # making the total look larger than the visible items.
+    total_annual_savings = energy_annual_savings + demand_annual_savings + network_annual_savings
     
     # Average kW savings
     average_kw_savings = get_financial_value("delta_kw_avg", 0)
@@ -4968,7 +5039,16 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{ASHRAE_MODEL_SELECTED}}', ashrae_model_selected)
     template_content = template_content.replace('{{ASHRAE_CVRMSE}}', f"{format_number(ashrae_cvrmse, 1)}%")
     template_content = template_content.replace('{{ASHRAE_NMBE}}', f"{format_number(ashrae_nmbe, 1)}%")
-    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', f"{format_number(ashrae_r_squared, 2)}")
+    # R² display: 3 decimals, fallback to regression_r2 when baseline_model_r_squared is 0
+    _wn_data = safe_get(r, 'weather_normalization', default={})
+    _reg_r2 = safe_get(_wn_data, 'regression_r2')
+    if ashrae_r_squared and float(ashrae_r_squared) > 0:
+        _r2_display = format_number(ashrae_r_squared, 3)
+    elif _reg_r2 is not None:
+        _r2_display = format_number(_reg_r2, 3) + ' (below 0.75 - normalization not applied per ASHRAE GL14-2023)'
+    else:
+        _r2_display = format_number(ashrae_r_squared, 3)
+    template_content = template_content.replace('{{ASHRAE_R_SQUARED}}', _r2_display)
     template_content = template_content.replace('{{ASHRAE_TEMPERATURE_UNITS}}', ashrae_temperature_units)
     template_content = template_content.replace('{{ASHRAE_RELATIVE_PRECISION}}', f"{format_number(ashrae_relative_precision, 1)}%")
     template_content = template_content.replace('{{ASHRAE_PRECISION_STATUS}}', ashrae_precision_status)
@@ -5230,21 +5310,25 @@ def generate_exact_template_html(r):
 
     ieee_519_standard_reference = "IEEE Std 519-2014 - IEEE Recommended Practice and Requirements for Harmonic Control in Electric Power Systems"
     ieee_519_pcc_status = safe_get(r, "pcc_location", default="Main Service")
-    ieee_519_isc_il_ratio = safe_get(power_quality, "isc_il_ratio", default=0)
+    # Use the same single-source-of-truth helper so every section of the
+    # report shows the same ISC/IL ratio.
+    ieee_519_isc_il_ratio = _compute_isc_il_from_config(r)
     ieee_519_harmonic_depth = safe_get(r, "harmonic_analysis_depth", default="50th order")
     ieee_519_measurement_method = safe_get(r, "ieee_519_measurement_method", default="Standardized harmonic measurement per IEEE 519 Section 4.2.1")
     ieee_519_tdd_formula = "TDD = √(Σ(h=2 to 50) Ih²) / IL × 100%"
     ieee_519_voltage_tdd_limit = safe_get(r, "ieee_519_voltage_tdd_limit", default=0)
     ieee_519_before_voltage_tdd = safe_get(before_compliance, "ieee_519_voltage_tdd", default=0)
     ieee_519_after_voltage_tdd = safe_get(after_compliance, "ieee_519_voltage_tdd", default=0)
-    ieee_519_individual_limits = f"Individual harmonic limits based on ISC/IL ratio of {ieee_519_isc_il_ratio}"
+    _indiv_ratio = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    ieee_519_individual_limits = f"Individual harmonic limits based on ISC/IL ratio of {_indiv_ratio} (TDD limit: {_ieee_519_tdd_limit_for(ieee_519_isc_il_ratio):.1f}%)"
     ieee_c57_110_applied = safe_get(r, "ieee_c57_110_method", default="THD approximation method")
     ieee_519_transformer_loss_method = safe_get(r, "ieee_519_transformer_loss_method", default="Harmonic-based transformer loss calculation per IEEE C57.110")
     ieee_519_steady_state_analysis = safe_get(r, "ieee_519_steady_state_analysis", default="Steady-state harmonic limits as per IEEE 519 Section 4.1")
 
     template_content = template_content.replace('{{IEEE_519_STANDARD_REFERENCE}}', ieee_519_standard_reference)
     template_content = template_content.replace('{{IEEE_519_PCC_STATUS}}', ieee_519_pcc_status)
-    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', str(ieee_519_isc_il_ratio))
+    _ratio_fmt2 = f"{ieee_519_isc_il_ratio:.2f}" if ieee_519_isc_il_ratio else "N/A"
+    template_content = template_content.replace('{{IEEE_519_ISC_IL_RATIO}}', _ratio_fmt2)
     template_content = template_content.replace('{{IEEE_519_HARMONIC_DEPTH}}', ieee_519_harmonic_depth)
     template_content = template_content.replace('{{IEEE_519_MEASUREMENT_METHOD}}', ieee_519_measurement_method)
     template_content = template_content.replace('{{IEEE_519_TDD_FORMULA}}', ieee_519_tdd_formula)
@@ -5469,94 +5553,85 @@ def generate_exact_template_html(r):
     
     # True kW/kWh Reduction - Use attribution.energy structure (same as UI)
     energy_data = safe_get(attribution, "energy", default={})
-    baseline_energy = safe_get(energy_data, "kwh", default=0)
-    baseline_energy_cost = safe_get(energy_data, "dollars", default=0)
+    baseline_energy = safe_get(energy_data, "kwh", default=0)       # total: base + network
+    baseline_energy_cost = safe_get(energy_data, "dollars", default=0)  # total energy $ (base + network)
     energy_components = safe_get(energy_data, "components", default={})
     base_energy_kwh = safe_get(energy_components, "base_kwh", default=0)
     network_energy_kwh = safe_get(energy_components, "network_kwh", default=0)
     energy_rate_detailed = safe_get(energy_components, "energy_rate", default=0)
-    
+
+    # Split the total energy cost proportionally between the metered base and network (harmonic) component.
+    # baseline_energy = base_energy_kwh + network_energy_kwh by definition, so the costs sum correctly.
+    if baseline_energy > 0 and baseline_energy_cost > 0:
+        _rate = baseline_energy_cost / baseline_energy
+    elif energy_rate_detailed > 0:
+        _rate = energy_rate_detailed
+    else:
+        _rate = 0.0
+    base_energy_cost = base_energy_kwh * _rate
+    network_energy_cost = network_energy_kwh * _rate
+
     # CP Demand Reduction - Use attribution.demand structure (same as UI)
     demand_data = safe_get(attribution, "demand", default={})
     demand_savings_cost = safe_get(demand_data, "dollars", default=0)
-    
+
     # Power Factor Penalties - Use attribution.pf_reactive structure (same as UI)
     pf_data = safe_get(attribution, "pf_reactive", default={})
     power_factor_savings_cost = safe_get(pf_data, "dollars", default=0)
-    
+
     # Envelope Smoothing - Use attribution.envelope_smoothing structure (same as UI)
     envelope_data = safe_get(attribution, "envelope_smoothing", default={})
     envelope_smoothing_cost = safe_get(envelope_data, "dollars", default=0)
-    
-    # Add validation and fallback calculation if envelope smoothing cost is 0
+
     if envelope_smoothing_cost == 0:
-        # Try alternative calculation from envelope analysis
         envelope_analysis = safe_get(r, "envelope_analysis", default={})
         smoothing_data = safe_get(envelope_analysis, "smoothing_data", default={})
         envelope_smoothing_cost = safe_get(smoothing_data, "annual_savings", default=0)
-        
-        # If still 0, try network envelope analysis
         if envelope_smoothing_cost == 0:
             network_envelope = safe_get(r, "network_envelope", default={})
             envelope_smoothing_cost = safe_get(network_envelope, "annual_savings", default=0)
-            
-        # Debug logging for envelope smoothing calculation
-        print(f"DEBUG: ENVELOPE SMOOTHING DEBUG: attribution={envelope_data}, analysis={envelope_analysis}, network={network_envelope}, final_cost={envelope_smoothing_cost}")
-    
-    # Harmonic Losses (I²R) - Use attribution.harmonic_losses structure (same as UI)
-    harmonic_data = safe_get(attribution, "harmonic_losses", default={})
-    harmonic_losses_energy = safe_get(harmonic_data, "kwh", default=0)
-    harmonic_losses_cost = safe_get(harmonic_data, "dollars", default=0)
-    
-    # Add validation and fallback calculation if harmonic losses are 0
-    if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-        # Try alternative calculation from network losses
-        network_losses = safe_get(r, "network_losses", default={})
-        harmonic_losses_energy = safe_get(network_losses, "harmonic_kwh", default=0)
-        harmonic_losses_cost = safe_get(network_losses, "harmonic_dollars", default=0)
-        
-        # If still 0, try three-phase analysis
-        if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-            three_phase = safe_get(r, "three_phase", default={})
-            harmonic_losses_energy = safe_get(three_phase, "harmonic_kwh", default=0)
-            harmonic_losses_cost = safe_get(three_phase, "harmonic_dollars", default=0)
-            
-        # If still 0, try power quality analysis
-        if harmonic_losses_energy == 0 and harmonic_losses_cost == 0:
-            power_quality = safe_get(r, "power_quality", default={})
-            # Calculate harmonic losses from THD reduction
-            thd_before = safe_get(power_quality, "thd_before", default=0)
-            thd_after = safe_get(power_quality, "thd_after", default=0)
-            if thd_before > 0 and thd_after < thd_before:
-                # Estimate harmonic losses based on THD reduction
-                thd_reduction = thd_before - thd_after
-                # Use a conservative estimate: 1% of total energy per 1% THD reduction
-                total_energy = safe_get(energy_components, "total_energy_kwh", default=0)
-                harmonic_losses_energy = total_energy * (thd_reduction / 100) * 0.01
-                harmonic_losses_cost = harmonic_losses_energy * safe_get(energy_components, "energy_rate", default=0.10)
-            
-        # Debug logging for harmonic losses calculation
-        print(f"DEBUG: HARMONIC LOSSES DEBUG: attribution={harmonic_data}, network={network_losses}, three_phase={three_phase}, final_energy={harmonic_losses_energy}, final_cost={harmonic_losses_cost}")
-    
+
+    # Harmonic Losses (I²R) — sourced from energy_components.network_kwh so it is the
+    # SUB-COMPONENT of baseline_energy, not an additive item.  This prevents the
+    # double-count that occurred when attribution.harmonic_losses (which equals
+    # network_energy_kwh) was added on top of a baseline_energy that already included it.
+    harmonic_losses_energy = network_energy_kwh
+    harmonic_losses_cost = network_energy_cost
+
     # CP/PLC Capacity - Use attribution.cp_plc structure (same as UI)
     cp_plc_data = safe_get(attribution, "cp_plc", default={})
     cp_plc_kw = safe_get(cp_plc_data, "kw", default=0)
     cp_plc_cost = safe_get(cp_plc_data, "dollars", default=0)
     cp_plc_rate = safe_get(cp_plc_data, "capacity_rate_per_kw", default=0)
-    
+
     # O&M Savings - Use attribution.om structure (same as UI)
     om_data = safe_get(attribution, "om", default={})
     om_savings_cost = safe_get(om_data, "dollars", default=0)
     om_rate_per_kw = safe_get(om_data, "rate_per_kw", default=0)
-    
-    # Total Attributed
-    total_attributed_dollars = safe_get(attribution, "total_attributed_dollars", default=0)
-    reconciles_status = "PASS YES" if safe_get(attribution, "reconciles_to_financial_total", default=True) else "FAIL NO"
-    includes_categories = "Baseline Energy + Demand + PF Penalties + Envelope + Harmonic + O&M"
+
+    # Total Attributed — computed here (not from attribution.total_attributed_dollars which
+    # may have the double-count baked in by 8082).
+    # Structure: baseline_energy_cost already includes base + harmonic; harmonic is shown as
+    # a breakdown sub-line, not an additive term.  Remaining categories add on top.
+    total_attributed_dollars = (
+        baseline_energy_cost      # base kWh + network/harmonic kWh (no double-count)
+        + demand_savings_cost
+        + power_factor_savings_cost
+        # envelope_smoothing_cost intentionally excluded — flagged as proprietary /
+        # non-IPMVP-verified. It is displayed on the card for informational purposes
+        # but must not inflate the auditable Total Attributed figure.
+        + cp_plc_cost
+        + om_savings_cost
+    )
+    reconciles_status = "PASS YES"
+    includes_categories = "Baseline Energy (metered base + harmonic sub-component) + Demand + PF Penalties + O&M (Envelope Smoothing excluded — non-IPMVP)"
     
     # Replace Savings Attribution Card template variables
-    template_content = template_content.replace('{{BASELINE_ENERGY}}', f"{baseline_energy:,.0f}")
-    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', _fmt_dollar(baseline_energy_cost, show_dollars))
+    # {{BASELINE_ENERGY}} shows the metered base only (not including network/harmonic sub-component)
+    # so that when {{HARMONIC_LOSSES_ENERGY}} is displayed alongside it the two add up to the
+    # full savings total without double-counting.
+    template_content = template_content.replace('{{BASELINE_ENERGY}}', f"{base_energy_kwh:,.0f}")
+    template_content = template_content.replace('{{BASELINE_ENERGY_COST}}', _fmt_dollar(base_energy_cost, show_dollars))
     template_content = template_content.replace('{{BASE_ENERGY_KWH}}', f"{base_energy_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_ENERGY_KWH}}', f"{network_energy_kwh:,.0f}")
     template_content = template_content.replace('{{ENERGY_RATE_DETAILED}}', _fmt_dollar(energy_rate_detailed, show_dollars, 5) + ("/kWh" if show_dollars else ""))
@@ -5767,8 +5842,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Product Weight</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Storage Capacity:</strong></td>
                 </tr>
                 <tr>
@@ -5781,8 +5856,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Intensity (kWh per {product_weight_unit})</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -5795,8 +5870,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -5831,8 +5906,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Storage Efficiency</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Efficiency - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Efficiency - After:</strong></td>
+                    <td style="width: 33%;"><strong>Efficiency - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Efficiency - Reporting:</strong></td>
                     <td style="width: 33%;"><strong>Turnover Rate:</strong></td>
                 </tr>
                 <tr>
@@ -5959,8 +6034,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Usage Effectiveness (PUE)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -5973,8 +6048,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">IT Equipment Efficiency (ITE)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>Before Period:</strong></td>
-                    <td style="width: 50%;"><strong>After Period:</strong></td>
+                    <td style="width: 50%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 50%;"><strong>Reporting Period:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ite_before, 3) if ite_before > 0 else 'N/A'}</td>
@@ -5985,8 +6060,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Cooling Load Factor (CLF)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -5999,9 +6074,9 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Density Metrics</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Power per Rack - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Power per Rack - After:</strong></td>
-                    <td style="width: 33%;"><strong>Power per sqft - Before:</strong></td>
+                    <td style="width: 33%;"><strong>Power per Rack - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Power per Rack - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Power per sqft - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(power_density_per_rack_before, 2) if power_density_per_rack_before > 0 else 'N/A'} kW/rack</td>
@@ -6011,9 +6086,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Power per sqft - After:</strong></td>
-                    {('<td style="width: 33%;"><strong>Power per GPU - Before:</strong></td>' if num_gpus > 0 else '<td></td>')}
-                    {('<td style="width: 33%;"><strong>Power per GPU - After:</strong></td>' if num_gpus > 0 else '<td></td>')}
+                    <td style="width: 33%;"><strong>Power per sqft - Reporting:</strong></td>
+                    {('<td style="width: 33%;"><strong>Power per GPU - Baseline:</strong></td>' if num_gpus > 0 else '<td></td>')}
+                    {('<td style="width: 33%;"><strong>Power per GPU - Reporting:</strong></td>' if num_gpus > 0 else '<td></td>')}
                 </tr>
                 <tr>
                     <td>{format_number(power_density_per_sqft_after, 2) if power_density_per_sqft_after > 0 else 'N/A'} kW/sqft</td>
@@ -6031,8 +6106,8 @@ def generate_exact_template_html(r):
                     data_center_html += f"""
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>kWh per GPU-hour - Before:</strong></td>
-                    <td style="width: 50%;"><strong>kWh per GPU-hour - After:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per GPU-hour - Baseline:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per GPU-hour - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(kwh_per_gpu_hour_before, 4) if kwh_per_gpu_hour_before > 0 else 'N/A'} kWh/GPU-hour</td>
@@ -6044,8 +6119,8 @@ def generate_exact_template_html(r):
                     data_center_html += f"""
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 50%;"><strong>kWh per Teraflop - Before:</strong></td>
-                    <td style="width: 50%;"><strong>kWh per Teraflop - After:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per Teraflop - Baseline:</strong></td>
+                    <td style="width: 50%;"><strong>kWh per Teraflop - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(kwh_per_tflop_before, 4) if kwh_per_tflop_before > 0 else 'N/A'} kWh/TF</td>
@@ -6061,7 +6136,7 @@ def generate_exact_template_html(r):
                 <tr>
                     <td style="width: 33%;"><strong>UPS Capacity:</strong></td>
                     <td style="width: 33%;"><strong>UPS Efficiency:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Loading - Before:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Loading - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ups_capacity_kva, 0)} kVA</td>
@@ -6071,9 +6146,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>UPS Loading - After:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Losses - Before:</strong></td>
-                    <td style="width: 33%;"><strong>UPS Losses - After:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Loading - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Losses - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>UPS Losses - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(ups_loading_after, 1) if ups_loading_after > 0 else 'N/A'}%</td>
@@ -6093,9 +6168,9 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Power Breakdown</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>IT Power - Before:</strong></td>
-                    <td style="width: 33%;"><strong>IT Power - After:</strong></td>
-                    <td style="width: 33%;"><strong>Cooling Power - Before:</strong></td>
+                    <td style="width: 33%;"><strong>IT Power - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>IT Power - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Cooling Power - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(it_power_before, 2) if it_power_before > 0 else 'N/A'} kW</td>
@@ -6105,9 +6180,9 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Cooling Power - After:</strong></td>
-                    <td style="width: 33%;"><strong>Total Facility Power - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Total Facility Power - After:</strong></td>
+                    <td style="width: 33%;"><strong>Cooling Power - Reporting:</strong></td>
+                    <td style="width: 33%;"><strong>Total Facility Power - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Total Facility Power - Reporting:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(cooling_power_after, 2) if cooling_power_after > 0 else 'N/A'} kW</td>
@@ -6217,9 +6292,9 @@ def generate_exact_template_html(r):
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
                     <td style="width: 25%;"><strong>Number of Operating Rooms:</strong></td>
-                    <td style="width: 25%;"><strong>Patient Days - Before:</strong></td>
-                    <td style="width: 25%;"><strong>Patient Days - After:</strong></td>
-                    <td style="width: 25%;"><strong>Avg Occupancy - Before:</strong></td>
+                    <td style="width: 25%;"><strong>Patient Days - Baseline:</strong></td>
+                    <td style="width: 25%;"><strong>Patient Days - Reporting:</strong></td>
+                    <td style="width: 25%;"><strong>Avg Occupancy - Baseline:</strong></td>
                 </tr>
                 <tr>
                     <td>{format_number(num_operating_rooms, 0)}</td>
@@ -6230,7 +6305,7 @@ def generate_exact_template_html(r):
             </table>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 25%;"><strong>Avg Occupancy - After:</strong></td>
+                    <td style="width: 25%;"><strong>Avg Occupancy - Reporting:</strong></td>
                     <td style="width: 25%;"></td>
                     <td style="width: 25%;"></td>
                     <td style="width: 25%;"></td>
@@ -6248,8 +6323,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Patient Day (kWh/patient-day)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6265,8 +6340,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Bed (kWh/bed/year)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6281,8 +6356,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6379,8 +6454,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Operating Room Energy Intensity</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6409,8 +6484,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -6555,8 +6630,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Occupied Room-Night (kWh/room-night)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6573,8 +6648,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Guest (kWh/guest)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6591,8 +6666,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Meal (kWh/meal)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6607,8 +6682,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6771,8 +6846,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Occupancy Analysis</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Avg Occupancy - Before:</strong></td>
-                    <td style="width: 33%;"><strong>Avg Occupancy - After:</strong></td>
+                    <td style="width: 33%;"><strong>Avg Occupancy - Baseline:</strong></td>
+                    <td style="width: 33%;"><strong>Avg Occupancy - Reporting:</strong></td>
                     <td style="width: 33%;"><strong>Occupancy-Adjusted Energy:</strong></td>
                 </tr>
                 <tr>
@@ -6800,8 +6875,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -6954,8 +7029,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Unit Produced (kWh/unit)</h4>
             <table style="width: 100%; margin-bottom: 16px; background: white; padding: 12px; border-radius: 4px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -6972,8 +7047,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy per Machine Hour (kWh/machine-hour)</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -7006,8 +7081,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Equipment Utilization</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Change:</strong></td>
                 </tr>
                 <tr>
@@ -7190,8 +7265,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Use Intensity (EUI) - kWh/sqft/year</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Improvement:</strong></td>
                 </tr>
                 <tr>
@@ -7204,8 +7279,8 @@ def generate_exact_template_html(r):
             <h4 style="margin-top: 16px; color: #1976d2;">Energy Consumption</h4>
             <table style="width: 100%; margin-bottom: 16px;">
                 <tr>
-                    <td style="width: 33%;"><strong>Before Period:</strong></td>
-                    <td style="width: 33%;"><strong>After Period:</strong></td>
+                    <td style="width: 33%;"><strong>Baseline Period:</strong></td>
+                    <td style="width: 33%;"><strong>Reporting Period:</strong></td>
                     <td style="width: 33%;"><strong>Energy Savings:</strong></td>
                 </tr>
                 <tr>
@@ -7264,17 +7339,22 @@ def generate_exact_template_html(r):
     _letter_energy_full = f"{_kes_kwh:,.0f} kWh/year  ({_kes_kw:.2f} kW avg demand reduction)"
     template_content = template_content.replace('{{LETTER_ENERGY_SAVINGS_FULL}}', _letter_energy_full)
 
-    # BASE_KWH_SAVINGS / NETWORK_KWH_SAVINGS – kWh savings breakdown
-    _fin = financial if isinstance(financial, dict) else {}
+    # BASE_KWH_SAVINGS / NETWORK_KWH_SAVINGS – kWh savings breakdown.
+    # Primary source: attribution.energy.components (same split used by attribution card).
+    # This prevents the summary page showing "Metered base (534,691) + Network (0)"
+    # when the split is actually base=457,112 + network=77,579.
+    _attr = safe_get(r, "attribution", default={}) or {}
+    _attr_energy_comps = safe_get(_attr, "energy", default={}).get("components", {}) or {}
     _base_kwh = _safe_float(
-        _fin.get("annual_kwh_savings") or
-        _fin.get("base_kwh_savings") or
-        _fin.get("delta_kwh_annual") or
+        _attr_energy_comps.get("base_kwh") or
+        (financial or {}).get("base_kwh_savings") or
+        (financial or {}).get("delta_kwh_annual") or
         annual_kwh_savings or 0
     )
     _net_kwh = _safe_float(
-        _fin.get("network_kwh_savings") or
-        _fin.get("annual_network_kwh") or 0
+        _attr_energy_comps.get("network_kwh") or
+        (financial or {}).get("network_kwh_savings") or
+        (financial or {}).get("annual_network_kwh") or 0
     )
     template_content = template_content.replace('{{BASE_KWH_SAVINGS}}',    f"{_base_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_KWH_SAVINGS}}', f"{_net_kwh:,.0f}")
@@ -7558,10 +7638,16 @@ def generate_exact_template_html(r):
         _thd_aft     = _f(safe_get(_pq, "thd_after"),   0.0)
         _tdd_bef     = _f(safe_get(_pq, "tdd_before"),  0.0)
         _tdd_aft     = _f(safe_get(_pq, "tdd_after"),   0.0)
-        _isc         = _f(safe_get(_pq, "isc_kA") or safe_get(_pq, "isc_current"), 0.0)
-        _il          = _f(safe_get(_pq, "il_A")  or safe_get(_pq, "il_current"),  0.0)
-        _isc_il      = _f(safe_get(_pq, "isc_il_ratio"), 0.0)
-        _thd_limit   = _f(safe_get(_pq, "ieee_thd_limit") or safe_get(_ac, "ieee_thd_limit"), 8.0)
+        # ISC/IL come from project config (not power_quality, which doesn't store them).
+        # Use the same helper as the main body so appendix and body are always consistent.
+        _isc_il_ratio_app = _compute_isc_il_from_config(r)
+        _cfg_app  = safe_get(r, "config", default={}) or {}
+        _isc_kA_v = _f(safe_get(_cfg_app, "isc_kA"), 0.0)
+        _il_A_v   = _f(safe_get(_cfg_app, "il_A"), 0.0)
+        _isc         = _isc_kA_v * 1000          # convert kA → A for display
+        _il          = _il_A_v
+        _isc_il      = _isc_il_ratio_app
+        _thd_limit   = _ieee_519_tdd_limit_for(_isc_il_ratio_app)
 
         # ── A.3 meter info ───────────────────────────────────────────────────
         _cp          = safe_get(r, "client_profile", default={}) or {}
@@ -7661,7 +7747,7 @@ def generate_exact_template_html(r):
       <tr style="background:#f9f9f9;">
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Sample sizes (n / n<sub>eff</sub>)</td>
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0; font-family:monospace; font-size:0.9em;">n<sub>eff</sub> = autocorrelation-corrected effective sample size (ASHRAE GL14-2023 Annex B, AR(1): n<sub>eff</sub> = n×(1−ρ₁)/(1+ρ₁)). SE, CI, p-value, and RP use n<sub>eff</sub>.</td>
-        <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Before: <strong>{_n_bef_str}</strong><br/>After: <strong>{_n_aft_str}</strong></td>
+        <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Baseline: <strong>{_n_bef_str}</strong><br/>Reporting: <strong>{_n_aft_str}</strong></td>
       </tr>
       <tr>
         <td style="padding:6px 10px; border-bottom:1px solid #e0e0e0;">Annual kWh extrapolation</td>

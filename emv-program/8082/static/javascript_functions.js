@@ -8075,8 +8075,8 @@ function displayResults(r) {
   );
 
   // Build the label strings for display
-  const beforeLabelDisplay = beforeLabel ? `Before ${beforeLabel}` : "Before";
-  const afterLabelDisplay = afterLabel ? `After ${afterLabel}` : "After";
+  const beforeLabelDisplay = beforeLabel ? `Baseline Period ${beforeLabel}` : "Baseline Period";
+  const afterLabelDisplay = afterLabel ? `Reporting Period ${afterLabel}` : "Reporting Period";
 
   html += `<h3>Performance</h3>`;
   html +=
@@ -8798,15 +8798,29 @@ function displayResults(r) {
     const avg_kw_before = powerQuality.kw_before || 0;
     const avg_kw_after = powerQuality.kw_after || 0;
     
-    // Get peak kW - simply the highest value from the 'totalKw' column for each test period
-    // kW Peak = maximum value in the totalKw column for that period (no calculations, just the max)
+    // Get peak kW using 15-minute billing demand intervals (utility standard).
+    // Priority: peak_demand.maximum (15-min intervals, raw kW) > avgKw.values max > avgKw.max
+    // NOTE: avgKw.values and avgKw.max reflect Chauvenet-cleaned data which can strip the true
+    // billing peak. peak_demand.maximum is computed from raw values on 15-min averages.
     let peak_kw_before = 0;
     let peak_kw_after = 0;
     let peak_source_before = 'unknown';
     let peak_source_after = 'unknown';
-    
-    // Get peak from totalKw column (primary source)
-    if (beforeData.avgKw) {
+
+    // HIGHEST PRIORITY: use backend-computed billing demand peak (15-min intervals, raw kW)
+    if (beforeData.peak_demand && beforeData.peak_demand.maximum != null && Number(beforeData.peak_demand.maximum) > 0) {
+      peak_kw_before = Number(beforeData.peak_demand.maximum);
+      peak_source_before = 'peak_demand.maximum (15-min billing intervals, raw kW)';
+      console.log('[PEAK] Before: Using peak_demand.maximum =', peak_kw_before, '(15-min billing demand, raw)');
+    }
+    if (afterData.peak_demand && afterData.peak_demand.maximum != null && Number(afterData.peak_demand.maximum) > 0) {
+      peak_kw_after = Number(afterData.peak_demand.maximum);
+      peak_source_after = 'peak_demand.maximum (15-min billing intervals, raw kW)';
+      console.log('[PEAK] After: Using peak_demand.maximum =', peak_kw_after, '(15-min billing demand, raw)');
+    }
+
+    // Fallback to avgKw-based calculation only when peak_demand is absent
+    if (peak_kw_before === 0 && beforeData.avgKw) {
       if (beforeData.avgKw.values && Array.isArray(beforeData.avgKw.values) && beforeData.avgKw.values.length > 0) {
         // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
         const validBeforeValues = beforeData.avgKw.values.map(v => Number(v)).filter(v => 
@@ -8858,8 +8872,8 @@ function displayResults(r) {
     } else {
       console.log('[WARNING] kW Peak - Before: totalKw column not found in beforeData. Available keys:', Object.keys(beforeData));
     }
-    
-    if (afterData.avgKw) {
+
+    if (peak_kw_after === 0 && afterData.avgKw) {
       if (afterData.avgKw.values && Array.isArray(afterData.avgKw.values) && afterData.avgKw.values.length > 0) {
         // Convert all values to numbers first (handles both strings and numbers), then filter out invalid values
         const validAfterValues = afterData.avgKw.values.map(v => Number(v)).filter(v => 
@@ -9452,7 +9466,17 @@ function displayResults(r) {
     html +=
       `<strong>THD</strong> shows IEEE 519 harmonic distortion reduction, and <strong>Voltage Unbalance</strong> shows IEEE 519 three-phase voltage balance improvement. `;
     html +=
-      `<em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2023.</em>`;
+      (function(){
+        var wn = r && r.weather_normalization ? r.weather_normalization : {};
+        var applied = wn.normalization_applied;
+        if (applied === false || applied === 'false') {
+          var sc = wn.standards_compliance || wn.reason || '';
+          return '<em>Note: Weather normalization was not applied. ' +
+            (sc ? 'Reason: ' + sc : 'See weather normalization section for details.') +
+            '</em>';
+        }
+        return '<em>Note: Weather normalization applied per ASHRAE Guideline 14-2023 §5.2–5.4.</em>';
+      })();
     html += `</div>`;
     html += `<table class="compliance-table">`;
     html +=
@@ -9862,6 +9886,42 @@ function displayResults(r) {
         // Calculate actual adjustment factor from results
         const weatherAdjustmentFactor = powerQualityNormalized.kw_after > 0 ? powerQualityNormalized.weather_normalized_kw_after / powerQualityNormalized.kw_after : 1.0;
         
+        // ── Weather normalization skip banner ────────────────────────────────
+        // Show a prominent notice when normalization ran but was suppressed
+        // (R² gate, temp-diff gate, or explicit normalization_applied=false).
+        const wnApplied = weatherNorm.normalization_applied;
+        if (wnApplied === false || wnApplied === "false" || wnApplied === 0) {
+          let skipReason = "";
+          const wnReason = weatherNorm.reason || weatherNorm.standards_compliance || "";
+          const wnR2 = weatherNorm.regression_r2 ?? weatherNorm.r_squared ?? null;
+          const wnTempDiff = (tempBefore !== undefined && tempAfter !== undefined)
+            ? Math.abs(tempBefore - tempAfter) : null;
+          if (wnReason && wnReason.toLowerCase().includes("r2")) {
+            skipReason = "R\u00B2 = " + (wnR2 !== null ? Number(wnR2).toFixed(3) : "N/A") +
+              " is below the ASHRAE Guideline 14-2023 threshold of 0.75. " +
+              "Regression model is not statistically valid; raw meter readings used.";
+          } else if (wnReason && wnReason.toLowerCase().includes("temp")) {
+            skipReason = "Temperature difference between periods (" +
+              (wnTempDiff !== null ? wnTempDiff.toFixed(1) + "\u00B0C" : "N/A") +
+              ") does not meet the minimum threshold for normalization.";
+          } else if (wnR2 !== null && wnR2 < 0.75) {
+            skipReason = "R\u00B2 = " + Number(wnR2).toFixed(3) +
+              " is below the ASHRAE Guideline 14-2023 threshold of 0.75. " +
+              "Weather normalization was not applied; adjustment factor fixed at 1.0000.";
+          } else {
+            skipReason = wnReason || "Normalization criteria not met per ASHRAE Guideline 14-2023.";
+          }
+          html += `<div style="background:#fff3cd;border:1px solid #ffc107;border-left:5px solid #e65100;border-radius:4px;padding:12px 16px;margin-bottom:14px;font-size:0.93em;">
+            <strong style="color:#e65100;">\u26A0\uFE0F Weather Normalization Not Applied</strong><br/>
+            <span style="color:#5d4037;">${skipReason}</span><br/>
+            <span style="color:#888;font-size:0.88em;margin-top:4px;display:block;">
+              The table below shows the normalization machinery but with a fixed factor of 1.0000,
+              meaning raw meter readings pass through unchanged. Reported savings are based on raw \u0394kW only.
+            </span>
+          </div>`;
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         
@@ -10416,12 +10476,10 @@ function displayResults(r) {
         }
         
         // Calculate total normalized savings using the values from IEEE 519 section
-        // CRITICAL FIX: Total Utility Billing Impact = weather_normalized_before - pf_normalized_after
-        // This represents the total impact from both weather normalization AND power factor normalization
-        // NOT: pf_normalized_before - pf_normalized_after (which only shows PF impact)
-        const totalSavingsKwStep4 = weatherBeforeForStep4 - pfNormalizedKwAfterStep4;
-        // CRITICAL: Use weather_normalized_kw_before as denominator (same as Weather Savings % and PF Contribution %)
-        // This ensures: Weather Savings % + PF Contribution % = Total Utility Billing Impact %
+        // FIXED: Total Normalized Savings = PF-normalized before minus PF-normalized after
+        // Both values are at the same normalization level (weather + PF), so the subtraction is consistent.
+        const totalSavingsKwStep4 = pfNormalizedKwBeforeStep4 - pfNormalizedKwAfterStep4;
+        // Use pfNormalizedKwBeforeStep4 as denominator so savings % is computed on a consistent PF-normalized basis
         // DEBUG: Log values to verify calculation
         console.log('[SEARCH] [STEP 4 DEBUG] weatherBeforeForStep4 =', weatherBeforeForStep4);
         console.log('[SEARCH] [STEP 4 DEBUG] pfNormalizedKwBeforeStep4 =', pfNormalizedKwBeforeStep4);
@@ -10434,7 +10492,7 @@ function displayResults(r) {
           console.warn('[WARNING] [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
         }
         
-        const totalNormalizedPercentStep4 = (weatherBeforeForStep4 > 0) ? (totalSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;
+        const totalNormalizedPercentStep4 = (pfNormalizedKwBeforeStep4 > 0) ? (totalSavingsKwStep4 / pfNormalizedKwBeforeStep4) * 100 : 0;
         console.log('[SEARCH] [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
         console.log('[SEARCH] [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
         
@@ -10474,8 +10532,8 @@ function displayResults(r) {
         // Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
         const totKw = totalSavingsKwStep4 != null && !isNaN(totalSavingsKwStep4) ? Number(totalSavingsKwStep4).toFixed(2) : 'N/A';
         const totPct = totalNormalizedPercentStep4 != null && !isNaN(totalNormalizedPercentStep4) ? Number(totalNormalizedPercentStep4).toFixed(2) : 'N/A';
-        // Use weather-normalized before as denominator (same as Weather Savings % and PF Contribution %)
-        const wBeforeForTotal = weatherBeforeForStep4 != null && !isNaN(weatherBeforeForStep4) ? Number(weatherBeforeForStep4).toFixed(2) : 'N/A';
+        // Use pfNormalized before as denominator (consistent PF-normalized basis)
+        const wBeforeForTotal = pfNormalizedKwBeforeStep4 != null && !isNaN(pfNormalizedKwBeforeStep4) ? Number(pfNormalizedKwBeforeStep4).toFixed(2) : 'N/A';
         const totColor = (totalNormalizedPercentStep4 > 0) ? 'green' : 'red';
         html += '<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">🔋 Billing Demand Relief — Utility Tariff PF Clause (%)<br/><small style="color: #2e7d32; font-style: italic;">Demand charge reduction from PF improvement per utility tariff PF clause</small><br/><small style="color: #b71c1c; font-weight: bold;">⚠ Not additional energy savings — a separate financial benefit under the utility rate schedule</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: ' + totColor + ';">' + totPct + '%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">(' + totKw + ' / ' + wBeforeForTotal + ') × 100<br/><small style="color: #666;"><em>Citation: Applicable utility rate schedule PF clause; IPMVP Vol. I (demand savings).<br/>Do not add to energy savings %.</em></small></td></tr>';
         html += `</table>`;
@@ -10862,8 +10920,12 @@ function displayResults(r) {
     if (beforeComp && beforeComp.baseline_model_nmbe != null) {
       nmbe = fmt(beforeComp.baseline_model_nmbe, 1);
     }
-    if (beforeComp && beforeComp.baseline_model_r_squared != null) {
-      rSquared = fmt(beforeComp.baseline_model_r_squared, 1);
+    if (beforeComp && beforeComp.baseline_model_r_squared != null && beforeComp.baseline_model_r_squared > 0) {
+      rSquared = fmt(beforeComp.baseline_model_r_squared, 3);
+    } else if (r0.weather_normalization && r0.weather_normalization.regression_r2 != null) {
+      rSquared = fmt(r0.weather_normalization.regression_r2, 3) + ' (below 0.75 - normalization not applied per ASHRAE GL14-2023)';
+    } else if (beforeComp && beforeComp.baseline_model_r_squared != null) {
+      rSquared = fmt(beforeComp.baseline_model_r_squared, 3);
     }
 
 
@@ -16383,3 +16445,90 @@ document.addEventListener('DOMContentLoaded', function() {
   if (sel) updateHarmonicModeUI(sel.value);
 });
 
+
+// ── Auto-load project from URL ?autoload=<id> or sessionStorage (dashboard→legacy) ──
+(function() {
+  function autoLoadProject() {
+    // Priority: URL param ?autoload=N > sessionStorage.currentProjectId > sessionStorage.loadProjectId
+    var params = new URLSearchParams(window.location.search || '');
+    var projectId = params.get('autoload')
+      || sessionStorage.getItem('currentProjectId')
+      || sessionStorage.getItem('loadProjectId');
+
+    if (!projectId) return;
+
+    // Clear sessionStorage keys so navigating Back doesn't re-trigger
+    sessionStorage.removeItem('currentProjectId');
+    sessionStorage.removeItem('loadProjectId');
+    // Clean URL param without reload
+    if (params.get('autoload')) history.replaceState({}, '', window.location.pathname);
+
+    var sessionToken = (typeof _getSessionToken === 'function' ? _getSessionToken() : null)
+      || localStorage.getItem('session_token')
+      || sessionStorage.getItem('session_token');
+
+    var headers = { 'Content-Type': 'application/json' };
+    if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken.trim();
+
+    var base = (window.SYNEREX_EMV_BASE || '');
+
+    console.log('[AUTO-LOAD] Loading project id:', projectId);
+
+    function doLoad() {
+      fetch(base + '/api/projects/load', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ project_id: parseInt(projectId) })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) { console.error('[AUTO-LOAD] Error:', data.error); return; }
+
+        var project = data.project || {};
+        // Store project id in hidden field
+        var pidField = document.getElementById('current_project_id');
+        if (pidField && project.id) pidField.value = project.id;
+
+        // Parse and populate form fields
+        var projectData = {};
+        try {
+          var parsed = JSON.parse(project.data || '{}');
+          projectData = parsed.payload
+            ? (typeof parsed.payload === 'string' ? JSON.parse(parsed.payload) : parsed.payload)
+            : parsed;
+        } catch(e) { console.warn('[AUTO-LOAD] Parse error', e); }
+
+        // Populate each form field
+        Object.keys(projectData).forEach(function(key) {
+          var val = projectData[key];
+          if (val === null || val === undefined || typeof val === 'object') return;
+          var el = document.getElementById(key) || document.querySelector('[name="' + key + '"]');
+          if (!el) return;
+          if (el.type === 'checkbox') { el.checked = !!val; }
+          else { el.value = val; }
+        });
+
+        // Update project name display
+        var nameField = document.getElementById('projectName') || document.getElementById('company');
+        if (nameField && projectData.company) nameField.value = projectData.company;
+
+        if (typeof showNotification === 'function') {
+          showNotification('Project "' + (project.name || projectId) + '" loaded.', 'success');
+        }
+        console.log('[AUTO-LOAD] Done — project', project.name || projectId, 'loaded.');
+      })
+      .catch(function(e) { console.error('[AUTO-LOAD] Fetch error:', e); });
+    }
+
+    // If DOM isn't ready yet, wait for it
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', doLoad);
+    } else {
+      // Small delay so other DOMContentLoaded handlers (field init, etc.) run first
+      setTimeout(doLoad, 200);
+    }
+  }
+
+  // Run immediately — sessionStorage is readable before DOMContentLoaded
+  autoLoadProject();
+})();

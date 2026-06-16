@@ -21211,6 +21211,14 @@ def pe_dashboard():
         logger.error(f"Error rendering PE dashboard: {e}")
         return f"Error loading PE dashboard: {str(e)}", 500
 
+
+@app.route("/open/<int:project_id>")
+@app.route("/emv/open/<int:project_id>")
+def open_project_direct(project_id):
+    """Redirect to legacy page with ?autoload=<project_id> so JS auto-loads the project."""
+    from flask import redirect
+    return redirect("/legacy?autoload={}".format(project_id))
+
 @app.route("/legacy")
 def legacy_index():
     """Legacy interface - loads the actual SYNEREX application"""

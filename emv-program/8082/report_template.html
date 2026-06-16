@@ -864,11 +864,11 @@
                     <span style="font-size: 1.2em; font-weight: bold; color: #28a745;">{{P_VALUE}}</span>
                 </div>
                 <div class="metric-row">
-                    <span style="font-weight: 600; color: #333;">Sample Size (Before): <em style="font-weight: normal; color: #666;">(number of data points in baseline period.)</em></span>
+                    <span style="font-weight: 600; color: #333;">Sample Size (Baseline Period): <em style="font-weight: normal; color: #666;">(number of data points in baseline period.)</em></span>
                     <span style="font-size: 1.1em; font-weight: bold;">{{SAMPLE_SIZE_BEFORE}}</span>
                 </div>
                 <div class="metric-row">
-                    <span style="font-weight: 600; color: #333;">Sample Size (After): <em style="font-weight: normal; color: #666;">(number of data points in post-installation period.)</em></span>
+                    <span style="font-weight: 600; color: #333;">Sample Size (Reporting Period): <em style="font-weight: normal; color: #666;">(number of data points in reporting period.)</em></span>
                     <span style="font-size: 1.1em; font-weight: bold;">{{SAMPLE_SIZE_AFTER}}</span>
                 </div>
                 
@@ -905,8 +905,8 @@
                 <h4>Comprehensive Statistical Analysis</h4>
                 <div style="background:#f8f9fa; padding:4px 12px; border-radius:6px; margin:4px 0;">
                     <strong>Detailed Statistical Results:</strong><br/>
-                    • Sample Size (Before): <strong>{{SAMPLE_SIZE_BEFORE_DETAILED}}</strong> <em>(number of data points in baseline period.)</em><br/>
-                    • Sample Size (After): <strong>{{SAMPLE_SIZE_AFTER_DETAILED}}</strong> <em>(number of data points in post-installation period.)</em><br/>
+                    • Sample Size (Baseline Period): <strong>{{SAMPLE_SIZE_BEFORE_DETAILED}}</strong> <em>(number of data points in baseline period.)</em><br/>
+                    • Sample Size (Reporting Period): <strong>{{SAMPLE_SIZE_AFTER_DETAILED}}</strong> <em>(number of data points in reporting period.)</em><br/>
                     • Statistically Significant: <strong>{{STATISTICALLY_SIGNIFICANT_DETAILED}}</strong> <em>(difference is real, not due to random variation, e.g., p < 0.05 = 95% confidence)</em><br/>
                     • Cohen's d: <strong>{{COHENS_D_DETAILED}}</strong> <em>(effect size per Cohen 1988 / ASHRAE Guideline 14-2023 &sect;5.3.2 &mdash; larger absolute value = stronger savings signal relative to measurement scatter; &ge;0.8 is a very large, favourable effect for M&amp;V)</em><br/>
                     • T-Statistic: <strong>{{T_STATISTIC_DETAILED}}</strong> <em>(standardized difference between group means, e.g., -29.08 = very large difference)</em><br/>
@@ -921,11 +921,11 @@
                         (Based on the unknown and uncontrolled variables in the real-time testing environment and 100% standards compliant, we're 95% sure the true value is between X and Y.)
                     </div>
                     <div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 1px;">
-                        <span style="font-weight: normal; color: #111;">Before Period: <em style="font-size: 12px; color: #666;">(baseline energy consumption range - kW)</em></span>
+                        <span style="font-weight: normal; color: #111;">Baseline Period: <em style="font-size: 12px; color: #666;">(baseline energy consumption range - kW)</em></span>
                         <span style="font-weight: bold; color: #333;">{{CONFIDENCE_INTERVAL_BEFORE}}</span>
                     </div>
                     <div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 1px;">
-                        <span style="font-weight: normal; color: #111;">After Period: <em style="font-size: 12px; color: #666;">(post-installation energy consumption range - kW)</em></span>
+                        <span style="font-weight: normal; color: #111;">Reporting Period: <em style="font-size: 12px; color: #666;">(reporting period energy consumption range - kW)</em></span>
                         <span style="font-weight: bold; color: #333;">{{CONFIDENCE_INTERVAL_AFTER}}</span>
                     </div>
                 </div>
@@ -936,11 +936,11 @@
                         (how reliable and consistent our measurements are)
                     </div>
                     <div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 1px;">
-                        <span style="font-weight: normal; color: #111;">Before Period Quality: <em style="font-size: 12px; color: #666;">(measurement consistency rating)</em></span>
+                        <span style="font-weight: normal; color: #111;">Baseline Period Quality: <em style="font-size: 12px; color: #666;">(measurement consistency rating)</em></span>
                         <span style="font-weight: bold; color: #333;">{{CV_BEFORE_DETAILED}}</span>
                     </div>
                     <div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 1px;">
-                        <span style="font-weight: normal; color: #111;">After Period Quality: <em style="font-size: 12px; color: #666;">(measurement consistency rating)</em></span>
+                        <span style="font-weight: normal; color: #111;">Reporting Period Quality: <em style="font-size: 12px; color: #666;">(measurement consistency rating)</em></span>
                         <span style="font-weight: bold; color: #333;">{{CV_AFTER_DETAILED}}</span>
                     </div>
                     <div class="metric-row" style="display: flex; justify-content: space-between; align-items: center; margin: 1px;">
@@ -1104,7 +1104,7 @@
                 <strong>Standards-Compliant Electrical Parameter Analysis:</strong> These metrics follow IEEE 519-2014/2022, ASHRAE Guideline 14-2014, and IEC 61000-2-2 standards. 
                 kW (Weather Normalized) shows ASHRAE weather-adjusted power savings, Volts (L-N) shows IEC 61000-2-2 voltage quality, TDD (Total Demand Distortion at the PCC) shows IEEE 519 harmonic compliance — the utility-facing metric used for Table 2 limit checks, 
                 and Voltage Unbalance shows IEEE 519 three-phase voltage balance improvement. 
-                <em>Note: Weather normalization is skipped when the temperature difference between periods is less than 2.0°C per ASHRAE Guideline 14-2014 Section 14.3.</em>
+                <em>Note: Weather normalization is applied when data supports it per ASHRAE Guideline 14 standards. The actual normalization outcome (applied or overridden) is documented in the Engineering Analysis section of this report.</em>
             </div>
             <table class="compliance-table">
                 <tr><th>Parameter</th><th style="text-align: center;">Before {{BEFORE_LABEL}}</th><th style="text-align: center;">After {{AFTER_LABEL}}</th><th style="text-align: center;">% Improvement</th></tr>

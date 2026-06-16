@@ -75,7 +75,7 @@
 
   <form id="analysisForm" method="POST" action="/api/analyze" enctype="multipart/form-data" novalidate>
     <!-- Saved Projects -->
-    <div id="saved-projects-section" class="form-group">
+    <div id="saved-projects-section" class="form-group" style="display:none">
       <h3>Saved Projects</h3>
       <div class="form-grid three-col">
         <div class="field">
@@ -2644,31 +2644,54 @@ What specific utility or cost question do you have?`;
 
 
 <script>
-// Role-based UI: apply on every page load so sections are correct immediately.
+// Role-based UI: saved-projects-section starts hidden (display:none in HTML).
+// This script shows it for Synerex admins - no flash-then-hide visible to the user.
 (function() {
-  var orgType = localStorage.getItem('org_type') || '';
-  var orgId   = localStorage.getItem('org_id')   || '';
-  var isOem   = (orgType === 'oem' || orgId.toUpperCase().indexOf('OEM-') === 0);
-  var isSynerex = (orgId === 'admin' || orgType === 'admin');
+  var orgType = localStorage.getItem(org_type) || ;
+  var orgId   = localStorage.getItem(org_id)   || ;
+  var isOem   = (orgType === oem || orgId.toUpperCase().indexOf(OEM-) === 0);
+  var isSynerex = (orgId === admin || orgType === admin);
 
-  function applyVisibility() {
-    // Saved Projects — Synerex admin only
-    var sp = document.getElementById('saved-projects-section');
-    if (sp) sp.style.display = isSynerex ? '' : 'none';
-
-    // Tracking Integration — OEM only
-    var ti = document.getElementById('tracking-integration-container');
-    if (ti) ti.style.display = isOem ? '' : 'none';
+  function applyVisibility(isSyn, isOemRole) {
+    var sp = document.getElementById(saved-projects-section);
+    if (sp) sp.style.display = isSyn ?  : none;
+    var ti = document.getElementById(tracking-integration-container);
+    if (ti) ti.style.display = isOemRole ?  : none;
   }
 
-  // Apply immediately if DOM ready, otherwise wait
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyVisibility);
+  // Apply synchronously from localStorage (instant, no flash)
+  if (document.readyState === loading) {
+    document.addEventListener(DOMContentLoaded, function() { applyVisibility(isSynerex, isOem); });
   } else {
-    applyVisibility();
+    applyVisibility(isSynerex, isOem);
   }
-  // Also re-apply after a short delay in case Tracking Integration renders later
-  setTimeout(applyVisibility, 1200);
+
+  // If localStorage does not already say admin, validate the session async.
+  // Covers landing on /legacy directly where localStorage has not been refreshed
+  // by the dashboard login flow.
+  if (!isSynerex) {
+    var tok = localStorage.getItem(session_token) || sessionStorage.getItem(session_token);
+    if (tok) {
+      var base = window.SYNEREX_EMV_BASE || ;
+      fetch(base + /api/auth/validate-session, {
+        method: POST,
+        headers: { Content-Type: application/json, Authorization: Bearer  + tok.trim() },
+        body: JSON.stringify({ session_token: tok.trim() })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === success) {
+          var rId = d.org_id || ; var rType = d.org_type || ;
+          if (rId)   localStorage.setItem(org_id,   rId);
+          if (rType) localStorage.setItem(org_type, rType);
+          var rSyn = (rId === admin || rType === admin);
+          var rOem = (rType === oem || rId.toUpperCase().indexOf(OEM-) === 0);
+          applyVisibility(rSyn, rOem);
+        }
+      })
+      .catch(function() {});
+    }
+  }
 })();
 </script>
 

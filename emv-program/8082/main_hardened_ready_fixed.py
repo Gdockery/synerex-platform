@@ -388,11 +388,69 @@ class WeatherServiceClient:
 
         except Exception as e:
             error_msg = f"Weather service error: {str(e)}"
-            logger.error("=== WEATHER SERVICE ERROR ===")
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error message: {str(e)}")
-            logger.error(f"Full error details: {repr(e)}")
-            logger.error(error_msg)
+            logger.error("=== WEATHER SERVICE ERROR — trying direct Open-Meteo fallback ===")
+            logger.error(f"Error type: {type(e).__name__}, message: {str(e)}")
+            # Direct Open-Meteo fallback when internal weather microservice is unavailable
+            try:
+                import re as _re
+                _zip_m = _re.search(r"\b(\d{5})\b", address or "")
+                _zip = _zip_m.group(1) if _zip_m else ""
+                _lat, _lon, _prov = _geocode_to_latlon(address or "", _zip)
+                if _lat is None:
+                    raise ValueError("Geocoding failed for direct Open-Meteo fallback")
+                logger.info(f"Direct Open-Meteo fallback: geocoded to {_lat},{_lon} via {_prov}")
+                _om_url = "https://archive-api.open-meteo.com/v1/archive"
+                _hourly_data = []
+                _summary = {}
+                for _period, _ps, _pe in [("before", before_start, before_end), ("after", after_start, after_end)]:
+                    _om_params = {
+                        "latitude": _lat, "longitude": _lon,
+                        "start_date": _ps, "end_date": _pe,
+                        "hourly": "temperature_2m,relative_humidity_2m,dewpoint_2m",
+                        "temperature_unit": "celsius",
+                        "timezone": "auto",
+                    }
+                    _om_resp = requests.get(_om_url, params=_om_params, timeout=60)
+                    _om_resp.raise_for_status()
+                    _om_data = _om_resp.json().get("hourly", {})
+                    _times = _om_data.get("time", [])
+                    _temps = _om_data.get("temperature_2m", [])
+                    _hums  = _om_data.get("relative_humidity_2m", [])
+                    _dps   = _om_data.get("dewpoint_2m", [])
+                    _valid_t = [t for t in _temps if t is not None]
+                    _valid_h = [h for h in _hums if h is not None]
+                    _valid_d = [d for d in _dps if d is not None]
+                    _summary[_period] = {
+                        "temp":     sum(_valid_t) / len(_valid_t) if _valid_t else None,
+                        "humidity": sum(_valid_h) / len(_valid_h) if _valid_h else None,
+                        "dewpoint": sum(_valid_d) / len(_valid_d) if _valid_d else None,
+                    }
+                    for _tt, _tc, _hc, _dc in zip(_times, _temps, _hums if _hums else [None]*len(_times), _dps if _dps else [None]*len(_times)):
+                        if _tc is not None:
+                            _hourly_data.append({"timestamp": _tt, "temp_c": _tc, "temp": _tc, "humidity": _hc, "dewpoint": _dc, "period": _period})
+                    t_avg = _summary[_period]["temp"]; logger.info(f"Open-Meteo direct: period={_period} avg={t_avg}C pts={len(_valid_t)}")
+                _direct_result = {
+                    "temp_before":            _summary["before"]["temp"],
+                    "temp_after":             _summary["after"]["temp"],
+                    "humidity_before":        _summary["before"]["humidity"],
+                    "humidity_after":         _summary["after"]["humidity"],
+                    "dewpoint_before":        _summary["before"]["dewpoint"],
+                    "dewpoint_after":         _summary["after"]["dewpoint"],
+                    "wind_speed_before":      None,
+                    "wind_speed_after":       None,
+                    "solar_radiation_before": None,
+                    "solar_radiation_after":  None,
+                    "coordinates": {"latitude": _lat, "longitude": _lon},
+                    "before_period": f"{before_start} to {before_end}",
+                    "after_period":  f"{after_start} to {after_end}",
+                    "hourly_data":   _hourly_data,
+                    "success": True,
+                    "api_source": "open-meteo-direct-fallback",
+                }
+                logger.info(f"Open-Meteo direct fallback OK: before={_direct_result['temp_before']:.1f}C after={_direct_result['temp_after']:.1f}C pts={len(_hourly_data)}")
+                return _direct_result
+            except Exception as _fallback_e:
+                logger.error(f"Direct Open-Meteo fallback also failed: {_fallback_e}")
             return {
                 "error": error_msg,
                 "temp_before": None,
@@ -4078,7 +4136,12 @@ class EnhancedDataProcessor:
                     )
 
             # Peak demand analysis
+            # IMPORTANT: Peak demand must use RAW values — never Chauvenet-cleaned data.
+            # Chauvenet's criterion removes statistical outliers for energy (kWh) analysis,
+            # but for demand the actual maximum IS the billing peak. Stripping it produces
+            # an artificially low number that does not match the utility bill.
             if "peakKw" in column_mapping:
+                # Dedicated peak column present — use raw values directly
                 peak_values = pd.to_numeric(
                     df[column_mapping["peakKw"]], errors="coerce"
                 ).dropna()
@@ -4087,7 +4150,60 @@ class EnhancedDataProcessor:
                         "maximum": float(peak_values.max()),
                         "average_peak": float(peak_values.mean()),
                         "95th_percentile": float(peak_values.quantile(0.95)),
+                        "interval_minutes": 1,
+                        "source": "peakKw_raw",
                     }
+
+            # Demand peak fallback: when no dedicated peakKw column exists, derive
+            # billing demand from avgKw using 15-minute interval averaging
+            # (utility standard per ANSI/IEEE and most tariff structures).
+            # Uses RAW meter values before any outlier removal.
+            if "peak_demand" not in results and "avgKw" in column_mapping:
+                try:
+                    raw_kw = pd.to_numeric(
+                        df[column_mapping["avgKw"]], errors="coerce"
+                    ).dropna()
+                    if len(raw_kw) > 0:
+                        if "timestamp" in column_mapping:
+                            ts_raw = pd.to_datetime(
+                                df[column_mapping["timestamp"]], errors="coerce"
+                            )
+                            # Align index lengths — use positional alignment
+                            ts_aligned = ts_raw.iloc[raw_kw.index].reset_index(drop=True)
+                            kw_aligned = raw_kw.reset_index(drop=True)
+                            kw_series = pd.Series(
+                                kw_aligned.values, index=ts_aligned
+                            ).dropna()
+                            if len(kw_series) > 0:
+                                demand_15min = kw_series.resample("15min").mean().dropna()
+                                results["peak_demand"] = {
+                                    "maximum": float(demand_15min.max()),
+                                    "average_peak": float(demand_15min.mean()),
+                                    "95th_percentile": float(demand_15min.quantile(0.95)),
+                                    "interval_minutes": 15,
+                                    "source": "avgKw_15min_resample",
+                                }
+                                logger.info(
+                                    f"Peak demand (15-min billing intervals): "
+                                    f"max={demand_15min.max():.1f} kW, "
+                                    f"mean={demand_15min.mean():.1f} kW"
+                                )
+                            else:
+                                raise ValueError("Empty kw_series after alignment")
+                        else:
+                            # No timestamp column — fall back to 1-minute raw max
+                            results["peak_demand"] = {
+                                "maximum": float(raw_kw.max()),
+                                "average_peak": float(raw_kw.mean()),
+                                "95th_percentile": float(raw_kw.quantile(0.95)),
+                                "interval_minutes": 1,
+                                "source": "avgKw_1min_raw_no_ts",
+                            }
+                            logger.warning(
+                                "No timestamp column — peak demand using raw 1-min max"
+                            )
+                except Exception as _peak_e:
+                    logger.warning(f"Peak demand fallback calculation failed: {_peak_e}")
 
             # ── Per-order harmonic spectrum extraction (upgraded meter) ────────
             # Auto-detect whether the CSV contains individual harmonic columns.
@@ -4803,23 +4919,52 @@ class WeatherNormalization:
                 )
 
         elif total_cdd > total_hdd:
-            logger.info(f"🔧 WEATHER FALLBACK: COOLING SEASON — proportional CDD adjustment "
+            logger.info(f"🔧 WEATHER FALLBACK: COOLING SEASON — CDD/linear adjustment "
                         f"(not ASHRAE GL14-2023 regression method)")
 
-            if cdd_before > cdd_after:
-                # Before period was hotter — normalize after up
-                weather_factor = cdd_before / cdd_after
+            # Use temperature sensitivity (linear additive) instead of CDD ratio when
+            # either CDD is near-zero (ratio becomes unstable, e.g. 72x factor).
+            # Linear approach: kW_adjusted = kW * (1 + sensitivity * |ΔT|)
+            # and direct the adjustment so the hotter period is scaled up.
+            _MIN_CDD = 1.0   # below this, CDD ratio is unreliable
+            _MAX_FACTOR = 2.0  # hard cap to prevent runaway normalization
+            _sensitivity = self.config.get("temp_adjustment_factor", 0.020)  # per °C
+
+            _use_linear = (cdd_before < _MIN_CDD or cdd_after < _MIN_CDD
+                           or (max(cdd_before, cdd_after) / max(0.01, min(cdd_before, cdd_after))) > _MAX_FACTOR)
+
+            if _use_linear:
+                # Linear temp-sensitivity fallback
+                _delta_t = abs(temp_before - temp_after)
+                weather_factor = min(1.0 + _sensitivity * _delta_t, _MAX_FACTOR)
+                if temp_before > temp_after:
+                    # Baseline was hotter → scale baseline UP to before-conditions is already raw;
+                    # instead scale after UP to before conditions for fair comparison
+                    normalized_kw_before = kw_before
+                    normalized_kw_after = kw_after * weather_factor
+                else:
+                    # Post-install was hotter → scale after DOWN to baseline conditions
+                    normalized_kw_before = kw_before
+                    normalized_kw_after = kw_after / weather_factor
+                logger.info(
+                    f"🔧 WEATHER FALLBACK (linear temp-sensitivity): factor={weather_factor:.3f} "
+                    f"sensitivity={_sensitivity}/°C delta_T={_delta_t:.1f}°C "
+                    f"(CDD before={cdd_before:.2f} after={cdd_after:.2f} — ratio unstable)"
+                )
+            elif cdd_before > cdd_after:
+                # Before period was hotter — normalize after UP to before conditions
+                weather_factor = min(cdd_before / cdd_after, _MAX_FACTOR)
                 normalized_kw_before = kw_before
-                normalized_kw_after = kw_after * (1.0 / weather_factor)
+                normalized_kw_after = kw_after * weather_factor
                 logger.info(
                     f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
                     f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
                 )
             else:
-                # After period was hotter — normalize before up
-                weather_factor = cdd_after / cdd_before
-                normalized_kw_before = kw_before * weather_factor
-                normalized_kw_after = kw_after
+                # After period was hotter — normalize after DOWN to before conditions
+                weather_factor = min(cdd_after / cdd_before, _MAX_FACTOR)
+                normalized_kw_before = kw_before
+                normalized_kw_after = kw_after / weather_factor
                 logger.info(
                     f"🔧 WEATHER FALLBACK (proportional CDD): factor={weather_factor:.3f} "
                     f"(before CDD={cdd_before:.1f}, after CDD={cdd_after:.1f})"
@@ -4846,28 +4991,11 @@ class WeatherNormalization:
             f"🔧 WEATHER DEBUG: Final normalized values - before: {normalized_kw_before:.1f}kW, after: {normalized_kw_after:.1f}kW"
         )
 
-        # CRITICAL SAFETY: Ensure normalized values show energy savings (after < before)
-        # ASHRAE Guideline 14-2014 Section 14.3.4: Weather normalization must show energy savings
+        # NOTE: normalized_after > normalized_before is valid in cooling seasons
+        # when the baseline period was hotter than the post-install period.
         if normalized_kw_after > normalized_kw_before:
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Normalized 'after' ({normalized_kw_after:.1f}kW) > 'before' ({normalized_kw_before:.1f}kW)"
-            )
-            logger.warning(
-                f"🔧 WEATHER SAFETY: This indicates weather normalization produced invalid results"
-            )
-            logger.warning(
-                f"🔧 STANDARDS COMPLIANCE: ASHRAE Guideline 14-2014 Section 14.3.4 - Energy savings validation"
-            )
-
-            # If weather normalization produced invalid results, use raw values
-            # Do NOT apply artificial enhancements - weather normalization should be based on actual weather differences
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Weather normalization failed - using raw values instead"
-            )
-            normalized_kw_before = kw_before
-            normalized_kw_after = kw_after
-            logger.warning(
-                f"🔧 WEATHER SAFETY: Reset to raw values - before: {normalized_kw_before:.1f}kW, after: {normalized_kw_after:.1f}kW"
+            logger.info(
+                "Weather normalization: baseline was hotter; normalized after exceeds before."
             )
 
         # SAFETY: Prevent extreme normalized values (more than 10x difference)
@@ -4981,8 +5109,7 @@ class WeatherNormalization:
             "temp_after": temp_after,
             "temp_sensitivity_used": temp_sensitivity_used,
             "dewpoint_sensitivity_used": dewpoint_sensitivity_used,
-            # Mark as NOT applied so the report labels this result as a proportional estimate
-            "normalization_applied": False,
+            "normalization_applied": (abs(normalized_kw_before - kw_before) > 0.01 or abs(normalized_kw_after - kw_after) > 0.01),
             "standards_validation": (
                 "NOT APPLIED — Proportional degree-day fallback used (baseline interval data unavailable). "
                 "For ASHRAE GL14-2023 compliant normalization, baseline interval temperature and energy "
@@ -16345,6 +16472,130 @@ def analyze_compliance_status(data: Dict, config: Dict, period: str) -> Dict:
         }
 
 
+def _compute_ashrae_r2(before_data: Dict, after_data: Dict, config: Dict) -> Dict:
+    """
+    Compute actual R² (energy vs. temperature) from meter data + Open-Meteo hourly temps.
+    Per ASHRAE Guideline 14-2023 §5.2: R² >= 0.75 required for weather normalization.
+    Returns dict with r2, slope_kw_per_degc, n_points, or None on failure.
+    """
+    import numpy as np
+    import pandas as pd
+
+    try:
+        # Get location for geocoding
+        address = (config.get("facility_address") or config.get("location") or
+                   config.get("facility_zip") or "")
+        zip_code = config.get("facility_zip") or ""
+        if not address and not zip_code:
+            logger.warning("R² check: no address/zip in config, cannot fetch weather")
+            return None
+
+        # Geocode
+        lat, lon, _ = _geocode_to_latlon(address, zip_code)
+        if lat is None:
+            logger.warning("R² check: geocoding failed")
+            return None
+
+        # Extract date ranges from before_data and after_data timestamps
+        def _date_range(data):
+            ts_list = data.get("timestamps", [])
+            if not ts_list:
+                return None, None
+            try:
+                ts = pd.to_datetime(ts_list, utc=True, errors="coerce").dropna()
+                return ts.min().strftime("%Y-%m-%d"), ts.max().strftime("%Y-%m-%d")
+            except Exception:
+                return None, None
+
+        b_start, b_end = _date_range(before_data)
+        a_start, a_end = _date_range(after_data)
+        if not b_start or not a_start:
+            logger.warning("R² check: could not extract date ranges from before/after data")
+            return None
+
+        logger.info(f"R² check: before={b_start}–{b_end}, after={a_start}–{a_end}, lat={lat}, lon={lon}")
+
+        # Fetch hourly temperatures from Open-Meteo for both periods
+        _om_url = "https://archive-api.open-meteo.com/v1/archive"
+        temp_lookup = {}  # {datetime_utc_hour: temp_c}
+        for start, end in [(b_start, b_end), (a_start, a_end)]:
+            try:
+                resp = requests.get(_om_url, params={
+                    "latitude": lat, "longitude": lon,
+                    "start_date": start, "end_date": end,
+                    "hourly": "temperature_2m",
+                    "temperature_unit": "celsius",
+                    "timezone": "UTC",
+                }, timeout=30)
+                resp.raise_for_status()
+                om = resp.json().get("hourly", {})
+                for t_str, temp in zip(om.get("time", []), om.get("temperature_2m", [])):
+                    if temp is not None:
+                        try:
+                            ts = pd.to_datetime(t_str, utc=True)
+                            temp_lookup[ts] = float(temp)
+                        except Exception:
+                            pass
+            except Exception as e:
+                logger.warning(f"R² check: Open-Meteo fetch failed for {start}–{end}: {e}")
+
+        if len(temp_lookup) < 48:
+            logger.warning(f"R² check: insufficient weather data ({len(temp_lookup)} pts)")
+            return None
+
+        # Build hourly kW series from before_data and after_data, match with weather
+        paired_temp = []
+        paired_kw = []
+        for data in [before_data, after_data]:
+            ts_list = data.get("timestamps", [])
+            kw_dict = data.get("avgKw", {})
+            kw_vals = kw_dict.get("values", []) if isinstance(kw_dict, dict) else []
+            if not ts_list or not kw_vals:
+                continue
+            try:
+                _ml = min(len(ts_list), len(kw_vals))
+                df = pd.DataFrame({
+                    "ts": pd.to_datetime(ts_list[:_ml], utc=True, errors="coerce"),
+                    "kw": pd.to_numeric(kw_vals[:_ml], errors="coerce"),
+                }).dropna()
+                df["hour"] = df["ts"].dt.floor("1h")
+                hourly = df.groupby("hour")["kw"].mean()
+                for hour_ts, kw in hourly.items():
+                    # Try exact hour, then ±1h
+                    temp = temp_lookup.get(hour_ts)
+                    if temp is None:
+                        for delta in [pd.Timedelta("1h"), pd.Timedelta("-1h")]:
+                            temp = temp_lookup.get(hour_ts + delta)
+                            if temp is not None:
+                                break
+                    if temp is not None:
+                        paired_temp.append(temp)
+                        paired_kw.append(kw)
+            except Exception as e:
+                logger.warning(f"R² check: error processing data: {e}")
+
+        n = len(paired_temp)
+        if n < 24:
+            logger.warning(f"R² check: insufficient matched pairs ({n}), need >= 24")
+            return None
+
+        temps = np.array(paired_temp)
+        kws   = np.array(paired_kw)
+        coeffs = np.polyfit(temps, kws, 1)
+        y_pred = np.polyval(coeffs, temps)
+        ss_res = np.sum((kws - y_pred) ** 2)
+        ss_tot = np.sum((kws - kws.mean()) ** 2)
+        r2_val = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+        slope  = float(coeffs[0])
+
+        logger.info(f"R² CHECK RESULT: R²={r2_val:.4f}, slope={slope:+.3f} kW/°C, n={n}")
+        return {"r2": r2_val, "slope_kw_per_degc": slope, "n_points": n}
+
+    except Exception as e:
+        logger.error(f"R² check failed: {e}")
+        return None
+
+
 def perform_comprehensive_analysis(
     before_data: Dict, after_data: Dict, config: Dict
 ) -> Dict:
@@ -19529,14 +19780,87 @@ def perform_comprehensive_analysis(
                     if dewpoint_after is not None:
                         results["weather_normalization"]["dewpoint_after"] = dewpoint_after
             else:
-                # Use basic normalization if dewpoint not available
-                logger.info(f"🔧 WEATHER DEBUG: Dewpoint not available (before: {dewpoint_before}, after: {dewpoint_after}), using basic temperature-only normalization")
-                weather_norm = WeatherNormalization(config.get("equipment_type"))
-                results["weather_normalization"] = weather_norm.normalize_consumption(
-                    config["temp_before"], config["temp_after"], kw_before, kw_after
-                )
-                # CRITICAL: Add temperature and dewpoint values to weather_normalization
-                # so they can be copied to power_quality for UI display
+                # ASHRAE GL14-2023: Compute actual R² from meter data + Open-Meteo temps.
+                # Only apply weather normalization if R² >= 0.75 (§5.2 threshold).
+                logger.info("🔬 ASHRAE R² CHECK: computing from meter data + Open-Meteo hourly temps")
+                _r2_result = _compute_ashrae_r2(before_data, after_data, config)
+
+                if _r2_result is not None:
+                    _r2_val = _r2_result["r2"]
+                    _slope  = _r2_result["slope_kw_per_degc"]
+                    _n      = _r2_result["n_points"]
+                    logger.info(f"🔬 R²={_r2_val:.4f}, slope={_slope:+.3f} kW/°C, n={_n}")
+
+                    if _r2_val < 0.75:
+                        # Per ASHRAE GL14-2023 §5.2: R² below threshold — skip normalization
+                        logger.info(f"🔬 R²={_r2_val:.3f} < 0.75 → weather normalization NOT APPLIED per ASHRAE GL14-2023")
+                        _temp_b = float(config.get("temp_before") or 0)
+                        _temp_a = float(config.get("temp_after") or 0)
+                        _weather_kw_est = _slope * (_temp_b - _temp_a)
+                        _xeco_kw_est    = (kw_before - kw_after) - _weather_kw_est
+                        results["weather_normalization"] = {
+                            "method": "Not applied — R² below ASHRAE GL14-2023 threshold",
+                            "standards_compliance": (
+                                f"ASHRAE GL14-2023 §5.2: R²={_r2_val:.3f} < 0.75 required; "
+                                "weather normalization skipped. Raw savings reported."
+                            ),
+                            "normalization_applied": False,
+                            "regression_r2": _r2_val,
+                            "regression_slope_kw_per_degc": _slope,
+                            "regression_n_points": _n,
+                            "raw_kw_before": kw_before,
+                            "raw_kw_after":  kw_after,
+                            "normalized_kw_before": kw_before,
+                            "normalized_kw_after":  kw_after,
+                            "weather_adjusted_savings": kw_before - kw_after,
+                            "temp_before": _temp_b,
+                            "temp_after":  _temp_a,
+                            "estimated_weather_effect_kw": round(_weather_kw_est, 2),
+                            "estimated_xeco_effect_kw":    round(_xeco_kw_est, 2),
+                            "temp_sensitivity_used":    0.0,
+                            "dewpoint_sensitivity_used": 0.0,
+                            "reason": (
+                                f"R²={_r2_val:.3f} — energy consumption is not significantly "
+                                "correlated with outdoor temperature at this facility. "
+                                f"Raw savings ({kw_before - kw_after:.1f} kW = "
+                                f"{(kw_before - kw_after) / kw_before * 100:.1f}%) "
+                                "reported without weather adjustment per ASHRAE GL14-2023."
+                            ),
+                        }
+                    else:
+                        # R² ≥ 0.75: use regression-derived weather factor
+                        logger.info(f"🔬 R²={_r2_val:.3f} >= 0.75 → applying regression-based weather correction")
+                        _temp_b = float(config.get("temp_before") or 0)
+                        _temp_a = float(config.get("temp_after") or 0)
+                        _weather_kw = _slope * (_temp_b - _temp_a)
+                        _norm_after = kw_after + _weather_kw
+                        results["weather_normalization"] = {
+                            "method": "Regression-based (ASHRAE GL14-2023 compliant)",
+                            "standards_compliance": f"ASHRAE GL14-2023 §5.2 compliant: R²={_r2_val:.3f} ≥ 0.75",
+                            "normalization_applied": True,
+                            "regression_r2": _r2_val,
+                            "regression_slope_kw_per_degc": _slope,
+                            "regression_n_points": _n,
+                            "raw_kw_before": kw_before,
+                            "raw_kw_after":  kw_after,
+                            "normalized_kw_before": kw_before,
+                            "normalized_kw_after":  _norm_after,
+                            "weather_adjusted_savings": kw_before - _norm_after,
+                            "temp_before": _temp_b,
+                            "temp_after":  _temp_a,
+                            "estimated_weather_effect_kw": round(_weather_kw, 2),
+                            "temp_sensitivity_used":    _slope / 100.0,
+                            "dewpoint_sensitivity_used": 0.0,
+                        }
+                else:
+                    # R² check failed — fall back to basic temperature normalization
+                    logger.warning("🔬 R² check failed — falling back to basic temperature normalization")
+                    weather_norm = WeatherNormalization(config.get("equipment_type"))
+                    results["weather_normalization"] = weather_norm.normalize_consumption(
+                        config["temp_before"], config["temp_after"], kw_before, kw_after
+                    )
+
+                # Ensure temp/dewpoint fields are present
                 if "temp_before" not in results["weather_normalization"]:
                     results["weather_normalization"]["temp_before"] = config.get("temp_before")
                 if "temp_after" not in results["weather_normalization"]:
@@ -19546,6 +19870,61 @@ def perform_comprehensive_analysis(
                 if dewpoint_after is not None:
                     results["weather_normalization"]["dewpoint_after"] = dewpoint_after
             
+            # ── ASHRAE GL14-2023 R² GATE ─────────────────────────────────────────────
+            # Regardless of which normalization path ran, verify that weather
+            # normalization is actually valid by checking R² of energy vs temperature.
+            # If R² < 0.75 (ASHRAE GL14-2023 §5.2) AND normalization changed the values,
+            # override with raw savings and report R² to the UI.
+            _wn = results.get("weather_normalization", {})
+            if isinstance(_wn, dict) and _wn.get("normalization_applied", False):
+                _norm_after_wn  = _wn.get("normalized_kw_after")
+                _raw_after_wn   = _wn.get("raw_kw_after")
+                _changed = (_norm_after_wn is not None and _raw_after_wn is not None
+                            and abs(_norm_after_wn - _raw_after_wn) > 0.5)
+                if _changed:
+                    logger.info("🔬 ASHRAE R² GATE: normalization changed values — computing R² to validate")
+                    _r2g = _compute_ashrae_r2(before_data, after_data, config)
+                    if _r2g is not None:
+                        _r2_val = _r2g["r2"]
+                        _slope  = _r2g["slope_kw_per_degc"]
+                        _n      = _r2g["n_points"]
+                        logger.info(f"🔬 R² GATE RESULT: R²={_r2_val:.4f}, slope={_slope:+.3f} kW/°C, n={_n}")
+                        if _r2_val < 0.75:
+                            logger.info(f"🔬 R²={_r2_val:.3f} < 0.75 → OVERRIDING normalization with raw values (ASHRAE GL14-2023)")
+                            _tb = float(config.get("temp_before") or 0)
+                            _ta = float(config.get("temp_after") or 0)
+                            _wx_est   = _slope * (_tb - _ta)
+                            _xeco_est = (kw_before - kw_after) - _wx_est
+                            results["weather_normalization"].update({
+                                "method": "Not applied — R² below ASHRAE GL14-2023 threshold",
+                                "standards_compliance": (
+                                    f"ASHRAE GL14-2023 §5.2: R²={_r2_val:.3f} < 0.75 required; "
+                                    "weather normalization overridden. Raw savings reported."
+                                ),
+                                "normalization_applied": False,
+                                "regression_r2": _r2_val,
+                                "regression_slope_kw_per_degc": _slope,
+                                "regression_n_points": _n,
+                                "normalized_kw_before": kw_before,
+                                "normalized_kw_after":  kw_after,
+                                "weather_adjusted_savings": kw_before - kw_after,
+                                "estimated_weather_effect_kw": round(_wx_est, 2),
+                                "estimated_xeco_effect_kw":    round(_xeco_est, 2),
+                                "reason": (
+                                    f"R²={_r2_val:.3f}: energy consumption is not significantly "
+                                    "correlated with outdoor temperature at this facility. "
+                                    f"Raw savings ({kw_before - kw_after:.1f} kW = "
+                                    f"{(kw_before - kw_after) / kw_before * 100:.1f}%) "
+                                    "reported without weather adjustment per ASHRAE GL14-2023."
+                                ),
+                            })
+                        else:
+                            logger.info(f"🔬 R²={_r2_val:.3f} >= 0.75 → normalization valid, keeping result")
+                            results["weather_normalization"]["regression_r2"] = _r2_val
+                            results["weather_normalization"]["regression_slope_kw_per_degc"] = _slope
+                    else:
+                        logger.warning("🔬 R² GATE: could not compute R² — keeping existing normalization result")
+
             # CRITICAL FIX: Ensure temp_sensitivity_used is always present in weather_normalization
             # This prevents the frontend warning about hardcoded fallback values
             if isinstance(results.get("weather_normalization"), dict):
@@ -27618,7 +27997,10 @@ def analyze():
                 "annual_total_dollars": financial_total,
                 "annual_energy_dollars": energy_dollars,
                 "annual_demand_dollars": demand_savings,
-                "delta_kw_avg": kva_reduction,
+                "delta_kw_avg": float(
+                    (before_data.get("avgKw", {}).get("mean") or 0.0)
+                    - (after_data.get("avgKw", {}).get("mean") or 0.0)
+                ),  # actual avg kW savings from meter data (avgKw.mean before − after)
                 "kva_demand_dollars": demand_savings,
                 "pf_adjustment_dollars": 0.0,  # Not separately calculated
                 "reactive_adder_dollars": 0.0,  # Not separately calculated
@@ -28373,6 +28755,12 @@ def index():
     """Redirect to main dashboard"""
     return redirect("/main-dashboard")
 
+
+
+@app.route("/open/<int:project_id>")
+def open_project_direct(project_id):
+    """Redirect to legacy page with ?autoload=<project_id> so JS auto-loads the project."""
+    return redirect("/emv/legacy?autoload={}".format(project_id))
 
 @app.route("/legacy")
 def legacy_index():
@@ -45116,8 +45504,16 @@ def get_file_for_clipping(file_id):
                 f"CSV parsing - Found header at row {header_row_index}, using {len(csv_lines)} lines"
             )
 
-            csv_reader = csv.DictReader(io.StringIO(csv_content_clean))
-            all_rows = list(csv_reader)
+            # restkey=None is DictReader's default for extra columns; use a named key instead
+            # to avoid None dict keys which break Flask's JSON_SORT_KEYS serialization.
+            csv_reader = csv.DictReader(io.StringIO(csv_content_clean), restkey='_extra')
+            all_rows = []
+            for row in csv_reader:
+                # Remove any overflow/extra-column keys so JSON serialization doesn't fail
+                row.pop('_extra', None)
+                # Also drop any None keys (legacy restkey behavior)
+                cleaned = {k: v for k, v in row.items() if k is not None}
+                all_rows.append(cleaned)
             total_rows = len(all_rows)
 
             logger.info(
