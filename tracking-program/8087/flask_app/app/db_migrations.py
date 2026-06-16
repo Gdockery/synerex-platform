@@ -888,6 +888,55 @@ def fix_device_timestamp_columns():
 # Phase 1 — Core Platform Foundation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def phase6_create_tables():
+    """
+    Phase 6 — EM&V Baseline Manager™.
+
+    Creates:
+      - baseline_master table
+
+    Adds additive column:
+      - project.active_baseline_id  INT  (FK-like, no hard FK to avoid circular issues)
+
+    Idempotent — safe to re-run.
+    """
+    from flask import current_app
+    from sqlalchemy import text, inspect
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    from app.models.baseline import Baseline
+    results = {}
+
+    # Create baseline_master table
+    try:
+        Baseline.__table__.create(db.engine, checkfirst=True)
+        print("phase6_create_tables: baseline_master ready.")
+        results["baseline_master"] = "ready"
+    except Exception as e:
+        print(f"phase6_create_tables: baseline_master — {e}")
+        results["baseline_master"] = str(e)
+
+    # Add active_baseline_id to project (additive, nullable, no hard FK)
+    inspector = inspect(db.engine)
+    existing  = {col["name"] for col in inspector.get_columns("project")}
+    if "active_baseline_id" not in existing:
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE project ADD COLUMN active_baseline_id INT NULL"))
+            print("phase6_create_tables: project.active_baseline_id added.")
+            results["active_baseline_id"] = "added"
+        except Exception as e:
+            print(f"phase6_create_tables: active_baseline_id — {e}")
+            results["active_baseline_id"] = str(e)
+    else:
+        results["active_baseline_id"] = "exists"
+
+    return results
+
+
 def phase5_add_columns():
     """
     Phase 5 — PQ Meter Data Collection Layer.

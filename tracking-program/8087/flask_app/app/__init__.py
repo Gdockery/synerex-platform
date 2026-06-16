@@ -42,6 +42,8 @@ from app.api.device_registry_routes import device_reg_bp
 from app.api.deployment_routes import deployment_bp
 # Phase 5
 from app.api.pq_data_routes import pq_data_bp
+# Phase 6
+from app.api.baseline_routes import baseline_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -143,6 +145,8 @@ def create_app(config_class=Config):
     app.register_blueprint(deployment_bp)
     # Phase 5 blueprints
     app.register_blueprint(pq_data_bp)
+    # Phase 6 blueprints
+    app.register_blueprint(baseline_bp)
 
     @app.route("/health")
     def health():
@@ -305,6 +309,13 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase6-migrate")
+    def phase6_migrate():
+        """Phase 6 — create baseline_master table + add active_baseline_id to project. Run: flask phase6-migrate"""
+        from app.db_migrations import phase6_create_tables
+        result = phase6_create_tables()
+        print(f"phase6-migrate: {result}")
 
     @app.cli.command("phase5-migrate")
     def phase5_migrate():
