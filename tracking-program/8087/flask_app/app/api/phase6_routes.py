@@ -1028,21 +1028,22 @@ def create_user():
     current = User.query.get(current_user.id)
     current_role = int(current.role) if current and current.role is not None else 0
 
-    # Role creation permission checks:
+    # Role creation permission checks (Phase 1 — ECBS OS roles 5/6/11/12/13 added):
     # - Synerex Admin (8): can create any role
-    # - OEM Admin (9): can create OEM User (10) and client roles (1-4) including Client Admin (2)
-    # - OEM User (10): can create client roles (1,3,4) only — NOT Client Admin (2)
-    # - Client Admin (2): can create client roles (1,3,4) within their org — NOT another Client Admin
+    # - OEM Admin (9): can create OEM User (10) + all client/field roles incl. Client Admin (2)
+    # - OEM User (10): can create client/field roles except Client Admin (2) and OEM-level roles
+    # - Client Admin (2) and below: client-level roles only, cannot create another Client Admin
+    _CLIENT_ROLES = frozenset({1, 3, 4, 5, 6, 11, 12, 13})
     new_role = int(role)
     allowed = False
     if current_role == 8:
         allowed = True
     elif current_role == 9:
-        allowed = new_role in (1, 2, 3, 4, 10)
+        allowed = new_role not in (8, 9)
     elif current_role == 10:
-        allowed = new_role in (1, 3, 4)
+        allowed = new_role in _CLIENT_ROLES
     elif current_role == 2:
-        allowed = new_role in (1, 3, 4)
+        allowed = new_role in _CLIENT_ROLES
     if not allowed:
         return jsonify({"error": "You are not permitted to create a user with that role"}), 403
 

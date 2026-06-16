@@ -43,7 +43,13 @@ import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
       { path: 'billing', loadChildren: () => import('./billing/billing.module').then(m => m.BillingModule)},
       { path: 'admin-files', loadChildren: () => import('./files/files.module').then(m => m.FilesModule)},
 			{ path: 'tests', loadChildren: () => import('./tests/tests.module').then(m => m.TestsModule) },
-			{ path: 'map', loadChildren: () => import('./map/map.module').then(m => m.MapModule) },
+      { path: 'map', loadChildren: () => import('./map/map.module').then(m => m.MapModule) },
+
+      // Phase 3 — Device Registry (barcode scanner, device list)
+      { path: 'device-registry', loadChildren: () => import('./device-registry/device-registry.module').then(m => m.DeviceRegistryModule) },
+
+      // Phase 4 — Deployment Management (photo capture, workflow)
+      { path: 'deployment', loadChildren: () => import('./deployment/deployment.module').then(m => m.DeploymentModule) },
 
       // Catch-all (404 behavior)
       { path: '**', component: NotFoundComponent, data: {title: 'Not Found'} }

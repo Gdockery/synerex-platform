@@ -1,6 +1,10 @@
 """
 Deployment routes — Phase 4: Deployment Management System.
 
+Phase 4b additions:
+POST   /api/deployment/<id>/photos          upload a site/installation photo
+GET    /api/deployment/<id>/photos          list photos for this deployment
+
 GET    /api/deployment/                         list deployments (scoped)
 POST   /api/deployment/                         create deployment
 GET    /api/deployment/<id>                     get one
@@ -22,10 +26,11 @@ PATCH  /api/deployment/<id>/engineering/<rev_id> update review decision
 GET    /api/deployment/<id>/activation          get All-Checks-Clear record
 POST   /api/deployment/<id>/activation          certify (All Checks Clear™)
 """
+import os
 import secrets
 from time import time
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_login import login_required, current_user
 
 from app.db import get_session
@@ -623,3 +628,93 @@ def certify_activation(dep_id: int):
           entity_type="site_activation", entity_id=act.id,
           detail={"deployment_id": dep_id, "certification_code": act.certification_code})
     return {"data": _act_dict(act)}, 201
+
+
+# ── Photo upload (Phase 4b) ───────────────────────────────────────────────────
+
+_ALLOWED_PHOTO_EXTS = {"jpg", "jpeg", "png", "webp", "heic", "heif"}
+
+
+def _photo_dir(dep_id: int) -> str:
+    base = current_app.config.get("STORAGE_LOCAL_PATH") or "/tmp/deployment_photos"
+    path = os.path.join(base, "deployment_photos", str(dep_id))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+@deployment_bp.route("/<int:dep_id>/photos", methods=["POST"])
+@login_required
+def upload_photo(dep_id: int):
+    """
+    POST /api/deployment/<id>/photos
+    Multipart form:
+      file  — image file (jpg/png/webp/heic)
+      label — optional description (max 255 chars)
+    """
+    sess = get_session()
+    dep  = sess.get(Deployment, dep_id)
+    if not dep:
+        return {"error": "Deployment not found"}, 404
+
+    if "file" not in request.files:
+        return {"error": "No file in request"}, 400
+
+    f = request.files["file"]
+    if not f.filename:
+        return {"error": "Empty filename"}, 400
+
+    ext = (f.filename.rsplit(".", 1)[-1] if "." in f.filename else "").lower()
+    if ext not in _ALLOWED_PHOTO_EXTS:
+        return {"error": f"File type .{ext} not allowed. Use: {', '.join(_ALLOWED_PHOTO_EXTS)}"}, 400
+
+    token    = secrets.token_hex(12)
+    filename = f"{token}.{ext}"
+    label    = (request.form.get("label") or "")[:255]
+
+    save_dir  = _photo_dir(dep_id)
+    save_path = os.path.join(save_dir, filename)
+    f.save(save_path)
+
+    # Store metadata in field_entry_data.photos list (no new table needed)
+    photos = list(dep.field_entry_data.get("photos", []) if dep.field_entry_data else [])
+    photo_meta = {
+        "filename":    filename,
+        "label":       label,
+        "uploaded_by": current_user.id,
+        "uploaded_at": _now(),
+        "url":         f"/api/deployment/{dep_id}/photos/{filename}",
+    }
+    photos.append(photo_meta)
+    dep.field_entry_data = {**(dep.field_entry_data or {}), "photos": photos}
+    dep.updatedAt = _now()
+    sess.commit()
+
+    audit("deployment.photo_uploaded", user_id=current_user.id,
+          entity_type="deployment", entity_id=dep_id,
+          detail={"filename": filename, "label": label})
+
+    return {"data": photo_meta}, 201
+
+
+@deployment_bp.route("/<int:dep_id>/photos", methods=["GET"])
+@login_required
+def list_photos(dep_id: int):
+    """GET /api/deployment/<id>/photos — list uploaded photos for this deployment."""
+    sess = get_session()
+    dep  = sess.get(Deployment, dep_id)
+    if not dep:
+        return {"error": "Deployment not found"}, 404
+    photos = (dep.field_entry_data or {}).get("photos", [])
+    return {"data": photos}
+
+
+@deployment_bp.route("/<int:dep_id>/photos/<filename>", methods=["GET"])
+@login_required
+def serve_photo(dep_id: int, filename: str):
+    """GET /api/deployment/<id>/photos/<filename> — serve a stored photo."""
+    photo_dir = _photo_dir(dep_id)
+    # Only allow alphanumeric + dots/hyphens/underscores (prevent path traversal)
+    safe = all(c.isalnum() or c in "._-" for c in filename)
+    if not safe:
+        return {"error": "Invalid filename"}, 400
+    return send_from_directory(photo_dir, filename)

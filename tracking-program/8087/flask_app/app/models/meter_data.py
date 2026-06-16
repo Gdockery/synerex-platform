@@ -50,6 +50,13 @@ class MeterData(BaseModel):
     totalPf = db.Column(db.Float)
     totalKvar = db.Column(db.Float)
     totalTHD = db.Column(db.Float, nullable=True)
+
+    # Voltage THD per phase and total (Phase 5b — THDv addition)
+    l1THDv    = db.Column(db.Float, nullable=True)   # L1 voltage THD %
+    l2THDv    = db.Column(db.Float, nullable=True)   # L2 voltage THD %
+    l3THDv    = db.Column(db.Float, nullable=True)   # L3 voltage THD %
+    totalTHDv = db.Column(db.Float, nullable=True)   # Total / avg voltage THD %
+
     outputAmp = db.Column(db.Float, nullable=True)
     rawData = db.Column(db.JSON)
 

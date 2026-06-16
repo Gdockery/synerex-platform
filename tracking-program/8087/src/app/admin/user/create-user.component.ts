@@ -157,10 +157,11 @@ export class CreateUserComponent implements OnInit {
     // - Client Admin (2) and below: client-level roles (1,3,4) — Client Admin cannot create another Client Admin
     const myRole = Number(this.currentUserService.user.role);
     this.userRoles = this.userRoles.filter(r => {
-      if (myRole === 8) return true;                                        // Synerex Admin: all roles
-      if (myRole === 9) return r.id !== 8 && r.id !== 9;                   // OEM Admin: all except Synerex/OEM Admin
-      if (myRole === 10) return r.id >= 1 && r.id <= 4 && r.id !== 2;     // OEM User: client roles except Client Admin
-      return r.id >= 1 && r.id <= 4 && r.id !== 2;                        // Client roles: no Client Admin creation
+      if (myRole === 8) return true;                                              // Platform Admin: all roles
+      if (myRole === 9) return r.id !== 8 && r.id !== 9;                         // OEM Admin: all except Platform/OEM Admin
+      if (myRole === 10) return [1, 3, 4, 5, 6, 11, 12, 13].includes(r.id);     // OEM User: no Client Admin (2)
+      // Client Admin (2) and below: client-level roles only
+      return [1, 3, 4, 5, 6, 12, 13].includes(r.id);
     });
 
     this.clients = window['BOOTSTRAP_DATA'].clients;

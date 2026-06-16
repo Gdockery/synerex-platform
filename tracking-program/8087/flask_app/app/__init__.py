@@ -314,6 +314,13 @@ def create_app(config_class=Config):
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
 
+    @app.cli.command("phase5b-migrate")
+    def phase5b_migrate():
+        """Phase 5b — add l1THDv/l2THDv/l3THDv/totalTHDv columns to meterdata. Run: flask phase5b-migrate"""
+        from app.db_migrations import phase5b_add_thdv_columns
+        result = phase5b_add_thdv_columns()
+        print(f"phase5b-migrate: {result}")
+
     @app.cli.command("phase7-migrate")
     def phase7_migrate():
         """Phase 7 — create current_balance_metrics table. Run: flask phase7-migrate"""

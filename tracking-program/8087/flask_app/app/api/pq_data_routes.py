@@ -63,6 +63,10 @@ PQ_CHANNELS = [
     {"key": "l2THD",     "label": "L2 THDi",           "unit": "%",    "category": "harmonics"},
     {"key": "l3THD",     "label": "L3 THDi",           "unit": "%",    "category": "harmonics"},
     {"key": "totalTHD",  "label": "Total THDi",        "unit": "%",    "category": "harmonics"},
+    {"key": "l1THDv",    "label": "L1 THDv",           "unit": "%",    "category": "harmonics"},
+    {"key": "l2THDv",    "label": "L2 THDv",           "unit": "%",    "category": "harmonics"},
+    {"key": "l3THDv",    "label": "L3 THDv",           "unit": "%",    "category": "harmonics"},
+    {"key": "totalTHDv", "label": "Total THDv",        "unit": "%",    "category": "harmonics"},
     {"key": "frequency", "label": "Frequency",         "unit": "Hz",   "category": "frequency"},
     {"key": "outputAmp", "label": "Output Current",    "unit": "A",    "category": "current"},
 ]

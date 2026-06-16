@@ -888,6 +888,38 @@ def fix_device_timestamp_columns():
 # Phase 1 — Core Platform Foundation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def phase5b_add_thdv_columns():
+    """
+    Phase 5b — THDv (voltage THD) columns on meterdata.
+
+    Adds four nullable FLOAT columns:
+      l1THDv, l2THDv, l3THDv, totalTHDv
+
+    Idempotent — skips columns that already exist.
+    """
+    from flask import current_app
+    from sqlalchemy import text, inspect
+
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    results = {}
+    inspector = inspect(db.engine)
+    existing = {col["name"] for col in inspector.get_columns("meterdata")}
+
+    with db.engine.begin() as conn:
+        for col in ("l1THDv", "l2THDv", "l3THDv", "totalTHDv"):
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE meterdata ADD COLUMN `{col}` FLOAT NULL"))
+                results[col] = "added"
+                print(f"phase5b_add_thdv_columns: meterdata.{col} added.")
+            else:
+                results[col] = "exists"
+
+    return results
+
+
 def phase7_create_tables():
     """
     Phase 7 — Current Balance Intelligence™.

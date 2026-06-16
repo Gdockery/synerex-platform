@@ -734,3 +734,11 @@ def reset_password():
     if request.is_json:
         return {"status": "success"}
     return redirect("/")
+
+
+@auth_bp.route("/api/roles", methods=["GET"])
+@login_required
+def list_roles():
+    """GET /api/roles — returns all ECBS OS role definitions for UI dropdowns."""
+    from app.helpers.roles import roles_for_api
+    return {"meta": {}, "response": roles_for_api()}
