@@ -38,7 +38,7 @@
 ### Remaining Gaps ⚠️
 | Item | Detail |
 |------|--------|
-| Per-route role enforcement | `require_roles()` decorator is available in `app/helpers/roles.py` but not yet applied to individual API routes. Routes still rely on the broad license + session checks from `decorators.py` |
+| Per-route role enforcement | ✅ **Done (2026-06-16)** — `require_roles()` applied to all Phase 3/4/6/7 write routes. WRITE_ROLES on create/update, DEPLOYMENT_ROLES on field ops, ENGINEERING_ROLES on reviews/activation/baseline transitions, ADMIN_ROLES on deletes. |
 
 ---
 
@@ -82,8 +82,8 @@
 ### Remaining Gaps ⚠️
 | Item | Detail |
 |------|--------|
-| `BarcodeDetector` browser support | Native `BarcodeDetector` API requires Chrome 83+/Edge 83+/Safari 17.4+. Firefox not supported. Photo-based decode falls back to server-side `POST /api/device-registry/scan-barcode`, which is a stub (returns 404) — Firefox users must use manual entry |
-| ZXing library not bundled | A pure-JS barcode library (`@zxing/browser`) would add universal browser support without needing `BarcodeDetector`. Not yet added to `package.json` |
+| `BarcodeDetector` browser support | ✅ **Done (2026-06-16)** — `@zxing/browser` added and lazily imported in `barcode-scan.component.ts`. When `BarcodeDetector` is absent (Firefox), `BrowserMultiFormatReader` is used for live camera and photo decode. |
+| Server-side scan-barcode | ✅ **Done (2026-06-16)** — `POST /api/device-registry/scan-barcode` implemented using `pyzbar` + `Pillow`. Returns graceful 503 until container is rebuilt with `libzbar0` (already in Dockerfile). |
 
 ---
 
@@ -249,16 +249,16 @@ as images, Angular components will be rebuilt to match the spec visuals.
 
 ## Outstanding Items (all remaining gaps summarised)
 
-| # | Item | Phase | Priority |
-|---|------|-------|----------|
-| 1 | Apply `require_roles()` guards to individual routes | 1 | Medium |
-| 2 | ZXing JS library for Firefox barcode scanning | 3 | Low |
-| 3 | `POST /api/device-registry/scan-barcode` server-side decode | 3 | Low |
-| 4 | Angular create-deployment form (`/deployment/new`) | 4 | Medium |
-| 5 | Site-server firmware/ingest populates `frequency`/THDv | 5 | Medium |
-| 6 | Baseline auto-compute from meterdata date range | 6 | High |
-| 7 | CBI auto-trigger in rollup errand | 7 | Medium |
-| 8 | Current Balance Dashboard Angular component | 7 | Medium |
-| 9 | Digital Twin editor Angular component | 2 | Low |
-| 10 | Digital Twin → CBI integration (asset graph) | 7 | Low |
-| 11 | Phases 8–13 | 8–13 | Future |
+| # | Item | Phase | Priority | Status |
+|---|------|-------|----------|--------|
+| 1 | Apply `require_roles()` guards to individual routes | 1 | Medium | ✅ Done 2026-06-16 |
+| 2 | ZXing JS library for Firefox barcode scanning | 3 | Low | ✅ Done 2026-06-16 |
+| 3 | `POST /api/device-registry/scan-barcode` server-side decode | 3 | Low | ✅ Done 2026-06-16 (503 until container rebuild) |
+| 4 | Angular create-deployment form (`/deployment/new`) | 4 | Medium | ⏳ UI pass — needs spec screenshots |
+| 5 | Site-server firmware/ingest populates `frequency`/THDv | 5 | Medium | ❌ Out of scope — requires site firmware change |
+| 6 | Baseline auto-compute from meterdata date range | 6 | High | ✅ Done 2026-06-16 (`POST /api/baseline/<id>/compute`) |
+| 7 | CBI auto-trigger in rollup errand | 7 | Medium | ✅ Done 2026-06-16 (`_run_cbi_auto_compute` after rollup) |
+| 8 | Current Balance Dashboard Angular component | 7 | Medium | ⏳ UI pass — needs spec screenshots |
+| 9 | Digital Twin editor Angular component | 2 | Low | ⏳ UI pass — needs spec screenshots |
+| 10 | Digital Twin → CBI integration (asset graph) | 7 | Low | ✅ Done 2026-06-16 (transformer kVA context in CBI buckets) |
+| 11 | Phases 8–13 | 8–13 | Future | ❌ Not started |
