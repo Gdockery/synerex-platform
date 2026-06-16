@@ -333,7 +333,7 @@ def run_calculate():
 
     meterdata_rows = q.order_by(MeterData.recordedAt.asc()).all()
     if not meterdata_rows:
-        return jsonify({"meta": {"computed": 0, "upserted": 0}, "response": {}}), 200
+        return jsonify({"meta": {"meterdata_rows": 0, "computed": 0, "upserted": 0}, "response": {}}), 200
 
     buckets = compute_buckets(
         meterdata_rows,
