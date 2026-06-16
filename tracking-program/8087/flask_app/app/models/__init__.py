@@ -46,3 +46,6 @@ from app.models.site import Site
 from app.models.asset import Asset
 from app.models.asset_relationship import AssetRelationship
 from app.models.digital_twin import DigitalTwin, DigitalTwinVersion
+# Phase 3 — Device Management Platform
+from app.models.device_registry import DeviceRegistry
+from app.models.commissioning_test import CommissioningTest
