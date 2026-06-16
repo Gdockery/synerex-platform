@@ -26,13 +26,20 @@ POST   /api/baseline/version-forward          create next version from a locked 
 """
 from time import time
 
+import logging
+
 from flask import Blueprint, request
 from flask_login import login_required, current_user
 
 from app.db import get_session
+
+logger = logging.getLogger(__name__)
 from app.models.baseline import Baseline, BASELINE_STATUSES, BASELINE_TEST_TYPES, _TRANSITIONS
 from app.models.emv_analysis import EmvAnalysis
 from app.services.audit import audit
+from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+
+_BASELINE_WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 baseline_bp = Blueprint("baseline", __name__, url_prefix="/api/baseline")
 
@@ -122,6 +129,7 @@ def list_baselines():
 
 @baseline_bp.route("/", methods=["POST"])
 @login_required
+@require_roles(_BASELINE_WRITE_ROLES)
 def create_baseline():
     body = request.get_json(force=True, silent=True) or {}
     project_id = body.get("project_id")
@@ -167,6 +175,7 @@ def get_baseline(bid: int):
 
 @baseline_bp.route("/<int:bid>", methods=["PATCH"])
 @login_required
+@require_roles(_BASELINE_WRITE_ROLES)
 def update_baseline(bid: int):
     sess = get_session()
     b    = sess.query(Baseline).filter_by(id=bid).first()
@@ -198,6 +207,7 @@ def update_baseline(bid: int):
 
 @baseline_bp.route("/<int:bid>/status", methods=["POST"])
 @login_required
+@require_roles(_BASELINE_WRITE_ROLES)
 def change_status(bid: int):
     sess = get_session()
     b    = sess.query(Baseline).filter_by(id=bid).first()
@@ -252,6 +262,7 @@ def change_status(bid: int):
 
 @baseline_bp.route("/<int:bid>/link-analysis", methods=["POST"])
 @login_required
+@require_roles(_BASELINE_WRITE_ROLES)
 def link_analysis(bid: int):
     """
     Attach an EmvAnalysis record to this baseline and sync metrics.
@@ -391,6 +402,7 @@ def get_active_baseline():
 
 @baseline_bp.route("/version-forward", methods=["POST"])
 @login_required
+@require_roles(_BASELINE_WRITE_ROLES)
 def version_forward():
     """
     Create a new draft baseline pre-populated from a locked baseline.
@@ -437,3 +449,47 @@ def version_forward():
           detail={"from_baseline_id": from_id, "from_version": src.version,
                   "new_version": new_b.version})
     return {"data": _b_dict(new_b)}, 201
+
+
+# ── Auto-compute metrics from meterdata ───────────────────────────────────────
+
+@baseline_bp.route("/<int:bid>/compute", methods=["POST"])
+@login_required
+@require_roles(_BASELINE_WRITE_ROLES)
+def compute_baseline(bid: int):
+    """
+    POST /api/baseline/<id>/compute
+
+    Queries meterdata for the baseline's project and test window (test_start →
+    test_end) and computes avg_kw, avg_kva, avg_kvar, avg_pf, peak_kva,
+    sample_count.  Writes the result back to the baseline row.
+
+    The baseline must have test_start and test_end set and must NOT be locked.
+
+    Response:
+      { "data": { baseline fields }, "computed": { raw stats } }
+    """
+    from app.services.baseline_compute import compute_baseline_metrics
+
+    b = get_session().query(Baseline).filter_by(id=bid).first()
+    if not b:
+        return {"error": "Not found"}, 404
+    if not _can_access_project(b.project_id):
+        return {"error": "Not found"}, 404
+
+    try:
+        stats = compute_baseline_metrics(bid)
+    except ValueError as exc:
+        return {"error": str(exc)}, 400
+    except Exception as exc:
+        logger.exception("[baseline.compute] unexpected error: %s", exc)
+        return {"error": "Compute failed — check server logs"}, 500
+
+    # Refresh the row after commit inside the service
+    b = get_session().query(Baseline).filter_by(id=bid).first()
+    audit("baseline.computed", user_id=current_user.id,
+          entity_type="baseline", entity_id=bid,
+          detail={"sample_count": stats.get("sample_count"),
+                  "avg_kw": stats.get("avg_kw"),
+                  "avg_pf": stats.get("avg_pf")})
+    return {"data": _b_dict(b), "computed": stats}

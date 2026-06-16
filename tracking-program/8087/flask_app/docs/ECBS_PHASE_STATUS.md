@@ -232,6 +232,21 @@
 
 ---
 
+## Development Plan — Two-Pass Approach
+
+The spec contains 25 embedded UI screenshots as **design authority** (pages 18–41).
+These images are not extractable from the PDF as text, so UI components cannot be built
+accurately until the screenshot pages are available as images.
+
+**Pass 1 (current):** All backend items and Angular scaffolding that does not require
+pixel-accurate layout.
+
+**Pass 2 (UI):** Once key screenshot pages (5, 8, 9, 20, 21, 24, 25 — Digital Twin
+editor, Current Analysis, Deployment App, Field Entry, All Checks Clear) are available
+as images, Angular components will be rebuilt to match the spec visuals.
+
+---
+
 ## Outstanding Items (all remaining gaps summarised)
 
 | # | Item | Phase | Priority |

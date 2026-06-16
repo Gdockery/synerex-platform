@@ -5,12 +5,14 @@ import { DeviceRegistryService } from '../device-registry.service';
 /**
  * Phase 3 — Barcode / QR Scanner.
  *
- * Strategy (in order of preference):
- *  1. Live camera feed + BarcodeDetector API (Chrome/Android, iOS 17+)
- *  2. <input type="file" capture="environment"> — picks a photo and decodes it
- *     using BarcodeDetector if available, otherwise falls back to manual entry.
- *  3. Manual text entry always available as a fallback.
+ * Detection strategy (in order of preference):
+ *  1. Live camera — native BarcodeDetector API (Chrome 83+, iOS 17+, Android WebView)
+ *  2. Live camera — ZXing BrowserMultiFormatReader (Firefox, older browsers)
+ *  3. <input type="file" capture="environment"> photo decode via BarcodeDetector or ZXing
+ *  4. Backend server-side decode (/api/device-registry/scan-barcode) if JS decode fails
+ *  5. Manual text entry — always available
  *
+ * ZXing is loaded lazily (dynamic import) so it does not bloat the main bundle.
  * On success the device serial is verified against /api/device-registry/verify-barcode.
  */
 @Component({
@@ -20,9 +22,12 @@ import { DeviceRegistryService } from '../device-registry.service';
       <h3><span class="fa fa-qrcode"></span> Scan Device Barcode</h3>
       <hr/>
 
-      <!-- Live camera scanner (BarcodeDetector + getUserMedia) -->
+      <!-- Live camera scanner (BarcodeDetector or ZXing + getUserMedia) -->
       <div *ngIf="liveSupported" class="panel panel-default">
-        <div class="panel-heading"><strong>Live Camera</strong></div>
+        <div class="panel-heading">
+          <strong>Live Camera</strong>
+          <small class="text-muted pull-right">{{ detectorLabel }}</small>
+        </div>
         <div class="panel-body text-center">
           <video #videoEl autoplay playsinline
                  style="width:100%;max-width:480px;border-radius:6px;"></video>
@@ -130,9 +135,12 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
   manualSerial = '';
   result: any = null;
   error: string | null = null;
+  detectorLabel = '';
 
   private stream: MediaStream | null = null;
-  private barcodeDetector: any = null;
+  private nativeDetector: any = null;
+  private zxingReader: any = null;        // BrowserMultiFormatReader from @zxing/browser
+  private useNative = false;
   private scanInterval: any = null;
 
   constructor(
@@ -141,16 +149,29 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    // Check browser support
-    this.liveSupported = !!(
+    const hasCamera = !!(
       (navigator as any).mediaDevices &&
-      (navigator as any).mediaDevices.getUserMedia &&
-      (window as any).BarcodeDetector
+      (navigator as any).mediaDevices.getUserMedia
     );
+    if (!hasCamera) return;
 
-    if (this.liveSupported) {
-      this.barcodeDetector = new (window as any).BarcodeDetector({
-        formats: ['qr_code', 'code_128', 'code_39', 'code_93', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'data_matrix']
+    if ((window as any).BarcodeDetector) {
+      this.useNative = true;
+      this.nativeDetector = new (window as any).BarcodeDetector({
+        formats: ['qr_code', 'code_128', 'code_39', 'code_93', 'ean_13', 'ean_8',
+                  'upc_a', 'upc_e', 'data_matrix', 'aztec', 'pdf417'],
+      });
+      this.liveSupported = true;
+      this.detectorLabel = 'Native BarcodeDetector';
+    } else {
+      // ZXing fallback for Firefox and other browsers
+      import('@zxing/browser').then(mod => {
+        this.zxingReader = new mod.BrowserMultiFormatReader();
+        this.liveSupported = true;
+        this.detectorLabel = 'ZXing (Firefox-compatible)';
+      }).catch(() => {
+        // ZXing unavailable — live scan disabled, photo/manual still work
+        this.detectorLabel = '';
       });
     }
   }
@@ -164,19 +185,39 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
   startCamera() {
     this.error = null;
     this.result = null;
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      .then(stream => {
-        this.stream = stream;
-        this.cameraActive = true;
-        const video = this.videoEl.nativeElement;
-        video.srcObject = stream;
-        video.play();
-        this.scanning = true;
-        this.scanInterval = setInterval(() => this.detectFromVideo(), 800);
-      })
-      .catch(err => {
-        this.error = `Camera access denied or unavailable: ${err.message}`;
+
+    if (this.useNative) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          this.stream = stream;
+          this.cameraActive = true;
+          const video = this.videoEl.nativeElement;
+          video.srcObject = stream;
+          video.play();
+          this.scanning = true;
+          this.scanInterval = setInterval(() => this.detectFromVideoNative(), 800);
+        })
+        .catch(err => {
+          this.error = `Camera access denied or unavailable: ${err.message}`;
+        });
+    } else if (this.zxingReader) {
+      this.cameraActive = true;
+      this.scanning = true;
+      const video = this.videoEl.nativeElement;
+      this.zxingReader.decodeFromVideoDevice(
+        undefined, video,
+        (result: any, err: any) => {
+          if (result) {
+            this.stopCamera();
+            this.verify(result.getText());
+          }
+        }
+      ).catch((err: any) => {
+        this.cameraActive = false;
+        this.scanning = false;
+        this.error = `Camera error: ${err && err.message ? err.message : err}`;
       });
+    }
   }
 
   stopCamera() {
@@ -187,14 +228,17 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
       this.stream.getTracks().forEach(t => t.stop());
       this.stream = null;
     }
+    if (this.zxingReader && !this.useNative) {
+      try { this.zxingReader.reset(); } catch (_) {}
+    }
   }
 
-  private detectFromVideo() {
-    if (!this.barcodeDetector || !this.cameraActive) return;
+  private detectFromVideoNative() {
+    if (!this.nativeDetector || !this.cameraActive) return;
     const video = this.videoEl.nativeElement;
     if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
 
-    this.barcodeDetector.detect(video)
+    this.nativeDetector.detect(video)
       .then((barcodes: any[]) => {
         if (barcodes && barcodes.length > 0) {
           const value = barcodes[0].rawValue;
@@ -202,7 +246,7 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
           this.verify(value);
         }
       })
-      .catch(() => { /* detection error — keep scanning */ });
+      .catch(() => { /* keep scanning */ });
   }
 
   // ── Photo capture ──────────────────────────────────────────────────────────
@@ -225,40 +269,50 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
     this.error = null;
     this.result = null;
 
-    if ((window as any).BarcodeDetector) {
-      // Use native BarcodeDetector on the image file
-      createImageBitmap(this.selectedFile).then(bitmap => {
-        return this.barcodeDetector.detect(bitmap);
-      }).then((barcodes: any[]) => {
-        this.loading = false;
-        if (barcodes && barcodes.length > 0) {
-          this.verify(barcodes[0].rawValue);
-        } else {
-          this.error = 'No barcode detected in photo. Try a clearer image or use manual entry.';
-        }
-      }).catch((err: any) => {
-        this.loading = false;
-        this.error = `Barcode detection failed: ${err.message}. Try manual entry.`;
-      });
-    } else {
-      // No BarcodeDetector — send image to backend for server-side decode attempt
-      const fd = new FormData();
-      fd.append('image', this.selectedFile);
-      this.deviceRegistryService.scanBarcodeImage(fd).subscribe(
-        (res: any) => {
+    if (this.useNative && this.nativeDetector) {
+      createImageBitmap(this.selectedFile)
+        .then(bitmap => this.nativeDetector.detect(bitmap))
+        .then((barcodes: any[]) => {
           this.loading = false;
-          if (res && res.barcode) {
-            this.verify(res.barcode);
+          if (barcodes && barcodes.length > 0) {
+            this.verify(barcodes[0].rawValue);
           } else {
-            this.error = 'No barcode detected. Try manual entry.';
+            this._tryBackendDecode();
           }
-        },
-        (err: any) => {
+        })
+        .catch(() => this._tryBackendDecode());
+
+    } else if (this.zxingReader && this.photoPreviewUrl) {
+      this.zxingReader.decodeFromImageUrl(this.photoPreviewUrl)
+        .then((result: any) => {
           this.loading = false;
-          this.error = 'Barcode scan failed. Try manual entry.';
-        }
-      );
+          this.verify(result.getText());
+        })
+        .catch(() => this._tryBackendDecode());
+
+    } else {
+      this._tryBackendDecode();
     }
+  }
+
+  private _tryBackendDecode() {
+    if (!this.selectedFile) { this.loading = false; return; }
+    const fd = new FormData();
+    fd.append('image', this.selectedFile);
+    this.deviceRegistryService.scanBarcodeImage(fd).subscribe(
+      (res: any) => {
+        this.loading = false;
+        if (res && res.barcode) {
+          this.verify(res.barcode);
+        } else {
+          this.error = 'No barcode detected. Try a clearer image or use manual entry.';
+        }
+      },
+      () => {
+        this.loading = false;
+        this.error = 'Barcode scan failed. Try manual entry.';
+      }
+    );
   }
 
   // ── Manual entry ───────────────────────────────────────────────────────────
@@ -277,17 +331,21 @@ export class BarcodeScanComponent implements OnInit, OnDestroy {
     this.deviceRegistryService.verifyBarcode(value).subscribe(
       (res: any) => {
         this.loading = false;
-        const device = res.response || res;
-        if (device && device.id) {
+        const d = res.response || res.device || res;
+        if (d && d.id) {
           this.result = {
             ok: true,
-            serial: device.serial_number || value,
-            device_type: device.device_type,
-            status: device.status,
-            device_id: device.id,
+            serial: d.serial_number || value,
+            device_type: d.device_type,
+            status: d.status,
+            device_id: d.id,
           };
+        } else if (res && res.found === false) {
+          this.result = { ok: false, message: `No device found for: ${value}` };
+        } else if (d && d.found !== undefined) {
+          this.result = { ok: d.found, message: d.found ? '' : `No device found for: ${value}` };
         } else {
-          this.result = { ok: false, message: `No device found for barcode: ${value}` };
+          this.result = { ok: false, message: `No device found for: ${value}` };
         }
       },
       (err: any) => {

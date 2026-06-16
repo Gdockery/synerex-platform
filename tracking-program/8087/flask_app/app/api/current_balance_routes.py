@@ -33,6 +33,9 @@ from app.services.current_balance_engine import (
     bucket_ts_for,
     _row_to_dict,
 )
+from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+
+_CBI_WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 current_balance_bp = Blueprint("current_balance", __name__, url_prefix="/api/current-balance")
 
@@ -287,6 +290,7 @@ def get_breakdown():
 
 @current_balance_bp.route("/calculate", methods=["POST"])
 @login_required
+@require_roles(_CBI_WRITE_ROLES)
 def run_calculate():
     """
     POST /api/current-balance/calculate
@@ -342,6 +346,13 @@ def run_calculate():
         meter_id=meter_id,
         baseline_id=baseline_id,
     )
+
+    # Phase 10 — enrich buckets with Digital Twin transformer context
+    try:
+        from app.services.digital_twin_service import enrich_cbi_buckets_with_dt
+        enrich_cbi_buckets_with_dt(buckets, project_id)
+    except Exception:
+        pass   # DT enrichment is best-effort; never break CBI calculate
 
     now_ms = _now_ms()
     upserted = 0

@@ -83,6 +83,12 @@ class CurrentBalanceMetrics(BaseModel):
     sample_count    = db.Column(db.Integer, nullable=True)   # meterdata rows averaged
     calculated_at   = db.Column(db.BigInteger, nullable=True)
 
+    # ── Digital Twin context (Phase 10 — DT → CBI integration) ───────────────
+    # Pulled from approved/locked DigitalTwin asset graph at calculation time.
+    # NULL when no approved twin exists for the project.
+    transformer_kva         = db.Column(db.Float, nullable=True)   # rated kVA from DT
+    capacity_utilization_pct = db.Column(db.Float, nullable=True)  # avg_kva / transformer_kva × 100
+
     # ── Unique constraint: one row per meter/project/bucket ───────────────────
     __table_args__ = (
         db.UniqueConstraint(

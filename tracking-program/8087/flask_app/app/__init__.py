@@ -328,6 +328,13 @@ def create_app(config_class=Config):
         result = phase7_create_tables()
         print(f"phase7-migrate: {result}")
 
+    @app.cli.command("phase10-migrate")
+    def phase10_migrate():
+        """Phase 10 — add transformer_kva/capacity_utilization_pct to current_balance_metrics. Run: flask phase10-migrate"""
+        from app.db_migrations import phase10_add_dt_context_columns
+        result = phase10_add_dt_context_columns()
+        print(f"phase10-migrate: {result}")
+
     @app.cli.command("phase6-migrate")
     def phase6_migrate():
         """Phase 6 — create baseline_master table + add active_baseline_id to project. Run: flask phase6-migrate"""

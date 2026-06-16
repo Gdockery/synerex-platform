@@ -1037,8 +1037,98 @@ def run_accumulate_savings():
 
 
 def run_rollup_schedule_tasks():
-    """Rollup schedule - trigger perform-rollup for each project."""
+    """Rollup schedule - trigger perform-rollup for each project, then CBI auto-compute."""
     run_perform_rollup()
+    _run_cbi_auto_compute()
+
+
+def _run_cbi_auto_compute():
+    """
+    Phase 7 — CBI auto-trigger.
+
+    After each rollup cycle, recompute CBI 15-minute buckets for the past 4 hours
+    of meterdata across all active projects.  Only re-classifies recent data so the
+    call is fast even on large deployments.
+
+    Errors are swallowed per-project so one bad project cannot block the rest.
+    """
+    import time as _t
+    from app.models.project import Project
+    from app.models.meter import Meter
+    from app.models.meter_data import MeterData
+    from app.models.current_balance_metrics import CurrentBalanceMetrics
+    from app.services.current_balance_engine import compute_buckets
+
+    now_ms   = int(_t.time() * 1000)
+    window_ms = 4 * 60 * 60 * 1000          # last 4 hours
+    since_ms  = now_ms - window_ms
+
+    projects = Project.query.filter_by(isDeleted=False).all()
+    logger.info("[cbi-auto] triggered for %d projects", len(projects))
+
+    for project in projects:
+        try:
+            # Collect meter ids for this project
+            meter_ids = [
+                m.id for m in Meter.query.filter_by(
+                    project=project.id, isDeleted=False
+                ).all()
+            ]
+            if not meter_ids:
+                continue
+
+            # Fetch recent meterdata
+            rows = (MeterData.query
+                    .filter(MeterData.meter.in_(meter_ids))
+                    .filter(MeterData.recordedAt >= since_ms)
+                    .order_by(MeterData.recordedAt.asc())
+                    .limit(5000)           # cap to avoid memory spikes
+                    .all())
+            if not rows:
+                continue
+
+            # Compute CBI buckets and upsert
+            buckets = compute_buckets(
+                meterdata_rows=rows,
+                project_id=project.id,
+            )
+
+            # Phase 10 — attach Digital Twin transformer kVA context
+            try:
+                from app.services.digital_twin_service import enrich_cbi_buckets_with_dt
+                enrich_cbi_buckets_with_dt(buckets, project.id)
+            except Exception:
+                pass
+
+            upsert_count = 0
+            for b in buckets:
+                existing = (CurrentBalanceMetrics.query
+                            .filter_by(
+                                project_id  = b["project_id"],
+                                bucket_ts   = b["bucket_ts"],
+                                meter_id    = b.get("meter_id"),
+                            )
+                            .first())
+                if existing:
+                    for k, v in b.items():
+                        if hasattr(existing, k):
+                            setattr(existing, k, v)
+                else:
+                    db.session.add(CurrentBalanceMetrics(**{
+                        k: v for k, v in b.items()
+                        if hasattr(CurrentBalanceMetrics, k)
+                    }))
+                upsert_count += 1
+
+            db.session.commit()
+            logger.info(
+                "[cbi-auto] project=%d rows=%d buckets=%d",
+                project.id, len(rows), upsert_count,
+            )
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.warning("[cbi-auto] project=%d error: %s", project.id, exc)
 
 
 def run_generate_monthly_reports():

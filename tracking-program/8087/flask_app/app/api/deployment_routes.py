@@ -40,6 +40,9 @@ from app.models.site_discovery import SiteDiscovery
 from app.models.engineering_review import EngineeringReview, REVIEW_DECISIONS
 from app.models.site_activation import SiteActivation
 from app.services.audit import audit
+from app.helpers.roles import (
+    WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
+)
 
 deployment_bp = Blueprint("deployment", __name__, url_prefix="/api/deployment")
 
@@ -178,6 +181,7 @@ def list_deployments():
 
 @deployment_bp.route("/", methods=["POST"])
 @login_required
+@require_roles(WRITE_ROLES)
 def create_deployment():
     body = request.get_json(force=True, silent=True) or {}
     if not body.get("project_id"):
@@ -218,6 +222,7 @@ def get_deployment(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>", methods=["PATCH"])
 @login_required
+@require_roles(WRITE_ROLES)
 def update_deployment(dep_id: int):
     sess = get_session()
     dep  = _dep_q(sess).filter(Deployment.id == dep_id).first()
@@ -239,6 +244,7 @@ def update_deployment(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>", methods=["DELETE"])
 @login_required
+@require_roles(ADMIN_ROLES)
 def delete_deployment(dep_id: int):
     sess = get_session()
     dep  = _dep_q(sess).filter(Deployment.id == dep_id).first()
@@ -267,6 +273,7 @@ _DEP_TRANSITIONS = {
 
 @deployment_bp.route("/<int:dep_id>/status", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def change_dep_status(dep_id: int):
     sess = get_session()
     dep  = _dep_q(sess).filter(Deployment.id == dep_id).first()
@@ -315,6 +322,7 @@ def change_dep_status(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/field-entry", methods=["PATCH"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def save_field_entry(dep_id: int):
     """
     Persist partial or complete field-entry form data for the installer stepper.
@@ -355,6 +363,7 @@ def list_dep_devices(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/devices", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def add_dep_device(dep_id: int):
     sess = get_session()
     if not _dep_q(sess).filter(Deployment.id == dep_id).first():
@@ -384,6 +393,7 @@ def add_dep_device(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/devices/<int:dd_id>", methods=["PATCH"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def update_dep_device(dep_id: int, dd_id: int):
     sess = get_session()
     dd   = sess.query(DeploymentDevice).filter_by(id=dd_id, deployment_id=dep_id).first()
@@ -427,6 +437,7 @@ def get_discovery(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/discovery", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def upsert_discovery(dep_id: int):
     """Create or replace the site discovery record for this deployment."""
     sess = get_session()
@@ -491,6 +502,7 @@ def list_reviews(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/engineering", methods=["POST"])
 @login_required
+@require_roles(ENGINEERING_ROLES)
 def create_review(dep_id: int):
     sess = get_session()
     if not _dep_q(sess).filter(Deployment.id == dep_id).first():
@@ -524,6 +536,7 @@ def create_review(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/engineering/<int:rev_id>", methods=["PATCH"])
 @login_required
+@require_roles(ENGINEERING_ROLES)
 def update_review(dep_id: int, rev_id: int):
     sess = get_session()
     rev  = sess.query(EngineeringReview).filter_by(id=rev_id, deployment_id=dep_id).first()
@@ -568,6 +581,7 @@ def get_activation(dep_id: int):
 
 @deployment_bp.route("/<int:dep_id>/activation", methods=["POST"])
 @login_required
+@require_roles(ENGINEERING_ROLES)
 def certify_activation(dep_id: int):
     """
     Issue All Checks Clear™ certification.
@@ -644,6 +658,7 @@ def _photo_dir(dep_id: int) -> str:
 
 @deployment_bp.route("/<int:dep_id>/photos", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def upload_photo(dep_id: int):
     """
     POST /api/deployment/<id>/photos

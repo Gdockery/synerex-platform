@@ -1218,3 +1218,43 @@ def phase1_add_user_columns():
                 print(f"phase1_add_user_columns: ERROR {key}: {e}")
                 results[key] = f"error: {e}"
     return results
+
+
+def phase10_add_dt_context_columns():
+    """
+    Phase 10 — Digital Twin → CBI integration.
+
+    Adds two nullable FLOAT columns to current_balance_metrics:
+      transformer_kva          — rated kVA pulled from the approved DigitalTwin
+      capacity_utilization_pct — avg_kva / transformer_kva × 100
+
+    Idempotent — skips columns that already exist.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    COLUMN_DDLS = [
+        ("current_balance_metrics", "transformer_kva",
+         "ALTER TABLE `current_balance_metrics` ADD COLUMN `transformer_kva` FLOAT NULL"),
+        ("current_balance_metrics", "capacity_utilization_pct",
+         "ALTER TABLE `current_balance_metrics` ADD COLUMN `capacity_utilization_pct` FLOAT NULL"),
+    ]
+
+    results = {}
+    for table, col, sql in COLUMN_DDLS:
+        key = f"{table}.{col}"
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"phase10_add_dt_context_columns: added {key}.")
+            results[key] = "added"
+        except Exception as e:
+            err = str(e).lower()
+            if "duplicate column" in err or "already exists" in err or "1060" in err:
+                results[key] = "exists"
+            else:
+                print(f"phase10_add_dt_context_columns: ERROR {key}: {e}")
+                results[key] = f"error: {e}"
+    return results

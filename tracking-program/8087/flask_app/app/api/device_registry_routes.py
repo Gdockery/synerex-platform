@@ -26,6 +26,9 @@ from app.db import get_session
 from app.models.device_registry import DeviceRegistry, DEVICE_TYPES, DEVICE_STATUSES
 from app.models.commissioning_test import CommissioningTest, COMMISSIONING_OUTCOMES
 from app.services.audit import audit
+from app.helpers.roles import (
+    WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
+)
 
 device_reg_bp = Blueprint("device_registry", __name__, url_prefix="/api/device-registry")
 
@@ -121,6 +124,7 @@ def list_devices():
 
 @device_reg_bp.route("/", methods=["POST"])
 @login_required
+@require_roles(WRITE_ROLES)
 def create_device():
     body = request.get_json(force=True, silent=True) or {}
     if not body.get("device_type"):
@@ -174,6 +178,7 @@ def get_device(dev_id: int):
 
 @device_reg_bp.route("/<int:dev_id>", methods=["PATCH"])
 @login_required
+@require_roles(WRITE_ROLES)
 def update_device(dev_id: int):
     sess = get_session()
     dev  = _scoped_q(sess).filter(DeviceRegistry.id == dev_id).first()
@@ -195,6 +200,7 @@ def update_device(dev_id: int):
 
 @device_reg_bp.route("/<int:dev_id>", methods=["DELETE"])
 @login_required
+@require_roles(ADMIN_ROLES)
 def delete_device(dev_id: int):
     sess = get_session()
     dev  = _scoped_q(sess).filter(DeviceRegistry.id == dev_id).first()
@@ -224,6 +230,7 @@ _TRANSITIONS = {
 
 @device_reg_bp.route("/<int:dev_id>/status", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def change_status(dev_id: int):
     sess = get_session()
     dev  = _scoped_q(sess).filter(DeviceRegistry.id == dev_id).first()
@@ -306,6 +313,76 @@ def verify_barcode():
     }
 
 
+# ─── Server-side barcode image decode ────────────────────────────────────────
+
+@device_reg_bp.route("/scan-barcode", methods=["POST"])
+@login_required
+def scan_barcode_image():
+    """
+    POST /api/device-registry/scan-barcode
+
+    Accepts multipart/form-data with field ``image`` (JPEG/PNG/WEBP).
+    Decodes barcodes and QR codes server-side using pyzbar + Pillow.
+
+    Falls back gracefully when libzbar0 / pyzbar are not installed in the
+    container — returns a clear 503 instead of a 500 so Angular can display
+    a helpful message and suggest manual entry.
+
+    Response (success):
+      { "barcode": "SN-12345", "format": "CODE_128", "found": true }
+    Response (not found):
+      { "found": false }
+    Response (library unavailable):
+      { "error": "...", "code": "PYZBAR_UNAVAILABLE" }  HTTP 503
+    """
+    try:
+        from pyzbar.pyzbar import decode as pyzbar_decode
+        from PIL import Image
+    except ImportError:
+        return {
+            "error": (
+                "Server-side barcode decoding is not available on this host. "
+                "Please use live camera scan or manual entry."
+            ),
+            "code": "PYZBAR_UNAVAILABLE",
+        }, 503
+
+    if "image" not in request.files:
+        return {"error": "image file required"}, 400
+
+    img_file = request.files["image"]
+    _ALLOWED = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if img_file.mimetype and img_file.mimetype.lower() not in _ALLOWED:
+        return {"error": "unsupported image type"}, 415
+
+    try:
+        img = Image.open(img_file.stream).convert("RGB")
+    except Exception as e:
+        return {"error": f"Could not read image: {e}"}, 400
+
+    try:
+        decoded = pyzbar_decode(img)
+    except Exception as e:
+        return {"error": f"Decode error: {e}"}, 500
+
+    if not decoded:
+        audit("device.scan_barcode_not_found", user_id=current_user.id)
+        return {"found": False}
+
+    best = decoded[0]
+    barcode_value = best.data.decode("utf-8", errors="replace").strip()
+    barcode_format = best.type  # e.g. "QRCODE", "CODE128"
+
+    audit("device.scan_barcode_image", user_id=current_user.id,
+          detail={"barcode": barcode_value, "format": barcode_format})
+
+    return {
+        "found":   True,
+        "barcode": barcode_value,
+        "format":  barcode_format,
+    }
+
+
 # ─── Commissioning tests ──────────────────────────────────────────────────────
 
 @device_reg_bp.route("/<int:dev_id>/commissioning", methods=["GET"])
@@ -323,6 +400,7 @@ def list_commissioning(dev_id: int):
 
 @device_reg_bp.route("/<int:dev_id>/commissioning", methods=["POST"])
 @login_required
+@require_roles(DEPLOYMENT_ROLES)
 def create_commissioning(dev_id: int):
     sess = get_session()
     dev  = _scoped_q(sess).filter(DeviceRegistry.id == dev_id).first()
@@ -396,6 +474,7 @@ def create_commissioning(dev_id: int):
 
 @device_reg_bp.route("/<int:dev_id>/commissioning/<int:test_id>", methods=["PATCH"])
 @login_required
+@require_roles(ENGINEERING_ROLES)
 def update_commissioning(dev_id: int, test_id: int):
     sess = get_session()
     test = sess.query(CommissioningTest).filter_by(id=test_id, device_id=dev_id).first()
