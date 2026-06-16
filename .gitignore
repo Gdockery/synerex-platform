@@ -71,3 +71,28 @@ emv-program/8082/temp/
 website/node_modules/
 website/dist/
 website/.vite/
+
+# Tracking program build artifacts — never commit these
+tracking-program/8087/.tmp/
+tracking-program/8087/.tmp_bak/
+tracking-program/8087/node_modules/
+
+# Tracking program runtime storage — server-local files
+tracking-program/8087/storage/
+tracking-program/8087/flask_app/tracking_data/
+
+# Misc upload/scratch files at repo root
+*.pdf
+*.csv
+*.png
+*.jpg
+*.jpeg
+*.gif
+TRANSFER_TO_WINDOWS.md
+
+# Python bytecode in emv-program
+emv-program/**/__pycache__/
+emv-program/**/*.pyc
+emv-program/**/8082/8082
+emv-program/**/files/
+*.bak
