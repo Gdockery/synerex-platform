@@ -42,7 +42,7 @@ var webpackConfig = {
     path: path.resolve(__dirname, '.tmp', 'public'),
     publicPath: '/tracking/',
     sourceMapFilename: 'js/[name].map',
-    chunkFilename: 'js/[id].chunk.js'
+    chunkFilename: 'js/[id].[chunkhash:8].chunk.js'
   },
 
   /***************************************************************************

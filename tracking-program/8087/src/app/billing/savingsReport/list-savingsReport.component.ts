@@ -107,6 +107,8 @@ const { PDFDocument } = require('pdf-lib');
               <input class="form-control" [(ngModel)]="emvClientZip" placeholder="75001" />
             </div>
           </div>
+        </div>
+        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>Contact Name</label>
@@ -115,12 +117,16 @@ const { PDFDocument } = require('pdf-lib');
           </div>
           <div class="col-md-3">
             <div class="form-group">
+              <label>Contact Title</label>
+              <input class="form-control" [(ngModel)]="emvContactTitle" placeholder="Facilities Manager" />
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="form-group">
               <label>Email</label>
               <input class="form-control" [(ngModel)]="emvContactEmail" placeholder="jane@company.com" />
             </div>
           </div>
-        </div>
-        <div class="row">
           <div class="col-md-3">
             <div class="form-group">
               <label>Phone</label>
@@ -1302,6 +1308,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
   public emvClientState: string = '';
   public emvClientZip: string = '';
   public emvContactName: string = '';
+  public emvContactTitle: string = '';
   public emvContactEmail: string = '';
   public emvContactPhone: string = '';
   // Project Information
@@ -1768,7 +1775,8 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.emvClientCity        = rd.client_city || legacyCity || '';
     this.emvClientState       = rd.client_state || legacyState || '';
     this.emvClientZip         = rd.client_zip || '';
-    this.emvContactName       = rd.contact_name || '';
+    this.emvContactName       = rd.contact_name  || '';
+    this.emvContactTitle      = rd.contact_title || '';
     this.emvContactEmail      = rd.contact_email || '';
     this.emvContactPhone      = rd.contact_phone || '';
     // Project Information
@@ -1888,6 +1896,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     newData.client_state        = this.emvClientState;
     newData.client_zip          = this.emvClientZip;
     newData.contact_name        = this.emvContactName;
+    newData.contact_title       = this.emvContactTitle;
     newData.contact_email       = this.emvContactEmail;
     newData.contact_phone       = this.emvContactPhone;
     // Project Information
@@ -1978,6 +1987,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
       newData.client_state        = this.emvClientState;
       newData.client_zip          = this.emvClientZip;
       newData.contact_name        = this.emvContactName;
+      newData.contact_title       = this.emvContactTitle;
       newData.contact_email       = this.emvContactEmail;
       newData.contact_phone       = this.emvContactPhone;
       // Project Info
@@ -2989,7 +2999,7 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportNaGenerating = true;
     this.reportStatus = '';
     this.reportError  = false;
-    const url = `/api/project/${proj.id}/report/network-assessment?inline=1`;
+    const url = `/api/project/${proj.id}/report/network-assessment`;
     window.open(url, '_blank');
     this.reportNaGenerating = false;
     this.reportStatus = 'Network Assessment opened in new tab.';
@@ -3002,49 +3012,55 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
     this.reportPcGenerating = true;
     this.reportStatus = '';
     this.reportError  = false;
-    const url = `/api/project/${proj.id}/report/proposal-contract?inline=1`;
+    const url = `/api/project/${proj.id}/report/proposal-contract`;
     window.open(url, '_blank');
     this.reportPcGenerating = false;
-    this.reportStatus = 'Proposal Contract opened in new tab.';
+    this.reportStatus = 'Proposal Contract PDF opened in new tab.';
     setTimeout(() => { this.reportStatus = ''; }, 4000);
   }
 
   // ── Global "Auto-fill All" ─────────────────────────────────────────────────
-  autoFillAll() {
+  // Calls Flask /proposal/autofill which proxies GPU /proposal/autofill.
+  // That endpoint runs facility context internally alongside bill + SLD data,
+  // returning the full set: narrative, utility, PF, equipment, topology.
+  // _retryCount is internal — callers always call autoFillAll() with no args.
+  autoFillAll(_retryCount: number = 0) {
     const proj: any = this.userService.user.selectedProject;
     if (!proj || !proj.id) return;
 
     this.emvAutoFillAllFetching = true;
-    this.emvAutoFillAllStatus   = 'Filling from Bill + SLD…';
+    this.emvAutoFillAllStatus   = _retryCount > 0
+      ? 'GPU was busy — retrying…'
+      : 'Generating… this may take up to 60 seconds';
     this.emvAutoFillAllError    = false;
 
-    // Bill GPU job ID — most recent 'bill' job stored in localStorage
-    const billJobs: any[] = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
-    const billId: number | null = billJobs.length ? billJobs[billJobs.length - 1].gpu_job_id : null;
+    const bill: any = proj.electricBillAnalysis || {};
 
-    // SLD GPU job ID — stored in project.sldAnalysis.gpuJobId
+    // Bill GPU job ID from stored electricBillAnalysis or localStorage jobs
+    const billGpuId = bill.gpuJobId || null;
+    const billJobs: any[] = this.myJobsService.getJobs(proj.id).filter((j: any) => j.job_type === 'bill');
+    const billId: number | null = billGpuId || (billJobs.length ? billJobs[billJobs.length - 1].gpu_job_id : null);
+
+    // SLD GPU job ID
     const sldId: number | null = (proj.sldAnalysis && proj.sldAnalysis.gpuJobId) ? proj.sldAnalysis.gpuJobId : null;
 
-    // Customer + address from current UI fields or bill data
-    const bill: any = proj.electricBillAnalysis || {};
-    const customer = this.emvClientName || bill.customerName || '';
+    // Customer + address — Flask falls back to client record if these are empty
+    const customer = this.emvClientName || '';
     const address = [
-      this.emvFacilityAddress || bill.serviceAddress || '',
-      this.emvFacilityZip     || bill.serviceZip     || '',
+      this.emvFacilityAddress || '',
+      this.emvFacilityZip     || '',
     ].filter(Boolean).join(' ');
 
     this.proposalService.autoFill(proj.id, billId, sldId, customer, address).subscribe(
       (res: any) => {
         this.emvAutoFillAllFetching = false;
 
-        // ── Identity / Client fields ───────────────────────────────────────
-        if (res.customer)      this.emvClientName       = res.customer;
-        if (res.addressStreet) this.emvFacilityAddress  = res.addressStreet;
-        if (res.addressCity)   this.emvFacilityCity     = res.addressCity;
+        // ── Identity ────────────────────────────────────────────────────────
+        if (res.customer)      this.emvClientName      = res.customer;
+        if (res.addressStreet) this.emvFacilityAddress = res.addressStreet;
+        if (res.addressCity)   this.emvFacilityCity    = res.addressCity;
         if (res.coverLocation) {
-          // Split "City, State ZIP" into parts if possible
-          const loc = res.coverLocation;
-          const m = loc.match(/^(.*),\s*([A-Z]{2})\s*(\d{5}(-\d{4})?)?$/);
+          const m = res.coverLocation.match(/^(.*),\s*([A-Z]{2})\s*(\d{5}(-\d{4})?)?$/);
           if (m) {
             if (!this.emvFacilityCity)  this.emvFacilityCity  = m[1].trim();
             if (!this.emvFacilityState) this.emvFacilityState = m[2].trim();
@@ -3052,76 +3068,81 @@ export class ListSavingsReportComponent implements OnInit, OnDestroy {
           }
         }
 
-        // ── Facility Narrative ─────────────────────────────────────────────
+        // ── Facility Narrative ───────────────────────────────────────────────
         if (res.facilityType)        this.emvFacilityType        = res.facilityType;
         if (res.facilitySiteLabel)   this.emvFacilitySiteLabel   = res.facilitySiteLabel;
-        if (res.overviewPara)        this.emvOverviewPara         = res.overviewPara;
+        if (res.overviewPara)        this.emvOverviewPara        = res.overviewPara;
         if (res.billingMonthsLabel)  this.emvBillingMonthsLabel  = res.billingMonthsLabel;
         if (res.sldSource)           this.emvSldSource           = res.sldSource;
         if (res.capacitorBankBullet) this.emvCapacitorBankBullet = res.capacitorBankBullet;
 
-        // ── Utility / Billing ──────────────────────────────────────────────
+        // ── Utility / Billing ───────────────────────────────────────────────
         if (res.utilityName)    { this.emvUtility = res.utilityName; this.emvUtilityName = res.utilityName; }
         if (res.utilityTariff)  this.baTariff       = res.utilityTariff;
         if (res.utilityAccount) this.baAccountNumber = res.utilityAccount;
         if (res.meterNumbers)   this.baMeterNumber   = res.meterNumbers;
 
-        // ── Power Factor ───────────────────────────────────────────────────
-        if (res.pfCurrent != null)       this.emvPfReference      = String(res.pfCurrent);
-        if (res.pfWorst != null)         this.emvPfWorst          = String(res.pfWorst);
-        if (res.pfReferenceMonth)        this.emvPfReferenceMonth = res.pfReferenceMonth;
+        // ── Power Factor ─────────────────────────────────────────────────────
+        if (res.pfCurrent != null)    this.emvPfReference      = String(res.pfCurrent);
+        if (res.pfWorst != null)      this.emvPfWorst          = String(res.pfWorst);
+        if (res.pfReferenceMonth)     this.emvPfReferenceMonth = res.pfReferenceMonth;
         if (res.pfPenaltyUsd != null) {
           this.emvPfPenaltyUsd = String(res.pfPenaltyUsd);
           if (res.pfPenaltyUsd > 0 && !this.emvHasPfPenalty) { this.emvHasPfPenalty = true; }
         }
 
-        // ── Equipment Counts ───────────────────────────────────────────────
-        if (res.s600 != null && res.s600 !== '')    this.emvS600Override   = String(res.s600);
+        // ── Equipment Counts ─────────────────────────────────────────────────
+        if (res.s600 != null && res.s600 !== '')     this.emvS600Override   = String(res.s600);
         if (res.apf100 != null && res.apf100 !== '') this.emvApf100Override = String(res.apf100);
         if (res.apf50 != null && res.apf50 !== '')   this.emvApf50Override  = String(res.apf50);
         if (res.equipSource)                         this.emvEquipSource    = res.equipSource;
 
-        // ── Electrical Topology ────────────────────────────────────────────
+        // ── Electrical Topology ──────────────────────────────────────────────
         if (res.topoMeters && res.topoMeters.length) {
           this.topoMeters = res.topoMeters.map((m: any) => ({
             meterNo: m.meterNo || m.meter_no || '',
             buses: (m.buses || []).map((b: any) => ({
-              badge:    b.badge    || b.bus_id   || '',
-              dwg:      b.dwg      || '',
-              xfKva:    b.xfKva    || b.xf_kva   || '',
-              mainA:    b.mainA    || b.main_a    || '',
-              pctLoad:  b.pctLoad  || b.pct_load  || '',
-              varc:     b.varc     || '',
+              badge: b.badge || b.bus_id || '', dwg: b.dwg || '',
+              xfKva: b.xfKva || b.xf_kva || '', mainA: b.mainA || b.main_a || '',
+              pctLoad: b.pctLoad || b.pct_load || '', varc: b.varc || '',
               circuits: (b.circuits || []).map((c: any) => ({
-                name:    c.name    || '',
-                amps:    c.amps    || '',
-                nEcbs:   c.nEcbs   || c.n_ecbs   || 0,
-                nApf50:  c.nApf50  || c.n_apf50  || 0,
+                name: c.name || '', amps: c.amps || '',
+                nEcbs: c.nEcbs || c.n_ecbs || 0,
+                nApf50: c.nApf50 || c.n_apf50 || 0,
                 nApf100: c.nApf100 || c.n_apf100 || 0,
-                note:    c.note    || '',
+                note: c.note || '',
               })),
             })),
           }));
         }
 
-        // Update in-memory project.proposalData
         if (proj.proposalData) { Object.assign(proj.proposalData, res); }
         else { proj.proposalData = res; }
 
-        // Build sources status label
         const src = res.sources || {};
         const used: string[] = [];
         if (src.has_bill)       used.push('Bill ✓');
         if (src.has_sld)        used.push('SLD ✓');
-        if (src.has_context_ai) used.push('AI Context ✓');
-        const sourceStr = used.length ? ` (${used.join(' | ')})` : '';
-        this.emvAutoFillAllStatus = `Filled${sourceStr} — review and adjust as needed.`;
+        if (src.has_context_ai) used.push('AI ✓');
+        this.emvAutoFillAllStatus = `Filled${used.length ? ' (' + used.join(' | ') + ')' : ''} — review and adjust.`;
         this.emvAutoFillAllError  = false;
         setTimeout(() => { this.emvAutoFillAllStatus = ''; }, 8000);
       },
       (err: any) => {
         this.emvAutoFillAllFetching = false;
-        const msg = (err && err.error && err.error.error) || 'Auto-fill failed. Try again.';
+        // err.code is the HTTP status set by ApiRequestService.handleError()
+        const httpStatus = err?.code || err?.status || 0;
+        // Auto-retry once on 504 (GPU busy) or 502 (GPU unreachable)
+        if ((httpStatus === 504 || httpStatus === 502) && _retryCount < 1) {
+          this.emvAutoFillAllError  = false;
+          this.emvAutoFillAllStatus = 'GPU is busy — retrying in 5 seconds…';
+          setTimeout(() => this.autoFillAll(1), 5000);
+          return;
+        }
+        // Extract the plain-text message from the nested error structure
+        const body = err?.error?.error;   // HttpErrorResponse body (parsed JSON)
+        const msg  = (typeof body === 'object' ? body?.error : body)
+                     || 'Auto-fill failed. Try again.';
         this.emvAutoFillAllStatus = msg;
         this.emvAutoFillAllError  = true;
       }

@@ -123,7 +123,7 @@ def _make_bus_svg(bus):
 
 # ── Main build function ────────────────────────────────────────────────────────
 
-def build_html(d: dict) -> str:
+def build_html(d: dict, doc_no: str | None = None) -> str:
     """Build the Network Assessment HTML from a data dict."""
 
     # Identity / site
@@ -165,15 +165,28 @@ def build_html(d: dict) -> str:
     capacitor_bank_bullet = d.get("capacitor_bank_bullet", "")
     meter_location_desc   = d.get("meter_location_desc", f"{utility_short} utility supply point ({utility_account})")
 
+    # Flags
+    customer_owns_meters = bool(d.get("customer_owns_meters", False))
+    is_upgrade           = bool(d.get("is_upgrade", False))
+    doc_no               = d.get("doc_no") or doc_no
+
     # Pricing
     pricing = d.get("pricing", {
         "ecbs600": 3625, "apf50": 7995, "apf100": 7500,
         "meter": 2500, "lc90": 780, "lc60": 620,
-        "rocoil_ct": 150, "gateway": 129, "server": 2475, "ethernet": 10,
+        "rocoil_ct": 150, "apf_ct": 300, "booster": 600,
+        "gateway": 129, "server": 2475, "ethernet": 10,  # server = Edge Energy Datalogger
     })
+    # Ensure new pricing keys are always present even if caller passed old dict
+    pricing.setdefault("apf_ct", 300)
+    pricing.setdefault("booster", 600)
+    pricing.setdefault("lc60", 620)
 
     # Logos
     customer_logo_b64 = d.get("customer_logo_b64")
+
+    # Note: equipment auto-distribution by kWh is handled upstream in
+    # report_routes._assemble_report_data, so buses already have circuits here.
 
     # ── Derived totals ────────────────────────────────────────────────────────
     total_ecbs   = sum(c["n_ecbs"]   for b in buses for c in b["circuits"])
@@ -190,17 +203,27 @@ def build_html(d: dict) -> str:
     apf100_buses    = [b for b in buses if any(c["n_apf100"] > 0 for c in b["circuits"])]
     apf100_bus_labels = " &amp; ".join(b["badge"] for b in apf100_buses)
 
-    cost_ecbs    = total_ecbs   * pricing["ecbs600"]
+    # For upgrade sites, ECBS-600 line items use the LC60RC retrofit price
+    _ecbs_unit_price = pricing["lc60"] if is_upgrade else pricing["ecbs600"]
+    _ecbs_label      = "LC60RC" if is_upgrade else "ECBS-600"
+    cost_ecbs    = total_ecbs   * _ecbs_unit_price
     cost_apf50   = total_apf50  * pricing["apf50"]
     cost_apf100  = total_apf100 * pricing["apf100"]
-    cost_meters  = N_METERS     * pricing["meter"]
+    cost_booster = N_METERS     * pricing["booster"]
+    cost_apf_cts = (3 * (total_apf100 + total_apf50)) * pricing["apf_ct"]
+    if customer_owns_meters:
+        cost_meters = 0
+        cost_cts    = 0
+    else:
+        cost_meters = N_METERS     * pricing["meter"]
+        cost_cts    = (3*N_METERS) * pricing["rocoil_ct"]
     cost_lc90    = N_METERS     * pricing["lc90"]
     cost_lc60    = LC60_QTY     * pricing["lc60"]
-    cost_cts     = (3*N_METERS) * pricing["rocoil_ct"]
     cost_gw      = GW           * pricing["gateway"]
     cost_srv     =                pricing["server"]
     cost_eth     = (GW + 1)     * pricing["ethernet"]
-    cost_monitor = cost_meters + cost_lc90 + cost_lc60 + cost_cts + cost_gw + cost_srv + cost_eth
+    cost_monitor = (cost_meters + cost_lc90 + cost_lc60 + cost_cts
+                    + cost_booster + cost_apf_cts + cost_gw + cost_srv + cost_eth)
     cost_total   = cost_ecbs + cost_apf50 + cost_apf100 + cost_monitor
 
     monthly_savings = total_savings
@@ -240,7 +263,7 @@ def build_html(d: dict) -> str:
             rows += f"""<tr>
               <td>{c["name"]}</td>
               <td class="tc amber">{c["amps"]}A<span class="est">*</span></td>
-              <td class="tc">{c["type"]}</td>
+              <td class="tc">{c.get("type","")}</td>
               <td class="tc muted" style="font-size:10px;color:#5a7090">{c.get("existing","—")}</td>
               <td class="tc fw" style="color:{eq_col}">{eq_str}</td>
               <td class="tc muted" style="font-size:10px">{c_fu}</td>
@@ -298,8 +321,8 @@ def build_html(d: dict) -> str:
             for c in bus["circuits"]:
                 if c["n_apf100"]:   eq_str = f'{c["n_apf100"]}×APF-100'
                 elif c["n_apf50"]:  eq_str = f'{c["n_apf50"]}×APF-50'
-                else:               eq_str = f'{c["n_ecbs"]}×ECBS-600'
-                cc = (c["n_ecbs"]*pricing["ecbs600"] + c["n_apf50"]*pricing["apf50"]
+                else:               eq_str = f'{c["n_ecbs"]}×{_ecbs_label}'
+                cc = (c["n_ecbs"]*_ecbs_unit_price + c["n_apf50"]*pricing["apf50"]
                       + c["n_apf100"]*pricing["apf100"])
                 rows += f"""<tr>
                   <td style="padding-left:22px">{c["name"]}</td>
@@ -309,9 +332,29 @@ def build_html(d: dict) -> str:
                   <td class="tr">${cc:,.0f}</td>
                 </tr>"""
 
-        n_cts = 3 * N_METERS
         n_eth = GW + 1
         total_hw_units = total_ecbs + total_apf50 + total_apf100
+        _meter_row = (
+            f'<tr><td style="padding-left:22px">Revenue Grade Meter (Xeco) — utility supply point</td>'
+            f'<td class="tc">—</td><td class="tc">{N_METERS} Meter</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_meters:,.0f}</td></tr>'
+            if not customer_owns_meters else
+            f'<tr><td style="padding-left:22px">LC90 Communication Module (customer-provided meters)</td>'
+            f'<td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_lc90:,.0f}</td></tr>'
+        )
+        _ct_row = (
+            f'<tr><td style="padding-left:22px">Rocoil Current Transformers (3 per meter)</td>'
+            f'<td class="tc">—</td><td class="tc">{3*N_METERS} CTs</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_cts:,.0f}</td></tr>'
+            if not customer_owns_meters else ""
+        )
+        _apf_ct_row = (
+            f'<tr><td style="padding-left:22px">APF Current Transformers (3 per APF unit)</td>'
+            f'<td class="tc">—</td><td class="tc">{3*(total_apf100+total_apf50)} CTs</td><td class="tc">—</td>'
+            f'<td class="tr">${cost_apf_cts:,.0f}</td></tr>'
+            if (total_apf100 + total_apf50) > 0 else ""
+        )
 
         return f"""<table class="bom">
   <thead><tr>
@@ -320,71 +363,36 @@ def build_html(d: dict) -> str:
   <tbody>
     {rows}
     <tr class="sub-row"><td colspan="5">Monitoring &amp; Communications Infrastructure</td></tr>
-    <tr><td style="padding-left:22px">Revenue Grade Meter (Xeco) — utility supply point</td>
-      <td class="tc">—</td><td class="tc">{N_METERS} Meter</td><td class="tc">—</td>
-      <td class="tr">${cost_meters:,.0f}</td></tr>
+    {_meter_row}
     <tr><td style="padding-left:22px">LC90 Communication Module</td>
       <td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>
       <td class="tr">${cost_lc90:,.0f}</td></tr>
     <tr><td style="padding-left:22px">LC60 Communication Modules</td>
       <td class="tc">—</td><td class="tc">{LC60_QTY} Units</td><td class="tc">—</td>
       <td class="tr">${cost_lc60:,.0f}</td></tr>
-    <tr><td style="padding-left:22px">Rocoil Current Transformers (3 per meter)</td>
-      <td class="tc">—</td><td class="tc">{n_cts} CTs</td><td class="tc">—</td>
-      <td class="tr">${cost_cts:,.0f}</td></tr>
+    {_ct_row}
+    {_apf_ct_row}
+    <tr><td style="padding-left:22px">Signal Booster (1 per meter location)</td>
+      <td class="tc">—</td><td class="tc">{N_METERS} Unit</td><td class="tc">—</td>
+      <td class="tr">${cost_booster:,.0f}</td></tr>
     <tr><td style="padding-left:22px">IoT Communications Gateways</td>
       <td class="tc">—</td><td class="tc">{GW} Gateways</td><td class="tc">—</td>
       <td class="tr">${cost_gw:,.0f}</td></tr>
-    <tr><td style="padding-left:22px">Local Monitoring Server</td>
-      <td class="tc">—</td><td class="tc">1 Server</td><td class="tc">—</td>
+    <tr><td style="padding-left:22px">Edge Energy Datalogger</td>
+      <td class="tc">—</td><td class="tc">1 Unit</td><td class="tc">—</td>
       <td class="tr">${cost_srv:,.0f}</td></tr>
     <tr><td style="padding-left:22px">Ethernet Cables</td>
       <td class="tc">—</td><td class="tc">{n_eth} Runs</td><td class="tc">—</td>
       <td class="tr">${cost_eth:,.0f}</td></tr>
     <tr class="grand-row">
-      <td colspan="3">TOTAL — {total_ecbs} ECBS-600 · {total_apf100} APF-100 · {N_METERS} Meter · {GW} Gateways · 1 Server</td>
-      <td class="tc">{total_hw_units} hw / {total_fu} FU</td>
+      <td colspan="4">TOTAL</td>
       <td class="tr">${cost_total:,.0f}</td>
     </tr>
   </tbody>
 </table>
 <p style="font-size:9px;color:#6b7e96;margin-top:6px;line-height:1.5;font-style:italic;">
   &#9432;&nbsp; The above Bill of Materials reflects primary electrical optimization hardware and complete monitoring infrastructure.
-</p>
-<div style="margin-top:.25in;border-top:2px solid var(--blue);padding-top:.15in;">
-  <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--blue);letter-spacing:.03em;margin-bottom:8px;text-transform:uppercase;">Monitoring Architecture Overview</div>
-  <table style="width:100%;border-collapse:collapse;font-size:10.5px;color:var(--text);">
-    <thead>
-      <tr style="background:var(--surface);border-bottom:2px solid var(--dim);">
-        <th style="text-align:left;padding:6px 10px;font-weight:700;">Component</th>
-        <th style="text-align:center;padding:6px 10px;font-weight:700;">Qty</th>
-        <th style="text-align:left;padding:6px 10px;font-weight:700;">Function</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr style="border-bottom:1px solid var(--dim);">
-        <td style="padding:6px 10px;">Revenue-Grade Meter (Xeco)</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{N_METERS}</td>
-        <td style="padding:6px 10px;">Installed at {meter_location_desc}; measures kW, kVAR, kWh, PF, and harmonic data</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);background:var(--surface);">
-        <td style="padding:6px 10px;">Rocoil Current Transformers</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{3*N_METERS}</td>
-        <td style="padding:6px 10px;">3 CTs per meter location; flexible Rogowski coil design for installation in existing switchgear without service interruption</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);">
-        <td style="padding:6px 10px;">IoT Communications Gateways</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">{GW}</td>
-        <td style="padding:6px 10px;">Aggregate meter and unit data; transmit to local server; one gateway per 12-unit zone; wired Ethernet communication</td>
-      </tr>
-      <tr style="border-bottom:1px solid var(--dim);background:var(--surface);">
-        <td style="padding:6px 10px;">Local Monitoring Server</td>
-        <td style="text-align:center;padding:6px 10px;font-weight:700;">1</td>
-        <td style="padding:6px 10px;">On-site data aggregation and analytics platform; stores real-time and historical performance data; accessible on facility network</td>
-      </tr>
-    </tbody>
-  </table>
-</div>"""
+</p>"""
 
     # ── Build image tags ───────────────────────────────────────────────────────
     xeco_img = f'<img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Xeco" style="height:40px;object-fit:contain">'
@@ -473,24 +481,25 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
 <body>
 
 <!-- COVER — full-page image with overlay -->
-<div style="position:relative;width:8.5in;height:11in;overflow:hidden;page-break-after:always;font-family:'Barlow Condensed','Barlow',sans-serif;">
+<div class="na-cover" style="position:relative;width:8.5in;height:11in;overflow:hidden;page-break-after:always;font-family:'Barlow Condensed','Barlow',sans-serif;">
   <img src="data:image/png;base64,{_COVER_HERO_B64}" alt=""
        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;">
   <div style="position:absolute;inset:0;background:linear-gradient(105deg,rgba(4,12,30,0.82) 0%,rgba(4,12,30,0.60) 38%,rgba(4,12,30,0.10) 60%,rgba(4,12,30,0.00) 100%);"></div>
-  <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:.42in .48in .32in;max-width:5.2in;">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:.42in .48in .32in;">
     <div style="display:flex;align-items:center;gap:.15in;font-size:9.5px;color:rgba(255,255,255,0.6);letter-spacing:.09em;text-transform:uppercase;margin-bottom:.12in;">
       <span>{date_label}</span>
       <span style="width:1px;height:11px;background:rgba(255,255,255,0.35);display:inline-block;"></span>
       <span>Confidential</span>
+      {"" if not doc_no else f'<span style="margin-left:auto;font-family:monospace,Arial;font-size:14px;font-weight:700;color:#ffffff;letter-spacing:.05em;text-transform:none;">{doc_no}</span>'}
     </div>
     <div style="width:.38in;height:2.5px;background:#3ab4ff;margin-bottom:.28in;"></div>
     <div style="margin-bottom:.15in;">
       <img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Xeco Energy"
            style="height:44px;width:auto;filter:brightness(0) invert(1);opacity:0.92;">
     </div>
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:86px;font-weight:800;color:#3ab4ff;line-height:0.92;letter-spacing:-.01em;margin-top:.5in;margin-bottom:.06in;">ECBS<sup style="font-size:32px;vertical-align:super;line-height:0;">&trade;</sup></div>
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:86px;font-weight:800;color:#3ab4ff;line-height:0.92;letter-spacing:-.01em;margin-top:.25in;margin-bottom:.06in;">ECBS<sup style="font-size:32px;vertical-align:super;line-height:0;">&trade;</sup></div>
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:800;color:#ffffff;line-height:1.06;letter-spacing:.01em;text-transform:uppercase;margin-bottom:.22in;">
-      Electrical<br>Network-Wide<br>Assessment &amp;<br>Proposed Deployment Scope
+      Electrical<br>Network-Wide<br>Assessment &amp;<br>Deployment Scope
     </div>
     <div style="margin-bottom:.18in;">{cust_img}</div>
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:#3ab4ff;letter-spacing:.07em;text-transform:uppercase;margin-bottom:.07in;">
@@ -500,31 +509,51 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
       {cover_location}<br>Patented ECBS Network Optimization Technology
     </div>
     <div style="width:100%;height:1px;background:rgba(255,255,255,0.18);margin-bottom:.22in;"></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+      <div style="border-left:2px solid rgba(58,180,255,0.6);padding-left:10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;margin-bottom:5px;">Bill<br>Analytics</div>
+        <div style="font-size:9px;color:#3ab4ff;line-height:1.65;">Identify waste.<br>Quantify opportunity.<br>Drive savings.</div>
+      </div>
+      <div style="border-left:2px solid rgba(58,180,255,0.6);padding-left:10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;margin-bottom:5px;">Network<br>Assessment</div>
+        <div style="font-size:9px;color:#3ab4ff;line-height:1.65;">Measure.<br>Model.<br>Diagnose.</div>
+      </div>
+      <div style="border-left:2px solid rgba(58,180,255,0.6);padding-left:10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;margin-bottom:5px;">Engineering<br>Design</div>
+        <div style="font-size:9px;color:#3ab4ff;line-height:1.65;">Optimize.<br>Specify.<br>Validate.</div>
+      </div>
+      <div style="border-left:2px solid rgba(58,180,255,0.6);padding-left:10px;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;margin-bottom:5px;">Installation<br>Scope</div>
+        <div style="font-size:9px;color:#3ab4ff;line-height:1.65;">Procure.<br>Install.<br>Commission.</div>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:9px;">
-      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;">
+      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;backdrop-filter:blur(4px);">
         <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Facility Peak Demand</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#fff;line-height:1;">{peak_kw:,.0f} kW</div>
       </div>
-      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;">
+      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;backdrop-filter:blur(4px);">
         <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Avg. Monthly Bill</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#fff;line-height:1;">${avg_bill_usd:,.0f}</div>
       </div>
-      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.45);border-radius:5px;padding:10px 11px;">
+      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.45);border-radius:5px;padding:10px 11px;backdrop-filter:blur(4px);">
         <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Est. Monthly Savings</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#3ab4ff;line-height:1;">${monthly_savings:,.0f}</div>
+        <div style="font-size:7.5px;color:rgba(255,255,255,0.45);margin-top:3px;">Est. electrical efficiency improvement</div>
       </div>
-      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.45);border-radius:5px;padding:10px 11px;">
+      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.45);border-radius:5px;padding:10px 11px;backdrop-filter:blur(4px);">
         <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">ECBS Deployment</div>
         <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#3ab4ff;line-height:1;">{total_hw} Units</div>
-        <div style="font-size:7px;color:rgba(255,255,255,0.45);margin-top:3px;">{total_ecbs} ECBS-600 · {total_apf100} APF-100 · {total_fu} FU</div>
+        <div style="font-size:7px;color:rgba(255,255,255,0.45);margin-top:3px;">{total_ecbs} {_ecbs_label}{"" if not total_apf50 else f" · {total_apf50} APF-50"}{"" if not total_apf100 else f" · {total_apf100} APF-100"} · {total_fu} FU</div>
       </div>
-      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;">
-        <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Est. Simple Payback</div>
-        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#fff;line-height:1;">{roi_months:.0f} Mo</div>
+      <div style="background:rgba(4,12,30,0.55);border:1px solid rgba(58,180,255,0.30);border-radius:5px;padding:10px 11px;backdrop-filter:blur(4px);">
+        <div style="font-size:7px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">Est. Savings Rate</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:800;color:#fff;line-height:1;">{"N/A" if not avg_bill_usd else f"{100 * monthly_savings / avg_bill_usd:.1f}%"}</div>
+        <div style="font-size:7px;color:rgba(255,255,255,0.45);margin-top:3px;">% of avg. monthly bill</div>
       </div>
     </div>
     <div style="margin-top:.18in;font-size:6px;color:rgba(255,255,255,0.3);line-height:1.6;">
-      &copy; 2026 Xeco Energy Corporation. All rights reserved. ECBS&reg; Network Optimization Technology is proprietary intellectual property protected under applicable laws.
+      &copy; 2026 Xeco Energy Corporation. All rights reserved. ECBS&reg; Network Optimization Technology, associated methodologies, designs, and engineering concepts constitute proprietary intellectual property of their respective owners and are protected under applicable patent, copyright, and trade secret laws. Unauthorized reproduction, distribution, disclosure, or use of this material without prior written authorization is prohibited.
     </div>
   </div>
 </div>
@@ -536,6 +565,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
     <div class="report-tag">
       <div class="tag">NETWORK ASSESSMENT</div>
       <div class="dt">Prepared {date_label} &nbsp;&middot;&nbsp; Confidential &nbsp;&middot;&nbsp; XECO Energy Corporation</div>
+      {('<div style="font-family:monospace;font-size:9px;color:#aaaaaa;margin-top:3px;">' + doc_no + '</div>') if doc_no else ''}
     </div>
     <div class="logo-group">{cust_img}</div>
   </div>
@@ -579,6 +609,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
       {"⚠ " + capacitor_bank_bullet if capacitor_bank_bullet else ""}
       All amp values to be confirmed with clamp meter during site survey before final installation.
     </div>
+    {('<p style="font-style:italic;font-size:10.5px;color:#5a7090;margin-top:8px;">Note: ' + str(total_fu) + ' formula units correspond to ' + str(total_hw) + ' physical devices due to APF-100 units satisfying two formula-unit allocations.</p>') if total_apf100 > 0 else ""}
   </div>
   <p style="margin:14px 44px 0;font-size:10px;color:var(--muted);line-height:1.6;font-style:italic;border-top:1px solid var(--dim);padding-top:10px;">
     Preliminary deployment architecture derived from facility operating demand, switchgear topology review, and network-wide optimization analysis. Final equipment placement and integration subject to field verification prior to deployment.
@@ -628,26 +659,39 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
 </html>"""
 
 
-def render_pdf(html: str) -> bytes:
-    """Render HTML to PDF bytes using Playwright headless Chromium."""
-    import tempfile, os
-    from playwright.sync_api import sync_playwright
+def render_pdf(html: str, doc_no: str = "") -> bytes:
+    """Render HTML to PDF bytes via a subprocess worker.
+
+    Playwright must run in a plain subprocess because eventlet's monkey-patching
+    conflicts with Playwright's internal thread/subprocess management and causes
+    the call to hang indefinitely when invoked from within the Flask server.
+
+    doc_no is passed to the worker so it can be shown in the gray header on pages 2+.
+    """
+    import subprocess, sys, tempfile, os
+    from pathlib import Path
+
+    worker = Path(__file__).parent / "render_pdf_worker.py"
 
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w", encoding="utf-8") as f:
         f.write(html)
-        tmp_path = f.name
+        tmp_html = f.name
+
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+        tmp_pdf = f.name
 
     try:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            page = browser.new_page()
-            page.goto(f"file://{tmp_path}", wait_until="networkidle")
-            pdf_bytes = page.pdf(
-                format="Letter",
-                print_background=True,
-                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
-            )
-            browser.close()
-        return pdf_bytes
+        cmd = [sys.executable, str(worker), tmp_html, tmp_pdf]
+        if doc_no:
+            cmd.append(doc_no)
+        result = subprocess.run(cmd, capture_output=True, timeout=120)
+        if result.returncode != 0:
+            raise RuntimeError(f"render_pdf_worker failed: {result.stderr.decode()[:500]}")
+        with open(tmp_pdf, "rb") as f:
+            return f.read()
     finally:
-        os.unlink(tmp_path)
+        for p in (tmp_html, tmp_pdf):
+            try:
+                os.unlink(p)
+            except OSError:
+                pass

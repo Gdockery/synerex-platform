@@ -59,13 +59,34 @@ def _map_platform_result(parse: dict) -> dict:
     bill_date_str = parse.get("billDate")
     if bill_date_str:
         from datetime import datetime
-        for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%Y/%m/%d"):
+        _date_str = str(bill_date_str).strip()
+        # Try fixed-width formats first (slice to 10 chars), then full-string month-name formats
+        _fixed_fmts = [("%Y-%m-%d", 10), ("%m/%d/%Y", 10), ("%d/%m/%Y", 10), ("%Y/%m/%d", 10)]
+        _full_fmts  = ["%b %d, %Y", "%B %d, %Y", "%b. %d, %Y",
+                       "%d %b %Y", "%d %B %Y", "%B %d %Y", "%b %d %Y"]
+        for fmt, sl in _fixed_fmts:
             try:
-                dt = datetime.strptime(str(bill_date_str)[:10], fmt)
+                dt = datetime.strptime(_date_str[:sl], fmt)
                 bill_date = int(dt.timestamp() * 1000)
                 break
             except (ValueError, TypeError):
                 continue
+        if bill_date is None:
+            for fmt in _full_fmts:
+                try:
+                    dt = datetime.strptime(_date_str, fmt)
+                    bill_date = int(dt.timestamp() * 1000)
+                    break
+                except (ValueError, TypeError):
+                    continue
+        if bill_date is None:
+            # Last resort: let Python's dateutil handle unusual formats
+            try:
+                from dateutil import parser as _du
+                dt = _du.parse(_date_str, dayfirst=False)
+                bill_date = int(dt.timestamp() * 1000)
+            except Exception:
+                pass
 
     currency = parse.get("currency") or "USD"
     currency_sym = {"USD": "$", "TWD": "NT$", "NTD": "NT$", "EUR": "€",

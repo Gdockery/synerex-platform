@@ -75,7 +75,11 @@ def _project_query(sess, installed=False):
     if not _is_ops_admin():
         org_id = _user_org_id()
         if org_id:
-            q = q.filter(or_(Client.org_id == org_id, Project.org_id == org_id))
+            q = q.filter(or_(
+                Client.org_id == org_id,
+                Project.org_id == org_id,
+                Client.sponsor_org_id == org_id,
+            ))
         else:
             q = q.filter(False)
     return q

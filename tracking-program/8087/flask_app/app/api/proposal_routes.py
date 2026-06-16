@@ -308,8 +308,9 @@ def get_facility_context(project_id):
         )
         resp.raise_for_status()
         result = resp.json()
-        facility_context = result.get("facility_context", "")
-        facility_type    = result.get("facility_type", "")
+        facility_context  = result.get("facility_context", "")
+        overview_paragraph = result.get("overview_paragraph", "") or facility_context
+        facility_type     = result.get("facility_type", "")
     except _requests.exceptions.Timeout:
         return jsonify({"error": "GPU server timed out. Try again."}), 504
     except _requests.exceptions.RequestException as e:
@@ -340,7 +341,7 @@ def get_facility_context(project_id):
     # Save all to project.proposalData
     pd = dict(project.proposalData or {})
     pd["facilityContext"]      = facility_context
-    pd["overviewPara"]         = facility_context   # seed overview paragraph
+    pd["overviewPara"]         = overview_paragraph
     if facility_type:
         pd["facilityType"]     = facility_type
     if billing_months_label:
@@ -357,7 +358,7 @@ def get_facility_context(project_id):
     return jsonify({
         "facilityContext":      facility_context,
         "facilityType":         facility_type,
-        "overviewPara":         facility_context,
+        "overviewPara":         overview_paragraph,
         "billingMonthsLabel":   billing_months_label,
         "sldSource":            sld_source,
         "capacitorBankBullet":  capacitor_bank_bullet,
@@ -406,18 +407,29 @@ def autofill_proposal(project_id):
     address  = (body.get("address") or "").strip()
     if not customer or not address:
         client = sess.query(Client).get(project.client) if project.client else None
-        eba = getattr(project, "electricBillAnalysis", None) or {}
+        pd_data = getattr(project, "proposalData", None) or {}
+        eba2    = getattr(project, "electricBillAnalysis", None) or {}
         if not customer:
             customer = (
-                eba.get("customerName") or
+                pd_data.get("clientName") or
+                eba2.get("customerName") or
                 (client.name if client else None) or
                 project.name or ""
             ).strip()
         if not address:
             address = " ".join(filter(None, [
-                eba.get("serviceAddress") or (getattr(client, "address", None) or ""),
-                eba.get("serviceZip")     or (getattr(client, "zip", None) or ""),
-            ])).strip()
+                pd_data.get("facilityAddress") or
+                eba2.get("serviceAddress") or
+                (getattr(client, "address", None) or ""),
+                pd_data.get("facilityZip") or
+                eba2.get("serviceZip") or
+                (getattr(client, "zip", None) or ""),
+            ])).strip() or project.location or ""
+
+    logger.warning(
+        "autofill resolved customer=%r address=%r gpu_body_preview bill=%s",
+        customer, address, bill_id
+    )
 
     # Build GPU request payload
     gpu_body = {}
@@ -438,12 +450,12 @@ def autofill_proposal(project_id):
             f"{GPU_PLATFORM_URL}/proposal/autofill",
             headers={"Content-Type": "application/json"},
             json=gpu_body,
-            timeout=40,
+            timeout=65,
         )
         resp.raise_for_status()
         result = resp.json()
     except _requests.exceptions.Timeout:
-        return jsonify({"error": "GPU server timed out. Try again."}), 504
+        return jsonify({"error": "GPU is busy with another job. Please try again in a few seconds."}), 504
     except _requests.exceptions.RequestException as e:
         logger.error("GPU autofill error: %s", e)
         return jsonify({"error": "Could not reach GPU server"}), 502
@@ -627,16 +639,11 @@ def save_proposal_data(project_id):
 
     body = request.get_json(force=True) or {}
     pd = dict(project.proposalData or {})
-    allowed = {
-        "savingsPct", "nMeters", "s600Override", "apf100Override", "apf50Override",
-        "facilityContext", "rampUpNote", "siteName", "region", "peakSource",
-        "shippingRate", "energyProvider", "tariffName", "meterNumber", "billingPeriod",
-        "proposalMonth", "contactName", "contactTitle", "contactPhone",
-        "facilityType", "country", "address", "peakKw", "kwh",
-        "monthlyBill", "days", "demandRate", "excludedMeters",
-    }
+    # Block only internal server-side keys that should never be client-writable.
+    # Everything else the Angular form sends is trusted (route is @login_required).
+    _blocked = {"id", "projectId", "project_id", "docNo", "naDocNo", "proposalSrc"}
     for k, v in body.items():
-        if k in allowed:
+        if k not in _blocked:
             pd[k] = v
     project.proposalData = pd
     sess.add(project)

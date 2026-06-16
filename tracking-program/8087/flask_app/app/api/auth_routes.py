@@ -307,10 +307,10 @@ def login():
     if _wants_json_response():
         return {"status": "success"}
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
-    # Admin-level roles (2, 8, 9, 10): redirect to /#/project/select so deselectProject()
+    # Admin-level roles (2, 8, 9, 10): redirect to /#/project/pipeline so deselectProject()
     # is called on init, clearing any stale localStorage project selection.
     if getattr(user, "role", None) in (2, 8, 9, 10):
-        return redirect(f"{base}/#/project/select" if base else "/#/project/select")
+        return redirect(f"{base}/#/project/pipeline" if base else "/#/project/pipeline")
     return redirect(request.args.get("next") or f"{base}/")
 
 
@@ -529,11 +529,11 @@ def sso_login():
         _set_org_id_in_session(user)
 
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
-    # For OEM Admin (9), OEM User (10), and Synerex Admin (8), redirect to /#/project/select
+    # For OEM Admin (9), OEM User (10), and Synerex Admin (8), redirect to /#/project/pipeline
     # (hash-based routing) which calls deselectProject() on init — clears any stale
     # localStorage project selection so they land on the admin nav view, not a project view.
     if user.role in (2, 8, 9, 10):
-        return redirect(f"{base}/#/project/select" if base else "/#/project/select")
+        return redirect(f"{base}/#/project/pipeline" if base else "/#/project/pipeline")
     return redirect(f"{base}/" if base else "/")
 
 
