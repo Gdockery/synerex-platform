@@ -32,6 +32,10 @@ from app.api.mfa_routes import mfa_bp
 from app.api.oauth_routes import oauth_bp
 from app.api.license_routes import license_bp
 from app.api.audit_routes import audit_bp
+# Phase 2
+from app.api.site_routes import site_bp
+from app.api.asset_routes import asset_bp
+from app.api.digital_twin_routes import dt_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -123,6 +127,10 @@ def create_app(config_class=Config):
     app.register_blueprint(oauth_bp)
     app.register_blueprint(license_bp)
     app.register_blueprint(audit_bp)
+    # Phase 2 blueprints
+    app.register_blueprint(site_bp)
+    app.register_blueprint(asset_bp)
+    app.register_blueprint(dt_bp)
 
     @app.route("/health")
     def health():
@@ -281,6 +289,13 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase2-migrate")
+    def phase2_migrate():
+        """Phase 2 — create site, asset, asset_relationship, digital_twin, digital_twin_version tables. Run: flask phase2-migrate"""
+        from app.db_migrations import phase2_create_tables
+        tables = phase2_create_tables()
+        print(f"phase2-migrate: tables={tables}")
 
     @app.cli.command("phase1-migrate")
     def phase1_migrate():

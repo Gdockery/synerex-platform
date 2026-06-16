@@ -888,6 +888,42 @@ def fix_device_timestamp_columns():
 # Phase 1 — Core Platform Foundation
 # ─────────────────────────────────────────────────────────────────────────────
 
+def phase2_create_tables():
+    """
+    Create Phase-2 tables if they don't exist:
+      site, asset, asset_relationship, digital_twin, digital_twin_version
+
+    Idempotent — safe to run every startup.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped"
+
+    from app.models.site import Site
+    from app.models.asset import Asset
+    from app.models.asset_relationship import AssetRelationship
+    from app.models.digital_twin import DigitalTwin, DigitalTwinVersion
+
+    tables = [
+        Site.__table__,
+        Asset.__table__,
+        AssetRelationship.__table__,
+        DigitalTwin.__table__,
+        DigitalTwinVersion.__table__,
+    ]
+
+    created = []
+    for t in tables:
+        try:
+            t.create(db.engine, checkfirst=True)
+            print(f"phase2_create_tables: {t.name} ready.")
+            created.append(t.name)
+        except Exception as e:
+            print(f"phase2_create_tables: {t.name} — {e}")
+    return created
+
+
 def phase1_create_tables():
     """
     Create the Phase-1 tables if they don't exist:

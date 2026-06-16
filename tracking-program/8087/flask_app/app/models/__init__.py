@@ -41,3 +41,8 @@ from app.models.oem import Oem
 from app.models.audit_log import AuditLog
 from app.models.user_mfa import UserMfa
 from app.models.meter_license import MeterLicense
+# Phase 2 — Asset Management & Digital Twin Foundation
+from app.models.site import Site
+from app.models.asset import Asset
+from app.models.asset_relationship import AssetRelationship
+from app.models.digital_twin import DigitalTwin, DigitalTwinVersion
