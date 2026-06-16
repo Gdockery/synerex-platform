@@ -81,7 +81,7 @@ def list_sites():
 @site_bp.route("/", methods=["POST"])
 @login_required
 def create_site():
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("name"):
         return {"error": "name is required"}, 400
 
@@ -133,7 +133,7 @@ def update_site(site_id: int):
     if not site:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     _EDITABLE = ("name", "site_number", "address", "city", "state", "zip",
                  "country", "timezone", "utility", "status", "notes")
     for k in _EDITABLE:

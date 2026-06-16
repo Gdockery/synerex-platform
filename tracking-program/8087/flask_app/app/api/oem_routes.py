@@ -66,7 +66,7 @@ def create_oem():
     err = _require_super_admin()
     if err:
         return err
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("org_id") or not body.get("name"):
         return {"error": "org_id and name are required"}, 400
 
@@ -121,7 +121,7 @@ def update_oem(oem_id: int):
     if not oem:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     _EDITABLE = ("name", "slug", "domain", "is_active", "contact_email", "notes")
     for k in _EDITABLE:
         if k in body:

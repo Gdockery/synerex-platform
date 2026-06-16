@@ -76,7 +76,7 @@ def create_license():
     err = _require_admin()
     if err:
         return err
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("meter_id"):
         return {"error": "meter_id required"}, 400
 
@@ -134,7 +134,7 @@ def update_license(lic_id: int):
     if not lic:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if "state" in body:
         if body["state"] not in LICENSE_STATES:
             return {"error": f"state must be one of {LICENSE_STATES}"}, 400
@@ -160,7 +160,7 @@ def activate_license(lic_id: int):
     if not lic:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     now  = _now()
     lic.state        = "active"
     lic.activated_at = now
@@ -187,7 +187,7 @@ def suspend_license(lic_id: int):
         return {"error": "Not found"}, 404
 
     now  = _now()
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     lic.state        = "suspended"
     lic.suspended_at = now
     lic.suspended_by = current_user.id

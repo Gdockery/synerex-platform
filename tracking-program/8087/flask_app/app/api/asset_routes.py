@@ -106,7 +106,7 @@ def list_assets():
 @asset_bp.route("/", methods=["POST"])
 @login_required
 def create_asset():
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("site_id"):
         return {"error": "site_id required"}, 400
     if not body.get("asset_type"):
@@ -175,7 +175,7 @@ def update_asset(asset_id: int):
     if not _can_access_site(sess, a.site_id):
         return {"error": "Forbidden"}, 403
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     _EDITABLE = ("name", "asset_uid", "manufacturer", "model_number", "serial_number",
                  "install_date", "kva_rating", "voltage_primary", "voltage_secondary",
                  "amp_rating", "phases", "bus_id", "drawing_ref", "status", "notes",
@@ -230,7 +230,7 @@ def get_relationships(asset_id: int):
 @asset_bp.route("/relationship", methods=["POST"])
 @login_required
 def create_relationship():
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     required = ("digital_twin_id", "parent_asset_id", "child_asset_id", "relationship_type")
     missing  = [k for k in required if not body.get(k)]
     if missing:

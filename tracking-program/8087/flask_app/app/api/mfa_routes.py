@@ -89,7 +89,7 @@ def mfa_setup_post():
     except ImportError:
         return {"error": "pyotp not installed on server"}, 500
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     code = str(body.get("code", "")).strip()
     if not code:
         return {"error": "code required"}, 400
@@ -134,7 +134,7 @@ def mfa_verify():
     if not session.get("mfa_pending_user_id"):
         return {"error": "No MFA challenge in progress"}, 400
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     code = str(body.get("code", "")).strip()
     if not code:
         return {"error": "code required"}, 400
@@ -170,7 +170,7 @@ def mfa_verify():
 def mfa_disable():
     """Disable MFA for the current user. Super admin can pass user_id to disable for others."""
     role     = getattr(current_user, "role", 0)
-    body     = request.get_json(force=True) or {}
+    body     = request.get_json(force=True, silent=True) or {}
     user_id  = body.get("user_id", current_user.id)
 
     if user_id != current_user.id and role != 8:

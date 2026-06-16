@@ -114,7 +114,7 @@ def list_twins():
 @dt_bp.route("/", methods=["POST"])
 @login_required
 def create_twin():
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("site_id"):
         return {"error": "site_id required"}, 400
 
@@ -158,7 +158,7 @@ def update_twin(twin_id: int):
     twin = sess.query(DigitalTwin).filter_by(id=twin_id, is_deleted=False).first()
     if not twin:
         return {"error": "Not found"}, 404
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     for k in ("label", "notes", "source"):
         if k in body:
             setattr(twin, k, body[k])
@@ -194,7 +194,7 @@ def save_version(twin_id: int):
     if twin.status == "locked":
         return {"error": "Locked twins cannot be modified"}, 400
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     snap = _build_snapshot(sess, twin_id)
     now  = _now()
 
@@ -289,7 +289,7 @@ def approve_twin(twin_id: int):
 def reject_twin(twin_id: int):
     if getattr(current_user, "role", 0) not in _ENGINEERING_ROLES:
         return {"error": "Engineering role required"}, 403
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     sess = get_session()
     twin = sess.query(DigitalTwin).filter_by(id=twin_id, is_deleted=False).first()
     if not twin:

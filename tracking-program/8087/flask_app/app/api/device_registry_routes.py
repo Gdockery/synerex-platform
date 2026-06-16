@@ -122,7 +122,7 @@ def list_devices():
 @device_reg_bp.route("/", methods=["POST"])
 @login_required
 def create_device():
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     if not body.get("device_type"):
         return {"error": "device_type required"}, 400
     if body["device_type"] not in DEVICE_TYPES:
@@ -180,7 +180,7 @@ def update_device(dev_id: int):
     if not dev:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     _EDITABLE = ("name", "serial_number", "barcode", "manufacturer", "model_number",
                  "firmware_version", "install_date", "notes", "site_id", "asset_id",
                  "assigned_to_project")
@@ -230,7 +230,7 @@ def change_status(dev_id: int):
     if not dev:
         return {"error": "Not found"}, 404
 
-    body       = request.get_json(force=True) or {}
+    body       = request.get_json(force=True, silent=True) or {}
     new_status = body.get("status", "")
     if new_status not in DEVICE_STATUSES:
         return {"error": f"status must be one of {DEVICE_STATUSES}"}, 400
@@ -271,7 +271,7 @@ def verify_barcode():
     Used by the Installer mobile workflow to verify a device before marking
     it as installed. Checks barcode AND serial_number columns.
     """
-    body    = request.get_json(force=True) or {}
+    body    = request.get_json(force=True, silent=True) or {}
     code    = (body.get("barcode") or body.get("serial_number") or "").strip()
     site_id = body.get("site_id")
 
@@ -329,7 +329,7 @@ def create_commissioning(dev_id: int):
     if not dev:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     now  = _now()
 
     ct_orientation = body.get("ct_orientation")
@@ -402,7 +402,7 @@ def update_commissioning(dev_id: int, test_id: int):
     if not test:
         return {"error": "Not found"}, 404
 
-    body = request.get_json(force=True) or {}
+    body = request.get_json(force=True, silent=True) or {}
     _EDITABLE = ("outcome", "failure_reason", "notes", "reviewed_by",
                  "voltage_verified", "current_verified",
                  "communication_verified", "data_verified")

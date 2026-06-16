@@ -195,9 +195,13 @@ def create_app(config_class=Config):
         app.logger.error("500 Internal Server Error: %s\n%s", e, tb_str)
         print(tb_str, flush=True)
         sys.stdout.flush()
-        from flask import jsonify
-        if (request.accept_mimetypes.accept_json and
-                not request.accept_mimetypes.accept_html):
+        from flask import jsonify, request as _req
+        try:
+            wants_json = (_req.accept_mimetypes.accept_json and
+                          not _req.accept_mimetypes.accept_html)
+        except Exception:
+            wants_json = False
+        if wants_json:
             return jsonify({"error": "Internal server error"}), 500
         return "<h1>500 Internal Server Error</h1><p>An unexpected error occurred. Please try again.</p>", 500
 
