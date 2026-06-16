@@ -49,3 +49,9 @@ from app.models.digital_twin import DigitalTwin, DigitalTwinVersion
 # Phase 3 — Device Management Platform
 from app.models.device_registry import DeviceRegistry
 from app.models.commissioning_test import CommissioningTest
+# Phase 4 — Deployment Management System
+from app.models.deployment import Deployment
+from app.models.deployment_device import DeploymentDevice
+from app.models.site_discovery import SiteDiscovery
+from app.models.engineering_review import EngineeringReview
+from app.models.site_activation import SiteActivation

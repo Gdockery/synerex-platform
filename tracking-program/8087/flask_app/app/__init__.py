@@ -38,6 +38,8 @@ from app.api.asset_routes import asset_bp
 from app.api.digital_twin_routes import dt_bp
 # Phase 3
 from app.api.device_registry_routes import device_reg_bp
+# Phase 4
+from app.api.deployment_routes import deployment_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -135,6 +137,8 @@ def create_app(config_class=Config):
     app.register_blueprint(dt_bp)
     # Phase 3 blueprints
     app.register_blueprint(device_reg_bp)
+    # Phase 4 blueprints
+    app.register_blueprint(deployment_bp)
 
     @app.route("/health")
     def health():
@@ -297,6 +301,13 @@ def create_app(config_class=Config):
         added = [k for k, v in results.items() if v == "added"]
         errors = [k for k, v in results.items() if "error" in str(v)]
         print(f"schema-sync: {len(added)} added, {len(errors)} errors")
+
+    @app.cli.command("phase4-migrate")
+    def phase4_migrate():
+        """Phase 4 — create deployment, deployment_device, site_discovery, engineering_review, site_activation tables. Run: flask phase4-migrate"""
+        from app.db_migrations import phase4_create_tables
+        tables = phase4_create_tables()
+        print(f"phase4-migrate: tables={tables}")
 
     @app.cli.command("phase3-migrate")
     def phase3_migrate():
