@@ -321,9 +321,7 @@ def save_field_entry(dep_id: int):
         return {"error": "Not found"}, 404
 
     body = request.get_json(force=True, silent=True) or {}
-    existing = dep.field_entry_data or {}
-    existing.update(body)
-    dep.field_entry_data = existing
+    dep.field_entry_data = {**(dep.field_entry_data or {}), **body}
 
     if step := body.get("current_step"):
         dep.current_step = step
@@ -539,9 +537,7 @@ def update_review(dep_id: int, rev_id: int):
     if "reviewer_notes" in body:
         rev.reviewer_notes = body["reviewer_notes"]
     if "checklist" in body:
-        existing_cl = rev.checklist or {}
-        existing_cl.update(body["checklist"])
-        rev.checklist = existing_cl
+        rev.checklist = {**(rev.checklist or {}), **body["checklist"]}
     rev.updatedAt = _now()
     sess.commit()
 
