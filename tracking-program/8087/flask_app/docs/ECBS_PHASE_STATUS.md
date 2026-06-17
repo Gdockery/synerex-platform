@@ -1,7 +1,7 @@
 # ECBS Operating System™ — Phase Implementation Status
 **Spec reference:** ECBS Operating System v4.0 Master Requirements Specification  
-**Last updated:** 2026-06-16  
-**Scope:** Phases 1–7 backend API + DB schema + Angular UI where indicated
+**Last updated:** 2026-06-17  
+**Scope:** Phases 1–13 backend API + DB schema + Angular UI where indicated
 
 ---
 
@@ -224,11 +224,12 @@
 | THDv measurement | ✅ Done — `l1THDv`–`totalTHDv` columns + channels |
 | EM&V Baseline Manager™ | ⚠️ API done — auto-compute from meterdata not built |
 | Current Balance Intelligence™ | ⚠️ API done — UI and auto-trigger not built |
-| Capacity Intelligence™ | ❌ Phase 8 not started |
-| Savings Intelligence™ | ❌ Phase 9 not started |
-| Utility Intelligence™ | ❌ Phase 10 not started |
-| Alarms & Events™ | ❌ Phase 11 not started |
-| Reporting Engine™ | ❌ Phase 12 not started |
+| Capacity Intelligence™ | ✅ Phase 8 done — `capacity_intelligence` table, `/api/capacity/summary|assets|trends|calculate|transformer/<id>`, `_run_ci_auto_compute` in rollup |
+| Savings Intelligence™ | ✅ Phase 9 done — `savings_intelligence` table, `/api/savings/intelligence|trends|waterfall`, `/api/roi`, `/api/payback`, `_run_si_auto_compute` in rollup |
+| Utility Intelligence™ | ✅ Phase 10 done — `utility_accounts`, `utility_bills`, `utility_forecast` tables, `/api/utility/accounts|bills|forecast|summary` |
+| Alarms & Events™ | ✅ Phase 11 done — `alarms`, `alarm_assignments`, `events`, `notifications`, `alert_rules` tables; alarm engine; `/api/alarms/...`, `/api/events/...`, `/api/alert-rules/...`; `_run_alarm_evaluation` in rollup |
+| Reporting Engine™ | ✅ Phase 12 done — `ecbs_reports`, `report_schedules`, `report_exports` tables; `report_generator.py`; `/api/reports/...`, `/api/report-schedules/...`; `_run_scheduled_reports` in rollup |
+| Commercial Platform™ | ✅ Phase 13 done — `royalties` table + `oem.royalty_rate`; `royalty_engine.py`; `/api/licenses`, `/api/licensed-meters`, `/api/royalties/...`, `/api/oems/<id>/royalties`, `/api/oem/admin/dashboard|list`, `/api/oem/branding/<org_id>`; `@require_active_license` on CBI/Capacity/Savings/Utility summary endpoints |
 
 ---
 
@@ -261,4 +262,7 @@ as images, Angular components will be rebuilt to match the spec visuals.
 | 8 | Current Balance Dashboard Angular component | 7 | Medium | ⏳ UI pass — needs spec screenshots |
 | 9 | Digital Twin editor Angular component | 2 | Low | ⏳ UI pass — needs spec screenshots |
 | 10 | Digital Twin → CBI integration (asset graph) | 7 | Low | ✅ Done 2026-06-16 (transformer kVA context in CBI buckets) |
-| 11 | Phases 8–13 | 8–13 | Future | ❌ Not started |
+| 11 | Phases 8–12 backend | 8–12 | Done | ✅ Complete 2026-06-16 |
+| 12 | Phase 13 — Commercial Platform | 13 | Done | ✅ Complete 2026-06-17 — `royalties` table, royalty engine, license enforcement, OEM/branding APIs |
+| 13 | Phase 14 — Advanced Platform | 14 | Future | ❌ Deferred — AI, predictive analytics, Digital Twin 3D (spec says "Future Roadmap") |
+| 14 | Angular UI for Phases 8–13 dashboards | 8–13 | UI pass | ⏳ Pending spec screenshot delivery |
