@@ -3,6 +3,7 @@ Flask app factory for Tracking Program.
 """
 import time
 
+import click
 from flask import Flask
 
 from app.config import Config
@@ -400,6 +401,138 @@ def create_app(config_class=Config):
         from app.db_migrations import phase13_create_royalty_table
         result = phase13_create_royalty_table()
         print(f"phase13-migrate: {result}")
+
+    @app.cli.command("backfill-analytics")
+    @click.option("--project-id", default=13, type=int, show_default=True, help="Project ID to backfill")
+    @click.option("--days", default=0, type=int, show_default=True, help="Limit to last N days (0=all history)")
+    @click.option("--batch-size", default=20160, type=int, show_default=True, help="Meterdata rows per CBI batch")
+    def backfill_analytics(project_id, days, batch_size):
+        """
+        Backfill CBI → Capacity → Savings analytics for a project.
+
+        Processes all historical meterdata (or last N days) and upserts results
+        into current_balance_metrics, capacity_intelligence, savings_intelligence.
+
+        Run: flask backfill-analytics --project-id 13
+        """
+        import time as _t
+        from app.models.meter import Meter
+        from app.models.meter_data import MeterData
+        from app.models.current_balance_metrics import CurrentBalanceMetrics
+        from app.models.capacity_intelligence import CapacityIntelligence
+        from app.models.savings_intelligence import SavingsIntelligence
+        from app.services.current_balance_engine import compute_buckets
+        from app.services.capacity_intelligence_engine import compute_capacity_from_cbi_metrics
+        from app.services.savings_intelligence_engine import compute_savings_for_project
+
+        now_ms = int(_t.time() * 1000)
+        since_ms = (now_ms - days * 86_400_000) if days > 0 else 0
+
+        meter_ids = [m.id for m in Meter.query.filter_by(project=project_id, isDeleted=False).all()]
+        if not meter_ids:
+            print(f"[backfill] No meters found for project {project_id}")
+            return
+
+        print(f"[backfill] project={project_id} meters={meter_ids} since_ms={since_ms or 'all'}")
+
+        # ── Step 1: CBI backfill ──────────────────────────────────────────────
+        total_rows = (MeterData.query
+                      .filter(MeterData.meter.in_(meter_ids))
+                      .filter(MeterData.recordedAt >= since_ms)
+                      .count())
+        print(f"[backfill] CBI: {total_rows} meterdata rows to process in batches of {batch_size}")
+
+        offset = 0
+        cbi_upserted = 0
+        while offset < total_rows:
+            batch = (MeterData.query
+                     .filter(MeterData.meter.in_(meter_ids))
+                     .filter(MeterData.recordedAt >= since_ms)
+                     .order_by(MeterData.recordedAt.asc())
+                     .offset(offset)
+                     .limit(batch_size)
+                     .all())
+            if not batch:
+                break
+
+            for meter_id_val in meter_ids:
+                meter_batch = [r for r in batch if r.meter == meter_id_val]
+                if not meter_batch:
+                    continue
+                buckets = compute_buckets(meter_batch, project_id, meter_id=meter_id_val)
+                for b in buckets:
+                    existing = CurrentBalanceMetrics.query.filter_by(
+                        project_id=b["project_id"],
+                        meter_id=b.get("meter_id"),
+                        bucket_ts=b["bucket_ts"],
+                    ).first()
+                    if existing:
+                        for k, v in b.items():
+                            if hasattr(existing, k) and k not in ("project_id", "meter_id", "bucket_ts"):
+                                setattr(existing, k, v)
+                        existing.updatedAt = now_ms
+                    else:
+                        db.session.add(CurrentBalanceMetrics(
+                            createdAt=now_ms, updatedAt=now_ms,
+                            **{k: v for k, v in b.items() if hasattr(CurrentBalanceMetrics, k)},
+                        ))
+                    cbi_upserted += 1
+
+            db.session.commit()
+            offset += batch_size
+            print(f"[backfill] CBI: offset={offset}/{total_rows} upserted={cbi_upserted}")
+
+        print(f"[backfill] CBI done — {cbi_upserted} buckets upserted")
+
+        # ── Step 2: Capacity Intelligence backfill ────────────────────────────
+        print("[backfill] Computing Capacity Intelligence...")
+        ci_buckets = compute_capacity_from_cbi_metrics(project_id, from_ts=since_ms, to_ts=now_ms)
+        ci_upserted = 0
+        for b in (ci_buckets or []):
+            existing = CapacityIntelligence.query.filter_by(
+                project_id=b["project_id"],
+                site_id=b.get("site_id"),
+                bucket_ts=b["bucket_ts"],
+            ).first()
+            if existing:
+                for k, v in b.items():
+                    if hasattr(existing, k) and k not in ("project_id", "site_id", "bucket_ts"):
+                        setattr(existing, k, v)
+                existing.updatedAt = now_ms
+            else:
+                db.session.add(CapacityIntelligence(
+                    createdAt=now_ms, updatedAt=now_ms,
+                    **{k: v for k, v in b.items() if hasattr(CapacityIntelligence, k)},
+                ))
+            ci_upserted += 1
+        db.session.commit()
+        print(f"[backfill] CI done — {ci_upserted} buckets upserted")
+
+        # ── Step 3: Savings Intelligence backfill ─────────────────────────────
+        print("[backfill] Computing Savings Intelligence...")
+        si_buckets = compute_savings_for_project(project_id, from_ts=since_ms, to_ts=now_ms)
+        si_upserted = 0
+        for b in (si_buckets or []):
+            existing = SavingsIntelligence.query.filter_by(
+                project_id=b["project_id"],
+                site_id=b.get("site_id"),
+                bucket_ts=b["bucket_ts"],
+            ).first()
+            if existing:
+                for k, v in b.items():
+                    if hasattr(existing, k) and k not in ("project_id", "site_id", "bucket_ts"):
+                        setattr(existing, k, v)
+                existing.updatedAt = now_ms
+            else:
+                db.session.add(SavingsIntelligence(
+                    createdAt=now_ms, updatedAt=now_ms,
+                    **{k: v for k, v in b.items() if hasattr(SavingsIntelligence, k)},
+                ))
+            si_upserted += 1
+        db.session.commit()
+        print(f"[backfill] SI done — {si_upserted} buckets upserted")
+
+        print(f"\n[backfill] COMPLETE — CBI:{cbi_upserted}  CI:{ci_upserted}  SI:{si_upserted}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():
