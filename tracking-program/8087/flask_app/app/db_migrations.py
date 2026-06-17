@@ -1844,12 +1844,6 @@ def phase13_create_royalty_table():
         """),
     ]
 
-    # Optional: add royalty_rate column to oem table if missing
-    oem_column_ddl = (
-        "ALTER TABLE `oem` ADD COLUMN IF NOT EXISTS "
-        "`royalty_rate` DOUBLE NULL COMMENT 'Contracted royalty rate e.g. 0.08'"
-    )
-
     results = {}
     for table_name, ddl in tables:
         try:
@@ -1865,12 +1859,23 @@ def phase13_create_royalty_table():
                 print(f"phase13_create_royalty_table: ERROR {table_name}: {e}")
                 results[table_name] = f"error: {e}"
 
-    # Add royalty_rate to oem (ignore error if column already exists)
+    # Add royalty_rate to oem table — check for column existence first
+    # (ADD COLUMN IF NOT EXISTS is not supported on older MySQL versions)
     try:
-        db.session.execute(text(oem_column_ddl))
-        db.session.commit()
-        results["oem.royalty_rate"] = "added"
-        print("phase13_create_royalty_table: oem.royalty_rate column OK")
+        col_exists = db.session.execute(text(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = 'oem' AND column_name = 'royalty_rate'"
+        )).scalar()
+        if not col_exists:
+            db.session.execute(text(
+                "ALTER TABLE `oem` ADD COLUMN `royalty_rate` DOUBLE NULL "
+                "COMMENT 'Contracted royalty rate e.g. 0.08'"
+            ))
+            db.session.commit()
+            results["oem.royalty_rate"] = "added"
+            print("phase13_create_royalty_table: oem.royalty_rate column OK")
+        else:
+            results["oem.royalty_rate"] = "exists"
     except Exception as e:
         db.session.rollback()
         results["oem.royalty_rate"] = f"skipped ({e})"
