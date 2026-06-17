@@ -26,6 +26,7 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.capacity_intelligence import CapacityIntelligence, capacity_health_rating
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+from app.helpers.decorators import require_active_license
 
 capacity_bp = Blueprint("capacity", __name__, url_prefix="/api/capacity")
 
@@ -82,6 +83,7 @@ def _ci_dict(row: CapacityIntelligence) -> dict:
 
 @capacity_bp.route("/summary", methods=["GET"])
 @login_required
+@require_active_license
 def get_summary():
     """
     GET /api/capacity/summary?project_id=&[site_id=]&[from_ts=]&[to_ts=]

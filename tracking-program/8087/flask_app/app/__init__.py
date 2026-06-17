@@ -56,6 +56,8 @@ from app.api.utility_routes import utility_bp
 from app.api.alarm_routes import alarm_bp
 # Phase 12
 from app.api.report_catalog_routes import report_catalog_bp
+# Phase 13
+from app.api.commercial_routes import commercial_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -171,6 +173,8 @@ def create_app(config_class=Config):
     app.register_blueprint(alarm_bp)
     # Phase 12 blueprints
     app.register_blueprint(report_catalog_bp)
+    # Phase 13 blueprints
+    app.register_blueprint(commercial_bp)
 
     @app.route("/health")
     def health():
@@ -389,6 +393,13 @@ def create_app(config_class=Config):
         from app.db_migrations import phase12_create_report_tables
         result = phase12_create_report_tables()
         print(f"phase12-migrate: {result}")
+
+    @app.cli.command("phase13-migrate")
+    def phase13_migrate():
+        """Phase 13 — create royalties table + add royalty_rate to oem. Run: flask phase13-migrate"""
+        from app.db_migrations import phase13_create_royalty_table
+        result = phase13_create_royalty_table()
+        print(f"phase13-migrate: {result}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():

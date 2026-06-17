@@ -34,6 +34,7 @@ from app.services.current_balance_engine import (
     _row_to_dict,
 )
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+from app.helpers.decorators import require_active_license
 
 _CBI_WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
@@ -123,6 +124,7 @@ def _cbm_dict(m: CurrentBalanceMetrics) -> dict:
 
 @current_balance_bp.route("/summary", methods=["GET"])
 @login_required
+@require_active_license
 def get_summary():
     """
     GET /api/current-balance/summary?project_id=&[from_ts=]&[to_ts=]&[site_id=]&[meter_id=]

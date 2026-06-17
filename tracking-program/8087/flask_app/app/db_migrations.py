@@ -1800,3 +1800,79 @@ def phase12_create_report_tables():
                 print(f"phase12_create_report_tables: ERROR {table_name}: {e}")
                 results[table_name] = f"error: {e}"
     return results
+
+
+def phase13_create_royalty_table():
+    """
+    Phase 13 — Commercial Platform™: Synerex Royalty Engine™.
+
+    Creates the royalties table (Spec §41, Appendix B-25).
+    The existing meter_license, oem, and oem_branding tables (Phase 1) are
+    already in place — only the new royalties table needs to be created here.
+
+    Run via:  flask phase13-migrate
+    """
+    from app.extensions import db
+    from sqlalchemy import text
+
+    tables = [
+        ("royalties", """
+        CREATE TABLE IF NOT EXISTS `royalties` (
+            `id`               INT          NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `oem_org_id`       VARCHAR(255) NOT NULL,
+            `period`           VARCHAR(7)   NOT NULL COMMENT 'YYYY-MM',
+            `licensed_meters`  INT          NOT NULL DEFAULT 0,
+            `active_meters`    INT          NOT NULL DEFAULT 0,
+            `revenue`          DOUBLE       NULL,
+            `royalty_rate`     DOUBLE       NULL,
+            `meter_fee`        DOUBLE       NULL,
+            `royalty_due`      DOUBLE       NOT NULL DEFAULT 0,
+            `status`           VARCHAR(20)  NOT NULL DEFAULT 'pending',
+            `calculated_at`    BIGINT       NULL,
+            `calculated_by`    INT          NULL,
+            `paid_at`          BIGINT       NULL,
+            `paid_by`          INT          NULL,
+            `invoice_ref`      VARCHAR(255) NULL,
+            `notes`            TEXT         NULL,
+            `createdAt`        BIGINT       NULL,
+            `updatedAt`        BIGINT       NULL,
+            UNIQUE KEY `uq_royalty_oem_period` (`oem_org_id`, `period`),
+            KEY `ix_royalties_status`  (`status`),
+            KEY `ix_royalties_period`  (`period`),
+            KEY `ix_royalties_oem`     (`oem_org_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+    ]
+
+    # Optional: add royalty_rate column to oem table if missing
+    oem_column_ddl = (
+        "ALTER TABLE `oem` ADD COLUMN IF NOT EXISTS "
+        "`royalty_rate` DOUBLE NULL COMMENT 'Contracted royalty rate e.g. 0.08'"
+    )
+
+    results = {}
+    for table_name, ddl in tables:
+        try:
+            db.session.execute(text(ddl))
+            db.session.commit()
+            results[table_name] = "created"
+            print(f"phase13_create_royalty_table: {table_name} OK")
+        except Exception as e:
+            db.session.rollback()
+            if "already exists" in str(e).lower():
+                results[table_name] = "exists"
+            else:
+                print(f"phase13_create_royalty_table: ERROR {table_name}: {e}")
+                results[table_name] = f"error: {e}"
+
+    # Add royalty_rate to oem (ignore error if column already exists)
+    try:
+        db.session.execute(text(oem_column_ddl))
+        db.session.commit()
+        results["oem.royalty_rate"] = "added"
+        print("phase13_create_royalty_table: oem.royalty_rate column OK")
+    except Exception as e:
+        db.session.rollback()
+        results["oem.royalty_rate"] = f"skipped ({e})"
+
+    return results

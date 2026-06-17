@@ -393,3 +393,81 @@ def feature_required(feature_name: str, program_id: str = "tracking"):
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+
+def require_active_license(f):
+    """
+    Phase 13 — Meter License Enforcement.
+
+    Gate an analytics API endpoint so that it only responds when the request's
+    project has at least one active (or grace-period) licensed meter.
+
+    Resolution order:
+      1. Reads project_id from query-string or JSON body.
+      2. Looks up Meter rows for that project.
+      3. Checks MeterLicense rows for those meters.
+      4. If any meter has state in ('active', 'grace') → allow.
+      5. If no licensed meters found at all → allow (fail-open for un-licensed
+         projects that pre-date Phase 13 deployment, per COMPAT note).
+      6. If meters exist but ALL are suspended/expired → return 403.
+
+    Admins (role 8) and OEM admins (role 9) bypass license enforcement.
+    Fails open if MeterLicense table does not yet exist.
+
+    Spec: ECBS OS v4 §5 "Licensing Workflow", §40 "License States"
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return jsonify({"error": "Login required", "code": "LOGIN_REQUIRED"}), 401
+
+        role = getattr(current_user, "role", 0)
+        if role in (8, 9):
+            return f(*args, **kwargs)
+
+        # Resolve project_id
+        project_id = (
+            request.args.get("project_id")
+            or request.args.get("projectId")
+            or (request.get_json(silent=True) or {}).get("project_id")
+        )
+        if not project_id:
+            # No project scope — can't enforce, allow through
+            return f(*args, **kwargs)
+
+        try:
+            from app.models.meter import Meter
+            from app.models.meter_license import MeterLicense
+
+            meter_ids = [
+                m.id for m in
+                Meter.query.filter_by(project=int(project_id), isDeleted=False).all()
+            ]
+            if not meter_ids:
+                return f(*args, **kwargs)  # no meters, fail-open
+
+            licenses = MeterLicense.query.filter(
+                MeterLicense.meter_id.in_(meter_ids)
+            ).all()
+
+            if not licenses:
+                return f(*args, **kwargs)  # no licenses yet, fail-open (COMPAT)
+
+            active_states = {"active", "grace"}
+            if any(lic.state in active_states for lic in licenses):
+                return f(*args, **kwargs)
+
+            # All licenses are suspended or expired
+            return jsonify({
+                "error":      "Meter license is suspended or expired.",
+                "code":       "LICENSE_SUSPENDED",
+                "message":    "Analytics are unavailable. Contact your OEM administrator.",
+                "program_id": "tracking",
+            }), 403
+
+        except Exception as exc:
+            # Fail open — table may not exist yet or DB is unavailable
+            logger.debug("require_active_license: check error (fail-open): %s", exc)
+            return f(*args, **kwargs)
+
+    return decorated

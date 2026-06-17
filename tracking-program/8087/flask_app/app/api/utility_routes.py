@@ -33,6 +33,7 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.utility_bill import UtilityBill, UtilityAccount, UtilityForecast
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+from app.helpers.decorators import require_active_license
 
 utility_bp = Blueprint("utility", __name__, url_prefix="/api/utility")
 
@@ -584,6 +585,7 @@ def generate_forecast():
 
 @utility_bp.route("/summary", methods=["GET"])
 @login_required
+@require_active_license
 def get_summary():
     """
     GET /api/utility/summary?project_id=&[months=12]

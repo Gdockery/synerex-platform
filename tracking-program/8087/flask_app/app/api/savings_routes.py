@@ -28,6 +28,7 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.savings_intelligence import SavingsIntelligence, savings_health_rating
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+from app.helpers.decorators import require_active_license
 
 savings_bp = Blueprint("savings", __name__, url_prefix="")
 
@@ -87,6 +88,7 @@ def _si_dict(row: SavingsIntelligence) -> dict:
 
 @savings_bp.route("/api/savings/intelligence", methods=["GET"])
 @login_required
+@require_active_license
 def get_intelligence():
     """
     GET /api/savings/intelligence
