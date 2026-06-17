@@ -51,6 +51,9 @@ import { HomeRedirectComponent } from './home-redirect/home-redirect.component';
       // Phase 4 — Deployment Management (photo capture, workflow)
       { path: 'deployment', loadChildren: () => import('./deployment/deployment.module').then(m => m.DeploymentModule) },
 
+      // Phases 8–13 — ECBS OS™ Intelligence Modules
+      { path: 'ecbs', loadChildren: () => import('./ecbs/ecbs.module').then(m => m.EcbsModule) },
+
       // Catch-all (404 behavior)
       { path: '**', component: NotFoundComponent, data: {title: 'Not Found'} }
 

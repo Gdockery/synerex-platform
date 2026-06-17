@@ -1,0 +1,112 @@
+<!-- ECBS OS™ Alarms & Events — Spec SS-12/A-12 + SS-13/A-13 -->
+<div class="ecbs-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Alarms &amp; Events</h1>
+      <p>Centralized alarm management — monitor, acknowledge, and resolve system alerts.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <!-- Summary KPIs — spec SS-12 top banner -->
+  <div class="ecbs-kpi-row">
+    <div class="ecbs-kpi-card kpi-red">
+      <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="kpi-value">{{ summary?.critical || 0 }}</div>
+      <div class="kpi-label">Critical</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-amber">
+      <div class="kpi-icon"><span class="fa fa-exclamation"></span></div>
+      <div class="kpi-value">{{ summary?.high || 0 }}</div>
+      <div class="kpi-label">High</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-info-circle"></span></div>
+      <div class="kpi-value">{{ summary?.medium || 0 }}</div>
+      <div class="kpi-label">Medium</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-check-circle"></span></div>
+      <div class="kpi-value">{{ summary?.acknowledged || 0 }}</div>
+      <div class="kpi-label">Acknowledged</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="ecbs-tabs">
+    <button class="ecbs-tab" [class.active]="activeTab === 'alarms'" (click)="activeTab = 'alarms'">
+      <span class="fa fa-bell"></span> Alarms <span *ngIf="alarms.length" class="tab-count">{{ alarms.length }}</span>
+    </button>
+    <button class="ecbs-tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
+      <span class="fa fa-list"></span> Event Log
+    </button>
+  </div>
+
+  <!-- Alarms tab -->
+  <div class="ecbs-card" *ngIf="activeTab === 'alarms'" style="margin-top:0;border-top-left-radius:0;">
+
+    <div *ngIf="loading" style="padding:30px;text-align:center;color:#546e7a;">
+      <span class="fa fa-spinner fa-spin"></span> Loading alarms...
+    </div>
+
+    <div *ngIf="!loading && alarms.length === 0" class="ecbs-empty">
+      <span class="empty-icon fa fa-check-circle" style="color:#00e676;"></span>
+      <span class="empty-title">No Active Alarms</span>
+      <p>All monitored assets are within normal parameters.</p>
+    </div>
+
+    <table *ngIf="!loading && alarms.length > 0" class="ecbs-table">
+      <thead>
+        <tr>
+          <th>Severity</th>
+          <th>Alarm Type</th>
+          <th>Asset</th>
+          <th>Value</th>
+          <th>Threshold</th>
+          <th>Status</th>
+          <th>Triggered</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let a of alarms">
+          <td><span [class]="severityClass(a.severity)">{{ a.severity | titlecase }}</span></td>
+          <td>{{ a.alarm_type }}</td>
+          <td>{{ a.meter_id || a.asset_id || '—' }}</td>
+          <td>{{ a.value || '—' }}</td>
+          <td>{{ a.threshold || '—' }}</td>
+          <td><span [class]="a.status === 'open' ? 'badge-critical' : 'badge-healthy'">{{ a.status }}</span></td>
+          <td style="font-size:11px;color:#546e7a;">{{ a.triggered_at | date:'MMM d, h:mm a' }}</td>
+          <td>
+            <button *ngIf="a.status === 'open'" class="btn-ecbs btn-outline" style="font-size:11px;padding:4px 8px;" (click)="acknowledgeAlarm(a)">
+              Acknowledge
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Events tab -->
+  <div class="ecbs-card" *ngIf="activeTab === 'events'" style="margin-top:0;border-top-left-radius:0;">
+    <div *ngIf="events.length === 0" class="ecbs-empty">
+      <span class="empty-icon fa fa-list"></span>
+      <span class="empty-title">No Events Recorded</span>
+    </div>
+    <table *ngIf="events.length > 0" class="ecbs-table">
+      <thead><tr><th>Type</th><th>Description</th><th>Asset</th><th>Timestamp</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let e of events">
+          <td>{{ e.event_type }}</td>
+          <td>{{ e.description }}</td>
+          <td>{{ e.asset_id || '—' }}</td>
+          <td style="font-size:11px;color:#546e7a;">{{ e.occurred_at | date:'MMM d, h:mm a' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>

@@ -1,306 +1,321 @@
 <nav>
 
+  <!-- ── Logo + Toggle ──────────────────────────────────────────────────────── -->
   <div>
-    <div [routerLink]="['/welcome']" class="header">
+    <a class="header" [routerLink]="['/welcome']">
       <img *ngIf="!logoFailed" class="logo-image" [src]="logoUrl" [class.logo-invert]="logoUseInvert" (error)="onLogoError()" />
       <span *ngIf="logoFailed && logoFallbackText" class="logo-fallback-text">{{ logoFallbackText }}</span>
       <img *ngIf="logoFailed && !logoFallbackText" class="logo-image" src="/tracking-images/synerex_logo_white.png" style="filter: brightness(0) invert(1);" />
-    </div>
-    <a class="sidebarToggle ss-menu" (click)="_toggleSidebar()"></a>
+    </a>
+    <a class="sidebarToggle fa fa-bars" (click)="_toggleSidebar()"></a>
     <div class="clearfix"></div>
   </div>
 
+  <!-- ── Scrollable nav body ───────────────────────────────────────────────── -->
+  <div class="nav-scroll">
 
-  <ul class="navbar-top">
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         TOP-LEVEL NAV  (no project selected — OEM / Admin management screens)
+    ════════════════════════════════════════════════════════════════════════ -->
+    <ul class="navbar-top" *ngIf="!userService.user.selectedProject">
 
-    <!--
-    ╔╦╗╔═╗╔═╗   ╦  ╔═╗╦  ╦╔═╗╦    ╔╗╔╔═╗╦  ╦
-     ║ ║ ║╠═╝───║  ║╣ ╚╗╔╝║╣ ║    ║║║╠═╣╚╗╔╝
-     ╩ ╚═╝╩     ╩═╝╚═╝ ╚╝ ╚═╝╩═╝  ╝╚╝╩ ╩ ╚╝
-    (displayed only when viewing the top-level, project-agnostic navbar) -->
-    <li *ngIf="!userService.user.selectedProject">
-      <a [routerLink]="['/welcome']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-bolt"></span>
-        <span class="text">Welcome</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 7 || userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a class="scan-bill-link" [routerLink]="['/project/create-from-bill']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-file-text-o"></span>
-        <span class="text">Scan Bill</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && userService.user.role === 8">
-      <a [routerLink]="['/synerex-administrator/oem']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-sitemap"></span>
-        <span class="text">OEMs</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10)">
-      <!-- OEM Admin and OEM User only — Synerex Admin navigates to Clients via the OEMs page -->
-      <a [routerLink]="['/synerex-administrator/client']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-building-o"></span>
-        <span class="text">Clients</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role == 7)">
-      <!-- (only (A) Synerex Managers and (B) Synerex Administrators can see this choice) -->
-      <a [routerLink]="['/project/client/list']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-building-o"></span>
-        <span class="text">Clients</span>
-      </a>
-    </li>
-    <!-- Pipeline Projects — ops_admin, OEM users -->
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8)">
-      <a [routerLink]="['/project/pipeline']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-tasks"></span>
-        <span class="text">Pipeline Projects</span>
-      </a>
-    </li>
-    <!-- Installed Projects — ops_admin, OEM users -->
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8)">
-      <a [routerLink]="['/project/installed']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-check-circle"></span>
-        <span class="text">Installed Projects</span>
-      </a>
-    </li>
-    <!-- Projects — standard client users -->
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role <= 7)">
-      <a [routerLink]="['/project/select']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-industry"></span>
-        <span class="text">Projects</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 2)">
-      <!-- Users: Admins (8,9), OEM Users (10), and Client Admins (2) managing their own org -->
-      <a [routerLink]="['/synerex-administrator/user']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-users"></span>
-        <span class="text">Users</span>
-      </a>
-    </li>
+      <li>
+        <a [routerLink]="['/welcome']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-bolt"></span>
+          <span class="text">Welcome</span>
+        </a>
+      </li>
 
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9)">
-      <a [routerLink]="['/synerex-administrator/advanced']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-sliders"></span>
-        <span class="text">Advanced Options</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9)">
-      <a [routerLink]="['/synerex-administrator/branding']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-paint-brush"></span>
-        <span class="text">Branding</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && userService.user.role === 8">
-      <a [routerLink]="['/synerex-administrator/company-settings']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-building"></span>
-        <span class="text">Company Settings</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 2 || userService.user.role === 9)">
-      <a [routerLink]="['/synerex-administrator/subscription']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-credit-card"></span>
-        <span class="text">Subscription</span>
-      </a>
-    </li>
-    <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/admin-files/files/list']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-sliders"></span>
-        <span class="text">Admin Files</span>
-      </a>
-    </li>
+      <!-- Scan Bill — account managers, OEM admins, synerex admin -->
+      <li *ngIf="userService.user.role === 7 || userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
+        <a class="scan-bill-link" [routerLink]="['/project/create-from-bill']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-file-text-o"></span>
+          <span class="text">Scan Bill</span>
+        </a>
+      </li>
 
-    <!--
-    ╦ ╦╦╔╦╗╦ ╦╦╔╗╔  ╔═╗╦═╗╔═╗ ╦╔═╗╔═╗╔╦╗
-    ║║║║ ║ ╠═╣║║║║  ╠═╝╠╦╝║ ║ ║║╣ ║   ║
-    ╚╩╝╩ ╩ ╩ ╩╩╝╚╝  ╩  ╩╚═╚═╝╚╝╚═╝╚═╝ ╩ooo
-    (displayed only when viewing the navbar within a particular project) -->
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/savings/energy-savings']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-banknote"></span>
-        <span class="text">Energy Dashboard&nbsp;&nbsp;<strong style="font-size: 8px; background-color: white; color: black">&nbsp;&nbsp;LIVE&nbsp;&nbsp;</strong></span>
-      </a>
-    </li>
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/savings/carbon-emission-saving']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-up"></span>
-        <span class="text">Carbon Dashboard&nbsp;&nbsp;<strong style="font-size: 8px; background-color: white; color: black">&nbsp;&nbsp;LIVE&nbsp;&nbsp;</strong></span>
-      </a>
+      <!-- OEMs — Synerex Admin only -->
+      <li *ngIf="userService.user.role === 8">
+        <a [routerLink]="['/synerex-administrator/oem']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-sitemap"></span>
+          <span class="text">OEMs</span>
+        </a>
+      </li>
 
-    </li>
-    <li *ngIf="userService.user.selectedProject">
-      <a>
-        <span class="icon ss-barchart"></span>
-        <span class="text">Analytics&nbsp;&nbsp;<strong style="font-size: 8px; background-color: white; color: black">&nbsp;&nbsp;LIVE&nbsp;&nbsp;</strong></span>
-      </a>
-      <ul class="submenu">
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/electricity-meters/charting']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-clock"></span>
-            <span class="text">Energy</span>
+      <!-- Clients -->
+      <li *ngIf="userService.user.role === 9 || userService.user.role === 10">
+        <a [routerLink]="['/synerex-administrator/client']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-building-o"></span>
+          <span class="text">Clients</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 7">
+        <a [routerLink]="['/project/client/list']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-building-o"></span>
+          <span class="text">Clients</span>
+        </a>
+      </li>
+
+      <!-- Pipeline / Installed Projects -->
+      <li *ngIf="userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8">
+        <a [routerLink]="['/project/pipeline']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-tasks"></span>
+          <span class="text">Pipeline Projects</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 8">
+        <a [routerLink]="['/project/installed']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-check-circle"></span>
+          <span class="text">Installed Projects</span>
+        </a>
+      </li>
+
+      <!-- Projects — standard client users -->
+      <li *ngIf="userService.user.role <= 7">
+        <a [routerLink]="['/project/select']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-industry"></span>
+          <span class="text">Projects</span>
+        </a>
+      </li>
+
+      <!-- Users -->
+      <li *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10 || userService.user.role === 2">
+        <a [routerLink]="['/synerex-administrator/user']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-users"></span>
+          <span class="text">Users</span>
+        </a>
+      </li>
+
+      <!-- Admin / OEM management -->
+      <li *ngIf="userService.user.role === 8 || userService.user.role === 9">
+        <a [routerLink]="['/synerex-administrator/advanced']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-sliders"></span>
+          <span class="text">Advanced Options</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 8 || userService.user.role === 9">
+        <a [routerLink]="['/synerex-administrator/branding']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-paint-brush"></span>
+          <span class="text">Branding</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 8">
+        <a [routerLink]="['/synerex-administrator/company-settings']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-building"></span>
+          <span class="text">Company Settings</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 2 || userService.user.role === 9">
+        <a [routerLink]="['/synerex-administrator/subscription']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-credit-card"></span>
+          <span class="text">Subscription</span>
+        </a>
+      </li>
+      <li *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
+        <a [routerLink]="['/admin-files/files/list']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-folder-o"></span>
+          <span class="text">Admin Files</span>
+        </a>
+      </li>
+
+    </ul>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ECBS OS™ PROJECT NAV  (project selected — spec Screenshot Design Authority)
+         Spec: SS-2 through SS-17 sidebar items
+    ════════════════════════════════════════════════════════════════════════ -->
+    <ng-container *ngIf="userService.user.selectedProject">
+
+      <span class="nav-section-label">ECBS Intelligence</span>
+      <ul class="navbar-top">
+
+        <!-- Dashboard (SS-2 / A-2 — Portfolio Dashboard) -->
+        <li>
+          <a [routerLink]="['/ecbs/dashboard']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-th-large"></span>
+            <span class="text">Dashboard</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-droplet"></span>
-            <span class="text">Water</span>
+
+        <!-- Capacity Intelligence (SS-4 / A-4) -->
+        <li>
+          <a [routerLink]="['/ecbs/capacity']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-tachometer"></span>
+            <span class="text">Capacity Intelligence</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-lightbulb"></span>
-            <span class="text">LED Lights</span>
+
+        <!-- Digital Twin (SS-5 / A-5) -->
+        <li>
+          <a [routerLink]="['/ecbs/digital-twin']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-share-alt"></span>
+            <span class="text">Digital Twin</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-cloud"></span>
-            <span class="text">Gas</span>
+
+        <!-- Sites (SS-6 / A-6) -->
+        <li>
+          <a [routerLink]="['/ecbs/sites']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-map-marker"></span>
+            <span class="text">Sites</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-balloon"></span>
-            <span class="text">Compressed Air</span>
+
+        <!-- Transformers (SS-7 / A-7 & SS-22 / A-22) -->
+        <li>
+          <a [routerLink]="['/ecbs/transformers']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-plug"></span>
+            <span class="text">Transformers</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-thermometer"></span>
-            <span class="text">Temp. Controls</span>
+
+        <!-- Electrical Network (SS-8 / A-8) -->
+        <li>
+          <a [routerLink]="['/ecbs/electrical-network']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-sitemap"></span>
+            <span class="text">Electrical Network</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a>
-            <span class="icon ss-water"></span>
-            <span class="text">Flow Sensing</span>
+
+        <!-- Current Analysis (SS-9 / A-9) -->
+        <li>
+          <a [routerLink]="['/ecbs/current-analysis']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-bolt"></span>
+            <span class="text">Current Analysis</span>
           </a>
         </li>
+
+        <!-- Savings & Financials (SS-10 + SS-11 / A-10 + A-11) -->
+        <li>
+          <a [routerLink]="['/ecbs/savings']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-dollar"></span>
+            <span class="text">Savings & Financials</span>
+          </a>
+        </li>
+
+        <!-- Alarms & Events (SS-12 + SS-13 / A-12 + A-13) -->
+        <li>
+          <a [routerLink]="['/ecbs/alarms']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-bell"></span>
+            <span class="text">Alarms &amp; Events</span>
+          </a>
+        </li>
+
+        <!-- Reports (SS-14 / A-14) -->
+        <li>
+          <a [routerLink]="['/ecbs/reports']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-file-text"></span>
+            <span class="text">Reports</span>
+          </a>
+        </li>
+
+        <!-- Devices (SS-15 / A-15) -->
+        <li>
+          <a [routerLink]="['/ecbs/devices']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-microchip"></span>
+            <span class="text">Devices</span>
+          </a>
+        </li>
+
+        <!-- Settings (SS-18 / A-18) -->
+        <li>
+          <a [routerLink]="['/ecbs/settings']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-cog"></span>
+            <span class="text">Settings</span>
+          </a>
+        </li>
+
       </ul>
-    </li>
 
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/project/overview']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-piechart"></span>
-        <span class="text">Project Overview</span>
-      </a>
-    </li>
-
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/project/power-quality']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-bolt"></span>
-        <span class="text">Power Quality</span>
-      </a>
-    </li>
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/project/emv-baseline']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-document"></span>
-        <span class="text">EM&V Report</span>
-      </a>
-    </li>
-
-    <li *ngIf="userService.user.selectedProject && userService.user.role !== 1" class="communications">
-      <a>
-        <span class="icon ss-transfer"></span>
-        <span class="text">Communications</span>
-      </a>
-      <ul class="submenu">
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/gateways']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-wifi"></span>
-            <span class="text">Gateways</span>
+      <!-- Legacy tools divider -->
+      <div class="nav-divider"></div>
+      <span class="nav-section-label">Legacy Tools</span>
+      <ul>
+        <li>
+          <a [routerLink]="['/savings/energy-savings']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-area-chart"></span>
+            <span class="text">Energy Dashboard</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/electricity-meters']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-buildings"></span>
-            <span class="text">Electricity Meters</span>
-          </a>
-        </li>
-        <li *ngIf="userService.user.selectedProject">
+        <li>
           <a [routerLink]="['/project/power-quality']" [routerLinkActive]="['router-link-active']">
             <span class="icon fa fa-bolt"></span>
             <span class="text">Power Quality</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/switches/devices/list']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-toggles"></span>
-            <span class="text">Switches & Filters</span>
+        <li>
+          <a [routerLink]="['/project/emv-baseline']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-file-text-o"></span>
+            <span class="text">EM&amp;V Report</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/repeaters']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-target"></span>
-            <span class="text">Repeaters</span>
+        <li>
+          <a [routerLink]="['/billing/savings-report/list']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-line-chart"></span>
+            <span class="text">Bill Analytic</span>
           </a>
         </li>
-        <li *ngIf="userService.user.selectedProject">
-          <a [routerLink]="['/map']" [routerLinkActive]="['router-link-active']">
-            <span class="icon ss-map"></span>
-            <span class="text">Map</span>
+        <li>
+          <a [routerLink]="['/electricity-meters']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-flash"></span>
+            <span class="text">Meters</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/billing/project-documents']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-folder-o"></span>
+            <span class="text">Documents</span>
+          </a>
+        </li>
+        <li *ngIf="userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10">
+          <a [routerLink]="['/admin-files/files/list', userService.user.selectedProject.id]" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-folder"></span>
+            <span class="text">Admin Files</span>
           </a>
         </li>
       </ul>
-    </li>
-    
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/tests']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-check"></span>
-        <span class="text">Tests</span>
-      </a>
-    </li>
-    <li *ngIf="userService.user.selectedProject && userService.user.role !== 1">
-      <a [routerLink]="['/billing/savings-report/list']" [routerLinkActive]="['router-link-active']">
-        <span class="icon fa fa-line-chart"></span>
-        <span class="text">Bill Analytic</span>
-      </a>
-    </li>
 
-    <li *ngIf="userService.user.selectedProject">
-      <a [routerLink]="['/billing/project-documents']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-file"></span>
-        <span class="text">Project Documents</span>
-      </a>
-    </li>
+    </ng-container>
 
-    <li *ngIf="userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/admin-files/files/list', userService.user.selectedProject.id]" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-box"></span>
-        <span class="text">Project Admin Files</span>
-      </a>
-    </li>
-     
-  </ul>
+  </div><!-- /nav-scroll -->
 
-  <!--
-  ╔═╗╦  ╦╔═╗╦═╗   ╔═╗╦═╗╔═╗╔═╗╔═╗╔╗╔╔╦╗
-  ║╣ ╚╗╔╝║╣ ╠╦╝───╠═╝╠╦╝║╣ ╚═╗║╣ ║║║ ║
-  ╚═╝ ╚╝ ╚═╝╩╚═   ╩  ╩╚═╚═╝╚═╝╚═╝╝╚╝ ╩  -->
-  <div class="bottom-alinger"></div>
-  <ul class="navbar-bottom">
-    <li *ngIf="myAccountUrl && userService.user.role !== 1">
-      <a [href]="myAccountPageUrl" target="_self" rel="noopener">
-        <span class="icon ss-navigateleft"></span>
-        <span class="text">Back to My Account</span>
-      </a>
-    </li>
-    <li>
-      <a *ngIf="myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-settings"></span>
-        <span class="text">Tracking Account</span>
-      </a>
-      <a *ngIf="!myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
-        <span class="icon ss-settings"></span>
-        <span class="text">User Account</span>
-      </a>
-    </li>
-    <li>
-      <a href="#" (click)="logout(); $event.preventDefault()">
-        <span class="icon ss-action"></span>
-        <span class="text">Logout</span>
-      </a>
-    </li>
-  </ul>
+  <!-- ── Bottom — pinned section ───────────────────────────────────────────── -->
+  <div class="navbar-bottom-wrap">
+
+    <!-- CBI Score Card — shown when inside a project (spec SS-2 through SS-17) -->
+    <div class="cbi-card" *ngIf="userService.user.selectedProject">
+      <div class="cbi-title">XECO Current Balance Index™</div>
+      <div class="cbi-score">96</div>
+      <div class="cbi-grade">A+ Rating</div>
+      <div class="cbi-target">Target &gt; 90</div>
+      <a class="cbi-link" [routerLink]="['/ecbs/current-analysis']">View Details →</a>
+    </div>
+
+    <ul class="navbar-bottom">
+      <li *ngIf="myAccountUrl && userService.user.role !== 1">
+        <a [href]="myAccountPageUrl" target="_self" rel="noopener">
+          <span class="icon fa fa-arrow-left"></span>
+          <span class="text">Back to My Account</span>
+        </a>
+      </li>
+      <li>
+        <a *ngIf="myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-user-circle-o"></span>
+          <span class="text">Tracking Account</span>
+        </a>
+        <a *ngIf="!myAccountUrl" [routerLink]="['/account']" [routerLinkActive]="['router-link-active']">
+          <span class="icon fa fa-user-circle-o"></span>
+          <span class="text">User Account</span>
+        </a>
+      </li>
+      <li>
+        <a href="#" (click)="logout(); $event.preventDefault()">
+          <span class="icon fa fa-sign-out"></span>
+          <span class="text">Logout</span>
+        </a>
+      </li>
+    </ul>
+
+  </div>
 
 </nav>

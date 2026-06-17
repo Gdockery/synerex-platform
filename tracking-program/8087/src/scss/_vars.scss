@@ -12,5 +12,37 @@ $primaryColor10: #212121;
 $whiteFont: #fff;
 $lightBackground: #fafafa;
 
-
 $fontSize: 15px;
+
+// ── ECBS Operating System™ Design Tokens ──────────────────────────────────────
+// Spec: ECBS OS v4 Screenshot Design Authority (Screenshots 2–25)
+
+// Backgrounds
+$ecbs-bg:           #0a0f1a;   // page background
+$ecbs-sidebar-bg:   #0d1525;   // sidebar / nav
+$ecbs-header-bg:    #0d1525;   // top header bar
+$ecbs-card-bg:      #111927;   // data cards
+$ecbs-card-border:  #1e2d45;   // card borders
+$ecbs-input-bg:     #0f1e30;   // inputs / selects
+$ecbs-hover:        #162035;   // nav/row hover
+
+// Accent — green (primary action, active states, positive KPIs)
+$ecbs-green:        #00e676;   // bright green CTA / active
+$ecbs-green-dim:    #00c853;   // slightly dimmer green
+$ecbs-green-glow:   rgba(0, 230, 118, 0.15); // glow/shadow
+
+// Status colours
+$ecbs-warning:      #ffd740;   // amber — warning
+$ecbs-critical:     #f44336;   // red — critical / negative
+$ecbs-info:         #29b6f6;   // blue — info
+$ecbs-purple:       #ce93d8;   // purple — misc KPI
+
+// Text
+$ecbs-text-primary: #e8edf5;   // near-white body text
+$ecbs-text-secondary: #8899a6; // muted blue-grey
+$ecbs-text-label:   #546e7a;   // dim label / caption
+
+// Sidebar dimensions
+$ecbs-sidebar-width:     220px;
+$ecbs-sidebar-collapsed: 56px;
+$ecbs-header-height:     52px;

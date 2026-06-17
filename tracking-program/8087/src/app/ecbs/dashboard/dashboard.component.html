@@ -1,0 +1,134 @@
+<!-- ECBS OS™ Enterprise Dashboard — Spec SS-2 / Figure A-2 -->
+<div class="ecbs-page">
+
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Enterprise Dashboard</h1>
+      <p>Portfolio command center — site health, savings, capacity, alarms</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <!-- KPI Row — spec SS-2 top banner: Annual Savings, Capacity Recovered, Avg PF, Alarms -->
+  <div class="ecbs-kpi-row">
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
+      <div class="kpi-value">{{ annualSavingsDisplay }}</div>
+      <div class="kpi-label">Annual Savings</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+      <div class="kpi-value">{{ capacityRecovered }}</div>
+      <div class="kpi-label">Capacity Recovered</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
+      <div class="kpi-value">{{ avgPowerFactor }}</div>
+      <div class="kpi-label">Avg Power Factor</div>
+    </div>
+    <div class="ecbs-kpi-card" [ngClass]="criticalAlarms > 0 ? 'kpi-red' : 'kpi-amber'">
+      <div class="kpi-icon"><span class="fa fa-bell"></span></div>
+      <div class="kpi-value">{{ activeAlarms }}</div>
+      <div class="kpi-label">Active Alarms</div>
+      <div class="kpi-delta" [class.negative]="criticalAlarms > 0">{{ criticalAlarms }} Critical</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="ecbs-grid-2 dashboard-grid">
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Capacity card -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Transformer Capacity Overview</div>
+        <div *ngIf="!capacityData" class="ecbs-empty">
+          <span class="empty-icon fa fa-database"></span>
+          <span class="empty-title">No capacity data yet</span>
+          <p>Run a Capacity Intelligence calculation to populate this panel.</p>
+          <a class="btn-ecbs btn-primary" routerLink="/ecbs/capacity">Go to Capacity Intelligence</a>
+        </div>
+        <div *ngIf="capacityData">
+          <div class="ecbs-grid-3" style="margin-bottom:12px;">
+            <div class="mini-stat">
+              <div class="mini-val">{{ capacityData.installed_capacity_kva | number:'1.0-0' }} kVA</div>
+              <div class="mini-lbl">Installed</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-val">{{ capacityData.available_capacity_kva | number:'1.0-0' }} kVA</div>
+              <div class="mini-lbl">Available</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-val" style="color:#00e676;">{{ capacityData.recovered_capacity_kva | number:'1.0-0' }} kVA</div>
+              <div class="mini-lbl">Recovered</div>
+            </div>
+          </div>
+          <a class="btn-ecbs btn-outline" style="font-size:11px;" routerLink="/ecbs/capacity">View Capacity Details →</a>
+        </div>
+      </div>
+
+      <!-- Savings card -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-dollar"></span> Savings vs Baseline</div>
+        <div *ngIf="!savingsData" class="ecbs-empty">
+          <span class="empty-icon fa fa-bar-chart"></span>
+          <span class="empty-title">No savings data yet</span>
+          <a class="btn-ecbs btn-primary" routerLink="/ecbs/savings">Go to Savings Intelligence</a>
+        </div>
+        <div *ngIf="savingsData">
+          <div class="ecbs-grid-2" style="margin-bottom:10px;">
+            <div class="mini-stat">
+              <div class="mini-val">${{ savingsData.annual_savings_value | number:'1.0-0' }}</div>
+              <div class="mini-lbl">Annual Savings</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-val">{{ savingsData.roi_pct | number:'1.0-0' }}%</div>
+              <div class="mini-lbl">ROI</div>
+            </div>
+          </div>
+          <a class="btn-ecbs btn-outline" style="font-size:11px;" routerLink="/ecbs/savings">View Savings Details →</a>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Alarms card -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-bell"></span> Active Alarms</div>
+        <div *ngIf="!alarmSummary || activeAlarms === 0" class="ecbs-empty" style="padding:20px;">
+          <span class="empty-icon fa fa-check-circle" style="color:#00e676;"></span>
+          <span class="empty-title">All Systems Clear</span>
+        </div>
+        <div *ngIf="alarmSummary && activeAlarms > 0">
+          <div class="alarm-summary-row">
+            <div class="alarm-count critical"><span class="count-val">{{ alarmSummary.critical || 0 }}</span><span class="count-lbl">Critical</span></div>
+            <div class="alarm-count warning"><span class="count-val">{{ alarmSummary.high || 0 }}</span><span class="count-lbl">High</span></div>
+            <div class="alarm-count info"><span class="count-val">{{ alarmSummary.medium || 0 }}</span><span class="count-lbl">Medium</span></div>
+          </div>
+          <a class="btn-ecbs btn-outline" style="font-size:11px;margin-top:10px;" routerLink="/ecbs/alarms">View All Alarms →</a>
+        </div>
+      </div>
+
+      <!-- Quick links -->
+      <div class="ecbs-card quick-links-card">
+        <div class="ecbs-card-title"><span class="fa fa-th"></span> Quick Access</div>
+        <div class="quick-links">
+          <a class="quick-link" routerLink="/ecbs/current-analysis"><span class="fa fa-bolt"></span> Current Analysis</a>
+          <a class="quick-link" routerLink="/ecbs/electrical-network"><span class="fa fa-sitemap"></span> Electrical Network</a>
+          <a class="quick-link" routerLink="/ecbs/digital-twin"><span class="fa fa-share-alt"></span> Digital Twin</a>
+          <a class="quick-link" routerLink="/ecbs/devices"><span class="fa fa-microchip"></span> Devices</a>
+          <a class="quick-link" routerLink="/ecbs/transformers"><span class="fa fa-plug"></span> Transformers</a>
+          <a class="quick-link" routerLink="/ecbs/settings"><span class="fa fa-cog"></span> Settings</a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>

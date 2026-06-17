@@ -1,0 +1,39 @@
+<!-- ECBS OS™ Settings -->
+<div class="ecbs-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Settings</h1>
+      <p>Manage your account, system configuration, and preferences.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
+    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
+    <p>Loading Settings...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="ecbs-empty">
+    <span class="empty-icon fa fa-exclamation-triangle" style="color:#ffd740;"></span>
+    <span class="empty-title">{{ error }}</span>
+    <button class="btn-ecbs btn-outline" (click)="loadData()">Retry</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div *ngIf="!data" class="ecbs-card" style="margin-top:16px;">
+      <div class="ecbs-empty">
+        <span class="empty-icon fa fa-cog"></span>
+        <span class="empty-title">No data available</span>
+        <p>Settings data will appear here once the backend has processed sufficient readings.</p>
+      </div>
+    </div>
+    <div *ngIf="data" class="ecbs-card" style="margin-top:16px;">
+      <div class="ecbs-card-title"><span class="fa fa-cog"></span> Settings Data</div>
+      <pre style="color:#8899a6;font-size:11px;overflow:auto;max-height:400px;">{{ data | json }}</pre>
+    </div>
+  </ng-container>
+
+</div>

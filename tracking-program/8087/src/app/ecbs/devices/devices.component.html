@@ -1,0 +1,89 @@
+<!-- ECBS OS™ Devices — Spec SS-15 / Figure A-15 -->
+<div class="ecbs-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Devices</h1>
+      <p>Manage all monitoring devices — meters, gateways, and edge hardware.</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn-ecbs btn-outline" routerLink="/electricity-meters"><span class="fa fa-flash"></span> Meter Management</a>
+      <a class="btn-ecbs btn-outline" routerLink="/gateways"><span class="fa fa-wifi"></span> Gateway Management</a>
+    </div>
+  </div>
+
+  <!-- Summary KPIs -->
+  <div class="ecbs-kpi-row">
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-flash"></span></div>
+      <div class="kpi-value">{{ meters.length }}</div>
+      <div class="kpi-label">Total Meters</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-wifi"></span></div>
+      <div class="kpi-value">{{ gateways.length }}</div>
+      <div class="kpi-label">Gateways</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="ecbs-tabs">
+    <button class="ecbs-tab" [class.active]="activeTab === 'meters'" (click)="activeTab = 'meters'">
+      <span class="fa fa-flash"></span> Meters ({{ meters.length }})
+    </button>
+    <button class="ecbs-tab" [class.active]="activeTab === 'gateways'" (click)="activeTab = 'gateways'">
+      <span class="fa fa-wifi"></span> Gateways ({{ gateways.length }})
+    </button>
+  </div>
+
+  <div class="ecbs-card" style="margin-top:0;border-top-left-radius:0;">
+
+    <div *ngIf="loading" style="padding:30px;text-align:center;color:#546e7a;">
+      <span class="fa fa-spinner fa-spin"></span> Loading devices...
+    </div>
+
+    <!-- Meters table -->
+    <div *ngIf="!loading && activeTab === 'meters'">
+      <div *ngIf="meters.length === 0" class="ecbs-empty">
+        <span class="empty-icon fa fa-flash"></span>
+        <span class="empty-title">No Meters Found</span>
+        <a class="btn-ecbs btn-primary" routerLink="/electricity-meters">Add Meter</a>
+      </div>
+      <table *ngIf="meters.length > 0" class="ecbs-table">
+        <thead>
+          <tr><th>Name</th><th>Model</th><th>Phase</th><th>Location</th><th>Status</th><th>Last Reading</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of meters">
+            <td>{{ m.name }}</td>
+            <td>{{ m.model || '—' }}</td>
+            <td>{{ m.phases || '—' }}</td>
+            <td>{{ m.location || '—' }}</td>
+            <td><span [class]="statusClass(m.status)">{{ m.status || 'unknown' }}</span></td>
+            <td style="font-size:11px;color:#546e7a;">{{ m.lastReading | date:'MMM d, h:mm a' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Gateways table -->
+    <div *ngIf="!loading && activeTab === 'gateways'">
+      <div *ngIf="gateways.length === 0" class="ecbs-empty">
+        <span class="empty-icon fa fa-wifi"></span>
+        <span class="empty-title">No Gateways Found</span>
+        <a class="btn-ecbs btn-primary" routerLink="/gateways">Manage Gateways</a>
+      </div>
+      <table *ngIf="gateways.length > 0" class="ecbs-table">
+        <thead><tr><th>Name</th><th>IP</th><th>Status</th><th>Meters Connected</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let g of gateways">
+            <td>{{ g.name }}</td>
+            <td>{{ g.ip || '—' }}</td>
+            <td><span [class]="statusClass(g.status)">{{ g.status || 'unknown' }}</span></td>
+            <td>{{ g.meterCount || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>

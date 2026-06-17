@@ -1,16 +1,68 @@
-  <div class="container-fluid">
-  <div class="pull-left">
-    <h1 *ngIf="userService.user.selectedProject" [routerLink]="['project/select']" style="cursor:pointer;"><strong>
-      {{userService.user.selectedProject.name}}
-      <span *ngIf="userService.user.selectedProject" style="font-size:12px;">(Times displayed in {{userService.user.selectedProject?.timezoneAbbreviation}})
-        (Currency displayed in {{userService.user.selectedProject?.currencyCode}})<!--span *ngIf="userService.user.selectedProject?.subNeeded" style="font-size:12px;"> <font  color="{{colorOfSub}}">(Subscription expires in {{daysLeftInSub}} days)</font></span-->
-        <span *ngIf="userService.user.selectedProject?.subNeeded" style="font-size:12px;"> (Subscription expires {{userService.user.selectedProject?.subStartDate}})</span>
-      </span>
-    </strong></h1>
+<!-- ECBS OS™ Top Header Bar
+     Spec: Screenshot Design Authority §2 — every interior page header
+     Zones: [OEM logo | Portal title] [Site selector] [Date range] [Live badge] [Bell] [User]
+-->
+<div class="ecbs-toolbar">
+
+  <!-- Left: Portal title (shown when inside a project) -->
+  <div class="toolbar-title" *ngIf="userService.user.selectedProject">
+    <span class="portal-label">XECO ENERGY INTELLIGENCE PORTAL</span>
+    <span class="page-name" *ngIf="pageTitle">{{ pageTitle }}</span>
   </div>
-  <div class="pull-right text-right">
-    <img *ngIf="logoPath && !logoFailed" [src]="logoPath" (error)="logoFailed = true" style="max-height:48px; max-width:160px; object-fit:contain;"> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <h2>{{userService.user.getInitials()}}</h2>
+  <div class="toolbar-title" *ngIf="!userService.user.selectedProject">
+    <span class="portal-label">XECO ENERGY INTELLIGENCE PORTAL</span>
   </div>
-  <div class="clearfix"></div>
+
+  <!-- Center: Site + Date selectors -->
+  <div class="toolbar-center" *ngIf="userService.user.selectedProject">
+    <!-- Site selector -->
+    <div class="toolbar-select">
+      <span class="fa fa-map-marker select-icon"></span>
+      <span class="select-text">{{ userService.user.selectedProject?.name || 'Select Site' }}</span>
+      <span class="fa fa-chevron-down select-caret"></span>
+    </div>
+    <!-- Date range -->
+    <div class="toolbar-select">
+      <span class="fa fa-calendar select-icon"></span>
+      <span class="select-text">{{ dateRangeLabel }}</span>
+      <span class="fa fa-chevron-down select-caret"></span>
+    </div>
+    <!-- Live badge -->
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      <span>Real-time</span>
+    </div>
+  </div>
+
+  <div class="toolbar-spacer"></div>
+
+  <!-- Right: Actions -->
+  <div class="toolbar-actions">
+
+    <!-- Client logo (when available) -->
+    <img *ngIf="logoPath && !logoFailed" [src]="logoPath" (error)="logoFailed = true"
+         class="client-logo" />
+
+    <!-- Notifications bell -->
+    <button class="toolbar-icon-btn" title="Notifications">
+      <span class="fa fa-bell"></span>
+    </button>
+
+    <!-- Download -->
+    <button class="toolbar-icon-btn" title="Export">
+      <span class="fa fa-download"></span>
+    </button>
+
+    <!-- User avatar -->
+    <div class="toolbar-user">
+      <div class="user-avatar">{{ userService.user.getInitials() }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ userService.user.firstName }} {{ userService.user.lastName }}</span>
+        <span class="user-role">{{ roleLabel }}</span>
+      </div>
+      <span class="fa fa-chevron-down select-caret"></span>
+    </div>
+
+  </div>
+
 </div>

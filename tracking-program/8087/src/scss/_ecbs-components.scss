@@ -1,0 +1,264 @@
+@import "vars";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ECBS OS™ Shared Component Styles
+// Spec: Screenshot Design Authority §2 — reusable cards, KPIs, badges
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Page wrapper ──────────────────────────────────────────────────────────────
+.ecbs-page {
+  padding: 20px 24px;
+  color: $ecbs-text-primary;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  min-height: calc(100vh - #{$ecbs-header-height} - 34px);
+}
+
+.ecbs-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .page-title-block {
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: $ecbs-text-primary;
+      margin: 0 0 4px;
+      line-height: 1.2;
+    }
+    p {
+      font-size: 12px;
+      color: $ecbs-text-secondary;
+      margin: 0;
+    }
+  }
+
+  .page-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+.ecbs-card {
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.ecbs-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: $ecbs-text-secondary;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+// ── KPI row ───────────────────────────────────────────────────────────────────
+.ecbs-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ecbs-kpi-card {
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-accent, #{$ecbs-green});
+  }
+
+  .kpi-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--kpi-icon-bg, rgba(0,230,118,0.12));
+    color: var(--kpi-accent, #{$ecbs-green});
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: $ecbs-text-primary;
+    line-height: 1;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: $ecbs-text-secondary;
+  }
+
+  .kpi-delta {
+    font-size: 11px;
+    color: $ecbs-green;
+    font-weight: 600;
+    margin-top: 4px;
+    &.negative { color: $ecbs-critical; }
+    &.neutral   { color: $ecbs-text-secondary; }
+  }
+}
+
+// KPI accent colour variants
+.kpi-green   { --kpi-accent: #{$ecbs-green};   --kpi-icon-bg: rgba(0,230,118,0.12); }
+.kpi-blue    { --kpi-accent: #{$ecbs-info};    --kpi-icon-bg: rgba(41,182,246,0.12); }
+.kpi-amber   { --kpi-accent: #{$ecbs-warning}; --kpi-icon-bg: rgba(255,215,64,0.12); }
+.kpi-red     { --kpi-accent: #{$ecbs-critical};--kpi-icon-bg: rgba(244,67,54,0.12); }
+.kpi-purple  { --kpi-accent: #{$ecbs-purple};  --kpi-icon-bg: rgba(206,147,216,0.12); }
+
+// ── Buttons ───────────────────────────────────────────────────────────────────
+.btn-ecbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid $ecbs-card-border;
+  background: $ecbs-input-bg;
+  color: $ecbs-text-primary;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover { background: $ecbs-hover; border-color: rgba(0,230,118,0.35); }
+
+  &.btn-primary {
+    background: $ecbs-green;
+    border-color: $ecbs-green;
+    color: $ecbs-bg;
+    &:hover { background: $ecbs-green-dim; }
+  }
+
+  &.btn-outline {
+    background: transparent;
+    border-color: $ecbs-card-border;
+    color: $ecbs-text-secondary;
+    &:hover { color: $ecbs-text-primary; border-color: rgba(0,230,118,0.35); }
+  }
+}
+
+// ── Status / severity badges ───────────────────────────────────────────────────
+.badge-critical { background: rgba(244,67,54,0.15);   color: #ef5350; border: 1px solid rgba(244,67,54,0.3);  padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-warning  { background: rgba(255,215,64,0.15);  color: #ffd740; border: 1px solid rgba(255,215,64,0.3); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-info     { background: rgba(41,182,246,0.15);  color: #29b6f6; border: 1px solid rgba(41,182,246,0.3); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-healthy  { background: rgba(0,230,118,0.12);   color: #00e676; border: 1px solid rgba(0,230,118,0.25); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.badge-offline  { background: rgba(144,164,174,0.15); color: #90a4ae; border: 1px solid rgba(144,164,174,0.3);padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+
+// ── Data table ────────────────────────────────────────────────────────────────
+.ecbs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: $ecbs-text-secondary;
+    border-bottom: 1px solid $ecbs-card-border;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 12px;
+    color: $ecbs-text-primary;
+    border-bottom: 1px solid rgba(30, 45, 69, 0.5);
+  }
+
+  tr:hover td {
+    background: $ecbs-hover;
+  }
+}
+
+// ── Circular score gauge (spec: every page bottom-left CBI card, + health scores) ──
+.ecbs-gauge-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  svg { transform: rotate(-90deg); }
+
+  .gauge-track { fill: none; stroke: $ecbs-card-border; }
+  .gauge-fill  { fill: none; stroke: $ecbs-green; stroke-linecap: round;
+                 transition: stroke-dashoffset 0.6s ease; }
+
+  .gauge-center {
+    position: absolute;
+    text-align: center;
+    .gauge-value { font-size: 20px; font-weight: 800; color: $ecbs-text-primary; line-height: 1; }
+    .gauge-label { font-size: 9px; color: $ecbs-text-secondary; }
+  }
+}
+
+// ── Grid layout helpers ───────────────────────────────────────────────────────
+.ecbs-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ecbs-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ecbs-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.ecbs-grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+@media (max-width: 900px) {
+  .ecbs-grid-2, .ecbs-grid-3, .ecbs-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Loading skeleton ──────────────────────────────────────────────────────────
+.ecbs-skeleton {
+  background: linear-gradient(90deg, $ecbs-card-bg 25%, $ecbs-hover 50%, $ecbs-card-bg 75%);
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.ecbs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: $ecbs-text-secondary;
+  text-align: center;
+  gap: 8px;
+
+  .empty-icon { font-size: 40px; opacity: 0.3; }
+  .empty-title { font-size: 14px; font-weight: 600; color: $ecbs-text-primary; }
+  p { font-size: 12px; }
+}

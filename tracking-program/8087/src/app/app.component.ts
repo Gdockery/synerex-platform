@@ -15,7 +15,10 @@ import {WhitelabelService} from "./shared/services/whitelabel.service";
 export class AppComponent implements OnInit {
 
 	public _opened: boolean = true;
-	public brandName: string = 'Xeco'; // Default, will be updated
+	public brandName: string = 'Xeco';
+	public lastUpdated: string = '';
+
+	private _refreshTimer: any;
 	
 	@ViewChild(NgProgressComponent, {static: false}) progressIndicator: NgProgressComponent;
 
@@ -36,9 +39,17 @@ export class AppComponent implements OnInit {
       this._opened = false;
     }
     this.globalNotificationService.subscribe();
-    // Load brand name
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;
+    });
+    this._updateTimestamp();
+    this._refreshTimer = setInterval(() => this._updateTimestamp(), 60000);
+  }
+
+  private _updateTimestamp() {
+    this.lastUpdated = new Date().toLocaleString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit'
     });
   }
 

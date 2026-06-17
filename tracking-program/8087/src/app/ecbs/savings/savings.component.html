@@ -1,0 +1,99 @@
+<!-- ECBS OS™ Savings & Financials — Spec SS-10/A-10 + SS-11/A-11 -->
+<div class="ecbs-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Savings &amp; Financials</h1>
+      <p>Savings Intelligence™ — measure, verify, and quantify the value of ECBS.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Recalculate</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
+    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
+    <p>Loading savings data...</p>
+  </div>
+
+  <ng-container *ngIf="!loading">
+
+    <!-- KPI Row — spec SS-11 top: Annual Savings, Capacity Recovered, ROI, Payback -->
+    <div class="ecbs-kpi-row">
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
+        <div class="kpi-value">${{ (intelligence?.annual_savings_value || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Annual Savings</div>
+        <div class="kpi-delta">+13.4% vs Prior Year</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-blue">
+        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+        <div class="kpi-value">{{ (intelligence?.recovered_capacity_kva || 0) | number:'1.0-0' }} kVA</div>
+        <div class="kpi-label">Capacity Recovered</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-purple">
+        <div class="kpi-icon"><span class="fa fa-percent"></span></div>
+        <div class="kpi-value">{{ (roi?.roi_pct || 0) | number:'1.0-0' }}%</div>
+        <div class="kpi-label">Return on Investment</div>
+        <div class="kpi-delta">Excellent</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-amber">
+        <div class="kpi-icon"><span class="fa fa-clock-o"></span></div>
+        <div class="kpi-value">{{ (payback?.payback_years || 0) | number:'1.1-1' }} yr</div>
+        <div class="kpi-label">Payback Period</div>
+        <div class="kpi-delta neutral">Target: 3.0 Years</div>
+      </div>
+    </div>
+
+    <!-- Main two-column grid -->
+    <div class="ecbs-grid-2">
+
+      <!-- Baseline vs Current Performance — spec SS-11 left table -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-table"></span> Baseline vs Current Performance</div>
+        <div *ngIf="!intelligence" class="ecbs-empty">
+          <span class="empty-icon fa fa-lock"></span>
+          <span class="empty-title">No baseline locked</span>
+          <p>Lock a baseline to see savings performance comparison.</p>
+          <a class="btn-ecbs btn-primary" routerLink="/project/emv-baseline">Lock Baseline</a>
+        </div>
+        <table *ngIf="intelligence" class="ecbs-table">
+          <thead>
+            <tr><th>Metric</th><th>Baseline</th><th>Current</th><th>Δ</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Energy (kWh)</td><td>{{ intelligence.baseline_energy_kwh | number:'1.0-0' }}</td><td>{{ intelligence.current_energy_kwh | number:'1.0-0' }}</td><td style="color:#00e676;">{{ intelligence.energy_savings_pct | number:'1.1-1' }}%</td></tr>
+            <tr><td>Real Demand (kW)</td><td>{{ intelligence.baseline_demand_kw | number:'1.0-0' }}</td><td>{{ intelligence.current_demand_kw | number:'1.0-0' }}</td><td style="color:#00e676;">-{{ intelligence.demand_reduction_pct | number:'1.1-1' }}%</td></tr>
+            <tr><td>Power Factor</td><td>{{ intelligence.baseline_power_factor | number:'1.2-2' }}</td><td>{{ intelligence.current_power_factor | number:'1.2-2' }}</td><td style="color:#00e676;">+{{ intelligence.power_factor_improvement | number:'1.1-1' }}%</td></tr>
+            <tr><td>Available Capacity</td><td>{{ intelligence.baseline_capacity_kva | number:'1.0-0' }} kVA</td><td>{{ intelligence.current_capacity_kva | number:'1.0-0' }} kVA</td><td style="color:#00e676;">+{{ intelligence.recovered_capacity_kva | number:'1.0-0' }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Utility Intelligence — uBillTracker summary — spec SS-10 -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-file-text"></span> uBillTracker™ Summary</div>
+        <div *ngIf="!utilityData" class="ecbs-empty">
+          <span class="empty-icon fa fa-file-o"></span>
+          <span class="empty-title">No utility bills loaded</span>
+          <a class="btn-ecbs btn-outline" routerLink="/billing">Go to Bill Analytics</a>
+        </div>
+        <div *ngIf="utilityData">
+          <div class="ecbs-kpi-row" style="margin-bottom:0;">
+            <div class="ecbs-kpi-card kpi-green" style="padding:10px;">
+              <div class="kpi-value" style="font-size:18px;">${{ (utilityData.total_cost_period || 0) | number:'1.0-0' }}</div>
+              <div class="kpi-label">Total Cost (Period)</div>
+            </div>
+            <div class="ecbs-kpi-card kpi-blue" style="padding:10px;">
+              <div class="kpi-value" style="font-size:18px;">{{ (utilityData.total_usage_kwh || 0) | number:'1.0-0' }}</div>
+              <div class="kpi-label">kWh Usage</div>
+            </div>
+          </div>
+          <a class="btn-ecbs btn-outline" style="font-size:11px;margin-top:10px;" routerLink="/billing/savings-report/list">View Bill Analytics →</a>
+        </div>
+      </div>
+
+    </div>
+
+  </ng-container>
+</div>
