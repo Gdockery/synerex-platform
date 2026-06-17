@@ -535,6 +535,172 @@ def create_app(config_class=Config):
 
         print(f"\n[backfill] COMPLETE — CBI:{cbi_upserted}  CI:{ci_upserted}  SI:{si_upserted}")
 
+    @app.cli.command("seed-ochsner")
+    def seed_ochsner():
+        """
+        Seed reference data for Ochsner Ortho-Lafayette (project 13).
+
+        Creates: site record, approved digital twin with 1500 kVA transformer,
+        and a locked baseline using April 2026 average readings.
+
+        Run: flask seed-ochsner
+        """
+        import time as _t
+        import json
+        from app.extensions import db as _db
+        from sqlalchemy import text
+
+        now_ms = int(_t.time() * 1000)
+        PROJECT_ID = 13
+
+        # ── 1. Site ───────────────────────────────────────────────────────────
+        existing_site = _db.session.execute(
+            text("SELECT id FROM site WHERE project_id=:pid LIMIT 1"),
+            {"pid": PROJECT_ID},
+        ).fetchone()
+
+        if existing_site:
+            site_id = existing_site[0]
+            print(f"[seed] Site already exists: id={site_id}")
+        else:
+            _db.session.execute(text("""
+                INSERT INTO site
+                  (project_id, name, address, city, state, zip, country,
+                   timezone, utility, status, is_deleted, createdAt, updatedAt)
+                VALUES
+                  (:pid, 'Ochsner Ortho-Lafayette', '4604 Ambassador Caffery Pkwy',
+                   'Lafayette', 'Louisiana', '70508', 'USA',
+                   'America/Chicago', 'Entergy Louisiana', 'active', 0, :ts, :ts)
+            """), {"pid": PROJECT_ID, "ts": now_ms})
+            _db.session.commit()
+            site_id = _db.session.execute(
+                text("SELECT id FROM site WHERE project_id=:pid LIMIT 1"),
+                {"pid": PROJECT_ID},
+            ).fetchone()[0]
+            print(f"[seed] Created site id={site_id}")
+
+        # ── 2. Digital Twin ───────────────────────────────────────────────────
+        existing_dt = _db.session.execute(
+            text("SELECT id FROM digital_twin WHERE project_id=:pid AND status IN ('approved','locked') LIMIT 1"),
+            {"pid": PROJECT_ID},
+        ).fetchone()
+
+        if existing_dt:
+            dt_id = existing_dt[0]
+            print(f"[seed] Digital twin already exists: id={dt_id}")
+        else:
+            _db.session.execute(text("""
+                INSERT INTO digital_twin
+                  (site_id, project_id, status, version_number, label,
+                   approved_at, is_deleted, createdAt, updatedAt)
+                VALUES
+                  (:sid, :pid, 'approved', 1, 'Ochsner Main Distribution',
+                   :ts, 0, :ts, :ts)
+            """), {"sid": site_id, "pid": PROJECT_ID, "ts": now_ms})
+            _db.session.commit()
+            dt_id = _db.session.execute(
+                text("SELECT id FROM digital_twin WHERE project_id=:pid AND status='approved' LIMIT 1"),
+                {"pid": PROJECT_ID},
+            ).fetchone()[0]
+
+            # Create twin version with transformer snapshot
+            # Ochsner Ortho has ~1200 kVA peak demand → 1500 kVA transformer
+            snapshot = {
+                "assets": [
+                    {
+                        "id": "util-feed-1",
+                        "type": "Utility",
+                        "label": "Entergy Feed",
+                        "voltage_out": 13800,
+                    },
+                    {
+                        "id": "tx-main-1",
+                        "type": "Transformer",
+                        "label": "TX-Main (1500 kVA)",
+                        "rated_kva": 1500.0,
+                        "voltage_in": 13800,
+                        "voltage_out": 480,
+                        "manufacturer": "Square D",
+                    },
+                    {
+                        "id": "tx-iso-1",
+                        "type": "Transformer",
+                        "label": "TX-ISO (300 kVA)",
+                        "rated_kva": 300.0,
+                        "voltage_in": 480,
+                        "voltage_out": 208,
+                        "manufacturer": "Acme",
+                    },
+                    {
+                        "id": "mdp-main",
+                        "type": "Panel",
+                        "label": "Main Distribution Panel",
+                        "voltage_in": 480,
+                    },
+                ],
+                "relationships": [
+                    {"source": "util-feed-1",  "target": "tx-main-1", "type": "feeds"},
+                    {"source": "tx-main-1",    "target": "mdp-main",  "type": "feeds"},
+                    {"source": "mdp-main",     "target": "tx-iso-1",  "type": "feeds"},
+                ],
+            }
+            _db.session.execute(text("""
+                INSERT INTO digital_twin_version
+                  (digital_twin_id, version_number, label, snapshot, change_summary, createdAt, updatedAt)
+                VALUES
+                  (:dtid, 1, 'Initial approved twin', :snap, 'Seeded from April 2026 metering data', :ts, :ts)
+            """), {"dtid": dt_id, "snap": json.dumps(snapshot), "ts": now_ms})
+            _db.session.commit()
+            print(f"[seed] Created digital twin id={dt_id} with 1500+300 kVA transformers")
+
+        # ── 3. Baseline ───────────────────────────────────────────────────────
+        existing_bl = _db.session.execute(
+            text("SELECT id FROM baseline_master WHERE project_id=:pid AND status='locked' LIMIT 1"),
+            {"pid": PROJECT_ID},
+        ).fetchone()
+
+        if existing_bl:
+            print(f"[seed] Locked baseline already exists: id={existing_bl[0]}")
+        else:
+            # Apr 2026 average from meterdata (PQM meter 236403)
+            row = _db.session.execute(text("""
+                SELECT AVG(totalKw) as avg_kw, AVG(totalKva) as avg_kva,
+                       AVG(avgPf)/100.0 as avg_pf, AVG(totalKvar) as avg_kvar,
+                       MAX(totalKva) as peak_kva
+                FROM meterdata
+                WHERE meter=236403
+            """)).fetchone()
+
+            avg_kw, avg_kva, avg_pf, avg_kvar, peak_kva = row
+            _db.session.execute(text("""
+                INSERT INTO baseline_master
+                  (project_id, version, status, test_type, test_start, test_end,
+                   avg_kw, avg_kva, avg_pf, avg_kvar, peak_kva,
+                   kwh_savings_pct, kw_peak_savings_pct, pf_savings_pct,
+                   notes, createdAt, updatedAt)
+                VALUES
+                  (:pid, 1, 'locked', 'pre_ecbs', '2026-04-01', '2026-04-30',
+                   :avg_kw, :avg_kva, :avg_pf, :avg_kvar, :peak_kva,
+                   0, 0, 0,
+                   'Auto-generated baseline from April 2026 PQM readings', :ts, :ts)
+            """), {
+                "pid": PROJECT_ID,
+                "avg_kw":   round(float(avg_kw or 0), 2),
+                "avg_kva":  round(float(avg_kva or 0), 2),
+                "avg_pf":   round(float(avg_pf or 0), 4),
+                "avg_kvar": round(float(avg_kvar or 0), 2),
+                "peak_kva": round(float(peak_kva or 0), 2),
+                "ts": now_ms,
+            })
+            _db.session.commit()
+            bl_id = _db.session.execute(
+                text("SELECT id FROM baseline_master WHERE project_id=:pid AND status='locked' LIMIT 1"),
+                {"pid": PROJECT_ID},
+            ).fetchone()[0]
+            print(f"[seed] Created locked baseline id={bl_id}: kw={avg_kw:.1f} kva={avg_kva:.1f} pf={avg_pf:.4f}")
+
+        print("\n[seed] COMPLETE")
+
     @app.cli.command("phase6-migrate")
     def phase6_migrate():
         """Phase 6 — create baseline_master table + add active_baseline_id to project. Run: flask phase6-migrate"""
