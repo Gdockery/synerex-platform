@@ -54,6 +54,8 @@ from app.api.savings_routes import savings_bp
 from app.api.utility_routes import utility_bp
 # Phase 11
 from app.api.alarm_routes import alarm_bp
+# Phase 12
+from app.api.report_catalog_routes import report_catalog_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -167,6 +169,8 @@ def create_app(config_class=Config):
     app.register_blueprint(utility_bp)
     # Phase 11 blueprints
     app.register_blueprint(alarm_bp)
+    # Phase 12 blueprints
+    app.register_blueprint(report_catalog_bp)
 
     @app.route("/health")
     def health():
@@ -378,6 +382,13 @@ def create_app(config_class=Config):
         from app.db_migrations import phase11_create_alarm_tables
         result = phase11_create_alarm_tables()
         print(f"phase11-migrate: {result}")
+
+    @app.cli.command("phase12-migrate")
+    def phase12_migrate():
+        """Phase 12 — create ecbs_reports, report_schedules, report_exports tables. Run: flask phase12-migrate"""
+        from app.db_migrations import phase12_create_report_tables
+        result = phase12_create_report_tables()
+        print(f"phase12-migrate: {result}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():

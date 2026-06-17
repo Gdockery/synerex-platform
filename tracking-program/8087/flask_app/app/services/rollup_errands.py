@@ -1037,12 +1037,13 @@ def run_accumulate_savings():
 
 
 def run_rollup_schedule_tasks():
-    """Rollup schedule: rollup → CBI → Capacity Intelligence → Savings Intelligence → Alarms."""
+    """Rollup schedule: rollup → CBI → Capacity Intelligence → Savings Intelligence → Alarms → Reports."""
     run_perform_rollup()
     _run_cbi_auto_compute()
-    _run_ci_auto_compute()    # Phase 8 — downstream of CBI
-    _run_si_auto_compute()    # Phase 9 — downstream of CI
-    _run_alarm_evaluation()   # Phase 11 — downstream of all analytics
+    _run_ci_auto_compute()      # Phase 8 — downstream of CBI
+    _run_si_auto_compute()      # Phase 9 — downstream of CI
+    _run_alarm_evaluation()     # Phase 11 — downstream of all analytics
+    _run_scheduled_reports()    # Phase 12 — fire any due scheduled reports
 
 
 def _run_cbi_auto_compute():
@@ -1700,6 +1701,88 @@ def _run_si_auto_compute():
         except Exception as exc:
             db.session.rollback()
             logger.warning("[si-auto] project=%d error: %s", project.id, exc)
+
+
+def _run_scheduled_reports():
+    """
+    Phase 12 — Reporting Engine™ scheduled report runner.
+
+    Checks all active ReportSchedules whose next_run_at <= now and fires
+    report generation for each due schedule.  Updates last_run_at and
+    computes the next next_run_at after each run.
+
+    Runs once per rollup cycle (every ~15 minutes).  Only schedules that
+    are actually due within this window will fire, so the overhead is minimal.
+    """
+    import time as _t
+    try:
+        from app.models.ecbs_report import ReportSchedule
+        from app.services.report_generator import create_and_generate
+    except ImportError:
+        return
+
+    now_ms = int(_t.time() * 1000)
+
+    due = (ReportSchedule.query
+           .filter(
+               ReportSchedule.is_active == True,
+               ReportSchedule.is_deleted == False,
+               ReportSchedule.next_run_at <= now_ms,
+               ReportSchedule.project_id != None,
+           )
+           .all())
+
+    if not due:
+        return
+
+    logger.info("[scheduled-reports] %d schedules due", len(due))
+
+    # Reuse next-run calculator from route module
+    def _next_run(frequency):
+        import calendar
+        from datetime import date, timedelta, datetime, timezone, time as dt_time
+        today  = date.today()
+        if frequency == "daily":
+            d = today + timedelta(days=1)
+        elif frequency == "weekly":
+            d = today + timedelta(weeks=1)
+        elif frequency == "monthly":
+            month = today.month % 12 + 1
+            year  = today.year + (1 if today.month == 12 else 0)
+            d = date(year, month, 1)
+        elif frequency == "quarterly":
+            months_ahead = 3 - ((today.month - 1) % 3)
+            month = (today.month - 1 + months_ahead) % 12 + 1
+            year  = today.year + ((today.month - 1 + months_ahead) // 12)
+            d = date(year, month, 1)
+        elif frequency == "annual":
+            d = date(today.year + 1, 1, 1)
+        else:
+            d = today + timedelta(days=1)
+        return int(datetime.combine(d, dt_time.min).replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+    for sched in due:
+        try:
+            result = create_and_generate(
+                project_id=sched.project_id,
+                category=sched.category,
+                fmt=sched.format,
+                name=f"{sched.name} (scheduled)",
+                site_id=sched.site_id,
+                schedule_id=sched.id,
+            )
+            sched.last_run_at = now_ms
+            sched.next_run_at = _next_run(sched.frequency)
+            sched.updatedAt   = now_ms
+            db.session.commit()
+            logger.info("[scheduled-reports] schedule=%d project=%d result=%s",
+                        sched.id, sched.project_id, result.get("status"))
+        except Exception as exc:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            logger.warning("[scheduled-reports] schedule=%d error: %s", sched.id, exc)
 
 
 def _run_alarm_evaluation():

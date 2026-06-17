@@ -1695,3 +1695,108 @@ def phase11_create_alarm_tables():
                 print(f"phase11_create_alarm_tables: ERROR {table_name}: {e}")
                 results[table_name] = f"error: {e}"
     return results
+
+
+def phase12_create_report_tables():
+    """
+    Phase 12 — Reporting Engine™.
+
+    Creates three tables:
+      ecbs_reports      — report catalog (one row per generated report)
+      report_schedules  — recurring schedule config
+      report_exports    — generated file artifacts (path, size, download count)
+
+    Idempotent — safe to re-run.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped (sqlite)"
+
+    TABLES = [
+        ("ecbs_reports", """
+        CREATE TABLE IF NOT EXISTS `ecbs_reports` (
+            `id`           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`   INT NULL,
+            `site_id`      INT NULL,
+            `name`         VARCHAR(255) NOT NULL,
+            `description`  TEXT         NULL,
+            `category`     VARCHAR(60)  NOT NULL,
+            `report_type`  VARCHAR(60)  NOT NULL,
+            `format`       VARCHAR(20)  NOT NULL DEFAULT 'pdf',
+            `status`       VARCHAR(20)  NOT NULL DEFAULT 'pending',
+            `error`        TEXT         NULL,
+            `from_date`    BIGINT       NULL,
+            `to_date`      BIGINT       NULL,
+            `generated_by` INT          NULL,
+            `generated_at` BIGINT       NULL,
+            `schedule_id`  INT          NULL,
+            `isDeleted`    TINYINT(1)   NOT NULL DEFAULT 0,
+            `createdAt`    BIGINT       NULL,
+            `updatedAt`    BIGINT       NULL,
+            KEY `ix_ecbs_reports_project_category` (`project_id`, `category`),
+            KEY `ix_ecbs_reports_status`           (`status`),
+            KEY `ix_ecbs_reports_generated_at`     (`generated_at`),
+            KEY `ix_ecbs_reports_site_id`          (`site_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("report_schedules", """
+        CREATE TABLE IF NOT EXISTS `report_schedules` (
+            `id`             INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`     INT          NULL,
+            `site_id`        INT          NULL,
+            `name`           VARCHAR(255) NOT NULL,
+            `category`       VARCHAR(60)  NOT NULL,
+            `format`         VARCHAR(20)  NOT NULL DEFAULT 'pdf',
+            `frequency`      VARCHAR(20)  NOT NULL DEFAULT 'monthly',
+            `last_run_at`    BIGINT       NULL,
+            `next_run_at`    BIGINT       NULL,
+            `is_active`      TINYINT(1)   NOT NULL DEFAULT 1,
+            `is_deleted`     TINYINT(1)   NOT NULL DEFAULT 0,
+            `created_by`     INT          NULL,
+            `notify_emails`  TEXT         NULL,
+            `createdAt`      BIGINT       NULL,
+            `updatedAt`      BIGINT       NULL,
+            KEY `ix_rs_project_id`   (`project_id`),
+            KEY `ix_rs_next_run_at`  (`next_run_at`),
+            KEY `ix_rs_is_active`    (`is_active`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("report_exports", """
+        CREATE TABLE IF NOT EXISTS `report_exports` (
+            `id`                  INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `report_id`           INT NOT NULL,
+            `format`              VARCHAR(20)  NOT NULL,
+            `file_path`           VARCHAR(500) NULL,
+            `file_url`            VARCHAR(500) NULL,
+            `file_size`           INT          NULL,
+            `download_count`      INT          NOT NULL DEFAULT 0,
+            `last_downloaded_at`  BIGINT       NULL,
+            `created_at`          BIGINT       NULL,
+            `createdAt`           BIGINT       NULL,
+            `updatedAt`           BIGINT       NULL,
+            KEY `ix_re_report_id` (`report_id`),
+            CONSTRAINT `fk_re_report` FOREIGN KEY (`report_id`)
+                REFERENCES `ecbs_reports` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+    ]
+
+    results = {}
+    from app.extensions import db
+    for table_name, ddl in TABLES:
+        try:
+            db.session.execute(db.text(ddl))
+            db.session.commit()
+            print(f"phase12_create_report_tables: {table_name} OK")
+            results[table_name] = "created"
+        except Exception as e:
+            db.session.rollback()
+            if "already exists" in str(e).lower():
+                results[table_name] = "exists"
+            else:
+                print(f"phase12_create_report_tables: ERROR {table_name}: {e}")
+                results[table_name] = f"error: {e}"
+    return results

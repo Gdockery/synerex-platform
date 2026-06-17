@@ -22,3 +22,5 @@ playwright>=1.44
 # Server-side barcode decode (Phase 3 — requires libzbar0 OS package in container)
 pyzbar>=0.1.9
 Pillow>=10.0
+# Phase 12 — Reporting Engine™ Excel export
+openpyxl>=3.1
