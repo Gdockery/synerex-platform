@@ -828,6 +828,7 @@ def add_missing_model_columns():
         ("project", "tracking_number",         "ALTER TABLE `project` ADD COLUMN `tracking_number` VARCHAR(100) NULL"),
         ("project", "carrier",                 "ALTER TABLE `project` ADD COLUMN `carrier` VARCHAR(50) NULL"),
         ("project", "delivered_at",            "ALTER TABLE `project` ADD COLUMN `delivered_at` BIGINT NULL"),
+        ("project", "placements",              "ALTER TABLE `project` ADD COLUMN `placements` JSON NULL"),
         ("project", "release_status",          "ALTER TABLE `project` ADD COLUMN `release_status` TINYINT(1) NOT NULL DEFAULT 0"),
         ("project", "released_at",             "ALTER TABLE `project` ADD COLUMN `released_at` BIGINT NULL"),
     ]
