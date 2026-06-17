@@ -1537,3 +1537,161 @@ def phase10_create_utility_tables():
                 print(f"phase10_create_utility_tables: ERROR {table_name}: {e}")
                 results[table_name] = f"error: {e}"
     return results
+
+
+def phase11_create_alarm_tables():
+    """
+    Phase 11 — Alarms & Events™.
+
+    Creates five tables:
+      alarms            — canonical alarm records (one per breach instance)
+      alarm_assignments — workflow state-machine audit trail
+      events            — raw event log published by all ECBS modules
+      notifications     — push/email/SMS delivery records
+      alert_rules       — user-defined threshold rules
+
+    Idempotent — safe to re-run.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped (sqlite)"
+
+    TABLES = [
+        ("alert_rules", """
+        CREATE TABLE IF NOT EXISTS `alert_rules` (
+            `id`                INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`        INT NULL,
+            `site_id`           INT NULL,
+            `name`              VARCHAR(255) NOT NULL,
+            `description`       TEXT NULL,
+            `category`          VARCHAR(50)  NOT NULL,
+            `alarm_type`        VARCHAR(100) NOT NULL,
+            `severity`          VARCHAR(20)  NOT NULL DEFAULT 'medium',
+            `metric_key`        VARCHAR(100) NOT NULL,
+            `condition`         VARCHAR(20)  NOT NULL DEFAULT 'greater_than',
+            `threshold`         FLOAT        NOT NULL,
+            `unit`              VARCHAR(30)  NULL,
+            `notify_email`      TINYINT(1)   NOT NULL DEFAULT 1,
+            `notify_push`       TINYINT(1)   NOT NULL DEFAULT 0,
+            `notify_sms`        TINYINT(1)   NOT NULL DEFAULT 0,
+            `notify_user_ids`   TEXT         NULL,
+            `is_active`         TINYINT(1)   NOT NULL DEFAULT 1,
+            `is_deleted`        TINYINT(1)   NOT NULL DEFAULT 0,
+            `created_by`        INT          NULL,
+            `last_triggered_at` BIGINT       NULL,
+            `createdAt`         BIGINT       NULL,
+            `updatedAt`         BIGINT       NULL,
+            KEY `ix_ar_project_id` (`project_id`),
+            KEY `ix_ar_category`   (`category`),
+            KEY `ix_ar_is_active`  (`is_active`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("alarms", """
+        CREATE TABLE IF NOT EXISTS `alarms` (
+            `id`              INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`      INT NULL,
+            `site_id`         INT NULL,
+            `alarm_type`      VARCHAR(100) NOT NULL,
+            `source`          VARCHAR(50)  NOT NULL DEFAULT 'custom',
+            `severity`        VARCHAR(20)  NOT NULL DEFAULT 'medium',
+            `status`          VARCHAR(30)  NOT NULL DEFAULT 'new',
+            `title`           VARCHAR(255) NULL,
+            `description`     TEXT         NULL,
+            `asset_id`        INT          NULL,
+            `asset_name`      VARCHAR(255) NULL,
+            `metric_value`    FLOAT        NULL,
+            `threshold_value` FLOAT        NULL,
+            `unit`            VARCHAR(30)  NULL,
+            `alert_rule_id`   INT          NULL,
+            `triggered_at`    BIGINT       NULL,
+            `acknowledged_at` BIGINT       NULL,
+            `resolved_at`     BIGINT       NULL,
+            `closed_at`       BIGINT       NULL,
+            `isDeleted`       TINYINT(1)   NOT NULL DEFAULT 0,
+            `createdAt`       BIGINT       NULL,
+            `updatedAt`       BIGINT       NULL,
+            KEY `ix_alarms_site_status`    (`site_id`,    `status`),
+            KEY `ix_alarms_project_status` (`project_id`, `status`),
+            KEY `ix_alarms_alarm_type`     (`alarm_type`),
+            KEY `ix_alarms_severity`       (`severity`),
+            CONSTRAINT `fk_alarms_alert_rule` FOREIGN KEY (`alert_rule_id`)
+                REFERENCES `alert_rules` (`id`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("alarm_assignments", """
+        CREATE TABLE IF NOT EXISTS `alarm_assignments` (
+            `id`           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `alarm_id`     INT NOT NULL,
+            `to_status`    VARCHAR(30)  NOT NULL,
+            `assigned_to`  INT          NULL,
+            `performed_by` INT          NULL,
+            `note`         TEXT         NULL,
+            `action_ts`    BIGINT       NULL,
+            `createdAt`    BIGINT       NULL,
+            `updatedAt`    BIGINT       NULL,
+            KEY `ix_aa_alarm_id` (`alarm_id`),
+            CONSTRAINT `fk_aa_alarm` FOREIGN KEY (`alarm_id`)
+                REFERENCES `alarms` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("events", """
+        CREATE TABLE IF NOT EXISTS `events` (
+            `id`          INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`  INT          NULL,
+            `site_id`     INT          NULL,
+            `source`      VARCHAR(50)  NOT NULL,
+            `event_type`  VARCHAR(100) NOT NULL,
+            `severity`    VARCHAR(20)  NULL,
+            `title`       VARCHAR(255) NULL,
+            `description` TEXT         NULL,
+            `payload`     JSON         NULL,
+            `asset_id`    INT          NULL,
+            `event_ts`    BIGINT       NULL,
+            `createdAt`   BIGINT       NULL,
+            `updatedAt`   BIGINT       NULL,
+            KEY `ix_events_project_id` (`project_id`),
+            KEY `ix_events_site_id`    (`site_id`),
+            KEY `ix_events_source`     (`source`),
+            KEY `ix_events_event_ts`   (`event_ts`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("notifications", """
+        CREATE TABLE IF NOT EXISTS `notifications` (
+            `id`        INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `alarm_id`  INT          NULL,
+            `user_id`   INT          NULL,
+            `channel`   VARCHAR(20)  NOT NULL DEFAULT 'email',
+            `recipient` VARCHAR(255) NULL,
+            `subject`   VARCHAR(255) NULL,
+            `body`      TEXT         NULL,
+            `status`    VARCHAR(30)  NOT NULL DEFAULT 'pending',
+            `sent_at`   BIGINT       NULL,
+            `error`     TEXT         NULL,
+            `createdAt` BIGINT       NULL,
+            `updatedAt` BIGINT       NULL,
+            KEY `ix_notif_alarm_id` (`alarm_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+    ]
+
+    results = {}
+    from app.extensions import db
+    for table_name, ddl in TABLES:
+        try:
+            db.session.execute(db.text(ddl))
+            db.session.commit()
+            print(f"phase11_create_alarm_tables: {table_name} OK")
+            results[table_name] = "created"
+        except Exception as e:
+            db.session.rollback()
+            if "already exists" in str(e).lower():
+                results[table_name] = "exists"
+            else:
+                print(f"phase11_create_alarm_tables: ERROR {table_name}: {e}")
+                results[table_name] = f"error: {e}"
+    return results

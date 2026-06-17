@@ -1037,11 +1037,12 @@ def run_accumulate_savings():
 
 
 def run_rollup_schedule_tasks():
-    """Rollup schedule: rollup → CBI → Capacity Intelligence → Savings Intelligence."""
+    """Rollup schedule: rollup → CBI → Capacity Intelligence → Savings Intelligence → Alarms."""
     run_perform_rollup()
     _run_cbi_auto_compute()
     _run_ci_auto_compute()    # Phase 8 — downstream of CBI
     _run_si_auto_compute()    # Phase 9 — downstream of CI
+    _run_alarm_evaluation()   # Phase 11 — downstream of all analytics
 
 
 def _run_cbi_auto_compute():
@@ -1699,6 +1700,38 @@ def _run_si_auto_compute():
         except Exception as exc:
             db.session.rollback()
             logger.warning("[si-auto] project=%d error: %s", project.id, exc)
+
+
+def _run_alarm_evaluation():
+    """
+    Phase 11 — Alarms & Events™ auto-evaluation.
+
+    Runs after Savings Intelligence each rollup cycle.  Evaluates all built-in
+    alarm rules (CBI, Capacity, Savings, Utility) and all user-defined alert
+    rules for every active project.  De-duplicates by (site_id, alarm_type) so
+    active alarms are never duplicated per cycle.
+
+    Errors are swallowed per-project so one bad project cannot block the rest.
+    """
+    from app.models.project import Project
+    from app.services.alarm_engine import run_alarm_evaluation
+
+    projects = Project.query.filter_by(isDeleted=False).all()
+    logger.info("[alarm-eval] triggered for %d projects", len(projects))
+
+    for project in projects:
+        try:
+            result = run_alarm_evaluation(project.id, site_id=None)
+            if result.get("total", 0) > 0:
+                logger.info("[alarm-eval] project=%d new_alarms=%d breakdown=%s",
+                            project.id, result["total"],
+                            {k: v for k, v in result.items() if k != "total"})
+        except Exception as exc:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            logger.warning("[alarm-eval] project=%d error: %s", project.id, exc)
 
 
 def process_queue_message(topic, data):
