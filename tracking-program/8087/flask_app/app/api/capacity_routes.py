@@ -110,7 +110,15 @@ def get_summary():
     to_ts   = request.args.get("to_ts",   type=int, default=now)
 
     summary = dashboard_summary(project_id, site_id=site_id, from_ts=from_ts, to_ts=to_ts)
-    return jsonify({"data": summary})
+    # Alias fields to match Angular component expectations
+    if "error" not in summary:
+        summary["installed_capacity_kva"]  = summary.get("installed_capacity")
+        summary["current_load_kva"]        = summary.get("used_capacity")
+        summary["available_capacity_kva"]  = summary.get("available_capacity")
+        summary["hidden_capacity_kva"]     = summary.get("hidden_capacity")
+        summary["recovered_capacity_kva"]  = summary.get("recoverable_capacity")
+        summary["health_score"]            = summary.get("capacity_health_score")
+    return jsonify(summary)
 
 
 # ── 2. Assets — Per-asset capacity table ─────────────────────────────────────

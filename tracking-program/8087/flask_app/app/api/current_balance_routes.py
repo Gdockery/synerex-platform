@@ -160,8 +160,11 @@ def get_summary():
     row_dicts = [_cbm_dict(r) for r in rows]
 
     summary = dashboard_summary(row_dicts)
-    return jsonify({"meta": {"from_ts": from_ts, "to_ts": to_ts, "rows": len(rows)},
-                    "response": summary})
+    # Flatten response so Angular components can access fields directly
+    summary["meta"]  = {"from_ts": from_ts, "to_ts": to_ts, "rows": len(rows)}
+    summary["score"] = summary.get("cbi_score")      # Angular alias
+    summary["power_factor"] = summary.get("avg_pf")  # Angular alias
+    return jsonify(summary)
 
 
 # ── 2. Timeseries ─────────────────────────────────────────────────────────────

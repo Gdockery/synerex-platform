@@ -121,7 +121,10 @@ def get_intelligence():
         from_ts=from_ts, to_ts=to_ts,
         baseline_id=baseline_id,
     )
-    return jsonify({"data": summary})
+    # Alias for Angular backward compat
+    if "error" not in summary:
+        summary["annual_savings_est"] = summary.get("annual_savings")
+    return jsonify(summary)
 
 
 # ── 2. ROI endpoint ───────────────────────────────────────────────────────────
