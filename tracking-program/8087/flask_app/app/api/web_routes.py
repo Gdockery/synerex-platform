@@ -42,8 +42,18 @@ web_bp = Blueprint("web", __name__, url_prefix="")
 
 
 def _login_url():
-    """Login URL with application root when behind proxy (e.g. /tracking/login)."""
+    """Login URL with application root when behind proxy (e.g. /tracking/login).
+
+    When accessed directly on port 8087 (no proxy), the browser sends the full
+    path including the APPLICATION_ROOT prefix, but Flask's auth blueprint is
+    mounted at /login (no prefix).  Redirecting to /tracking/login in that case
+    creates an infinite loop.  Detect direct access and strip the prefix so Flask
+    can match the actual /login route.
+    """
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    # Strip prefix when accessed directly on port 8087 (not via proxy)
+    if base and "8087" in (request.host or ""):
+        base = ""
     return f"{base}/login" if base else url_for("auth.show_login_page")
 
 
