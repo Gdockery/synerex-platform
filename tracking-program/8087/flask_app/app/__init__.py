@@ -416,6 +416,7 @@ def create_app(config_class=Config):
         Run: flask backfill-analytics --project-id 13
         """
         import time as _t
+        from app.extensions import db as _db
         from app.models.meter import Meter
         from app.models.meter_data import MeterData
         from app.models.current_balance_metrics import CurrentBalanceMetrics
@@ -472,13 +473,13 @@ def create_app(config_class=Config):
                                 setattr(existing, k, v)
                         existing.updatedAt = now_ms
                     else:
-                        db.session.add(CurrentBalanceMetrics(
+                        _db.session.add(CurrentBalanceMetrics(
                             createdAt=now_ms, updatedAt=now_ms,
                             **{k: v for k, v in b.items() if hasattr(CurrentBalanceMetrics, k)},
                         ))
                     cbi_upserted += 1
 
-            db.session.commit()
+            _db.session.commit()
             offset += batch_size
             print(f"[backfill] CBI: offset={offset}/{total_rows} upserted={cbi_upserted}")
 
@@ -500,12 +501,12 @@ def create_app(config_class=Config):
                         setattr(existing, k, v)
                 existing.updatedAt = now_ms
             else:
-                db.session.add(CapacityIntelligence(
+                _db.session.add(CapacityIntelligence(
                     createdAt=now_ms, updatedAt=now_ms,
                     **{k: v for k, v in b.items() if hasattr(CapacityIntelligence, k)},
                 ))
             ci_upserted += 1
-        db.session.commit()
+        _db.session.commit()
         print(f"[backfill] CI done — {ci_upserted} buckets upserted")
 
         # ── Step 3: Savings Intelligence backfill ─────────────────────────────
@@ -524,12 +525,12 @@ def create_app(config_class=Config):
                         setattr(existing, k, v)
                 existing.updatedAt = now_ms
             else:
-                db.session.add(SavingsIntelligence(
+                _db.session.add(SavingsIntelligence(
                     createdAt=now_ms, updatedAt=now_ms,
                     **{k: v for k, v in b.items() if hasattr(SavingsIntelligence, k)},
                 ))
             si_upserted += 1
-        db.session.commit()
+        _db.session.commit()
         print(f"[backfill] SI done — {si_upserted} buckets upserted")
 
         print(f"\n[backfill] COMPLETE — CBI:{cbi_upserted}  CI:{ci_upserted}  SI:{si_upserted}")
