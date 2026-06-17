@@ -426,6 +426,8 @@ def create_app(config_class=Config):
         from app.services.capacity_intelligence_engine import compute_capacity_from_cbi_metrics
         from app.services.savings_intelligence_engine import compute_savings_for_project
 
+        import sys
+
         now_ms = int(_t.time() * 1000)
         since_ms = (now_ms - days * 86_400_000) if days > 0 else 0
 
@@ -434,27 +436,44 @@ def create_app(config_class=Config):
             print(f"[backfill] No meters found for project {project_id}")
             return
 
-        print(f"[backfill] project={project_id} meters={meter_ids} since_ms={since_ms or 'all'}")
+        # Resume from last processed recordedAt (cursor-based pagination)
+        from sqlalchemy import text as _text, func
+        last_bucket = _db.session.execute(
+            _text("SELECT MAX(bucket_ts) FROM current_balance_metrics WHERE project_id=:pid"),
+            {"pid": project_id},
+        ).scalar()
+        # bucket_ts is aligned to 15-min, so next unprocessed data is bucket_ts + 15-min in ms
+        if last_bucket and not since_ms:
+            cursor_ms = int(last_bucket) + 1  # resume after last bucket
+            print(f"[backfill] Resuming from bucket_ts={last_bucket} (cursor={cursor_ms})")
+        else:
+            cursor_ms = since_ms
+            print(f"[backfill] Starting fresh from since_ms={since_ms or 0}")
 
-        # ── Step 1: CBI backfill ──────────────────────────────────────────────
-        total_rows = (MeterData.query
-                      .filter(MeterData.meter.in_(meter_ids))
-                      .filter(MeterData.recordedAt >= since_ms)
-                      .count())
-        print(f"[backfill] CBI: {total_rows} meterdata rows to process in batches of {batch_size}")
+        print(f"[backfill] project={project_id} meters={meter_ids}")
 
-        offset = 0
+        # ── Step 1: CBI backfill (cursor-based pagination — no slow OFFSET) ──
+        total_remaining = (MeterData.query
+                           .filter(MeterData.meter.in_(meter_ids))
+                           .filter(MeterData.recordedAt >= cursor_ms)
+                           .count())
+        print(f"[backfill] CBI: {total_remaining} meterdata rows remaining")
+        sys.stdout.flush()
+
+        last_ts = cursor_ms - 1
         cbi_upserted = 0
-        while offset < total_rows:
+        batches_done = 0
+        while True:
             batch = (MeterData.query
                      .filter(MeterData.meter.in_(meter_ids))
-                     .filter(MeterData.recordedAt >= since_ms)
+                     .filter(MeterData.recordedAt > last_ts)
                      .order_by(MeterData.recordedAt.asc())
-                     .offset(offset)
                      .limit(batch_size)
                      .all())
             if not batch:
                 break
+
+            last_ts = batch[-1].recordedAt  # advance cursor
 
             for meter_id_val in meter_ids:
                 meter_batch = [r for r in batch if r.meter == meter_id_val]
@@ -480,8 +499,9 @@ def create_app(config_class=Config):
                     cbi_upserted += 1
 
             _db.session.commit()
-            offset += batch_size
-            print(f"[backfill] CBI: offset={offset}/{total_rows} upserted={cbi_upserted}")
+            batches_done += 1
+            print(f"[backfill] CBI batch={batches_done} last_ts={last_ts} upserted={cbi_upserted}")
+            sys.stdout.flush()
 
         print(f"[backfill] CBI done — {cbi_upserted} buckets upserted")
 
