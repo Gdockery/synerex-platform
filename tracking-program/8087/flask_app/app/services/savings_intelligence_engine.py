@@ -472,6 +472,29 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
     pf_imp       = _mean([r.pf_improvement for r in rows])
     rec_kva      = _mean([r.recoverable_kva for r in rows])
 
+    # Baseline / current averages (stored per-row, averaged over window)
+    b_avg_kw  = _mean([r.baseline_avg_kw   for r in rows])
+    b_avg_kva = _mean([r.baseline_avg_kva  for r in rows])
+    b_avg_pf  = _mean([r.baseline_avg_pf   for r in rows])
+    b_pk_kva  = _mean([r.baseline_peak_kva for r in rows])
+    c_avg_kw  = _mean([r.current_avg_kw    for r in rows])
+    c_avg_kva = _mean([r.current_avg_kva   for r in rows])
+    c_avg_pf  = _mean([r.current_avg_pf    for r in rows])
+
+    # Annualised energy estimates (kWh = avg_kW × 8760 h/yr)
+    b_kwh = round(b_avg_kw * 8760, 0) if b_avg_kw else None
+    c_kwh = round(c_avg_kw * 8760, 0) if c_avg_kw else None
+
+    # Derived percentage improvements
+    def _pct_improve(baseline_val, current_val):
+        if baseline_val and current_val and baseline_val > 0:
+            return round((1 - current_val / baseline_val) * 100, 1)
+        return None
+
+    energy_savings_pct   = _pct_improve(b_avg_kw, c_avg_kw)
+    demand_reduction_pct = round(kw_red / b_avg_kw * 100, 1) if (kw_red and b_avg_kw) else None
+    pf_improvement_pct   = round(pf_imp * 100, 2) if pf_imp is not None else None
+
     # Trend: compare first half vs second half annual_savings
     n    = len(rows)
     half = n // 2
@@ -517,6 +540,19 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
         "project_cost":           _latest("project_cost"),
         "energy_rate":            _latest("energy_rate"),
         "demand_rate":            _latest("demand_rate"),
+        # Baseline vs current (averaged over window) — for comparison table
+        "baseline_avg_kw":        b_avg_kw,
+        "baseline_avg_kva":       b_avg_kva,
+        "baseline_avg_pf":        b_avg_pf,
+        "baseline_peak_kva":      b_pk_kva,
+        "current_avg_kw":         c_avg_kw,
+        "current_avg_kva":        c_avg_kva,
+        "current_avg_pf":         c_avg_pf,
+        "baseline_kwh_year":      b_kwh,
+        "current_kwh_year":       c_kwh,
+        "energy_savings_pct":     energy_savings_pct,
+        "demand_reduction_pct":   demand_reduction_pct,
+        "pf_improvement_pct":     pf_improvement_pct,
     }
 
 

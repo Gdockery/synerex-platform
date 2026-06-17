@@ -64,21 +64,21 @@ export class DashboardComponent implements OnInit {
   }
 
   get annualSavingsDisplay(): string {
-    const v = this.savingsData?.annual_savings_value;
+    const v = this.savingsData?.annual_savings_est ?? this.savingsData?.annual_savings;
     if (!v) return '—';
     return '$' + Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
   get capacityRecovered(): string {
-    const v = this.capacityData?.recovered_capacity_kva;
+    const v = this.capacityData?.recovered_capacity_kva ?? this.capacityData?.recoverable_kva;
     if (!v) return '—';
     return Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' kVA';
   }
 
   get avgPowerFactor(): string {
-    const v = this.savingsData?.current_power_factor;
+    const v = this.savingsData?.current_avg_pf ?? this.savingsData?.current_power_factor;
     if (!v) return '—';
-    return Number(v).toFixed(2);
+    return Number(v).toFixed(3);
   }
 
   get activeAlarms(): number {

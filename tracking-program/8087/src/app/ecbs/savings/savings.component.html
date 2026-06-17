@@ -22,24 +22,24 @@
     <div class="ecbs-kpi-row">
       <div class="ecbs-kpi-card kpi-green">
         <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
-        <div class="kpi-value">${{ (intelligence?.annual_savings_value || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-value">${{ ((intelligence.annual_savings_est ?? intelligence.annual_savings) || 0) | number:'1.0-0' }}</div>
         <div class="kpi-label">Annual Savings</div>
         <div class="kpi-delta">+13.4% vs Prior Year</div>
       </div>
       <div class="ecbs-kpi-card kpi-blue">
         <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-        <div class="kpi-value">{{ (intelligence?.recovered_capacity_kva || 0) | number:'1.0-0' }} kVA</div>
+        <div class="kpi-value">{{ (intelligence.recoverable_kva || 0) | number:'1.0-0' }} kVA</div>
         <div class="kpi-label">Capacity Recovered</div>
       </div>
       <div class="ecbs-kpi-card kpi-purple">
         <div class="kpi-icon"><span class="fa fa-percent"></span></div>
-        <div class="kpi-value">{{ (roi?.roi_pct || 0) | number:'1.0-0' }}%</div>
+        <div class="kpi-value">{{ (roi.roi || 0) | number:'1.0-0' }}%</div>
         <div class="kpi-label">Return on Investment</div>
         <div class="kpi-delta">Excellent</div>
       </div>
       <div class="ecbs-kpi-card kpi-amber">
         <div class="kpi-icon"><span class="fa fa-clock-o"></span></div>
-        <div class="kpi-value">{{ (payback?.payback_years || 0) | number:'1.1-1' }} yr</div>
+        <div class="kpi-value">{{ (payback.payback || 0) | number:'1.1-1' }} yr</div>
         <div class="kpi-label">Payback Period</div>
         <div class="kpi-delta neutral">Target: 3.0 Years</div>
       </div>
@@ -62,10 +62,10 @@
             <tr><th>Metric</th><th>Baseline</th><th>Current</th><th>Δ</th></tr>
           </thead>
           <tbody>
-            <tr><td>Energy (kWh)</td><td>{{ intelligence.baseline_energy_kwh | number:'1.0-0' }}</td><td>{{ intelligence.current_energy_kwh | number:'1.0-0' }}</td><td style="color:#00e676;">{{ intelligence.energy_savings_pct | number:'1.1-1' }}%</td></tr>
-            <tr><td>Real Demand (kW)</td><td>{{ intelligence.baseline_demand_kw | number:'1.0-0' }}</td><td>{{ intelligence.current_demand_kw | number:'1.0-0' }}</td><td style="color:#00e676;">-{{ intelligence.demand_reduction_pct | number:'1.1-1' }}%</td></tr>
-            <tr><td>Power Factor</td><td>{{ intelligence.baseline_power_factor | number:'1.2-2' }}</td><td>{{ intelligence.current_power_factor | number:'1.2-2' }}</td><td style="color:#00e676;">+{{ intelligence.power_factor_improvement | number:'1.1-1' }}%</td></tr>
-            <tr><td>Available Capacity</td><td>{{ intelligence.baseline_capacity_kva | number:'1.0-0' }} kVA</td><td>{{ intelligence.current_capacity_kva | number:'1.0-0' }} kVA</td><td style="color:#00e676;">+{{ intelligence.recovered_capacity_kva | number:'1.0-0' }}</td></tr>
+            <tr><td>Energy (kWh)</td><td>{{ intelligence.baseline_kwh_year | number:'1.0-0' }}</td><td>{{ intelligence.current_kwh_year | number:'1.0-0' }}</td><td style="color:#00e676;">{{ intelligence.energy_savings_pct | number:'1.1-1' }}%</td></tr>
+            <tr><td>Real Demand (kW)</td><td>{{ intelligence.baseline_avg_kw | number:'1.0-0' }}</td><td>{{ intelligence.current_avg_kw | number:'1.0-0' }}</td><td style="color:#00e676;">-{{ intelligence.demand_reduction_pct | number:'1.1-1' }}%</td></tr>
+            <tr><td>Power Factor</td><td>{{ intelligence.baseline_avg_pf | number:'1.2-2' }}</td><td>{{ intelligence.current_avg_pf | number:'1.2-2' }}</td><td style="color:#00e676;">+{{ intelligence.pf_improvement_pct | number:'1.1-1' }}%</td></tr>
+            <tr><td>Available Capacity</td><td>{{ intelligence.baseline_avg_kva | number:'1.0-0' }} kVA</td><td>{{ intelligence.current_avg_kva | number:'1.0-0' }} kVA</td><td style="color:#00e676;">+{{ intelligence.recoverable_kva | number:'1.0-0' }}</td></tr>
           </tbody>
         </table>
       </div>
