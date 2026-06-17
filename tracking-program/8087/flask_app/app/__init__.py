@@ -50,6 +50,8 @@ from app.api.current_balance_routes import current_balance_bp
 from app.api.capacity_routes import capacity_bp
 # Phase 9
 from app.api.savings_routes import savings_bp
+# Phase 10
+from app.api.utility_routes import utility_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -159,6 +161,8 @@ def create_app(config_class=Config):
     app.register_blueprint(capacity_bp)
     # Phase 9 blueprints
     app.register_blueprint(savings_bp)
+    # Phase 10 blueprints
+    app.register_blueprint(utility_bp)
 
     @app.route("/health")
     def health():
@@ -356,6 +360,13 @@ def create_app(config_class=Config):
         from app.db_migrations import phase9_create_savings_intelligence_table
         result = phase9_create_savings_intelligence_table()
         print(f"phase9-migrate: {result}")
+
+    @app.cli.command("phase10u-migrate")
+    def phase10u_migrate():
+        """Phase 10 — create utility_accounts, utility_bills, utility_forecasts tables. Run: flask phase10u-migrate"""
+        from app.db_migrations import phase10_create_utility_tables
+        result = phase10_create_utility_tables()
+        print(f"phase10u-migrate: {result}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():

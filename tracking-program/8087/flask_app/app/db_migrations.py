@@ -1411,3 +1411,129 @@ def phase9_create_savings_intelligence_table():
             return "exists"
         print(f"phase9_create_savings_intelligence_table: ERROR: {e}")
         return f"error: {e}"
+
+
+def phase10_create_utility_tables():
+    """
+    Phase 10 — Utility Intelligence™.
+
+    Creates three tables:
+      utility_accounts  — utility service accounts per project
+      utility_bills     — monthly bill records (uBillTracker™)
+      utility_forecasts — projected future bills (uBillForecast™)
+
+    Idempotent — safe to re-run.
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped (sqlite)"
+
+    TABLES = [
+        ("utility_accounts", """
+        CREATE TABLE IF NOT EXISTS `utility_accounts` (
+            `id`              INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`      INT NOT NULL,
+            `site_id`         INT NULL,
+            `account_number`  VARCHAR(100) NULL,
+            `meter_number`    VARCHAR(100) NULL,
+            `utility_name`    VARCHAR(255) NULL,
+            `tariff_code`     VARCHAR(100) NULL,
+            `service_address` VARCHAR(500) NULL,
+            `is_primary`      TINYINT(1) NOT NULL DEFAULT 1,
+            `notes`           TEXT NULL,
+            `isDeleted`       TINYINT(1) NOT NULL DEFAULT 0,
+            `createdAt`       BIGINT NULL,
+            `updatedAt`       BIGINT NULL,
+            UNIQUE KEY `uq_utility_account_project_acct` (`project_id`, `account_number`),
+            KEY `ix_ua_project_id` (`project_id`),
+            KEY `ix_ua_site_id`    (`site_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("utility_bills", """
+        CREATE TABLE IF NOT EXISTS `utility_bills` (
+            `id`                    INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`            INT NOT NULL,
+            `site_id`               INT NULL,
+            `account_id`            INT NULL,
+            `bill_month`            VARCHAR(7) NOT NULL,
+            `bill_date`             VARCHAR(20) NULL,
+            `due_date`              VARCHAR(20) NULL,
+            `energy_kwh`            FLOAT NULL,
+            `demand_kw`             FLOAT NULL,
+            `demand_kva`            FLOAT NULL,
+            `power_factor`          FLOAT NULL,
+            `energy_cost`           FLOAT NULL,
+            `demand_cost`           FLOAT NULL,
+            `taxes`                 FLOAT NULL,
+            `fees`                  FLOAT NULL,
+            `total_cost`            FLOAT NULL,
+            `effective_energy_rate` FLOAT NULL,
+            `effective_demand_rate` FLOAT NULL,
+            `is_paid`               TINYINT(1) NOT NULL DEFAULT 0,
+            `is_estimated`          TINYINT(1) NOT NULL DEFAULT 0,
+            `source`                VARCHAR(50) NULL,
+            `notes`                 TEXT NULL,
+            `uploaded_at`           BIGINT NULL,
+            `uploaded_by`           INT NULL,
+            `isDeleted`             TINYINT(1) NOT NULL DEFAULT 0,
+            `createdAt`             BIGINT NULL,
+            `updatedAt`             BIGINT NULL,
+            UNIQUE KEY `uq_utility_bill_project_acct_month` (`project_id`, `account_id`, `bill_month`),
+            KEY `ix_ub_project_id`  (`project_id`),
+            KEY `ix_ub_bill_month`  (`bill_month`),
+            KEY `ix_ub_uploaded_at` (`uploaded_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+
+        ("utility_forecasts", """
+        CREATE TABLE IF NOT EXISTS `utility_forecasts` (
+            `id`                    INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            `project_id`            INT NOT NULL,
+            `site_id`               INT NULL,
+            `forecast_month`        VARCHAR(7) NOT NULL,
+            `forecast_energy_kwh`   FLOAT NULL,
+            `forecast_demand_kw`    FLOAT NULL,
+            `forecast_energy_cost`  FLOAT NULL,
+            `forecast_demand_cost`  FLOAT NULL,
+            `forecast_taxes`        FLOAT NULL,
+            `forecast_fees`         FLOAT NULL,
+            `forecast_total_cost`   FLOAT NULL,
+            `budget_total_cost`     FLOAT NULL,
+            `variance_vs_budget`    FLOAT NULL,
+            `variance_pct`          FLOAT NULL,
+            `prior_year_total_cost` FLOAT NULL,
+            `yoy_variance`          FLOAT NULL,
+            `yoy_variance_pct`      FLOAT NULL,
+            `drivers_of_change`     JSON NULL,
+            `energy_rate`           FLOAT NULL,
+            `demand_rate`           FLOAT NULL,
+            `calculated_at`         BIGINT NULL,
+            `trailing_months_used`  INT NULL,
+            `confidence`            VARCHAR(10) NULL,
+            `isDeleted`             TINYINT(1) NOT NULL DEFAULT 0,
+            `createdAt`             BIGINT NULL,
+            `updatedAt`             BIGINT NULL,
+            UNIQUE KEY `uq_utility_forecast_project_month` (`project_id`, `forecast_month`),
+            KEY `ix_uf_project_id`     (`project_id`),
+            KEY `ix_uf_forecast_month` (`forecast_month`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """),
+    ]
+
+    results = {}
+    for table_name, sql in TABLES:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"phase10_create_utility_tables: {table_name} created.")
+            results[table_name] = "created"
+        except Exception as e:
+            err = str(e).lower()
+            if "already exists" in err or "1050" in err:
+                results[table_name] = "exists"
+            else:
+                print(f"phase10_create_utility_tables: ERROR {table_name}: {e}")
+                results[table_name] = f"error: {e}"
+    return results
