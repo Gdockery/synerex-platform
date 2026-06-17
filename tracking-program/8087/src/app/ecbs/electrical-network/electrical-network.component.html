@@ -7,7 +7,7 @@
       <p>Monitor your entire electrical distribution system in real time.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline" (click)="loading=true;ngOnInit()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
       <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
@@ -27,7 +27,7 @@
     </div>
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
-      <div class="kpi-value">{{ cbi?.power_factor | number:'1.3-3' }}</div>
+      <div class="kpi-value">{{ (cbi?.power_factor || 0) | number:'1.3-3' }}</div>
       <div class="kpi-label">System Power Factor</div>
     </div>
     <div class="ecbs-kpi-card kpi-green">

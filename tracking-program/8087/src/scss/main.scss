@@ -54,8 +54,8 @@ li {
 }
 
 ng-sidebar-container {
-  display:flex !important;
-  flex-direction: column;
+  display: flex !important;
+  flex-direction: row;
   flex: 1;
 }
 
@@ -116,17 +116,9 @@ a:hover {
   width:100%;
 }
 
-.page-content {
-  width: 100%;
-	padding: 0 0 2em 20px;
-	height:100%;
-	overflow: auto;
-
-  /* Add breathing room between toolbar and route page content */
-  > *:not(sd-toolbar) .container-fluid:first-child,
-  > *:not(sd-toolbar) > .container-fluid {
-    padding-top: 28px;
-  }
+.page-content-legacy-padding {
+  // Kept for reference — old white padding removed in ECBS redesign
+  padding: 0 0 2em 20px;
 }
 
 .white-box {
@@ -218,43 +210,75 @@ ul.unstyled-list {
   content: '';
 }
 
-// Sidebar
+// ── ECBS Sidebar (ng-sidebar shell) ──────────────────────────────────────────
 .ng-sidebar {
-  background-color: #323232 !important;
+  background-color: #0d1525 !important; // ECBS dark navy — overrides any theme default
   z-index: 999999;
 }
 
-.ng-sidebar--closed li .icon {
-  float: right;
-  position:relative;
-  right: 15px;
+// Full-open state: normal layout (icon + text)
+.ng-sidebar nav li a {
+  overflow: hidden;
 }
 
+// ── Collapsed / docked state (50 px) ─────────────────────────────────────────
+// ng-sidebar adds .ng-sidebar--closed when [(opened)] is false with [dock]="true"
 
 .ng-sidebar--closed li .text {
-  display:none;
-}
-
-.ng-sidebar--closed .header {
   display: none;
 }
 
+// Center icons within the 50 px strip
+.ng-sidebar--closed nav li a {
+  justify-content: center;
+  padding: 10px 0;
+  border-left: 3px solid transparent !important;
+  .icon { width: auto; margin: 0; }
+}
+
+// Active item in collapsed state — green left border
+.ng-sidebar--closed nav li a.router-link-active {
+  border-left-color: #00e676 !important;
+  background: rgba(0, 230, 118, 0.06);
+}
+
+// Hide logo + section labels + CBI card + user text in collapsed state
+.ng-sidebar--closed .header         { overflow: hidden; padding: 10px 0 !important; justify-content: center !important; img.logo-image { max-width: 30px !important; } span { display: none; } }
+.ng-sidebar--closed .nav-section-label { display: none; }
+.ng-sidebar--closed .nav-divider     { margin: 4px 6px; }
+.ng-sidebar--closed .cbi-card        { display: none; }
+.ng-sidebar--closed .user-info       { display: none; }
+.ng-sidebar--closed .user-avatar     { margin: 0 auto; }
+.ng-sidebar--closed .navbar-bottom-wrap .fa.fa-chevron-down { display: none; }
+.ng-sidebar--closed .navbar-bottom-wrap .select-caret       { display: none; }
+
+// Toggle button — always visible in both states
 .ng-sidebar--closed .sidebarToggle {
-  display:block;
-  color: $primaryColor6;
-  border-bottom: 1px solid $primaryColor9;
-  padding: 15px 0 15px 10px;
+  display: block;
+  color: #8899a6;
+  padding: 14px 0;
   font-size: 16px;
-  font-weight: 400;
-  width: 50px;
-  text-decoration: none;
-  vertical-align: middle;
   cursor: pointer;
-  right: 0 !important;
+  text-align: center;
+  width: 50px;
 }
 
 div.ng-sidebar__content {
   overflow: visible !important;
+  background: #0a0f1a;   // ECBS page background
+}
+
+// ── Global dark page background ───────────────────────────────────────────────
+body, html {
+  background: #0a0f1a !important;
+}
+
+.page-content {
+  background: #0a0f1a;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-dialog {
@@ -342,4 +366,62 @@ h3 {
     color: $primaryColor5;
     border: 2px solid $primaryColor5;
   }
+}
+
+// ── ECBS App Shell — footer + page body ──────────────────────────────────────
+.ecbs-page-body {
+  flex: 1;
+  background: #0a0f1a;
+  padding-bottom: 36px; // clear fixed footer
+}
+
+.ecbs-footer {
+  background: #0d1525;
+  border-top: 1px solid #1e2d45;
+  height: 34px;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 20px;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.ecbs-footer-copy {
+  font-size: 9px;
+  color: #546e7a;
+  flex: 1;
+}
+
+.ecbs-footer-links {
+  display: flex;
+  gap: 12px;
+  a {
+    font-size: 10px;
+    color: #546e7a;
+    text-decoration: none !important;
+    &:hover { color: #8899a6; }
+  }
+}
+
+.ecbs-footer-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #546e7a;
+  white-space: nowrap;
+}
+
+.live-dot-sm {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00e676;
+  box-shadow: 0 0 5px #00e676;
 }

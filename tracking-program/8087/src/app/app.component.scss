@@ -4,6 +4,23 @@
 
 :host {
   height: 100%;
-  display:block;
-  margin: 2px;
+  display: block;
+  margin: 0;
+  background: #0a0f1a;
+}
+
+// Ensure the ng-sidebar-container fills full height in row layout
+::ng-deep ng-sidebar-container {
+  flex-direction: row !important;
+  height: 100vh !important;
+}
+
+// Sidebar content area (right of sidebar) dark background
+::ng-deep .ng-sidebar__content {
+  background: #0a0f1a !important;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }

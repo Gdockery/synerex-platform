@@ -63,12 +63,12 @@
         </div>
 
         <div class="cbi-meta-grid">
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.neutral_current_a | number:'1.1-1' }} A</div><div class="cbi-meta-lbl">Neutral Current</div></div>
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.unbalance_pct | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">Unbalance</div></div>
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ia | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase A</div></div>
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ib | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase B</div></div>
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ic | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase C</div></div>
-          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_v | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDv</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.neutral_current_a || 0) | number:'1.1-1' }} A</div><div class="cbi-meta-lbl">Neutral Current</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.unbalance_pct || 0) | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">Unbalance</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.thd_ia || 0) | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase A</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.thd_ib || 0) | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase B</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.thd_ic || 0) | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase C</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ (cbi.thd_v || 0) | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDv</div></div>
         </div>
       </div>
 
@@ -81,18 +81,18 @@
           <div class="phase-grid">
             <div class="phase-card phase-a">
               <div class="phase-label">Phase A</div>
-              <div class="phase-val">{{ cbi.ia | number:'1.1-1' }} A</div>
-              <div class="phase-sub">{{ cbi.va | number:'1.0-0' }} V</div>
+              <div class="phase-val">{{ (cbi.ia || 0) | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ (cbi.va || 0) | number:'1.0-0' }} V</div>
             </div>
             <div class="phase-card phase-b">
               <div class="phase-label">Phase B</div>
-              <div class="phase-val">{{ cbi.ib | number:'1.1-1' }} A</div>
-              <div class="phase-sub">{{ cbi.vb | number:'1.0-0' }} V</div>
+              <div class="phase-val">{{ (cbi.ib || 0) | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ (cbi.vb || 0) | number:'1.0-0' }} V</div>
             </div>
             <div class="phase-card phase-c">
               <div class="phase-label">Phase C</div>
-              <div class="phase-val">{{ cbi.ic | number:'1.1-1' }} A</div>
-              <div class="phase-sub">{{ cbi.vc | number:'1.0-0' }} V</div>
+              <div class="phase-val">{{ (cbi.ic || 0) | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ (cbi.vc || 0) | number:'1.0-0' }} V</div>
             </div>
           </div>
         </div>
@@ -101,10 +101,10 @@
         <div class="ecbs-card">
           <div class="ecbs-card-title"><span class="fa fa-flash"></span> Power Summary</div>
           <div class="power-grid">
-            <div class="power-item"><div class="pi-val">{{ cbi.kw | number:'1.1-1' }} kW</div><div class="pi-lbl">Real Power</div></div>
-            <div class="power-item"><div class="pi-val">{{ cbi.kvar | number:'1.1-1' }} kVAR</div><div class="pi-lbl">Reactive Power</div></div>
-            <div class="power-item"><div class="pi-val">{{ cbi.kva | number:'1.1-1' }} kVA</div><div class="pi-lbl">Apparent Power</div></div>
-            <div class="power-item"><div class="pi-val" [style.color]="cbi.power_factor >= 0.9 ? '#00e676' : '#ffd740'">{{ cbi.power_factor | number:'1.3-3' }}</div><div class="pi-lbl">Power Factor</div></div>
+            <div class="power-item"><div class="pi-val">{{ (cbi.kw || 0) | number:'1.1-1' }} kW</div><div class="pi-lbl">Real Power</div></div>
+            <div class="power-item"><div class="pi-val">{{ (cbi.kvar || 0) | number:'1.1-1' }} kVAR</div><div class="pi-lbl">Reactive Power</div></div>
+            <div class="power-item"><div class="pi-val">{{ (cbi.kva || 0) | number:'1.1-1' }} kVA</div><div class="pi-lbl">Apparent Power</div></div>
+            <div class="power-item"><div class="pi-val" [style.color]="cbi.power_factor >= 0.9 ? '#00e676' : '#ffd740'">{{ (cbi.power_factor || 0) | number:'1.3-3' }}</div><div class="pi-lbl">Power Factor</div></div>
           </div>
         </div>
 

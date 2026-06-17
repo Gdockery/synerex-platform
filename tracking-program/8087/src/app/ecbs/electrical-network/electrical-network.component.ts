@@ -20,6 +20,11 @@ export class ElectricalNetworkComponent implements OnInit {
     const p = this.userService.user?.selectedProject;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
+    this.loadAll();
+  }
+
+  loadAll() {
+    this.loading = true;
     this.api.get(`/api/capacity/assets?project_id=${this.projectId}`).subscribe({ next: (r: any) => { this.assets = r?.assets || r || []; this.loading = false; }, error: () => { this.loading = false; }});
     this.api.get(`/api/current-balance/summary?project_id=${this.projectId}`).subscribe({ next: (r: any) => { this.cbi = r; }, error: () => {}});
     this.api.get(`/api/capacity/summary?project_id=${this.projectId}`).subscribe({ next: (r: any) => { this.capacity = r; }, error: () => {}});
