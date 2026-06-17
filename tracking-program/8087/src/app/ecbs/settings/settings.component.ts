@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 
 @Component({
@@ -8,25 +7,15 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
   styleUrls: ['./settings.component.scss'],
 })
 export class SettingsComponent implements OnInit {
-  projectId: number;
-  loading = true;
-  data: any = null;
-  error: string = null;
+  project: any = null;
+  role: number = 0;
 
-  constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
+  constructor(private userService: CurrentUserService) {}
 
   ngOnInit() {
-    const p = this.userService.user?.selectedProject;
-    if (!p) { this.error = 'No project selected.'; this.loading = false; return; }
-    this.projectId = p.id;
-    this.loadData();
+    this.project = this.userService.user?.selectedProject;
+    this.role = Number(this.userService.user?.role ?? 0);
   }
 
-  loadData() {
-    if (!this.projectId) { this.loading = false; return; }
-    this.api.get('?project_id=' + this.projectId).subscribe({
-      next: (r: any) => { this.data = r; this.loading = false; },
-      error: (e) => { this.error = e?.error?.error || 'Failed to load data.'; this.loading = false; }
-    });
-  }
+  get isAdmin(): boolean { return this.role >= 8; }
 }

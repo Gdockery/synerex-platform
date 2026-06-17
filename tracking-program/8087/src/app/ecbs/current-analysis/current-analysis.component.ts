@@ -10,23 +10,47 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 export class CurrentAnalysisComponent implements OnInit {
   projectId: number;
   loading = true;
-  data: any = null;
+  cbi: any = null;
   error: string = null;
 
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
   ngOnInit() {
     const p = this.userService.user?.selectedProject;
-    if (!p) { this.error = 'No project selected.'; this.loading = false; return; }
+    if (!p) { this.loading = false; return; }
     this.projectId = p.id;
     this.loadData();
   }
 
   loadData() {
-    if (!this.projectId) { this.loading = false; return; }
-    this.api.get('/api/current-balance/summary?project_id=' + this.projectId).subscribe({
-      next: (r: any) => { this.data = r; this.loading = false; },
-      error: (e) => { this.error = e?.error?.error || 'Failed to load data.'; this.loading = false; }
+    this.loading = true;
+    this.api.get(`/api/current-balance/summary?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.cbi = r; this.loading = false; },
+      error: (e: any) => { this.error = e?.error?.error || 'Failed to load.'; this.loading = false; }
     });
+  }
+
+  get cbiScore(): number { return this.cbi?.score ?? this.cbi?.cbi_score ?? 0; }
+  get cbiGrade(): string {
+    const s = this.cbiScore;
+    if (s >= 95) return 'A+'; if (s >= 90) return 'A';
+    if (s >= 85) return 'B+'; if (s >= 80) return 'B';
+    if (s >= 75) return 'C+'; if (s >= 70) return 'C';
+    return 'D';
+  }
+  get cbiGaugeColor(): string {
+    const s = this.cbiScore;
+    if (s >= 90) return '#00e676';
+    if (s >= 75) return '#ffd740';
+    return '#f44336';
+  }
+  get cbiDashoffset(): number {
+    const circumference = 2 * Math.PI * 54;
+    return circumference - (this.cbiScore / 100) * circumference;
+  }
+  get cbiStatusLabel(): string {
+    const s = this.cbiScore;
+    if (s >= 90) return 'Excellent'; if (s >= 75) return 'Good';
+    if (s >= 60) return 'Fair'; return 'Poor';
   }
 }

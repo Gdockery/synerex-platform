@@ -1,1 +1,12 @@
 @import "../../../../scss/ecbs-components";
+
+.settings-link-list { display: flex; flex-direction: column; gap: 6px; }
+.settings-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 8px; background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  text-decoration: none; cursor: pointer; transition: all 0.15s;
+  &:hover { background: $ecbs-hover; border-color: rgba(0,230,118,0.25); }
+  > .fa:first-child { width: 36px; height: 36px; border-radius: 8px; background: rgba(0,230,118,0.1); display: flex; align-items: center; justify-content: center; color: $ecbs-green; font-size: 14px; flex-shrink: 0; }
+  > div { flex: 1; strong { font-size: 13px; color: $ecbs-text-primary; display: block; } p { font-size: 11px; color: $ecbs-text-secondary; margin: 2px 0 0; } }
+  > .fa:last-child { color: $ecbs-text-secondary; font-size: 11px; flex-shrink: 0; }
+}

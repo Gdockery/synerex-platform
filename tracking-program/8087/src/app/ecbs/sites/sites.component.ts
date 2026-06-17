@@ -10,23 +10,36 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 export class SitesComponent implements OnInit {
   projectId: number;
   loading = true;
-  data: any = null;
-  error: string = null;
+  project: any = null;
+  cbiData: any = null;
+  alarmSummary: any = null;
+  capacityData: any = null;
 
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
   ngOnInit() {
     const p = this.userService.user?.selectedProject;
-    if (!p) { this.error = 'No project selected.'; this.loading = false; return; }
+    if (!p) { this.loading = false; return; }
     this.projectId = p.id;
-    this.loadData();
+    this.project = p;
+    this.loadAll();
   }
 
-  loadData() {
-    if (!this.projectId) { this.loading = false; return; }
-    this.api.get('/api/current-balance/summary?project_id=' + this.projectId).subscribe({
-      next: (r: any) => { this.data = r; this.loading = false; },
-      error: (e) => { this.error = e?.error?.error || 'Failed to load data.'; this.loading = false; }
-    });
+  loadAll() {
+    this.loading = false;
+    const pid = this.projectId;
+    this.api.get(`/api/current-balance/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.cbiData = r; }, error: () => {}});
+    this.api.get(`/api/alarms/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.alarmSummary = r; }, error: () => {}});
+    this.api.get(`/api/capacity/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.capacityData = r; }, error: () => {}});
+  }
+
+  get cbiScore(): number { return this.cbiData?.score ?? this.cbiData?.cbi_score ?? 0; }
+
+  get siteHealthStatus(): { label: string; color: string } {
+    const alarms = this.alarmSummary?.critical ?? 0;
+    const cbi = this.cbiScore;
+    if (alarms > 0 || cbi < 70)  return { label: 'Needs Attention', color: '#f44336' };
+    if (cbi < 85) return { label: 'Fair', color: '#ffd740' };
+    return { label: 'Healthy', color: '#00e676' };
   }
 }

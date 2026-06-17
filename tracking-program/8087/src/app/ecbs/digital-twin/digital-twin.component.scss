@@ -1,1 +1,23 @@
 @import "../../../../scss/ecbs-components";
+
+.dt-layout {
+  display: grid; grid-template-columns: 1fr 220px; gap: 16px;
+  @media (max-width: 800px) { grid-template-columns: 1fr; }
+}
+
+.dt-canvas-card { padding: 12px; }
+.dt-canvas { height: 520px; overflow: auto; background: $ecbs-bg; border-radius: 8px; }
+.dt-svg { width: 100%; min-width: 800px; height: auto; font-family: "Inter", system-ui, sans-serif; }
+
+.dt-sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+.dt-cbi-card { text-align: center; }
+.dt-cbi-score { font-size: 48px; font-weight: 900; line-height: 1; text-align: center; margin: 8px 0 2px; }
+
+.dt-status-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 0;
+  border-bottom: 1px solid $ecbs-card-border;
+  &:last-child { border-bottom: none; }
+}
+.dt-status-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dt-status-name { flex: 1; font-size: 12px; color: $ecbs-text-primary; }

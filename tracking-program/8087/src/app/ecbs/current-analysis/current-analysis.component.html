@@ -1,19 +1,20 @@
-<!-- ECBS OS™ Current Analysis -->
+<!-- ECBS OS™ Current Analysis — Spec SS-9 / Figure A-9 — CBI + current readings -->
 <div class="ecbs-page">
+
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Current Analysis</h1>
-      <p>Comprehensive analysis of current components and their impact on your electrical system.</p>
+      <p>XECO Current Balance Index™ — live electrical current measurement and analysis.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+      <button class="btn-ecbs btn-outline" (click)="loadData()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
 
   <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
     <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-    <p>Loading Current Analysis...</p>
+    <p style="margin-top:10px;">Loading Current Analysis...</p>
   </div>
 
   <div *ngIf="error && !loading" class="ecbs-empty">
@@ -23,17 +24,116 @@
   </div>
 
   <ng-container *ngIf="!loading && !error">
-    <div *ngIf="!data" class="ecbs-card" style="margin-top:16px;">
+
+    <div *ngIf="!cbi" class="ecbs-card">
       <div class="ecbs-empty">
         <span class="empty-icon fa fa-bolt"></span>
-        <span class="empty-title">No data available</span>
-        <p>Current Analysis data will appear here once the backend has processed sufficient readings.</p>
+        <span class="empty-title">No Current Analysis Data</span>
+        <p>Current balance readings will appear here once the meters begin transmitting data.</p>
       </div>
     </div>
-    <div *ngIf="data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-bolt"></span> Current Analysis Data</div>
-      <pre style="color:#8899a6;font-size:11px;overflow:auto;max-height:400px;">{{ data | json }}</pre>
+
+    <div *ngIf="cbi" class="cbi-main-grid">
+
+      <!-- CBI Score Hero — spec SS-9 left panel large gauge -->
+      <div class="ecbs-card cbi-hero-card">
+        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> XECO Current Balance Index™</div>
+
+        <div class="cbi-gauge-wrap">
+          <!-- Circular SVG gauge -->
+          <svg width="160" height="160" viewBox="0 0 130 130">
+            <circle class="gauge-track" cx="65" cy="65" r="54" fill="none"
+              stroke="#1e2d45" stroke-width="10" />
+            <circle class="gauge-fill" cx="65" cy="65" r="54" fill="none"
+              [attr.stroke]="cbiGaugeColor" stroke-width="10"
+              stroke-linecap="round"
+              [attr.stroke-dasharray]="2 * 3.14159 * 54"
+              [attr.stroke-dashoffset]="cbiDashoffset"
+              transform="rotate(-90 65 65)" />
+          </svg>
+          <div class="cbi-center-text">
+            <div class="cbi-big-score" [style.color]="cbiGaugeColor">{{ cbiScore | number:'1.0-0' }}</div>
+            <div class="cbi-grade" [style.color]="cbiGaugeColor">{{ cbiGrade }}</div>
+          </div>
+        </div>
+
+        <div class="cbi-status-row">
+          <span class="cbi-status-label" [style.color]="cbiGaugeColor">{{ cbiStatusLabel }}</span>
+          <span style="font-size:11px; color:#546e7a;">Target: 90+</span>
+        </div>
+
+        <div class="cbi-meta-grid">
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.neutral_current_a | number:'1.1-1' }} A</div><div class="cbi-meta-lbl">Neutral Current</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.unbalance_pct | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">Unbalance</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ia | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase A</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ib | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase B</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_ic | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDi Phase C</div></div>
+          <div class="cbi-meta-item"><div class="cbi-meta-val">{{ cbi.thd_v | number:'1.1-1' }}%</div><div class="cbi-meta-lbl">THDv</div></div>
+        </div>
+      </div>
+
+      <!-- Phase readings — spec SS-9 right panels -->
+      <div class="cbi-right-col">
+
+        <!-- Three-phase current -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-bolt"></span> Three-Phase Current</div>
+          <div class="phase-grid">
+            <div class="phase-card phase-a">
+              <div class="phase-label">Phase A</div>
+              <div class="phase-val">{{ cbi.ia | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ cbi.va | number:'1.0-0' }} V</div>
+            </div>
+            <div class="phase-card phase-b">
+              <div class="phase-label">Phase B</div>
+              <div class="phase-val">{{ cbi.ib | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ cbi.vb | number:'1.0-0' }} V</div>
+            </div>
+            <div class="phase-card phase-c">
+              <div class="phase-label">Phase C</div>
+              <div class="phase-val">{{ cbi.ic | number:'1.1-1' }} A</div>
+              <div class="phase-sub">{{ cbi.vc | number:'1.0-0' }} V</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Power summary -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-flash"></span> Power Summary</div>
+          <div class="power-grid">
+            <div class="power-item"><div class="pi-val">{{ cbi.kw | number:'1.1-1' }} kW</div><div class="pi-lbl">Real Power</div></div>
+            <div class="power-item"><div class="pi-val">{{ cbi.kvar | number:'1.1-1' }} kVAR</div><div class="pi-lbl">Reactive Power</div></div>
+            <div class="power-item"><div class="pi-val">{{ cbi.kva | number:'1.1-1' }} kVA</div><div class="pi-lbl">Apparent Power</div></div>
+            <div class="power-item"><div class="pi-val" [style.color]="cbi.power_factor >= 0.9 ? '#00e676' : '#ffd740'">{{ cbi.power_factor | number:'1.3-3' }}</div><div class="pi-lbl">Power Factor</div></div>
+          </div>
+        </div>
+
+        <!-- THD breakdown -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-bar-chart"></span> Harmonic Distortion (THD)</div>
+          <div class="thd-grid">
+            <div class="thd-row" *ngFor="let row of [
+              {label:'THDi Phase A', val: cbi.thd_ia, limit: 5},
+              {label:'THDi Phase B', val: cbi.thd_ib, limit: 5},
+              {label:'THDi Phase C', val: cbi.thd_ic, limit: 5},
+              {label:'THDv',         val: cbi.thd_v,  limit: 5}
+            ]">
+              <span class="thd-label">{{ row.label }}</span>
+              <div class="thd-bar-track">
+                <div class="thd-bar-fill"
+                  [style.width.%]="(row.val || 0) > 20 ? 100 : ((row.val||0)/20*100)"
+                  [style.background]="(row.val||0) > row.limit ? '#ffd740' : '#00e676'">
+                </div>
+              </div>
+              <span class="thd-val" [style.color]="(row.val||0) > row.limit ? '#ffd740' : '#00e676'">{{ row.val | number:'1.1-1' }}%</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
+
   </ng-container>
 
 </div>

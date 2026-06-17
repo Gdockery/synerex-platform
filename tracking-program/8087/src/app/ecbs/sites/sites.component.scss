@@ -1,1 +1,27 @@
 @import "../../../../scss/ecbs-components";
+
+.site-health-banner {
+  display: flex; align-items: center; gap: 20px;
+  background: $ecbs-card-bg; border: 1px solid; border-radius: 10px;
+  padding: 14px 20px; margin-bottom: 16px;
+}
+.shb-status { display: flex; align-items: center; gap: 8px; }
+.shb-dot    { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.shb-label  { font-size: 14px; font-weight: 700; }
+.shb-meta   { display: flex; gap: 16px; font-size: 12px; color: $ecbs-text-secondary;
+              span strong { color: $ecbs-text-primary; margin-right: 4px; } }
+
+.site-module-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 4px;
+}
+.site-module-tile {
+  display: flex; align-items: center; gap: 12px;
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border; border-radius: 10px;
+  padding: 14px 16px; text-decoration: none; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover { background: $ecbs-hover; border-color: rgba(0,230,118,0.25); }
+}
+.smt-icon  { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; .fa { font-size: 18px; } }
+.smt-title { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; flex: 1; }
+.smt-sub   { font-size: 11px; color: $ecbs-text-secondary; margin-top: 1px; }
+.smt-arrow { color: $ecbs-text-secondary; font-size: 11px; flex-shrink: 0; margin-left: auto; }

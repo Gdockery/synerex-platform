@@ -1,39 +1,96 @@
-<!-- ECBS OS™ Site Dashboard -->
+<!-- ECBS OS™ Site Dashboard — Spec SS-6 / Figure A-6 -->
 <div class="ecbs-page">
+
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Site Dashboard</h1>
-      <p>Monitor site health, capacity, savings, alarms, and quick actions.</p>
+      <h1>{{ project?.name || 'Site Dashboard' }}</h1>
+      <p>Site-level health, capacity, savings, and quick actions.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
     </div>
   </div>
 
-  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
-    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-    <p>Loading Site Dashboard...</p>
+  <!-- Site Health Banner — spec SS-6 -->
+  <div class="site-health-banner" [style.border-color]="siteHealthStatus.color">
+    <div class="shb-status">
+      <div class="shb-dot" [style.background]="siteHealthStatus.color" [style.box-shadow]="'0 0 10px ' + siteHealthStatus.color"></div>
+      <span class="shb-label" [style.color]="siteHealthStatus.color">{{ siteHealthStatus.label }}</span>
+    </div>
+    <div class="shb-meta">
+      <span><strong>Site:</strong> {{ project?.name }}</span>
+      <span *ngIf="project?.timezoneAbbreviation"><strong>TZ:</strong> {{ project.timezoneAbbreviation }}</span>
+      <span *ngIf="project?.currencyCode"><strong>Currency:</strong> {{ project.currencyCode }}</span>
+    </div>
   </div>
 
-  <div *ngIf="error && !loading" class="ecbs-empty">
-    <span class="empty-icon fa fa-exclamation-triangle" style="color:#ffd740;"></span>
-    <span class="empty-title">{{ error }}</span>
-    <button class="btn-ecbs btn-outline" (click)="loadData()">Retry</button>
+  <!-- KPI row -->
+  <div class="ecbs-kpi-row">
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+      <div class="kpi-value" [style.color]="cbiScore >= 90 ? '#00e676' : cbiScore >= 75 ? '#ffd740' : '#f44336'">{{ cbiScore | number:'1.0-0' }}</div>
+      <div class="kpi-label">CBI Score</div>
+      <div class="kpi-delta">Target: 90+</div>
+    </div>
+    <div class="ecbs-kpi-card" [class.kpi-red]="(alarmSummary?.critical||0)>0" [class.kpi-amber]="(alarmSummary?.critical||0)===0">
+      <div class="kpi-icon"><span class="fa fa-bell"></span></div>
+      <div class="kpi-value">{{ alarmSummary?.active_alarms ?? '—' }}</div>
+      <div class="kpi-label">Active Alarms</div>
+      <div class="kpi-delta" [class.negative]="(alarmSummary?.critical||0)>0">{{ alarmSummary?.critical || 0 }} Critical</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-plug"></span></div>
+      <div class="kpi-value">{{ (capacityData?.installed_capacity_kva||0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">Installed kVA</div>
+      <div class="kpi-delta neutral">{{ capacityData?.utilization_pct | number:'1.0-0' }}% utilized</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-magic"></span></div>
+      <div class="kpi-value">{{ (capacityData?.recovered_capacity_kva||0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">kVA Recovered</div>
+    </div>
   </div>
 
-  <ng-container *ngIf="!loading && !error">
-    <div *ngIf="!data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-empty">
-        <span class="empty-icon fa fa-map-marker"></span>
-        <span class="empty-title">No data available</span>
-        <p>Site Dashboard data will appear here once the backend has processed sufficient readings.</p>
+  <!-- Quick actions grid — spec SS-6 module tiles -->
+  <div class="site-module-grid">
+    <a class="site-module-tile" routerLink="/ecbs/capacity">
+      <div class="smt-icon" style="background:rgba(41,182,246,0.12);"><span class="fa fa-tachometer" style="color:#29b6f6;"></span></div>
+      <div class="smt-title">Capacity Intelligence</div>
+      <div class="smt-sub">{{ (capacityData?.recovered_capacity_kva||0) | number:'1.0-0' }} kVA recovered</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+    <a class="site-module-tile" routerLink="/ecbs/digital-twin">
+      <div class="smt-icon" style="background:rgba(206,147,216,0.12);"><span class="fa fa-share-alt" style="color:#ce93d8;"></span></div>
+      <div class="smt-title">Digital Twin</div>
+      <div class="smt-sub">One-line diagram</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+    <a class="site-module-tile" routerLink="/ecbs/current-analysis">
+      <div class="smt-icon" style="background:rgba(0,230,118,0.12);"><span class="fa fa-bolt" style="color:#00e676;"></span></div>
+      <div class="smt-title">Current Analysis</div>
+      <div class="smt-sub">CBI Score: {{ cbiScore | number:'1.0-0' }}</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+    <a class="site-module-tile" routerLink="/ecbs/savings">
+      <div class="smt-icon" style="background:rgba(0,230,118,0.12);"><span class="fa fa-dollar" style="color:#00e676;"></span></div>
+      <div class="smt-title">Savings & Financials</div>
+      <div class="smt-sub">View ROI and payback</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+    <a class="site-module-tile" routerLink="/ecbs/alarms">
+      <div class="smt-icon" [style.background]="(alarmSummary?.critical||0)>0 ? 'rgba(244,67,54,0.12)' : 'rgba(0,230,118,0.08)'">
+        <span class="fa fa-bell" [style.color]="(alarmSummary?.critical||0)>0 ? '#f44336' : '#00e676'"></span>
       </div>
-    </div>
-    <div *ngIf="data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-map-marker"></span> Site Dashboard Data</div>
-      <pre style="color:#8899a6;font-size:11px;overflow:auto;max-height:400px;">{{ data | json }}</pre>
-    </div>
-  </ng-container>
+      <div class="smt-title">Alarms &amp; Events</div>
+      <div class="smt-sub" [style.color]="(alarmSummary?.critical||0)>0 ? '#f44336' : '#8899a6'">{{ alarmSummary?.active_alarms || 0 }} active</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+    <a class="site-module-tile" routerLink="/ecbs/reports">
+      <div class="smt-icon" style="background:rgba(41,182,246,0.08);"><span class="fa fa-file-text" style="color:#29b6f6;"></span></div>
+      <div class="smt-title">Reports</div>
+      <div class="smt-sub">Generate and download</div>
+      <span class="smt-arrow fa fa-chevron-right"></span>
+    </a>
+  </div>
 
 </div>

@@ -1,39 +1,53 @@
-<!-- ECBS OS™ Settings -->
+<!-- ECBS OS™ Settings — Spec SS-18 / Figure A-18 -->
 <div class="ecbs-page">
+
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Settings</h1>
-      <p>Manage your account, system configuration, and preferences.</p>
-    </div>
-    <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+      <p>Manage your account, project, and system configuration.</p>
     </div>
   </div>
 
-  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
-    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-    <p>Loading Settings...</p>
-  </div>
+  <div class="ecbs-grid-2">
 
-  <div *ngIf="error && !loading" class="ecbs-empty">
-    <span class="empty-icon fa fa-exclamation-triangle" style="color:#ffd740;"></span>
-    <span class="empty-title">{{ error }}</span>
-    <button class="btn-ecbs btn-outline" (click)="loadData()">Retry</button>
-  </div>
-
-  <ng-container *ngIf="!loading && !error">
-    <div *ngIf="!data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-empty">
-        <span class="empty-icon fa fa-cog"></span>
-        <span class="empty-title">No data available</span>
-        <p>Settings data will appear here once the backend has processed sufficient readings.</p>
+    <!-- Account settings -->
+    <div class="ecbs-card">
+      <div class="ecbs-card-title"><span class="fa fa-user-circle-o"></span> Account</div>
+      <div class="settings-link-list">
+        <a class="settings-link" routerLink="/account"><span class="fa fa-user"></span><div><strong>My Account</strong><p>Update profile, password, and preferences</p></div><span class="fa fa-chevron-right"></span></a>
       </div>
     </div>
-    <div *ngIf="data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-cog"></span> Settings Data</div>
-      <pre style="color:#8899a6;font-size:11px;overflow:auto;max-height:400px;">{{ data | json }}</pre>
+
+    <!-- Project settings -->
+    <div class="ecbs-card">
+      <div class="ecbs-card-title"><span class="fa fa-industry"></span> Project</div>
+      <div class="settings-link-list">
+        <a class="settings-link" [routerLink]="['/project/overview']"><span class="fa fa-info-circle"></span><div><strong>Project Overview</strong><p>{{ project?.name }}</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" [routerLink]="['/ecbs/devices']"><span class="fa fa-microchip"></span><div><strong>Device Management</strong><p>Meters, gateways, and edge hardware</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" [routerLink]="['/electricity-meters']"><span class="fa fa-flash"></span><div><strong>Electricity Meters</strong><p>Configure meter settings</p></div><span class="fa fa-chevron-right"></span></a>
+      </div>
     </div>
-  </ng-container>
+
+    <!-- Admin settings (role >= 8) -->
+    <div class="ecbs-card" *ngIf="isAdmin">
+      <div class="ecbs-card-title"><span class="fa fa-cog"></span> Administration</div>
+      <div class="settings-link-list">
+        <a class="settings-link" [routerLink]="['/synerex-administrator/user']"><span class="fa fa-users"></span><div><strong>User Management</strong><p>Manage users and roles</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" [routerLink]="['/synerex-administrator/branding']"><span class="fa fa-paint-brush"></span><div><strong>Branding</strong><p>OEM white-label configuration</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" [routerLink]="['/synerex-administrator/advanced']"><span class="fa fa-sliders"></span><div><strong>Advanced Options</strong><p>System configuration</p></div><span class="fa fa-chevron-right"></span></a>
+      </div>
+    </div>
+
+    <!-- Commercial Platform (admin only) -->
+    <div class="ecbs-card" *ngIf="isAdmin">
+      <div class="ecbs-card-title"><span class="fa fa-briefcase"></span> Commercial Platform™</div>
+      <div class="settings-link-list">
+        <a class="settings-link" href="#"><span class="fa fa-certificate"></span><div><strong>License Manager</strong><p>Meter license status and activation</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" href="#"><span class="fa fa-dollar"></span><div><strong>Royalty Engine</strong><p>OEM royalty calculations</p></div><span class="fa fa-chevron-right"></span></a>
+        <a class="settings-link" [routerLink]="['/synerex-administrator/subscription']"><span class="fa fa-credit-card"></span><div><strong>Subscription</strong><p>Manage billing and subscription</p></div><span class="fa fa-chevron-right"></span></a>
+      </div>
+    </div>
+
+  </div>
 
 </div>

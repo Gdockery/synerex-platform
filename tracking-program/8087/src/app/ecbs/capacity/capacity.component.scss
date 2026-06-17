@@ -1,1 +1,44 @@
 @import "../../../../scss/ecbs-components";
+
+.cap-waterfall {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cap-bar-row {
+  display: grid; grid-template-columns: 140px 1fr 90px; align-items: center; gap: 10px;
+  &.highlight-row .cap-bar-label { color: $ecbs-green; font-weight: 700; }
+}
+.cap-bar-label { font-size: 11px; color: $ecbs-text-secondary; text-align: right; }
+.cap-bar-track  { height: 8px; background: $ecbs-card-border; border-radius: 4px; overflow: hidden; }
+.cap-bar-fill   { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.cap-bar-val    { font-size: 11px; color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+
+.utilization-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 8px; border: 1px solid;
+}
+
+.cap-metric {
+  flex: 1; text-align: center; padding: 8px;
+  background: $ecbs-input-bg; border-radius: 6px;
+  .cm-val { font-size: 16px; font-weight: 700; color: $ecbs-text-primary; }
+  .cm-lbl { font-size: 9px; color: $ecbs-text-secondary; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+}
+
+.transformer-list { display: flex; flex-direction: column; gap: 12px; }
+.transformer-row {
+  background: $ecbs-input-bg; border: 1px solid $ecbs-card-border; border-radius: 8px; padding: 12px;
+}
+.transformer-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
+}
+.transformer-name { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; }
+.mini-bar-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: $ecbs-text-secondary;
+}
+.mini-bar-track { flex: 1; height: 6px; background: $ecbs-card-border; border-radius: 3px; overflow: hidden; }
+.mini-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.transformer-meta {
+  display: flex; align-items: center; gap: 12px; margin-top: 6px;
+  font-size: 11px; color: $ecbs-text-secondary;
+}

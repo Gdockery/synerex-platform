@@ -1,1 +1,29 @@
 @import "../../../../scss/ecbs-components";
+
+.en-network-card {}
+
+.en-tree { display: flex; flex-direction: column; align-items: flex-start; }
+.en-node {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 8px; background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  width: 100%; box-sizing: border-box;
+  &.en-root { margin-bottom: 0; }
+  &.en-bus  { background: rgba(41,182,246,0.04); }
+  &.en-transformer { margin-left: 24px; }
+}
+.en-node-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; .fa { font-size: 15px; } }
+.en-node-name { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; }
+.en-node-sub  { font-size: 11px; color: $ecbs-text-secondary; }
+.en-node-info { flex: 1; }
+
+.en-connector { width: 2px; height: 16px; background: $ecbs-card-border; margin: 0 18px; }
+.en-branches  { display: flex; flex-direction: column; gap: 10px; width: 100%; padding-left: 24px; margin-top: 0; }
+.en-branch    { display: flex; align-items: flex-start; }
+.en-branch-line { width: 2px; height: 36px; background: $ecbs-card-border; margin-right: 0; flex-shrink: 0; }
+
+.en-bus-bar   { width: 100px; height: 6px; background: $ecbs-card-border; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.en-bus-fill  { height: 100%; border-radius: 3px; }
+
+.en-load-section { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.en-mini-bar  { width: 60px; height: 5px; background: $ecbs-card-border; border-radius: 3px; overflow: hidden; }
+.en-mini-fill { height: 100%; border-radius: 3px; }

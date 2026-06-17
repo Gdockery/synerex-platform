@@ -1,39 +1,204 @@
-<!-- ECBS OS™ Capacity Intelligence -->
+<!-- ECBS OS™ Capacity Intelligence — Spec SS-4 / Figure A-4 -->
 <div class="ecbs-page">
+
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Capacity Intelligence</h1>
+      <h1>Capacity Intelligence™</h1>
       <p>Identify installed, used, available, hidden, and recoverable electrical capacity.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+      <button class="btn-ecbs btn-primary" (click)="calculate()" [disabled]="calculating">
+        <span class="fa" [class.fa-calculator]="!calculating" [class.fa-spinner]="calculating" [class.fa-spin]="calculating"></span>
+        {{ calculating ? 'Calculating...' : 'Re-calculate' }}
+      </button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
 
+  <!-- Loading state -->
   <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
     <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-    <p>Loading Capacity Intelligence...</p>
+    <p style="margin-top:10px;">Loading Capacity Intelligence...</p>
   </div>
 
+  <!-- Error -->
   <div *ngIf="error && !loading" class="ecbs-empty">
     <span class="empty-icon fa fa-exclamation-triangle" style="color:#ffd740;"></span>
     <span class="empty-title">{{ error }}</span>
-    <button class="btn-ecbs btn-outline" (click)="loadData()">Retry</button>
+    <button class="btn-ecbs btn-outline" (click)="loadAll()">Retry</button>
   </div>
 
   <ng-container *ngIf="!loading && !error">
-    <div *ngIf="!data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-empty">
-        <span class="empty-icon fa fa-tachometer"></span>
-        <span class="empty-title">No data available</span>
-        <p>Capacity Intelligence data will appear here once the backend has processed sufficient readings.</p>
+
+    <!-- KPI cards — spec SS-4 top: Installed, Available, Hidden, Recoverable, Utilization -->
+    <div class="ecbs-kpi-row">
+      <div class="ecbs-kpi-card kpi-blue">
+        <div class="kpi-icon"><span class="fa fa-plug"></span></div>
+        <div class="kpi-value">{{ (summary?.installed_capacity_kva || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Installed kVA</div>
+        <div class="kpi-delta neutral">Total transformer rating</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-amber">
+        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+        <div class="kpi-value">{{ (summary?.current_load_kva || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Current Load kVA</div>
+        <div class="kpi-delta" [class.negative]="(summary?.utilization_pct||0) > 85">{{ summary?.utilization_pct | number:'1.1-1' }}% Utilized</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-battery-three-quarters"></span></div>
+        <div class="kpi-value">{{ (summary?.available_capacity_kva || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Available kVA</div>
+        <div class="kpi-delta">Before ECBS</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-magic"></span></div>
+        <div class="kpi-value" style="color:#00e676;">{{ (summary?.recovered_capacity_kva || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Recovered kVA</div>
+        <div class="kpi-delta">{{ recoveredPct }}% of installed</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-purple">
+        <div class="kpi-icon"><span class="fa fa-eye-slash"></span></div>
+        <div class="kpi-value">{{ (summary?.hidden_capacity_kva || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Hidden kVA</div>
+        <div class="kpi-delta neutral">Was inaccessible</div>
       </div>
     </div>
-    <div *ngIf="data" class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Capacity Intelligence Data</div>
-      <pre style="color:#8899a6;font-size:11px;overflow:auto;max-height:400px;">{{ data | json }}</pre>
+
+    <!-- No data state -->
+    <div *ngIf="!summary" class="ecbs-card" style="margin-top:8px;">
+      <div class="ecbs-empty">
+        <span class="empty-icon fa fa-tachometer"></span>
+        <span class="empty-title">No Capacity Data Yet</span>
+        <p>Click <strong>Re-calculate</strong> above to run the first Capacity Intelligence calculation.</p>
+      </div>
     </div>
+
+    <ng-container *ngIf="summary">
+
+      <!-- Main two-column grid — spec SS-4 layout -->
+      <div class="ecbs-grid-2" style="margin-top:8px;">
+
+        <!-- Capacity Waterfall — spec SS-4 left panel -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-signal"></span> Capacity Breakdown</div>
+
+          <div class="cap-waterfall">
+            <div class="cap-bar-row">
+              <span class="cap-bar-label">Installed Capacity</span>
+              <div class="cap-bar-track">
+                <div class="cap-bar-fill" style="width:100%; background:#29b6f6;"></div>
+              </div>
+              <span class="cap-bar-val">{{ (summary.installed_capacity_kva||0) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-bar-row">
+              <span class="cap-bar-label">Current Load</span>
+              <div class="cap-bar-track">
+                <div class="cap-bar-fill"
+                  [style.width.%]="(summary.current_load_kva||0)/(summary.installed_capacity_kva||1)*100"
+                  [style.background]="barColor((summary.current_load_kva||0)/(summary.installed_capacity_kva||1)*100)">
+                </div>
+              </div>
+              <span class="cap-bar-val">{{ (summary.current_load_kva||0) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-bar-row">
+              <span class="cap-bar-label">Was Available</span>
+              <div class="cap-bar-track">
+                <div class="cap-bar-fill"
+                  [style.width.%]="(summary.available_capacity_kva||0)/(summary.installed_capacity_kva||1)*100"
+                  style="background:#546e7a;">
+                </div>
+              </div>
+              <span class="cap-bar-val">{{ (summary.available_capacity_kva||0) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-bar-row highlight-row">
+              <span class="cap-bar-label">Recovered by ECBS</span>
+              <div class="cap-bar-track">
+                <div class="cap-bar-fill"
+                  [style.width.%]="recoveredPct"
+                  style="background:#00e676;">
+                </div>
+              </div>
+              <span class="cap-bar-val" style="color:#00e676;">+{{ (summary.recovered_capacity_kva||0) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-bar-row">
+              <span class="cap-bar-label">Now Available</span>
+              <div class="cap-bar-track">
+                <div class="cap-bar-fill"
+                  [style.width.%]="((summary.available_capacity_kva||0)+(summary.recovered_capacity_kva||0))/(summary.installed_capacity_kva||1)*100"
+                  style="background:#00e676; opacity:0.5;">
+                </div>
+              </div>
+              <span class="cap-bar-val" style="color:#00e676;">{{ ((summary.available_capacity_kva||0)+(summary.recovered_capacity_kva||0)) | number:'1.0-0' }} kVA</span>
+            </div>
+          </div>
+
+          <!-- Utilization gauge -->
+          <div style="margin-top:16px; text-align:center;">
+            <div class="utilization-pill" [style.background]="(summary.utilization_pct||0)>85?'rgba(244,67,54,0.15)':'rgba(0,230,118,0.08)'"
+              [style.border-color]="(summary.utilization_pct||0)>85?'rgba(244,67,54,0.3)':'rgba(0,230,118,0.2)'">
+              <span [style.color]="barColor(summary.utilization_pct||0)" style="font-size:24px;font-weight:800;">{{ summary.utilization_pct | number:'1.1-1' }}%</span>
+              <span style="font-size:11px;color:#8899a6;margin-left:8px;">Transformer Utilization</span>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; display:flex; gap:10px;">
+            <div class="cap-metric"><div class="cm-val">{{ summary.load_factor | number:'1.2-2' }}</div><div class="cm-lbl">Load Factor</div></div>
+            <div class="cap-metric"><div class="cm-val">{{ summary.power_factor | number:'1.2-2' }}</div><div class="cm-lbl">Power Factor</div></div>
+            <div class="cap-metric"><div class="cm-val">{{ summary.demand_factor | number:'1.2-2' }}</div><div class="cm-lbl">Demand Factor</div></div>
+            <div class="cap-metric"><div class="cm-val">{{ summary.diversity_factor | number:'1.2-2' }}</div><div class="cm-lbl">Diversity Factor</div></div>
+          </div>
+        </div>
+
+        <!-- Transformer Assets — spec SS-4 right panel -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-plug"></span> Transformer Assets</div>
+
+          <div *ngIf="assets.length === 0" class="ecbs-empty" style="padding:30px;">
+            <span class="empty-icon fa fa-plug"></span>
+            <span class="empty-title">No Transformers Configured</span>
+            <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Add from Devices</a>
+          </div>
+
+          <div class="transformer-list" *ngIf="assets.length > 0">
+            <div class="transformer-row" *ngFor="let t of assets">
+              <div class="transformer-header">
+                <span class="transformer-name">{{ t.name || t.asset_id }}</span>
+                <span [class]="healthClass(t.utilization_pct || 0)">{{ (t.utilization_pct||0) | number:'1.0-0' }}%</span>
+              </div>
+              <div class="transformer-bars">
+                <div class="mini-bar-row">
+                  <span>{{ (t.current_load_kva||0) | number:'1.0-0' }} / {{ (t.capacity_kva||0) | number:'1.0-0' }} kVA</span>
+                  <div class="mini-bar-track">
+                    <div class="mini-bar-fill"
+                      [style.width.%]="t.utilization_pct||0"
+                      [style.background]="barColor(t.utilization_pct||0)">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="transformer-meta">
+                <span>PF: {{ t.power_factor | number:'1.2-2' }}</span>
+                <span>Recovered: <strong style="color:#00e676;">+{{ (t.recovered_kva||0) | number:'1.0-0' }} kVA</strong></span>
+                <a class="btn-ecbs btn-outline" style="font-size:10px;padding:2px 8px;" [routerLink]="['/ecbs/transformers']">Details</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Trends / history note -->
+      <div class="ecbs-card" style="margin-top:16px;">
+        <div class="ecbs-card-title"><span class="fa fa-line-chart"></span> Capacity Trends</div>
+        <div class="ecbs-empty" style="padding:24px;">
+          <span class="empty-icon fa fa-chart-area"></span>
+          <span class="empty-title">Trend Charts Coming Next</span>
+          <p>Historical capacity trend data (30/60/90 day views) will render here.</p>
+        </div>
+      </div>
+
+    </ng-container>
+
   </ng-container>
 
 </div>
