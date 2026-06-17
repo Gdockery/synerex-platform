@@ -721,6 +721,115 @@ def create_app(config_class=Config):
 
         print("\n[seed] COMPLETE")
 
+    @app.cli.command("ingest-csv")
+    @click.argument("csv_path")
+    @click.option("--meter-id", default=236403, type=int, show_default=True, help="Meter DB id for PQM")
+    @click.option("--project-id", default=13, type=int, show_default=True)
+    @click.option("--batch-size", default=5000, type=int, show_default=True)
+    def ingest_csv(csv_path, meter_id, project_id, batch_size):
+        """
+        Ingest a PQM CSV file (Ochsner format) into the meterdata table.
+
+        CSV columns: Start Time,End Time,Meter,l1Volt,l1Amp,...,totalKvar
+
+        Run: flask ingest-csv /path/to/file.csv
+        """
+        import csv
+        import sys
+        import time as _t
+        from app.extensions import db as _db
+        from sqlalchemy import text
+
+        now_ms = int(_t.time() * 1000)
+        inserted = skipped = 0
+        batch = []
+
+        def flush_batch(rows):
+            if not rows:
+                return
+            _db.session.execute(text("""
+                INSERT IGNORE INTO meterdata
+                  (meter, recordedAt, day, minute, intervalId, knownRead,
+                   l1Volt,l1Amp,l1Kw,l1Kva,l1Pf,l1THD,l1Kvar,
+                   l2Volt,l2Amp,l2Kw,l2Kva,l2Pf,l2THD,l2Kvar,
+                   l3Volt,l3Amp,l3Kw,l3Kva,l3Pf,l3THD,l3Kvar,
+                   totalVolt,totalAmp,totalKw,totalKva,totalPf,totalKvar,totalTHD,
+                   createdAt,updatedAt)
+                VALUES
+                  (:meter,:recordedAt,:day,:minute,:intervalId,:knownRead,
+                   :l1Volt,:l1Amp,:l1Kw,:l1Kva,:l1Pf,:l1THD,:l1Kvar,
+                   :l2Volt,:l2Amp,:l2Kw,:l2Kva,:l2Pf,:l2THD,:l2Kvar,
+                   :l3Volt,:l3Amp,:l3Kw,:l3Kva,:l3Pf,:l3THD,:l3Kvar,
+                   :totalVolt,:totalAmp,:totalKw,:totalKva,:totalPf,:totalKvar,:totalTHD,
+                   :createdAt,:updatedAt)
+            """), rows)
+            _db.session.commit()
+
+        def _f(v):
+            try: return float(v) if v else None
+            except: return None
+
+        with open(csv_path, newline='') as f:
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                try:
+                    from datetime import datetime, timezone
+                    dt = datetime.strptime(row['Start Time'].strip(), '%Y-%m-%d %H:%M:%S')
+                    dt = dt.replace(tzinfo=timezone.utc)
+                    epoch_ms = int(dt.timestamp() * 1000)
+                    day_str  = dt.strftime('%Y-%m-%d')
+                    minute   = dt.hour * 60 + dt.minute
+                    interval_id = f"{meter_id}_{epoch_ms}"
+                    pf = _f(row.get('avgPf'))
+                    if pf and pf > 1.0:
+                        pf = pf / 100.0
+
+                    batch.append({
+                        'meter': meter_id,
+                        'recordedAt': epoch_ms,
+                        'day': day_str,
+                        'minute': minute,
+                        'intervalId': interval_id,
+                        'knownRead': True,
+                        'l1Volt': _f(row.get('l1Volt')), 'l1Amp': _f(row.get('l1Amp')),
+                        'l1Kw': _f(row.get('l1Kw')), 'l1Kva': _f(row.get('l1Kva')),
+                        'l1Pf': _f(row.get('l1Pf')), 'l1THD': _f(row.get('l1THD')),
+                        'l1Kvar': _f(row.get('l1Kvar')),
+                        'l2Volt': _f(row.get('l2Volt')), 'l2Amp': _f(row.get('l2Amp')),
+                        'l2Kw': _f(row.get('l2Kw')), 'l2Kva': _f(row.get('l2Kva')),
+                        'l2Pf': _f(row.get('l2Pf')), 'l2THD': _f(row.get('l2THD')),
+                        'l2Kvar': _f(row.get('l2Kvar')),
+                        'l3Volt': _f(row.get('l3Volt')), 'l3Amp': _f(row.get('l3Amp')),
+                        'l3Kw': _f(row.get('l3Kw')), 'l3Kva': _f(row.get('l3Kva')),
+                        'l3Pf': _f(row.get('l3Pf')), 'l3THD': _f(row.get('l3THD')),
+                        'l3Kvar': _f(row.get('l3Kvar')),
+                        'totalVolt': _f(row.get('avgVolt')),
+                        'totalAmp':  _f(row.get('avgAmp')),
+                        'totalKw':   _f(row.get('totalKw')),
+                        'totalKva':  _f(row.get('totalKva')),
+                        'totalPf':   pf,
+                        'totalKvar': _f(row.get('totalKvar')),
+                        'totalTHD':  _f(row.get('avgTHD')),
+                        'createdAt': now_ms, 'updatedAt': now_ms,
+                    })
+                except Exception as ex:
+                    skipped += 1
+                    continue
+
+                if len(batch) >= batch_size:
+                    pre = _db.session.execute(text('SELECT ROW_COUNT()')).scalar() or 0
+                    flush_batch(batch)
+                    inserted += len(batch)
+                    batch = []
+                    print(f"[ingest] rows={i+1} inserted_so_far={inserted} skipped={skipped}")
+                    sys.stdout.flush()
+
+        if batch:
+            flush_batch(batch)
+            inserted += len(batch)
+
+        print(f"\n[ingest] COMPLETE — inserted={inserted} skipped={skipped}")
+
     @app.cli.command("phase6-migrate")
     def phase6_migrate():
         """Phase 6 — create baseline_master table + add active_baseline_id to project. Run: flask phase6-migrate"""
