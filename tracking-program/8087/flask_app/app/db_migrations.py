@@ -1258,3 +1258,70 @@ def phase10_add_dt_context_columns():
                 print(f"phase10_add_dt_context_columns: ERROR {key}: {e}")
                 results[key] = f"error: {e}"
     return results
+
+
+def phase8_create_capacity_intelligence_table():
+    """
+    Phase 8 — Capacity Intelligence™.
+
+    Creates the capacity_intelligence table if it does not exist.
+    Idempotent — safe to re-run.
+
+    Table columns (spec Appendix B-17):
+        id, project_id, site_id, bucket_ts,
+        installed_capacity, used_capacity, available_capacity,
+        hidden_capacity, recoverable_capacity, deferred_capital_value,
+        capacity_health_score,
+        utilization_pct, hidden_pct, recoverable_pct,
+        cbi_bucket_ts, baseline_id,
+        transformer_kva_source, voltage_level,
+        sample_count, calculated_at,
+        createdAt, updatedAt, isDeleted
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped (sqlite)"
+
+    CREATE_SQL = """
+    CREATE TABLE IF NOT EXISTS `capacity_intelligence` (
+        `id`                      INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `project_id`              INT NOT NULL,
+        `site_id`                 INT NULL,
+        `bucket_ts`               BIGINT NOT NULL,
+        `installed_capacity`      FLOAT NULL,
+        `used_capacity`           FLOAT NULL,
+        `available_capacity`      FLOAT NULL,
+        `hidden_capacity`         FLOAT NULL,
+        `recoverable_capacity`    FLOAT NULL,
+        `deferred_capital_value`  FLOAT NULL,
+        `capacity_health_score`   FLOAT NULL,
+        `utilization_pct`         FLOAT NULL,
+        `hidden_pct`              FLOAT NULL,
+        `recoverable_pct`         FLOAT NULL,
+        `cbi_bucket_ts`           BIGINT NULL,
+        `baseline_id`             INT NULL,
+        `transformer_kva_source`  FLOAT NULL,
+        `voltage_level`           FLOAT NULL,
+        `sample_count`            INT NULL,
+        `calculated_at`           BIGINT NULL,
+        `createdAt`               BIGINT NULL,
+        `updatedAt`               BIGINT NULL,
+        `isDeleted`               TINYINT(1) NOT NULL DEFAULT 0,
+        UNIQUE KEY `uq_ci_project_site_bucket` (`project_id`, `site_id`, `bucket_ts`),
+        KEY `ix_ci_project_id` (`project_id`),
+        KEY `ix_ci_bucket_ts` (`bucket_ts`),
+        KEY `ix_ci_health_score` (`capacity_health_score`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """
+    try:
+        db.session.execute(text(CREATE_SQL))
+        db.session.commit()
+        print("phase8_create_capacity_intelligence_table: table created.")
+        return "created"
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" in err or "1050" in err:
+            return "exists"
+        print(f"phase8_create_capacity_intelligence_table: ERROR: {e}")
+        return f"error: {e}"

@@ -46,6 +46,8 @@ from app.api.pq_data_routes import pq_data_bp
 from app.api.baseline_routes import baseline_bp
 # Phase 7
 from app.api.current_balance_routes import current_balance_bp
+# Phase 8
+from app.api.capacity_routes import capacity_bp
 from app import socket_events  # noqa: F401 - register socket handlers
 
 
@@ -151,6 +153,8 @@ def create_app(config_class=Config):
     app.register_blueprint(baseline_bp)
     # Phase 7 blueprints
     app.register_blueprint(current_balance_bp)
+    # Phase 8 blueprints
+    app.register_blueprint(capacity_bp)
 
     @app.route("/health")
     def health():
@@ -334,6 +338,13 @@ def create_app(config_class=Config):
         from app.db_migrations import phase10_add_dt_context_columns
         result = phase10_add_dt_context_columns()
         print(f"phase10-migrate: {result}")
+
+    @app.cli.command("phase8-migrate")
+    def phase8_migrate():
+        """Phase 8 — create capacity_intelligence table. Run: flask phase8-migrate"""
+        from app.db_migrations import phase8_create_capacity_intelligence_table
+        result = phase8_create_capacity_intelligence_table()
+        print(f"phase8-migrate: {result}")
 
     @app.cli.command("phase6-migrate")
     def phase6_migrate():

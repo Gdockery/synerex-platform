@@ -1037,9 +1037,10 @@ def run_accumulate_savings():
 
 
 def run_rollup_schedule_tasks():
-    """Rollup schedule - trigger perform-rollup for each project, then CBI auto-compute."""
+    """Rollup schedule - perform-rollup → CBI auto-compute → Capacity Intelligence auto-compute."""
     run_perform_rollup()
     _run_cbi_auto_compute()
+    _run_ci_auto_compute()    # Phase 8 — downstream of CBI
 
 
 def _run_cbi_auto_compute():
@@ -1569,6 +1570,70 @@ def run_check_alert_conditions(project_id):
     if not project or project.isDeleted:
         return
     logger.info("[alerts] checking project %s", project_id)
+
+
+def _run_ci_auto_compute():
+    """
+    Phase 8 — Capacity Intelligence™ auto-trigger.
+
+    Runs after _run_cbi_auto_compute() in every rollup cycle.
+    For each active project that has CBI data from the last 4 hours,
+    recomputes the five Capacity Intelligence categories and upserts into
+    capacity_intelligence table.
+
+    Errors are swallowed per-project so one bad project cannot block others.
+    """
+    import time as _t
+    from app.models.project import Project
+    from app.models.capacity_intelligence import CapacityIntelligence
+    from app.services.capacity_intelligence_engine import compute_capacity_from_cbi_metrics
+
+    now_ms    = int(_t.time() * 1000)
+    window_ms = 4 * 60 * 60 * 1000     # last 4 hours (match CBI window)
+    from_ts   = now_ms - window_ms
+
+    projects = Project.query.filter_by(isDeleted=False).all()
+    logger.info("[ci-auto] triggered for %d projects", len(projects))
+
+    for project in projects:
+        try:
+            buckets = compute_capacity_from_cbi_metrics(
+                project.id,
+                from_ts=from_ts,
+                to_ts=now_ms,
+            )
+            if not buckets:
+                continue
+
+            upserted = 0
+            for b in buckets:
+                existing = (CapacityIntelligence.query
+                            .filter_by(
+                                project_id=b["project_id"],
+                                site_id=b.get("site_id"),
+                                bucket_ts=b["bucket_ts"],
+                            )
+                            .first())
+                if existing:
+                    for k, v in b.items():
+                        if hasattr(existing, k) and k not in ("project_id", "site_id", "bucket_ts"):
+                            setattr(existing, k, v)
+                    existing.updatedAt = now_ms
+                else:
+                    db.session.add(CapacityIntelligence(
+                        createdAt=now_ms,
+                        updatedAt=now_ms,
+                        **{k: v for k, v in b.items()
+                           if hasattr(CapacityIntelligence, k)},
+                    ))
+                upserted += 1
+
+            db.session.commit()
+            logger.info("[ci-auto] project=%d buckets=%d", project.id, upserted)
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.warning("[ci-auto] project=%d error: %s", project.id, exc)
 
 
 def process_queue_message(topic, data):
