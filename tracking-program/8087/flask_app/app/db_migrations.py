@@ -1325,3 +1325,89 @@ def phase8_create_capacity_intelligence_table():
             return "exists"
         print(f"phase8_create_capacity_intelligence_table: ERROR: {e}")
         return f"error: {e}"
+
+
+def phase9_create_savings_intelligence_table():
+    """
+    Phase 9 — Savings Intelligence™.
+
+    Creates the savings_intelligence table if it does not exist.
+    Idempotent — safe to re-run.
+
+    Table columns (spec Appendix B-18):
+        id, project_id, site_id, bucket_ts,
+        energy_savings, demand_savings, pf_savings,
+        capacity_value, sustainability_value,
+        annual_savings, roi, payback, lifetime_savings,
+        kw_reduction, kwh_per_year, peak_kw_reduction,
+        pf_improvement, co2_reduction_tons, recoverable_kva,
+        baseline_id, baseline_avg_kw, baseline_avg_kva,
+        baseline_avg_pf, baseline_peak_kva,
+        current_avg_kw, current_avg_kva, current_avg_pf,
+        energy_rate, demand_rate, carbon_credit_price,
+        project_cost, project_lifetime_yrs,
+        sample_count, calculated_at,
+        createdAt, updatedAt, isDeleted
+    """
+    from flask import current_app
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if ":memory:" in uri or "sqlite" in uri:
+        return "skipped (sqlite)"
+
+    CREATE_SQL = """
+    CREATE TABLE IF NOT EXISTS `savings_intelligence` (
+        `id`                    INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `project_id`            INT NOT NULL,
+        `site_id`               INT NULL,
+        `bucket_ts`             BIGINT NOT NULL,
+        `energy_savings`        FLOAT NULL,
+        `demand_savings`        FLOAT NULL,
+        `pf_savings`            FLOAT NULL,
+        `capacity_value`        FLOAT NULL,
+        `sustainability_value`  FLOAT NULL,
+        `annual_savings`        FLOAT NULL,
+        `roi`                   FLOAT NULL,
+        `payback`               FLOAT NULL,
+        `lifetime_savings`      FLOAT NULL,
+        `kw_reduction`          FLOAT NULL,
+        `kwh_per_year`          FLOAT NULL,
+        `peak_kw_reduction`     FLOAT NULL,
+        `pf_improvement`        FLOAT NULL,
+        `co2_reduction_tons`    FLOAT NULL,
+        `recoverable_kva`       FLOAT NULL,
+        `baseline_id`           INT NULL,
+        `baseline_avg_kw`       FLOAT NULL,
+        `baseline_avg_kva`      FLOAT NULL,
+        `baseline_avg_pf`       FLOAT NULL,
+        `baseline_peak_kva`     FLOAT NULL,
+        `current_avg_kw`        FLOAT NULL,
+        `current_avg_kva`       FLOAT NULL,
+        `current_avg_pf`        FLOAT NULL,
+        `energy_rate`           FLOAT NULL,
+        `demand_rate`           FLOAT NULL,
+        `carbon_credit_price`   FLOAT NULL,
+        `project_cost`          FLOAT NULL,
+        `project_lifetime_yrs`  INT NULL,
+        `sample_count`          INT NULL,
+        `calculated_at`         BIGINT NULL,
+        `createdAt`             BIGINT NULL,
+        `updatedAt`             BIGINT NULL,
+        `isDeleted`             TINYINT(1) NOT NULL DEFAULT 0,
+        UNIQUE KEY `uq_si_project_site_bucket` (`project_id`, `site_id`, `bucket_ts`),
+        KEY `ix_si_project_id`    (`project_id`),
+        KEY `ix_si_bucket_ts`     (`bucket_ts`),
+        KEY `ix_si_annual_savings`(`annual_savings`),
+        KEY `ix_si_baseline_id`   (`baseline_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """
+    try:
+        db.session.execute(text(CREATE_SQL))
+        db.session.commit()
+        print("phase9_create_savings_intelligence_table: table created.")
+        return "created"
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" in err or "1050" in err:
+            return "exists"
+        print(f"phase9_create_savings_intelligence_table: ERROR: {e}")
+        return f"error: {e}"

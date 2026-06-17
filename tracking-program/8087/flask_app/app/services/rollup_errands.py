@@ -1037,10 +1037,11 @@ def run_accumulate_savings():
 
 
 def run_rollup_schedule_tasks():
-    """Rollup schedule - perform-rollup → CBI auto-compute → Capacity Intelligence auto-compute."""
+    """Rollup schedule: rollup → CBI → Capacity Intelligence → Savings Intelligence."""
     run_perform_rollup()
     _run_cbi_auto_compute()
     _run_ci_auto_compute()    # Phase 8 — downstream of CBI
+    _run_si_auto_compute()    # Phase 9 — downstream of CI
 
 
 def _run_cbi_auto_compute():
@@ -1634,6 +1635,70 @@ def _run_ci_auto_compute():
         except Exception as exc:
             db.session.rollback()
             logger.warning("[ci-auto] project=%d error: %s", project.id, exc)
+
+
+def _run_si_auto_compute():
+    """
+    Phase 9 — Savings Intelligence™ auto-trigger.
+
+    Runs after _run_ci_auto_compute() each rollup cycle.
+    For each active project that has a locked baseline, computes the 5 savings
+    categories against recent CBI data and upserts into savings_intelligence.
+
+    Only processes the last 4 hours (matches the CBI/CI window) to stay fast.
+    Errors are swallowed per-project.
+    """
+    import time as _t
+    from app.models.project import Project
+    from app.models.savings_intelligence import SavingsIntelligence
+    from app.services.savings_intelligence_engine import compute_savings_for_project
+
+    now_ms    = int(_t.time() * 1000)
+    window_ms = 4 * 60 * 60 * 1000
+    from_ts   = now_ms - window_ms
+
+    projects = Project.query.filter_by(isDeleted=False).all()
+    logger.info("[si-auto] triggered for %d projects", len(projects))
+
+    for project in projects:
+        try:
+            buckets = compute_savings_for_project(
+                project.id,
+                from_ts=from_ts,
+                to_ts=now_ms,
+            )
+            if not buckets:
+                continue
+
+            upserted = 0
+            for b in buckets:
+                existing = (SavingsIntelligence.query
+                            .filter_by(
+                                project_id=b["project_id"],
+                                site_id=b.get("site_id"),
+                                bucket_ts=b["bucket_ts"],
+                            )
+                            .first())
+                if existing:
+                    for k, v in b.items():
+                        if hasattr(existing, k) and k not in ("project_id", "site_id", "bucket_ts"):
+                            setattr(existing, k, v)
+                    existing.updatedAt = now_ms
+                else:
+                    db.session.add(SavingsIntelligence(
+                        createdAt=now_ms,
+                        updatedAt=now_ms,
+                        **{k: v for k, v in b.items()
+                           if hasattr(SavingsIntelligence, k)},
+                    ))
+                upserted += 1
+
+            db.session.commit()
+            logger.info("[si-auto] project=%d buckets=%d", project.id, upserted)
+
+        except Exception as exc:
+            db.session.rollback()
+            logger.warning("[si-auto] project=%d error: %s", project.id, exc)
 
 
 def process_queue_message(topic, data):
