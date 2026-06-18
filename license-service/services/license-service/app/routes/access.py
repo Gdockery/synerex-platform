@@ -111,15 +111,19 @@ def access_program(
                 }
             )
 
-    # Admins skip the serial-number gate entirely — use their session token for SSO
+    # Admins skip the serial-number gate entirely — generate a fresh token each time
+    # (session_token may be stale after a container restart since tokens are in-memory)
     if request.session.get("admin_logged_in"):
-        admin_token = request.session.get("session_token")
-        if admin_token:
-            base = _get_redirect_base_url(request)
-            if program_id == "emv":
-                return RedirectResponse(url=f"{base}/emv/sso?token={admin_token}", status_code=302)
-            else:
-                return RedirectResponse(url=f"{base}/tracking/sso?token={admin_token}", status_code=302)
+        import uuid
+        from ..auth.admin_tokens import store_admin_token
+        fresh_token = str(uuid.uuid4())
+        store_admin_token(fresh_token)
+        request.session["session_token"] = fresh_token  # keep session in sync
+        base = _get_redirect_base_url(request)
+        if program_id == "emv":
+            return RedirectResponse(url=f"{base}/emv/sso?token={fresh_token}", status_code=302)
+        else:
+            return RedirectResponse(url=f"{base}/tracking/sso?token={fresh_token}", status_code=302)
 
     # Resolve OEM branding via the license_id → org → sponsor_org
     path_prefix = (settings.root_path or "").rstrip("/")
