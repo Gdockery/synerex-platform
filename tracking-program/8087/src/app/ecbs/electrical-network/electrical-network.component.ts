@@ -28,8 +28,16 @@ export class ElectricalNetworkComponent implements OnInit {
     this.loading = true;
     this.api.get(`/api/capacity/assets?project_id=${this.projectId}`).subscribe({
       next: (r: any) => {
-        const raw = r?.assets || r || [];
-        this.nodes = raw.map((a: any) => ({ ...a, type: a.asset_type || 'transformer' }));
+        const raw = r?.data || r?.assets || [];
+        this.nodes = raw.map((a: any) => ({
+          ...a,
+          name:             a.label || a.name || a.asset_id,
+          type:             (a.asset_type || a.type || 'transformer').toLowerCase(),
+          capacity_kva:     a.rated_kva || a.capacity_kva || null,
+          current_load_kva: a.used_kva  || a.current_load_kva || 0,
+          recovered_kva:    a.recoverable_kva || a.recovered_kva || 0,
+          utilization_pct:  a.utilization_pct || null,
+        }));
         this.loading = false;
       },
       error: () => { this.loading = false; }
@@ -91,6 +99,9 @@ export class ElectricalNetworkComponent implements OnInit {
       default: return '#546e7a';
     }
   }
+
+  get totalAssets(): number { return this.nodes.length; }
+  get totalLoadKva(): number { return this.networkSummary?.current_load_kva || this.networkSummary?.used_capacity || 0; }
 
   get networkHealthScore(): number {
     const cbi = this.cbi?.score || this.cbi?.cbi_score || 0;

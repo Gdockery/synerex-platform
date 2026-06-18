@@ -25,7 +25,7 @@
     </div>
     <div class="ecbs-kpi-card kpi-blue">
       <div class="kpi-icon"><span class="fa fa-sitemap"></span></div>
-      <div class="kpi-value">{{ networkSummary?.total_assets || 0 }}</div>
+      <div class="kpi-value">{{ totalAssets }}</div>
       <div class="kpi-label">Total Assets</div>
     </div>
     <div class="ecbs-kpi-card kpi-green">
@@ -40,7 +40,7 @@
     </div>
     <div class="ecbs-kpi-card kpi-blue">
       <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
-      <div class="kpi-value">{{ (networkSummary?.total_load_kva||0) | number:'1.0-0' }}</div>
+      <div class="kpi-value">{{ totalLoadKva | number:'1.0-0' }}</div>
       <div class="kpi-label">Total Load kVA</div>
     </div>
   </div>
