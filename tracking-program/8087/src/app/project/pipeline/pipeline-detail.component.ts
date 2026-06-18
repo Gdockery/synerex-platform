@@ -443,13 +443,14 @@ export class PipelineDetailComponent implements OnInit {
   }
 
   openEcbsDashboard() {
-    if (this.project && this.userService.user) {
-      const found = (this.userService.user.projects || []).find((p: any) => p.id == this.project.id);
-      if (found) {
-        this.userService.selectProject(this.project.id);
-      }
-      this.router.navigate(['/ecbs/dashboard']);
+    if (!this.project) return;
+    const projects = this.userService.user?.projects || [];
+    const found = projects.find((p: any) => p.id == this.project.id);
+    if (found) {
+      this.userService.selectProject(this.project.id);
     }
+    // Use direct hash navigation to guarantee route change
+    window.location.hash = '#/ecbs/dashboard';
   }
 
   private reload() {
