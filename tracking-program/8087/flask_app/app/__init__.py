@@ -641,6 +641,7 @@ def create_app(config_class=Config):
                         "voltage_in": 13800,
                         "voltage_out": 480,
                         "manufacturer": "Square D",
+                        "is_main_meter": True,
                     },
                     {
                         "id": "tx-iso-1",

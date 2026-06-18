@@ -152,7 +152,7 @@ def get_assets():
         return jsonify({"error": "Unauthorized"}), 403
 
     now = _now_ms()
-    from_ts = request.args.get("from_ts", type=int, default=now - 7 * 86400 * 1000)
+    from_ts = request.args.get("from_ts", type=int, default=now - 90 * 86400 * 1000)
     to_ts   = request.args.get("to_ts",   type=int, default=now)
 
     # Get Digital Twin assets
@@ -163,7 +163,7 @@ def get_assets():
     snapshot = get_latest_twin_snapshot(twin)
     assets = snapshot.get("assets", [])
 
-    # Get latest CBI aggregate for context
+    # Get latest CBI aggregate for context — use 90-day window to ensure we find data
     avg_kva_row = (CurrentBalanceMetrics.query
                    .filter_by(project_id=project_id)
                    .filter(CurrentBalanceMetrics.bucket_ts.between(from_ts, to_ts))
@@ -176,6 +176,25 @@ def get_assets():
     imb_pct           = float(avg_kva_row.imbalance_pct or 0) if avg_kva_row else 0.0
     neut_pct          = float(avg_kva_row.neutral_burden_pct or 0) if avg_kva_row else 0.0
     total_burden_pct  = min(harm_pct + react_pct + imb_pct + neut_pct, 100.0)
+
+    # Identify the main-metered transformer — the meter reading applies to it.
+    # All CBI data (avg_kva) comes from the main service entrance meter.
+    main_meter_ids = {
+        a.get("id") for a in assets
+        if isinstance(a, dict) and a.get("is_main_meter")
+    }
+    # Fallback: if no explicit flag, use the transformer with the largest rated_kva
+    if not main_meter_ids:
+        transformer_assets = [
+            a for a in assets
+            if isinstance(a, dict) and (a.get("type", "").lower() == "transformer")
+        ]
+        if transformer_assets:
+            biggest = max(
+                transformer_assets,
+                key=lambda a: float(a.get("rated_kva") or a.get("ratedKva") or 0)
+            )
+            main_meter_ids = {biggest.get("id")}
 
     rows = []
     for asset in assets:
@@ -190,8 +209,9 @@ def get_assets():
                 except (TypeError, ValueError):
                     pass
 
-        # Distribute actual load proportionally to installed capacity if multiple assets
-        used_kva = total_used_kva  # For single transformer, this is all of it
+        # Meter is on the main transformer — assign full CBI load only to that asset.
+        # Other assets (panels, utility feeds, secondary transformers) show 0 metered load.
+        used_kva = total_used_kva if asset.get("id") in main_meter_ids else 0.0
         hidden_kva = used_kva * (total_burden_pct / 100.0) if used_kva else 0.0
         available_kva = max(0.0, (rated_kva - used_kva)) if rated_kva else None
         recoverable_kva = used_kva * ((harm_pct * 0.90 + react_pct * 0.85) / 100.0) if used_kva else 0.0
