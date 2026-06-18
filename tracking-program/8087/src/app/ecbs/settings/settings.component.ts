@@ -26,7 +26,7 @@ export class SettingsComponent implements OnInit {
 
   get isAdmin(): boolean { return this.role >= 8; }
   get isSuperAdmin(): boolean { return this.role >= 9; }
-  get userName(): string { return this.userService.user?.name || this.userService.user?.email || '—'; }
+  get userName(): string { return (this.userService.user?.firstName || this.userService.user?.email || '—').toString(); }
   get lastLogin(): string { return 'This session'; }
 
   get roleName(): string {

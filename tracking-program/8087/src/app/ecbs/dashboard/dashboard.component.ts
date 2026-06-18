@@ -24,7 +24,7 @@ export class DashboardComponent implements OnInit {
     const p = this.userService.user?.selectedProject;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
-    this.siteName = p.name || '';
+    this.siteName = p.name ? p.name.toString() : '';
     this.loadData();
   }
 

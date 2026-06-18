@@ -29,7 +29,7 @@ export class DigitalTwinComponent implements OnInit {
     const p = this.userService.user?.selectedProject;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
-    this.projectName = p.name || '';
+    this.projectName = p.name ? p.name.toString() : '';
     this.api.get(`/api/capacity/assets?project_id=${this.projectId}`).subscribe({
       next: (r: any) => {
         this.assets = r?.assets || r || [];
