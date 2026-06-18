@@ -75,6 +75,9 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
     # Use a distinct cookie name to avoid collision with license-service's "session" cookie
     SESSION_COOKIE_NAME = "tracking_session"
+    # Lax is required for HTTP (SameSite=None without Secure is rejected by Chrome)
+    SESSION_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SAMESITE = "Lax"
     # Redis session store (optional). When REDIS_URL is set, sessions use Redis.
     REDIS_URL = os.environ.get("REDIS_URL", "")
     SESSION_TYPE = "redis" if REDIS_URL else "filesystem"
