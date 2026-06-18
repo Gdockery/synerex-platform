@@ -118,6 +118,35 @@ def get_summary():
         summary["hidden_capacity_kva"]     = summary.get("hidden_capacity")
         summary["recovered_capacity_kva"]  = summary.get("recoverable_capacity")
         summary["health_score"]            = summary.get("capacity_health_score")
+
+        # Aliases the Electrical Network HTML template reads directly
+        summary["total_load_kva"]      = summary.get("used_capacity")
+        summary["total_installed_kva"] = summary.get("installed_capacity")
+        summary["recovered_kva"]       = summary.get("recoverable_capacity")
+
+        # Power factor + active meters from CBI metrics
+        from app.models.current_balance_metrics import CurrentBalanceMetrics
+        now_ms = _now_ms()
+        cbi_window_start = now_ms - 90 * 86400 * 1000
+        latest_cbi = (CurrentBalanceMetrics.query
+                      .filter_by(project_id=project_id)
+                      .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
+                      .order_by(CurrentBalanceMetrics.bucket_ts.desc())
+                      .first())
+        if latest_cbi:
+            summary["avg_power_factor"] = float(latest_cbi.avg_pf or 0)
+            # Count distinct meter sources that have data in the last 90 days
+            active_count = (CurrentBalanceMetrics.query
+                            .filter_by(project_id=project_id)
+                            .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
+                            .with_entities(CurrentBalanceMetrics.meter_id)
+                            .distinct()
+                            .count())
+            summary["active_meters"] = active_count or 1  # At least 1 if CBI data exists
+        else:
+            summary["avg_power_factor"] = 0
+            summary["active_meters"]    = 0
+
     return jsonify(summary)
 
 
