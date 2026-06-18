@@ -1,13 +1,14 @@
-import {Component, EventEmitter, Output} from '@angular/core';
+import {Component, EventEmitter, OnInit, Output} from '@angular/core';
 import {CurrentUserService} from "../user/currentUser.service";
 import {WhitelabelService} from "../services/whitelabel.service";
+import {ApiRequestService} from "../../api/api-request.service";
 
 @Component({
   selector: 'sd-navbar',
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss'],
 })
-export class NavbarComponent {
+export class NavbarComponent implements OnInit {
 
   // An event that this component emits when `_toggleSidebar()` is called.
   // (Basically a way of informing parent components that the navbar expanded/collapsed.)
@@ -28,7 +29,9 @@ export class NavbarComponent {
   /** True after the logo image fires an error event. */
   public logoFailed: boolean = false;
 
-  constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService) {
+  cbiScore: number = 0;
+
+  constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService, private api: ApiRequestService) {
     const user = this.userService.user;
     this.logoUrl = this.whitelabelService.getNavbarLogoUrl(user);
     this.logoColorFallbackUrl = this.whitelabelService.getNavbarColorLogoUrl(user);
@@ -69,6 +72,19 @@ export class NavbarComponent {
       ? window.location.origin
       : this.myAccountUrl;
     return origin + '/my-account';
+  }
+
+  ngOnInit() {
+    this.refreshCbi();
+  }
+
+  refreshCbi() {
+    const pid = this.userService.user?.selectedProject?.id;
+    if (!pid) return;
+    this.api.get(`/api/current-balance/summary?project_id=${pid}`).subscribe({
+      next: (r: any) => { this.cbiScore = Math.round(r?.score || r?.cbi_score || 0); },
+      error: () => {}
+    });
   }
 
   _toggleSidebar() {

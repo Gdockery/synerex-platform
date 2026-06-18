@@ -14,6 +14,8 @@ export class SitesComponent implements OnInit {
   cbiData: any = null;
   alarmSummary: any = null;
   capacityData: any = null;
+  savingsData: any = null;
+  deviceCount: number = 0;
 
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
@@ -31,6 +33,8 @@ export class SitesComponent implements OnInit {
     this.api.get(`/api/current-balance/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.cbiData = r; }, error: () => {}});
     this.api.get(`/api/alarms/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.alarmSummary = r; }, error: () => {}});
     this.api.get(`/api/capacity/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.capacityData = r; }, error: () => {}});
+    this.api.get(`/api/savings/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.savingsData = r; }, error: () => {}});
+    this.api.get(`/api/devices/count?project_id=${pid}`).subscribe({ next: (r: any) => { this.deviceCount = r?.count || r?.total || 0; }, error: () => {}});
   }
 
   get cbiScore(): number { return this.cbiData?.score ?? this.cbiData?.cbi_score ?? 0; }

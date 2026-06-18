@@ -39,6 +39,18 @@
       <div class="kpi-value">{{ summary?.resolved_today || 0 }}</div>
       <div class="kpi-label">Resolved Today</div>
     </div>
+    <div class="ecbs-kpi-card">
+      <div class="kpi-icon"><span class="fa fa-minus-circle" style="color:#8899a6;"></span></div>
+      <div class="kpi-value">{{ summary?.low || 0 }}</div>
+      <div class="kpi-label">Low</div>
+      <div class="kpi-delta neutral">Low priority</div>
+    </div>
+    <div class="ecbs-kpi-card">
+      <div class="kpi-icon"><span class="fa fa-info" style="color:#546e7a;"></span></div>
+      <div class="kpi-value">{{ summary?.information || 0 }}</div>
+      <div class="kpi-label">Information</div>
+      <div class="kpi-delta neutral">Informational</div>
+    </div>
   </div>
 
   <!-- Tabs — Alarms / Events / Alert Rules -->
@@ -96,7 +108,10 @@
           <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ a.triggered_at | date:'MMM d, h:mm a' }}</td>
           <td>
             <button *ngIf="a.status === 'open'" class="btn-ecbs btn-xs btn-outline" (click)="acknowledgeAlarm(a)">Ack</button>
-            <button *ngIf="a.status === 'acknowledged'" class="btn-ecbs btn-xs btn-outline" (click)="resolveAlarm(a)">Resolve</button>
+            <button *ngIf="a.status === 'acknowledged'" class="btn-ecbs btn-xs btn-outline" (click)="assignAlarm(a)">Assign</button>
+            <button *ngIf="a.status === 'assigned'" class="btn-ecbs btn-xs btn-outline" (click)="startAlarm(a)">Start</button>
+            <button *ngIf="a.status === 'in_progress'" class="btn-ecbs btn-xs btn-outline" (click)="resolveAlarm(a)">Resolve</button>
+            <button *ngIf="a.status === 'resolved'" class="btn-ecbs btn-xs btn-outline" (click)="closeAlarm(a)">Close</button>
           </td>
         </tr>
       </tbody>

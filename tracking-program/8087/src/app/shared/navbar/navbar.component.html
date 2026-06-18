@@ -293,8 +293,8 @@
     <!-- CBI Score Card — shown when inside a project (spec SS-2 through SS-17) -->
     <div class="cbi-card" *ngIf="userService.user.selectedProject">
       <div class="cbi-title">XECO Current Balance Index™</div>
-      <div class="cbi-score">96</div>
-      <div class="cbi-grade">A+ Rating</div>
+      <div class="cbi-score" [style.color]="cbiScore>=90?'#00e676':cbiScore>=80?'#ffd740':cbiScore>0?'#f44336':'#546e7a'">{{ cbiScore > 0 ? cbiScore : '—' }}</div>
+      <div class="cbi-grade" [style.color]="cbiScore>=90?'#00e676':cbiScore>=80?'#ffd740':cbiScore>0?'#f44336':'#546e7a'">{{ cbiScore>=90?'Excellent':cbiScore>=80?'Good':cbiScore>=70?'Fair':cbiScore>0?'Poor':'No Data' }}</div>
       <div class="cbi-target">Target &gt; 90</div>
       <a class="cbi-link" [routerLink]="['/ecbs/current-analysis']">View Details →</a>
     </div>

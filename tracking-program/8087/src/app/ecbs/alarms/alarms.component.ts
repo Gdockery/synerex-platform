@@ -53,7 +53,26 @@ export class AlarmsComponent implements OnInit {
 
   resolveAlarm(alarm: any) {
     this.api.post(`/api/alarms/${alarm.id}/resolve`, {}).subscribe({
-      next: () => { alarm.status = 'resolved'; this.alarms = this.alarms.filter(a => a.id !== alarm.id); },
+      next: () => { alarm.status = 'resolved'; },
+      error: () => {}
+    });
+  }
+
+  assignAlarm(alarm: any) {
+    this.api.post(`/api/alarms/${alarm.id}/assign`, {}).subscribe({
+      next: () => { alarm.status = 'assigned'; }, error: () => {}
+    });
+  }
+
+  startAlarm(alarm: any) {
+    this.api.post(`/api/alarms/${alarm.id}/start`, {}).subscribe({
+      next: () => { alarm.status = 'in_progress'; }, error: () => {}
+    });
+  }
+
+  closeAlarm(alarm: any) {
+    this.api.post(`/api/alarms/${alarm.id}/close`, {}).subscribe({
+      next: () => { alarm.status = 'closed'; this.alarms = this.alarms.filter(a => a.id !== alarm.id); },
       error: () => {}
     });
   }

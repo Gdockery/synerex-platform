@@ -62,6 +62,18 @@
         <div class="kpi-label">Hidden kVA</div>
         <div class="kpi-delta neutral">Was inaccessible</div>
       </div>
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-heartbeat"></span></div>
+        <div class="kpi-value" [style.color]="(summary?.capacity_health_score||0)>=80?'#00e676':(summary?.capacity_health_score||0)>=60?'#ffd740':'#f44336'">{{ (summary?.capacity_health_score || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Capacity Health Score™</div>
+        <div class="kpi-delta" [class.negative]="(summary?.capacity_health_score||0)<60" [class.neutral]="(summary?.capacity_health_score||0)>=60&&(summary?.capacity_health_score||0)<80">{{ (summary?.capacity_health_score||0)>=80?'Excellent':(summary?.capacity_health_score||0)>=60?'Good':'Needs Attention' }}</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-amber">
+        <div class="kpi-icon"><span class="fa fa-building-o"></span></div>
+        <div class="kpi-value">${{ (summary?.deferred_capital_value || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-label">Deferred Capital Value™</div>
+        <div class="kpi-delta neutral">Avoided infrastructure cost</div>
+      </div>
     </div>
 
     <!-- No data state -->

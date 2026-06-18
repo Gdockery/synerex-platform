@@ -48,11 +48,17 @@
       <div class="kpi-label">Power Factor</div>
       <div class="kpi-delta" [class.negative]="pfValue < 0.9" [class.neutral]="pfValue>=0.9&&pfValue<0.95">{{ pfValue >= 0.95 ? 'Excellent' : pfValue >= 0.9 ? 'Good' : pfValue > 0 ? 'Needs work' : '—' }}</div>
     </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-calendar"></span></div>
+      <div class="kpi-value">${{ ((savingsData?.annual_savings || 0) / 12) | number:'1.0-0' }}</div>
+      <div class="kpi-label">Monthly Savings</div>
+      <div class="kpi-delta neutral">EM&amp;V verified avg.</div>
+    </div>
     <div class="ecbs-kpi-card kpi-purple">
       <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
       <div class="kpi-value">{{ cbiScoreDisplay }}</div>
       <div class="kpi-label">CBI Score™</div>
-      <div class="kpi-delta" [class.negative]="cbiValue<70" [class.neutral]="cbiValue>=70&&cbiValue<90">{{ cbiValue>=90?'Excellent':cbiValue>=70?'Good':cbiValue>0?'Fair':'—' }}</div>
+      <div class="kpi-delta" [class.negative]="cbiValue<70" [class.neutral]="cbiValue>=70&&cbiValue<90">{{ cbiValue>=90?'Excellent':cbiValue>=80?'Good':cbiValue>=70?'Fair':cbiValue>0?'Poor':'—' }}</div>
     </div>
     <div class="ecbs-kpi-card" [class.kpi-red]="criticalAlarms>0" [class.kpi-amber]="criticalAlarms===0&&activeAlarms>0" [class.kpi-green]="activeAlarms===0">
       <div class="kpi-icon"><span class="fa fa-bell"></span></div>
@@ -150,7 +156,7 @@
             <div style="font-size:40px;font-weight:900;line-height:1;" [style.color]="cbiValue>=90?'#00e676':cbiValue>=70?'#ffd740':'#f44336'">{{ cbiValue | number:'1.0-0' }}</div>
             <div style="font-size:10px;color:#8899a6;text-transform:uppercase;letter-spacing:0.08em;">CBI Score™</div>
             <div style="font-size:11px;font-weight:700;margin-top:2px;" [style.color]="cbiValue>=90?'#00e676':cbiValue>=70?'#ffd740':'#f44336'">
-              {{ cbiValue>=90?'Excellent':cbiValue>=70?'Good':'Poor' }}
+              {{ cbiValue>=90?'Excellent':cbiValue>=80?'Good':cbiValue>=70?'Fair':'Poor' }}
             </div>
           </div>
           <div style="flex:1;">
@@ -208,6 +214,42 @@
           <a class="quick-link" routerLink="/ecbs/sites"><span class="fa fa-industry" style="color:#8899a6;"></span> Site Details</a>
           <a class="quick-link" routerLink="/ecbs/settings"><span class="fa fa-cog" style="color:#8899a6;"></span> Settings</a>
         </div>
+      </div>
+
+      <!-- Site Health Score widget — spec Ch.13 -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-heartbeat"></span> Site Health Score™</div>
+        <div style="display:flex;align-items:center;gap:16px;padding:6px 0;">
+          <div style="text-align:center;flex-shrink:0;">
+            <div style="font-size:36px;font-weight:900;line-height:1;" [style.color]="(activeAlarms||0)===0?'#00e676':(criticalAlarms||0)>0?'#f44336':'#ffd740'">
+              {{ (activeAlarms||0)===0?'A':(criticalAlarms||0)>0?'C':'B' }}
+            </div>
+            <div style="font-size:10px;color:#8899a6;text-transform:uppercase;letter-spacing:.08em;">Site Grade</div>
+          </div>
+          <div style="flex:1;">
+            <div class="ecbs-kv-table">
+              <div class="kv-row"><span class="kv-key">Alarm Status</span><span class="kv-val" [style.color]="(activeAlarms||0)===0?'#00e676':'#ffd740'">{{ (activeAlarms||0)===0?'All Clear':'Needs Review' }}</span></div>
+              <div class="kv-row"><span class="kv-key">CBI Score</span><span class="kv-val" [style.color]="cbiValue>=90?'#00e676':cbiValue>=70?'#ffd740':'#f44336'">{{ cbiScoreDisplay }}</span></div>
+              <div class="kv-row"><span class="kv-key">Power Factor</span><span class="kv-val" [style.color]="pfValue>=0.95?'#00e676':'#ffd740'">{{ avgPowerFactor }}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Utility Spend summary — spec Ch.13 -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-file-text-o"></span> Utility Spend</div>
+        <div *ngIf="savingsData" class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Avg Rate</span><span class="kv-val">${{ (savingsData.current_rate_per_kwh || 0) | number:'1.3-3' }}/kWh</span></div>
+          <div class="kv-row"><span class="kv-key">Peak Demand</span><span class="kv-val">{{ (savingsData.current_avg_kw || 0) | number:'1.0-0' }} kW</span></div>
+          <div class="kv-row"><span class="kv-key">Energy Savings</span><span class="kv-val kv-green">{{ (savingsData.energy_savings_pct || 0) | number:'1.1-1' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Annual Savings</span><span class="kv-val kv-green">${{ ((savingsData.annual_savings_est != null ? savingsData.annual_savings_est : savingsData.annual_savings) || 0) | number:'1.0-0' }}</span></div>
+        </div>
+        <div *ngIf="!savingsData" class="ecbs-empty" style="padding:14px 10px;">
+          <span class="empty-icon fa fa-file-o" style="font-size:22px;"></span>
+          <span class="empty-title" style="font-size:11px;">No utility data</span>
+        </div>
+        <a class="btn-ecbs btn-outline btn-xs" style="margin-top:8px;" routerLink="/ecbs/utility">View Utility Details →</a>
       </div>
 
       <!-- Report summary -->
