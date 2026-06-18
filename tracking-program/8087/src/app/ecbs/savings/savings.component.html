@@ -21,7 +21,7 @@
     <div class="ecbs-kpi-row">
       <div class="ecbs-kpi-card kpi-green">
         <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
-        <div class="kpi-value">${{ ((intelligence?.annual_savings_est ?? intelligence?.annual_savings) || 0) | number:'1.0-0' }}</div>
+        <div class="kpi-value">${{ ((intelligence?.annual_savings_est != null ? intelligence?.annual_savings_est : intelligence?.annual_savings) || 0) | number:'1.0-0' }}</div>
         <div class="kpi-label">Annual Savings Est.</div>
         <div class="kpi-delta">Verified by EM&amp;V baseline</div>
       </div>

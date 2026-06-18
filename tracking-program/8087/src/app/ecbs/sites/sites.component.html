@@ -34,7 +34,7 @@
     </div>
     <div class="ecbs-kpi-card" [class.kpi-red]="(alarmSummary?.critical||0)>0" [class.kpi-amber]="(alarmSummary?.critical||0)===0">
       <div class="kpi-icon"><span class="fa fa-bell"></span></div>
-      <div class="kpi-value">{{ alarmSummary?.active_alarms ?? '—' }}</div>
+      <div class="kpi-value">{{ alarmSummary?.active_alarms != null ? alarmSummary?.active_alarms : '—' }}</div>
       <div class="kpi-label">Active Alarms</div>
       <div class="kpi-delta" [class.negative]="(alarmSummary?.critical||0)>0">{{ alarmSummary?.critical || 0 }} Critical</div>
     </div>

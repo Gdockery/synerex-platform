@@ -117,7 +117,7 @@
         <div *ngIf="savingsData">
           <div class="ecbs-grid-2" style="margin-bottom:12px;">
             <div class="mini-stat">
-              <div class="mini-val" style="color:#00e676;">${{ ((savingsData.annual_savings_est ?? savingsData.annual_savings) || 0) | number:'1.0-0' }}</div>
+              <div class="mini-val" style="color:#00e676;">${{ ((savingsData.annual_savings_est != null ? savingsData.annual_savings_est : savingsData.annual_savings) || 0) | number:'1.0-0' }}</div>
               <div class="mini-lbl">Annual Savings</div>
             </div>
             <div class="mini-stat">
