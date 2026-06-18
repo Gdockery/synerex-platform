@@ -132,8 +132,14 @@ class Config:
     except Exception:
         WHITELABEL_DOMAIN_MAPPINGS = {}
     DEFAULT_BRANDING = os.environ.get("WHITELABEL_DEFAULT_BRANDING", "tracking")
-    # App version for S3 static paths
-    APP_VERSION = os.environ.get("APP_VERSION", "1.3.2")
+    # App version — auto-derived from main.bundle.js mtime so browsers re-fetch on every build
+    _bundle_path = os.path.join(os.path.dirname(__file__), "../../.tmp/public/js/main.bundle.js")
+    try:
+        import hashlib as _hl, pathlib as _pl
+        _b = _pl.Path(_bundle_path)
+        APP_VERSION = os.environ.get("APP_VERSION", str(int(_b.stat().st_mtime)) if _b.exists() else "1.3.2")
+    except Exception:
+        APP_VERSION = os.environ.get("APP_VERSION", "1.3.2")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Phase 1 — OAuth SSO (Google + Microsoft Entra ID)
