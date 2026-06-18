@@ -111,6 +111,16 @@ def access_program(
                 }
             )
 
+    # Admins skip the serial-number gate entirely — use their session token for SSO
+    if request.session.get("admin_logged_in"):
+        admin_token = request.session.get("session_token")
+        if admin_token:
+            base = _get_redirect_base_url(request)
+            if program_id == "emv":
+                return RedirectResponse(url=f"{base}/emv/sso?token={admin_token}", status_code=302)
+            else:
+                return RedirectResponse(url=f"{base}/tracking/sso?token={admin_token}", status_code=302)
+
     # Resolve OEM branding via the license_id → org → sponsor_org
     path_prefix = (settings.root_path or "").rstrip("/")
     brand_logo_url = None
