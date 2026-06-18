@@ -267,6 +267,58 @@ def get_assets():
             )
             main_meter_ids = {biggest.get("id")}
 
+    # Build a set of asset IDs that carry the same load as the main meter.
+    # Rule: the metered asset plus everything directly upstream (utility feeds)
+    # and everything in the primary downstream path (panels, buses) all carry
+    # the same current through the system.  Secondary branch transformers
+    # (e.g. TX-ISO fed off the MDP) are NOT in this set — they branch off and
+    # their load is unknown without a dedicated meter.
+    relationships = snapshot.get("relationships", [])
+    asset_by_id = {a.get("id"): a for a in assets if isinstance(a, dict)}
+
+    def _asset_type_lower(a):
+        return str(a.get("type", a.get("asset_type", ""))).lower()
+
+    def _walk_upstream(start_ids):
+        """Walk the relationship graph upward (child → parent) from start_ids."""
+        visited, frontier = set(start_ids), set(start_ids)
+        while frontier:
+            parents = {
+                r.get("parent_asset_id")
+                for r in relationships
+                if r.get("child_asset_id") in frontier
+                   and r.get("relationship_type") == "feeds"
+            } - visited
+            visited |= parents
+            frontier = parents
+        return visited
+
+    def _walk_downstream_primary(start_ids):
+        """Walk downstream but stop at branch transformers (secondary XFMRs).
+        A branch transformer is a transformer/switchgear whose input
+        is NOT the utility or primary transformer — i.e. it is fed from a
+        panel/bus, not directly from the main metered transformer."""
+        visited, frontier = set(start_ids), set(start_ids)
+        while frontier:
+            children = set()
+            for r in relationships:
+                if r.get("parent_asset_id") in frontier and r.get("relationship_type") == "feeds":
+                    child_id = r.get("child_asset_id")
+                    if child_id in visited:
+                        continue
+                    child = asset_by_id.get(child_id)
+                    if child and _asset_type_lower(child) in {"transformer", "switchgear"}:
+                        # This is a secondary transformer branching off — don't include it
+                        continue
+                    children.add(child_id)
+            visited |= children
+            frontier = children
+        return visited
+
+    upstream_ids   = _walk_upstream(main_meter_ids)
+    downstream_ids = _walk_downstream_primary(main_meter_ids)
+    load_path_ids  = upstream_ids | downstream_ids | main_meter_ids
+
     rows = []
     for asset in assets:
         if not isinstance(asset, dict):
@@ -280,9 +332,9 @@ def get_assets():
                 except (TypeError, ValueError):
                     pass
 
-        # Meter is on the main transformer — assign full CBI load only to that asset.
-        # Other assets (panels, utility feeds, secondary transformers) show 0 metered load.
-        used_kva = total_used_kva if asset.get("id") in main_meter_ids else 0.0
+        # Assets in the primary load path all carry the metered load.
+        # Secondary branch transformers (TX-ISO etc.) have no dedicated meter → show 0.
+        used_kva = total_used_kva if asset.get("id") in load_path_ids else 0.0
         hidden_kva = used_kva * (total_burden_pct / 100.0) if used_kva else 0.0
         available_kva = max(0.0, (rated_kva - used_kva)) if rated_kva else None
         recoverable_kva = used_kva * ((harm_pct * 0.90 + react_pct * 0.85) / 100.0) if used_kva else 0.0
