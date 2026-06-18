@@ -162,8 +162,17 @@ def get_summary():
     summary = dashboard_summary(row_dicts)
     # Flatten response so Angular components can access fields directly
     summary["meta"]  = {"from_ts": from_ts, "to_ts": to_ts, "rows": len(rows)}
-    summary["score"] = summary.get("cbi_score")      # Angular alias
-    summary["power_factor"] = summary.get("avg_pf")  # Angular alias
+    # Angular alias: score / cbi_score → latest or avg
+    summary["score"]     = summary.get("latest_cbi_score") or summary.get("avg_cbi_score") or 0
+    summary["cbi_score"] = summary["score"]
+    summary["power_factor"] = summary.get("avg_pf") or summary.get("avg_power_factor") or 0
+    # Breakdown fields Angular reads per component
+    summary["productive_current_pct"] = summary.get("avg_productive_pct", 0)
+    summary["reactive_current_pct"]   = summary.get("avg_reactive_burden", 0)
+    summary["harmonic_current_pct"]   = summary.get("avg_harmonic_burden", 0)
+    summary["imbalance_pct"]          = summary.get("avg_imbalance", 0)
+    summary["neutral_current_pct"]    = summary.get("avg_neutral_burden", 0)
+    summary["annual_savings"]         = summary.get("annual_savings") or summary.get("avg_annual_savings") or 0
     return jsonify(summary)
 
 
