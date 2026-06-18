@@ -38,8 +38,16 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 
       <div *ngIf="!loading && project">
         <h3 style="margin-top: 16px; margin-bottom: 4px;">{{ project.name }}</h3>
-        <div style="color: #777; margin-bottom: 20px;">
+        <div style="color: #777; margin-bottom: 12px;">
           {{ project.client_name }}<span *ngIf="project.location"> — {{ project.location }}</span>
+        </div>
+
+        <!-- ECBS Dashboard shortcut -->
+        <div style="margin-bottom: 20px;">
+          <button class="btn btn-success" (click)="openEcbsDashboard()"
+            style="background: #00e676; color: #000; border: none; font-weight: 700; padding: 8px 20px; border-radius: 6px;">
+            ⚡ Open ECBS Dashboard →
+          </button>
         </div>
 
         <!-- Documents -->
@@ -431,6 +439,18 @@ export class PipelineDetailComponent implements OnInit {
     if (this.project && this.userService.user) {
       const found = (this.userService.user.projects || []).find((p: any) => p.id === this.project.id);
       if (found) this.userService.selectProject(this.project.id);
+    }
+  }
+
+  openEcbsDashboard() {
+    if (this.project && this.userService.user) {
+      const found = (this.userService.user.projects || []).find((p: any) => p.id === this.project.id);
+      if (found) {
+        this.userService.selectProject(this.project.id);
+        this.router.navigate(['/ecbs/dashboard']);
+      } else {
+        alert('Your account does not have client access to this project. Log in as rob.cowart@xecoenergy.com to view ECBS.');
+      }
     }
   }
 
