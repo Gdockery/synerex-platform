@@ -13,6 +13,7 @@ import { AlarmsComponent }            from './alarms/alarms.component';
 import { ReportsComponent }           from './reports/reports.component';
 import { DevicesComponent }           from './devices/devices.component';
 import { SettingsComponent }          from './settings/settings.component';
+import { UtilityComponent }           from './utility/utility.component';
 
 const routes: Routes = [
   { path: 'dashboard',          component: DashboardComponent,        data: { title: 'Enterprise Dashboard' } },
@@ -27,6 +28,7 @@ const routes: Routes = [
   { path: 'reports',            component: ReportsComponent,          data: { title: 'Reports' } },
   { path: 'devices',            component: DevicesComponent,          data: { title: 'Devices' } },
   { path: 'settings',           component: SettingsComponent,         data: { title: 'Settings' } },
+  { path: 'utility',            component: UtilityComponent,          data: { title: 'Utility Intelligence' } },
   { path: '',                   redirectTo: 'dashboard', pathMatch: 'full' },
 ];
 

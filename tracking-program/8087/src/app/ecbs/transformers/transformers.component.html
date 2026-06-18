@@ -1,113 +1,155 @@
-<!-- ECBS OS™ Transformers — Spec SS-7 / A-7 + SS-22 / A-22 -->
+<!-- ECBS OS™ Transformers — Spec SS-7 + Transformer Intelligence™ -->
 <div class="ecbs-page">
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Transformers</h1>
-      <p>Monitor transformer health, loading, efficiency, and capacity performance.</p>
+      <h1>Transformer Intelligence™</h1>
+      <p>Monitor transformer health, loading, capacity utilization, and electrical analytics — spec SS-7.</p>
     </div>
     <div class="page-actions">
       <button class="btn-ecbs btn-outline" (click)="loadAssets()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
 
-  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
-    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-    <p style="margin-top:10px;">Loading transformers...</p>
+  <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading transformers...</div>
+
+  <div *ngIf="!loading && assets.length === 0" class="ecbs-card">
+    <div class="ecbs-empty">
+      <span class="empty-icon fa fa-plug"></span>
+      <span class="empty-title">No Transformer Assets Configured</span>
+      <p>Configure transformer assets in the Devices module to see Transformer Intelligence data.</p>
+      <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Go to Devices</a>
+    </div>
   </div>
 
-  <div *ngIf="!loading && assets.length === 0" class="ecbs-empty">
-    <span class="empty-icon fa fa-plug"></span>
-    <span class="empty-title">No Transformer Assets</span>
-    <p>Configure transformer assets in Devices to see capacity data here.</p>
-    <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Go to Devices</a>
-  </div>
+  <ng-container *ngIf="!loading && assets.length > 0">
 
-  <div *ngIf="!loading && assets.length > 0" class="transformer-layout">
+    <!-- Summary KPIs across all transformers -->
+    <div class="ecbs-kpi-row">
+      <div class="ecbs-kpi-card kpi-blue">
+        <div class="kpi-icon"><span class="fa fa-plug"></span></div>
+        <div class="kpi-value">{{ assets.length }}</div>
+        <div class="kpi-label">Transformers</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-blue">
+        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+        <div class="kpi-value">{{ totalInstalledKva | number:'1.0-0' }}</div>
+        <div class="kpi-label">Total Installed kVA</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-amber">
+        <div class="kpi-icon"><span class="fa fa-bar-chart"></span></div>
+        <div class="kpi-value">{{ avgUtilization | number:'1.0-0' }}%</div>
+        <div class="kpi-label">Avg. Utilization</div>
+        <div class="kpi-delta" [class.negative]="avgUtilization>85" [class.neutral]="avgUtilization<=85">{{ avgUtilization>85?'Near Capacity':'Normal' }}</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-magic"></span></div>
+        <div class="kpi-value" style="color:#00e676;">{{ totalRecoveredKva | number:'1.0-0' }}</div>
+        <div class="kpi-label">Total Recovered kVA</div>
+        <div class="kpi-delta">By ECBS</div>
+      </div>
+      <div class="ecbs-kpi-card kpi-green">
+        <div class="kpi-icon"><span class="fa fa-exchange"></span></div>
+        <div class="kpi-value">{{ avgPowerFactor | number:'1.2-2' }}</div>
+        <div class="kpi-label">Avg Power Factor</div>
+        <div class="kpi-delta" [class.negative]="avgPowerFactor<0.9">{{ avgPowerFactor>=0.95?'Excellent':avgPowerFactor>=0.9?'Good':'Needs improvement' }}</div>
+      </div>
+    </div>
 
-    <!-- Left: asset list -->
-    <div class="transformer-list-panel">
-      <div class="ecbs-card-title" style="padding:0 0 10px;"><span class="fa fa-list"></span> All Transformers</div>
-      <div class="t-asset-row" *ngFor="let a of assets"
-        [class.active]="selected?.id === a.id"
+    <!-- Transformer cards grid -->
+    <div class="ecbs-grid-auto" style="margin-bottom:16px;">
+      <div *ngFor="let a of assets" class="xfmr-detail-card"
+        [class.xfmr-critical]="(a.utilization_pct||0)>=90"
+        [class.xfmr-warning]="(a.utilization_pct||0)>=75&&(a.utilization_pct||0)<90"
+        [class.xfmr-healthy]="(a.utilization_pct||0)<75"
         (click)="selectAsset(a)">
-        <div class="t-asset-icon"><span class="fa fa-plug"></span></div>
-        <div class="t-asset-info">
-          <div class="t-asset-name">{{ a.name || a.asset_id }}</div>
-          <div class="t-asset-sub">{{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</div>
-        </div>
-        <span [class]="healthClass(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
-      </div>
-    </div>
 
-    <!-- Right: selected detail -->
-    <div class="transformer-detail-panel">
-      <div *ngIf="detailLoading" style="padding:30px;text-align:center;color:#546e7a;">
-        <span class="fa fa-spinner fa-spin"></span>
-      </div>
-
-      <ng-container *ngIf="!detailLoading && selected">
-        <!-- Header -->
-        <div class="td-header ecbs-card" style="margin-bottom:14px;">
-          <div class="td-title">{{ selected.name || selected.asset_id }}</div>
-          <div class="td-sub">{{ (selected.capacity_kva||0) | number:'1.0-0' }} kVA Transformer</div>
-          <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-            <span [class]="healthClass(selected.utilization_pct||0)">{{ (selected.utilization_pct||0) | number:'1.0-0' }}% Utilized</span>
-            <span class="badge-healthy">Online</span>
+        <div class="xfmr-header">
+          <div>
+            <div class="xfmr-name">{{ a.name || a.asset_id }}</div>
+            <div class="xfmr-mfr">{{ a.manufacturer || 'ECBS Monitored' }} · {{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</div>
           </div>
+          <span [class]="healthClass(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
         </div>
 
-        <!-- KPI row -->
-        <div class="ecbs-kpi-row" style="margin-bottom:14px;">
-          <div class="ecbs-kpi-card kpi-blue">
-            <div class="kpi-value" style="font-size:20px;">{{ (selected.current_load_kva||0) | number:'1.0-0' }}</div>
-            <div class="kpi-label">Current Load kVA</div>
+        <div class="xfmr-body">
+          <div class="xfmr-load-gauge">
+            <div class="xlg-label">
+              <span>Load: {{ (a.current_load_kva||0) | number:'1.0-0' }} / {{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</span>
+              <span [style.color]="barColor(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
+            </div>
+            <div class="xlg-track">
+              <div class="xlg-fill" [style.width.%]="a.utilization_pct||0" [style.background]="barColor(a.utilization_pct||0)"></div>
+            </div>
           </div>
-          <div class="ecbs-kpi-card kpi-green">
-            <div class="kpi-value" style="font-size:20px;color:#00e676;">{{ (selected.recovered_kva||0) | number:'1.0-0' }}</div>
-            <div class="kpi-label">Recovered kVA</div>
-          </div>
-          <div class="ecbs-kpi-card kpi-green">
-            <div class="kpi-value" style="font-size:20px;">{{ selected.power_factor | number:'1.2-2' }}</div>
-            <div class="kpi-label">Power Factor</div>
-          </div>
-        </div>
 
-        <!-- Loading bar -->
-        <div class="ecbs-card" style="margin-bottom:14px;">
-          <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Loading</div>
-          <div class="t-load-bar-wrap">
-            <div class="t-load-bar-track">
-              <div class="t-load-bar-fill"
-                [style.width.%]="selected.utilization_pct||0"
-                [style.background]="barColor(selected.utilization_pct||0)">
+          <div class="xfmr-specs">
+            <div class="xs-item">
+              <div class="xs-val" style="color:#00e676;">+{{ (a.recovered_kva||0) | number:'1.0-0' }}</div>
+              <div class="xs-lbl">kVA Recovered</div>
+            </div>
+            <div class="xs-item">
+              <div class="xs-val">{{ (a.power_factor||0) | number:'1.3-3' }}</div>
+              <div class="xs-lbl">Power Factor</div>
+            </div>
+            <div class="xs-item">
+              <div class="xs-val">{{ (a.harmonic_burden_pct||0) | number:'1.1-1' }}%</div>
+              <div class="xs-lbl">Harmonic Burden</div>
+            </div>
+            <div class="xs-item">
+              <div class="xs-val" [style.color]="(a.temperature_c||0)>80?'#f44336':(a.temperature_c||0)>65?'#ffd740':'#00e676'">
+                {{ (a.temperature_c||0) | number:'1.0-0' }}°C
               </div>
+              <div class="xs-lbl">Temperature</div>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#8899a6;">
-              <span>0 kVA</span>
-              <span style="font-weight:600;" [style.color]="barColor(selected.utilization_pct||0)">
-                {{ (selected.current_load_kva||0) | number:'1.0-0' }} / {{ (selected.capacity_kva||0) | number:'1.0-0' }} kVA
+          </div>
+
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:10px;color:#546e7a;">
+              <span class="fa fa-circle" [style.color]="(a.utilization_pct||0)<75?'#00e676':(a.utilization_pct||0)<90?'#ffd740':'#f44336'"></span>
+              {{ (a.utilization_pct||0) < 75 ? 'Normal' : (a.utilization_pct||0) < 90 ? 'High Load' : 'Critical' }}
+            </span>
+            <span style="font-size:10px;color:#546e7a;">Deferred Cap: <strong style="color:#00e676;">${{ (a.deferred_capital_value||0) | number:'1.0-0' }}</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selected transformer detail panel -->
+    <div class="ecbs-card" *ngIf="selected" style="margin-top:0;">
+      <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Transformer Details — {{ selected.name || selected.asset_id }}</div>
+
+      <div class="ecbs-grid-2">
+        <div>
+          <div class="ecbs-section-title">Nameplate Data</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Asset ID</span><span class="kv-val">{{ selected.asset_id }}</span></div>
+            <div class="kv-row"><span class="kv-key">Manufacturer</span><span class="kv-val">{{ selected.manufacturer || '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">kVA Rating</span><span class="kv-val">{{ (selected.capacity_kva||0) | number:'1.0-0' }} kVA</span></div>
+            <div class="kv-row"><span class="kv-key">Voltage Ratio</span><span class="kv-val">{{ selected.voltage_ratio || '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Serial Number</span><span class="kv-val">{{ selected.serial_number || '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Install Date</span><span class="kv-val">{{ selected.install_date | date:'MMM y' }}</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="ecbs-section-title">Live Analytics</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Current Load</span><span class="kv-val">{{ (selected.current_load_kva||0) | number:'1.0-0' }} kVA</span></div>
+            <div class="kv-row"><span class="kv-key">Utilization</span><span class="kv-val" [style.color]="barColor(selected.utilization_pct||0)">{{ (selected.utilization_pct||0) | number:'1.1-1' }}%</span></div>
+            <div class="kv-row"><span class="kv-key">Power Factor</span><span class="kv-val" [class.kv-green]="(selected.power_factor||0)>=0.95">{{ (selected.power_factor||0) | number:'1.3-3' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Harmonic Burden</span><span class="kv-val" [class.kv-amber]="(selected.harmonic_burden_pct||0)>15">{{ (selected.harmonic_burden_pct||0) | number:'1.1-1' }}%</span></div>
+            <div class="kv-row"><span class="kv-key">Capacity Recovered</span><span class="kv-val kv-green">+{{ (selected.recovered_kva||0) | number:'1.0-0' }} kVA</span></div>
+            <div class="kv-row"><span class="kv-key">Health Score</span>
+              <span class="kv-val">
+                <span class="health-score-pill" [class]="(selected.utilization_pct||0)<75?'hsp-excellent':(selected.utilization_pct||0)<85?'hsp-good':(selected.utilization_pct||0)<90?'hsp-fair':'hsp-poor'">
+                  {{ (selected.utilization_pct||0)<75?'Excellent':(selected.utilization_pct||0)<85?'Good':(selected.utilization_pct||0)<90?'Fair':'Critical' }}
+                </span>
               </span>
-              <span>{{ (selected.capacity_kva||0) | number:'1.0-0' }} kVA</span>
             </div>
           </div>
         </div>
-
-        <!-- Detail data from transformer API -->
-        <div class="ecbs-card" *ngIf="selectedDetail">
-          <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Technical Details</div>
-          <table class="ecbs-table">
-            <tbody>
-              <tr *ngFor="let k of ['load_factor','demand_factor','diversity_factor','efficiency_pct','temperature_rise_c']">
-                <td style="color:#8899a6;font-size:11px;text-transform:capitalize;">{{ k.replace('_',' ') }}</td>
-                <td style="font-weight:600;">{{ selectedDetail[k] | number:'1.2-2' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-      </ng-container>
+      </div>
     </div>
 
-  </div>
-
+  </ng-container>
 </div>

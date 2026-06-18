@@ -26,10 +26,36 @@ export class SavingsComponent implements OnInit {
   }
 
   loadAll() {
+    this.loading = true;
     const pid = this.projectId;
     this.api.get(`/api/savings/intelligence?project_id=${pid}`).subscribe({ next: (r: any) => { this.intelligence = r?.latest || r; this.loading = false; }, error: () => { this.loading = false; }});
     this.api.get(`/api/roi?project_id=${pid}`).subscribe({ next: (r: any) => { this.roi = r; }, error: () => {}});
     this.api.get(`/api/payback?project_id=${pid}`).subscribe({ next: (r: any) => { this.payback = r; }, error: () => {}});
     this.api.get(`/api/utility/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.utilityData = r; }, error: () => {}});
+  }
+
+  get totalSavings(): number {
+    if (!this.intelligence) return 0;
+    return (this.intelligence.energy_cost_savings || 0) + (this.intelligence.demand_cost_savings || 0) + (this.intelligence.pf_cost_savings || 0);
+  }
+
+  get energySavingsPct(): number {
+    if (!this.totalSavings) return 0;
+    return ((this.intelligence?.energy_cost_savings || 0) / this.totalSavings) * 100;
+  }
+
+  get demandSavingsPct(): number {
+    if (!this.totalSavings) return 0;
+    return ((this.intelligence?.demand_cost_savings || 0) / this.totalSavings) * 100;
+  }
+
+  get pfSavingsPct(): number {
+    if (!this.totalSavings) return 0;
+    return ((this.intelligence?.pf_cost_savings || 0) / this.totalSavings) * 100;
+  }
+
+  get co2Tonnes(): number {
+    const kwh = this.intelligence?.energy_savings_kwh_year || 0;
+    return kwh * 0.000386; // EPA factor lbs/kWh → tonnes
   }
 }

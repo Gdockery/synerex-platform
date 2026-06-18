@@ -1,0 +1,156 @@
+<!-- ECBS OS™ Utility Intelligence™ — Spec SS-10 / uBillTracker + uBillForecast -->
+<div class="ecbs-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Utility Intelligence™</h1>
+      <p>uBillTracker™ + uBillForecast™ — manage utility billing, forecasting, and cost analytics.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Upload Bill</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <!-- KPI Row — spec SS-10 -->
+  <div class="ecbs-kpi-row">
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-file-text"></span></div>
+      <div class="kpi-value">${{ (summary?.current_month_cost || 0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">Current Month Est.</div>
+      <div class="kpi-delta" [class.negative]="(summary?.mom_variance_pct||0)>0" [class.neutral]="(summary?.mom_variance_pct||0)<=0">
+        {{ (summary?.mom_variance_pct||0) > 0 ? '+' : '' }}{{ (summary?.mom_variance_pct||0) | number:'1.1-1' }}% vs last month
+      </div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
+      <div class="kpi-value">{{ (summary?.current_month_kwh || 0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">kWh (This Month)</div>
+      <div class="kpi-delta neutral">Rate: ${{ (summary?.avg_rate_per_kwh || 0) | number:'1.3-3' }}/kWh</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-amber">
+      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+      <div class="kpi-value">{{ (summary?.peak_demand_kw || 0) | number:'1.0-0' }} kW</div>
+      <div class="kpi-label">Peak Demand</div>
+      <div class="kpi-delta neutral">Demand charges apply</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-purple">
+      <div class="kpi-icon"><span class="fa fa-crystal-ball"></span></div>
+      <div class="kpi-value">${{ (forecast?.next_month_cost || 0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">Next Month Forecast</div>
+      <div class="kpi-delta neutral">uBillForecast™</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
+      <div class="kpi-value">${{ (summary?.ytd_savings || 0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">YTD Savings</div>
+      <div class="kpi-delta">vs. pre-ECBS baseline</div>
+    </div>
+  </div>
+
+  <div class="ecbs-grid-2">
+
+    <!-- Bill history -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-list"></span> uBillTracker™ — Bill History</div>
+
+        <div *ngIf="loading" class="ecbs-spinner" style="padding:20px;"><span class="fa fa-spinner fa-spin"></span></div>
+
+        <div *ngIf="!loading && bills.length===0" class="ecbs-empty" style="padding:30px;">
+          <span class="empty-icon fa fa-file-o"></span>
+          <span class="empty-title">No Utility Bills Loaded</span>
+          <p>Upload utility bills to begin tracking spend, demand charges, and cost trends.</p>
+          <a class="btn-ecbs btn-primary" routerLink="/billing">Go to Bill Analytics</a>
+        </div>
+
+        <table *ngIf="!loading && bills.length>0" class="ecbs-table">
+          <thead>
+            <tr><th>Period</th><th>kWh</th><th>Peak kW</th><th>Energy $</th><th>Demand $</th><th>Total $</th><th>Rate</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let b of bills; let i = index">
+              <td style="font-weight:600;white-space:nowrap;">{{ b.period_label || b.bill_month }}</td>
+              <td>{{ (b.total_kwh||0) | number:'1.0-0' }}</td>
+              <td>{{ (b.peak_demand_kw||0) | number:'1.0-0' }}</td>
+              <td>${{ (b.energy_cost||0) | number:'1.0-0' }}</td>
+              <td>${{ (b.demand_cost||0) | number:'1.0-0' }}</td>
+              <td style="font-weight:700;">${{ (b.total_cost||0) | number:'1.0-0' }}</td>
+              <td style="color:#8899a6;">${{ (b.avg_rate||0) | number:'1.3-3' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Budget variance -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-balance-scale"></span> Budget Variance</div>
+        <div *ngIf="!summary" class="ecbs-empty" style="padding:20px;"><span class="empty-icon fa fa-file-o" style="font-size:28px;"></span><span class="empty-title" style="font-size:12px;">No data</span></div>
+        <div *ngIf="summary" class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">YTD Budget</span><span class="kv-val">${{ (summary.ytd_budget||0) | number:'1.0-0' }}</span></div>
+          <div class="kv-row"><span class="kv-key">YTD Actual</span><span class="kv-val">${{ (summary.ytd_actual||0) | number:'1.0-0' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Variance</span>
+            <span class="kv-val" [class.kv-green]="(summary.ytd_variance||0)<0" [class.kv-red]="(summary.ytd_variance||0)>0">
+              {{ (summary.ytd_variance||0)>0?'+':'' }}${{ (summary.ytd_variance||0)|number:'1.0-0' }}
+            </span>
+          </div>
+          <div class="kv-row"><span class="kv-key">12-Month Avg Bill</span><span class="kv-val">${{ (summary.avg_monthly_cost||0)|number:'1.0-0' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Highest Month</span><span class="kv-val kv-red">${{ (summary.max_monthly_cost||0)|number:'1.0-0' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Lowest Month</span><span class="kv-val kv-green">${{ (summary.min_monthly_cost||0)|number:'1.0-0' }}</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right: Forecast + cost breakdown -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-area-chart"></span> uBillForecast™</div>
+        <div *ngIf="!forecast" class="ecbs-empty" style="padding:30px;">
+          <span class="empty-icon fa fa-area-chart"></span>
+          <span class="empty-title">No Forecast Available</span>
+          <p>Upload at least 3 months of bills to enable forecasting.</p>
+        </div>
+        <div *ngIf="forecast">
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Next Month</span><span class="kv-val">${{ (forecast.next_month_cost||0)|number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Next Quarter</span><span class="kv-val">${{ (forecast.next_quarter_cost||0)|number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Next 12 Months</span><span class="kv-val">${{ (forecast.next_year_cost||0)|number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Forecast Peak Demand</span><span class="kv-val">{{ (forecast.next_month_peak_kw||0)|number:'1.0-0' }} kW</span></div>
+          </div>
+          <div style="margin-top:12px;padding:10px 12px;background:rgba(0,230,118,0.05);border:1px solid rgba(0,230,118,0.1);border-radius:8px;font-size:11px;color:#8899a6;">
+            <span class="fa fa-lightbulb-o" style="color:#00e676;margin-right:6px;"></span>
+            ECBS is projected to save <strong style="color:#00e676;">${{ (forecast.ecbs_monthly_savings||0)|number:'1.0-0' }}</strong>/month vs. baseline forecast.
+          </div>
+        </div>
+      </div>
+
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> Cost Breakdown</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Energy Charges</span><span class="kv-val">{{ (summary?.energy_pct||65) | number:'1.0-0' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Demand Charges</span><span class="kv-val">{{ (summary?.demand_pct||25) | number:'1.0-0' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Taxes &amp; Fees</span><span class="kv-val">{{ (summary?.taxes_pct||10) | number:'1.0-0' }}%</span></div>
+        </div>
+        <div style="margin-top:12px;">
+          <a class="btn-ecbs btn-outline btn-sm" routerLink="/billing/savings-report/list">
+            <span class="fa fa-external-link"></span> Open Full Bill Analytics
+          </a>
+        </div>
+      </div>
+
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Utility Provider</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Provider</span><span class="kv-val">{{ summary?.utility_provider || 'Not configured' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Rate Schedule</span><span class="kv-val">{{ summary?.rate_schedule || '—' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Meter Number</span><span class="kv-val" style="font-family:monospace;font-size:11px;">{{ summary?.utility_meter_no || '—' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Account Number</span><span class="kv-val" style="font-family:monospace;font-size:11px;">{{ summary?.account_no || '—' }}</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>

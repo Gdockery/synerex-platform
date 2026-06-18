@@ -1,12 +1,12 @@
-<!-- ECBS OS™ Alarms & Events — Spec SS-12/A-12 + SS-13/A-13 -->
+<!-- ECBS OS™ Alarms & Events — Spec SS-12 (Alarms) + SS-13 (Alert Rules) -->
 <div class="ecbs-page">
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Alarms &amp; Events</h1>
-      <p>Centralized alarm management — monitor, acknowledge, and resolve system alerts.</p>
+      <p>Centralized alarm management — monitor, acknowledge, escalate, and resolve system alerts.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
       <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
@@ -17,6 +17,7 @@
       <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
       <div class="kpi-value">{{ summary?.critical || 0 }}</div>
       <div class="kpi-label">Critical</div>
+      <div class="kpi-delta negative" *ngIf="(summary?.critical||0)>0">Immediate action required</div>
     </div>
     <div class="ecbs-kpi-card kpi-amber">
       <div class="kpi-icon"><span class="fa fa-exclamation"></span></div>
@@ -33,80 +34,157 @@
       <div class="kpi-value">{{ summary?.acknowledged || 0 }}</div>
       <div class="kpi-label">Acknowledged</div>
     </div>
+    <div class="ecbs-kpi-card kpi-purple">
+      <div class="kpi-icon"><span class="fa fa-history"></span></div>
+      <div class="kpi-value">{{ summary?.resolved_today || 0 }}</div>
+      <div class="kpi-label">Resolved Today</div>
+    </div>
   </div>
 
-  <!-- Tabs -->
+  <!-- Tabs — Alarms / Events / Alert Rules -->
   <div class="ecbs-tabs">
     <button class="ecbs-tab" [class.active]="activeTab === 'alarms'" (click)="activeTab = 'alarms'">
-      <span class="fa fa-bell"></span> Alarms <span *ngIf="alarms.length" class="tab-count">{{ alarms.length }}</span>
+      <span class="fa fa-bell"></span> Active Alarms
+      <span *ngIf="alarms.length" class="tab-count">{{ alarms.length }}</span>
     </button>
     <button class="ecbs-tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
-      <span class="fa fa-list"></span> Event Log
+      <span class="fa fa-list-alt"></span> Event Log
+    </button>
+    <button class="ecbs-tab" [class.active]="activeTab === 'rules'" (click)="activeTab = 'rules'">
+      <span class="fa fa-sliders"></span> Alert Rules
     </button>
   </div>
 
-  <!-- Alarms tab -->
-  <div class="ecbs-card" *ngIf="activeTab === 'alarms'" style="margin-top:0;border-top-left-radius:0;">
+  <!-- ── ALARMS TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'alarms'">
 
-    <div *ngIf="loading" style="padding:30px;text-align:center;color:#546e7a;">
-      <span class="fa fa-spinner fa-spin"></span> Loading alarms...
-    </div>
+    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading alarms...</div>
 
     <div *ngIf="!loading && alarms.length === 0" class="ecbs-empty">
-      <span class="empty-icon fa fa-check-circle" style="color:#00e676;"></span>
-      <span class="empty-title">No Active Alarms</span>
-      <p>All monitored assets are within normal parameters.</p>
+      <span class="empty-icon fa fa-check-circle" style="color:#00e676;font-size:50px;opacity:0.5;"></span>
+      <span class="empty-title">All Systems Clear™</span>
+      <p>No active alarms. All monitored assets are within normal operating parameters.</p>
     </div>
 
     <table *ngIf="!loading && alarms.length > 0" class="ecbs-table">
       <thead>
         <tr>
           <th>Severity</th>
+          <th>Source</th>
           <th>Alarm Type</th>
           <th>Asset</th>
           <th>Value</th>
           <th>Threshold</th>
           <th>Status</th>
           <th>Triggered</th>
-          <th>Action</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let a of alarms">
+        <tr *ngFor="let a of alarms" [class]="'alarm-row-' + a.severity">
           <td><span [class]="severityClass(a.severity)">{{ a.severity | titlecase }}</span></td>
-          <td>{{ a.alarm_type }}</td>
-          <td>{{ a.meter_id || a.asset_id || '—' }}</td>
-          <td>{{ a.value || '—' }}</td>
-          <td>{{ a.threshold || '—' }}</td>
-          <td><span [class]="a.status === 'open' ? 'badge-critical' : 'badge-healthy'">{{ a.status }}</span></td>
-          <td style="font-size:11px;color:#546e7a;">{{ a.triggered_at | date:'MMM d, h:mm a' }}</td>
+          <td style="font-size:10px;color:#546e7a;">{{ a.source || 'System' }}</td>
+          <td style="font-weight:600;">{{ a.alarm_type }}</td>
+          <td style="color:#8899a6;">{{ a.meter_id || a.asset_id || '—' }}</td>
+          <td style="font-weight:600;">{{ a.value || '—' }}</td>
+          <td style="color:#546e7a;">{{ a.threshold || '—' }}</td>
           <td>
-            <button *ngIf="a.status === 'open'" class="btn-ecbs btn-outline" style="font-size:11px;padding:4px 8px;" (click)="acknowledgeAlarm(a)">
-              Acknowledge
-            </button>
+            <span [class]="a.status === 'open' ? 'badge-critical' : a.status === 'acknowledged' ? 'badge-warning' : 'badge-healthy'">
+              {{ a.status | titlecase }}
+            </span>
+          </td>
+          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ a.triggered_at | date:'MMM d, h:mm a' }}</td>
+          <td>
+            <button *ngIf="a.status === 'open'" class="btn-ecbs btn-xs btn-outline" (click)="acknowledgeAlarm(a)">Ack</button>
+            <button *ngIf="a.status === 'acknowledged'" class="btn-ecbs btn-xs btn-outline" (click)="resolveAlarm(a)">Resolve</button>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- Events tab -->
-  <div class="ecbs-card" *ngIf="activeTab === 'events'" style="margin-top:0;border-top-left-radius:0;">
-    <div *ngIf="events.length === 0" class="ecbs-empty">
+  <!-- ── EVENTS TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'events'">
+    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading events...</div>
+    <div *ngIf="!loading && events.length === 0" class="ecbs-empty">
       <span class="empty-icon fa fa-list"></span>
       <span class="empty-title">No Events Recorded</span>
+      <p>System events will appear here as the platform operates.</p>
     </div>
-    <table *ngIf="events.length > 0" class="ecbs-table">
-      <thead><tr><th>Type</th><th>Description</th><th>Asset</th><th>Timestamp</th></tr></thead>
+    <table *ngIf="!loading && events.length > 0" class="ecbs-table">
+      <thead>
+        <tr><th>Timestamp</th><th>Type</th><th>Severity</th><th>Source</th><th>Description</th><th>Asset</th><th>User</th></tr>
+      </thead>
       <tbody>
         <tr *ngFor="let e of events">
-          <td>{{ e.event_type }}</td>
+          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ e.occurred_at | date:'MMM d, y h:mm:ss a' }}</td>
+          <td><span class="badge-info">{{ e.event_type }}</span></td>
+          <td><span [class]="severityClass(e.severity||'info')">{{ (e.severity || 'info') | titlecase }}</span></td>
+          <td style="color:#8899a6;font-size:11px;">{{ e.source || '—' }}</td>
           <td>{{ e.description }}</td>
-          <td>{{ e.asset_id || '—' }}</td>
-          <td style="font-size:11px;color:#546e7a;">{{ e.occurred_at | date:'MMM d, h:mm a' }}</td>
+          <td style="color:#546e7a;">{{ e.asset_id || '—' }}</td>
+          <td style="color:#546e7a;font-size:11px;">{{ e.user || 'System' }}</td>
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- ── ALERT RULES TAB — Spec SS-13 ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'rules'">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:12px;color:#8899a6;">Configure thresholds that trigger alarms — CBI, capacity, harmonic, and device health.</span>
+      <button class="btn-ecbs btn-primary btn-sm"><span class="fa fa-plus"></span> Add Rule</button>
+    </div>
+
+    <table class="ecbs-table">
+      <thead>
+        <tr><th>Rule Name</th><th>Metric</th><th>Condition</th><th>Threshold</th><th>Severity</th><th>Notify</th><th>Enabled</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let rule of alertRules" class="alert-rule-row" style="display:table-row;">
+          <td style="font-weight:600;">{{ rule.name }}</td>
+          <td style="color:#8899a6;">{{ rule.metric }}</td>
+          <td style="color:#546e7a;">{{ rule.condition }}</td>
+          <td style="font-weight:600;" [style.color]="rule.severity === 'critical' ? '#ef5350' : rule.severity === 'high' ? '#ffd740' : '#8899a6'">
+            {{ rule.threshold }}{{ rule.unit || '' }}
+          </td>
+          <td><span [class]="severityClass(rule.severity)">{{ rule.severity | titlecase }}</span></td>
+          <td style="font-size:11px;color:#8899a6;">{{ rule.notify || 'In-App' }}</td>
+          <td>
+            <label class="rule-toggle">
+              <input type="checkbox" [checked]="rule.enabled" (change)="toggleRule(rule)">
+              <span class="rule-slider"></span>
+            </label>
+          </td>
+        </tr>
+        <tr *ngIf="alertRules.length === 0">
+          <td colspan="7" style="text-align:center;padding:40px;color:#546e7a;">
+            <div class="ecbs-empty" style="padding:20px;">
+              <span class="empty-icon fa fa-sliders"></span>
+              <span class="empty-title">No Alert Rules Configured</span>
+              <p>Create alert rules to automatically detect anomalies in CBI score, capacity, harmonics, and device health.</p>
+              <button class="btn-ecbs btn-primary">Add First Rule</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Default rules suggestion -->
+    <div *ngIf="alertRules.length === 0" style="margin-top:16px;padding:12px 14px;background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.1);border-radius:8px;">
+      <div style="font-size:11px;font-weight:700;color:#00e676;margin-bottom:8px;"><span class="fa fa-lightbulb-o"></span> Recommended Default Rules</div>
+      <div style="font-size:11px;color:#8899a6;display:flex;flex-direction:column;gap:4px;">
+        <span>• CBI Score &lt; 70 → Critical alarm</span>
+        <span>• Harmonic Current &gt; 20% → High alarm</span>
+        <span>• Transformer Utilization &gt; 90% → Critical alarm</span>
+        <span>• Power Factor &lt; 0.85 → Medium alarm</span>
+        <span>• Device Offline &gt; 15 min → High alarm</span>
+        <span>• Phase Imbalance &gt; 10% → High alarm</span>
+      </div>
+      <button class="btn-ecbs btn-outline btn-sm" style="margin-top:10px;" (click)="loadDefaultRules()">
+        <span class="fa fa-magic"></span> Load Default Rules
+      </button>
+    </div>
   </div>
 
 </div>

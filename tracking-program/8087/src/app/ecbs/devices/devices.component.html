@@ -1,89 +1,173 @@
-<!-- ECBS OS™ Devices — Spec SS-15 / Figure A-15 -->
+<!-- ECBS OS™ Devices — Spec SS-15 (Devices) + SS-16 (Device Scheduling) -->
 <div class="ecbs-page">
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Devices</h1>
-      <p>Manage all monitoring devices — meters, gateways, and edge hardware.</p>
+      <h1>Device Management™</h1>
+      <p>Manage all ECBS monitoring hardware — PQ meters, APFs, gateways, controllers, and edge devices.</p>
     </div>
     <div class="page-actions">
-      <a class="btn-ecbs btn-outline" routerLink="/electricity-meters"><span class="fa fa-flash"></span> Meter Management</a>
-      <a class="btn-ecbs btn-outline" routerLink="/gateways"><span class="fa fa-wifi"></span> Gateway Management</a>
+      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline" *ngIf="activeTab==='schedule'"><span class="fa fa-plus"></span> Add Schedule</button>
     </div>
   </div>
 
-  <!-- Summary KPIs -->
+  <!-- Device Status Summary KPIs -->
   <div class="ecbs-kpi-row">
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-flash"></span></div>
       <div class="kpi-value">{{ meters.length }}</div>
-      <div class="kpi-label">Total Meters</div>
+      <div class="kpi-label">PQ Meters</div>
+      <div class="kpi-delta">{{ activeMeters }} Active</div>
     </div>
     <div class="ecbs-kpi-card kpi-blue">
       <div class="kpi-icon"><span class="fa fa-wifi"></span></div>
       <div class="kpi-value">{{ gateways.length }}</div>
       <div class="kpi-label">Gateways</div>
+      <div class="kpi-delta neutral">{{ activeGateways }} Online</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-purple">
+      <div class="kpi-icon"><span class="fa fa-filter"></span></div>
+      <div class="kpi-value">{{ apfs.length }}</div>
+      <div class="kpi-label">APF Units</div>
+      <div class="kpi-delta neutral">Active Harmonic Filters</div>
+    </div>
+    <div class="ecbs-kpi-card" [class.kpi-red]="offlineCount>0" [class.kpi-green]="offlineCount===0">
+      <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="kpi-value">{{ offlineCount }}</div>
+      <div class="kpi-label">Offline / Fault</div>
+      <div class="kpi-delta" [class.negative]="offlineCount>0">{{ offlineCount===0?'All Systems Clear':'Needs Attention' }}</div>
     </div>
   </div>
 
-  <!-- Tabs -->
+  <!-- Tabs — Meters / Gateways / APF / Schedule -->
   <div class="ecbs-tabs">
-    <button class="ecbs-tab" [class.active]="activeTab === 'meters'" (click)="activeTab = 'meters'">
-      <span class="fa fa-flash"></span> Meters ({{ meters.length }})
+    <button class="ecbs-tab" [class.active]="activeTab==='meters'" (click)="activeTab='meters'">
+      <span class="fa fa-flash"></span> PQ Meters <span class="tab-count">{{ meters.length }}</span>
     </button>
-    <button class="ecbs-tab" [class.active]="activeTab === 'gateways'" (click)="activeTab = 'gateways'">
-      <span class="fa fa-wifi"></span> Gateways ({{ gateways.length }})
+    <button class="ecbs-tab" [class.active]="activeTab==='gateways'" (click)="activeTab='gateways'">
+      <span class="fa fa-wifi"></span> Gateways <span class="tab-count">{{ gateways.length }}</span>
+    </button>
+    <button class="ecbs-tab" [class.active]="activeTab==='apf'" (click)="activeTab='apf'">
+      <span class="fa fa-filter"></span> APF Units <span class="tab-count">{{ apfs.length }}</span>
+    </button>
+    <button class="ecbs-tab" [class.active]="activeTab==='schedule'" (click)="activeTab='schedule'">
+      <span class="fa fa-calendar"></span> Scheduling
     </button>
   </div>
 
-  <div class="ecbs-card" style="margin-top:0;border-top-left-radius:0;">
+  <!-- ── METERS TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='meters'">
+    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading devices...</div>
 
-    <div *ngIf="loading" style="padding:30px;text-align:center;color:#546e7a;">
-      <span class="fa fa-spinner fa-spin"></span> Loading devices...
+    <div *ngIf="!loading && meters.length===0" class="ecbs-empty">
+      <span class="empty-icon fa fa-flash"></span>
+      <span class="empty-title">No PQ Meters Found</span>
+      <p>Add PQ meters to begin collecting electrical data.</p>
+      <a class="btn-ecbs btn-primary" routerLink="/electricity-meters">Add Meter</a>
     </div>
 
-    <!-- Meters table -->
-    <div *ngIf="!loading && activeTab === 'meters'">
-      <div *ngIf="meters.length === 0" class="ecbs-empty">
-        <span class="empty-icon fa fa-flash"></span>
-        <span class="empty-title">No Meters Found</span>
-        <a class="btn-ecbs btn-primary" routerLink="/electricity-meters">Add Meter</a>
-      </div>
-      <table *ngIf="meters.length > 0" class="ecbs-table">
-        <thead>
-          <tr><th>Name</th><th>Model</th><th>Phase</th><th>Location</th><th>Status</th><th>Last Reading</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let m of meters">
-            <td>{{ m.name }}</td>
-            <td>{{ m.model || '—' }}</td>
-            <td>{{ m.phases || '—' }}</td>
-            <td>{{ m.location || '—' }}</td>
-            <td><span [class]="statusClass(m.status)">{{ m.status || 'unknown' }}</span></td>
-            <td style="font-size:11px;color:#546e7a;">{{ m.lastReading | date:'MMM d, h:mm a' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Gateways table -->
-    <div *ngIf="!loading && activeTab === 'gateways'">
-      <div *ngIf="gateways.length === 0" class="ecbs-empty">
-        <span class="empty-icon fa fa-wifi"></span>
-        <span class="empty-title">No Gateways Found</span>
-        <a class="btn-ecbs btn-primary" routerLink="/gateways">Manage Gateways</a>
-      </div>
-      <table *ngIf="gateways.length > 0" class="ecbs-table">
-        <thead><tr><th>Name</th><th>IP</th><th>Status</th><th>Meters Connected</th></tr></thead>
-        <tbody>
-          <tr *ngFor="let g of gateways">
-            <td>{{ g.name }}</td>
-            <td>{{ g.ip || '—' }}</td>
-            <td><span [class]="statusClass(g.status)">{{ g.status || 'unknown' }}</span></td>
-            <td>{{ g.meterCount || '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
+    <table *ngIf="!loading && meters.length>0" class="ecbs-table">
+      <thead>
+        <tr><th>Meter Name</th><th>Model</th><th>Phase</th><th>Location</th><th>Serial #</th><th>License</th><th>Status</th><th>Last Reading</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let m of meters">
+          <td style="font-weight:600;">{{ m.name }}</td>
+          <td style="color:#8899a6;">{{ m.model || '—' }}</td>
+          <td>{{ m.phases || '3Ø' }}</td>
+          <td style="color:#8899a6;">{{ m.location || '—' }}</td>
+          <td style="font-family:monospace;font-size:11px;">{{ m.serial_number || '—' }}</td>
+          <td><span [class]="m.license_active?'badge-healthy':'badge-warning'">{{ m.license_active?'Active':'Pending' }}</span></td>
+          <td><span [class]="statusClass(m.status)">{{ (m.status||'unknown')|titlecase }}</span></td>
+          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ m.lastReading | date:'MMM d, h:mm a' }}</td>
+          <td>
+            <a class="btn-ecbs btn-xs btn-outline" routerLink="/electricity-meters"><span class="fa fa-eye"></span> View</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
+
+  <!-- ── GATEWAYS TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='gateways'">
+    <div *ngIf="!loading && gateways.length===0" class="ecbs-empty">
+      <span class="empty-icon fa fa-wifi"></span>
+      <span class="empty-title">No Gateways Found</span>
+      <a class="btn-ecbs btn-primary" routerLink="/gateways">Manage Gateways</a>
+    </div>
+    <table *ngIf="gateways.length>0" class="ecbs-table">
+      <thead><tr><th>Name</th><th>IP Address</th><th>Firmware</th><th>Meters Connected</th><th>Uptime</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let g of gateways">
+          <td style="font-weight:600;">{{ g.name }}</td>
+          <td style="font-family:monospace;font-size:11px;">{{ g.ip || '—' }}</td>
+          <td style="color:#8899a6;">{{ g.firmware || '—' }}</td>
+          <td>{{ g.meterCount || 0 }}</td>
+          <td style="color:#8899a6;">{{ g.uptime || '—' }}</td>
+          <td><span [class]="statusClass(g.status)">{{ (g.status||'unknown')|titlecase }}</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── APF TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='apf'">
+    <div *ngIf="apfs.length===0" class="ecbs-empty">
+      <span class="empty-icon fa fa-filter"></span>
+      <span class="empty-title">No APF Units Configured</span>
+      <p>Active Harmonic Filter units appear here after commissioning.</p>
+    </div>
+    <table *ngIf="apfs.length>0" class="ecbs-table">
+      <thead><tr><th>APF Name</th><th>Model</th><th>Serial #</th><th>CT Amp Rating</th><th>CT Ratio</th><th>CT Orientation</th><th>Phase Rotation</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let a of apfs">
+          <td style="font-weight:600;">{{ a.name || a.device_id }}</td>
+          <td>{{ a.model || '—' }}</td>
+          <td style="font-family:monospace;font-size:11px;">{{ a.serial_number || '—' }}</td>
+          <td>{{ a.ct_amp_rating || '—' }} A</td>
+          <td>{{ a.ct_ratio || '—' }}</td>
+          <td><span [class]="a.ct_orientation?'badge-healthy':'badge-critical'">{{ a.ct_orientation?'Correct':'Incorrect' }}</span></td>
+          <td><span [class]="a.phase_rotation_verified?'badge-healthy':'badge-warning'">{{ a.phase_rotation_verified?'Verified':'Pending' }}</span></td>
+          <td><span [class]="statusClass(a.status)">{{ (a.status||'planned')|titlecase }}</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── SCHEDULING TAB — Spec SS-16 ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='schedule'">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:12px;color:#8899a6;">Schedule operational behaviors — enable, disable, maintenance windows. All schedules are logged and auditable.</span>
+      <button class="btn-ecbs btn-primary btn-sm"><span class="fa fa-plus"></span> New Schedule</button>
+    </div>
+
+    <div *ngIf="schedules.length===0" class="ecbs-empty" style="padding:40px;">
+      <span class="empty-icon fa fa-calendar"></span>
+      <span class="empty-title">No Schedules Configured</span>
+      <p>Device schedules allow automatic enable/disable, maintenance windows, and service periods for all ECBS hardware.</p>
+      <button class="btn-ecbs btn-primary" (click)="addSampleSchedule()"><span class="fa fa-plus"></span> Create First Schedule</button>
+    </div>
+
+    <table *ngIf="schedules.length>0" class="ecbs-table">
+      <thead>
+        <tr><th>Schedule Name</th><th>Device</th><th>Action</th><th>Type</th><th>Time</th><th>Days</th><th>Next Run</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of schedules">
+          <td style="font-weight:600;">{{ s.name }}</td>
+          <td style="color:#8899a6;">{{ s.device }}</td>
+          <td><span [class]="s.action==='enable'?'badge-healthy':s.action==='disable'?'badge-offline':'badge-warning'">{{ s.action | titlecase }}</span></td>
+          <td>{{ s.type | titlecase }}</td>
+          <td style="font-family:monospace;font-size:11px;">{{ s.time }}</td>
+          <td style="font-size:11px;">{{ s.days }}</td>
+          <td style="font-size:11px;color:#8899a6;">{{ s.nextRun }}</td>
+          <td><span [class]="s.enabled?'badge-healthy':'badge-offline'">{{ s.enabled?'Active':'Paused' }}</span></td>
+          <td>
+            <button class="btn-ecbs btn-xs btn-outline" (click)="s.enabled=!s.enabled">{{ s.enabled?'Pause':'Resume' }}</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
 </div>

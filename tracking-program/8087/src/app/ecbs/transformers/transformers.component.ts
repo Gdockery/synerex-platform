@@ -58,4 +58,15 @@ export class TransformersComponent implements OnInit {
     if (pct >= 75) return '#ffd740';
     return '#00e676';
   }
+
+  get totalInstalledKva(): number { return this.assets.reduce((s, a) => s + (a.capacity_kva || 0), 0); }
+  get totalRecoveredKva(): number { return this.assets.reduce((s, a) => s + (a.recovered_kva || 0), 0); }
+  get avgUtilization(): number {
+    if (!this.assets.length) return 0;
+    return this.assets.reduce((s, a) => s + (a.utilization_pct || 0), 0) / this.assets.length;
+  }
+  get avgPowerFactor(): number {
+    if (!this.assets.length) return 0;
+    return this.assets.reduce((s, a) => s + (a.power_factor || 0), 0) / this.assets.length;
+  }
 }

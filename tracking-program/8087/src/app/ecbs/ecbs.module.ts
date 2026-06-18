@@ -17,6 +17,7 @@ import { AlarmsComponent }            from './alarms/alarms.component';
 import { ReportsComponent }           from './reports/reports.component';
 import { DevicesComponent }           from './devices/devices.component';
 import { SettingsComponent }          from './settings/settings.component';
+import { UtilityComponent }           from './utility/utility.component';
 
 @NgModule({
   imports: [
@@ -38,6 +39,7 @@ import { SettingsComponent }          from './settings/settings.component';
     ReportsComponent,
     DevicesComponent,
     SettingsComponent,
+    UtilityComponent,
   ],
 })
 export class EcbsModule {}

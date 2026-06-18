@@ -1,134 +1,176 @@
-<!-- ECBS OS™ Electrical Network — Spec SS-8 / Figure A-8 -->
+<!-- ECBS OS™ Electrical Network — Spec SS-8 / Electrical Network™ Engine -->
 <div class="ecbs-page">
 
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Electrical Network</h1>
-      <p>Monitor your entire electrical distribution system in real time.</p>
+      <h1>Electrical Network™</h1>
+      <p>Real-time operational representation of the approved Digital Twin™ — live PQ data overlays.</p>
     </div>
     <div class="page-actions">
       <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-expand"></span> Fullscreen</button>
       <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
 
-  <!-- System KPIs -->
+  <!-- Network Health KPIs — spec SS-8 -->
   <div class="ecbs-kpi-row">
-    <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-plug"></span></div>
-      <div class="kpi-value">{{ totalKva | number:'1.0-0' }}</div>
-      <div class="kpi-label">System Capacity kVA</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-amber">
-      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-      <div class="kpi-value">{{ totalLoadKva | number:'1.0-0' }}</div>
-      <div class="kpi-label">Total Load kVA</div>
-      <div class="kpi-delta" [class.negative]="avgUtil > 85">{{ avgUtil | number:'1.1-1' }}% Avg Utilized</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
-      <div class="kpi-value">{{ (cbi?.power_factor || 0) | number:'1.3-3' }}</div>
-      <div class="kpi-label">System Power Factor</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-magic"></span></div>
-      <div class="kpi-value">{{ (capacity?.recovered_capacity_kva||0) | number:'1.0-0' }}</div>
-      <div class="kpi-label">kVA Recovered</div>
-    </div>
-  </div>
-
-  <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
-    <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
-  </div>
-
-  <ng-container *ngIf="!loading">
-
-    <!-- Network tree view — spec SS-8 -->
-    <div class="ecbs-card en-network-card">
-      <div class="ecbs-card-title"><span class="fa fa-sitemap"></span> Distribution Hierarchy</div>
-
-      <div *ngIf="assets.length === 0" class="ecbs-empty">
-        <span class="empty-icon fa fa-sitemap"></span>
-        <span class="empty-title">No Network Data</span>
-        <p>Configure transformer assets in Devices to see the network topology.</p>
-        <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Configure Devices</a>
+    <div class="ecbs-kpi-card" [class.kpi-green]="networkHealthScore>=90" [class.kpi-amber]="networkHealthScore>=70&&networkHealthScore<90" [class.kpi-red]="networkHealthScore<70">
+      <div class="kpi-icon"><span class="fa fa-heartbeat"></span></div>
+      <div class="kpi-value" [style.color]="healthColor">{{ networkHealthScore | number:'1.0-0' }}</div>
+      <div class="kpi-label">Network Health Score™</div>
+      <div class="kpi-delta" [class.negative]="networkHealthScore<70" [class.neutral]="networkHealthScore>=70&&networkHealthScore<90">
+        {{ networkHealthScore>=90?'Excellent':networkHealthScore>=70?'Good':'Needs Attention' }}
       </div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-sitemap"></span></div>
+      <div class="kpi-value">{{ networkSummary?.total_assets || 0 }}</div>
+      <div class="kpi-label">Total Assets</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-green">
+      <div class="kpi-icon"><span class="fa fa-flash"></span></div>
+      <div class="kpi-value">{{ networkSummary?.active_meters || 0 }}</div>
+      <div class="kpi-label">Active Meters</div>
+    </div>
+    <div class="ecbs-kpi-card" [class.kpi-red]="(networkSummary?.fault_count||0)>0" [class.kpi-green]="(networkSummary?.fault_count||0)===0">
+      <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="kpi-value">{{ networkSummary?.fault_count || 0 }}</div>
+      <div class="kpi-label">Faults</div>
+    </div>
+    <div class="ecbs-kpi-card kpi-blue">
+      <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
+      <div class="kpi-value">{{ (networkSummary?.total_load_kva||0) | number:'1.0-0' }}</div>
+      <div class="kpi-label">Total Load kVA</div>
+    </div>
+  </div>
 
-      <!-- Utility feed root -->
-      <div *ngIf="assets.length > 0" class="en-tree">
-        <div class="en-node en-root">
-          <div class="en-node-icon" style="background:rgba(41,182,246,0.12);"><span class="fa fa-cloud" style="color:#29b6f6;"></span></div>
-          <div class="en-node-info">
-            <div class="en-node-name">Utility Feed</div>
-            <div class="en-node-sub">480V / 3Φ</div>
-          </div>
-          <span class="badge-info">Online</span>
+  <!-- Main layout — network tree + live data panel -->
+  <div class="en-layout">
+
+    <!-- Electrical network hierarchy tree -->
+    <div style="display:flex;flex-direction:column;gap:8px;">
+
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-sitemap"></span> Network Hierarchy</div>
+
+        <div *ngIf="loading" class="ecbs-spinner" style="padding:30px;"><span class="fa fa-spinner fa-spin"></span> Loading...</div>
+
+        <div *ngIf="!loading && nodes.length === 0" class="ecbs-empty">
+          <span class="empty-icon fa fa-sitemap"></span>
+          <span class="empty-title">No Network Configured</span>
+          <p>Build your Digital Twin first to populate the Electrical Network view.</p>
+          <a class="btn-ecbs btn-primary" routerLink="/ecbs/digital-twin">Open Digital Twin</a>
         </div>
 
-        <!-- Main bus -->
-        <div class="en-connector"></div>
-        <div class="en-node en-bus">
-          <div class="en-node-icon" style="background:rgba(41,182,246,0.08);"><span class="fa fa-minus" style="color:#29b6f6;font-size:16px;"></span></div>
-          <div class="en-node-info">
-            <div class="en-node-name">480V Main Distribution Bus</div>
-            <div class="en-node-sub">{{ totalLoadKva | number:'1.0-0' }} / {{ totalKva | number:'1.0-0' }} kVA</div>
-          </div>
-          <div class="en-bus-bar">
-            <div class="en-bus-fill" [style.width.%]="avgUtil" [style.background]="barColor(avgUtil)"></div>
-          </div>
-        </div>
+        <div *ngIf="!loading && nodes.length > 0" class="en-node-grid">
 
-        <!-- Transformer branches -->
-        <div class="en-branches">
-          <div class="en-branch" *ngFor="let a of assets">
-            <div class="en-branch-line"></div>
-            <div class="en-node en-transformer">
-              <div class="en-node-icon" [style.background]="'rgba(0,0,0,0.2)'" [style.border]="'1px solid ' + barColor(a.utilization_pct||0)">
-                <span class="fa fa-plug" [style.color]="barColor(a.utilization_pct||0)"></span>
+          <!-- Utility Service -->
+          <ng-container *ngFor="let n of nodes">
+            <div class="en-node" [class]="nodeClass(n.type)" (click)="selectNode(n)">
+              <div class="en-node-icon" [style.background]="nodeIconBg(n.type)">
+                <span class="fa" [class]="nodeIcon(n.type)" [style.color]="nodeIconColor(n.type)"></span>
               </div>
               <div class="en-node-info">
-                <div class="en-node-name">{{ a.name || a.asset_id }}</div>
-                <div class="en-node-sub">{{ (a.capacity_kva||0) | number:'1.0-0' }} kVA · PF {{ a.power_factor | number:'1.2-2' }}</div>
+                <div class="en-node-name">{{ n.name || n.asset_id }}</div>
+                <div class="en-node-type">{{ n.type | titlecase }}</div>
+                <div class="en-node-meta" *ngIf="n.capacity_kva">{{ (n.capacity_kva||0) | number:'1.0-0' }} kVA rated</div>
               </div>
-              <div class="en-load-section">
-                <div class="en-mini-bar">
-                  <div class="en-mini-fill" [style.width.%]="a.utilization_pct||0" [style.background]="barColor(a.utilization_pct||0)"></div>
-                </div>
-                <span [class]="healthClass(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
+              <div class="en-node-values">
+                <div class="env-val">{{ (n.current_load_kva||n.load_kva||0) | number:'1.0-0' }}</div>
+                <div class="env-label">kVA Load</div>
               </div>
             </div>
+          </ng-container>
+
+        </div>
+      </div>
+
+      <!-- Demo nodes if no assets loaded -->
+      <div class="ecbs-card" *ngIf="!loading && nodes.length === 0">
+        <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Sample Network Layout</div>
+        <div style="font-size:11px;color:#8899a6;padding:8px 0;line-height:2;">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(30,45,69,0.4);">
+            <span class="fa fa-circle-o" style="color:#29b6f6;"></span>
+            <strong style="color:#e8edf5;">Utility Service</strong>
+            <span style="margin-left:auto;">480V, 3-Phase</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 20px;border-bottom:1px solid rgba(30,45,69,0.4);">
+            <span class="fa fa-minus" style="color:#29b6f6;font-size:8px;"></span>
+            <span class="fa fa-plug" style="color:#29b6f6;"></span>
+            <strong style="color:#e8edf5;">Main Transformer T-1</strong>
+            <span style="margin-left:auto;">1000 kVA</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 40px;border-bottom:1px solid rgba(30,45,69,0.4);">
+            <span class="fa fa-minus" style="color:#546e7a;font-size:8px;"></span>
+            <span class="fa fa-th-large" style="color:#ce93d8;"></span>
+            <strong style="color:#e8edf5;">Main Switchgear MCC-1</strong>
+            <span style="margin-left:auto;">Panel A, B, C</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0 6px 60px;">
+            <span class="fa fa-minus" style="color:#546e7a;font-size:8px;"></span>
+            <span class="fa fa-flash" style="color:#ffd740;"></span>
+            <strong style="color:#e8edf5;">PQ Meter METER-001</strong>
+            <span style="margin-left:auto;">Active</span>
           </div>
         </div>
+        <div style="margin-top:8px;">
+          <a class="btn-ecbs btn-outline btn-sm" routerLink="/ecbs/digital-twin"><span class="fa fa-share-alt"></span> Configure Digital Twin</a>
+        </div>
+      </div>
 
+    </div>
+
+    <!-- Right: selected node detail + network stats -->
+    <div>
+      <!-- Selected node panel -->
+      <div class="ecbs-card" style="margin-bottom:12px;" *ngIf="selectedNode">
+        <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> {{ selectedNode.name }}</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Type</span><span class="kv-val">{{ selectedNode.type | titlecase }}</span></div>
+          <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val"><span class="badge-healthy">Active</span></span></div>
+          <div class="kv-row" *ngIf="selectedNode.capacity_kva"><span class="kv-key">Capacity</span><span class="kv-val">{{ selectedNode.capacity_kva | number:'1.0-0' }} kVA</span></div>
+          <div class="kv-row"><span class="kv-key">Current Load</span><span class="kv-val">{{ (selectedNode.current_load_kva||0) | number:'1.0-0' }} kVA</span></div>
+          <div class="kv-row" *ngIf="selectedNode.power_factor"><span class="kv-key">Power Factor</span><span class="kv-val kv-green">{{ selectedNode.power_factor | number:'1.3-3' }}</span></div>
+          <div class="kv-row" *ngIf="selectedNode.utilization_pct"><span class="kv-key">Utilization</span><span class="kv-val" [style.color]="barColor(selectedNode.utilization_pct)">{{ selectedNode.utilization_pct | number:'1.1-1' }}%</span></div>
+        </div>
+        <div *ngIf="selectedNode.type === 'transformer'" style="margin-top:10px;">
+          <a class="btn-ecbs btn-outline btn-sm" routerLink="/ecbs/transformers"><span class="fa fa-arrow-right"></span> Transformer Details</a>
+        </div>
+      </div>
+
+      <div class="ecbs-card" *ngIf="!selectedNode" style="margin-bottom:12px;">
+        <div class="ecbs-card-title"><span class="fa fa-cursor"></span> Node Inspector</div>
+        <div class="ecbs-empty" style="padding:20px 10px;">
+          <span class="empty-icon fa fa-hand-pointer-o" style="font-size:28px;opacity:0.2;"></span>
+          <span class="empty-title" style="font-size:11px;">Click a node to inspect</span>
+        </div>
+      </div>
+
+      <!-- Network stats -->
+      <div class="ecbs-card" style="margin-bottom:12px;">
+        <div class="ecbs-card-title"><span class="fa fa-bar-chart"></span> Network Status</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Total Load</span><span class="kv-val">{{ (networkSummary?.total_load_kva||0)|number:'1.0-0' }} kVA</span></div>
+          <div class="kv-row"><span class="kv-key">Installed Capacity</span><span class="kv-val">{{ (networkSummary?.total_installed_kva||0)|number:'1.0-0' }} kVA</span></div>
+          <div class="kv-row"><span class="kv-key">Capacity Recovered</span><span class="kv-val kv-green">+{{ (networkSummary?.recovered_kva||0)|number:'1.0-0' }} kVA</span></div>
+          <div class="kv-row"><span class="kv-key">Avg. Power Factor</span><span class="kv-val">{{ (networkSummary?.avg_power_factor||0)|number:'1.3-3' }}</span></div>
+          <div class="kv-row"><span class="kv-key">CBI Score</span><span class="kv-val" [class.kv-green]="(networkSummary?.cbi_score||0)>=90">{{ (networkSummary?.cbi_score||0)|number:'1.0-0' }}</span></div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-circle"></span> Asset Legend</div>
+        <div class="dt-legend">
+          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#29b6f6;"></div><span>Utility / Transformer</span></div>
+          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#ce93d8;"></div><span>Switchgear / MCC</span></div>
+          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#ffd740;"></div><span>Panel / Feeder</span></div>
+          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#00e676;"></div><span>Load / Motor</span></div>
+          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#f44336;"></div><span>Fault / Critical</span></div>
+        </div>
       </div>
     </div>
-
-    <!-- Metrics table -->
-    <div class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-table"></span> Network Metrics</div>
-      <table *ngIf="assets.length > 0" class="ecbs-table">
-        <thead><tr><th>Asset</th><th>Capacity</th><th>Load</th><th>Utilization</th><th>PF</th><th>Recovered</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr *ngFor="let a of assets">
-            <td>{{ a.name || a.asset_id }}</td>
-            <td>{{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</td>
-            <td>{{ (a.current_load_kva||0) | number:'1.0-0' }} kVA</td>
-            <td>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="width:60px;height:5px;background:#1e2d45;border-radius:3px;overflow:hidden;">
-                  <div [style.width.%]="a.utilization_pct||0" [style.background]="barColor(a.utilization_pct||0)" style="height:100%;border-radius:3px;"></div>
-                </div>
-                <span [style.color]="barColor(a.utilization_pct||0)" style="font-size:11px;font-weight:600;">{{ (a.utilization_pct||0) | number:'1.1-1' }}%</span>
-              </div>
-            </td>
-            <td>{{ a.power_factor | number:'1.2-2' }}</td>
-            <td style="color:#00e676;font-weight:600;">+{{ (a.recovered_kva||0) | number:'1.0-0' }} kVA</td>
-            <td><span class="badge-healthy">Online</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-  </ng-container>
+  </div>
 
 </div>

@@ -1,53 +1,276 @@
-<!-- ECBS OS™ Settings — Spec SS-18 / Figure A-18 -->
+<!-- ECBS OS™ Settings — Spec SS-18 -->
 <div class="ecbs-page">
 
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Settings</h1>
-      <p>Manage your account, project, and system configuration.</p>
+      <p>Platform configuration — account, project, analytics, devices, and commercial settings.</p>
     </div>
   </div>
 
-  <div class="ecbs-grid-2">
+  <!-- Settings tabs -->
+  <div class="ecbs-tabs">
+    <button class="ecbs-tab" [class.active]="activeSection==='account'" (click)="activeSection='account'">
+      <span class="fa fa-user-circle-o"></span> Account
+    </button>
+    <button class="ecbs-tab" [class.active]="activeSection==='project'" (click)="activeSection='project'">
+      <span class="fa fa-industry"></span> Project
+    </button>
+    <button class="ecbs-tab" [class.active]="activeSection==='analytics'" (click)="activeSection='analytics'">
+      <span class="fa fa-bar-chart"></span> Analytics
+    </button>
+    <button class="ecbs-tab" *ngIf="isAdmin" [class.active]="activeSection==='admin'" (click)="activeSection='admin'">
+      <span class="fa fa-cog"></span> Administration
+    </button>
+    <button class="ecbs-tab" *ngIf="isAdmin" [class.active]="activeSection==='commercial'" (click)="activeSection='commercial'">
+      <span class="fa fa-briefcase"></span> Commercial
+    </button>
+  </div>
 
-    <!-- Account settings -->
-    <div class="ecbs-card">
-      <div class="ecbs-card-title"><span class="fa fa-user-circle-o"></span> Account</div>
-      <div class="settings-link-list">
-        <a class="settings-link" routerLink="/account"><span class="fa fa-user"></span><div><strong>My Account</strong><p>Update profile, password, and preferences</p></div><span class="fa fa-chevron-right"></span></a>
+  <!-- ── ACCOUNT TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeSection==='account'">
+    <div class="ecbs-grid-2">
+      <div>
+        <div class="ecbs-section-title">Profile</div>
+        <div class="settings-link-list">
+          <a class="settings-link" routerLink="/account">
+            <span class="fa fa-user"></span>
+            <div><strong>My Account</strong><p>Update name, email, and profile picture</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" routerLink="/account">
+            <span class="fa fa-lock"></span>
+            <div><strong>Change Password</strong><p>Update login credentials</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" href="#">
+            <span class="fa fa-shield"></span>
+            <div><strong>Two-Factor Authentication</strong><p>Add an extra layer of security (MFA)</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" href="#">
+            <span class="fa fa-bell-o"></span>
+            <div><strong>Notification Preferences</strong><p>Configure alarm and report notifications</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+      </div>
+      <div>
+        <div class="ecbs-section-title">Session & Access</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Logged in as</span><span class="kv-val">{{ userName }}</span></div>
+          <div class="kv-row"><span class="kv-key">Role</span><span class="kv-val">{{ roleName }}</span></div>
+          <div class="kv-row"><span class="kv-key">Active Project</span><span class="kv-val">{{ project?.name || 'None' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Last Login</span><span class="kv-val" style="color:#546e7a;">{{ lastLogin }}</span></div>
+        </div>
+        <div style="margin-top:16px;">
+          <a class="btn-ecbs btn-outline" routerLink="/account"><span class="fa fa-edit"></span> Edit Profile</a>
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- Project settings -->
-    <div class="ecbs-card">
-      <div class="ecbs-card-title"><span class="fa fa-industry"></span> Project</div>
-      <div class="settings-link-list">
-        <a class="settings-link" [routerLink]="['/project/overview']"><span class="fa fa-info-circle"></span><div><strong>Project Overview</strong><p>{{ project?.name }}</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" [routerLink]="['/ecbs/devices']"><span class="fa fa-microchip"></span><div><strong>Device Management</strong><p>Meters, gateways, and edge hardware</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" [routerLink]="['/electricity-meters']"><span class="fa fa-flash"></span><div><strong>Electricity Meters</strong><p>Configure meter settings</p></div><span class="fa fa-chevron-right"></span></a>
+  <!-- ── PROJECT TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeSection==='project'">
+    <div class="ecbs-grid-2">
+      <div>
+        <div class="ecbs-section-title">Site Configuration</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/project/overview']">
+            <span class="fa fa-info-circle"></span>
+            <div><strong>Project Overview</strong><p>{{ project?.name || 'No project selected' }}</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/ecbs/devices']">
+            <span class="fa fa-microchip"></span>
+            <div><strong>Device Management</strong><p>Meters, gateways, APFs, and edge hardware</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/electricity-meters']">
+            <span class="fa fa-flash"></span>
+            <div><strong>Electricity Meters</strong><p>Configure PQ meter settings and assignments</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/gateways']">
+            <span class="fa fa-wifi"></span>
+            <div><strong>Gateway Settings</strong><p>Data gateway configuration and status</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/project/emv-baseline']">
+            <span class="fa fa-file-text-o"></span>
+            <div><strong>EM&amp;V Baseline</strong><p>Manage measurement & verification baselines</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+      </div>
+      <div>
+        <div class="ecbs-section-title">Site Information</div>
+        <div class="ecbs-kv-table" *ngIf="project">
+          <div class="kv-row"><span class="kv-key">Project Name</span><span class="kv-val">{{ project.name }}</span></div>
+          <div class="kv-row"><span class="kv-key">Project ID</span><span class="kv-val" style="font-family:monospace;">{{ project.id }}</span></div>
+          <div class="kv-row" *ngIf="project.timezoneAbbreviation"><span class="kv-key">Time Zone</span><span class="kv-val">{{ project.timezoneAbbreviation }}</span></div>
+          <div class="kv-row" *ngIf="project.currencyCode"><span class="kv-key">Currency</span><span class="kv-val">{{ project.currencyCode }}</span></div>
+        </div>
+        <div *ngIf="!project" class="ecbs-empty" style="padding:30px;">
+          <span class="empty-icon fa fa-industry"></span>
+          <span class="empty-title">No Project Selected</span>
+          <a class="btn-ecbs btn-primary" routerLink="/project/select">Select Project</a>
+        </div>
+
+        <div class="ecbs-section-title" style="margin-top:16px;">Data Collection</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Primary Interval</span><span class="kv-val">15 Seconds</span></div>
+          <div class="kv-row"><span class="kv-key">Analytics Interval</span><span class="kv-val">15 Minutes</span></div>
+          <div class="kv-row"><span class="kv-key">Retention (Raw)</span><span class="kv-val">90 Days</span></div>
+          <div class="kv-row"><span class="kv-key">Retention (Archive)</span><span class="kv-val">7 Years</span></div>
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- Admin settings (role >= 8) -->
-    <div class="ecbs-card" *ngIf="isAdmin">
-      <div class="ecbs-card-title"><span class="fa fa-cog"></span> Administration</div>
-      <div class="settings-link-list">
-        <a class="settings-link" [routerLink]="['/synerex-administrator/user']"><span class="fa fa-users"></span><div><strong>User Management</strong><p>Manage users and roles</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" [routerLink]="['/synerex-administrator/branding']"><span class="fa fa-paint-brush"></span><div><strong>Branding</strong><p>OEM white-label configuration</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" [routerLink]="['/synerex-administrator/advanced']"><span class="fa fa-sliders"></span><div><strong>Advanced Options</strong><p>System configuration</p></div><span class="fa fa-chevron-right"></span></a>
+  <!-- ── ANALYTICS TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeSection==='analytics'">
+    <div class="ecbs-grid-2">
+      <div>
+        <div class="ecbs-section-title">Intelligence Engines</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/ecbs/current-analysis']">
+            <span class="fa fa-bolt"></span>
+            <div><strong>Current Balance Intelligence™</strong><p>CBI Score thresholds and configuration</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/ecbs/capacity']">
+            <span class="fa fa-tachometer"></span>
+            <div><strong>Capacity Intelligence™</strong><p>Utilization thresholds and recovery targets</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/ecbs/savings']">
+            <span class="fa fa-dollar"></span>
+            <div><strong>Savings Intelligence™</strong><p>ROI engine, project cost, utility rates</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/ecbs/alarms']" [queryParams]="{tab:'rules'}">
+            <span class="fa fa-sliders"></span>
+            <div><strong>Alert Rules</strong><p>Configure alarm thresholds and notification rules</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+      </div>
+      <div>
+        <div class="ecbs-section-title">Dashboard Refresh</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8899a6;cursor:pointer;">
+            <input type="radio" name="refresh" value="realtime" style="accent-color:#00e676;"> Real-Time
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8899a6;cursor:pointer;">
+            <input type="radio" name="refresh" value="15min" checked style="accent-color:#00e676;"> 15 Minutes
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;font-size:12px;color:#8899a6;cursor:pointer;">
+            <input type="radio" name="refresh" value="1hour" style="accent-color:#00e676;"> Hourly
+          </label>
+        </div>
+
+        <div class="ecbs-section-title">Utility Rate</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label class="form-label">Energy Rate ($/kWh)</label>
+          <input class="ecbs-input" type="number" [(ngModel)]="utilityRate" step="0.001" placeholder="0.120">
+          <label class="form-label" style="margin-top:8px;">Demand Rate ($/kW/mo)</label>
+          <input class="ecbs-input" type="number" [(ngModel)]="demandRate" step="1" placeholder="15.00">
+          <label class="form-label" style="margin-top:8px;">Project Cost ($)</label>
+          <input class="ecbs-input" type="number" [(ngModel)]="projectCost" step="1000" placeholder="250000">
+          <button class="btn-ecbs btn-primary" style="margin-top:10px;" (click)="saveAnalyticsSettings()">
+            <span class="fa fa-save"></span> Save Analytics Settings
+          </button>
+        </div>
       </div>
     </div>
+  </div>
 
-    <!-- Commercial Platform (admin only) -->
-    <div class="ecbs-card" *ngIf="isAdmin">
-      <div class="ecbs-card-title"><span class="fa fa-briefcase"></span> Commercial Platform™</div>
-      <div class="settings-link-list">
-        <a class="settings-link" href="#"><span class="fa fa-certificate"></span><div><strong>License Manager</strong><p>Meter license status and activation</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" href="#"><span class="fa fa-dollar"></span><div><strong>Royalty Engine</strong><p>OEM royalty calculations</p></div><span class="fa fa-chevron-right"></span></a>
-        <a class="settings-link" [routerLink]="['/synerex-administrator/subscription']"><span class="fa fa-credit-card"></span><div><strong>Subscription</strong><p>Manage billing and subscription</p></div><span class="fa fa-chevron-right"></span></a>
+  <!-- ── ADMIN TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeSection==='admin' && isAdmin">
+    <div class="ecbs-grid-2">
+      <div>
+        <div class="ecbs-section-title">User Management</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/user']">
+            <span class="fa fa-users"></span>
+            <div><strong>Users & Roles</strong><p>Manage platform users, roles, and permissions</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" [routerLink]="['/synerex-administrator/oem']" *ngIf="isSuperAdmin">
+            <span class="fa fa-sitemap"></span>
+            <div><strong>OEM Management</strong><p>Configure and manage OEM partner accounts</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+        <div class="ecbs-section-title" style="margin-top:16px;">Branding</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/branding']">
+            <span class="fa fa-paint-brush"></span>
+            <div><strong>White-Label Branding™</strong><p>Logo, colors, company name, login screen</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+      </div>
+      <div>
+        <div class="ecbs-section-title">System Configuration</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/advanced']">
+            <span class="fa fa-sliders"></span>
+            <div><strong>Advanced Options</strong><p>Database, integrations, API keys</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" href="#">
+            <span class="fa fa-history"></span>
+            <div><strong>Audit Log</strong><p>Full system audit trail — every action logged</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" href="#">
+            <span class="fa fa-download"></span>
+            <div><strong>Data Export</strong><p>Export all raw meter and analytics data</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
       </div>
     </div>
+  </div>
 
+  <!-- ── COMMERCIAL TAB ── -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeSection==='commercial' && isAdmin">
+    <div class="ecbs-grid-2">
+      <div>
+        <div class="ecbs-section-title">Meter License Manager™</div>
+        <div class="settings-link-list">
+          <a class="settings-link" href="/license/admin">
+            <span class="fa fa-certificate"></span>
+            <div><strong>License Dashboard</strong><p>Active meters, license states, and activation</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+          <a class="settings-link" href="/license/admin">
+            <span class="fa fa-credit-card"></span>
+            <div><strong>Subscription & Billing</strong><p>Manage subscription plan and payment</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
+        <div class="ecbs-section-title" style="margin-top:16px;">License Status</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">License State</span><span class="kv-val"><span class="badge-healthy">Active</span></span></div>
+          <div class="kv-row"><span class="kv-key">Licensed Meters</span><span class="kv-val">—</span></div>
+          <div class="kv-row"><span class="kv-key">Available Licenses</span><span class="kv-val">—</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="ecbs-section-title">Synerex Royalty Engine™</div>
+        <div class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Royalty Rate</span><span class="kv-val">Per contract</span></div>
+          <div class="kv-row"><span class="kv-key">Monthly Royalty</span><span class="kv-val">—</span></div>
+          <div class="kv-row"><span class="kv-key">Outstanding</span><span class="kv-val">—</span></div>
+        </div>
+        <div style="margin-top:12px;">
+          <a class="btn-ecbs btn-outline" href="/license/admin"><span class="fa fa-external-link"></span> Open License Portal</a>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>

@@ -1,82 +1,153 @@
-<!-- ECBS OS™ Reports — Spec SS-14 / Figure A-14 -->
+<!-- ECBS OS™ Reports — Spec SS-14 / Reporting Engine™ -->
 <div class="ecbs-page">
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Reports</h1>
-      <p>Generate, schedule, and download ECBS intelligence reports.</p>
+      <h1>Reporting Engine™</h1>
+      <p>Generate, schedule, and download engineering-grade ECBS intelligence reports — PDF, Excel, CSV, JSON.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline" (click)="loadReports()"><span class="fa fa-refresh"></span> Refresh</button>
     </div>
   </div>
 
-  <!-- Generate Report Card — spec SS-14 top section -->
+  <!-- Generate new report row -->
   <div class="ecbs-grid-2" style="margin-bottom:20px;">
+
     <div class="ecbs-card">
       <div class="ecbs-card-title"><span class="fa fa-magic"></span> Generate Report</div>
       <div class="report-form">
         <label class="form-label">Report Type</label>
         <select class="ecbs-select" [(ngModel)]="reportType">
           <option value="executive">Executive Summary</option>
-          <option value="capacity">Capacity Intelligence</option>
-          <option value="savings">Savings Intelligence</option>
-          <option value="alarms">Alarms & Events</option>
-          <option value="full">Full ECBS Report</option>
-          <option value="utility">Utility Intelligence</option>
+          <option value="savings">Savings Intelligence™</option>
+          <option value="capacity">Capacity Intelligence™</option>
+          <option value="current_balance">Current Balance Intelligence™</option>
+          <option value="utility">Utility Intelligence™ (uBillTracker)</option>
+          <option value="alarms">Alarms &amp; Events</option>
+          <option value="devices">Device Health</option>
+          <option value="deployment">Deployment Status</option>
+          <option value="full">Full ECBS Report (All Modules)</option>
         </select>
-        <label class="form-label" style="margin-top:12px;">Format</label>
+
+        <label class="form-label" style="margin-top:12px;">Export Format</label>
         <select class="ecbs-select" [(ngModel)]="format">
           <option value="excel">Excel (.xlsx)</option>
-          <option value="pdf">PDF</option>
+          <option value="pdf">PDF (.pdf)</option>
+          <option value="csv">CSV (.csv)</option>
+          <option value="json">JSON (API)</option>
         </select>
+
+        <label class="form-label" style="margin-top:12px;">Date Range</label>
+        <select class="ecbs-select" [(ngModel)]="dateRange">
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="90d">Last 90 Days</option>
+          <option value="12mo">Last 12 Months</option>
+          <option value="ytd">Year to Date</option>
+          <option value="lifetime">Lifetime</option>
+        </select>
+
         <button class="btn-ecbs btn-primary" style="margin-top:16px;width:100%;"
           (click)="generateReport()" [disabled]="generating">
           <span class="fa" [class.fa-file-text]="!generating" [class.fa-spinner]="generating" [class.fa-spin]="generating"></span>
           {{ generating ? 'Generating...' : 'Generate Report' }}
         </button>
+        <div *ngIf="generateMsg" style="margin-top:8px;font-size:11px;color:#00e676;text-align:center;">
+          <span class="fa fa-check-circle"></span> {{ generateMsg }}
+        </div>
       </div>
     </div>
 
     <div class="ecbs-card">
-      <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Available Report Types</div>
+      <div class="ecbs-card-title"><span class="fa fa-list-alt"></span> Available Report Types</div>
       <div class="report-type-list">
-        <div class="report-type-item"><span class="fa fa-briefcase"></span><div><strong>Executive Summary</strong><p>High-level KPIs for management — savings, ROI, payback, alarms.</p></div></div>
-        <div class="report-type-item"><span class="fa fa-tachometer"></span><div><strong>Capacity Intelligence</strong><p>Installed, available, and recovered capacity details.</p></div></div>
-        <div class="report-type-item"><span class="fa fa-dollar"></span><div><strong>Savings Intelligence</strong><p>Baseline vs current performance, financial impact.</p></div></div>
-        <div class="report-type-item"><span class="fa fa-bell"></span><div><strong>Alarms &amp; Events</strong><p>Alarm history, event log, resolution timeline.</p></div></div>
+        <div class="report-type-item">
+          <span class="fa fa-briefcase"></span>
+          <div><strong>Executive Summary</strong><p>High-level KPIs for management — annual savings, ROI, payback, capacity, alarms.</p></div>
+        </div>
+        <div class="report-type-item">
+          <span class="fa fa-dollar"></span>
+          <div><strong>Savings Intelligence™</strong><p>Full baseline vs. current comparison — energy, demand, PF savings, ROI engine.</p></div>
+        </div>
+        <div class="report-type-item">
+          <span class="fa fa-tachometer"></span>
+          <div><strong>Capacity Intelligence™</strong><p>Transformer utilization, hidden capacity, recovered kVA, deferred capital.</p></div>
+        </div>
+        <div class="report-type-item">
+          <span class="fa fa-bolt"></span>
+          <div><strong>Current Balance Intelligence™</strong><p>CBI Score history, harmonic burden, reactive burden, neutral loading.</p></div>
+        </div>
+        <div class="report-type-item">
+          <span class="fa fa-file-text-o"></span>
+          <div><strong>Full ECBS Report</strong><p>All intelligence modules in one comprehensive engineering-grade document.</p></div>
+        </div>
       </div>
     </div>
+
+  </div>
+
+  <!-- Scheduled Reports -->
+  <div class="ecbs-card" style="margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="ecbs-card-title" style="margin-bottom:0;border:none;padding-bottom:0;"><span class="fa fa-clock-o"></span> Scheduled Reports</div>
+      <button class="btn-ecbs btn-outline btn-sm"><span class="fa fa-plus"></span> Schedule Report</button>
+    </div>
+    <div *ngIf="scheduledReports.length===0" style="padding:16px 0;font-size:12px;color:#546e7a;">
+      No scheduled reports configured. Set up automated weekly or monthly reports.
+      <button class="btn-ecbs btn-outline btn-xs" style="margin-left:10px;" (click)="addSampleSchedules()">Load Example Schedules</button>
+    </div>
+    <table *ngIf="scheduledReports.length>0" class="ecbs-table">
+      <thead><tr><th>Report</th><th>Frequency</th><th>Format</th><th>Next Run</th><th>Recipients</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr *ngFor="let sr of scheduledReports">
+          <td style="font-weight:600;">{{ sr.name }}</td>
+          <td>{{ sr.frequency }}</td>
+          <td><span class="fa" [class.fa-file-excel-o]="sr.format==='excel'" [class.fa-file-pdf-o]="sr.format==='pdf'"></span> {{ sr.format | uppercase }}</td>
+          <td style="font-size:11px;color:#8899a6;">{{ sr.nextRun }}</td>
+          <td style="font-size:11px;color:#546e7a;">{{ sr.recipients }}</td>
+          <td><span [class]="sr.enabled?'badge-healthy':'badge-offline'">{{ sr.enabled?'Active':'Paused' }}</span></td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
   <!-- Report Catalog -->
   <div class="ecbs-card">
-    <div class="ecbs-card-title"><span class="fa fa-list"></span> Report Catalog</div>
+    <div class="ecbs-card-title"><span class="fa fa-folder-open-o"></span> Report Catalog</div>
 
-    <div *ngIf="loading" style="padding:30px;text-align:center;color:#546e7a;">
-      <span class="fa fa-spinner fa-spin"></span> Loading reports...
-    </div>
+    <div *ngIf="loading" class="ecbs-spinner" style="padding:30px;"><span class="fa fa-spinner fa-spin"></span> Loading reports...</div>
 
-    <div *ngIf="!loading && reports.length === 0" class="ecbs-empty">
+    <div *ngIf="!loading && reports.length===0" class="ecbs-empty">
       <span class="empty-icon fa fa-file-o"></span>
-      <span class="empty-title">No Reports Generated</span>
-      <p>Use the generator above to create your first ECBS report.</p>
+      <span class="empty-title">No Reports Generated Yet</span>
+      <p>Use the generator above to create your first ECBS intelligence report.</p>
     </div>
 
-    <table *ngIf="!loading && reports.length > 0" class="ecbs-table">
+    <table *ngIf="!loading && reports.length>0" class="ecbs-table">
       <thead>
-        <tr><th>Report</th><th>Type</th><th>Format</th><th>Status</th><th>Generated</th><th>Action</th></tr>
+        <tr><th>Report Name</th><th>Type</th><th>Format</th><th>Date Range</th><th>Status</th><th>Generated</th><th>Size</th><th>Action</th></tr>
       </thead>
       <tbody>
         <tr *ngFor="let r of reports">
-          <td>{{ r.title || r.report_type }}</td>
-          <td>{{ r.report_type | titlecase }}</td>
-          <td><span class="fa" [class.fa-file-excel-o]="r.format === 'excel'" [class.fa-file-pdf-o]="r.format === 'pdf'"></span> {{ (r.format || 'excel') | uppercase }}</td>
-          <td><span [class]="statusClass(r.status)">{{ r.status }}</span></td>
-          <td style="font-size:11px;color:#546e7a;">{{ r.created_at | date:'MMM d, yyyy h:mm a' }}</td>
+          <td style="font-weight:600;">{{ r.title || r.report_type }}</td>
+          <td style="color:#8899a6;">{{ r.report_type | titlecase }}</td>
           <td>
-            <a *ngIf="r.download_url" [href]="r.download_url" target="_blank" class="btn-ecbs btn-outline" style="font-size:11px;padding:4px 8px;">
+            <span class="fa" [class.fa-file-excel-o]="r.format==='excel'" [class.fa-file-pdf-o]="r.format==='pdf'" [class.fa-file-code-o]="r.format==='json'" style="margin-right:4px;"></span>
+            {{ (r.format||'excel') | uppercase }}
+          </td>
+          <td style="font-size:11px;color:#8899a6;">{{ r.date_range || '—' }}</td>
+          <td><span [class]="statusClass(r.status)">{{ r.status | titlecase }}</span></td>
+          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ r.created_at | date:'MMM d, yyyy h:mm a' }}</td>
+          <td style="font-size:11px;color:#546e7a;">{{ r.file_size || '—' }}</td>
+          <td>
+            <a *ngIf="r.download_url" [href]="r.download_url" target="_blank" class="btn-ecbs btn-xs btn-primary">
               <span class="fa fa-download"></span> Download
             </a>
+            <span *ngIf="!r.download_url && r.status==='processing'" class="badge-warning">Processing</span>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+
 </div>

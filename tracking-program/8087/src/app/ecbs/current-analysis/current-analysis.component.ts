@@ -50,7 +50,16 @@ export class CurrentAnalysisComponent implements OnInit {
   }
   get cbiStatusLabel(): string {
     const s = this.cbiScore;
-    if (s >= 90) return 'Excellent'; if (s >= 75) return 'Good';
-    if (s >= 60) return 'Fair'; return 'Poor';
+    if (s >= 90) return 'Excellent'; if (s >= 80) return 'Good';
+    if (s >= 70) return 'Fair'; return 'Poor';
+  }
+
+  get lostCapacityPct(): number {
+    if (!this.cbi) return 0;
+    const harmonic  = this.cbi.harmonic_current_pct  || 0;
+    const reactive  = this.cbi.reactive_current_pct  || 0;
+    const imbalance = this.cbi.imbalance_pct          || 0;
+    const neutral   = this.cbi.neutral_current_pct   || 0;
+    return Math.min(100, harmonic + imbalance + neutral * 0.5);
   }
 }

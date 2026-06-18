@@ -1,95 +1,170 @@
-<!-- ECBS OS™ Enterprise Dashboard — Spec SS-2 / Figure A-2 -->
+<!-- ECBS OS™ Enterprise Dashboard — Spec SS-2 + SS-3 Target Landing Page -->
 <div class="ecbs-page">
 
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Enterprise Dashboard</h1>
-      <p>Portfolio command center — site health, savings, capacity, alarms</p>
+      <p>Portfolio command center — site health, savings, capacity recovery, alarms, and intelligence overview.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline" (click)="loadData()"><span class="fa fa-refresh"></span> Refresh</button>
       <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
     </div>
   </div>
 
-  <!-- KPI Row — spec SS-2 top banner: Annual Savings, Capacity Recovered, Avg PF, Alarms -->
+  <!-- Site health banner -->
+  <div *ngIf="siteName" class="site-health-banner" [style.border-color]="(activeAlarms||0)>0?'rgba(244,67,54,0.4)':'rgba(0,230,118,0.3)'">
+    <div class="shb-status">
+      <div class="shb-dot" [style.background]="(activeAlarms||0)>0?'#f44336':'#00e676'" [style.box-shadow]="'0 0 10px ' + ((activeAlarms||0)>0?'#f44336':'#00e676')"></div>
+      <span class="shb-label" [style.color]="(activeAlarms||0)>0?'#f44336':'#00e676'">{{ (activeAlarms||0)>0 ? 'Needs Attention' : 'All Systems Normal' }}</span>
+    </div>
+    <div class="shb-meta">
+      <span><strong>Site:</strong> {{ siteName }}</span>
+      <span *ngIf="projectId"><strong>Project ID:</strong> {{ projectId }}</span>
+    </div>
+    <div style="margin-left:auto;">
+      <span *ngIf="(activeAlarms||0)===0" class="health-score-pill hsp-excellent"><span class="fa fa-check"></span> All Checks Clear™</span>
+      <span *ngIf="(activeAlarms||0)>0" class="health-score-pill hsp-poor"><span class="fa fa-bell"></span> {{ activeAlarms }} Active Alarms</span>
+    </div>
+  </div>
+
+  <!-- KPI Row — spec SS-3 top: Annual Savings, Capacity, PF, Alarms -->
   <div class="ecbs-kpi-row">
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
       <div class="kpi-value">{{ annualSavingsDisplay }}</div>
       <div class="kpi-label">Annual Savings</div>
+      <div class="kpi-delta">EM&amp;V verified</div>
     </div>
     <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+      <div class="kpi-icon"><span class="fa fa-magic"></span></div>
       <div class="kpi-value">{{ capacityRecovered }}</div>
       <div class="kpi-label">Capacity Recovered</div>
+      <div class="kpi-delta neutral">kVA freed by ECBS</div>
     </div>
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
       <div class="kpi-value">{{ avgPowerFactor }}</div>
-      <div class="kpi-label">Avg Power Factor</div>
+      <div class="kpi-label">Power Factor</div>
+      <div class="kpi-delta" [class.negative]="pfValue < 0.9" [class.neutral]="pfValue>=0.9&&pfValue<0.95">{{ pfValue >= 0.95 ? 'Excellent' : pfValue >= 0.9 ? 'Good' : pfValue > 0 ? 'Needs work' : '—' }}</div>
     </div>
-    <div class="ecbs-kpi-card" [ngClass]="criticalAlarms > 0 ? 'kpi-red' : 'kpi-amber'">
+    <div class="ecbs-kpi-card kpi-purple">
+      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
+      <div class="kpi-value">{{ cbiScoreDisplay }}</div>
+      <div class="kpi-label">CBI Score™</div>
+      <div class="kpi-delta" [class.negative]="cbiValue<70" [class.neutral]="cbiValue>=70&&cbiValue<90">{{ cbiValue>=90?'Excellent':cbiValue>=70?'Good':cbiValue>0?'Fair':'—' }}</div>
+    </div>
+    <div class="ecbs-kpi-card" [class.kpi-red]="criticalAlarms>0" [class.kpi-amber]="criticalAlarms===0&&activeAlarms>0" [class.kpi-green]="activeAlarms===0">
       <div class="kpi-icon"><span class="fa fa-bell"></span></div>
       <div class="kpi-value">{{ activeAlarms }}</div>
       <div class="kpi-label">Active Alarms</div>
-      <div class="kpi-delta" [class.negative]="criticalAlarms > 0">{{ criticalAlarms }} Critical</div>
+      <div class="kpi-delta" [class.negative]="criticalAlarms>0" [class.neutral]="criticalAlarms===0&&activeAlarms>0">{{ criticalAlarms > 0 ? criticalAlarms + ' Critical' : activeAlarms > 0 ? 'Review required' : 'All Clear' }}</div>
     </div>
   </div>
 
-  <!-- Main grid -->
+  <!-- Intelligence modules grid — spec SS-3 main body -->
   <div class="ecbs-grid-2 dashboard-grid">
 
     <div style="display:flex;flex-direction:column;gap:16px;">
 
-      <!-- Capacity card -->
+      <!-- Capacity Intelligence card -->
       <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Transformer Capacity Overview</div>
-        <div *ngIf="!capacityData" class="ecbs-empty">
-          <span class="empty-icon fa fa-database"></span>
-          <span class="empty-title">No capacity data yet</span>
-          <p>Run a Capacity Intelligence calculation to populate this panel.</p>
-          <a class="btn-ecbs btn-primary" routerLink="/ecbs/capacity">Go to Capacity Intelligence</a>
+        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Capacity Intelligence™</div>
+        <div *ngIf="!capacityData" class="ecbs-empty" style="padding:24px 20px;">
+          <span class="empty-icon fa fa-tachometer" style="font-size:28px;"></span>
+          <span class="empty-title" style="font-size:12px;">No capacity data</span>
+          <a class="btn-ecbs btn-primary btn-sm" routerLink="/ecbs/capacity">Run Calculation</a>
         </div>
         <div *ngIf="capacityData">
-          <div class="ecbs-grid-3" style="margin-bottom:12px;">
+          <div class="ecbs-grid-3" style="margin-bottom:14px;">
             <div class="mini-stat">
-              <div class="mini-val">{{ capacityData.installed_capacity_kva | number:'1.0-0' }} kVA</div>
-              <div class="mini-lbl">Installed</div>
+              <div class="mini-val">{{ (capacityData.installed_capacity_kva || 0) | number:'1.0-0' }}</div>
+              <div class="mini-lbl">Installed kVA</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-val">{{ capacityData.available_capacity_kva | number:'1.0-0' }} kVA</div>
-              <div class="mini-lbl">Available</div>
+              <div class="mini-val">{{ (capacityData.available_capacity_kva || 0) | number:'1.0-0' }}</div>
+              <div class="mini-lbl">Available kVA</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-val" style="color:#00e676;">{{ capacityData.recovered_capacity_kva | number:'1.0-0' }} kVA</div>
-              <div class="mini-lbl">Recovered</div>
+              <div class="mini-val" style="color:#00e676;">+{{ (capacityData.recovered_capacity_kva || 0) | number:'1.0-0' }}</div>
+              <div class="mini-lbl">Recovered kVA</div>
             </div>
           </div>
-          <a class="btn-ecbs btn-outline" style="font-size:11px;" routerLink="/ecbs/capacity">View Capacity Details →</a>
+          <!-- Utilization bar -->
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#8899a6;margin-bottom:4px;">
+              <span>Transformer Utilization</span>
+              <span [style.color]="(capacityData.utilization_pct||0)>85?'#f44336':(capacityData.utilization_pct||0)>75?'#ffd740':'#00e676'">{{ (capacityData.utilization_pct||0) | number:'1.0-0' }}%</span>
+            </div>
+            <div style="height:6px;background:rgba(30,45,69,0.8);border-radius:3px;overflow:hidden;">
+              <div [style.width.%]="capacityData.utilization_pct||0"
+                [style.background]="(capacityData.utilization_pct||0)>85?'#f44336':(capacityData.utilization_pct||0)>75?'#ffd740':'#00e676'"
+                style="height:100%;border-radius:3px;transition:width 0.5s;"></div>
+            </div>
+          </div>
+          <a class="btn-ecbs btn-outline btn-xs" routerLink="/ecbs/capacity">View Capacity Details →</a>
         </div>
       </div>
 
       <!-- Savings card -->
       <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-dollar"></span> Savings vs Baseline</div>
-        <div *ngIf="!savingsData" class="ecbs-empty">
-          <span class="empty-icon fa fa-bar-chart"></span>
-          <span class="empty-title">No savings data yet</span>
-          <a class="btn-ecbs btn-primary" routerLink="/ecbs/savings">Go to Savings Intelligence</a>
+        <div class="ecbs-card-title"><span class="fa fa-dollar"></span> Savings Intelligence™</div>
+        <div *ngIf="!savingsData" class="ecbs-empty" style="padding:24px 20px;">
+          <span class="empty-icon fa fa-bar-chart" style="font-size:28px;"></span>
+          <span class="empty-title" style="font-size:12px;">No savings data</span>
+          <a class="btn-ecbs btn-primary btn-sm" routerLink="/ecbs/savings">View Savings</a>
         </div>
         <div *ngIf="savingsData">
-          <div class="ecbs-grid-2" style="margin-bottom:10px;">
+          <div class="ecbs-grid-2" style="margin-bottom:12px;">
             <div class="mini-stat">
-              <div class="mini-val">${{ savingsData.annual_savings_est ?? savingsData.annual_savings | number:'1.0-0' }}</div>
+              <div class="mini-val" style="color:#00e676;">${{ ((savingsData.annual_savings_est ?? savingsData.annual_savings) || 0) | number:'1.0-0' }}</div>
               <div class="mini-lbl">Annual Savings</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-val">{{ savingsData.roi ?? 0 | number:'1.0-0' }}%</div>
+              <div class="mini-val">{{ (savingsData.roi || 0) | number:'1.0-0' }}%</div>
               <div class="mini-lbl">ROI</div>
             </div>
+            <div class="mini-stat">
+              <div class="mini-val">{{ (savingsData.current_avg_pf || 0) | number:'1.3-3' }}</div>
+              <div class="mini-lbl">Power Factor</div>
+            </div>
+            <div class="mini-stat">
+              <div class="mini-val">{{ (savingsData.payback || 0) | number:'1.1-1' }} yr</div>
+              <div class="mini-lbl">Payback</div>
+            </div>
           </div>
-          <a class="btn-ecbs btn-outline" style="font-size:11px;" routerLink="/ecbs/savings">View Savings Details →</a>
+          <a class="btn-ecbs btn-outline btn-xs" routerLink="/ecbs/savings">View Savings Details →</a>
+        </div>
+      </div>
+
+      <!-- Current Balance Intelligence card -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-bolt"></span> Current Balance Intelligence™</div>
+        <div *ngIf="!cbiData" class="ecbs-empty" style="padding:20px;">
+          <span class="empty-icon fa fa-bolt" style="font-size:26px;"></span>
+          <span class="empty-title" style="font-size:12px;">No CBI data</span>
+          <a class="btn-ecbs btn-outline btn-xs" routerLink="/ecbs/current-analysis">View CBI</a>
+        </div>
+        <div *ngIf="cbiData" style="display:flex;align-items:center;gap:20px;">
+          <div style="text-align:center;flex-shrink:0;">
+            <div style="font-size:40px;font-weight:900;line-height:1;" [style.color]="cbiValue>=90?'#00e676':cbiValue>=70?'#ffd740':'#f44336'">{{ cbiValue | number:'1.0-0' }}</div>
+            <div style="font-size:10px;color:#8899a6;text-transform:uppercase;letter-spacing:0.08em;">CBI Score™</div>
+            <div style="font-size:11px;font-weight:700;margin-top:2px;" [style.color]="cbiValue>=90?'#00e676':cbiValue>=70?'#ffd740':'#f44336'">
+              {{ cbiValue>=90?'Excellent':cbiValue>=70?'Good':'Poor' }}
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div *ngFor="let item of cbiBreakdown" style="display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px;">
+              <span style="color:#8899a6;width:80px;text-align:right;flex-shrink:0;">{{ item.label }}</span>
+              <div style="flex:1;height:5px;background:rgba(30,45,69,0.8);border-radius:2px;overflow:hidden;">
+                <div [style.width.%]="item.pct" [style.background]="item.color" style="height:100%;border-radius:2px;"></div>
+              </div>
+              <span style="font-size:10px;font-weight:700;width:30px;text-align:right;" [style.color]="item.color">{{ item.pct | number:'1.0-0' }}%</span>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="cbiData" style="margin-top:10px;">
+          <a class="btn-ecbs btn-outline btn-xs" routerLink="/ecbs/current-analysis">View Current Analysis →</a>
         </div>
       </div>
 
@@ -97,34 +172,58 @@
 
     <div style="display:flex;flex-direction:column;gap:16px;">
 
-      <!-- Alarms card -->
+      <!-- Alarm card -->
       <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-bell"></span> Active Alarms</div>
-        <div *ngIf="!alarmSummary || activeAlarms === 0" class="ecbs-empty" style="padding:20px;">
-          <span class="empty-icon fa fa-check-circle" style="color:#00e676;"></span>
-          <span class="empty-title">All Systems Clear</span>
+        <div class="ecbs-card-title"><span class="fa fa-bell"></span> Alarms &amp; Events</div>
+        <div *ngIf="!alarmSummary || activeAlarms === 0" class="ecbs-empty" style="padding:24px;">
+          <span class="empty-icon fa fa-check-circle" style="color:#00e676;font-size:40px;opacity:0.6;"></span>
+          <span class="empty-title">All Systems Clear™</span>
+          <p style="font-size:11px;">No active alarms. All assets normal.</p>
         </div>
         <div *ngIf="alarmSummary && activeAlarms > 0">
           <div class="alarm-summary-row">
             <div class="alarm-count critical"><span class="count-val">{{ alarmSummary.critical || 0 }}</span><span class="count-lbl">Critical</span></div>
             <div class="alarm-count warning"><span class="count-val">{{ alarmSummary.high || 0 }}</span><span class="count-lbl">High</span></div>
             <div class="alarm-count info"><span class="count-val">{{ alarmSummary.medium || 0 }}</span><span class="count-lbl">Medium</span></div>
+            <div class="alarm-count ok"><span class="count-val">{{ alarmSummary.acknowledged || 0 }}</span><span class="count-lbl">Ack'd</span></div>
           </div>
-          <a class="btn-ecbs btn-outline" style="font-size:11px;margin-top:10px;" routerLink="/ecbs/alarms">View All Alarms →</a>
+          <a class="btn-ecbs btn-outline btn-xs" style="margin-top:4px;" routerLink="/ecbs/alarms">View All Alarms →</a>
         </div>
       </div>
 
-      <!-- Quick links -->
-      <div class="ecbs-card quick-links-card">
-        <div class="ecbs-card-title"><span class="fa fa-th"></span> Quick Access</div>
+      <!-- Quick access module tiles -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-th"></span> Intelligence Modules</div>
         <div class="quick-links">
-          <a class="quick-link" routerLink="/ecbs/current-analysis"><span class="fa fa-bolt"></span> Current Analysis</a>
-          <a class="quick-link" routerLink="/ecbs/electrical-network"><span class="fa fa-sitemap"></span> Electrical Network</a>
-          <a class="quick-link" routerLink="/ecbs/digital-twin"><span class="fa fa-share-alt"></span> Digital Twin</a>
-          <a class="quick-link" routerLink="/ecbs/devices"><span class="fa fa-microchip"></span> Devices</a>
-          <a class="quick-link" routerLink="/ecbs/transformers"><span class="fa fa-plug"></span> Transformers</a>
-          <a class="quick-link" routerLink="/ecbs/settings"><span class="fa fa-cog"></span> Settings</a>
+          <a class="quick-link" routerLink="/ecbs/current-analysis"><span class="fa fa-bolt" style="color:#00e676;"></span> Current Analysis</a>
+          <a class="quick-link" routerLink="/ecbs/capacity"><span class="fa fa-tachometer" style="color:#29b6f6;"></span> Capacity</a>
+          <a class="quick-link" routerLink="/ecbs/savings"><span class="fa fa-dollar" style="color:#00e676;"></span> Savings</a>
+          <a class="quick-link" routerLink="/ecbs/utility"><span class="fa fa-file-text-o" style="color:#29b6f6;"></span> Utility</a>
+          <a class="quick-link" routerLink="/ecbs/digital-twin"><span class="fa fa-share-alt" style="color:#ce93d8;"></span> Digital Twin</a>
+          <a class="quick-link" routerLink="/ecbs/electrical-network"><span class="fa fa-sitemap" style="color:#ffd740;"></span> Elec. Network</a>
+          <a class="quick-link" routerLink="/ecbs/transformers"><span class="fa fa-plug" style="color:#29b6f6;"></span> Transformers</a>
+          <a class="quick-link" routerLink="/ecbs/devices"><span class="fa fa-microchip" style="color:#8899a6;"></span> Devices</a>
+          <a class="quick-link" routerLink="/ecbs/alarms"><span class="fa fa-bell" style="color:#ffd740;"></span> Alarms</a>
+          <a class="quick-link" routerLink="/ecbs/reports"><span class="fa fa-file-text" style="color:#29b6f6;"></span> Reports</a>
+          <a class="quick-link" routerLink="/ecbs/sites"><span class="fa fa-industry" style="color:#8899a6;"></span> Site Details</a>
+          <a class="quick-link" routerLink="/ecbs/settings"><span class="fa fa-cog" style="color:#8899a6;"></span> Settings</a>
         </div>
+      </div>
+
+      <!-- Report summary -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title"><span class="fa fa-file-text"></span> Recent Reports</div>
+        <div *ngIf="!reportSummary || reportSummary.total === 0" class="ecbs-empty" style="padding:20px;">
+          <span class="empty-icon fa fa-file-o" style="font-size:28px;"></span>
+          <span class="empty-title" style="font-size:12px;">No reports generated</span>
+          <a class="btn-ecbs btn-outline btn-xs" routerLink="/ecbs/reports">Generate Report</a>
+        </div>
+        <div *ngIf="reportSummary && reportSummary.total > 0" class="ecbs-kv-table">
+          <div class="kv-row"><span class="kv-key">Total Reports</span><span class="kv-val">{{ reportSummary.total }}</span></div>
+          <div class="kv-row"><span class="kv-key">Last Generated</span><span class="kv-val" style="color:#8899a6;font-size:11px;">{{ reportSummary.last_generated | date:'MMM d, y' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Last Type</span><span class="kv-val">{{ reportSummary.last_type | titlecase }}</span></div>
+        </div>
+        <a class="btn-ecbs btn-outline btn-xs" style="margin-top:10px;" routerLink="/ecbs/reports">Go to Reports →</a>
       </div>
 
     </div>
