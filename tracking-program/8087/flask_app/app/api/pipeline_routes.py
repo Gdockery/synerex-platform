@@ -54,7 +54,14 @@ CARRIER_TRACK_URLS = {
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _is_ops_admin():
-    return getattr(current_user, "role", None) in ("ops_admin", "synerex_admin", "admin")
+    role = getattr(current_user, "role", None)
+    # Accept both string role names and numeric roles >= 8 (OEM Admin and above)
+    if role in ("ops_admin", "synerex_admin", "admin"):
+        return True
+    try:
+        return int(role) >= 8
+    except (TypeError, ValueError):
+        return False
 
 
 def _user_org_id():
