@@ -273,13 +273,17 @@ body, html {
   background: #0a0f1a !important;
 }
 
+.ng-sidebar__content {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 .page-content {
   background: #0a0f1a;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
 }
 
 .modal-dialog {

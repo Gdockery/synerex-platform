@@ -22,5 +22,6 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }

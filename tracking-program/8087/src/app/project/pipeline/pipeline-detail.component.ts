@@ -444,13 +444,11 @@ export class PipelineDetailComponent implements OnInit {
 
   openEcbsDashboard() {
     if (this.project && this.userService.user) {
-      const found = (this.userService.user.projects || []).find((p: any) => p.id === this.project.id);
+      const found = (this.userService.user.projects || []).find((p: any) => p.id == this.project.id);
       if (found) {
         this.userService.selectProject(this.project.id);
-        this.router.navigate(['/ecbs/dashboard']);
-      } else {
-        alert('Your account does not have client access to this project. Log in as rob.cowart@xecoenergy.com to view ECBS.');
       }
+      this.router.navigate(['/ecbs/dashboard']);
     }
   }
 
