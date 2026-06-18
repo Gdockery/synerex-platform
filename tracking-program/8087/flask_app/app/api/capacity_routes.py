@@ -124,25 +124,35 @@ def get_summary():
         summary["total_installed_kva"] = summary.get("installed_capacity")
         summary["recovered_kva"]       = summary.get("recoverable_capacity")
 
-        # Power factor + active meters from CBI metrics
+        # Power factor + active meters — main meters only (exclude power filters/submeters)
         from app.models.current_balance_metrics import CurrentBalanceMetrics
+        from app.models.meter import Meter
         now_ms = _now_ms()
         cbi_window_start = now_ms - 90 * 86400 * 1000
-        latest_cbi = (CurrentBalanceMetrics.query
-                      .filter_by(project_id=project_id)
-                      .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
-                      .order_by(CurrentBalanceMetrics.bucket_ts.desc())
-                      .first())
+
+        def _main_meter_cbi(q):
+            """Join to meter table and restrict to main service entrance meters only."""
+            return (q.join(Meter, Meter.id == CurrentBalanceMetrics.meter_id)
+                     .filter(Meter.isMain == 1, Meter.isFilter == 0))
+
+        latest_cbi = _main_meter_cbi(
+            CurrentBalanceMetrics.query
+            .filter_by(project_id=project_id)
+            .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
+            .order_by(CurrentBalanceMetrics.bucket_ts.desc())
+        ).first()
+
         if latest_cbi:
             summary["avg_power_factor"] = float(latest_cbi.avg_pf or 0)
-            # Count distinct meter sources that have data in the last 90 days
-            active_count = (CurrentBalanceMetrics.query
-                            .filter_by(project_id=project_id)
-                            .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
-                            .with_entities(CurrentBalanceMetrics.meter_id)
-                            .distinct()
-                            .count())
-            summary["active_meters"] = active_count or 1  # At least 1 if CBI data exists
+            # Count only main service entrance meters (not filters/submeters)
+            active_count = _main_meter_cbi(
+                CurrentBalanceMetrics.query
+                .filter_by(project_id=project_id)
+                .filter(CurrentBalanceMetrics.bucket_ts >= cbi_window_start)
+                .with_entities(CurrentBalanceMetrics.meter_id)
+                .distinct()
+            ).count()
+            summary["active_meters"] = active_count or 1
         else:
             summary["avg_power_factor"] = 0
             summary["active_meters"]    = 0
@@ -192,9 +202,12 @@ def get_assets():
     snapshot = get_latest_twin_snapshot(twin)
     assets = snapshot.get("assets", [])
 
-    # Get latest CBI aggregate for context — use 90-day window to ensure we find data
+    # Get latest CBI aggregate from the main meter only (exclude power filters/submeters)
+    from app.models.meter import Meter as _Meter
     avg_kva_row = (CurrentBalanceMetrics.query
-                   .filter_by(project_id=project_id)
+                   .join(_Meter, _Meter.id == CurrentBalanceMetrics.meter_id)
+                   .filter(_Meter.isMain == 1, _Meter.isFilter == 0)
+                   .filter(CurrentBalanceMetrics.project_id == project_id)
                    .filter(CurrentBalanceMetrics.bucket_ts.between(from_ts, to_ts))
                    .order_by(CurrentBalanceMetrics.bucket_ts.desc())
                    .first())
@@ -415,9 +428,12 @@ def get_transformer(asset_id: str):
     if not asset_data:
         return jsonify({"error": f"Asset {asset_id} not found in approved Digital Twin"}), 404
 
-    # CBI metrics for burden analysis
+    # CBI metrics for burden analysis — main meter only, not power filters
+    from app.models.meter import Meter as _Meter
     cbi_rows = (CurrentBalanceMetrics.query
-                .filter_by(project_id=project_id)
+                .join(_Meter, _Meter.id == CurrentBalanceMetrics.meter_id)
+                .filter(_Meter.isMain == 1, _Meter.isFilter == 0)
+                .filter(CurrentBalanceMetrics.project_id == project_id)
                 .filter(CurrentBalanceMetrics.bucket_ts.between(from_ts, to_ts))
                 .order_by(CurrentBalanceMetrics.bucket_ts.asc())
                 .all())

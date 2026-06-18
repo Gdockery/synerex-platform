@@ -79,8 +79,14 @@ def _can_access_project(sess, project_id: int) -> bool:
     return row is not None
 
 
-def _meter_ids_for_project(sess, project_id: int):
-    rows = sess.query(Meter.id).filter_by(project=project_id, isDeleted=False).all()
+def _meter_ids_for_project(sess, project_id: int, main_only: bool = True):
+    """Return meter IDs for a project. By default, returns only main service
+    entrance meters (isMain=1, isFilter=0) to avoid double-counting from
+    power filter submeters."""
+    q = sess.query(Meter.id).filter_by(project=project_id, isDeleted=False)
+    if main_only:
+        q = q.filter(Meter.isMain == 1, Meter.isFilter == 0)
+    rows = q.all()
     return [r[0] for r in rows]
 
 
@@ -154,7 +160,15 @@ def get_summary():
     if site_id:
         q = q.filter(CurrentBalanceMetrics.site_id == site_id)
     if meter_id:
-        q = q.filter(CurrentBalanceMetrics.meter_id == meter_id)
+        # Explicit meter requested — use it, but still block filter meters
+        q = (q.join(Meter, Meter.id == CurrentBalanceMetrics.meter_id)
+              .filter(Meter.id == meter_id, Meter.isFilter == 0))
+    else:
+        # Default: restrict to main service entrance meters only
+        # (exclude power filter submeters to avoid double-counting)
+        main_ids = _meter_ids_for_project(sess, project_id, main_only=True)
+        if main_ids:
+            q = q.filter(CurrentBalanceMetrics.meter_id.in_(main_ids))
 
     rows = q.order_by(CurrentBalanceMetrics.bucket_ts.asc()).all()
     row_dicts = [_cbm_dict(r) for r in rows]
