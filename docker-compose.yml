@@ -114,7 +114,7 @@ services:
       - ./emv-program/8084:/app/8084
     ports:
       - "8082:8082"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health').read()"]
       interval: 30s
@@ -216,7 +216,7 @@ services:
       - ./tracking-program/8087/storage/company_logo:/app/8087/assets/images/company_logo
     ports:
       - "8087:8087"
-    restart: unless-stopped
+    restart: always
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/health').read()"]
       interval: 30s
