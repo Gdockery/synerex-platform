@@ -32,7 +32,7 @@ export class DigitalTwinComponent implements OnInit {
     this.projectName = p.name ? p.name.toString() : '';
     this.api.get(`/api/capacity/assets?project_id=${this.projectId}`).subscribe({
       next: (r: any) => {
-        this.assets = r?.assets || r || [];
+        this.assets = r?.data || r?.assets || [];
         this.loading = false;
         if (this.assets.length > 0) {
           this.dtSteps[0].done = true;
@@ -50,8 +50,8 @@ export class DigitalTwinComponent implements OnInit {
   get twinStatus(): string { return this.assets.length > 0 ? 'Active' : 'Not Configured'; }
   get statusPillClass(): string { return this.assets.length > 0 ? 'hsp-excellent' : 'hsp-poor'; }
 
-  get totalKva(): number { return this.assets.reduce((s, a) => s + (a.capacity_kva || 0), 0); }
-  get totalLoadKva(): number { return this.assets.reduce((s, a) => s + (a.current_load_kva || 0), 0); }
+  get totalKva(): number { return this.assets.reduce((s, a) => s + (a.capacity_kva || a.rated_kva || a.kva_rating || 0), 0); }
+  get totalLoadKva(): number { return this.assets.reduce((s, a) => s + (a.current_load_kva || a.used_kva || 0), 0); }
   get avgUtil(): number { return this.totalKva > 0 ? this.totalLoadKva / this.totalKva * 100 : 0; }
   get avgPF(): number {
     if (!this.assets.length) return 0;

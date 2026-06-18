@@ -438,10 +438,13 @@ def _create_assets_from_topo(sess, site_id, twin_id, org_id, topo_meters, now):
         sess.add(meter_asset)
         sess.flush()
 
-        for bus in (meter_entry.get("buses") or []):
+        for bus_idx, bus in enumerate(meter_entry.get("buses") or []):
             badge  = str(bus.get("badge", "")).strip()
             kva    = _safe_float(bus.get("xfKva"))
             main_a = _safe_float(bus.get("mainA"))
+            # First bus on the first meter is the main service entrance —
+            # this is where the CBI meter reading comes from.
+            is_main = (bus_idx == 0)
             bus_asset = Asset(
                 site_id          = site_id,
                 org_id           = org_id,
@@ -454,6 +457,7 @@ def _create_assets_from_topo(sess, site_id, twin_id, org_id, topo_meters, now):
                 drawing_ref      = bus.get("dwg"),
                 bus_id           = badge,
                 status           = "active",
+                extra            = {"is_main_meter": True} if is_main else {},
                 createdAt        = now,
                 updatedAt        = now,
             )

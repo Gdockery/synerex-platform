@@ -179,20 +179,49 @@ def get_assets():
 
     # Identify the main-metered transformer — the meter reading applies to it.
     # All CBI data (avg_kva) comes from the main service entrance meter.
+
+    # Strategy 1: explicit is_main_meter flag (manual/seeded twins)
     main_meter_ids = {
         a.get("id") for a in assets
         if isinstance(a, dict) and a.get("is_main_meter")
     }
-    # Fallback: if no explicit flag, use the transformer with the largest rated_kva
+
+    # Strategy 2: topo-seeded twins — find pq_meter assets, then follow
+    # the "feeds" relationship to the switchgear/bus they connect to.
     if not main_meter_ids:
+        relationships = snapshot.get("relationships", [])
+        pq_meter_ids = {
+            a.get("id") for a in assets
+            if isinstance(a, dict) and str(a.get("asset_type", a.get("type", ""))).lower() == "pq_meter"
+        }
+        if pq_meter_ids and relationships:
+            for rel in relationships:
+                if rel.get("parent_asset_id") in pq_meter_ids and rel.get("relationship_type") == "feeds":
+                    main_meter_ids.add(rel.get("child_asset_id"))
+
+    # Strategy 3: check extra/metadata field on each asset
+    if not main_meter_ids:
+        for a in assets:
+            if isinstance(a, dict):
+                extra = a.get("extra") or {}
+                if isinstance(extra, dict) and extra.get("is_main_meter"):
+                    main_meter_ids.add(a.get("id"))
+
+    # Fallback: use the transformer/switchgear with the largest rated kVA
+    if not main_meter_ids:
+        candidate_types = {"transformer", "switchgear"}
         transformer_assets = [
             a for a in assets
-            if isinstance(a, dict) and (a.get("type", "").lower() == "transformer")
+            if isinstance(a, dict) and str(
+                a.get("type", a.get("asset_type", ""))
+            ).lower() in candidate_types
         ]
         if transformer_assets:
             biggest = max(
                 transformer_assets,
-                key=lambda a: float(a.get("rated_kva") or a.get("ratedKva") or 0)
+                key=lambda a: float(
+                    a.get("rated_kva") or a.get("kva_rating") or a.get("ratedKva") or 0
+                )
             )
             main_meter_ids = {biggest.get("id")}
 
@@ -201,7 +230,7 @@ def get_assets():
         if not isinstance(asset, dict):
             continue
         rated_kva = None
-        for k in ("rated_kva", "ratedKva", "kva", "capacity_kva"):
+        for k in ("rated_kva", "kva_rating", "ratedKva", "kva", "capacity_kva"):
             if asset.get(k):
                 try:
                     rated_kva = float(asset[k])
@@ -224,9 +253,9 @@ def get_assets():
             status = "unknown"
 
         rows.append({
-            "asset_id":        asset.get("id"),
-            "asset_type":      asset.get("type"),
-            "label":           asset.get("label") or asset.get("name"),
+            "asset_id":        asset.get("id") or asset.get("asset_uid"),
+            "asset_type":      asset.get("type") or asset.get("asset_type"),
+            "label":           asset.get("label") or asset.get("name") or asset.get("asset_uid"),
             "rated_kva":       rated_kva,
             "used_kva":        round(used_kva, 2) if used_kva else 0.0,
             "available_kva":   round(available_kva, 2) if available_kva is not None else None,
