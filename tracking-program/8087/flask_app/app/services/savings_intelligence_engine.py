@@ -423,7 +423,7 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
 
     now_ms = int(_time.time() * 1000)
     if from_ts is None:
-        from_ts = now_ms - 30 * 86400 * 1000
+        from_ts = now_ms - 90 * 86400 * 1000  # 90 days captures EM&V ON period
     if to_ts is None:
         to_ts = now_ms
 
@@ -443,6 +443,11 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
         clean = [float(v) for v in vals if v is not None]
         return round(sum(clean) / len(clean), 2) if clean else None
 
+    def _mean_nonzero(vals):
+        """Average excluding zeros — eliminates submeter rows and ECBS-OFF intervals."""
+        clean = [float(v) for v in vals if v is not None and float(v) > 0]
+        return round(sum(clean) / len(clean), 2) if clean else None
+
     def _latest(attr):
         for r in rows:
             v = getattr(r, attr, None)
@@ -455,16 +460,17 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
     frac_15min = 15.0 / 60 / 24 / 365
     cumulative = sum(
         (float(r.annual_savings) * frac_15min)
-        for r in rows if r.annual_savings is not None
+        for r in rows if r.annual_savings is not None and float(r.annual_savings) > 0
     )
 
-    annual       = _mean([r.annual_savings for r in rows])
+    # Use non-zero mean for savings figures — zero rows are submeter or ECBS-OFF intervals
+    annual       = _mean_nonzero([r.annual_savings for r in rows])
     roi          = _latest("roi")
     payback      = _latest("payback")
     lifetime     = _latest("lifetime_savings")
     capacity_val = _mean([r.capacity_value for r in rows])
-    energy_sav   = _mean([r.energy_savings for r in rows])
-    demand_sav   = _mean([r.demand_savings for r in rows])
+    energy_sav   = _mean_nonzero([r.energy_savings for r in rows])
+    demand_sav   = _mean_nonzero([r.demand_savings for r in rows])
     pf_sav       = _mean([r.pf_savings for r in rows])
     sustain_val  = _mean([r.sustainability_value for r in rows])
     co2_tons     = _mean([r.co2_reduction_tons for r in rows])
