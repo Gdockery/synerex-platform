@@ -113,7 +113,7 @@ def get_intelligence():
     now    = _now_ms()
     site_id     = request.args.get("site_id",     type=int)
     baseline_id = request.args.get("baseline_id", type=int)
-    from_ts     = request.args.get("from_ts", type=int, default=now - 30 * 86400 * 1000)
+    from_ts     = request.args.get("from_ts", type=int, default=now - 90 * 86400 * 1000)
     to_ts       = request.args.get("to_ts",   type=int, default=now)
 
     summary = dashboard_summary(
@@ -235,7 +235,7 @@ def get_trends():
     now     = _now_ms()
     site_id     = request.args.get("site_id",     type=int)
     baseline_id = request.args.get("baseline_id", type=int)
-    from_ts     = request.args.get("from_ts", type=int, default=now - 30 * 86400 * 1000)
+    from_ts     = request.args.get("from_ts", type=int, default=now - 90 * 86400 * 1000)
     to_ts       = request.args.get("to_ts",   type=int, default=now)
     limit       = min(request.args.get("limit", type=int, default=500), 2000)
 
@@ -311,7 +311,7 @@ def get_waterfall():
 
     now     = _now_ms()
     baseline_id = request.args.get("baseline_id", type=int)
-    from_ts     = request.args.get("from_ts", type=int, default=now - 30 * 86400 * 1000)
+    from_ts     = request.args.get("from_ts", type=int, default=now - 90 * 86400 * 1000)
     to_ts       = request.args.get("to_ts",   type=int, default=now)
 
     summary = dashboard_summary(project_id, from_ts=from_ts, to_ts=to_ts, baseline_id=baseline_id)
