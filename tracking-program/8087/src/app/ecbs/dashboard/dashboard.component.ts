@@ -190,7 +190,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       if (!months[key]) months[key] = 0;
       months[key] += (row.annual_savings * 15 / 60 / 24 / 365);
     }
-    return Object.entries(months).map(([month, value]) => ({ month, value: Math.round(value) }));
+    return Object.keys(months).map(key => ({ month: key, value: Math.round(months[key]) }));
   }
 
   trendPolyline(items: { month: string; value: number }[], w: number, h: number): string {
