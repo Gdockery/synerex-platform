@@ -24,9 +24,11 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
   `],
   template: `
     <div class="container-fluid" style="max-width: 860px; padding: 20px;">
-      <a [routerLink]="['/project/pipeline']" style="color: #3498db; font-size: 13px;">
-        &larr; Back to Pipeline
-      </a>
+      <span style="font-size:13px;">
+        <a [routerLink]="['/project/pipeline']" style="color:#3498db;">&larr; Pipeline</a>
+        <span style="color:#ccc; margin:0 8px;">|</span>
+        <a [routerLink]="['/project/installed']" style="color:#27ae60;">Installed</a>
+      </span>
 
       <div *ngIf="loading" style="padding: 40px; text-align: center;">
         <span class="ss-loading"></span> Loading…

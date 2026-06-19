@@ -36,7 +36,10 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
             <td>{{ p.client_name }}</td>
             <td>{{ p.location }}</td>
             <td>{{ fmtMs(p.installation_confirmed_at) }}</td>
-            <td><button class="btn btn-xs btn-default" (click)="selectAndGo(p); $event.stopPropagation()">Select →</button></td>
+            <td style="white-space:nowrap;">
+              <button class="btn btn-xs btn-default" (click)="selectAndGo(p); $event.stopPropagation()" style="margin-right:6px;">Select →</button>
+              <button class="btn btn-xs btn-info" (click)="viewPipeline(p); $event.stopPropagation()">Pipeline</button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -66,12 +69,11 @@ export class InstalledListComponent implements OnInit {
   }
 
   selectAndGo(p: any) {
-    const found = (this.userService.user?.projects || []).find((proj: any) => proj.id === p.id);
-    if (found) {
-      this.userService.selectProject(p.id);
-      this.router.navigate(['/project/overview']);
-    } else {
-      this.router.navigate(['/project/pipeline', p.id]);
-    }
+    this.userService.selectProject(p.id);
+    this.router.navigate(['/project/overview']);
+  }
+
+  viewPipeline(p: any) {
+    this.router.navigate(['/project/pipeline', p.id]);
   }
 }
