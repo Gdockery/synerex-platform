@@ -146,27 +146,27 @@
             <div class="cap-equiv-row">
               <span class="fa fa-cog cap-equiv-ico" style="color:#29b6f6;"></span>
               <span class="cap-equiv-desc">{{ equivMotors }} x 50 HP Motors</span>
-              <span class="cap-equiv-kva">{{ equivMotors * 37 | number:'1.0-0' }} kVA</span>
+              <span class="cap-equiv-kva">{{ motorKva | number:'1.0-0' }} kVA</span>
             </div>
             <div class="cap-equiv-row">
               <span class="fa fa-server cap-equiv-ico" style="color:#ab47bc;"></span>
               <span class="cap-equiv-desc">{{ equivServers }} Server Racks</span>
-              <span class="cap-equiv-kva">{{ equivServers * 10 | number:'1.0-0' }} kVA</span>
+              <span class="cap-equiv-kva">{{ serverKva | number:'1.0-0' }} kVA</span>
             </div>
             <div class="cap-equiv-row">
-              <span class="fa fa-industry cap-equiv-ico" style="color:#00e676;"></span>
-              <span class="cap-equiv-desc">{{ equivCNC }} Production Lines</span>
-              <span class="cap-equiv-kva">{{ equivCNC * 150 | number:'1.0-0' }} kVA</span>
+              <span class="fa fa-bolt cap-equiv-ico" style="color:#00e676;"></span>
+              <span class="cap-equiv-desc">{{ equivEV }} EV Chargers</span>
+              <span class="cap-equiv-kva">{{ evKva | number:'1.0-0' }} kVA</span>
             </div>
             <div class="cap-equiv-row">
               <span class="fa fa-snowflake-o cap-equiv-ico" style="color:#ffd740;"></span>
               <span class="cap-equiv-desc">Additional HVAC</span>
-              <span class="cap-equiv-kva">{{ (recovered * 0.3) | number:'1.0-0' }} kVA</span>
+              <span class="cap-equiv-kva">{{ hvacKva | number:'1.0-0' }} kVA</span>
             </div>
             <div class="cap-equiv-row">
               <span class="fa fa-th cap-equiv-ico" style="color:#546e7a;"></span>
               <span class="cap-equiv-desc">Other Capacity</span>
-              <span class="cap-equiv-kva">{{ (recovered * 0.15) | number:'1.0-0' }} kVA</span>
+              <span class="cap-equiv-kva">{{ otherKva | number:'1.0-0' }} kVA</span>
             </div>
             <div class="cap-equiv-total">
               <span>Total Equivalent</span>

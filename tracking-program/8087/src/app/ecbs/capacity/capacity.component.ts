@@ -72,10 +72,17 @@ export class CapacityComponent implements OnInit {
   }
   get co2Tons(): number { return Math.round(this.recovered * 0.092); }
 
-  // Equivalent capacity labels
-  get equivMotors(): number  { return Math.floor(this.recovered / 37.3); }   // 50 HP = 37.3 kVA
-  get equivServers(): number { return Math.floor(this.recovered / 10); }      // ~10 kVA per rack
-  get equivCNC(): number     { return Math.floor(this.recovered / 150); }     // ~150 kVA each
+  // Proportional slices of recovered kVA — these sum to recovered
+  get motorKva(): number   { return Math.round(this.recovered * 0.35); }
+  get serverKva(): number  { return Math.round(this.recovered * 0.25); }
+  get evKva(): number      { return Math.round(this.recovered * 0.20); }
+  get hvacKva(): number    { return Math.round(this.recovered * 0.12); }
+  get otherKva(): number   { return Math.max(0, this.recovered - this.motorKva - this.serverKva - this.evKva - this.hvacKva); }
+
+  // Unit counts from each slice
+  get equivMotors(): number  { return Math.max(1, Math.floor(this.motorKva / 37.3)); }
+  get equivServers(): number { return Math.max(1, Math.floor(this.serverKva / 10)); }
+  get equivEV(): number      { return Math.max(1, Math.floor(this.evKva / 7.2)); }
 
   // Health subscores derived from summary
   get loadBalanceScore(): number {
