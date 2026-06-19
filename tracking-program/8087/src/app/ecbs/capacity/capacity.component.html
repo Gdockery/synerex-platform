@@ -1,216 +1,302 @@
-<!-- ECBS OS™ Capacity Intelligence — Spec SS-4 / Figure A-4 -->
-<div class="ecbs-page">
-
+<!-- Capacity Intelligence — XECO Energy Intelligence Portal layout -->
+<div class="ecbs-page cap-page">
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Capacity Intelligence™</h1>
-      <p>Identify installed, used, available, hidden, and recoverable electrical capacity.</p>
+      <h1>Capacity Intelligence&#8482;</h1>
+      <p>Understand how much electrical capacity you have, how much you're using, and how much has been recovered.</p>
     </div>
     <div class="page-actions">
       <button class="btn-ecbs btn-primary" (click)="calculate()" [disabled]="calculating">
         <span class="fa" [class.fa-calculator]="!calculating" [class.fa-spinner]="calculating" [class.fa-spin]="calculating"></span>
         {{ calculating ? 'Calculating...' : 'Re-calculate' }}
       </button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
     </div>
   </div>
-
-  <!-- Loading state -->
   <div *ngIf="loading" style="padding:40px;text-align:center;color:#546e7a;">
     <span class="fa fa-spinner fa-spin" style="font-size:24px;"></span>
     <p style="margin-top:10px;">Loading Capacity Intelligence...</p>
   </div>
-
-  <!-- Error -->
   <div *ngIf="error && !loading" class="ecbs-empty">
     <span class="empty-icon fa fa-exclamation-triangle" style="color:#ffd740;"></span>
     <span class="empty-title">{{ error }}</span>
     <button class="btn-ecbs btn-outline" (click)="loadAll()">Retry</button>
   </div>
-
   <ng-container *ngIf="!loading && !error">
-
-    <!-- KPI cards — spec SS-4 top: Installed, Available, Hidden, Recoverable, Utilization -->
-    <div class="ecbs-kpi-row">
-      <div class="ecbs-kpi-card kpi-blue">
-        <div class="kpi-icon"><span class="fa fa-plug"></span></div>
-        <div class="kpi-value">{{ (summary?.installed_capacity_kva || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Installed kVA</div>
-        <div class="kpi-delta neutral">Total transformer rating</div>
+    <!-- Top KPI Row -->
+    <div class="cap-kpi-row">
+      <div class="cap-kpi-card">
+        <div class="cap-kpi-icon" style="background:rgba(41,182,246,0.12);color:#29b6f6;"><span class="fa fa-plug"></span></div>
+        <div class="cap-kpi-body">
+          <div class="cap-kpi-val">{{ installed | number:'1.0-0' }} <span class="cap-kpi-unit">kVA</span></div>
+          <div class="cap-kpi-lbl">Total Connected Capacity</div>
+          <div class="cap-kpi-sub">Nameplate Capacity</div>
+        </div>
       </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-        <div class="kpi-value">{{ (summary?.current_load_kva || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Current Load kVA</div>
-        <div class="kpi-delta" [class.negative]="(summary?.utilization_pct||0) > 85">{{ summary?.utilization_pct | number:'1.1-1' }}% Utilized</div>
+      <div class="cap-kpi-card">
+        <div class="cap-kpi-icon" [style.background]="utilizationPct>85?'rgba(244,67,54,0.12)':'rgba(255,215,64,0.12)'" [style.color]="utilizationPct>85?'#f44336':'#ffd740'"><span class="fa fa-tachometer"></span></div>
+        <div class="cap-kpi-body">
+          <div class="cap-kpi-val">{{ load | number:'1.0-0' }} <span class="cap-kpi-unit">kVA</span></div>
+          <div class="cap-kpi-lbl">Current Utilized Capacity</div>
+          <div class="cap-kpi-sub" [style.color]="utilizationPct>85?'#f44336':'#ffd740'">{{ utilizationPct | number:'1.0-0' }}% of Connected Capacity</div>
+        </div>
       </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-battery-three-quarters"></span></div>
-        <div class="kpi-value">{{ (summary?.available_capacity_kva || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Available kVA</div>
-        <div class="kpi-delta">Before ECBS</div>
+      <div class="cap-kpi-card">
+        <div class="cap-kpi-icon" style="background:rgba(0,230,118,0.1);color:#00e676;"><span class="fa fa-battery-three-quarters"></span></div>
+        <div class="cap-kpi-body">
+          <div class="cap-kpi-val">{{ nowAvailable | number:'1.0-0' }} <span class="cap-kpi-unit">kVA</span></div>
+          <div class="cap-kpi-lbl">Available Capacity</div>
+          <div class="cap-kpi-sub" style="color:#00e676;">{{ 100 - utilizationPct | number:'1.0-0' }}% Remaining</div>
+        </div>
       </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-magic"></span></div>
-        <div class="kpi-value" style="color:#00e676;">{{ (summary?.recovered_capacity_kva || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Recovered kVA</div>
-        <div class="kpi-delta">{{ recoveredPct }}% of installed</div>
+      <div class="cap-kpi-card">
+        <div class="cap-kpi-icon" style="background:rgba(0,230,118,0.12);color:#00e676;"><span class="fa fa-magic"></span></div>
+        <div class="cap-kpi-body">
+          <div class="cap-kpi-val" style="color:#00e676;">{{ recovered | number:'1.0-0' }} <span class="cap-kpi-unit">kVA</span></div>
+          <div class="cap-kpi-lbl">Recovered Capacity</div>
+          <div class="cap-kpi-sub" style="color:#00e676;">{{ recoveredPct }}% Recovered by ECBS</div>
+        </div>
       </div>
-      <div class="ecbs-kpi-card kpi-purple">
-        <div class="kpi-icon"><span class="fa fa-eye-slash"></span></div>
-        <div class="kpi-value">{{ (summary?.hidden_capacity_kva || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Hidden kVA</div>
-        <div class="kpi-delta neutral">Was inaccessible</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-heartbeat"></span></div>
-        <div class="kpi-value" [style.color]="(summary?.capacity_health_score||0)>=80?'#00e676':(summary?.capacity_health_score||0)>=60?'#ffd740':'#f44336'">{{ (summary?.capacity_health_score || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Capacity Health Score™</div>
-        <div class="kpi-delta" [class.negative]="(summary?.capacity_health_score||0)<60" [class.neutral]="(summary?.capacity_health_score||0)>=60&&(summary?.capacity_health_score||0)<80">{{ (summary?.capacity_health_score||0)>=80?'Excellent':(summary?.capacity_health_score||0)>=60?'Good':'Needs Attention' }}</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-building-o"></span></div>
-        <div class="kpi-value">${{ (summary?.deferred_capital_value || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Deferred Capital Value™</div>
-        <div class="kpi-delta neutral">Avoided infrastructure cost</div>
+      <div class="cap-kpi-card">
+        <div class="cap-kpi-icon" style="background:rgba(171,71,188,0.12);color:#ab47bc;"><span class="fa fa-university"></span></div>
+        <div class="cap-kpi-body">
+          <div class="cap-kpi-val">${{ deferred | number:'1.0-0' }}</div>
+          <div class="cap-kpi-lbl">Upgrade Deferral Value</div>
+          <div class="cap-kpi-sub">Estimated CapEx Deferred</div>
+        </div>
       </div>
     </div>
-
-    <!-- No data state -->
-    <div *ngIf="!summary" class="ecbs-card" style="margin-top:8px;">
-      <div class="ecbs-empty">
-        <span class="empty-icon fa fa-tachometer"></span>
-        <span class="empty-title">No Capacity Data Yet</span>
-        <p>Click <strong>Re-calculate</strong> above to run the first Capacity Intelligence calculation.</p>
-      </div>
-    </div>
-
     <ng-container *ngIf="summary">
-
-      <!-- Main two-column grid — spec SS-4 layout -->
-      <div class="ecbs-grid-2" style="margin-top:8px;">
-
-        <!-- Capacity Waterfall — spec SS-4 left panel -->
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-signal"></span> Capacity Breakdown</div>
-
-          <div class="cap-waterfall">
-            <div class="cap-bar-row">
-              <span class="cap-bar-label">Installed Capacity</span>
-              <div class="cap-bar-track">
-                <div class="cap-bar-fill" style="width:100%; background:#29b6f6;"></div>
-              </div>
-              <span class="cap-bar-val">{{ (summary.installed_capacity_kva||0) | number:'1.0-0' }} kVA</span>
-            </div>
-            <div class="cap-bar-row">
-              <span class="cap-bar-label">Current Load</span>
-              <div class="cap-bar-track">
-                <div class="cap-bar-fill"
-                  [style.width.%]="(summary.current_load_kva||0)/(summary.installed_capacity_kva||1)*100"
-                  [style.background]="barColor((summary.current_load_kva||0)/(summary.installed_capacity_kva||1)*100)">
-                </div>
-              </div>
-              <span class="cap-bar-val">{{ (summary.current_load_kva||0) | number:'1.0-0' }} kVA</span>
-            </div>
-            <div class="cap-bar-row">
-              <span class="cap-bar-label">Was Available</span>
-              <div class="cap-bar-track">
-                <div class="cap-bar-fill"
-                  [style.width.%]="(summary.available_capacity_kva||0)/(summary.installed_capacity_kva||1)*100"
-                  style="background:#546e7a;">
-                </div>
-              </div>
-              <span class="cap-bar-val">{{ (summary.available_capacity_kva||0) | number:'1.0-0' }} kVA</span>
-            </div>
-            <div class="cap-bar-row highlight-row">
-              <span class="cap-bar-label">Recovered by ECBS</span>
-              <div class="cap-bar-track">
-                <div class="cap-bar-fill"
-                  [style.width.%]="recoveredPct"
-                  style="background:#00e676;">
-                </div>
-              </div>
-              <span class="cap-bar-val" style="color:#00e676;">+{{ (summary.recovered_capacity_kva||0) | number:'1.0-0' }} kVA</span>
-            </div>
-            <div class="cap-bar-row">
-              <span class="cap-bar-label">Now Available</span>
-              <div class="cap-bar-track">
-                <div class="cap-bar-fill"
-                  [style.width.%]="((summary.available_capacity_kva||0)+(summary.recovered_capacity_kva||0))/(summary.installed_capacity_kva||1)*100"
-                  style="background:#00e676; opacity:0.5;">
-                </div>
-              </div>
-              <span class="cap-bar-val" style="color:#00e676;">{{ ((summary.available_capacity_kva||0)+(summary.recovered_capacity_kva||0)) | number:'1.0-0' }} kVA</span>
-            </div>
+      <!-- Middle Row -->
+      <div class="cap-middle-row">
+        <!-- Utilization Over Time -->
+        <div class="ecbs-card cap-trend-card">
+          <div class="cap-section-title">
+            <span class="fa fa-line-chart"></span> Capacity Utilization Over Time
+            <a class="view-trend-link" routerLink="/ecbs/current-analysis">View Trend &rarr;</a>
           </div>
-
-          <!-- Utilization gauge -->
-          <div style="margin-top:16px; text-align:center;">
-            <div class="utilization-pill" [style.background]="(summary.utilization_pct||0)>85?'rgba(244,67,54,0.15)':'rgba(0,230,118,0.08)'"
-              [style.border-color]="(summary.utilization_pct||0)>85?'rgba(244,67,54,0.3)':'rgba(0,230,118,0.2)'">
-              <span [style.color]="barColor(summary.utilization_pct||0)" style="font-size:24px;font-weight:800;">{{ summary.utilization_pct | number:'1.1-1' }}%</span>
-              <span style="font-size:11px;color:#8899a6;margin-left:8px;">Transformer Utilization</span>
+          <div class="cap-trend-body">
+            <div class="cap-trend-ylabels">
+              <span>{{ installed | number:'1.0-0' }}</span>
+              <span>{{ (installed/2) | number:'1.0-0' }}</span>
+              <span>0</span>
             </div>
-          </div>
-
-          <div style="margin-top:14px; display:flex; gap:10px;">
-            <div class="cap-metric"><div class="cm-val">{{ summary.load_factor | number:'1.2-2' }}</div><div class="cm-lbl">Load Factor</div></div>
-            <div class="cap-metric"><div class="cm-val">{{ summary.power_factor | number:'1.2-2' }}</div><div class="cm-lbl">Power Factor</div></div>
-            <div class="cap-metric"><div class="cm-val">{{ summary.demand_factor | number:'1.2-2' }}</div><div class="cm-lbl">Demand Factor</div></div>
-            <div class="cap-metric"><div class="cm-val">{{ summary.diversity_factor | number:'1.2-2' }}</div><div class="cm-lbl">Diversity Factor</div></div>
+            <div class="cap-trend-chart">
+              <svg viewBox="0 0 500 90" preserveAspectRatio="none" class="cap-trend-svg">
+                <defs>
+                  <linearGradient id="usedGrad2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#ffd740" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#ffd740" stop-opacity="0.02"/>
+                  </linearGradient>
+                </defs>
+                <line x1="0" y1="30" x2="500" y2="30" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                <line x1="0" y1="60" x2="500" y2="60" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                <polyline [attr.points]="trendPolyline('installed',500,84)" fill="none" stroke="rgba(41,182,246,0.35)" stroke-width="1" stroke-dasharray="4 3"/>
+                <polyline [attr.points]="trendPolyline('available',500,84)" fill="none" stroke="rgba(0,230,118,0.5)" stroke-width="1.5"/>
+                <polygon [attr.points]="'0,84 '+trendPolyline('used',500,84)+' 500,84'" fill="url(#usedGrad2)"/>
+                <polyline [attr.points]="trendPolyline('used',500,84)" fill="none" stroke="#ffd740" stroke-width="2"/>
+              </svg>
+              <div class="cap-trend-side-labels">
+                <span style="color:#29b6f6;">{{ installed | number:'1.0-0' }} kVA</span>
+                <span style="color:#00e676;">{{ nowAvailable | number:'1.0-0' }} kVA</span>
+                <span style="color:#ffd740;">{{ load | number:'1.0-0' }} kVA</span>
+              </div>
+            </div>
+            <div class="cap-trend-legend">
+              <span><span class="tl-dot" style="background:#ffd740;"></span> Utilized kVA</span>
+              <span><span class="tl-dot" style="background:#00e676;"></span> Available kVA</span>
+              <span><span class="tl-dot" style="background:#29b6f6;"></span> Connected kVA</span>
+            </div>
           </div>
         </div>
-
-        <!-- Transformer Assets — spec SS-4 right panel -->
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-plug"></span> Transformer Assets</div>
-
+        <!-- Recovery Impact -->
+        <div class="ecbs-card cap-impact-card">
+          <div class="cap-section-title"><span class="fa fa-exchange"></span> Capacity Recovery Impact</div>
+          <div class="cap-impact-body">
+            <div class="cap-impact-col">
+              <div class="cap-impact-kva">{{ (load + hidden) | number:'1.0-0' }} kVA</div>
+              <div class="cap-before-bar">
+                <div style="flex:0.6;background:#f44336;border-radius:3px 3px 0 0;"></div>
+                <div style="flex:0.4;background:#546e7a;"></div>
+              </div>
+              <div class="cap-impact-lbl">Before ECBS</div>
+              <div class="cap-impact-legend">
+                <div><span class="cap-leg-dot" style="background:#546e7a;"></span> Utilized</div>
+                <div><span class="cap-leg-dot" style="background:#f44336;"></span> Over Capacity</div>
+              </div>
+            </div>
+            <div class="cap-impact-arrow"><span class="fa fa-long-arrow-right"></span></div>
+            <div class="cap-impact-col">
+              <div class="cap-impact-kva" style="color:#00e676;">{{ load | number:'1.0-0' }} kVA</div>
+              <div class="cap-after-bar">
+                <div style="flex:0.3;background:#00e676;border-radius:3px 3px 0 0;"></div>
+                <div style="flex:0.7;background:#546e7a;"></div>
+              </div>
+              <div class="cap-impact-lbl">After ECBS</div>
+              <div class="cap-impact-legend" style="color:#00e676;">
+                <span class="fa fa-check-circle"></span> {{ recovered | number:'1.0-0' }} kVA Recovered
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Equivalent Gain -->
+        <div class="ecbs-card cap-equiv-card">
+          <div class="cap-section-title"><span class="fa fa-magic"></span> Equivalent Capacity Gain</div>
+          <div class="cap-equiv-list">
+            <div class="cap-equiv-row">
+              <span class="fa fa-cog cap-equiv-ico" style="color:#29b6f6;"></span>
+              <span class="cap-equiv-desc">{{ equivMotors }} x 50 HP Motors</span>
+              <span class="cap-equiv-kva">{{ equivMotors * 37 | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-equiv-row">
+              <span class="fa fa-server cap-equiv-ico" style="color:#ab47bc;"></span>
+              <span class="cap-equiv-desc">{{ equivServers }} Server Racks</span>
+              <span class="cap-equiv-kva">{{ equivServers * 10 | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-equiv-row">
+              <span class="fa fa-industry cap-equiv-ico" style="color:#00e676;"></span>
+              <span class="cap-equiv-desc">{{ equivCNC }} Production Lines</span>
+              <span class="cap-equiv-kva">{{ equivCNC * 150 | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-equiv-row">
+              <span class="fa fa-snowflake-o cap-equiv-ico" style="color:#ffd740;"></span>
+              <span class="cap-equiv-desc">Additional HVAC</span>
+              <span class="cap-equiv-kva">{{ (recovered * 0.3) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-equiv-row">
+              <span class="fa fa-th cap-equiv-ico" style="color:#546e7a;"></span>
+              <span class="cap-equiv-desc">Other Capacity</span>
+              <span class="cap-equiv-kva">{{ (recovered * 0.15) | number:'1.0-0' }} kVA</span>
+            </div>
+            <div class="cap-equiv-total">
+              <span>Total Equivalent</span>
+              <span style="color:#00e676;font-weight:700;">{{ recovered | number:'1.0-0' }} kVA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Bottom Row -->
+      <div class="cap-bottom-row">
+        <!-- Capacity by Asset -->
+        <div class="ecbs-card cap-asset-card">
+          <div class="cap-section-title"><span class="fa fa-table"></span> Capacity by Asset</div>
           <div *ngIf="assets.length === 0" class="ecbs-empty" style="padding:30px;">
             <span class="empty-icon fa fa-plug"></span>
-            <span class="empty-title">No Transformers Configured</span>
-            <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Add from Devices</a>
+            <span class="empty-title">No Assets Configured</span>
           </div>
-
-          <div class="transformer-list" *ngIf="assets.length > 0">
-            <div class="transformer-row" *ngFor="let t of assets">
-              <div class="transformer-header">
-                <span class="transformer-name">{{ t.name || t.asset_id }}</span>
-                <span [class]="healthClass(t.utilization_pct || 0)">{{ (t.utilization_pct||0) | number:'1.0-0' }}%</span>
+          <div class="cap-table-wrap" *ngIf="assets.length > 0">
+            <table class="cap-asset-table">
+              <thead>
+                <tr>
+                  <th>Asset</th><th>Connected kVA</th><th>Utilized kVA</th><th>Util %</th>
+                  <th>Available kVA</th><th>Recovered kVA</th><th>Health</th><th>Trend (7 Days)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let a of assets">
+                  <td class="asset-name-cell">{{ a.name || a.label || a.asset_id }}</td>
+                  <td>{{ (a.capacity_kva||a.rated_kva||0) | number:'1.0-0' }}</td>
+                  <td>{{ (a.current_load_kva||a.used_kva||0) | number:'1.0-0' }}</td>
+                  <td><span class="util-badge" [style.color]="barColor(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span></td>
+                  <td>{{ ((a.capacity_kva||a.rated_kva||0)-(a.current_load_kva||a.used_kva||0)) | number:'1.0-0' }}</td>
+                  <td style="color:#00e676;">{{ (a.recovered_kva||0) | number:'1.0-0' }}</td>
+                  <td>
+                    <span class="health-dot" [style.background]="barColor(a.utilization_pct||0)"></span>
+                    {{ (a.utilization_pct||0)<70?'Healthy':(a.utilization_pct||0)<85?'Warning':'Critical' }}
+                  </td>
+                  <td>
+                    <svg viewBox="0 0 60 22" class="sparkline-svg">
+                      <polyline [attr.points]="assetSparkline(a)" fill="none" [attr.stroke]="barColor(a.utilization_pct||0)" stroke-width="1.5" stroke-linejoin="round"/>
+                    </svg>
+                  </td>
+                </tr>
+                <tr class="cap-total-row">
+                  <td><strong>TOTAL</strong></td>
+                  <td><strong>{{ installed | number:'1.0-0' }}</strong></td>
+                  <td><strong>{{ load | number:'1.0-0' }}</strong></td>
+                  <td><strong [style.color]="barColor(utilizationPct)">{{ utilizationPct | number:'1.0-0' }}%</strong></td>
+                  <td><strong>{{ available | number:'1.0-0' }}</strong></td>
+                  <td><strong style="color:#00e676;">{{ recovered | number:'1.0-0' }}</strong></td>
+                  <td>&#8212;</td><td>&#8212;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Health Score -->
+        <div class="ecbs-card cap-health-card">
+          <div class="cap-section-title"><span class="fa fa-heartbeat"></span> Capacity Health Score</div>
+          <div class="cap-health-body">
+            <div class="cap-health-donut">
+              <svg viewBox="0 0 100 100" class="cap-health-svg">
+                <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+                <circle cx="50" cy="50" r="36" fill="none" [attr.stroke]="healthColor" stroke-width="10"
+                  stroke-linecap="round" [attr.stroke-dasharray]="gaugeDash(healthScore)"
+                  stroke-dashoffset="0" transform="rotate(-90 50 50)"/>
+                <text x="50" y="47" text-anchor="middle" font-size="20" font-weight="800" [attr.fill]="healthColor">{{ healthScore | number:'1.0-0' }}</text>
+                <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">{{ healthRating }}</text>
+              </svg>
+            </div>
+            <div class="cap-health-subscores">
+              <div class="cap-subscore-row">
+                <span class="cap-subscore-lbl">Load Balance</span>
+                <div class="cap-subscore-bar"><div class="cap-subscore-fill" [style.width.%]="loadBalanceScore" style="background:#00e676;"></div></div>
+                <span class="cap-subscore-val" style="color:#00e676;">{{ loadBalanceScore }}/100</span>
               </div>
-              <div class="transformer-bars">
-                <div class="mini-bar-row">
-                  <span>{{ (t.current_load_kva||0) | number:'1.0-0' }} / {{ (t.capacity_kva||0) | number:'1.0-0' }} kVA</span>
-                  <div class="mini-bar-track">
-                    <div class="mini-bar-fill"
-                      [style.width.%]="t.utilization_pct||0"
-                      [style.background]="barColor(t.utilization_pct||0)">
-                    </div>
-                  </div>
-                </div>
+              <div class="cap-subscore-row">
+                <span class="cap-subscore-lbl">Utilization Efficiency</span>
+                <div class="cap-subscore-bar"><div class="cap-subscore-fill" [style.width.%]="utilizationScore" style="background:#00e676;"></div></div>
+                <span class="cap-subscore-val" style="color:#00e676;">{{ utilizationScore }}/100</span>
               </div>
-              <div class="transformer-meta">
-                <span>PF: {{ t.power_factor | number:'1.2-2' }}</span>
-                <span>Recovered: <strong style="color:#00e676;">+{{ (t.recovered_kva||0) | number:'1.0-0' }} kVA</strong></span>
-                <a class="btn-ecbs btn-outline" style="font-size:10px;padding:2px 8px;" [routerLink]="['/ecbs/transformers']">Details</a>
+              <div class="cap-subscore-row">
+                <span class="cap-subscore-lbl">Voltage Stability</span>
+                <div class="cap-subscore-bar"><div class="cap-subscore-fill" [style.width.%]="voltageScore" style="background:#00e676;"></div></div>
+                <span class="cap-subscore-val" style="color:#00e676;">{{ voltageScore }}/100</span>
               </div>
+              <div class="cap-subscore-row">
+                <span class="cap-subscore-lbl">Harmonic Impact</span>
+                <div class="cap-subscore-bar"><div class="cap-subscore-fill" [style.width.%]="harmonicScore" [style.background]="harmonicScore>=80?'#00e676':'#ffd740'"></div></div>
+                <span class="cap-subscore-val" [style.color]="harmonicScore>=80?'#00e676':'#ffd740'">{{ harmonicScore }}/100</span>
+              </div>
+              <div class="cap-subscore-row">
+                <span class="cap-subscore-lbl">Thermal Headroom</span>
+                <div class="cap-subscore-bar"><div class="cap-subscore-fill" [style.width.%]="thermalScore" [style.background]="thermalScore>=80?'#00e676':'#ffd740'"></div></div>
+                <span class="cap-subscore-val" [style.color]="thermalScore>=80?'#00e676':'#ffd740'">{{ thermalScore }}/100</span>
+              </div>
+            </div>
+            <div class="cap-health-insight">
+              <span class="fa fa-shield" style="color:#00e676;margin-right:6px;"></span>
+              {{ healthRating }} capacity health. System operating with {{ 100 - utilizationPct | number:'1.0-0' }}% headroom.
             </div>
           </div>
         </div>
-
       </div>
-
-      <!-- Trends / history note -->
-      <div class="ecbs-card" style="margin-top:16px;">
-        <div class="ecbs-card-title"><span class="fa fa-line-chart"></span> Capacity Trends</div>
-        <div class="ecbs-empty" style="padding:24px;">
-          <span class="empty-icon fa fa-chart-area"></span>
-          <span class="empty-title">Trend Charts Coming Next</span>
-          <p>Historical capacity trend data (30/60/90 day views) will render here.</p>
+      <!-- Footer Callouts -->
+      <div class="cap-callout-row">
+        <div class="cap-callout-card">
+          <div class="cap-callout-icon" style="color:#00e676;"><span class="fa fa-lightbulb-o"></span></div>
+          <div class="cap-callout-title">Key Insight</div>
+          <div class="cap-callout-body">{{ keyInsight }}</div>
+        </div>
+        <div class="cap-callout-card">
+          <div class="cap-callout-icon" style="color:#ffd740;"><span class="fa fa-university"></span></div>
+          <div class="cap-callout-title">Avoided Upgrade</div>
+          <div class="cap-callout-body">{{ avoidedUpgrade }}</div>
+        </div>
+        <div class="cap-callout-card">
+          <div class="cap-callout-icon" style="color:#ab47bc;"><span class="fa fa-dollar"></span></div>
+          <div class="cap-callout-title">Annual Benefit</div>
+          <div class="cap-callout-body">
+            <span style="font-size:20px;font-weight:700;color:#00e676;">${{ annualBenefit | number:'1.0-0' }}</span>
+            in annual savings from recovered capacity.
+          </div>
+        </div>
+        <div class="cap-callout-card">
+          <div class="cap-callout-icon" style="color:#29b6f6;"><span class="fa fa-leaf"></span></div>
+          <div class="cap-callout-title">Carbon Impact</div>
+          <div class="cap-callout-body">{{ recovered | number:'1.0-0' }} kVA recovered = {{ co2Tons }} tons CO&#8322;e avoided annually.</div>
         </div>
       </div>
-
     </ng-container>
-
   </ng-container>
-
 </div>
