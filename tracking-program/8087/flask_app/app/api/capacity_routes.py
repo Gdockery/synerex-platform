@@ -279,36 +279,46 @@ def get_assets():
     def _asset_type_lower(a):
         return str(a.get("type", a.get("asset_type", ""))).lower()
 
+    def _rel_parent(r):
+        """Normalize both relationship formats to (parent_id, child_id, rel_type)."""
+        # ORM format: parent_asset_id / child_asset_id / relationship_type
+        # Snapshot JSON format: source / target / type
+        return r.get("parent_asset_id") or r.get("source")
+
+    def _rel_child(r):
+        return r.get("child_asset_id") or r.get("target")
+
+    def _rel_type(r):
+        return r.get("relationship_type") or r.get("type", "")
+
     def _walk_upstream(start_ids):
         """Walk the relationship graph upward (child → parent) from start_ids."""
         visited, frontier = set(start_ids), set(start_ids)
         while frontier:
             parents = {
-                r.get("parent_asset_id")
+                _rel_parent(r)
                 for r in relationships
-                if r.get("child_asset_id") in frontier
-                   and r.get("relationship_type") == "feeds"
+                if _rel_child(r) in frontier and _rel_type(r) == "feeds"
             } - visited
+            parents.discard(None)
             visited |= parents
             frontier = parents
         return visited
 
     def _walk_downstream_primary(start_ids):
-        """Walk downstream but stop at branch transformers (secondary XFMRs).
-        A branch transformer is a transformer/switchgear whose input
-        is NOT the utility or primary transformer — i.e. it is fed from a
-        panel/bus, not directly from the main metered transformer."""
+        """Walk downstream but stop at secondary branch transformers (e.g. TX-ISO).
+        They feed a subnet with no dedicated meter, so their load is unknown."""
         visited, frontier = set(start_ids), set(start_ids)
         while frontier:
             children = set()
             for r in relationships:
-                if r.get("parent_asset_id") in frontier and r.get("relationship_type") == "feeds":
-                    child_id = r.get("child_asset_id")
-                    if child_id in visited:
+                if _rel_parent(r) in frontier and _rel_type(r) == "feeds":
+                    child_id = _rel_child(r)
+                    if not child_id or child_id in visited:
                         continue
                     child = asset_by_id.get(child_id)
                     if child and _asset_type_lower(child) in {"transformer", "switchgear"}:
-                        # This is a secondary transformer branching off — don't include it
+                        # Secondary branch transformer — stop here, don't include
                         continue
                     children.add(child_id)
             visited |= children
