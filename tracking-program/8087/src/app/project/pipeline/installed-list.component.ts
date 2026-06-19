@@ -70,7 +70,7 @@ export class InstalledListComponent implements OnInit {
 
   selectAndGo(p: any) {
     this.userService.selectProject(p.id);
-    this.router.navigate(['/project/overview']);
+    window.location.hash = '#/ecbs/dashboard';
   }
 
   viewPipeline(p: any) {
