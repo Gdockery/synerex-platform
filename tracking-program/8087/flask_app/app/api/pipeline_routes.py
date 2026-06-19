@@ -68,16 +68,19 @@ def _user_org_id():
     return getattr(current_user, "org_id", None)
 
 
-def _project_query(sess, installed=False):
-    """Return a query for pipeline or installed projects filtered to the current user."""
+def _project_query(sess, installed=False, any_status=False):
+    """Return a query for pipeline or installed projects filtered to the current user.
+    Pass any_status=True to skip the installed/pipeline filter (used for detail views
+    so an installed project can still be viewed on its pipeline page)."""
     q = sess.query(Project, Client).join(Client, Project.client == Client.id).filter(
         Project.isDeleted == False,
         Project.electricBillAnalysis.isnot(None),
     )
-    if installed:
-        q = q.filter(Project.installationConfirmedAt.isnot(None))
-    else:
-        q = q.filter(Project.installationConfirmedAt.is_(None))
+    if not any_status:
+        if installed:
+            q = q.filter(Project.installationConfirmedAt.isnot(None))
+        else:
+            q = q.filter(Project.installationConfirmedAt.is_(None))
 
     if not _is_ops_admin():
         org_id = _user_org_id()
@@ -193,7 +196,7 @@ def list_installed_projects():
 @login_required
 def get_pipeline_project(project_id):
     sess = get_session()
-    row = _project_query(sess).filter(Project.id == project_id).first()
+    row = _project_query(sess, any_status=True).filter(Project.id == project_id).first()
     if not row:
         return jsonify({"error": "Not found"}), 404
     p, c = row
@@ -210,7 +213,7 @@ def mark_pipeline_stage(project_id):
         "tracking_number", "carrier", "delivered_at", "purchaseOrder",
     }
     sess = get_session()
-    row = _project_query(sess).filter(Project.id == project_id).first()
+    row = _project_query(sess, any_status=True).filter(Project.id == project_id).first()
     if not row:
         return jsonify({"error": "Not found"}), 404
     p, _ = row
