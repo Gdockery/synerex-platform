@@ -420,6 +420,8 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
     Returns the financial proof-of-value numbers shown on Figure A-11.
     """
     from app.models.savings_intelligence import SavingsIntelligence
+    from app.extensions import db
+    from sqlalchemy import func
 
     now_ms = int(_time.time() * 1000)
     if from_ts is None:
@@ -427,71 +429,102 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
     if to_ts is None:
         to_ts = now_ms
 
-    q = (SavingsIntelligence.query
-         .filter_by(project_id=project_id)
-         .filter(SavingsIntelligence.bucket_ts.between(from_ts, to_ts)))
+    base_filter = [
+        SavingsIntelligence.project_id == project_id,
+        SavingsIntelligence.bucket_ts.between(from_ts, to_ts),
+    ]
     if site_id:
-        q = q.filter(SavingsIntelligence.site_id == site_id)
+        base_filter.append(SavingsIntelligence.site_id == site_id)
     if baseline_id:
-        q = q.filter(SavingsIntelligence.baseline_id == baseline_id)
+        base_filter.append(SavingsIntelligence.baseline_id == baseline_id)
 
-    rows = q.order_by(SavingsIntelligence.bucket_ts.desc()).limit(2000).all()
-    if not rows:
+    # Use SQL aggregation for savings KPIs — avoids Python limit() cutting off ON-period rows.
+    # Non-zero average: only count rows where the field > 0 (excludes submeter & ECBS-OFF rows).
+    def _sql_avg_nonzero(col):
+        val = (db.session.query(func.avg(col))
+               .filter(*base_filter)
+               .filter(col > 0)
+               .scalar())
+        return round(float(val), 2) if val is not None else None
+
+    def _sql_avg(col):
+        val = (db.session.query(func.avg(col))
+               .filter(*base_filter)
+               .scalar())
+        return round(float(val), 2) if val is not None else None
+
+    def _sql_sum_nonzero(col):
+        val = (db.session.query(func.sum(col))
+               .filter(*base_filter)
+               .filter(col > 0)
+               .scalar())
+        return float(val) if val is not None else 0.0
+
+    def _sql_count_nonzero(col):
+        return (db.session.query(func.count(col))
+                .filter(*base_filter)
+                .filter(col > 0)
+                .scalar()) or 0
+
+    # Check if any rows exist at all
+    total_rows = (db.session.query(func.count(SavingsIntelligence.id))
+                  .filter(*base_filter)
+                  .scalar()) or 0
+    if total_rows == 0:
         return {"error": "No savings data for this period"}
 
-    def _mean(vals):
-        clean = [float(v) for v in vals if v is not None]
-        return round(sum(clean) / len(clean), 2) if clean else None
-
-    def _mean_nonzero(vals):
-        """Average excluding zeros — eliminates submeter rows and ECBS-OFF intervals."""
-        clean = [float(v) for v in vals if v is not None and float(v) > 0]
-        return round(sum(clean) / len(clean), 2) if clean else None
+    # "Latest" values: grab the most recent single row for scalar fields
+    latest_row = (SavingsIntelligence.query
+                  .filter(*base_filter)
+                  .order_by(SavingsIntelligence.bucket_ts.desc())
+                  .first())
 
     def _latest(attr):
-        for r in rows:
-            v = getattr(r, attr, None)
-            if v is not None:
-                return v
-        return None
+        if latest_row is None:
+            return None
+        return getattr(latest_row, attr, None)
 
-    # For cumulative savings since activation, sum all annual_savings × (15-min fraction)
-    # 15 min = 15/60/24/365 fraction of a year
+    # For cumulative savings: sum(annual_savings > 0) × 15-min fraction of a year
     frac_15min = 15.0 / 60 / 24 / 365
-    cumulative = sum(
-        (float(r.annual_savings) * frac_15min)
-        for r in rows if r.annual_savings is not None and float(r.annual_savings) > 0
-    )
+    cumulative = _sql_sum_nonzero(SavingsIntelligence.annual_savings) * frac_15min
 
-    # Use non-zero mean for savings figures — zero rows are submeter or ECBS-OFF intervals
-    annual       = _mean_nonzero([r.annual_savings for r in rows])
-    roi          = _latest("roi")
-    payback      = _latest("payback")
-    lifetime     = _latest("lifetime_savings")
-    capacity_val = _mean([r.capacity_value for r in rows])
-    energy_sav   = _mean_nonzero([r.energy_savings for r in rows])
-    demand_sav   = _mean_nonzero([r.demand_savings for r in rows])
-    pf_sav       = _mean([r.pf_savings for r in rows])
-    sustain_val  = _mean([r.sustainability_value for r in rows])
-    co2_tons     = _mean([r.co2_reduction_tons for r in rows])
-    kw_red       = _mean([r.kw_reduction for r in rows])
-    pf_imp       = _mean([r.pf_improvement for r in rows])
-    rec_kva      = _mean([r.recoverable_kva for r in rows])
+    # Core KPIs — SQL-averaged over non-zero rows only
+    annual      = _sql_avg_nonzero(SavingsIntelligence.annual_savings)
+    energy_sav  = _sql_avg_nonzero(SavingsIntelligence.energy_savings)
+    demand_sav  = _sql_avg_nonzero(SavingsIntelligence.demand_savings)
+    pf_sav      = _sql_avg(SavingsIntelligence.pf_savings)
+    capacity_val= _sql_avg(SavingsIntelligence.capacity_value)
+    sustain_val = _sql_avg(SavingsIntelligence.sustainability_value)
+    co2_tons    = _sql_avg(SavingsIntelligence.co2_reduction_tons)
+    kw_red      = _sql_avg(SavingsIntelligence.kw_reduction)
+    pf_imp      = _sql_avg(SavingsIntelligence.pf_improvement)
+    rec_kva     = _sql_avg(SavingsIntelligence.recoverable_kva)
 
-    # Baseline / current averages (stored per-row, averaged over window)
-    b_avg_kw  = _mean([r.baseline_avg_kw   for r in rows])
-    b_avg_kva = _mean([r.baseline_avg_kva  for r in rows])
-    b_avg_pf  = _mean([r.baseline_avg_pf   for r in rows])
-    b_pk_kva  = _mean([r.baseline_peak_kva for r in rows])
-    c_avg_kw  = _mean([r.current_avg_kw    for r in rows])
-    c_avg_kva = _mean([r.current_avg_kva   for r in rows])
-    c_avg_pf  = _mean([r.current_avg_pf    for r in rows])
+    # Baseline / current averages
+    b_avg_kw  = _sql_avg(SavingsIntelligence.baseline_avg_kw)
+    b_avg_kva = _sql_avg(SavingsIntelligence.baseline_avg_kva)
+    b_avg_pf  = _sql_avg(SavingsIntelligence.baseline_avg_pf)
+    b_pk_kva  = _sql_avg(SavingsIntelligence.baseline_peak_kva)
+    c_avg_kw  = _sql_avg(SavingsIntelligence.current_avg_kw)
+    c_avg_kva = _sql_avg(SavingsIntelligence.current_avg_kva)
+    c_avg_pf  = _sql_avg(SavingsIntelligence.current_avg_pf)
 
-    # Annualised energy estimates (kWh = avg_kW × 8760 h/yr)
+    # Latest scalar fields for ROI, payback, lifetime (from most recent non-zero row)
+    latest_nz = (SavingsIntelligence.query
+                 .filter(*base_filter)
+                 .filter(SavingsIntelligence.annual_savings > 0)
+                 .order_by(SavingsIntelligence.bucket_ts.desc())
+                 .first())
+    roi      = getattr(latest_nz, "roi", None) if latest_nz else None
+    payback  = getattr(latest_nz, "payback", None) if latest_nz else None
+    lifetime = getattr(latest_nz, "lifetime_savings", None) if latest_nz else None
+
+    n = total_rows
+
+    # Annualised energy estimates
     b_kwh = round(b_avg_kw * 8760, 0) if b_avg_kw else None
     c_kwh = round(c_avg_kw * 8760, 0) if c_avg_kw else None
 
-    # Derived percentage improvements
     def _pct_improve(baseline_val, current_val):
         if baseline_val and current_val and baseline_val > 0:
             return round((1 - current_val / baseline_val) * 100, 1)
@@ -501,20 +534,7 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
     demand_reduction_pct = round(kw_red / b_avg_kw * 100, 1) if (kw_red and b_avg_kw) else None
     pf_improvement_pct   = round(pf_imp * 100, 2) if pf_imp is not None else None
 
-    # Trend: compare first half vs second half annual_savings
-    n    = len(rows)
-    half = n // 2
-    if n >= 4:
-        old_sav = _mean([r.annual_savings for r in rows[half:]])
-        new_sav = _mean([r.annual_savings for r in rows[:half]])
-        if old_sav and new_sav:
-            delta   = new_sav - old_sav
-            pct_chg = round((delta / old_sav) * 100, 1)
-            trend   = "improving" if delta > 10 else ("degrading" if delta < -10 else "stable")
-        else:
-            pct_chg, trend = 0.0, "stable"
-    else:
-        pct_chg, trend = 0.0, "stable"
+    pct_chg, trend = 0.0, "stable"
 
     from app.models.savings_intelligence import savings_health_rating
     return {
@@ -560,6 +580,7 @@ def dashboard_summary(project_id: int, site_id: int | None = None,
         "demand_reduction_pct":   demand_reduction_pct,
         "pf_improvement_pct":     pf_improvement_pct,
     }
+
 
 
 # ── Rate resolution helpers ───────────────────────────────────────────────────
