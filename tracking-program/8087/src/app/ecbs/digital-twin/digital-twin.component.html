@@ -3,19 +3,19 @@
 
   <!-- Top header -->
   <div class="ncs-header">
-    <div class="ncs-header-left">
-      <div class="ncs-title-block">
-        <div class="ncs-eyebrow">NETWORK CAPACITY SIMULATOR</div>
-        <div class="ncs-tagline">Predict. Simulate. Optimize.</div>
-      </div>
+    <div class="ncs-title-block">
+      <div class="ncs-eyebrow">NETWORK CAPACITY SIMULATOR</div>
+      <div class="ncs-tagline">Predict. Simulate. Optimize.</div>
     </div>
     <div class="ncs-header-right">
       <div class="ncs-site-info">
         <div class="ncs-site-name">{{ projectName || 'No Project Selected' }}</div>
-        <div class="ncs-site-id">{{ projectId ? 'SITE-' + projectId : '—' }}</div>
+        <div class="ncs-site-id">Status: <strong [style.color]="twinStatus==='Active'?'#00e676':twinStatus==='Draft'?'#ffd740':'#546e7a'">{{ twinStatus }}</strong></div>
       </div>
       <div class="ncs-actions">
-        <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+        <a *ngIf="isAdmin" class="btn-ecbs btn-outline" routerLink="/admin/digital-twin-editor">
+          <span class="fa fa-pencil-square-o"></span> Edit One-Line
+        </a>
         <button class="btn-ecbs btn-green" (click)="runSimulation()" [disabled]="!selectedLibraryAsset">
           <span class="fa fa-play"></span> Run Simulation
         </button>
@@ -26,7 +26,7 @@
   <!-- Three-column body -->
   <div class="ncs-body">
 
-    <!-- ── LEFT: Simulation nav + Asset Library ── -->
+    <!-- LEFT: Asset Library -->
     <div class="ncs-left">
       <div class="ncs-section-label"><span class="fa fa-flask"></span> SIMULATION</div>
       <div class="ncs-nav-links">
@@ -37,7 +37,6 @@
 
       <div class="ncs-section-label" style="margin-top:16px;"><span class="fa fa-th-large"></span> ASSET LIBRARY</div>
       <input class="ncs-search" [(ngModel)]="assetSearch" placeholder="Search assets..." />
-
       <div class="ncs-cat-tabs">
         <button *ngFor="let cat of ['All','Loads','HVAC','IT','Process']"
           class="ncs-cat-tab" [class.active]="activeCategory === cat"
@@ -48,21 +47,20 @@
         <div *ngFor="let a of filteredAssets" class="ncs-asset-item"
           [class.selected]="selectedLibraryAsset?.id === a.id"
           (click)="selectLibraryAsset(a)">
-          <span class="ncs-asset-ico fa" [class]="a.icon" [style.color]="a.category==='HVAC'?'#29b6f6':a.category==='IT'?'#ab47bc':a.category==='Process'?'#ffd740':'#00e676'"></span>
+          <span class="ncs-asset-ico fa" [class]="a.icon"
+            [style.color]="a.category==='HVAC'?'#29b6f6':a.category==='IT'?'#ab47bc':a.category==='Process'?'#ffd740':'#00e676'"></span>
           <div class="ncs-asset-info">
             <div class="ncs-asset-name">{{ a.name }}</div>
             <div class="ncs-asset-spec">{{ a.voltage }} {{ a.phase }} &nbsp;·&nbsp; {{ a.kw }} kW / {{ a.kva }} kVA</div>
           </div>
           <span *ngIf="selectedLibraryAsset?.id === a.id" class="fa fa-check-circle ncs-asset-check"></span>
         </div>
-        <div *ngIf="filteredAssets.length === 0" class="ncs-empty-lib">No assets match your search.</div>
       </div>
 
-      <!-- Panel selector (shown when asset selected) -->
       <div *ngIf="selectedLibraryAsset" class="ncs-panel-select-block">
-        <div class="ncs-field-label">Drop to Panel:</div>
-        <select class="ncs-select" [(ngModel)]="selectedPanel">
-          <option *ngFor="let pnl of panels">{{ pnl }}</option>
+        <div class="ncs-field-label">Add to Node:</div>
+        <select class="ncs-select" [(ngModel)]="selectedNodeId">
+          <option *ngFor="let t of simulationTargets" [value]="t">{{ t }}</option>
         </select>
         <button class="btn-ecbs btn-green" style="width:100%;margin-top:8px;" (click)="runSimulation()">
           <span class="fa fa-play"></span> Run Simulation
@@ -70,27 +68,31 @@
       </div>
     </div>
 
-    <!-- ── CENTER: Digital Twin diagram ── -->
+    <!-- CENTER: One-line diagram -->
     <div class="ncs-center">
       <div class="ncs-diagram-header">
-        <span class="ncs-diagram-title"><span class="fa fa-share-alt"></span> DIGITAL TWIN VIEW</span>
+        <span class="ncs-diagram-title"><span class="fa fa-share-alt"></span> DIGITAL TWIN VIEW &mdash; {{ projectName }}</span>
         <div class="ncs-diagram-controls">
-          <button class="btn-ecbs btn-outline btn-sm"><span class="fa fa-arrows-alt"></span> Fit View</button>
+          <a *ngIf="isAdmin" class="btn-ecbs btn-outline btn-sm" routerLink="/admin/digital-twin-editor">
+            <span class="fa fa-pencil-square-o"></span> Edit One-Line
+          </a>
           <select class="ncs-select ncs-select-sm">
             <option>Electrical</option>
             <option>Physical</option>
-            <option>Load Flow</option>
           </select>
         </div>
       </div>
 
       <div class="ncs-diagram-canvas">
+
+        <!-- Loading state -->
         <div *ngIf="loading" class="ncs-loading">
           <span class="fa fa-spinner fa-spin" style="font-size:28px;color:#00e676;"></span>
-          <span>Building Digital Twin...</span>
+          <span>Loading Digital Twin...</span>
         </div>
 
-        <svg *ngIf="!loading" class="dt-svg" viewBox="0 0 780 450" preserveAspectRatio="xMidYMid meet">
+        <!-- One-line diagram: real assets only -->
+        <svg *ngIf="!loading" class="dt-svg" viewBox="0 0 780 480" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dt-grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2a3a" stroke-width="0.5"/>
@@ -102,124 +104,128 @@
           </defs>
           <rect width="100%" height="100%" fill="url(#dt-grid)"/>
 
-          <!-- Utility -->
-          <text x="390" y="22" text-anchor="middle" fill="#8899a6" font-size="10" letter-spacing="0.05em">Utility</text>
-          <text x="390" y="36" text-anchor="middle" fill="#8899a6" font-size="9">138 kV</text>
+          <!-- Utility Feed (always present) -->
+          <text x="390" y="22" text-anchor="middle" fill="#8899a6" font-size="10" letter-spacing="0.05em">UTILITY FEED</text>
           <g filter="url(#glow)">
-            <circle cx="390" cy="52" r="20" fill="none" stroke="#29b6f6" stroke-width="2"/>
-            <text x="390" y="57" text-anchor="middle" fill="#29b6f6" font-size="13" font-weight="700">~</text>
+            <circle cx="390" cy="45" r="20" fill="none" stroke="#29b6f6" stroke-width="2"/>
+            <text x="390" y="50" text-anchor="middle" fill="#29b6f6" font-size="14" font-weight="700">~</text>
           </g>
-          <line x1="390" y1="72" x2="390" y2="96" stroke="#29b6f6" stroke-width="2.5"/>
+          <line x1="390" y1="65" x2="390" y2="90" stroke="#29b6f6" stroke-width="2.5"/>
 
-          <!-- Main Transformer -->
-          <text x="390" y="112" text-anchor="middle" fill="#8899a6" font-size="9">Main Transformer</text>
-          <text x="390" y="124" text-anchor="middle" fill="#8899a6" font-size="8">{{ transformerKva | number:'1.0-0' }} kVA</text>
-          <g filter="url(#glow)">
-            <circle cx="390" cy="138" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
-            <circle cx="390" cy="152" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
-          </g>
-          <line x1="390" y1="166" x2="390" y2="196" stroke="#29b6f6" stroke-width="2.5"/>
+          <!-- Main Transformer (from real asset data) -->
+          <ng-container *ngIf="transformer; else noTransformer">
+            <text x="390" y="106" text-anchor="middle" fill="#8899a6" font-size="9">{{ transformer.label }}</text>
+            <text x="390" y="118" text-anchor="middle" fill="#29b6f6" font-size="8">{{ transformer.rated_kva | number:'1.0-0' }} kVA</text>
+            <g filter="url(#glow)">
+              <circle cx="390" cy="132" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
+              <circle cx="390" cy="146" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
+            </g>
+            <!-- Utilization % badge on transformer -->
+            <text *ngIf="transformer.utilization_pct" x="430" y="143"
+              [attr.fill]="loadColor(transformer.utilization_pct)" font-size="9" font-weight="700">
+              {{ transformer.utilization_pct | number:'1.0-0' }}%
+            </text>
+            <line x1="390" y1="160" x2="390" y2="188" stroke="#29b6f6" stroke-width="2.5"/>
 
-          <!-- Main Switchgear -->
-          <rect x="330" y="196" width="120" height="30" rx="4" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
-          <text x="390" y="208" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">Main Switchgear</text>
-          <text x="390" y="220" text-anchor="middle" fill="#8899a6" font-size="8">{{ transformerKva | number:'1.0-0' }} kVA</text>
+            <!-- Main Bus -->
+            <rect x="100" y="188" width="580" height="8" rx="3" fill="#29b6f6" opacity="0.65"/>
+            <text x="390" y="182" text-anchor="middle" fill="#29b6f6" font-size="10" font-weight="600" letter-spacing="0.05em">
+              480V MAIN BUS
+            </text>
 
-          <!-- Bus -->
-          <rect x="80" y="226" width="620" height="8" rx="3" fill="#29b6f6" opacity="0.65"/>
+            <!-- Real panel nodes -->
+            <ng-container *ngFor="let node of panelNodes; let i = index">
+              <ng-container *ngIf="panelNodes.length > 0">
+                <line [attr.x1]="160 + i * (460/(panelNodes.length-1||1))" y1="196"
+                      [attr.x2]="160 + i * (460/(panelNodes.length-1||1))" y2="230"
+                      stroke="#29b6f6" stroke-width="2"/>
+                <rect [attr.x]="110 + i * (460/(panelNodes.length-1||1))" y="230" width="100" height="50" rx="4"
+                  fill="#111927" [attr.stroke]="nodeColor(node)" stroke-width="1.5"/>
+                <text [attr.x]="160 + i * (460/(panelNodes.length-1||1))" y="250" text-anchor="middle"
+                  [attr.fill]="nodeColor(node)" font-size="9" font-weight="700">{{ node.label }}</text>
+                <text [attr.x]="160 + i * (460/(panelNodes.length-1||1))" y="264" text-anchor="middle"
+                  fill="#8899a6" font-size="8">{{ node.used_kva | number:'1.0-0' }} kVA</text>
+                <text [attr.x]="160 + i * (460/(panelNodes.length-1||1))" y="275" text-anchor="middle"
+                  [attr.fill]="loadColor(node.utilization_pct)" font-size="9" font-weight="600">
+                  {{ node.utilization_pct ? (node.utilization_pct | number:'1.0-0') + '%' : '—' }}
+                </text>
+              </ng-container>
+            </ng-container>
 
-          <!-- Branch lines -->
-          <line x1="160" y1="234" x2="160" y2="268" stroke="#29b6f6" stroke-width="2"/>
-          <line x1="280" y1="234" x2="280" y2="268" stroke="#29b6f6" stroke-width="2"/>
-          <line x1="390" y1="234" x2="390" y2="268" stroke="#29b6f6" stroke-width="2"/>
-          <line x1="510" y1="234" x2="510" y2="268" stroke="#29b6f6" stroke-width="2"/>
-          <line x1="620" y1="234" x2="620" y2="268" stroke="#29b6f6" stroke-width="2"/>
+            <!-- No sub-assets: "not yet scanned" placeholder -->
+            <ng-container *ngIf="!hasSubAssets">
+              <line x1="390" y1="196" x2="390" y2="240" stroke="#1a2a3a" stroke-width="2" stroke-dasharray="6 4"/>
+              <rect x="270" y="240" width="240" height="80" rx="8"
+                fill="rgba(41,182,246,0.04)" stroke="#1a2a3a" stroke-width="1.5" stroke-dasharray="6 4"/>
+              <text x="390" y="272" text-anchor="middle" fill="#546e7a" font-size="11">One-line not yet scanned</text>
+              <text x="390" y="290" text-anchor="middle" fill="#546e7a" font-size="10">{{ isAdmin ? 'Use “Edit One-Line” to add assets' : 'Contact your administrator' }}</text>
+            </ng-container>
 
-          <!-- Panel A -->
-          <rect x="110" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="160" y="288" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">Panel A</text>
-          <text x="160" y="300" text-anchor="middle" fill="#8899a6" font-size="8">1200 A / 480/277 V</text>
-          <text x="160" y="311" text-anchor="middle" [attr.fill]="loadColor(panelBLoadPct)" font-size="9" font-weight="600">{{ panelBLoadPct | number:'1.0-0' }}%</text>
-          <line x1="140" y1="318" x2="140" y2="348" stroke="#ffd740" stroke-width="1.5"/>
-          <rect x="110" y="348" width="60" height="30" rx="3" fill="#111927" stroke="#00e676" stroke-width="1"/>
-          <text x="140" y="362" text-anchor="middle" fill="#00e676" font-size="8" font-weight="700">AHF-1</text>
-          <text x="140" y="373" text-anchor="middle" fill="#8899a6" font-size="7">Active</text>
-          <line x1="185" y1="318" x2="185" y2="348" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <rect x="158" y="348" width="60" height="30" rx="3" fill="#111927" stroke="#546e7a" stroke-width="1" stroke-dasharray="4 3"/>
-          <text x="188" y="360" text-anchor="middle" fill="#546e7a" font-size="7">Drop asset</text>
-          <text x="188" y="371" text-anchor="middle" fill="#546e7a" font-size="7">here</text>
+            <!-- Simulation scenario badge -->
+            <ng-container *ngIf="activeScenario">
+              <rect x="490" y="86" width="130" height="44" rx="6"
+                fill="rgba(0,230,118,0.08)" stroke="rgba(0,230,118,0.25)"/>
+              <text x="555" y="102" text-anchor="middle" fill="#8899a6" font-size="8" letter-spacing="0.05em">{{ activeScenario.label | uppercase }}</text>
+              <text x="555" y="118" text-anchor="middle" fill="#00e676" font-size="12" font-weight="700">+ {{ additionalKva | number:'1.0-0' }} kVA</text>
+              <text x="555" y="130" text-anchor="middle" fill="#8899a6" font-size="7">{{ activeScenario.assetName }}</text>
+            </ng-container>
+          </ng-container>
 
-          <!-- Panel B -->
-          <rect x="230" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ce93d8" stroke-width="1.5"/>
-          <text x="280" y="288" text-anchor="middle" fill="#ce93d8" font-size="9" font-weight="700">Panel B</text>
-          <text x="280" y="300" text-anchor="middle" fill="#8899a6" font-size="8">1200 A / 480/277 V</text>
-          <text x="280" y="311" text-anchor="middle" [attr.fill]="loadColor(panelBLoadPct)" font-size="9" font-weight="600">{{ panelBLoadPct | number:'1.0-0' }}%</text>
+          <!-- No transformer configured -->
+          <ng-template #noTransformer>
+            <rect x="240" y="90" width="300" height="120" rx="10"
+              fill="rgba(84,110,122,0.08)" stroke="#1a2a3a" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <text x="390" y="140" text-anchor="middle" fill="#546e7a" font-size="13">No Digital Twin configured</text>
+            <text x="390" y="160" text-anchor="middle" fill="#546e7a" font-size="11">{{ isAdmin ? 'Use “Edit One-Line” to build the twin' : 'Contact your administrator' }}</text>
+          </ng-template>
 
-          <!-- Data Center -->
-          <rect x="337" y="268" width="106" height="50" rx="4" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
-          <text x="390" y="288" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">Data Center</text>
-          <text x="390" y="300" text-anchor="middle" fill="#8899a6" font-size="8">800 kW</text>
-          <text x="390" y="311" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="600">65%</text>
-          <line x1="390" y1="318" x2="390" y2="348" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <rect x="355" y="348" width="70" height="30" rx="3" fill="#111927" stroke="#546e7a" stroke-width="1" stroke-dasharray="4 3"/>
-          <text x="390" y="360" text-anchor="middle" fill="#546e7a" font-size="7">Drop asset</text>
-          <text x="390" y="371" text-anchor="middle" fill="#546e7a" font-size="7">or select location</text>
-
-          <!-- Chiller Plant -->
-          <rect x="460" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="510" y="288" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">Chiller Plant</text>
-          <text x="510" y="300" text-anchor="middle" fill="#8899a6" font-size="8">450 kW</text>
-          <text x="510" y="311" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="600">40%</text>
-
-          <!-- Production Line -->
-          <rect x="572" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#f44336" stroke-width="1.5"/>
-          <text x="622" y="288" text-anchor="middle" fill="#f44336" font-size="9" font-weight="700">Production Line</text>
-          <text x="622" y="300" text-anchor="middle" fill="#8899a6" font-size="8">600 kW</text>
-          <text x="622" y="311" text-anchor="middle" fill="#f44336" font-size="9" font-weight="600">75%</text>
-
-          <!-- Legend bar -->
-          <rect x="80" y="410" width="10" height="10" rx="2" fill="#00e676"/>
-          <text x="96" y="419" fill="#8899a6" font-size="8">&lt; 60%</text>
-          <rect x="144" y="410" width="10" height="10" rx="2" fill="#ffd740"/>
-          <text x="160" y="419" fill="#8899a6" font-size="8">60% – 80%</text>
-          <rect x="224" y="410" width="10" height="10" rx="2" fill="#f44336"/>
-          <text x="240" y="419" fill="#8899a6" font-size="8">&gt; 80%</text>
-          <line x1="300" y1="414" x2="330" y2="414" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <text x="336" y="419" fill="#8899a6" font-size="8">Planned Asset</text>
-
-          <!-- Active scenario badge -->
-          <rect x="490" y="90" width="120" height="40" rx="6" fill="rgba(0,230,118,0.08)" stroke="rgba(0,230,118,0.25)"/>
-          <text x="550" y="106" text-anchor="middle" fill="#8899a6" font-size="8" letter-spacing="0.05em">{{ activeScenario.label | uppercase }}</text>
-          <text x="550" y="120" text-anchor="middle" fill="#00e676" font-size="11" font-weight="700">+ {{ additionalKva | number:'1.0-0' }} kVA</text>
-          <text x="550" y="132" text-anchor="middle" fill="#8899a6" font-size="7">{{ activeScenario.assetName }}</text>
+          <!-- Legend -->
+          <rect x="100" y="440" width="10" height="10" rx="2" fill="#00e676"/>
+          <text x="116" y="449" fill="#8899a6" font-size="8">&lt; 70% Load</text>
+          <rect x="194" y="440" width="10" height="10" rx="2" fill="#ffd740"/>
+          <text x="210" y="449" fill="#8899a6" font-size="8">70–85%</text>
+          <rect x="264" y="440" width="10" height="10" rx="2" fill="#f44336"/>
+          <text x="280" y="449" fill="#8899a6" font-size="8">&gt; 85%</text>
+          <line x1="334" y1="444" x2="364" y2="444" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="370" y="449" fill="#546e7a" font-size="8">Planned / Unscanned</text>
         </svg>
       </div>
     </div>
 
-    <!-- ── RIGHT: Simulation summary ── -->
+    <!-- RIGHT: Simulation summary -->
     <div class="ncs-right">
-
       <div class="ncs-summary-card">
         <div class="ncs-summary-header">
           <span class="ncs-summary-title">SIMULATION SUMMARY</span>
-          <span class="ncs-scenario-tag">{{ activeScenario.label }}</span>
+          <span *ngIf="activeScenario" class="ncs-scenario-tag">{{ activeScenario.label }}</span>
         </div>
-        <div class="ncs-summary-desc">{{ activeScenario.assetName }}</div>
-        <div class="ncs-summary-grid">
-          <div class="ncs-sum-kpi">
-            <div class="ncs-sum-label">ADDITIONAL LOAD</div>
-            <div class="ncs-sum-val">{{ additionalKw | number:'1.0-0' }} kW</div>
-            <div class="ncs-sum-sub">{{ additionalKva | number:'1.0-0' }} kVA</div>
-          </div>
-          <div class="ncs-sum-kpi">
-            <div class="ncs-sum-label">PROJECTED DATE</div>
-            <div class="ncs-sum-val ncs-sum-val-sm">{{ activeScenario.date }}</div>
-          </div>
-          <div class="ncs-sum-kpi">
-            <div class="ncs-sum-label">DURATION</div>
-            <div class="ncs-sum-val ncs-sum-val-sm">20 Years</div>
-          </div>
+
+        <!-- No scenario yet -->
+        <div *ngIf="!activeScenario" class="ncs-no-scenario">
+          <span class="fa fa-flask" style="font-size:28px;color:#1a2a3a;margin-bottom:8px;"></span>
+          <div>No simulation run yet.</div>
+          <div style="font-size:10px;color:#546e7a;margin-top:4px;">Select an asset from the library and click Run Simulation.</div>
         </div>
+
+        <!-- Active scenario -->
+        <ng-container *ngIf="activeScenario">
+          <div class="ncs-summary-desc">{{ activeScenario.assetName }} → {{ activeScenario.targetNode }}</div>
+          <div class="ncs-summary-grid">
+            <div class="ncs-sum-kpi">
+              <div class="ncs-sum-label">ADDITIONAL LOAD</div>
+              <div class="ncs-sum-val">{{ additionalKw | number:'1.0-0' }} kW</div>
+              <div class="ncs-sum-sub">{{ additionalKva | number:'1.0-0' }} kVA</div>
+            </div>
+            <div class="ncs-sum-kpi">
+              <div class="ncs-sum-label">PROJECTED DATE</div>
+              <div class="ncs-sum-val ncs-sum-val-sm">{{ activeScenario.date }}</div>
+            </div>
+            <div class="ncs-sum-kpi">
+              <div class="ncs-sum-label">DURATION</div>
+              <div class="ncs-sum-val ncs-sum-val-sm">20 Years</div>
+            </div>
+          </div>
+        </ng-container>
       </div>
 
       <div class="ncs-section-label" style="margin:12px 0 8px;"><span class="fa fa-tachometer"></span> IMPACT OVERVIEW</div>
@@ -227,104 +233,109 @@
         <div class="ncs-gauge-block">
           <svg viewBox="0 0 80 50" width="72" height="45">
             <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
-            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(panelBLoadPct)" stroke-width="7"
-              stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(panelBLoadPct/100*94.2)"/>
-            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ panelBLoadPct | number:'1.0-0' }}%</text>
-          </svg>
-          <div class="ncs-gauge-label">Panel B<br>Load</div>
-        </div>
-        <div class="ncs-gauge-block">
-          <svg viewBox="0 0 80 50" width="72" height="45">
-            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
             <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(xfmrLoadPct)" stroke-width="7"
               stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(xfmrLoadPct/100*94.2)"/>
-            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ xfmrLoadPct | number:'1.0-0' }}%</text>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">
+              {{ activeScenario ? (xfmrLoadPct | number:'1.0-0') + '%' : '—' }}
+            </text>
           </svg>
-          <div class="ncs-gauge-label">Main Xfmr<br>Load</div>
+          <div class="ncs-gauge-label">Xfmr<br>Load</div>
         </div>
         <div class="ncs-gauge-block">
           <svg viewBox="0 0 80 50" width="72" height="45">
             <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
             <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(siteLoadPct)" stroke-width="7"
               stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(siteLoadPct/100*94.2)"/>
-            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ siteLoadPct | number:'1.0-0' }}%</text>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">
+              {{ activeScenario ? (siteLoadPct | number:'1.0-0') + '%' : '—' }}
+            </text>
           </svg>
-          <div class="ncs-gauge-label">Overall<br>Site Load</div>
+          <div class="ncs-gauge-label">Site<br>Load</div>
+        </div>
+        <div class="ncs-gauge-block">
+          <svg viewBox="0 0 80 50" width="72" height="45">
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#00e676" stroke-width="7"
+              stroke-dasharray="94.2" [attr.stroke-dashoffset]="activeScenario ? 94.2-(systemHeadroomPct/100*94.2) : 94.2"/>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">
+              {{ activeScenario ? (systemHeadroomKva | number:'1.0-0') : '—' }}
+            </text>
+          </svg>
+          <div class="ncs-gauge-label">Headroom<br>kVA</div>
         </div>
       </div>
 
-      <div class="ncs-reco-card" [class.ncs-reco-ok]="recommendationOk" [class.ncs-reco-warn]="!recommendationOk">
+      <div class="ncs-reco-card" [class.ncs-reco-ok]="recommendationOk" [class.ncs-reco-warn]="!recommendationOk && !!activeScenario">
         <div class="ncs-reco-label">RECOMMENDATION</div>
         <div class="ncs-reco-body">
-          <span class="fa" [class]="recommendationOk ? 'fa-check-circle' : 'fa-exclamation-triangle'"
-            [style.color]="recommendationOk ? '#00e676' : '#ffd740'"></span>
+          <span class="fa" [class]="recommendationOk ? 'fa-check-circle' : 'fa-info-circle'"
+            [style.color]="recommendationOk ? '#00e676' : '#546e7a'"></span>
           <span>{{ recommendation }}</span>
         </div>
-        <button class="btn-ecbs btn-outline" style="margin-top:8px;width:100%;font-size:12px;">View Recommendations</button>
       </div>
 
+      <!-- Admin: twin topology info -->
+      <div *ngIf="isAdmin" class="ncs-admin-panel">
+        <div class="ncs-section-label"><span class="fa fa-shield"></span> ADMIN</div>
+        <div class="ncs-kv-row"><span>Transformer</span><span>{{ transformer ? (transformer.rated_kva | number:'1.0-0') + ' kVA' : '—' }}</span></div>
+        <div class="ncs-kv-row"><span>Scanned Nodes</span><span>{{ twinNodes.length }}</span></div>
+        <div class="ncs-kv-row"><span>Sub-Assets</span><span [style.color]="hasSubAssets ? '#00e676' : '#ffd740'">{{ hasSubAssets ? panelNodes.length : 'None' }}</span></div>
+        <a class="btn-ecbs btn-outline" style="width:100%;margin-top:8px;text-align:center;" routerLink="/admin/digital-twin-editor">
+          <span class="fa fa-pencil-square-o"></span> Open Digital Twin Editor
+        </a>
+      </div>
     </div>
   </div>
 
-  <!-- Capacity Impact Analysis -->
-  <div class="ncs-impact-section">
+  <!-- Capacity Impact Analysis (only when scenario active) -->
+  <div class="ncs-impact-section" *ngIf="activeScenario">
     <div class="ncs-impact-title"><span class="fa fa-bar-chart"></span> CAPACITY IMPACT ANALYSIS</div>
     <div class="ncs-impact-grid">
-
       <div class="ncs-impact-col">
         <div class="ncs-impact-col-title">Load Impact</div>
-        <div class="ncs-impact-row"><span>Current Site Load</span><span>{{ currentLoadKw | number:'1.0-0' }} kW</span></div>
-        <div class="ncs-impact-row ncs-accent"><span>Additional Load</span><span>+ {{ additionalKw | number:'1.0-0' }} kW</span></div>
-        <div class="ncs-impact-row ncs-bold"><span>New Total Load</span><span>{{ newTotalKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row"><span>Current Load</span><span>{{ currentLoadKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row ncs-accent"><span>Additional</span><span>+ {{ additionalKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row ncs-bold"><span>New Total</span><span>{{ newTotalKw | number:'1.0-0' }} kW</span></div>
         <div class="ncs-impact-row"><span>Load Increase</span><span [style.color]="loadColor(loadIncreasePct)">{{ loadIncreasePct | number:'1.1-1' }}%</span></div>
       </div>
-
       <div class="ncs-impact-col">
         <div class="ncs-impact-col-title">Capacity Impact</div>
-        <div class="ncs-impact-row"><span>Panel B Load</span><span [style.color]="loadColor(panelBLoadPct)">{{ panelBLoadPct | number:'1.0-0' }}%</span></div>
-        <div class="ncs-impact-row"><span>Main Xfmr Load</span><span [style.color]="loadColor(xfmrLoadPct)">{{ xfmrLoadPct | number:'1.0-0' }}%</span></div>
-        <div class="ncs-impact-row ncs-bold"><span>Site Total Load</span><span [style.color]="loadColor(siteLoadPct)">{{ siteLoadPct | number:'1.0-0' }}%</span></div>
-        <div class="ncs-impact-row"><span>System Headroom</span><span>{{ systemHeadroomPct | number:'1.0-0' }}% ({{ systemHeadroomKva | number:'1.0-0' }} kVA)</span></div>
+        <div class="ncs-impact-row"><span>Xfmr Load</span><span [style.color]="loadColor(xfmrLoadPct)">{{ xfmrLoadPct | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row ncs-bold"><span>Site Total</span><span [style.color]="loadColor(siteLoadPct)">{{ siteLoadPct | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row"><span>Headroom</span><span>{{ systemHeadroomPct | number:'1.0-0' }}% ({{ systemHeadroomKva | number:'1.0-0' }} kVA)</span></div>
       </div>
-
       <div class="ncs-impact-col">
         <div class="ncs-impact-col-title">Current Balance Impact</div>
-        <div class="ncs-impact-row"><span>Current Unbalance</span><span>2.1%</span></div>
         <div class="ncs-impact-row"><span>Projected Unbalance</span><span [style.color]="projectedUnbalance>5?'#ffd740':'inherit'">{{ projectedUnbalance | number:'1.1-1' }}%</span></div>
-        <div class="ncs-impact-row"><span>Neutral Loading</span><span [style.color]="neutralLoading>80?'#ffd740':'inherit'">{{ neutralLoading | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row"><span>Neutral Loading</span><span>{{ neutralLoading | number:'1.0-0' }}%</span></div>
         <div class="ncs-impact-row"><span>THDi Impact</span><span>{{ thdiImpact | number:'1.1-1' }}%</span></div>
       </div>
-
       <div class="ncs-impact-col">
         <div class="ncs-impact-col-title">Financial Impact (20 yr)</div>
-        <div class="ncs-impact-row"><span>Additional Energy Cost</span><span>{{ formatCurrency(additionalEnergyCost) }}</span></div>
+        <div class="ncs-impact-row"><span>Energy Cost</span><span>{{ formatCurrency(additionalEnergyCost) }}</span></div>
         <div class="ncs-impact-row ncs-accent"><span>Potential Savings</span><span>{{ formatCurrency(potentialSavings) }}</span></div>
         <div class="ncs-impact-row ncs-bold"><span>Net Impact</span><span>{{ formatCurrency(netImpact) }}</span></div>
-        <div class="ncs-impact-row"><span>ROI Impact</span><span [style.color]="roiImpact>0?'#00e676':'#f44336'">{{ roiImpact > 0 ? '+' : '' }}{{ roiImpact | number:'1.1-1' }}%</span></div>
       </div>
-
       <div class="ncs-impact-col">
         <div class="ncs-impact-col-title">Upgrade Impact</div>
-        <div class="ncs-impact-row"><span>Transformer Upgrade</span><span [style.color]="xfmrUpgradeNeeded?'#f44336':'#00e676'">{{ xfmrUpgradeNeeded ? 'Required' : 'Not Required' }}</span></div>
-        <div class="ncs-impact-row"><span>Switchgear Upgrade</span><span [style.color]="swgrUpgradeNeeded?'#ffd740':'#00e676'">{{ swgrUpgradeNeeded ? 'Review' : 'Not Required' }}</span></div>
-        <div class="ncs-impact-row"><span>Panel Upgrade</span><span [style.color]="panelUpgradeNeeded?'#f44336':'#00e676'">{{ panelUpgradeNeeded ? 'Required' : 'Not Required' }}</span></div>
-        <div class="ncs-impact-row"><span>AHF Recommendation</span><span style="color:#ffd740;">Optional</span></div>
+        <div class="ncs-impact-row"><span>Transformer</span><span [style.color]="xfmrUpgradeNeeded?'#f44336':'#00e676'">{{ xfmrUpgradeNeeded ? 'Required' : 'Not Required' }}</span></div>
+        <div class="ncs-impact-row"><span>Switchgear</span><span [style.color]="swgrUpgradeNeeded?'#ffd740':'#00e676'">{{ swgrUpgradeNeeded ? 'Review' : 'Not Required' }}</span></div>
+        <div class="ncs-impact-row"><span>AHF</span><span style="color:#ffd740;">Optional</span></div>
       </div>
-
     </div>
   </div>
 
   <!-- Scenario tabs -->
   <div class="ncs-scenarios-bar">
+    <div *ngIf="scenarios.length === 0" class="ncs-no-scenarios-hint">
+      <span class="fa fa-info-circle"></span> No simulations run yet. Select an asset above and click Run Simulation.
+    </div>
     <div *ngFor="let s of scenarios" class="ncs-scenario-tab" [class.active]="s.id === activeScenarioId"
       (click)="selectScenario(s.id)">
       <div class="ncs-stab-label">{{ s.label }}</div>
       <div class="ncs-stab-sub">{{ s.assetName }}</div>
       <div class="ncs-stab-date">{{ s.date }}</div>
     </div>
-    <button class="ncs-add-scenario" (click)="addScenario()">
-      <span class="fa fa-plus"></span> New Scenario
-    </button>
   </div>
 
 </div>
