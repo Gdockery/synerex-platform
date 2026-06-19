@@ -18,7 +18,7 @@ import { Component } from '@angular/core';
       </div>
     </div>
   `,
-  styles: [\`
+  styles: [`
     .admin-page { padding: 24px; }
     .admin-page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
     .admin-page-header .fa { font-size: 22px; color: #00e676; }
@@ -32,6 +32,6 @@ import { Component } from '@angular/core';
     .admin-ph-icon { font-size: 44px; color: #1a2a3a; }
     .admin-ph-title { font-size: 16px; color: #8899a6; }
     .admin-ph-sub { font-size: 12px; }
-  \`]
+  `]
 })
 export class AuditLogComponent {}
