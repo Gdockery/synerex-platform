@@ -29,7 +29,24 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     this.loadData();
   }
 
-  ngAfterViewInit() {}
+  ngAfterViewInit() { this._initLeafletMap(); }
+
+  private _leafletMap: any = null;
+  private _initLeafletMap() {
+    const init = () => {
+      const L = (window as any).L;
+      if (!L) return;
+      const el = document.getElementById('site-leaflet-map');
+      if (!el || this._leafletMap) return;
+      this._leafletMap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([30.22, -92.02], 4);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this._leafletMap);
+      const icon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#00e676;border:2px solid #fff;box-shadow:0 0 10px #00e676;"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+      L.marker([30.22, -92.02], { icon }).addTo(this._leafletMap).bindPopup('<b>' + (this.siteName || 'Lafayette, LA') + '</b>');
+    };
+    if ((window as any).L) { init(); return; }
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = init; document.head.appendChild(s);
+  }
 
   loadData() {
     this.loading = true;
@@ -179,33 +196,19 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Savings trend chart ───────────────────────────────────────────────────────
-  // Last 7 days cumulative savings: each day = sum of that day's actual savings rows
+  // 7-day cumulative savings from annual rate
   get monthlySavings(): { month: string; value: number }[] {
-    const days: { label: string; daily: number }[] = [];
-    const now = Date.now();
+    const annual = this.savingsData?.annual_savings_est ?? this.savingsData?.annual_savings ?? 0;
+    const daily = Number(annual) / 365;
+    if (!daily) return [];
     const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const now = new Date();
+    const result: { month: string; value: number }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const t = new Date(now - i * 86400000);
-      days.push({ label: dayLabels[t.getDay()], daily: 0 });
+      const d = new Date(now.getTime() - i * 86400000);
+      result.push({ month: dayLabels[d.getDay()], value: Math.round(daily * (7 - i)) });
     }
-    const cutoff = now - 7 * 86400000;
-    for (const row of this.trendsData) {
-      if (!row.annual_savings || row.annual_savings <= 0) continue;
-      const ts = row.bucket_ts;
-      if (ts < cutoff) continue;
-      const age = Math.floor((now - ts) / 86400000);
-      const idx = 6 - age;
-      if (idx >= 0 && idx < 7) {
-        // convert annual_savings rate ($/yr) * interval (15min) to dollars saved that interval
-        days[idx].daily += row.annual_savings * 15 / 60 / 24 / 365;
-      }
-    }
-    // Build cumulative series starting from $0
-    let running = 0;
-    return days.map(d => {
-      running += d.daily;
-      return { month: d.label, value: Math.round(running) };
-    });
+    return result;
   }
 
   trendPolyline(items: { month: string; value: number }[], w: number, h: number): string {
