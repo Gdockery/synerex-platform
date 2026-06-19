@@ -1,4 +1,7 @@
-import {Component, EventEmitter, OnInit, Output} from '@angular/core';
+import {Component, EventEmitter, OnInit, OnDestroy, Output} from '@angular/core';
+import {NavigationEnd, Router} from '@angular/router';
+import {Subscription} from 'rxjs';
+import {filter} from 'rxjs/operators';
 import {CurrentUserService} from "../user/currentUser.service";
 import {WhitelabelService} from "../services/whitelabel.service";
 import {ApiRequestService} from "../../api/api-request.service";
@@ -8,7 +11,7 @@ import {ApiRequestService} from "../../api/api-request.service";
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss'],
 })
-export class NavbarComponent implements OnInit {
+export class NavbarComponent implements OnInit, OnDestroy {
 
   // An event that this component emits when `_toggleSidebar()` is called.
   // (Basically a way of informing parent components that the navbar expanded/collapsed.)
@@ -30,8 +33,9 @@ export class NavbarComponent implements OnInit {
   public logoFailed: boolean = false;
 
   cbiScore: number = 0;
+  private _routerSub: Subscription;
 
-  constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService, private api: ApiRequestService) {
+  constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService, private api: ApiRequestService, private router: Router) {
     const user = this.userService.user;
     this.logoUrl = this.whitelabelService.getNavbarLogoUrl(user);
     this.logoColorFallbackUrl = this.whitelabelService.getNavbarColorLogoUrl(user);
@@ -76,6 +80,14 @@ export class NavbarComponent implements OnInit {
 
   ngOnInit() {
     this.refreshCbi();
+    // Re-fetch CBI whenever the route changes so project switches are reflected
+    this._routerSub = this.router.events
+      .pipe(filter(e => e instanceof NavigationEnd))
+      .subscribe(() => this.refreshCbi());
+  }
+
+  ngOnDestroy() {
+    if (this._routerSub) { this._routerSub.unsubscribe(); }
   }
 
   refreshCbi() {
