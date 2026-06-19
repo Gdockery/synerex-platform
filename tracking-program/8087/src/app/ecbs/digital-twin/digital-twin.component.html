@@ -1,33 +1,96 @@
-<!-- ECBS OS™ Digital Twin — Spec SS-5 / One-line diagram + live overlays -->
-<div class="ecbs-page">
+<!-- ECBS OS™ Digital Twin — Network Capacity Simulator -->
+<div class="ncs-root">
 
-  <div class="ecbs-page-header">
-    <div class="page-title-block">
-      <h1>Digital Twin™</h1>
-      <p>Visual engineering source of truth — one-line diagram with live electrical overlays and asset hierarchy.</p>
+  <!-- Top header -->
+  <div class="ncs-header">
+    <div class="ncs-header-left">
+      <div class="ncs-title-block">
+        <div class="ncs-eyebrow">NETWORK CAPACITY SIMULATOR</div>
+        <div class="ncs-tagline">Predict. Simulate. Optimize.</div>
+      </div>
     </div>
-    <div class="page-actions">
-      <span *ngIf="twinStatus" class="health-score-pill" [class]="statusPillClass">{{ twinStatus }}</span>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export PDF</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-expand"></span> Fullscreen</button>
+    <div class="ncs-header-right">
+      <div class="ncs-site-info">
+        <div class="ncs-site-name">{{ projectName || 'No Project Selected' }}</div>
+        <div class="ncs-site-id">{{ projectId ? 'SITE-' + projectId : '—' }}</div>
+      </div>
+      <div class="ncs-actions">
+        <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+        <button class="btn-ecbs btn-green" (click)="runSimulation()" [disabled]="!selectedLibraryAsset">
+          <span class="fa fa-play"></span> Run Simulation
+        </button>
+      </div>
     </div>
   </div>
 
-  <div class="dt-layout">
+  <!-- Three-column body -->
+  <div class="ncs-body">
 
-    <!-- One-line diagram canvas -->
-    <div class="ecbs-card dt-canvas-card">
-      <div class="ecbs-card-title" style="padding:12px 16px 10px;margin-bottom:0;border-radius:10px 10px 0 0;">
-        <span class="fa fa-share-alt"></span> One-Line Diagram
-        <span style="margin-left:auto;font-size:10px;color:#546e7a;">{{ projectName }}</span>
+    <!-- ── LEFT: Simulation nav + Asset Library ── -->
+    <div class="ncs-left">
+      <div class="ncs-section-label"><span class="fa fa-flask"></span> SIMULATION</div>
+      <div class="ncs-nav-links">
+        <div class="ncs-nav-link active"><span class="fa fa-plus-circle"></span> New Simulation</div>
+        <div class="ncs-nav-link"><span class="fa fa-list"></span> My Simulations</div>
+        <div class="ncs-nav-link"><span class="fa fa-book"></span> Scenario Library</div>
       </div>
-      <div class="dt-canvas">
-        <div *ngIf="loading" style="height:100%;display:flex;align-items:center;justify-content:center;color:#546e7a;flex-direction:column;gap:12px;">
-          <span class="fa fa-spinner fa-spin" style="font-size:30px;color:#00e676;"></span>
+
+      <div class="ncs-section-label" style="margin-top:16px;"><span class="fa fa-th-large"></span> ASSET LIBRARY</div>
+      <input class="ncs-search" [(ngModel)]="assetSearch" placeholder="Search assets..." />
+
+      <div class="ncs-cat-tabs">
+        <button *ngFor="let cat of ['All','Loads','HVAC','IT','Process']"
+          class="ncs-cat-tab" [class.active]="activeCategory === cat"
+          (click)="activeCategory = cat">{{ cat }}</button>
+      </div>
+
+      <div class="ncs-asset-list">
+        <div *ngFor="let a of filteredAssets" class="ncs-asset-item"
+          [class.selected]="selectedLibraryAsset?.id === a.id"
+          (click)="selectLibraryAsset(a)">
+          <span class="ncs-asset-ico fa" [class]="a.icon" [style.color]="a.category==='HVAC'?'#29b6f6':a.category==='IT'?'#ab47bc':a.category==='Process'?'#ffd740':'#00e676'"></span>
+          <div class="ncs-asset-info">
+            <div class="ncs-asset-name">{{ a.name }}</div>
+            <div class="ncs-asset-spec">{{ a.voltage }} {{ a.phase }} &nbsp;·&nbsp; {{ a.kw }} kW / {{ a.kva }} kVA</div>
+          </div>
+          <span *ngIf="selectedLibraryAsset?.id === a.id" class="fa fa-check-circle ncs-asset-check"></span>
+        </div>
+        <div *ngIf="filteredAssets.length === 0" class="ncs-empty-lib">No assets match your search.</div>
+      </div>
+
+      <!-- Panel selector (shown when asset selected) -->
+      <div *ngIf="selectedLibraryAsset" class="ncs-panel-select-block">
+        <div class="ncs-field-label">Drop to Panel:</div>
+        <select class="ncs-select" [(ngModel)]="selectedPanel">
+          <option *ngFor="let pnl of panels">{{ pnl }}</option>
+        </select>
+        <button class="btn-ecbs btn-green" style="width:100%;margin-top:8px;" (click)="runSimulation()">
+          <span class="fa fa-play"></span> Run Simulation
+        </button>
+      </div>
+    </div>
+
+    <!-- ── CENTER: Digital Twin diagram ── -->
+    <div class="ncs-center">
+      <div class="ncs-diagram-header">
+        <span class="ncs-diagram-title"><span class="fa fa-share-alt"></span> DIGITAL TWIN VIEW</span>
+        <div class="ncs-diagram-controls">
+          <button class="btn-ecbs btn-outline btn-sm"><span class="fa fa-arrows-alt"></span> Fit View</button>
+          <select class="ncs-select ncs-select-sm">
+            <option>Electrical</option>
+            <option>Physical</option>
+            <option>Load Flow</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ncs-diagram-canvas">
+        <div *ngIf="loading" class="ncs-loading">
+          <span class="fa fa-spinner fa-spin" style="font-size:28px;color:#00e676;"></span>
           <span>Building Digital Twin...</span>
         </div>
 
-        <svg *ngIf="!loading" class="dt-svg" viewBox="0 0 860 520" preserveAspectRatio="xMidYMid meet">
+        <svg *ngIf="!loading" class="dt-svg" viewBox="0 0 780 450" preserveAspectRatio="xMidYMid meet">
           <defs>
             <pattern id="dt-grid" width="40" height="40" patternUnits="userSpaceOnUse">
               <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2a3a" stroke-width="0.5"/>
@@ -36,165 +99,232 @@
               <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
               <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
-            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#29b6f6"/>
-            </marker>
           </defs>
-
-          <!-- Background grid -->
           <rect width="100%" height="100%" fill="url(#dt-grid)"/>
-          <rect width="100%" height="100%" fill="rgba(7,13,24,0.3)"/>
 
-          <!-- ── Utility Feed ── -->
+          <!-- Utility -->
+          <text x="390" y="22" text-anchor="middle" fill="#8899a6" font-size="10" letter-spacing="0.05em">Utility</text>
+          <text x="390" y="36" text-anchor="middle" fill="#8899a6" font-size="9">138 kV</text>
           <g filter="url(#glow)">
-            <circle cx="430" cy="45" r="22" fill="none" stroke="#29b6f6" stroke-width="2"/>
-            <text x="430" y="49" text-anchor="middle" fill="#29b6f6" font-size="12" font-weight="700">~</text>
+            <circle cx="390" cy="52" r="20" fill="none" stroke="#29b6f6" stroke-width="2"/>
+            <text x="390" y="57" text-anchor="middle" fill="#29b6f6" font-size="13" font-weight="700">~</text>
           </g>
-          <text x="430" y="26" text-anchor="middle" fill="#8899a6" font-size="10" letter-spacing="0.05em">UTILITY FEED</text>
-          <text x="430" y="82" text-anchor="middle" fill="#29b6f6" font-size="9">480V / 3Ø</text>
+          <line x1="390" y1="72" x2="390" y2="96" stroke="#29b6f6" stroke-width="2.5"/>
 
-          <!-- Utility → Main breaker -->
-          <line x1="430" y1="67" x2="430" y2="100" stroke="#29b6f6" stroke-width="2.5" marker-end="url(#arrow)"/>
-
-          <!-- Main breaker CB -->
-          <rect x="416" y="100" width="28" height="20" rx="4" fill="#0d1525" stroke="#29b6f6" stroke-width="1.5"/>
-          <text x="430" y="114" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">CB</text>
-          <line x1="430" y1="120" x2="430" y2="158" stroke="#29b6f6" stroke-width="2.5"/>
-
-          <!-- Main transformer -->
+          <!-- Main Transformer -->
+          <text x="390" y="112" text-anchor="middle" fill="#8899a6" font-size="9">Main Transformer</text>
+          <text x="390" y="124" text-anchor="middle" fill="#8899a6" font-size="8">{{ transformerKva | number:'1.0-0' }} kVA</text>
           <g filter="url(#glow)">
-            <circle cx="430" cy="175" r="18" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
-            <circle cx="430" cy="191" r="18" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
+            <circle cx="390" cy="138" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
+            <circle cx="390" cy="152" r="14" fill="#111927" stroke="#29b6f6" stroke-width="2"/>
           </g>
-          <text x="430" y="220" text-anchor="middle" fill="#8899a6" font-size="9">XFMR-001</text>
-          <text x="500" y="183" fill="#29b6f6" font-size="9" font-weight="600">{{ (assets[0]?.capacity_kva||1000)|number:'1.0-0' }} kVA</text>
-          <line x1="430" y1="209" x2="430" y2="248" stroke="#29b6f6" stroke-width="2.5"/>
+          <line x1="390" y1="166" x2="390" y2="196" stroke="#29b6f6" stroke-width="2.5"/>
 
-          <!-- Main bus bar -->
-          <rect x="60" y="248" width="740" height="10" rx="3" fill="#29b6f6" opacity="0.65"/>
-          <text x="430" y="242" text-anchor="middle" fill="#29b6f6" font-size="10" font-weight="600" letter-spacing="0.05em">480V MAIN BUS</text>
+          <!-- Main Switchgear -->
+          <rect x="330" y="196" width="120" height="30" rx="4" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
+          <text x="390" y="208" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">Main Switchgear</text>
+          <text x="390" y="220" text-anchor="middle" fill="#8899a6" font-size="8">{{ transformerKva | number:'1.0-0' }} kVA</text>
 
-          <!-- ── Branch 1 (left) ── -->
-          <line x1="160" y1="258" x2="160" y2="300" stroke="#29b6f6" stroke-width="2"/>
-          <rect x="148" y="300" width="24" height="16" rx="3" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="160" y="312" text-anchor="middle" fill="#ffd740" font-size="8">CB</text>
-          <line x1="160" y1="316" x2="160" y2="360" stroke="#ffd740" stroke-width="2"/>
+          <!-- Bus -->
+          <rect x="80" y="226" width="620" height="8" rx="3" fill="#29b6f6" opacity="0.65"/>
+
+          <!-- Branch lines -->
+          <line x1="160" y1="234" x2="160" y2="268" stroke="#29b6f6" stroke-width="2"/>
+          <line x1="280" y1="234" x2="280" y2="268" stroke="#29b6f6" stroke-width="2"/>
+          <line x1="390" y1="234" x2="390" y2="268" stroke="#29b6f6" stroke-width="2"/>
+          <line x1="510" y1="234" x2="510" y2="268" stroke="#29b6f6" stroke-width="2"/>
+          <line x1="620" y1="234" x2="620" y2="268" stroke="#29b6f6" stroke-width="2"/>
+
           <!-- Panel A -->
-          <rect x="125" y="360" width="70" height="40" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="160" y="378" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">PANEL A</text>
-          <text x="160" y="392" text-anchor="middle" fill="#8899a6" font-size="8">{{ (assets[0]?.current_load_kva||120)|number:'1.0-0' }} kVA</text>
-          <!-- Meters on branch 1 -->
-          <line x1="160" y1="400" x2="160" y2="440" stroke="#ffd740" stroke-width="1.5"/>
-          <circle cx="160" cy="448" r="10" fill="#111927" stroke="#00e676" stroke-width="1.5" filter="url(#glow)"/>
-          <text x="160" y="452" text-anchor="middle" fill="#00e676" font-size="7" font-weight="700">M1</text>
-          <text x="160" y="472" text-anchor="middle" fill="#00e676" font-size="8">{{ (assets[0]?.power_factor||0.95)|number:'1.2-2' }} PF</text>
+          <rect x="110" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
+          <text x="160" y="288" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">Panel A</text>
+          <text x="160" y="300" text-anchor="middle" fill="#8899a6" font-size="8">1200 A / 480/277 V</text>
+          <text x="160" y="311" text-anchor="middle" [attr.fill]="loadColor(panelBLoadPct)" font-size="9" font-weight="600">{{ panelBLoadPct | number:'1.0-0' }}%</text>
+          <line x1="140" y1="318" x2="140" y2="348" stroke="#ffd740" stroke-width="1.5"/>
+          <rect x="110" y="348" width="60" height="30" rx="3" fill="#111927" stroke="#00e676" stroke-width="1"/>
+          <text x="140" y="362" text-anchor="middle" fill="#00e676" font-size="8" font-weight="700">AHF-1</text>
+          <text x="140" y="373" text-anchor="middle" fill="#8899a6" font-size="7">Active</text>
+          <line x1="185" y1="318" x2="185" y2="348" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <rect x="158" y="348" width="60" height="30" rx="3" fill="#111927" stroke="#546e7a" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="188" y="360" text-anchor="middle" fill="#546e7a" font-size="7">Drop asset</text>
+          <text x="188" y="371" text-anchor="middle" fill="#546e7a" font-size="7">here</text>
 
-          <!-- ── Branch 2 (center-left) ── -->
-          <line x1="300" y1="258" x2="300" y2="300" stroke="#29b6f6" stroke-width="2"/>
-          <rect x="288" y="300" width="24" height="16" rx="3" fill="#111927" stroke="#ce93d8" stroke-width="1.5"/>
-          <text x="300" y="312" text-anchor="middle" fill="#ce93d8" font-size="8">CB</text>
-          <line x1="300" y1="316" x2="300" y2="360" stroke="#ce93d8" stroke-width="2"/>
-          <!-- MCC-1 -->
-          <rect x="260" y="360" width="80" height="40" rx="4" fill="#111927" stroke="#ce93d8" stroke-width="1.5"/>
-          <text x="300" y="378" text-anchor="middle" fill="#ce93d8" font-size="9" font-weight="700">MCC-1</text>
-          <text x="300" y="392" text-anchor="middle" fill="#8899a6" font-size="8">Motor Center</text>
-          <line x1="300" y1="400" x2="300" y2="440" stroke="#ce93d8" stroke-width="1.5"/>
-          <circle cx="300" cy="448" r="10" fill="#111927" stroke="#00e676" stroke-width="1.5" filter="url(#glow)"/>
-          <text x="300" y="452" text-anchor="middle" fill="#00e676" font-size="7" font-weight="700">M2</text>
+          <!-- Panel B -->
+          <rect x="230" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ce93d8" stroke-width="1.5"/>
+          <text x="280" y="288" text-anchor="middle" fill="#ce93d8" font-size="9" font-weight="700">Panel B</text>
+          <text x="280" y="300" text-anchor="middle" fill="#8899a6" font-size="8">1200 A / 480/277 V</text>
+          <text x="280" y="311" text-anchor="middle" [attr.fill]="loadColor(panelBLoadPct)" font-size="9" font-weight="600">{{ panelBLoadPct | number:'1.0-0' }}%</text>
 
-          <!-- ── Branch 3 (center) ── -->
-          <line x1="430" y1="258" x2="430" y2="300" stroke="#29b6f6" stroke-width="2"/>
-          <rect x="418" y="300" width="24" height="16" rx="3" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
-          <text x="430" y="312" text-anchor="middle" fill="#29b6f6" font-size="8">CB</text>
-          <line x1="430" y1="316" x2="430" y2="360" stroke="#29b6f6" stroke-width="2"/>
-          <!-- SWGR-1 -->
-          <rect x="385" y="360" width="90" height="40" rx="4" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
-          <text x="430" y="378" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">SWGR-1</text>
-          <text x="430" y="392" text-anchor="middle" fill="#8899a6" font-size="8">Distribution</text>
+          <!-- Data Center -->
+          <rect x="337" y="268" width="106" height="50" rx="4" fill="#111927" stroke="#29b6f6" stroke-width="1.5"/>
+          <text x="390" y="288" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700">Data Center</text>
+          <text x="390" y="300" text-anchor="middle" fill="#8899a6" font-size="8">800 kW</text>
+          <text x="390" y="311" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="600">65%</text>
+          <line x1="390" y1="318" x2="390" y2="348" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <rect x="355" y="348" width="70" height="30" rx="3" fill="#111927" stroke="#546e7a" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="390" y="360" text-anchor="middle" fill="#546e7a" font-size="7">Drop asset</text>
+          <text x="390" y="371" text-anchor="middle" fill="#546e7a" font-size="7">or select location</text>
 
-          <!-- ── Branch 4 (center-right) ── -->
-          <line x1="570" y1="258" x2="570" y2="300" stroke="#29b6f6" stroke-width="2"/>
-          <rect x="558" y="300" width="24" height="16" rx="3" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="570" y="312" text-anchor="middle" fill="#ffd740" font-size="8">CB</text>
-          <line x1="570" y1="316" x2="570" y2="360" stroke="#ffd740" stroke-width="2"/>
-          <rect x="530" y="360" width="80" height="40" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
-          <text x="570" y="378" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">PANEL B</text>
-          <text x="570" y="392" text-anchor="middle" fill="#8899a6" font-size="8">{{ (assets[1]?.current_load_kva||85)|number:'1.0-0' }} kVA</text>
-          <line x1="570" y1="400" x2="570" y2="440" stroke="#ffd740" stroke-width="1.5"/>
-          <circle cx="570" cy="448" r="10" fill="#111927" stroke="#00e676" stroke-width="1.5" filter="url(#glow)"/>
-          <text x="570" y="452" text-anchor="middle" fill="#00e676" font-size="7" font-weight="700">M3</text>
+          <!-- Chiller Plant -->
+          <rect x="460" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#ffd740" stroke-width="1.5"/>
+          <text x="510" y="288" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">Chiller Plant</text>
+          <text x="510" y="300" text-anchor="middle" fill="#8899a6" font-size="8">450 kW</text>
+          <text x="510" y="311" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="600">40%</text>
 
-          <!-- ── Branch 5 (right) ── -->
-          <line x1="720" y1="258" x2="720" y2="300" stroke="#29b6f6" stroke-width="2"/>
-          <rect x="708" y="300" width="24" height="16" rx="3" fill="#111927" stroke="#00e676" stroke-width="1.5"/>
-          <text x="720" y="312" text-anchor="middle" fill="#00e676" font-size="8">CB</text>
-          <line x1="720" y1="316" x2="720" y2="360" stroke="#00e676" stroke-width="2"/>
-          <rect x="676" y="360" width="88" height="40" rx="4" fill="#111927" stroke="#00e676" stroke-width="1.5"/>
-          <text x="720" y="378" text-anchor="middle" fill="#00e676" font-size="9" font-weight="700">APF-001</text>
-          <text x="720" y="392" text-anchor="middle" fill="#8899a6" font-size="8">Active Filter</text>
+          <!-- Production Line -->
+          <rect x="572" y="268" width="100" height="50" rx="4" fill="#111927" stroke="#f44336" stroke-width="1.5"/>
+          <text x="622" y="288" text-anchor="middle" fill="#f44336" font-size="9" font-weight="700">Production Line</text>
+          <text x="622" y="300" text-anchor="middle" fill="#8899a6" font-size="8">600 kW</text>
+          <text x="622" y="311" text-anchor="middle" fill="#f44336" font-size="9" font-weight="600">75%</text>
 
-          <!-- Live data labels -->
-          <text x="80" y="290" fill="#8899a6" font-size="9">{{ totalLoadKva | number:'1.0-0' }} kVA total</text>
-          <text x="80" y="302" fill="#00e676" font-size="9">PF: {{ (avgPF||0) | number:'1.3-3' }}</text>
+          <!-- Legend bar -->
+          <rect x="80" y="410" width="10" height="10" rx="2" fill="#00e676"/>
+          <text x="96" y="419" fill="#8899a6" font-size="8">&lt; 60%</text>
+          <rect x="144" y="410" width="10" height="10" rx="2" fill="#ffd740"/>
+          <text x="160" y="419" fill="#8899a6" font-size="8">60% – 80%</text>
+          <rect x="224" y="410" width="10" height="10" rx="2" fill="#f44336"/>
+          <text x="240" y="419" fill="#8899a6" font-size="8">&gt; 80%</text>
+          <line x1="300" y1="414" x2="330" y2="414" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <text x="336" y="419" fill="#8899a6" font-size="8">Planned Asset</text>
 
-          <!-- CBI badge -->
-          <rect x="680" y="28" width="110" height="46" rx="6" fill="rgba(0,230,118,0.06)" stroke="rgba(0,230,118,0.2)" stroke-width="1"/>
-          <text x="735" y="46" text-anchor="middle" fill="#8899a6" font-size="9" letter-spacing="0.06em">CBI SCORE</text>
-          <text x="735" y="64" text-anchor="middle" fill="#00e676" font-size="22" font-weight="900">{{ cbiScore | number:'1.0-0' }}</text>
+          <!-- Active scenario badge -->
+          <rect x="490" y="90" width="120" height="40" rx="6" fill="rgba(0,230,118,0.08)" stroke="rgba(0,230,118,0.25)"/>
+          <text x="550" y="106" text-anchor="middle" fill="#8899a6" font-size="8" letter-spacing="0.05em">{{ activeScenario.label | uppercase }}</text>
+          <text x="550" y="120" text-anchor="middle" fill="#00e676" font-size="11" font-weight="700">+ {{ additionalKva | number:'1.0-0' }} kVA</text>
+          <text x="550" y="132" text-anchor="middle" fill="#8899a6" font-size="7">{{ activeScenario.assetName }}</text>
         </svg>
       </div>
     </div>
 
-    <!-- Right sidebar -->
-    <div class="dt-sidebar">
+    <!-- ── RIGHT: Simulation summary ── -->
+    <div class="ncs-right">
 
-      <!-- Twin status -->
-      <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Twin Status</div>
-        <div class="ecbs-kv-table">
-          <div class="kv-row"><span class="kv-key">Status</span>
-            <span class="kv-val"><span class="health-score-pill" [class]="statusPillClass">{{ twinStatus || 'No Data' }}</span></span>
-          </div>
-          <div class="kv-row"><span class="kv-key">Assets</span><span class="kv-val">{{ assets.length }}</span></div>
-          <div class="kv-row"><span class="kv-key">Active Meters</span><span class="kv-val">{{ assets.length }}</span></div>
-          <div class="kv-row"><span class="kv-key">Total kVA</span><span class="kv-val">{{ totalKva | number:'1.0-0' }}</span></div>
-          <div class="kv-row"><span class="kv-key">Avg Utilization</span>
-            <span class="kv-val" [style.color]="avgUtil>85?'#f44336':avgUtil>75?'#ffd740':'#00e676'">{{ avgUtil | number:'1.0-0' }}%</span>
-          </div>
+      <div class="ncs-summary-card">
+        <div class="ncs-summary-header">
+          <span class="ncs-summary-title">SIMULATION SUMMARY</span>
+          <span class="ncs-scenario-tag">{{ activeScenario.label }}</span>
         </div>
-      </div>
-
-      <!-- Digital Twin lifecycle -->
-      <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-tasks"></span> DT Lifecycle</div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <div *ngFor="let step of dtSteps" style="display:flex;align-items:center;gap:8px;font-size:11px;">
-            <span class="fa" [class]="step.done ? 'fa-check-circle' : 'fa-circle-o'"
-              [style.color]="step.done ? '#00e676' : '#1e2d45'"></span>
-            <span [style.color]="step.done ? '#e8edf5' : '#546e7a'">{{ step.label }}</span>
+        <div class="ncs-summary-desc">{{ activeScenario.assetName }}</div>
+        <div class="ncs-summary-grid">
+          <div class="ncs-sum-kpi">
+            <div class="ncs-sum-label">ADDITIONAL LOAD</div>
+            <div class="ncs-sum-val">{{ additionalKw | number:'1.0-0' }} kW</div>
+            <div class="ncs-sum-sub">{{ additionalKva | number:'1.0-0' }} kVA</div>
+          </div>
+          <div class="ncs-sum-kpi">
+            <div class="ncs-sum-label">PROJECTED DATE</div>
+            <div class="ncs-sum-val ncs-sum-val-sm">{{ activeScenario.date }}</div>
+          </div>
+          <div class="ncs-sum-kpi">
+            <div class="ncs-sum-label">DURATION</div>
+            <div class="ncs-sum-val ncs-sum-val-sm">20 Years</div>
           </div>
         </div>
       </div>
 
-      <!-- Legend -->
-      <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-circle"></span> Symbol Legend</div>
-        <div class="dt-legend">
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#29b6f6;border-radius:50%;"></div><span>Transformer / Utility</span></div>
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#ce93d8;"></div><span>MCC / Motor Center</span></div>
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#ffd740;"></div><span>Panel / Feeder</span></div>
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#00e676;border-radius:50%;"></div><span>PQ Meter (Active)</span></div>
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#00e676;"></div><span>APF (Active Filter)</span></div>
-          <div class="dt-legend-row"><div class="dt-legend-dot" style="background:#546e7a;border-radius:50%;"></div><span>Circuit Breaker</span></div>
+      <div class="ncs-section-label" style="margin:12px 0 8px;"><span class="fa fa-tachometer"></span> IMPACT OVERVIEW</div>
+      <div class="ncs-gauges-row">
+        <div class="ncs-gauge-block">
+          <svg viewBox="0 0 80 50" width="72" height="45">
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(panelBLoadPct)" stroke-width="7"
+              stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(panelBLoadPct/100*94.2)"/>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ panelBLoadPct | number:'1.0-0' }}%</text>
+          </svg>
+          <div class="ncs-gauge-label">Panel B<br>Load</div>
+        </div>
+        <div class="ncs-gauge-block">
+          <svg viewBox="0 0 80 50" width="72" height="45">
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(xfmrLoadPct)" stroke-width="7"
+              stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(xfmrLoadPct/100*94.2)"/>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ xfmrLoadPct | number:'1.0-0' }}%</text>
+          </svg>
+          <div class="ncs-gauge-label">Main Xfmr<br>Load</div>
+        </div>
+        <div class="ncs-gauge-block">
+          <svg viewBox="0 0 80 50" width="72" height="45">
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" stroke="#1a2a3a" stroke-width="7"/>
+            <path d="M10,44 A30,30 0 0,1 70,44" fill="none" [attr.stroke]="loadColor(siteLoadPct)" stroke-width="7"
+              stroke-dasharray="94.2" [attr.stroke-dashoffset]="94.2-(siteLoadPct/100*94.2)"/>
+            <text x="40" y="44" text-anchor="middle" fill="white" font-size="11" font-weight="700">{{ siteLoadPct | number:'1.0-0' }}%</text>
+          </svg>
+          <div class="ncs-gauge-label">Overall<br>Site Load</div>
         </div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <a class="btn-ecbs btn-outline" routerLink="/ecbs/electrical-network"><span class="fa fa-sitemap"></span> Live Network View</a>
-        <a class="btn-ecbs btn-outline" routerLink="/ecbs/transformers"><span class="fa fa-plug"></span> Transformer Details</a>
-        <a class="btn-ecbs btn-outline" routerLink="/ecbs/devices"><span class="fa fa-flash"></span> Device Management</a>
+      <div class="ncs-reco-card" [class.ncs-reco-ok]="recommendationOk" [class.ncs-reco-warn]="!recommendationOk">
+        <div class="ncs-reco-label">RECOMMENDATION</div>
+        <div class="ncs-reco-body">
+          <span class="fa" [class]="recommendationOk ? 'fa-check-circle' : 'fa-exclamation-triangle'"
+            [style.color]="recommendationOk ? '#00e676' : '#ffd740'"></span>
+          <span>{{ recommendation }}</span>
+        </div>
+        <button class="btn-ecbs btn-outline" style="margin-top:8px;width:100%;font-size:12px;">View Recommendations</button>
       </div>
+
     </div>
+  </div>
+
+  <!-- Capacity Impact Analysis -->
+  <div class="ncs-impact-section">
+    <div class="ncs-impact-title"><span class="fa fa-bar-chart"></span> CAPACITY IMPACT ANALYSIS</div>
+    <div class="ncs-impact-grid">
+
+      <div class="ncs-impact-col">
+        <div class="ncs-impact-col-title">Load Impact</div>
+        <div class="ncs-impact-row"><span>Current Site Load</span><span>{{ currentLoadKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row ncs-accent"><span>Additional Load</span><span>+ {{ additionalKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row ncs-bold"><span>New Total Load</span><span>{{ newTotalKw | number:'1.0-0' }} kW</span></div>
+        <div class="ncs-impact-row"><span>Load Increase</span><span [style.color]="loadColor(loadIncreasePct)">{{ loadIncreasePct | number:'1.1-1' }}%</span></div>
+      </div>
+
+      <div class="ncs-impact-col">
+        <div class="ncs-impact-col-title">Capacity Impact</div>
+        <div class="ncs-impact-row"><span>Panel B Load</span><span [style.color]="loadColor(panelBLoadPct)">{{ panelBLoadPct | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row"><span>Main Xfmr Load</span><span [style.color]="loadColor(xfmrLoadPct)">{{ xfmrLoadPct | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row ncs-bold"><span>Site Total Load</span><span [style.color]="loadColor(siteLoadPct)">{{ siteLoadPct | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row"><span>System Headroom</span><span>{{ systemHeadroomPct | number:'1.0-0' }}% ({{ systemHeadroomKva | number:'1.0-0' }} kVA)</span></div>
+      </div>
+
+      <div class="ncs-impact-col">
+        <div class="ncs-impact-col-title">Current Balance Impact</div>
+        <div class="ncs-impact-row"><span>Current Unbalance</span><span>2.1%</span></div>
+        <div class="ncs-impact-row"><span>Projected Unbalance</span><span [style.color]="projectedUnbalance>5?'#ffd740':'inherit'">{{ projectedUnbalance | number:'1.1-1' }}%</span></div>
+        <div class="ncs-impact-row"><span>Neutral Loading</span><span [style.color]="neutralLoading>80?'#ffd740':'inherit'">{{ neutralLoading | number:'1.0-0' }}%</span></div>
+        <div class="ncs-impact-row"><span>THDi Impact</span><span>{{ thdiImpact | number:'1.1-1' }}%</span></div>
+      </div>
+
+      <div class="ncs-impact-col">
+        <div class="ncs-impact-col-title">Financial Impact (20 yr)</div>
+        <div class="ncs-impact-row"><span>Additional Energy Cost</span><span>{{ formatCurrency(additionalEnergyCost) }}</span></div>
+        <div class="ncs-impact-row ncs-accent"><span>Potential Savings</span><span>{{ formatCurrency(potentialSavings) }}</span></div>
+        <div class="ncs-impact-row ncs-bold"><span>Net Impact</span><span>{{ formatCurrency(netImpact) }}</span></div>
+        <div class="ncs-impact-row"><span>ROI Impact</span><span [style.color]="roiImpact>0?'#00e676':'#f44336'">{{ roiImpact > 0 ? '+' : '' }}{{ roiImpact | number:'1.1-1' }}%</span></div>
+      </div>
+
+      <div class="ncs-impact-col">
+        <div class="ncs-impact-col-title">Upgrade Impact</div>
+        <div class="ncs-impact-row"><span>Transformer Upgrade</span><span [style.color]="xfmrUpgradeNeeded?'#f44336':'#00e676'">{{ xfmrUpgradeNeeded ? 'Required' : 'Not Required' }}</span></div>
+        <div class="ncs-impact-row"><span>Switchgear Upgrade</span><span [style.color]="swgrUpgradeNeeded?'#ffd740':'#00e676'">{{ swgrUpgradeNeeded ? 'Review' : 'Not Required' }}</span></div>
+        <div class="ncs-impact-row"><span>Panel Upgrade</span><span [style.color]="panelUpgradeNeeded?'#f44336':'#00e676'">{{ panelUpgradeNeeded ? 'Required' : 'Not Required' }}</span></div>
+        <div class="ncs-impact-row"><span>AHF Recommendation</span><span style="color:#ffd740;">Optional</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Scenario tabs -->
+  <div class="ncs-scenarios-bar">
+    <div *ngFor="let s of scenarios" class="ncs-scenario-tab" [class.active]="s.id === activeScenarioId"
+      (click)="selectScenario(s.id)">
+      <div class="ncs-stab-label">{{ s.label }}</div>
+      <div class="ncs-stab-sub">{{ s.assetName }}</div>
+      <div class="ncs-stab-date">{{ s.date }}</div>
+    </div>
+    <button class="ncs-add-scenario" (click)="addScenario()">
+      <span class="fa fa-plus"></span> New Scenario
+    </button>
   </div>
 
 </div>
