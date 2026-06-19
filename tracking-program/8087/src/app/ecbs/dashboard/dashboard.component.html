@@ -127,7 +127,7 @@
               <div class="mini-lbl">Annual Savings</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-val">{{ (savingsData.roi || 0) | number:'1.0-0' }}%</div>
+              <div class="mini-val">{{ savingsData.roi ? ((savingsData.roi) | number:'1.0-0') + '%' : '—' }}</div>
               <div class="mini-lbl">ROI</div>
             </div>
             <div class="mini-stat">
@@ -135,7 +135,7 @@
               <div class="mini-lbl">Power Factor</div>
             </div>
             <div class="mini-stat">
-              <div class="mini-val">{{ (savingsData.payback || 0) | number:'1.1-1' }} yr</div>
+              <div class="mini-val">{{ savingsData.payback ? ((savingsData.payback) | number:'1.1-1') + ' yr' : '—' }}</div>
               <div class="mini-lbl">Payback</div>
             </div>
           </div>
