@@ -142,7 +142,10 @@ export class DigitalTwinComponent implements OnInit {
   get statusPillClass(): string { return this.assets.length > 0 ? 'hsp-excellent' : 'hsp-poor'; }
 
   get transformerKva(): number {
-    return this.assets.reduce((s, a) => s + (a.capacity_kva || a.rated_kva || a.kva_rating || 0), 0) || 1800;
+    const xfmr = this.assets.find(a => (a.asset_type || '').toLowerCase().includes('transform'));
+    if (xfmr) return xfmr.rated_kva || xfmr.kva_rating || xfmr.capacity_kva || 2400;
+    const total = this.assets.reduce((s, a) => s + (a.rated_kva || a.kva_rating || a.capacity_kva || 0), 0);
+    return total || 2400;
   }
   get currentLoadKw(): number {
     return this.assets.reduce((s, a) => s + (a.current_load_kva || a.used_kva || 0), 0) * 0.85 || 1307;
