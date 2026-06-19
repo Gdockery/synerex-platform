@@ -70,43 +70,45 @@ def get_latest_twin_snapshot(twin) -> dict:
 
 def get_transformer_kva(project_id: int) -> Optional[float]:
     """
-    Extract the total rated kVA of all Transformer-type assets in the
-    approved/locked Digital Twin for the given project.
+    Return total rated kVA of all Transformer assets for this project.
 
-    Returns:
-        Sum of rated_kva for all Transformer assets (float), or None if:
-        - No approved/locked twin exists for the project.
-        - The twin has no Transformer assets with a rated_kva value.
+    Single source of truth: the Asset table (kva_rating column).
+    The Digital Twin snapshot is topology-only and is NOT used for specs.
 
-    Multiple transformers (e.g., a site with two parallel 150 kVA units)
-    are summed so the capacity context reflects the full site capacity.
+    Falls back to the snapshot rated_kva only if no Asset table record exists
+    (legacy / not-yet-migrated twins).
     """
     try:
         twin = get_approved_twin(project_id)
         if twin is None:
             return None
 
-        snapshot = get_latest_twin_snapshot(twin)
-        assets = snapshot.get("assets", [])
+        # ── Primary: query the Asset table (single source of truth) ────────
+        from app.models.asset import Asset
+        db_assets = (
+            Asset.query
+            .filter_by(digital_twin_id=twin.id, is_deleted=False)
+            .filter(Asset.asset_type.ilike("transformer"))
+            .all()
+        )
+        db_kva_values = [float(a.kva_rating) for a in db_assets if a.kva_rating]
+        if db_kva_values:
+            return sum(db_kva_values)
 
-        transformer_kva_values = []
-        for asset in assets:
+        # ── Fallback: read from snapshot (legacy twins without asset rows) ──
+        snapshot = get_latest_twin_snapshot(twin)
+        snap_kva = []
+        for asset in snapshot.get("assets", []):
             if not isinstance(asset, dict):
                 continue
-            # Match "Transformer", "transformer", "TRANSFORMER" — case-insensitive
-            asset_type = str(asset.get("type", "")).strip().lower()
-            if asset_type == "transformer":
+            if str(asset.get("type", "")).strip().lower() == "transformer":
                 kva = asset.get("rated_kva") or asset.get("ratedKva") or asset.get("kva")
-                if kva is not None:
+                if kva:
                     try:
-                        transformer_kva_values.append(float(kva))
+                        snap_kva.append(float(kva))
                     except (TypeError, ValueError):
                         pass
-
-        if not transformer_kva_values:
-            return None
-
-        return sum(transformer_kva_values)
+        return sum(snap_kva) if snap_kva else None
 
     except Exception as exc:
         logger.warning("[dt_service] get_transformer_kva project=%d error: %s", project_id, exc)

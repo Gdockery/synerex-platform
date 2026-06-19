@@ -624,7 +624,7 @@ def create_app(config_class=Config):
             ).fetchone()[0]
 
             # Create twin version with transformer snapshot
-            # Ochsner Ortho — 2400 kVA main transformer
+            # Topology only — kVA specs are stored in the asset table (single source of truth)
             snapshot = {
                 "assets": [
                     {
@@ -636,8 +636,7 @@ def create_app(config_class=Config):
                     {
                         "id": "tx-main-1",
                         "type": "Transformer",
-                        "label": "TX-Main (2400 kVA)",
-                        "rated_kva": 2400.0,
+                        "label": "TX-Main",
                         "voltage_in": 13800,
                         "voltage_out": 480,
                         "manufacturer": "Square D",
@@ -646,8 +645,7 @@ def create_app(config_class=Config):
                     {
                         "id": "tx-iso-1",
                         "type": "Transformer",
-                        "label": "TX-ISO (300 kVA)",
-                        "rated_kva": 300.0,
+                        "label": "TX-ISO",
                         "voltage_in": 480,
                         "voltage_out": 208,
                         "manufacturer": "Acme",

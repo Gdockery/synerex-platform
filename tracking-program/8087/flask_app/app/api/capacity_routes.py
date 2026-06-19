@@ -329,18 +329,31 @@ def get_assets():
     downstream_ids = _walk_downstream_primary(main_meter_ids)
     load_path_ids  = upstream_ids | downstream_ids | main_meter_ids
 
+    # Build asset-table lookup keyed by asset_uid (single source of truth for kva_rating)
+    from app.models.asset import Asset as _AssetModel
+    db_asset_map = {}
+    db_assets = _AssetModel.query.filter_by(digital_twin_id=twin.id, is_deleted=False).all()
+    for dba in db_assets:
+        if dba.asset_uid:
+            db_asset_map[dba.asset_uid] = dba
+
     rows = []
     for asset in assets:
         if not isinstance(asset, dict):
             continue
-        rated_kva = None
-        for k in ("rated_kva", "kva_rating", "ratedKva", "kva", "capacity_kva"):
-            if asset.get(k):
-                try:
-                    rated_kva = float(asset[k])
-                    break
-                except (TypeError, ValueError):
-                    pass
+        asset_uid = asset.get("id") or asset.get("asset_uid")
+        # Primary source of truth: asset table kva_rating
+        db_rec = db_asset_map.get(asset_uid)
+        rated_kva = float(db_rec.kva_rating) if db_rec and db_rec.kva_rating else None
+        # Fallback: snapshot fields (legacy twins without asset table rows)
+        if rated_kva is None:
+            for k in ("rated_kva", "kva_rating", "ratedKva", "kva", "capacity_kva"):
+                if asset.get(k):
+                    try:
+                        rated_kva = float(asset[k])
+                        break
+                    except (TypeError, ValueError):
+                        pass
 
         # Assets in the primary load path all carry the metered load.
         # Secondary branch transformers (TX-ISO etc.) have no dedicated meter → show 0.
