@@ -338,7 +338,7 @@ def twin_from_project(project_id: int):
         meterNo: "77248797",
         buses: [
           {
-            badge: "BUS-1", dwg: "SLD-01", xfKva: "1500", mainA: "2000", pctLoad: "65",
+            badge: "BUS-1", dwg: "SLD-01", xfKva: "2400", mainA: "2000", pctLoad: "65",
             circuits: [
               { name: "Panel A", amps: "200", nEcbs: 1, nApf50: 0, nApf100: 0 }
             ]

@@ -624,7 +624,7 @@ def create_app(config_class=Config):
             ).fetchone()[0]
 
             # Create twin version with transformer snapshot
-            # Ochsner Ortho has ~1200 kVA peak demand → 1500 kVA transformer
+            # Ochsner Ortho — 2400 kVA main transformer
             snapshot = {
                 "assets": [
                     {
@@ -636,8 +636,8 @@ def create_app(config_class=Config):
                     {
                         "id": "tx-main-1",
                         "type": "Transformer",
-                        "label": "TX-Main (1500 kVA)",
-                        "rated_kva": 1500.0,
+                        "label": "TX-Main (2400 kVA)",
+                        "rated_kva": 2400.0,
                         "voltage_in": 13800,
                         "voltage_out": 480,
                         "manufacturer": "Square D",
@@ -672,7 +672,7 @@ def create_app(config_class=Config):
                   (:dtid, 1, 'Initial approved twin', :snap, 'Seeded from April 2026 metering data', :ts, :ts)
             """), {"dtid": dt_id, "snap": json.dumps(snapshot), "ts": now_ms})
             _db.session.commit()
-            print(f"[seed] Created digital twin id={dt_id} with 1500+300 kVA transformers")
+            print(f"[seed] Created digital twin id={dt_id} with 2400+300 kVA transformers")
 
         # ── 3. Baseline ───────────────────────────────────────────────────────
         existing_bl = _db.session.execute(
