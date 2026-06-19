@@ -6,10 +6,13 @@
   <title>{% if portal_title %}{{ portal_title }}{% else %}ECBS Operating System™{% endif %}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    html, body { margin: 0; padding: 0; height: 100%; font-family: 'Inter', 'Segoe UI', Arial, sans-serif; overflow: hidden; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    }
     *, *::before, *::after { box-sizing: border-box; }
 
-    /* ── Root two-column layout ── */
+    /* ── Two-column root ── */
     .lp-root {
       display: flex;
       min-height: 100vh;
@@ -17,196 +20,24 @@
       background: #060e1a;
     }
 
-    /* ══════════════════════════════════════════
-       LEFT PANEL — Marketing / Branding
-    ══════════════════════════════════════════ */
+    /* ══ LEFT — spec graphic fills the panel ══ */
     .lp-left {
       flex: 0 0 58%;
       position: relative;
-      background: linear-gradient(145deg, #060f1c 0%, #081a10 45%, #061018 75%, #040c06 100%);
-      display: flex;
-      flex-direction: column;
-      padding: 3rem 3.5rem;
       overflow: hidden;
+      min-height: 100vh;
     }
-
-    /* SVG background inside left panel */
-    .lp-left-bg {
+    .lp-left-img {
       position: absolute;
       inset: 0;
       width: 100%;
       height: 100%;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* Glow orbs */
-    .lp-orb {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(100px);
-      pointer-events: none;
-      z-index: 0;
-    }
-    .lp-orb-1 { width: 420px; height: 420px; background: rgba(22,110,60,0.20); top: -100px; left: -80px; }
-    .lp-orb-2 { width: 320px; height: 320px; background: rgba(20,60,150,0.15); bottom: -80px; right: 50px; }
-    .lp-orb-3 { width: 200px; height: 200px; background: rgba(26,185,110,0.08); top: 45%; left: 40%; }
-
-    .lp-left-content {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-    }
-
-    /* Brand header */
-    .lp-brand-top {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 2.5rem;
-    }
-    .lp-brand-logo {
-      height: 36px;
-      width: auto;
-      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
-    }
-    .lp-brand-name {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.55);
-    }
-
-    /* Hero */
-    .lp-hero {
-      margin-bottom: 2.2rem;
-    }
-    .lp-hero-eyebrow {
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: #1bc07a;
-      margin-bottom: 0.65rem;
-    }
-    .lp-hero h1 {
-      margin: 0 0 0.85rem;
-      font-size: 2rem;
-      font-weight: 800;
-      line-height: 1.18;
-      color: #fff;
-      letter-spacing: -0.01em;
-    }
-    .lp-hero p {
-      margin: 0;
-      font-size: 0.91rem;
-      color: rgba(255,255,255,0.52);
-      line-height: 1.65;
-      max-width: 480px;
-    }
-
-    /* Feature cards */
-    .lp-features {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      margin-bottom: 2rem;
-    }
-    .lp-feat {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 0.75rem 1rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.07);
-      border-radius: 10px;
-      transition: border-color 0.2s;
-    }
-    .lp-feat:hover { border-color: rgba(26,185,110,0.22); }
-    .lp-feat-icon {
-      flex-shrink: 0;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.95rem;
-    }
-    .lp-feat-icon.green  { background: rgba(26,185,110,0.15); color: #1bc07a; }
-    .lp-feat-icon.blue   { background: rgba(41,182,246,0.13); color: #29b6f6; }
-    .lp-feat-icon.purple { background: rgba(206,147,216,0.13); color: #ce93d8; }
-    .lp-feat-icon.amber  { background: rgba(255,215,64,0.13);  color: #ffd740; }
-    .lp-feat-icon.teal   { background: rgba(0,230,200,0.12);   color: #00e6c8; }
-    .lp-feat-text strong {
+      object-fit: cover;
+      object-position: top center;
       display: block;
-      font-size: 0.84rem;
-      font-weight: 600;
-      color: #e8eef4;
-      margin-bottom: 0.15rem;
-    }
-    .lp-feat-text span {
-      font-size: 0.76rem;
-      color: rgba(255,255,255,0.42);
-      line-height: 1.45;
     }
 
-    /* Trust row */
-    .lp-trust {
-      margin-top: auto;
-      border-top: 1px solid rgba(255,255,255,0.07);
-      padding-top: 1.25rem;
-    }
-    .lp-trust-label {
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.28);
-      margin-bottom: 0.65rem;
-    }
-    .lp-trust-badges {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    .lp-badge {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.72rem;
-      color: rgba(255,255,255,0.38);
-      font-weight: 500;
-    }
-    .lp-badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #1bc07a;
-      flex-shrink: 0;
-    }
-    .lp-industries {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.65rem;
-      flex-wrap: wrap;
-    }
-    .lp-ind-tag {
-      font-size: 0.67rem;
-      padding: 0.25rem 0.6rem;
-      border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.35);
-      font-weight: 500;
-    }
-
-    /* ══════════════════════════════════════════
-       RIGHT PANEL — Sign-In Form
-    ══════════════════════════════════════════ */
+    /* ══ RIGHT — sign-in form ══ */
     .lp-right {
       flex: 0 0 42%;
       background: #080f1c;
@@ -215,6 +46,7 @@
       align-items: center;
       justify-content: center;
       padding: 3rem 2.5rem;
+      min-height: 100vh;
       overflow-y: auto;
     }
 
@@ -223,221 +55,101 @@
       max-width: 360px;
     }
 
-    .lp-form-header {
-      margin-bottom: 1.75rem;
-      text-align: center;
-    }
-    .lp-form-header h2 {
-      margin: 0 0 0.4rem;
-      font-size: 1.55rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.01em;
-    }
-    .lp-form-header p {
-      margin: 0;
-      font-size: 0.84rem;
-      color: rgba(255,255,255,0.42);
-      line-height: 1.5;
-    }
+    /* OEM logo */
+    .lp-oem-block { text-align:center; margin-bottom:1.5rem; }
+    .lp-oem-logo  { height:auto; max-height:52px; max-width:200px; object-fit:contain; }
 
-    /* OEM logo on right (when set) */
-    .lp-oem-block {
-      text-align: center;
-      margin-bottom: 1.5rem;
+    /* Synerex logo when no OEM */
+    .lp-sys-logo  { display:block; height:34px; width:auto; margin:0 auto 1.5rem; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+
+    .lp-form-header { margin-bottom:1.75rem; text-align:center; }
+    .lp-form-header h2 {
+      margin:0 0 0.4rem;
+      font-size:1.55rem; font-weight:700;
+      color:#fff; letter-spacing:-0.01em;
     }
-    .lp-oem-logo {
-      height: auto;
-      max-height: 52px;
-      max-width: 200px;
-      object-fit: contain;
-      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
-    }
+    .lp-form-header p { margin:0; font-size:0.84rem; color:rgba(255,255,255,0.42); line-height:1.5; }
 
     /* Inputs */
-    .lp-field { margin-bottom: 0.9rem; }
-    .lp-label {
-      display: block;
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: rgba(255,255,255,0.55);
-      margin-bottom: 0.38rem;
-      letter-spacing: 0.03em;
-    }
+    .lp-field { margin-bottom:0.9rem; }
+    .lp-label { display:block; font-size:0.78rem; font-weight:500; color:rgba(255,255,255,0.55); margin-bottom:0.38rem; letter-spacing:0.03em; }
     .lp-input {
-      display: block;
-      width: 100%;
-      padding: 0.78rem 1rem;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.11);
-      border-radius: 10px;
-      color: #fff;
-      font-size: 0.92rem;
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      display:block; width:100%; padding:0.78rem 1rem;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.11);
+      border-radius:10px; color:#fff; font-size:0.92rem; font-family:inherit;
+      outline:none; transition:border-color .2s, box-shadow .2s;
     }
-    .lp-input::placeholder { color: rgba(255,255,255,0.28); }
-    .lp-input:focus {
-      border-color: rgba(26,185,110,0.6);
-      box-shadow: 0 0 0 3px rgba(26,185,110,0.1);
-    }
+    .lp-input::placeholder { color:rgba(255,255,255,0.28); }
+    .lp-input:focus { border-color:rgba(26,185,110,0.6); box-shadow:0 0 0 3px rgba(26,185,110,0.10); }
 
-    /* Row: remember me + forgot */
-    .lp-meta-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 0.2rem 0 1.1rem;
-    }
-    .lp-remember {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      cursor: pointer;
-    }
-    .lp-remember input[type="checkbox"] {
-      width: 14px; height: 14px;
-      accent-color: #1bc07a;
-      cursor: pointer;
-    }
-    .lp-remember span {
-      font-size: 0.81rem;
-      color: rgba(255,255,255,0.48);
-    }
-    .lp-forgot-link {
-      font-size: 0.81rem;
-      color: rgba(26,195,115,0.8);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    .lp-forgot-link:hover { color: #1bc07a; text-decoration: underline; }
+    /* Remember + Forgot row */
+    .lp-meta-row { display:flex; align-items:center; justify-content:space-between; margin:.2rem 0 1.1rem; }
+    .lp-remember { display:flex; align-items:center; gap:.45rem; cursor:pointer; }
+    .lp-remember input[type="checkbox"] { width:14px; height:14px; accent-color:#1bc07a; cursor:pointer; }
+    .lp-remember span { font-size:0.81rem; color:rgba(255,255,255,0.48); }
+    .lp-forgot-link { font-size:0.81rem; color:rgba(26,195,115,0.8); text-decoration:none; transition:color .2s; }
+    .lp-forgot-link:hover { color:#1bc07a; text-decoration:underline; }
 
     /* Error */
     .lp-error {
-      display: none;
-      color: #ff7070;
-      font-size: 0.82rem;
-      text-align: center;
-      margin-bottom: 0.75rem;
-      padding: 0.6rem 0.75rem;
-      background: rgba(255,70,70,0.08);
-      border-radius: 8px;
-      border: 1px solid rgba(255,70,70,0.18);
+      display:none; color:#ff7070; font-size:0.82rem; text-align:center;
+      margin-bottom:.75rem; padding:.6rem .75rem;
+      background:rgba(255,70,70,0.08); border-radius:8px; border:1px solid rgba(255,70,70,0.18);
     }
 
-    /* Sign In button */
+    /* Sign In */
     .lp-btn-primary {
-      display: block;
-      width: 100%;
-      padding: 0.85rem;
-      background: linear-gradient(135deg, #1bc07a, #158c58);
-      color: #fff;
-      font-size: 0.95rem;
-      font-weight: 700;
-      font-family: inherit;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      letter-spacing: 0.04em;
-      transition: opacity 0.2s, transform 0.15s;
-      box-shadow: 0 4px 18px rgba(27,192,122,0.28);
+      display:block; width:100%; padding:.85rem;
+      background:linear-gradient(135deg,#1bc07a,#158c58);
+      color:#fff; font-size:0.95rem; font-weight:700; font-family:inherit;
+      border:none; border-radius:10px; cursor:pointer; letter-spacing:.04em;
+      transition:opacity .2s, transform .15s;
+      box-shadow:0 4px 18px rgba(27,192,122,0.28);
     }
-    .lp-btn-primary:hover  { opacity: 0.87; transform: translateY(-1px); }
-    .lp-btn-primary:active { opacity: 1; transform: translateY(0); }
+    .lp-btn-primary:hover  { opacity:.87; transform:translateY(-1px); }
+    .lp-btn-primary:active { opacity:1; transform:translateY(0); }
 
-    /* SSO divider */
-    .lp-divider {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin: 1.1rem 0;
-    }
-    .lp-divider-line {
-      flex: 1;
-      height: 1px;
-      background: rgba(255,255,255,0.09);
-    }
-    .lp-divider-text {
-      font-size: 0.75rem;
-      color: rgba(255,255,255,0.3);
-      white-space: nowrap;
-      letter-spacing: 0.04em;
-    }
+    /* Divider */
+    .lp-divider { display:flex; align-items:center; gap:.75rem; margin:1.1rem 0; }
+    .lp-divider-line { flex:1; height:1px; background:rgba(255,255,255,0.09); }
+    .lp-divider-text { font-size:0.75rem; color:rgba(255,255,255,0.3); white-space:nowrap; letter-spacing:.04em; }
 
-    /* SSO buttons */
-    .lp-sso-row {
-      display: flex;
-      gap: 0.65rem;
-      margin-bottom: 1.2rem;
-    }
+    /* SSO */
+    .lp-sso-row { display:flex; gap:.65rem; margin-bottom:1.2rem; }
     .lp-btn-sso {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 0.72rem 0.75rem;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 10px;
-      color: rgba(255,255,255,0.72);
-      font-size: 0.82rem;
-      font-family: inherit;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      transition: background 0.2s, border-color 0.2s;
+      flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:.72rem .75rem;
+      background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12);
+      border-radius:10px; color:rgba(255,255,255,0.72);
+      font-size:0.82rem; font-family:inherit; font-weight:500;
+      cursor:pointer; text-decoration:none; transition:background .2s, border-color .2s;
     }
-    .lp-btn-sso:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.2); }
-    .lp-btn-sso svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .lp-btn-sso:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
+    .lp-btn-sso svg { width:16px; height:16px; flex-shrink:0; }
 
-    /* Support link */
-    .lp-support {
-      text-align: center;
-      margin-top: 0.5rem;
-    }
-    .lp-support a {
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.3);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    .lp-support a:hover { color: rgba(255,255,255,0.65); }
-
-    /* Footer */
-    .lp-right-footer {
-      margin-top: 2rem;
-      text-align: center;
-      font-size: 0.68rem;
-      color: rgba(255,255,255,0.2);
-      line-height: 1.7;
-    }
-    .lp-right-footer a {
-      color: rgba(255,255,255,0.28);
-      text-decoration: none;
-    }
-    .lp-right-footer a:hover { color: rgba(255,255,255,0.55); text-decoration: underline; }
+    /* Support + footer */
+    .lp-support { text-align:center; margin-top:.5rem; }
+    .lp-support a { font-size:0.8rem; color:rgba(255,255,255,0.3); text-decoration:none; transition:color .2s; }
+    .lp-support a:hover { color:rgba(255,255,255,0.65); }
+    .lp-right-footer { margin-top:2rem; text-align:center; font-size:0.68rem; color:rgba(255,255,255,0.2); line-height:1.7; }
+    .lp-right-footer a { color:rgba(255,255,255,0.28); text-decoration:none; }
+    .lp-right-footer a:hover { color:rgba(255,255,255,0.55); text-decoration:underline; }
 
     /* OEM color override */
     {% if oem_primary_color %}
-    .lp-btn-primary { background: linear-gradient(135deg, {{ oem_primary_color }}, {{ oem_primary_color }}cc) !important; box-shadow: 0 4px 18px {{ oem_primary_color }}44 !important; }
-    .lp-input:focus { border-color: {{ oem_primary_color }}99 !important; box-shadow: 0 0 0 3px {{ oem_primary_color }}20 !important; }
-    .lp-hero-eyebrow, .lp-badge-dot { color: {{ oem_primary_color }} !important; background: {{ oem_primary_color }} !important; }
+    .lp-btn-primary { background:linear-gradient(135deg,{{ oem_primary_color }},{{ oem_primary_color }}cc) !important; box-shadow:0 4px 18px {{ oem_primary_color }}44 !important; }
+    .lp-input:focus  { border-color:{{ oem_primary_color }}99 !important; box-shadow:0 0 0 3px {{ oem_primary_color }}20 !important; }
     {% endif %}
 
     /* ── Responsive ── */
     @media (max-width: 860px) {
-      .lp-root { flex-direction: column; overflow-y: auto; }
-      .lp-left  { flex: none; padding: 2rem 1.5rem 1.5rem; overflow: visible; }
-      .lp-right { flex: none; padding: 2rem 1.5rem; overflow: visible; justify-content: flex-start; }
-      .lp-hero h1 { font-size: 1.5rem; }
-      .lp-features { display: none; }
-      .lp-trust { display: none; }
+      .lp-root  { flex-direction:column; }
+      .lp-left  { flex:none; min-height:0; height:260px; }
+      .lp-right { flex:none; min-height:0; justify-content:flex-start; padding:2rem 1.5rem; }
     }
     @media (max-width: 480px) {
-      .lp-right { padding: 1.5rem 1rem; }
-      .lp-sso-row { flex-direction: column; }
+      .lp-right { padding:1.5rem 1rem; }
+      .lp-sso-row { flex-direction:column; }
     }
   </style>
 </head>
@@ -474,7 +186,6 @@ $(function() {
     var licenseUrl = window.location.origin + '/license/register/renew';
     $('.lp-error').show().html('Your subscription has expired. <a href="' + licenseUrl + '" style="color:#7c3aed;font-weight:700;">Renew &rarr;</a>');
   }
-  // Pre-fill email from query param (re-auth flow)
   var params = new URLSearchParams(location.search);
   if (params.get('email')) {
     $('#lpEmail').val(decodeURIComponent(params.get('email')));
@@ -485,138 +196,12 @@ $(function() {
 
 <div class="lp-root">
 
-  <!-- ══════════════════ LEFT PANEL ══════════════════ -->
+  <!-- LEFT: spec marketing graphic -->
   <div class="lp-left">
-    <!-- SVG background -->
-    <svg class="lp-left-bg" viewBox="0 0 900 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <style>
-          .sv-wire  { stroke: rgba(26,185,110,0.14); stroke-width:1.5; fill:none; }
-          .sv-dim   { stroke: rgba(255,255,255,0.05); stroke-width:1; fill:none; }
-          .sv-node  { fill: rgba(26,185,110,0.4); }
-          .sv-bolt  { fill: rgba(255,215,60,0.18); }
-          .sv-wave  { stroke: rgba(26,185,110,0.14); stroke-width:2; fill:none; }
-          @keyframes lp-dash  { to { stroke-dashoffset:-60; } }
-          @keyframes lp-pulse { 0%,100%{opacity:0.3} 50%{opacity:0.9} }
-          .sv-flow  { stroke-dasharray:10 8; animation:lp-dash 3s linear infinite; }
-          .sv-live  { animation:lp-pulse 3.5s ease-in-out infinite; }
-        </style>
-      </defs>
-      <!-- Grid -->
-      <line x1="0" y1="200" x2="900" y2="200" class="sv-dim"/>
-      <line x1="0" y1="400" x2="900" y2="400" class="sv-dim"/>
-      <line x1="0" y1="600" x2="900" y2="600" class="sv-dim"/>
-      <line x1="0" y1="800" x2="900" y2="800" class="sv-dim"/>
-      <line x1="200" y1="0" x2="200" y2="900" class="sv-dim"/>
-      <line x1="500" y1="0" x2="500" y2="900" class="sv-dim"/>
-      <line x1="780" y1="0" x2="780" y2="900" class="sv-dim"/>
-      <!-- Transmission lines -->
-      <line x1="780" y1="0" x2="780" y2="700" class="sv-wire sv-flow" style="animation-duration:4s"/>
-      <line x1="820" y1="0" x2="820" y2="700" class="sv-wire sv-flow" style="animation-duration:5s;animation-delay:.6s"/>
-      <line x1="760" y1="80"  x2="840" y2="80"  class="sv-wire"/>
-      <line x1="763" y1="200" x2="837" y2="200" class="sv-wire"/>
-      <line x1="766" y1="330" x2="834" y2="330" class="sv-wire"/>
-      <circle cx="760" cy="80"  r="4" class="sv-node sv-live"/>
-      <circle cx="840" cy="80"  r="4" class="sv-node sv-live" style="animation-delay:.8s"/>
-      <!-- AC waveform bottom -->
-      <path d="M20 840 C50 840,60 800,90 800 C120 800,130 840,160 840 C190 840,200 800,230 800 C260 800,270 840,300 840 C330 840,340 800,370 800 C400 800,410 840,440 840 C470 840,480 800,510 800 C540 800,550 840,580 840" class="sv-wave sv-flow" style="animation-duration:3.5s"/>
-      <!-- Smart meter -->
-      <rect x="50" y="680" width="80" height="120" rx="5" stroke="rgba(26,185,110,0.25)" stroke-width="1.5" fill="rgba(26,185,110,0.04)"/>
-      <rect x="63" y="693" width="54" height="30" rx="3" stroke="rgba(26,185,110,0.35)" stroke-width="1" fill="rgba(26,185,110,0.07)"/>
-      <line x1="69" y1="703" x2="111" y2="703" stroke="rgba(26,185,110,0.5)" stroke-width="1"/>
-      <line x1="69" y1="710" x2="111" y2="710" stroke="rgba(26,185,110,0.35)" stroke-width="1"/>
-      <circle cx="78"  cy="740" r="5" class="sv-node"/>
-      <circle cx="90"  cy="740" r="5" class="sv-node"/>
-      <circle cx="102" cy="740" r="5" class="sv-node"/>
-      <line x1="78"  y1="740" x2="78"  y2="800" class="sv-wire sv-flow" style="animation-duration:2s"/>
-      <line x1="102" y1="740" x2="102" y2="800" class="sv-wire sv-flow" style="animation-duration:2s;animation-delay:.4s"/>
-      <!-- Lightning bolts -->
-      <polygon points="400,40 384,90 397,90 380,145 415,82 401,82 418,40" class="sv-bolt sv-live" style="animation-delay:.4s"/>
-      <polygon points="700,700 686,745 697,745 682,790 714,738 702,738 716,700" class="sv-bolt sv-live" style="animation-delay:1.6s"/>
-      <!-- Scattered nodes -->
-      <circle cx="300" cy="300" r="3" fill="rgba(255,255,255,0.07)"/>
-      <circle cx="480" cy="480" r="3" fill="rgba(255,255,255,0.07)"/>
-      <line x1="300" y1="300" x2="480" y2="480" class="sv-dim"/>
-    </svg>
-
-    <!-- Glow orbs -->
-    <div class="lp-orb lp-orb-1"></div>
-    <div class="lp-orb lp-orb-2"></div>
-    <div class="lp-orb lp-orb-3"></div>
-
-    <div class="lp-left-content">
-      <!-- Brand top -->
-      <div class="lp-brand-top">
-        <img src="images/synerex_logo_white.png" alt="Synerex" class="lp-brand-logo">
-        <div class="lp-brand-name">{% if brand_name and brand_name != 'Synerex' %}{{ brand_name }}{% else %}ECBS Operating System™{% endif %}</div>
-      </div>
-
-      <!-- Hero -->
-      <div class="lp-hero">
-        <div class="lp-hero-eyebrow">Electrical Infrastructure Intelligence Platform</div>
-        <h1>Intelligence That Optimizes Every Amp.</h1>
-        <p>The ECBS Operating System™ delivers network-wide visibility, intelligence, and optimization for electrical infrastructure.</p>
-      </div>
-
-      <!-- Feature list -->
-      <div class="lp-features">
-        <div class="lp-feat">
-          <div class="lp-feat-icon green">⚡</div>
-          <div class="lp-feat-text">
-            <strong>Current Balance Intelligence™</strong>
-            <span>Understand how current is utilized across your entire electrical network.</span>
-          </div>
-        </div>
-        <div class="lp-feat">
-          <div class="lp-feat-icon blue">⚙</div>
-          <div class="lp-feat-text">
-            <strong>Capacity Intelligence™</strong>
-            <span>Identify available and recovered capacity to optimize performance and defer capital.</span>
-          </div>
-        </div>
-        <div class="lp-feat">
-          <div class="lp-feat-icon purple">◈</div>
-          <div class="lp-feat-text">
-            <strong>Digital Twin Intelligence™</strong>
-            <span>Interactive model of your electrical infrastructure for better decisions.</span>
-          </div>
-        </div>
-        <div class="lp-feat">
-          <div class="lp-feat-icon amber">$</div>
-          <div class="lp-feat-text">
-            <strong>Savings Intelligence™</strong>
-            <span>Quantify operational and financial value with real-time EM&amp;V accuracy.</span>
-          </div>
-        </div>
-        <div class="lp-feat">
-          <div class="lp-feat-icon teal">⬡</div>
-          <div class="lp-feat-text">
-            <strong>Deployment Intelligence™</strong>
-            <span>Manage deployments, commissioning, and All Checks Clear™ certification.</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Trust / security -->
-      <div class="lp-trust">
-        <div class="lp-trust-label">Trusted by industry leaders</div>
-        <div class="lp-trust-badges">
-          <div class="lp-badge"><div class="lp-badge-dot"></div> Enterprise Grade Security</div>
-          <div class="lp-badge"><div class="lp-badge-dot"></div> SOC 2 Type II Compliant</div>
-          <div class="lp-badge"><div class="lp-badge-dot"></div> ISO 27001 Aligned</div>
-        </div>
-        <div class="lp-industries">
-          <span class="lp-ind-tag">Healthcare</span>
-          <span class="lp-ind-tag">Data Centers</span>
-          <span class="lp-ind-tag">Manufacturing</span>
-          <span class="lp-ind-tag">Commercial Real Estate</span>
-          <span class="lp-ind-tag">Hospitality</span>
-        </div>
-      </div>
-    </div>
+    <img class="lp-left-img" src="images/ecbs-login-panel.png" alt="ECBS Operating System">
   </div>
 
-  <!-- ══════════════════ RIGHT PANEL ══════════════════ -->
+  <!-- RIGHT: sign-in form -->
   <div class="lp-right">
     <div class="lp-form-wrap">
 
@@ -624,6 +209,8 @@ $(function() {
       <div class="lp-oem-block">
         <img src="{{ oem_logo_url }}" alt="Logo" class="lp-oem-logo">
       </div>
+      {% else %}
+      <img src="images/synerex_logo_white.png" alt="Synerex" class="lp-sys-logo">
       {% endif %}
 
       <div class="lp-form-header">
@@ -662,7 +249,6 @@ $(function() {
 
       <div class="lp-sso-row">
         <a class="lp-btn-sso" href="#" onclick="return false;" title="Microsoft SSO — contact your administrator to configure">
-          <!-- Microsoft logo -->
           <svg viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
             <rect x="1"  y="1"  width="9" height="9" fill="#f25022"/>
             <rect x="11" y="1"  width="9" height="9" fill="#7fba00"/>
@@ -672,7 +258,6 @@ $(function() {
           Microsoft
         </a>
         <a class="lp-btn-sso" href="#" onclick="return false;" title="Google SSO — contact your administrator to configure">
-          <!-- Google logo -->
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
