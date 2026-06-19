@@ -179,18 +179,33 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Savings trend chart ───────────────────────────────────────────────────────
+  // Last 7 days cumulative savings: each day = sum of that day's actual savings rows
   get monthlySavings(): { month: string; value: number }[] {
-    if (!this.trendsData.length) return [];
-    const months: { [key: string]: number } = {};
-    const labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const days: { label: string; daily: number }[] = [];
+    const now = Date.now();
+    const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    for (let i = 6; i >= 0; i--) {
+      const t = new Date(now - i * 86400000);
+      days.push({ label: dayLabels[t.getDay()], daily: 0 });
+    }
+    const cutoff = now - 7 * 86400000;
     for (const row of this.trendsData) {
       if (!row.annual_savings || row.annual_savings <= 0) continue;
-      const d = new Date(row.bucket_ts);
-      const key = labels[d.getMonth()] + ' ' + d.getFullYear();
-      if (!months[key]) months[key] = 0;
-      months[key] += (row.annual_savings * 15 / 60 / 24 / 365);
+      const ts = row.bucket_ts;
+      if (ts < cutoff) continue;
+      const age = Math.floor((now - ts) / 86400000);
+      const idx = 6 - age;
+      if (idx >= 0 && idx < 7) {
+        // convert annual_savings rate ($/yr) * interval (15min) to dollars saved that interval
+        days[idx].daily += row.annual_savings * 15 / 60 / 24 / 365;
+      }
     }
-    return Object.keys(months).map(key => ({ month: key, value: Math.round(months[key]) }));
+    // Build cumulative series starting from $0
+    let running = 0;
+    return days.map(d => {
+      running += d.daily;
+      return { month: d.label, value: Math.round(running) };
+    });
   }
 
   trendPolyline(items: { month: string; value: number }[], w: number, h: number): string {
@@ -199,7 +214,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     const pts = items.map((item, i) => {
       const x = (i / (items.length - 1 || 1)) * w;
       const y = h - (item.value / maxV) * (h - 10);
-      return `${x},${y}`;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
     });
     return pts.join(' ');
   }
