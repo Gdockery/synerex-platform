@@ -30,6 +30,10 @@ import {CompanySettingsComponent} from "./company/company-settings.component";
 import {OemListComponent} from "./oem/list-oem.component";
 import {ApiHelpers} from "../shared/helpers/apiHelpers.service";
 import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
+import {ApiRequestService} from "../api/api-request.service";
+import {DigitalTwinEditorComponent} from "./digital-twin-editor/digital-twin-editor.component";
+import {AuditLogComponent} from "./audit-log/audit-log.component";
+import {DataExportComponent} from "./data-export/data-export.component";
 
 @NgModule({
   imports: [
@@ -60,6 +64,9 @@ import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
     ManageSubscriptionComponent,
     CompanySettingsComponent,
     OemListComponent,
+    DigitalTwinEditorComponent,
+    AuditLogComponent,
+    DataExportComponent,
   ],
   exports: [AdminComponent],
   providers: [
@@ -70,6 +77,7 @@ import {TimeHelpers} from "../shared/helpers/timeHelpers.service";
     DeviceService,
     ApiHelpers,
     TimeHelpers,
+    ApiRequestService,
   ]
 })
 export class AdminModule { }

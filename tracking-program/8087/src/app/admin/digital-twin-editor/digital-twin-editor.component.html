@@ -1,0 +1,149 @@
+<!-- Digital Twin Editor — Admin Section -->
+<div class="dte-root">
+
+  <!-- Top bar -->
+  <div class="dte-topbar">
+    <div class="dte-topbar-left">
+      <span class="fa fa-share-alt dte-icon"></span>
+      <div>
+        <div class="dte-title">Digital Twin Editor</div>
+        <div class="dte-subtitle">{{ projectName || 'No project selected' }} &nbsp;&middot;&nbsp; One-Line Diagram</div>
+      </div>
+    </div>
+    <div class="dte-topbar-tabs">
+      <button *ngFor="let tab of tabs" class="dte-tab"
+        [class.active]="activeTab === tab.toLowerCase()"
+        (click)="activeTab = tab.toLowerCase()">{{ tab }}</button>
+    </div>
+    <div class="dte-topbar-right">
+      <div class="dte-model-status">
+        <span class="dte-status-dot" [class.valid]="isValid()"></span>
+        <span>{{ isValid() ? 'Model Valid' : 'Model Incomplete' }}</span>
+      </div>
+      <button class="dte-btn dte-btn-outline"><span class="fa fa-undo"></span> Undo</button>
+      <button class="dte-btn dte-btn-outline"><span class="fa fa-repeat"></span> Redo</button>
+      <button class="dte-btn dte-btn-outline"><span class="fa fa-expand"></span> Fit View</button>
+      <button class="dte-btn dte-btn-primary"><span class="fa fa-save"></span> Save</button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="dte-body">
+
+    <!-- Left tool palette -->
+    <div class="dte-toolpane">
+      <div class="dte-tool-section">TOOLS</div>
+      <button *ngFor="let t of tools" class="dte-tool"
+        [class.active]="activeTool===t.id" (click)="selectTool(t.id)"
+        [title]="t.label">
+        <span class="fa {{ t.icon }}"></span>
+        <span>{{ t.label }}</span>
+      </button>
+      <div class="dte-tool-section" style="margin-top:12px;">ANNOTATE</div>
+      <button class="dte-tool" (click)="selectTool('text')" [class.active]="activeTool==='text'" title="Text">
+        <span class="fa fa-font"></span> <span>Text</span>
+      </button>
+      <button class="dte-tool" (click)="selectTool('draw')" [class.active]="activeTool==='draw'" title="Drawing">
+        <span class="fa fa-pencil"></span> <span>Drawing</span>
+      </button>
+    </div>
+
+    <!-- Center canvas -->
+    <div class="dte-canvas">
+      <div class="dte-canvas-header">
+        <span class="dte-canvas-label">ONE-LINE DIAGRAM</span>
+        <span class="dte-canvas-badge">{{ twinNodes.length }} assets</span>
+      </div>
+
+      <div *ngIf="loading" class="dte-loading">
+        <span class="fa fa-spinner fa-spin"></span> Loading digital twin...
+      </div>
+
+      <div *ngIf="!loading && !projectId" class="dte-empty">
+        <span class="fa fa-industry dte-empty-icon"></span>
+        <div class="dte-empty-title">No Project Selected</div>
+        <div class="dte-empty-sub">Select a project from the portal to edit its digital twin.</div>
+      </div>
+
+      <svg *ngIf="!loading && projectId" class="dte-svg" viewBox="0 0 800 560">
+        <defs>
+          <pattern id="dte-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2a3a" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="800" height="560" fill="url(#dte-grid)"/>
+
+        <ng-container *ngIf="twinNodes.length === 0">
+          <rect x="280" y="200" width="240" height="100" rx="8" fill="#0a1526" stroke="#1a2a3a" stroke-dasharray="6,4"/>
+          <text x="400" y="238" text-anchor="middle" fill="#546e7a" font-size="12" font-family="monospace">No assets configured</text>
+          <text x="400" y="258" text-anchor="middle" fill="#546e7a" font-size="10" font-family="monospace">Use tools on the left to build the one-line</text>
+        </ng-container>
+
+        <ng-container *ngIf="twinNodes.length > 0">
+          <ellipse cx="400" cy="55" rx="90" ry="28" fill="#0a1e35" stroke="#29b6f6" stroke-width="1.5"/>
+          <text x="400" y="50" text-anchor="middle" fill="#29b6f6" font-size="10" font-family="monospace" font-weight="bold">UTILITY FEED</text>
+          <text x="400" y="64" text-anchor="middle" fill="#29b6f6" font-size="9" font-family="monospace">Primary (13.8 kV)</text>
+          <line x1="400" y1="83" x2="400" y2="120" stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+          <rect x="335" y="120" width="130" height="70" rx="6" fill="#071525" stroke="#00e676" stroke-width="1.5"/>
+          <text x="400" y="148" text-anchor="middle" fill="#00e676" font-size="10" font-family="monospace" font-weight="bold">MAIN TRANSFORMER</text>
+          <text x="400" y="164" text-anchor="middle" fill="#00e676" font-size="9" font-family="monospace">
+            {{ transformer?.kva_rating ? transformer.kva_rating + ' kVA' : '— kVA' }}
+          </text>
+          <text x="400" y="180" text-anchor="middle" fill="#546e7a" font-size="9" font-family="monospace">
+            {{ transformer?.label || transformer?.name || 'TX-Main' }}
+          </text>
+          <line x1="400" y1="190" x2="400" y2="225" stroke="#00e676" stroke-width="1.5"/>
+          <rect x="180" y="225" width="440" height="6" rx="2" fill="#ffd740"/>
+        </ng-container>
+      </svg>
+    </div>
+
+    <!-- Right properties panel -->
+    <div class="dte-propspane">
+      <div class="dte-props-header">PROPERTIES</div>
+
+      <ng-container *ngIf="selectedNode; else noSelection">
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Asset Type</div>
+          <div class="dte-prop-val">{{ selectedNode.asset_type || selectedNode.type || '—' }}</div>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Label</div>
+          <input class="dte-prop-input" [value]="selectedNode.label || selectedNode.name || ''" placeholder="Label"/>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Rated kVA</div>
+          <input class="dte-prop-input" type="number"
+            [value]="selectedNode.rated_kva || selectedNode.kva_rating || ''" placeholder="kVA"/>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Current Load</div>
+          <div class="dte-prop-val">{{ selectedNode.used_kva || '—' }} kVA</div>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Asset UID</div>
+          <div class="dte-prop-val" style="font-family:monospace;font-size:10px;">{{ selectedNode.id || '—' }}</div>
+        </div>
+        <button class="dte-btn dte-btn-primary" style="margin-top:16px;width:100%;">
+          <span class="fa fa-save"></span> Save Changes
+        </button>
+        <button class="dte-btn dte-btn-outline" style="margin-top:6px;width:100%;color:#ef5350;border-color:#ef5350;">
+          <span class="fa fa-trash"></span> Remove Asset
+        </button>
+      </ng-container>
+      <ng-template #noSelection>
+        <div class="dte-props-empty">
+          <span class="fa fa-mouse-pointer"></span>
+          <div>Select an asset to edit its properties</div>
+        </div>
+      </ng-template>
+
+      <div class="dte-props-header" style="margin-top:24px;">MODEL SUMMARY</div>
+      <div class="dte-summary-row"><span>Total Assets</span><span>{{ modelSummary.total }}</span></div>
+      <div class="dte-summary-row"><span>Measured</span><span>{{ modelSummary.measured }}</span></div>
+      <div class="dte-summary-row"><span>Spec Verified</span><span>{{ modelSummary.verified }}</span></div>
+    </div>
+
+  </div>
+</div>

@@ -13,7 +13,7 @@
         <div class="ncs-site-id">Status: <strong [style.color]="twinStatus==='Active'?'#00e676':twinStatus==='Draft'?'#ffd740':'#546e7a'">{{ twinStatus }}</strong></div>
       </div>
       <div class="ncs-actions">
-        <a *ngIf="isAdmin" class="btn-ecbs btn-outline" routerLink="/admin/digital-twin-editor">
+        <a *ngIf="isAdmin" class="btn-ecbs btn-outline" routerLink="/synerex-administrator/digital-twin-editor">
           <span class="fa fa-pencil-square-o"></span> Edit One-Line
         </a>
         <button class="btn-ecbs btn-green" (click)="runSimulation()" [disabled]="!selectedLibraryAsset">
@@ -73,7 +73,7 @@
       <div class="ncs-diagram-header">
         <span class="ncs-diagram-title"><span class="fa fa-share-alt"></span> DIGITAL TWIN VIEW &mdash; {{ projectName }}</span>
         <div class="ncs-diagram-controls">
-          <a *ngIf="isAdmin" class="btn-ecbs btn-outline btn-sm" routerLink="/admin/digital-twin-editor">
+          <a *ngIf="isAdmin" class="btn-ecbs btn-outline btn-sm" routerLink="/synerex-administrator/digital-twin-editor">
             <span class="fa fa-pencil-square-o"></span> Edit One-Line
           </a>
           <select class="ncs-select ncs-select-sm">
@@ -280,7 +280,7 @@
         <div class="ncs-kv-row"><span>Transformer</span><span>{{ transformer ? (transformer.rated_kva | number:'1.0-0') + ' kVA' : '—' }}</span></div>
         <div class="ncs-kv-row"><span>Scanned Nodes</span><span>{{ twinNodes.length }}</span></div>
         <div class="ncs-kv-row"><span>Sub-Assets</span><span [style.color]="hasSubAssets ? '#00e676' : '#ffd740'">{{ hasSubAssets ? panelNodes.length : 'None' }}</span></div>
-        <a class="btn-ecbs btn-outline" style="width:100%;margin-top:8px;text-align:center;" routerLink="/admin/digital-twin-editor">
+        <a class="btn-ecbs btn-outline" style="width:100%;margin-top:8px;text-align:center;" routerLink="/synerex-administrator/digital-twin-editor">
           <span class="fa fa-pencil-square-o"></span> Open Digital Twin Editor
         </a>
       </div>

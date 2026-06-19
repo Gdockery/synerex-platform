@@ -203,6 +203,14 @@
             <span class="fa fa-chevron-right"></span>
           </a>
         </div>
+        <div class="ecbs-section-title" style="margin-top:16px;">Engineering</div>
+        <div class="settings-link-list">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/digital-twin-editor']">
+            <span class="fa fa-share-alt"></span>
+            <div><strong>Digital Twin Editor</strong><p>Build and edit the site one-line diagram</p></div>
+            <span class="fa fa-chevron-right"></span>
+          </a>
+        </div>
         <div class="ecbs-section-title" style="margin-top:16px;">Branding</div>
         <div class="settings-link-list">
           <a class="settings-link" [routerLink]="['/synerex-administrator/branding']">
@@ -220,12 +228,12 @@
             <div><strong>Advanced Options</strong><p>Database, integrations, API keys</p></div>
             <span class="fa fa-chevron-right"></span>
           </a>
-          <a class="settings-link" href="#">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/audit-log']">
             <span class="fa fa-history"></span>
             <div><strong>Audit Log</strong><p>Full system audit trail — every action logged</p></div>
             <span class="fa fa-chevron-right"></span>
           </a>
-          <a class="settings-link" href="#">
+          <a class="settings-link" [routerLink]="['/synerex-administrator/data-export']">
             <span class="fa fa-download"></span>
             <div><strong>Data Export</strong><p>Export all raw meter and analytics data</p></div>
             <span class="fa fa-chevron-right"></span>

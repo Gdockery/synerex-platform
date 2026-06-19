@@ -15,6 +15,9 @@ import {CreateUserComponent} from "./user/create-user.component";
 import {EditUserComponent} from "./user/edit-user.component";
 import {CompanySettingsComponent} from "./company/company-settings.component";
 import {OemListComponent} from "./oem/list-oem.component";
+import {DigitalTwinEditorComponent} from "./digital-twin-editor/digital-twin-editor.component";
+import {AuditLogComponent} from "./audit-log/audit-log.component";
+import {DataExportComponent} from "./data-export/data-export.component";
 
 @NgModule({
   imports: [
@@ -44,6 +47,9 @@ import {OemListComponent} from "./oem/list-oem.component";
         { path: 'branding', component: OemBrandingComponent, data: {title: 'Brand Settings'} },
         { path: 'subscription', component: ManageSubscriptionComponent, data: {title: 'Manage Subscription'} },
         { path: 'company-settings', component: CompanySettingsComponent, data: {title: 'Company Settings'} },
+        { path: 'digital-twin-editor', component: DigitalTwinEditorComponent, data: {title: 'Digital Twin Editor'} },
+        { path: 'audit-log', component: AuditLogComponent, data: {title: 'Audit Log'} },
+        { path: 'data-export', component: DataExportComponent, data: {title: 'Data Export'} },
       ]},
     ])
   ],
