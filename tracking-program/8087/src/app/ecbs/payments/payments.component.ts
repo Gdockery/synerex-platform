@@ -69,7 +69,7 @@ export class PaymentsComponent implements OnInit {
   get methodChartData() {
     const totals: any = { ACH: 0, Wire: 0, Check: 0, Card: 0, Other: 0 };
     this.payments.forEach(p => { if (totals[p.method] !== undefined) { totals[p.method] += p.amount; } else { totals['Other'] += p.amount; } });
-    const total = Object.values(totals).reduce((a: any, b: any) => a + b, 0) as number;
+    const total = Object.keys(totals).reduce((a, k) => a + totals[k], 0) as number;
     let offset = 0;
     const colors = { ACH: '#29b6f6', Wire: '#ce93d8', Check: '#ffd740', Card: '#ff7043', Other: '#546e7a' };
     return Object.keys(totals).map(k => {

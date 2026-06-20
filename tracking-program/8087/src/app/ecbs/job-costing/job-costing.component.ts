@@ -51,7 +51,9 @@ export class JobCostingComponent implements OnInit {
   selectJob(j: any) { this.selectedJob = j; }
 
   saveNewJob() {
-    const j = { ...this.newJob, id: 'JOB-2025-' + String(this.jobs.length + 1).padStart(3, '0'), actual: 0, margin: 0, status: 'Planned' };
+    const num = this.jobs.length + 1;
+    const padded = num < 10 ? '00' + num : num < 100 ? '0' + num : '' + num;
+    const j = { ...this.newJob, id: 'JOB-2025-' + padded, actual: 0, margin: 0, status: 'Planned' };
     this.jobs.unshift(j as any);
     this.showAddModal = false;
     this.newJob = { name: '', customer: '', budget: null, startDate: '', endDate: '', notes: '' };

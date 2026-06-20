@@ -73,7 +73,7 @@
               <span *ngIf="inv.paymentMethod==='—'" style="color:#546e7a;">—</span>
             </td>
             <td [style.color]="inv.daysLeft<0?'#ef5350':inv.daysLeft<7?'#ffd740':'#546e7a'" style="font-size:11px;font-weight:600;">
-              {{ inv.status==='Paid' ? 'Paid' : (inv.daysLeft >= 0 ? inv.daysLeft + 'd left' : Math.abs(inv.daysLeft) + 'd overdue') }}
+              {{ inv.status==='Paid' ? 'Paid' : (inv.daysLeft >= 0 ? inv.daysLeft + 'd left' : (inv.daysLeft * -1) + 'd overdue') }}
             </td>
             <td>
               <button class="tbl-btn" title="View"><span class="fa fa-eye"></span></button>
