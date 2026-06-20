@@ -1,6 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 
+// Real data — Ochsner Ortho Lafayette (project 13)
+// Annual ECBS savings: $4,139 (EM&V verified, Apr on vs May off)
+// Monthly ECBS savings: $4,139 / 12 = $345
+// Project cost: not entered (totalCost = 0)
+// Invoices: none issued yet
+// Payments: none received
+
 @Component({
   selector: 'ecbs-financial-dashboard',
   templateUrl: './financial-dashboard.component.html',
@@ -10,13 +17,15 @@ export class FinancialDashboardComponent implements OnInit {
 
   activeTab = 'overview';
 
+  // Real KPIs — all financial values are $0 until invoices and payments are entered.
+  // ECBS savings is the one real number derived from EM&V analysis.
   kpis = [
-    { label: 'REVENUE (MTD)', value: '$14.2M', change: '+18.6%', dir: 'up', color: '#4caf50', icon: 'fa-dollar' },
-    { label: 'GROSS MARGIN (MTD)', value: '31.4%', change: '+3.8%', dir: 'up', color: '#29b6f6', icon: 'fa-percent' },
-    { label: 'NET MARGIN (MTD)', value: '16.2%', change: '+2.1%', dir: 'up', color: '#ce93d8', icon: 'fa-percent' },
-    { label: 'ECBS SAVINGS (MTD)', value: '$182,440', change: '+22.7%', dir: 'up', color: '#00e676', icon: 'fa-leaf' },
-    { label: 'OUTSTANDING INVOICES', value: '$1.24M', change: '-12.6%', dir: 'down', color: '#ffd740', icon: 'fa-file-text-o' },
-    { label: 'ON-TIME PAYMENTS', value: '92.4%', change: '+6.1%', dir: 'up', color: '#ff7043', icon: 'fa-check-circle' },
+    { label: 'REVENUE (MTD)', value: '$0', change: 'No invoices issued', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
+    { label: 'GROSS MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#29b6f6', icon: 'fa-percent' },
+    { label: 'NET MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#ce93d8', icon: 'fa-percent' },
+    { label: 'ECBS SAVINGS (MTD)', value: '$345', change: 'EM&V verified', dir: 'up', color: '#00e676', icon: 'fa-leaf' },
+    { label: 'OUTSTANDING INVOICES', value: '$0', change: 'No invoices created', dir: 'neutral', color: '#ffd740', icon: 'fa-file-text-o' },
+    { label: 'ON-TIME PAYMENTS', value: '—', change: 'No payments recorded', dir: 'neutral', color: '#ff7043', icon: 'fa-check-circle' },
   ];
 
   quickLinks = [
@@ -28,14 +37,8 @@ export class FinancialDashboardComponent implements OnInit {
     { label: 'Profitability', icon: 'fa-line-chart', route: '/ecbs/profitability', desc: 'Margin and profitability analysis' },
   ];
 
-  recentActivity = [
-    { type: 'payment', label: 'Payment received — Flex Ltd.', amount: '$184,500', date: 'Jun 19', badge: 'Matched', badgeColor: '#00e676' },
-    { type: 'invoice', label: 'Invoice INV-1042 sent — Flex Ltd.', amount: '$184,500', date: 'Jun 18', badge: 'Sent', badgeColor: '#29b6f6' },
-    { type: 'payment', label: 'Payment received — Tesla Inc.', amount: '$162,300', date: 'Jun 17', badge: 'Matched', badgeColor: '#00e676' },
-    { type: 'invoice', label: 'Invoice INV-1041 sent — Tesla Inc.', amount: '$162,300', date: 'Jun 16', badge: 'Sent', badgeColor: '#29b6f6' },
-    { type: 'alert', label: 'Rate schedule GSD-TOU-2025 active', amount: '$0.128/kWh', date: 'Jun 15', badge: 'Active', badgeColor: '#00e676' },
-    { type: 'payment', label: 'Payment partially matched — Bosch', amount: '$86,200', date: 'Jun 15', badge: 'Partial', badgeColor: '#ffd740' },
-  ];
+  // No activity yet — will populate as invoices, payments, and jobs are entered
+  recentActivity: any[] = [];
 
   constructor(private router: Router) {}
   ngOnInit() {}

@@ -23,8 +23,8 @@
         <div class="fin-kpi-label">{{ k.label }}</div>
         <div class="fin-kpi-value">{{ k.value }}</div>
         <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'" [class.neutral]="k.dir==='neutral'">
-          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
-          {{ k.change }} vs Last Month
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'" *ngIf="k.dir!=='neutral'"></span>
+          {{ k.change }}
         </div>
       </div>
     </div>
@@ -147,7 +147,8 @@
           <th style="color:#546e7a;font-size:9px;padding:0 0 6px;border-bottom:1px solid #1a2a3a;"></th>
         </tr></thead>
         <tbody>
-          <tr *ngFor="let t of touPeriods" style="border-bottom:1px solid #0f1d2e;">
+          <tr *ngIf="touPeriods.length === 0"><td colspan="3" style="text-align:center;padding:16px;color:#546e7a;font-size:12px;">TOU schedule not configured — add rate periods or upload utility tariff sheet.</td></tr>
+            <tr *ngFor="let t of touPeriods" style="border-bottom:1px solid #0f1d2e;">
             <td style="padding:7px 0;" [style.color]="t.color">{{ t.period }}</td>
             <td style="color:#8899a6;">{{ t.start }}</td>
             <td style="color:#8899a6;">{{ t.end }}</td>

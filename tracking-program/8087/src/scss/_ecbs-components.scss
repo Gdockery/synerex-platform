@@ -1351,6 +1351,7 @@
 .fin-kpi-change { font-size: 10px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
 .fin-kpi-change.up { color: #00e676; }
 .fin-kpi-change.down { color: #ef5350; }
+.fin-kpi-change.neutral { color: #546e7a; font-style: italic; }
 
 .fin-tabs {
   display: flex;

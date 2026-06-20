@@ -24,8 +24,8 @@
         <div class="fin-kpi-label">{{ k.label }}</div>
         <div class="fin-kpi-value">{{ k.value }}</div>
         <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
-          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
-          {{ k.change }} vs Last Month
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'" *ngIf="k.dir!=='neutral'"></span>
+          {{ k.change }}
         </div>
       </div>
     </div>

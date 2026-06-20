@@ -20,7 +20,7 @@
         <div class="fin-kpi-label">{{ k.label }}</div>
         <div class="fin-kpi-value">{{ k.value }}</div>
         <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
-          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'" *ngIf="k.dir!=='neutral'"></span>
           {{ k.change }} vs Baseline
         </div>
       </div>
@@ -253,7 +253,7 @@
         <div class="cap-rec-row" style="border-top:1px solid #1a2a3a;padding-top:10px;margin-top:4px;">
           <span class="fa fa-trophy" style="color:#ffd740;"></span>
           <span>ROI on Capacity Recovery</span>
-          <span class="cap-rec-val" style="color:#00e676;font-size:16px;font-weight:700;">{{ capacityRecovery.roiOnCapacityRecovery }}x</span>
+          <span class="cap-rec-val" style="color:#00e676;font-size:16px;font-weight:700;">{{ capacityRecovery.roiOnCapacityRecovery === 0 ? "—" : capacityRecovery.roiOnCapacityRecovery + "x" }}</span>
         </div>
         <a class="pay-chart-link" href="#">View Capacity Intelligence &rarr;</a>
       </div>

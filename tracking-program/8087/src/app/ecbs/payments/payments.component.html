@@ -23,8 +23,8 @@
         <div class="fin-kpi-label">{{ k.label }}</div>
         <div class="fin-kpi-value">{{ k.value }}</div>
         <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
-          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
-          {{ k.change }} vs Last Month
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'" *ngIf="k.dir!=='neutral'"></span>
+          {{ k.change }}
         </div>
       </div>
     </div>
@@ -57,6 +57,9 @@
           </tr>
         </thead>
         <tbody>
+          <tr *ngIf="filteredPayments.length === 0">
+            <td colspan="8" style="text-align:center;padding:40px;color:#546e7a;font-size:13px;">No payments recorded yet — use <strong style="color:#29b6f6;">Record Payment</strong> to add one.</td>
+          </tr>
           <tr *ngFor="let p of filteredPayments" (click)="selectPayment(p)" [class.selected]="selectedPayment?.id===p.id">
             <td class="mono">{{ p.id }}</td>
             <td>{{ p.customer }}</td>
@@ -116,7 +119,8 @@
         <svg width="120" height="120" viewBox="0 0 120 120">
           <path *ngFor="let seg of methodChartData" [attr.d]="describeArc(seg.pct, seg.offset)" [attr.fill]="seg.color" opacity="0.9"/>
           <circle cx="60" cy="60" r="32" fill="#070d18"/>
-          <text x="60" y="56" text-anchor="middle" fill="#e8edf5" font-size="12" font-weight="bold">$4.12M</text>
+          <text x="60" y="52" text-anchor="middle" fill="#e8edf5" font-size="11" font-weight="bold">{{ totalPaymentsAmount === 0 ? "No Data" : "$" + (totalPaymentsAmount / 1000 | number:"1.0-0") + "K" }}</text>
+          <text x="60" y="66" text-anchor="middle" fill="#546e7a" font-size="9">Total</text>
           <text x="60" y="70" text-anchor="middle" fill="#546e7a" font-size="9">Total</text>
         </svg>
         <div class="pay-donut-legend">
@@ -192,6 +196,7 @@
           <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Days Left</th>
         </tr></thead>
         <tbody>
+          <tr *ngIf="upcomingPayments.length === 0"><td colspan="3" style="text-align:center;padding:16px;color:#546e7a;font-size:12px;">No upcoming payments</td></tr>
           <tr *ngFor="let u of upcomingPayments" style="border-bottom:1px solid #0f1d2e;">
             <td style="padding:7px 0;color:#e8edf5;">{{ u.customer }}</td>
             <td style="color:#8899a6;">{{ u.due }}</td>

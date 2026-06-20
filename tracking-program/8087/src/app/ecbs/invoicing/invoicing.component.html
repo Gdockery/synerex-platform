@@ -22,8 +22,8 @@
         <div class="fin-kpi-label">{{ k.label }}</div>
         <div class="fin-kpi-value">{{ k.value }}</div>
         <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
-          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
-          {{ k.change }} vs Last Month
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'" *ngIf="k.dir!=='neutral'"></span>
+          {{ k.change }}
         </div>
       </div>
     </div>
@@ -56,6 +56,9 @@
           </tr>
         </thead>
         <tbody>
+          <tr *ngIf="filteredInvoices.length === 0">
+            <td colspan="8" style="text-align:center;padding:40px;color:#546e7a;font-size:13px;">No invoices created yet — use <strong style="color:#29b6f6;">Create Invoice</strong> to add the first one.</td>
+          </tr>
           <tr *ngFor="let inv of filteredInvoices" (click)="selectInvoice(inv)" [class.selected]="selectedInvoice?.id===inv.id">
             <td class="mono">{{ inv.id }}</td>
             <td>{{ inv.customer }}</td>
@@ -85,7 +88,7 @@
       <div class="fin-table-footer">Showing {{ filteredInvoices.length }} of {{ invoices.length }} invoices</div>
     </div>
 
-    <div class="fin-detail-panel" *ngIf="selectedInvoice">
+    <div class="fin-detail-panel" *ngIf="selectedInvoice && invoices.length > 0">
       <div class="fin-detail-header">
         <div class="fin-detail-id">{{ selectedInvoice.id }}</div>
         <span class="fin-status-badge" [style.color]="statusColor(selectedInvoice.status)" [style.border-color]="statusColor(selectedInvoice.status)">
