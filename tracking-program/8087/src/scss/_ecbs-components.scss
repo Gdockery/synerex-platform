@@ -1317,6 +1317,7 @@
 
 .fin-page { /* inherits .ecbs-page */ }
 
+// ── KPI row (Financial Dashboard) ────────────────────────────────────────────
 .fin-kpi-row {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -1328,10 +1329,12 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  background: #0a1526;
-  border: 1px solid #1a2a3a;
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
   border-radius: 8px;
   padding: 14px;
+  transition: border-color 0.15s, transform 0.15s;
+  &:hover { border-color: rgba(0,230,118,0.3); transform: translateY(-1px); }
 }
 
 .fin-kpi-icon {
@@ -1346,13 +1349,62 @@
 }
 
 .fin-kpi-body { flex: 1; min-width: 0; }
-.fin-kpi-label { font-size: 9px; color: #546e7a; letter-spacing: 0.06em; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fin-kpi-value { font-size: 18px; font-weight: 700; color: #e8edf5; }
+.fin-kpi-label { font-size: 9px; color: $ecbs-text-secondary; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fin-kpi-value { font-size: 18px; font-weight: 700; color: $ecbs-text-primary; }
 .fin-kpi-change { font-size: 10px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
-.fin-kpi-change.up { color: #00e676; }
-.fin-kpi-change.down { color: #ef5350; }
-.fin-kpi-change.neutral { color: #546e7a; font-style: italic; }
+.fin-kpi-change.up { color: $ecbs-green; }
+.fin-kpi-change.down { color: $ecbs-critical; }
+.fin-kpi-change.neutral { color: $ecbs-text-secondary; font-style: italic; }
 
+// ── Dashboard quick-link cards ────────────────────────────────────────────────
+.fin-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: $ecbs-text-secondary;
+  margin-bottom: 12px;
+}
+
+.fin-links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fin-link-card {
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+  &:hover { border-color: $ecbs-green; background: $ecbs-hover; }
+}
+.fin-link-icon { font-size: 20px; color: $ecbs-green; margin-bottom: 8px; }
+.fin-link-label { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; margin-bottom: 4px; }
+.fin-link-desc { font-size: 11px; color: $ecbs-text-secondary; }
+.fin-link-arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: $ecbs-text-secondary; font-size: 12px; }
+.fin-link-card:hover .fin-link-arrow { color: $ecbs-green; }
+
+// ── Recent activity rows ──────────────────────────────────────────────────────
+.fin-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid $ecbs-card-border;
+  &:last-child { border-bottom: none; }
+}
+.fin-act-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.fin-act-body { flex: 1; }
+.fin-act-label { font-size: 12px; color: $ecbs-text-primary; }
+.fin-act-date { font-size: 10px; color: $ecbs-text-secondary; margin-top: 2px; }
+.fin-act-amount { font-size: 12px; color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
 .fin-tabs {
   display: flex;
   gap: 4px;
@@ -1363,15 +1415,16 @@
   padding: 6px 14px;
   font-size: 11px;
   background: none;
-  border: 1px solid #1a2a3a;
-  color: #546e7a;
+  border: 1px solid $ecbs-card-border;
+  color: $ecbs-text-secondary;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover { color: #e8edf5; border-color: #2a3a4a; }
-  &.active { background: rgba(0,230,118,0.1); color: #00e676; border-color: #00e676; }
+  &:hover { color: $ecbs-text-primary; border-color: rgba(0,230,118,0.25); }
+  &.active { background: rgba(0,230,118,0.1); color: $ecbs-green; border-color: $ecbs-green; }
 }
 
+// ── Split layout ──────────────────────────────────────────────────────────────
 .fin-split-layout {
   display: grid;
   grid-template-columns: 1fr 260px;
@@ -1380,38 +1433,41 @@
   margin-bottom: 16px;
 }
 
-.fin-table-panel { overflow-x: auto; background: #0a1526; border: 1px solid #1a2a3a; border-radius: 8px; }
+// ── Table panel ───────────────────────────────────────────────────────────────
+.fin-table-panel { overflow-x: auto; background: $ecbs-card-bg; border: 1px solid $ecbs-card-border; border-radius: 8px; }
 
 .fin-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
   th {
-    background: #080f1e;
-    color: #546e7a;
+    background: rgba(7,13,24,0.6);
+    color: $ecbs-text-secondary;
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.08em;
     padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #1a2a3a;
+    border-bottom: 1px solid $ecbs-card-border;
     white-space: nowrap;
   }
   td {
     padding: 10px 12px;
-    border-bottom: 1px solid #0f1d2e;
-    color: #8899a6;
+    border-bottom: 1px solid rgba(30,45,69,0.4);
+    color: $ecbs-text-secondary;
     vertical-align: middle;
   }
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: #0d1e33; cursor: pointer; }
-  tr.selected td { background: rgba(0,230,118,0.05); }
-  td.mono { font-family: monospace; color: #e8edf5; font-size: 11px; }
-  td.num { color: #e8edf5; font-weight: 600; text-align: right; }
+  tr:hover td { background: $ecbs-hover; cursor: pointer; }
+  tr.selected td { background: rgba(0,230,118,0.05); border-left: 2px solid $ecbs-green; }
+  td.mono { font-family: monospace; color: $ecbs-text-primary; font-size: 11px; }
+  td.num  { color: $ecbs-text-primary; font-weight: 600; text-align: right; }
+  td.date-cell { font-size: 10px; color: $ecbs-text-secondary; white-space: nowrap; }
 }
 
-.fin-table-footer { font-size: 11px; color: #546e7a; padding: 10px 12px; border-top: 1px solid #1a2a3a; }
+.fin-table-footer { font-size: 11px; color: $ecbs-text-secondary; padding: 10px 12px; border-top: 1px solid $ecbs-card-border; }
 
+// ── Status badge ──────────────────────────────────────────────────────────────
 .fin-status-badge {
   font-size: 9px;
   padding: 2px 8px;
@@ -1421,65 +1477,63 @@
   display: inline-block;
 }
 
+// ── Detail panel (right sidebar) ──────────────────────────────────────────────
 .fin-detail-panel {
-  background: #0a1526;
-  border: 1px solid #1a2a3a;
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
   border-radius: 8px;
   padding: 16px;
   position: sticky;
   top: 0;
 }
 .fin-detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.fin-detail-id { font-family: monospace; font-size: 11px; color: #546e7a; }
-.fin-detail-name { font-size: 13px; font-weight: 600; color: #e8edf5; margin-bottom: 12px; line-height: 1.4; }
+.fin-detail-id { font-family: monospace; font-size: 11px; color: $ecbs-text-secondary; }
+.fin-detail-name { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; margin-bottom: 12px; line-height: 1.4; }
 .fin-detail-section {
   font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
-  color: #546e7a; padding-bottom: 6px;
-  border-bottom: 1px solid #1a2a3a; margin-bottom: 8px;
+  color: $ecbs-text-secondary; padding-bottom: 6px;
+  border-bottom: 1px solid $ecbs-card-border; margin-bottom: 8px;
+  text-transform: uppercase;
 }
 .fin-detail-row {
   display: flex; justify-content: space-between;
   font-size: 11px; padding: 5px 0;
-  border-bottom: 1px solid #0f1d2e; color: #8899a6;
-  span:last-child { color: #e8edf5; }
-  .green { color: #00e676; }
+  border-bottom: 1px solid rgba(30,45,69,0.4); color: $ecbs-text-secondary;
+  span:last-child { color: $ecbs-text-primary; }
+  .green { color: $ecbs-green; }
 }
 
-.fin-section-title {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: 0.1em; color: #546e7a; margin-bottom: 12px;
-}
-
-/* Modal */
+// ── Modal ─────────────────────────────────────────────────────────────────────
 .fin-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
   display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 .fin-modal {
-  background: #0a1526; border: 1px solid #1a2a3a; border-radius: 10px;
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border; border-radius: 10px;
   width: 500px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
 }
 .fin-modal-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 20px; border-bottom: 1px solid #1a2a3a;
-  font-size: 14px; font-weight: 700; color: #e8edf5;
+  padding: 16px 20px; border-bottom: 1px solid $ecbs-card-border;
+  font-size: 14px; font-weight: 700; color: $ecbs-text-primary;
 }
 .fin-modal-close {
-  background: none; border: none; color: #546e7a; cursor: pointer; font-size: 16px;
-  &:hover { color: #e8edf5; }
+  background: none; border: none; color: $ecbs-text-secondary; cursor: pointer; font-size: 16px;
+  &:hover { color: $ecbs-text-primary; }
 }
 .fin-modal-body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
 .fin-modal-footer {
-  padding: 16px 20px; border-top: 1px solid #1a2a3a;
+  padding: 16px 20px; border-top: 1px solid $ecbs-card-border;
   display: flex; justify-content: flex-end; gap: 10px;
 }
-.fin-label { font-size: 10px; color: #546e7a; letter-spacing: 0.06em; margin-bottom: 3px; }
+.fin-label { font-size: 10px; color: $ecbs-text-secondary; letter-spacing: 0.06em; margin-bottom: 3px; text-transform: uppercase; }
 .fin-input {
   width: 100%; box-sizing: border-box;
-  background: #070d18; border: 1px solid #1a2a3a;
-  color: #e8edf5; font-size: 12px; font-family: inherit;
+  background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  color: $ecbs-text-primary; font-size: 12px; font-family: inherit;
   padding: 7px 10px; border-radius: 4px;
-  &:focus { outline: none; border-color: #00e676; }
+  &:focus { outline: none; border-color: $ecbs-green; }
+  &::placeholder { color: $ecbs-text-label; }
 }
 select.fin-input { cursor: pointer; }
 textarea.fin-input { resize: vertical; min-height: 60px; }
@@ -1488,3 +1542,104 @@ textarea.fin-input { resize: vertical; min-height: 60px; }
   font-size: 9px; padding: 2px 8px;
   border: 1px solid; border-radius: 3px; white-space: nowrap;
 }
+
+// ── Budget bar (job-costing) ──────────────────────────────────────────────────
+.budget-bar-wrap {
+  position: relative;
+  background: $ecbs-card-border;
+  border-radius: 3px;
+  height: 6px;
+  min-width: 80px;
+  overflow: hidden;
+}
+.budget-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.budget-pct { font-size: 9px; color: $ecbs-text-secondary; margin-left: 6px; }
+
+// ── Payments page ─────────────────────────────────────────────────────────────
+.pay-layout { grid-template-columns: 1fr 280px; }
+.pay-notes {
+  font-size: 10px; color: $ecbs-text-secondary;
+  background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 4px; padding: 8px; margin-top: 8px;
+}
+.pay-charts-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+.pay-chart-card { padding: 14px; }
+.pay-chart-title { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: $ecbs-text-secondary; margin-bottom: 12px; text-transform: uppercase; }
+.pay-donut-wrap { display: flex; align-items: center; gap: 12px; }
+.pay-donut-legend { flex: 1; }
+.pay-legend-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: $ecbs-text-secondary; margin-bottom: 4px; }
+.pay-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pay-legend-label { flex: 1; }
+.pay-legend-val { color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+.pay-chart-link { display: block; font-size: 10px; color: $ecbs-green; margin-top: 10px; text-decoration: none; &:hover { text-decoration: underline; } }
+.pay-gauge-wrap { display: flex; align-items: center; gap: 10px; }
+.pay-timeliness-list { flex: 1; }
+.pay-tl-row { display: flex; align-items: center; gap: 6px; font-size: 10px; color: $ecbs-text-secondary; margin-bottom: 5px; }
+.pay-tl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pay-tl-val { margin-left: auto; font-weight: 600; &.green { color: $ecbs-green; } &.yellow { color: $ecbs-warning; } &.red { color: $ecbs-critical; } }
+.pay-trend-legend { display: flex; gap: 16px; font-size: 9px; color: $ecbs-text-secondary; margin-top: 4px; flex-wrap: wrap; }
+
+// ── Rates & Tariffs page ──────────────────────────────────────────────────────
+.rt-layout { grid-template-columns: 1fr 280px; }
+.rt-table-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; margin-bottom: 4px; }
+.rt-section-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: $ecbs-text-secondary; text-transform: uppercase; }
+.rt-filters { display: flex; gap: 8px; }
+.type-badge { font-size: 9px; padding: 2px 7px; border: 1px solid; border-radius: 3px; font-weight: 700; }
+.rt-doc-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(30,45,69,0.4); &:last-child { border-bottom: none; } }
+.rt-bottom-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.rt-bottom-card { padding: 14px; }
+.rt-tou-tabs { display: flex; gap: 6px; margin-top: 4px; }
+.rt-tou-tab {
+  font-size: 10px; padding: 4px 10px; border-radius: 4px;
+  border: 1px solid $ecbs-card-border; background: none; color: $ecbs-text-secondary; cursor: pointer;
+  &.active { background: rgba(0,230,118,0.1); border-color: $ecbs-green; color: $ecbs-green; }
+}
+
+// ── Profitability page ────────────────────────────────────────────────────────
+.prof-top-row { display: grid; grid-template-columns: 1fr 1fr 280px; gap: 12px; margin-bottom: 16px; }
+.prof-card { padding: 14px; }
+.prof-card-title { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: $ecbs-text-secondary; margin-bottom: 6px; text-transform: uppercase; }
+.ecbs-value-card { display: flex; flex-direction: column; }
+.ecbs-value-total { font-size: 24px; font-weight: 800; color: $ecbs-green; }
+.ecbs-value-row { display: grid; grid-template-columns: 80px 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ecbs-value-bar-wrap { height: 6px; background: $ecbs-card-border; border-radius: 3px; overflow: hidden; }
+.ecbs-value-bar { height: 100%; border-radius: 3px; }
+.ecbs-value-label { font-size: 10px; color: $ecbs-text-secondary; }
+.ecbs-value-val { font-size: 11px; color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+.ecbs-value-pct { font-size: 10px; color: $ecbs-text-secondary; width: 32px; text-align: right; }
+.ecbs-value-divider { border-top: 1px solid $ecbs-card-border; margin: 8px 0; }
+.prof-bottom-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.prof-chart-card { padding: 14px; }
+.prof-legend { display: flex; gap: 10px; font-size: 9px; color: $ecbs-text-secondary; flex-wrap: wrap; margin-top: 4px; }
+.prof-bar-dot { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.prof-line-dot { display: inline-block; width: 14px; height: 2px; border-radius: 1px; margin-right: 4px; vertical-align: middle; }
+.prof-donut-wrap { display: flex; align-items: center; gap: 12px; }
+.prof-donut-legend { flex: 1; }
+.mb-bar-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.mb-bar { width: 100%; min-height: 4px; border-radius: 3px 3px 0 0; }
+.mb-label { font-size: 9px; font-weight: 700; color: $ecbs-text-primary; &.green { color: $ecbs-green; } &.red { color: $ecbs-critical; } }
+.mb-sublabel { font-size: 8px; color: $ecbs-text-secondary; text-align: center; }
+.cap-rec-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(30,45,69,0.4); font-size: 11px; color: $ecbs-text-secondary; }
+.cap-rec-row .fa { width: 16px; text-align: center; flex-shrink: 0; }
+.cap-rec-row > span:nth-child(2) { flex: 1; }
+.cap-rec-val { color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+
+// ── Invoicing misc ────────────────────────────────────────────────────────────
+.method-badge { font-size: 9px; padding: 2px 7px; border-radius: 3px; background: rgba(30,45,69,0.8); color: $ecbs-text-secondary; font-weight: 600; }
+.tbl-btn { background: none; border: none; color: $ecbs-text-secondary; cursor: pointer; padding: 4px 6px; font-size: 12px; transition: color 0.15s; &:hover { color: $ecbs-green; } }
+
+// ── Empty tab state ───────────────────────────────────────────────────────────
+.fin-empty-tab {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; padding: 60px;
+  border: 1px solid $ecbs-card-border; border-radius: 8px;
+  background: $ecbs-card-bg; text-align: center;
+}
+.fin-empty-icon { font-size: 44px; color: $ecbs-card-border; }
+.fin-empty-title { font-size: 16px; color: $ecbs-text-secondary; }
+.fin-empty-sub { font-size: 12px; color: $ecbs-text-label; max-width: 400px; }
+
+// ── Shared convenience ────────────────────────────────────────────────────────
+.neutral { color: $ecbs-text-secondary; }
+.green   { color: $ecbs-green; }
+.red     { color: $ecbs-critical; }
