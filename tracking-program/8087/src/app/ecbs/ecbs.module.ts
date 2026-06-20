@@ -17,7 +17,13 @@ import { AlarmsComponent }            from './alarms/alarms.component';
 import { ReportsComponent }           from './reports/reports.component';
 import { DevicesComponent }           from './devices/devices.component';
 import { SettingsComponent }          from './settings/settings.component';
-import { UtilityComponent }           from './utility/utility.component';
+import { UtilityComponent }             from './utility/utility.component';
+import { FinancialDashboardComponent }  from './financial-dashboard/financial-dashboard.component';
+import { JobCostingComponent }          from './job-costing/job-costing.component';
+import { InvoicingComponent }           from './invoicing/invoicing.component';
+import { PaymentsComponent }            from './payments/payments.component';
+import { RatesTariffsComponent }        from './rates-tariffs/rates-tariffs.component';
+import { ProfitabilityComponent }       from './profitability/profitability.component';
 
 @NgModule({
   imports: [
@@ -40,6 +46,12 @@ import { UtilityComponent }           from './utility/utility.component';
     DevicesComponent,
     SettingsComponent,
     UtilityComponent,
+    FinancialDashboardComponent,
+    JobCostingComponent,
+    InvoicingComponent,
+    PaymentsComponent,
+    RatesTariffsComponent,
+    ProfitabilityComponent,
   ],
 })
 export class EcbsModule {}

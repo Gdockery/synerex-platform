@@ -1,0 +1,163 @@
+<div class="ecbs-page fin-page">
+
+  <!-- Header -->
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Job Costing</h1>
+      <p>Track project costs, margins, and budget performance across all jobs.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-primary" (click)="showAddModal=true">
+        <span class="fa fa-plus"></span> Add Job
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="fin-kpi-row">
+    <div class="fin-kpi-card" *ngFor="let k of kpis">
+      <div class="fin-kpi-icon" [style.background]="k.color + '22'">
+        <span class="fa fa-briefcase" [style.color]="k.color"></span>
+      </div>
+      <div class="fin-kpi-body">
+        <div class="fin-kpi-label">{{ k.label }}</div>
+        <div class="fin-kpi-value">{{ k.value }}</div>
+        <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          {{ k.change }} vs Last Month
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab filters -->
+  <div class="fin-tabs">
+    <button class="fin-tab" [class.active]="activeTab==='all'" (click)="activeTab='all'">All Jobs</button>
+    <button class="fin-tab" [class.active]="activeTab==='in-progress'" (click)="activeTab='in-progress'">In Progress</button>
+    <button class="fin-tab" [class.active]="activeTab==='completed'" (click)="activeTab='completed'">Completed</button>
+    <button class="fin-tab" [class.active]="activeTab==='over-budget'" (click)="activeTab='over-budget'">Over Budget</button>
+    <button class="fin-tab" [class.active]="activeTab==='planned'" (click)="activeTab='planned'">Planned</button>
+  </div>
+
+  <!-- Table + Detail Panel -->
+  <div class="fin-split-layout">
+
+    <!-- Table -->
+    <div class="fin-table-panel">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Job ID</th>
+            <th>Job Name</th>
+            <th>Customer</th>
+            <th>Budget</th>
+            <th>Actual Cost</th>
+            <th>Margin</th>
+            <th>Budget Used</th>
+            <th>Status</th>
+            <th>Dates</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let j of filteredJobs" (click)="selectJob(j)" [class.selected]="selectedJob?.id===j.id">
+            <td class="mono">{{ j.id }}</td>
+            <td>{{ j.name }}</td>
+            <td>{{ j.customer }}</td>
+            <td class="num">\${{ (j.budget | number) }}</td>
+            <td class="num">{{ j.actual ? '\$' + (j.actual | number) : '—' }}</td>
+            <td class="num" [style.color]="j.margin>=25?'#00e676':j.margin>0?'#ffd740':'#546e7a'">
+              {{ j.margin ? j.margin + '%' : '—' }}
+            </td>
+            <td>
+              <div class="budget-bar-wrap">
+                <div class="budget-bar" [style.width]="budgetPct(j) + '%'"
+                  [style.background]="budgetPct(j)>100?'#ef5350':budgetPct(j)>80?'#ffd740':'#00e676'"></div>
+                <span class="budget-pct">{{ budgetPct(j) }}%</span>
+              </div>
+            </td>
+            <td>
+              <span class="fin-status-badge" [style.color]="statusColor(j.status)" [style.border-color]="statusColor(j.status)">
+                {{ j.status }}
+              </span>
+            </td>
+            <td class="date-cell">{{ j.startDate }} &mdash; {{ j.endDate }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Detail panel -->
+    <div class="fin-detail-panel" *ngIf="selectedJob">
+      <div class="fin-detail-header">
+        <div class="fin-detail-id">{{ selectedJob.id }}</div>
+        <span class="fin-status-badge" [style.color]="statusColor(selectedJob.status)" [style.border-color]="statusColor(selectedJob.status)">
+          {{ selectedJob.status }}
+        </span>
+      </div>
+      <div class="fin-detail-name">{{ selectedJob.name }}</div>
+      <div class="fin-detail-section">JOB DETAILS</div>
+      <div class="fin-detail-row"><span>Customer</span><span>{{ selectedJob.customer }}</span></div>
+      <div class="fin-detail-row"><span>Start Date</span><span>{{ selectedJob.startDate }}</span></div>
+      <div class="fin-detail-row"><span>End Date</span><span>{{ selectedJob.endDate }}</span></div>
+      <div class="fin-detail-section" style="margin-top:16px;">FINANCIALS</div>
+      <div class="fin-detail-row"><span>Budget</span><span class="green">\${{ (selectedJob.budget | number) }}</span></div>
+      <div class="fin-detail-row"><span>Actual Cost</span><span>{{ selectedJob.actual ? '\$' + (selectedJob.actual | number) : '—' }}</span></div>
+      <div class="fin-detail-row"><span>Variance</span>
+        <span [style.color]="selectedJob.actual<=selectedJob.budget?'#00e676':'#ef5350'">
+          {{ selectedJob.actual ? ('\$' + ((selectedJob.budget - selectedJob.actual) | number)) : '—' }}
+        </span>
+      </div>
+      <div class="fin-detail-row"><span>Gross Margin</span>
+        <span [style.color]="selectedJob.margin>=25?'#00e676':'#ffd740'">
+          {{ selectedJob.margin ? selectedJob.margin + '%' : '—' }}
+        </span>
+      </div>
+      <div class="fin-detail-row"><span>Budget Utilization</span><span>{{ budgetPct(selectedJob) }}%</span></div>
+      <div class="budget-bar-wrap" style="margin-top:8px;height:8px;">
+        <div class="budget-bar" [style.width]="budgetPct(selectedJob) + '%'"
+          [style.background]="budgetPct(selectedJob)>100?'#ef5350':budgetPct(selectedJob)>80?'#ffd740':'#00e676'"></div>
+      </div>
+      <div class="fin-detail-section" style="margin-top:16px;">ACTIONS</div>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-edit"></span> Edit Job</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-file-text-o"></span> View Invoice</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;"><span class="fa fa-download"></span> Export PDF</button>
+    </div>
+
+  </div>
+
+  <!-- Add Job Modal -->
+  <div class="fin-modal-overlay" *ngIf="showAddModal" (click)="showAddModal=false">
+    <div class="fin-modal" (click)="$event.stopPropagation()">
+      <div class="fin-modal-header">
+        <span>Add New Job</span>
+        <button class="fin-modal-close" (click)="showAddModal=false"><span class="fa fa-times"></span></button>
+      </div>
+      <div class="fin-modal-body">
+        <label class="fin-label">Job Name</label>
+        <input class="fin-input" [(ngModel)]="newJob.name" placeholder="e.g. Ochsner Phase 2 — ECBS Expansion"/>
+        <label class="fin-label">Customer</label>
+        <input class="fin-input" [(ngModel)]="newJob.customer" placeholder="Customer name"/>
+        <label class="fin-label">Budget ($)</label>
+        <input class="fin-input" type="number" [(ngModel)]="newJob.budget" placeholder="250000"/>
+        <div class="fin-row-2">
+          <div>
+            <label class="fin-label">Start Date</label>
+            <input class="fin-input" type="date" [(ngModel)]="newJob.startDate"/>
+          </div>
+          <div>
+            <label class="fin-label">End Date</label>
+            <input class="fin-input" type="date" [(ngModel)]="newJob.endDate"/>
+          </div>
+        </div>
+        <label class="fin-label">Notes</label>
+        <textarea class="fin-input" [(ngModel)]="newJob.notes" rows="3" placeholder="Optional notes..."></textarea>
+      </div>
+      <div class="fin-modal-footer">
+        <button class="btn-ecbs btn-outline" (click)="showAddModal=false">Cancel</button>
+        <button class="btn-ecbs btn-primary" (click)="saveNewJob()"><span class="fa fa-save"></span> Save Job</button>
+      </div>
+    </div>
+  </div>
+
+</div>

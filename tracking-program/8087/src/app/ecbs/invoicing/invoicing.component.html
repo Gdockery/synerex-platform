@@ -1,0 +1,141 @@
+<div class="ecbs-page fin-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Invoicing</h1>
+      <p>Manage, send, and track invoices across all customers and jobs.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Import Invoices</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-primary" (click)="showCreateModal=true">
+        <span class="fa fa-plus"></span> Create Invoice
+      </button>
+    </div>
+  </div>
+
+  <div class="fin-kpi-row">
+    <div class="fin-kpi-card" *ngFor="let k of kpis">
+      <div class="fin-kpi-icon" [style.background]="k.color + '22'">
+        <span class="fa fa-file-text-o" [style.color]="k.color"></span>
+      </div>
+      <div class="fin-kpi-body">
+        <div class="fin-kpi-label">{{ k.label }}</div>
+        <div class="fin-kpi-value">{{ k.value }}</div>
+        <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          {{ k.change }} vs Last Month
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fin-tabs">
+    <button class="fin-tab" [class.active]="activeTab==='all'" (click)="activeTab='all'">All Invoices</button>
+    <button class="fin-tab" [class.active]="activeTab==='sent'" (click)="activeTab='sent'">Sent</button>
+    <button class="fin-tab" [class.active]="activeTab==='paid'" (click)="activeTab='paid'">Paid</button>
+    <button class="fin-tab" [class.active]="activeTab==='partial'" (click)="activeTab='partial'">Partial</button>
+    <button class="fin-tab" [class.active]="activeTab==='overdue'" (click)="activeTab='overdue'">Overdue</button>
+    <button class="fin-tab" [class.active]="activeTab==='draft'" (click)="activeTab='draft'">Draft</button>
+  </div>
+
+  <div class="fin-split-layout">
+    <div class="fin-table-panel">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Invoice #</th>
+            <th>Customer</th>
+            <th>Job ID</th>
+            <th>Amount</th>
+            <th>Issued</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Method</th>
+            <th>Days</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inv of filteredInvoices" (click)="selectInvoice(inv)" [class.selected]="selectedInvoice?.id===inv.id">
+            <td class="mono">{{ inv.id }}</td>
+            <td>{{ inv.customer }}</td>
+            <td class="mono" style="font-size:10px;">{{ inv.jobId }}</td>
+            <td class="num">${{ (inv.amount | number) }}</td>
+            <td>{{ inv.issued }}</td>
+            <td>{{ inv.due }}</td>
+            <td>
+              <span class="fin-status-badge" [style.color]="statusColor(inv.status)" [style.border-color]="statusColor(inv.status)">
+                {{ inv.status }}
+              </span>
+            </td>
+            <td>
+              <span class="method-badge" *ngIf="inv.paymentMethod!=='—'">{{ inv.paymentMethod }}</span>
+              <span *ngIf="inv.paymentMethod==='—'" style="color:#546e7a;">—</span>
+            </td>
+            <td [style.color]="inv.daysLeft<0?'#ef5350':inv.daysLeft<7?'#ffd740':'#546e7a'" style="font-size:11px;font-weight:600;">
+              {{ inv.status==='Paid' ? 'Paid' : (inv.daysLeft >= 0 ? inv.daysLeft + 'd left' : Math.abs(inv.daysLeft) + 'd overdue') }}
+            </td>
+            <td>
+              <button class="tbl-btn" title="View"><span class="fa fa-eye"></span></button>
+              <button class="tbl-btn" title="Download"><span class="fa fa-download"></span></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="fin-table-footer">Showing {{ filteredInvoices.length }} of {{ invoices.length }} invoices</div>
+    </div>
+
+    <div class="fin-detail-panel" *ngIf="selectedInvoice">
+      <div class="fin-detail-header">
+        <div class="fin-detail-id">{{ selectedInvoice.id }}</div>
+        <span class="fin-status-badge" [style.color]="statusColor(selectedInvoice.status)" [style.border-color]="statusColor(selectedInvoice.status)">
+          {{ selectedInvoice.status }}
+        </span>
+      </div>
+      <div class="fin-detail-name">{{ selectedInvoice.customer }}</div>
+      <div class="fin-detail-section">INVOICE DETAILS</div>
+      <div class="fin-detail-row"><span>Job Reference</span><span class="mono" style="font-size:10px;">{{ selectedInvoice.jobId }}</span></div>
+      <div class="fin-detail-row"><span>Date Issued</span><span>{{ selectedInvoice.issued }}</span></div>
+      <div class="fin-detail-row"><span>Due Date</span><span>{{ selectedInvoice.due }}</span></div>
+      <div class="fin-detail-row"><span>Payment Method</span><span>{{ selectedInvoice.paymentMethod }}</span></div>
+      <div class="fin-detail-section" style="margin-top:16px;">AMOUNT</div>
+      <div class="fin-detail-row">
+        <span>Invoice Total</span>
+        <span class="green" style="font-size:16px;font-weight:700;">${{ (selectedInvoice.amount | number) }}</span>
+      </div>
+      <div class="fin-detail-row"><span>Tax (8.25%)</span><span>${{ (selectedInvoice.amount * 0.0825 | number:'1.0-0') }}</span></div>
+      <div class="fin-detail-row"><span>Grand Total</span><span style="font-weight:700;color:#e8edf5;">${{ (selectedInvoice.amount * 1.0825 | number:'1.0-0') }}</span></div>
+      <div class="fin-detail-section" style="margin-top:16px;">ACTIONS</div>
+      <button class="btn-ecbs btn-primary" style="width:100%;margin-bottom:6px;"><span class="fa fa-paper-plane"></span> Send Invoice</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-edit"></span> Edit</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-download"></span> Download PDF</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;"><span class="fa fa-dollar"></span> Record Payment</button>
+    </div>
+  </div>
+
+  <!-- Create Invoice Modal -->
+  <div class="fin-modal-overlay" *ngIf="showCreateModal" (click)="showCreateModal=false">
+    <div class="fin-modal" (click)="$event.stopPropagation()">
+      <div class="fin-modal-header">
+        <span>Create Invoice</span>
+        <button class="fin-modal-close" (click)="showCreateModal=false"><span class="fa fa-times"></span></button>
+      </div>
+      <div class="fin-modal-body">
+        <label class="fin-label">Customer</label>
+        <input class="fin-input" [(ngModel)]="newInvoice.customer" placeholder="Customer name"/>
+        <label class="fin-label">Job Reference</label>
+        <input class="fin-input" [(ngModel)]="newInvoice.jobId" placeholder="JOB-2025-001"/>
+        <label class="fin-label">Invoice Amount ($)</label>
+        <input class="fin-input" type="number" [(ngModel)]="newInvoice.amount" placeholder="100000"/>
+        <label class="fin-label">Due Date</label>
+        <input class="fin-input" type="date" [(ngModel)]="newInvoice.dueDate"/>
+        <label class="fin-label">Notes</label>
+        <textarea class="fin-input" [(ngModel)]="newInvoice.notes" rows="3" placeholder="Invoice notes..."></textarea>
+      </div>
+      <div class="fin-modal-footer">
+        <button class="btn-ecbs btn-outline" (click)="showCreateModal=false">Cancel</button>
+        <button class="btn-ecbs btn-primary" (click)="saveInvoice()"><span class="fa fa-save"></span> Create</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -235,6 +235,48 @@
 
       </ul>
 
+      <!-- Financial section -->
+      <div class="nav-divider"></div>
+      <span class="nav-section-label">Financial</span>
+      <ul>
+        <li>
+          <a [routerLink]="['/ecbs/financial-dashboard']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-th-large"></span>
+            <span class="text">Financial Dashboard</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/ecbs/job-costing']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-briefcase"></span>
+            <span class="text">Job Costing</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/ecbs/invoicing']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-file-text"></span>
+            <span class="text">Invoicing</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/ecbs/rates-tariffs']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-bolt"></span>
+            <span class="text">Rates &amp; Tariffs</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/ecbs/payments']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-credit-card"></span>
+            <span class="text">Payments</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="['/ecbs/profitability']" [routerLinkActive]="['router-link-active']">
+            <span class="icon fa fa-line-chart"></span>
+            <span class="text">Profitability</span>
+          </a>
+        </li>
+      </ul>
+
       <!-- Legacy tools divider -->
       <div class="nav-divider"></div>
       <span class="nav-section-label">Legacy Tools</span>

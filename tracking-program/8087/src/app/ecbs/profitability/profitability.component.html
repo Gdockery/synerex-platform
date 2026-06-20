@@ -1,0 +1,271 @@
+<div class="ecbs-page fin-page prof-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Profitability</h1>
+      <p>Analyze profitability performance, savings contribution, and value creation across jobs, customers, and sites.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
+      <button class="btn-ecbs btn-outline" (click)="configureViewOpen=!configureViewOpen"><span class="fa fa-cog"></span> Configure View</button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="fin-kpi-row">
+    <div class="fin-kpi-card" *ngFor="let k of kpis">
+      <div class="fin-kpi-icon" [style.background]="k.color + '22'">
+        <span class="fa" [ngClass]="k.icon" [style.color]="k.color"></span>
+      </div>
+      <div class="fin-kpi-body">
+        <div class="fin-kpi-label">{{ k.label }}</div>
+        <div class="fin-kpi-value">{{ k.value }}</div>
+        <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          {{ k.change }} vs Baseline
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="fin-tabs">
+    <button class="fin-tab" [class.active]="activeTab==='executive'" (click)="activeTab='executive'">Executive Summary</button>
+    <button class="fin-tab" [class.active]="activeTab==='customers'" (click)="activeTab='customers'">Customers</button>
+    <button class="fin-tab" [class.active]="activeTab==='sites'" (click)="activeTab='sites'">Sites</button>
+    <button class="fin-tab" [class.active]="activeTab==='products'" (click)="activeTab='products'">Products</button>
+    <button class="fin-tab" [class.active]="activeTab==='forecasting'" (click)="activeTab='forecasting'">Forecasting</button>
+    <button class="fin-tab" [class.active]="activeTab==='capacity-value'" (click)="activeTab='capacity-value'">Capacity Value</button>
+  </div>
+
+  <!-- Executive Summary Tab -->
+  <div *ngIf="activeTab==='executive'">
+
+    <!-- Top Row: Customer Table + Site Table + ECBS Value -->
+    <div class="prof-top-row">
+
+      <!-- Profitability by Customer -->
+      <div class="ecbs-card prof-card">
+        <div class="prof-card-title">PROFITABILITY BY CUSTOMER (MTD)</div>
+        <table class="fin-table" style="margin-top:8px;">
+          <thead><tr>
+            <th>#</th><th>Customer</th><th>Revenue</th><th>Gross Margin</th><th>Net Margin</th><th>ECBS Savings</th><th>Profit Improvement</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let c of customerData">
+              <td style="color:#546e7a;">{{ c.rank }}</td>
+              <td>{{ c.name }}</td>
+              <td class="num">${{ (c.revenue / 1000000).toFixed(2) }}M</td>
+              <td class="num" [style.color]="c.grossMargin>=30?'#00e676':'#ffd740'">{{ c.grossMargin }}%</td>
+              <td class="num" [style.color]="c.netMargin>=15?'#00e676':'#ffd740'">{{ c.netMargin }}%</td>
+              <td class="num" style="color:#00e676;">${{ (c.ecbsSavings | number) }}</td>
+              <td class="num" [style.color]="c.profitImprovement>=20?'#00e676':'#ffd740'">
+                <span *ngIf="c.profitImprovement">{{ c.profitImprovement }}%</span>
+                <span *ngIf="!c.profitImprovement" style="color:#546e7a;">$</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <a class="pay-chart-link" href="#">View Customer Profitability Report &rarr;</a>
+      </div>
+
+      <!-- Profitability by Site -->
+      <div class="ecbs-card prof-card">
+        <div class="prof-card-title">PROFITABILITY BY SITE (MTD)</div>
+        <table class="fin-table" style="margin-top:8px;">
+          <thead><tr>
+            <th>#</th><th>Site</th><th>Revenue</th><th>Net Margin</th><th>ECBS Savings</th><th>Profit Improvement</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let s of siteData">
+              <td style="color:#546e7a;">{{ s.rank }}</td>
+              <td>{{ s.name }}</td>
+              <td class="num">${{ (s.revenue / 1000000).toFixed(2) }}M</td>
+              <td class="num" [style.color]="s.netMargin>=15?'#00e676':'#ffd740'">{{ s.netMargin }}%</td>
+              <td class="num" style="color:#00e676;">${{ (s.ecbsSavings | number) }}</td>
+              <td class="num" [style.color]="s.profitImprovement>=20?'#00e676':'#ffd740'">{{ s.profitImprovement }}%</td>
+            </tr>
+          </tbody>
+        </table>
+        <a class="pay-chart-link" href="#">View Site Profitability Report &rarr;</a>
+      </div>
+
+      <!-- ECBS Value Creation -->
+      <div class="ecbs-card prof-card ecbs-value-card">
+        <div class="prof-card-title">ECBS VALUE CREATION™</div>
+        <div class="ecbs-value-total">${{ (ecbsValue.totalSavings | number) }}</div>
+        <div style="font-size:9px;color:#546e7a;margin-bottom:12px;">Total ECBS Savings (MTD)</div>
+        <div class="ecbs-value-row">
+          <div class="ecbs-value-bar-wrap">
+            <div class="ecbs-value-bar" [style.width]="ecbsValue.jobsPct + '%'" style="background:#29b6f6;"></div>
+          </div>
+          <div class="ecbs-value-label">Allocated to Jobs</div>
+          <div class="ecbs-value-val">${{ (ecbsValue.allocatedJobs | number) }}</div>
+          <div class="ecbs-value-pct">{{ ecbsValue.jobsPct }}%</div>
+        </div>
+        <div class="ecbs-value-row">
+          <div class="ecbs-value-bar-wrap">
+            <div class="ecbs-value-bar" [style.width]="ecbsValue.opexPct + '%'" style="background:#ffd740;"></div>
+          </div>
+          <div class="ecbs-value-label">Operating Expense Savings</div>
+          <div class="ecbs-value-val">${{ (ecbsValue.operatingExpense | number) }}</div>
+          <div class="ecbs-value-pct">{{ ecbsValue.opexPct }}%</div>
+        </div>
+        <div class="ecbs-value-row">
+          <div class="ecbs-value-bar-wrap">
+            <div class="ecbs-value-bar" [style.width]="ecbsValue.dcPct + '%'" style="background:#ce93d8;"></div>
+          </div>
+          <div class="ecbs-value-label">Deferred Capital Value</div>
+          <div class="ecbs-value-val">${{ (ecbsValue.deferredCapital | number) }}</div>
+          <div class="ecbs-value-pct">{{ ecbsValue.dcPct }}%</div>
+        </div>
+        <div class="ecbs-value-divider"></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-top:8px;">
+          <span style="color:#546e7a;">Profit Improvement (MTD)</span>
+          <span style="color:#00e676;font-weight:700;">${{ (ecbsValue.profitImprovement | number) }}</span>
+        </div>
+        <a class="pay-chart-link" href="#">View ECBS Impact Report &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Bottom Row: Trend + Products + Forecast + Cost-to-Serve + Margin Bridge + Capacity Recovery -->
+    <div class="prof-bottom-row">
+
+      <!-- Profitability Trend -->
+      <div class="ecbs-card prof-chart-card">
+        <div class="prof-card-title">PROFITABILITY TREND (MTD)</div>
+        <svg width="100%" height="110" viewBox="0 0 266 110">
+          <line x1="0" y1="100" x2="266" y2="100" stroke="#1a2a3a" stroke-width="1"/>
+          <!-- Revenue bars -->
+          <rect *ngFor="let v of revenueBars; let i=index"
+            [attr.x]="lineX(i) - 14" [attr.y]="barY(v)"
+            width="24" [attr.height]="barH(v)"
+            fill="#00e676" opacity="0.4" rx="2"/>
+          <!-- Gross Margin line -->
+          <polyline
+            [attr.points]="trendDays.map((d,i) => lineX(i)+','+lineY(grossMarginLine[i])).join(' ')"
+            fill="none" stroke="#29b6f6" stroke-width="1.5"/>
+          <!-- Net Margin line -->
+          <polyline
+            [attr.points]="trendDays.map((d,i) => lineX(i)+','+lineY(netMarginLine[i])).join(' ')"
+            fill="none" stroke="#ce93d8" stroke-width="1.5"/>
+          <!-- Labels -->
+          <text *ngFor="let d of trendDays; let i=index" [attr.x]="lineX(i)" y="108" text-anchor="middle" fill="#546e7a" font-size="7">{{ d.split(' ')[1] }}</text>
+        </svg>
+        <div class="prof-legend">
+          <span><span class="prof-bar-dot" style="background:#00e676;"></span> Revenue</span>
+          <span><span class="prof-line-dot" style="background:#29b6f6;"></span> Gross Margin %</span>
+          <span><span class="prof-line-dot" style="background:#ce93d8;"></span> Net Margin %</span>
+        </div>
+        <a class="pay-chart-link" href="#">View Profitability Trend Analysis &rarr;</a>
+      </div>
+
+      <!-- Products Donut -->
+      <div class="ecbs-card prof-chart-card">
+        <div class="prof-card-title">PROFITABILITY BY PRODUCT (MTD)</div>
+        <div class="prof-donut-wrap">
+          <svg width="100" height="100" viewBox="0 0 120 120">
+            <!-- PCB Assembly 36% -->
+            <path d="M 60 60 L 60 10 A 50 50 0 0 1 107 85 Z" fill="#29b6f6" opacity="0.85"/>
+            <!-- Battery Pack 24% -->
+            <path d="M 60 60 L 107 85 A 50 50 0 0 1 35 108 Z" fill="#ce93d8" opacity="0.85"/>
+            <!-- Power Module 19% -->
+            <path d="M 60 60 L 35 108 A 50 50 0 0 1 13 45 Z" fill="#ffd740" opacity="0.85"/>
+            <!-- Medical Device 11% -->
+            <path d="M 60 60 L 13 45 A 50 50 0 0 1 45 12 Z" fill="#ff7043" opacity="0.85"/>
+            <!-- Other 10% -->
+            <path d="M 60 60 L 45 12 A 50 50 0 0 1 60 10 Z" fill="#546e7a" opacity="0.85"/>
+            <circle cx="60" cy="60" r="30" fill="#070d18"/>
+            <text x="60" y="56" text-anchor="middle" fill="#e8edf5" font-size="10" font-weight="bold">$14.20M</text>
+            <text x="60" y="68" text-anchor="middle" fill="#546e7a" font-size="8">Total Revenue</text>
+          </svg>
+          <div class="prof-donut-legend">
+            <div class="pay-legend-row"><span class="pay-legend-dot" style="background:#29b6f6;"></span><span>PCB Assembly</span><span class="pay-legend-val">$5.12M (36%)</span></div>
+            <div class="pay-legend-row"><span class="pay-legend-dot" style="background:#ce93d8;"></span><span>Battery Pack</span><span class="pay-legend-val">$3.40M (24%)</span></div>
+            <div class="pay-legend-row"><span class="pay-legend-dot" style="background:#ffd740;"></span><span>Power Module</span><span class="pay-legend-val">$2.76M (19%)</span></div>
+            <div class="pay-legend-row"><span class="pay-legend-dot" style="background:#ff7043;"></span><span>Medical Device</span><span class="pay-legend-val">$1.54M (11%)</span></div>
+            <div class="pay-legend-row"><span class="pay-legend-dot" style="background:#546e7a;"></span><span>Other</span><span class="pay-legend-val">$1.30M (10%)</span></div>
+          </div>
+        </div>
+        <a class="pay-chart-link" href="#">View Product Profitability Report &rarr;</a>
+      </div>
+
+      <!-- Margin Bridge -->
+      <div class="ecbs-card prof-chart-card">
+        <div class="prof-card-title">MARGIN BRIDGE (MTD)</div>
+        <div style="display:flex;align-items:flex-end;gap:4px;height:80px;margin-top:8px;padding:0 4px;">
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:60px;background:#546e7a;"></div>
+            <div class="mb-label">24.8%</div>
+            <div class="mb-sublabel">Baseline</div>
+          </div>
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:10px;background:#00e676;"></div>
+            <div class="mb-label green">+3.8%</div>
+            <div class="mb-sublabel">Energy</div>
+          </div>
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:8px;background:#00e676;"></div>
+            <div class="mb-label green">+2.4%</div>
+            <div class="mb-sublabel">Operational</div>
+          </div>
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:6px;background:#00e676;"></div>
+            <div class="mb-label green">+2.6%</div>
+            <div class="mb-sublabel">Capacity</div>
+          </div>
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:5px;background:#ef5350;"></div>
+            <div class="mb-label red">-1.2%</div>
+            <div class="mb-sublabel">Other</div>
+          </div>
+          <div class="mb-bar-wrap">
+            <div class="mb-bar" style="height:72px;background:#29b6f6;"></div>
+            <div class="mb-label" style="color:#29b6f6;">16.2%</div>
+            <div class="mb-sublabel">Current</div>
+          </div>
+        </div>
+        <a class="pay-chart-link" href="#">View Margin Bridge Details &rarr;</a>
+      </div>
+
+      <!-- Capacity Recovery Value -->
+      <div class="ecbs-card prof-chart-card">
+        <div class="prof-card-title">CAPACITY RECOVERY VALUE™ (MTD)</div>
+        <div class="cap-rec-row">
+          <span class="fa fa-tachometer" style="color:#00e676;"></span>
+          <span>Capacity Recovered</span>
+          <span class="cap-rec-val">{{ capacityRecovery.recovered }} kVA</span>
+        </div>
+        <div class="cap-rec-row">
+          <span class="fa fa-bank" style="color:#29b6f6;"></span>
+          <span>Deferred Capital Value</span>
+          <span class="cap-rec-val">${{ (capacityRecovery.deferredCapitalValue | number) }}</span>
+        </div>
+        <div class="cap-rec-row">
+          <span class="fa fa-line-chart" style="color:#ffd740;"></span>
+          <span>Annual Avoided Depreciation</span>
+          <span class="cap-rec-val">${{ (capacityRecovery.annualAvoidedDepreciation | number) }}</span>
+        </div>
+        <div class="cap-rec-row">
+          <span class="fa fa-dollar" style="color:#ce93d8;"></span>
+          <span>Impact on Net Profit</span>
+          <span class="cap-rec-val">${{ (capacityRecovery.impactOnNetProfit | number) }}</span>
+        </div>
+        <div class="cap-rec-row" style="border-top:1px solid #1a2a3a;padding-top:10px;margin-top:4px;">
+          <span class="fa fa-trophy" style="color:#ffd740;"></span>
+          <span>ROI on Capacity Recovery</span>
+          <span class="cap-rec-val" style="color:#00e676;font-size:16px;font-weight:700;">{{ capacityRecovery.roiOnCapacityRecovery }}x</span>
+        </div>
+        <a class="pay-chart-link" href="#">View Capacity Intelligence &rarr;</a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Other tabs — placeholder -->
+  <div *ngIf="activeTab!=='executive'" class="fin-empty-tab">
+    <span class="fa fa-bar-chart fin-empty-icon"></span>
+    <div class="fin-empty-title">{{ activeTab | titlecase }} View</div>
+    <div class="fin-empty-sub">Detailed analysis for this view is in development. The Executive Summary contains all key metrics.</div>
+  </div>
+
+</div>

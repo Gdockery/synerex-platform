@@ -1,0 +1,261 @@
+<div class="ecbs-page fin-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Rates &amp; Tariffs</h1>
+      <p>Manage utility rates, tariffs, demand structures, and time-of-use schedules.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Import Rates</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-primary" (click)="showCreateModal=true">
+        <span class="fa fa-plus"></span> Create Rate
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="fin-kpi-row">
+    <div class="fin-kpi-card" *ngFor="let k of kpis">
+      <div class="fin-kpi-icon" [style.background]="k.color + '22'">
+        <span class="fa" [ngClass]="k.icon" [style.color]="k.color"></span>
+      </div>
+      <div class="fin-kpi-body">
+        <div class="fin-kpi-label">{{ k.label }}</div>
+        <div class="fin-kpi-value">{{ k.value }}</div>
+        <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'" [class.neutral]="k.dir==='neutral'">
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          {{ k.change }} vs Last Month
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="fin-tabs">
+    <button class="fin-tab" [class.active]="activeTab==='utility-rates'" (click)="activeTab='utility-rates'">Utility Rates</button>
+    <button class="fin-tab" [class.active]="activeTab==='tariffs'" (click)="activeTab='tariffs'">Tariffs</button>
+    <button class="fin-tab" [class.active]="activeTab==='tou'" (click)="activeTab='tou'">TOU Schedules</button>
+    <button class="fin-tab" [class.active]="activeTab==='demand'" (click)="activeTab='demand'">Demand Structures</button>
+    <button class="fin-tab" [class.active]="activeTab==='adjustments'" (click)="activeTab='adjustments'">Adjustments</button>
+    <button class="fin-tab" [class.active]="activeTab==='history'" (click)="activeTab='history'">Rate History</button>
+  </div>
+
+  <!-- Main Split -->
+  <div class="fin-split-layout rt-layout">
+    <div class="fin-table-panel">
+      <div class="rt-table-header">
+        <span class="rt-section-label">ACTIVE RATE SCHEDULES</span>
+        <div class="rt-filters">
+          <select class="fin-input" style="width:140px;padding:5px 8px;font-size:11px;">
+            <option>All Utilities</option><option>Greenleaf SDG&E</option><option>CFE</option><option>Valley Electric Coop</option>
+          </select>
+          <select class="fin-input" style="width:120px;padding:5px 8px;font-size:11px;">
+            <option>All Sites</option><option>Flex Tijuana</option><option>Flex Mexicali</option>
+          </select>
+          <input class="fin-input" style="width:180px;padding:5px 8px;font-size:11px;" placeholder="Search rate schedules..."/>
+        </div>
+      </div>
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Rate Schedule</th>
+            <th>Utility</th>
+            <th>Site</th>
+            <th>Effective Date</th>
+            <th>Rate Type</th>
+            <th>Blended Rate ($/kWh)</th>
+            <th>Demand Charge</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rateSchedules" (click)="selectRate(r)" [class.selected]="selectedRate?.id===r.id">
+            <td class="mono">{{ r.id }}</td>
+            <td>{{ r.utility }}</td>
+            <td>{{ r.site }}</td>
+            <td>{{ r.effective }}</td>
+            <td>
+              <span class="type-badge" [style.color]="typeColor(r.type)" [style.border-color]="typeColor(r.type)">{{ r.type }}</span>
+            </td>
+            <td class="num">${{ r.blendedRate.toFixed(3) }}</td>
+            <td class="num">${{ r.demandCharge.toFixed(2) }}</td>
+            <td>
+              <span class="fin-status-badge" [style.color]="statusColor(r.status)" [style.border-color]="statusColor(r.status)">{{ r.status }}</span>
+            </td>
+            <td>
+              <button class="tbl-btn" title="View"><span class="fa fa-eye"></span></button>
+              <button class="tbl-btn" title="Edit"><span class="fa fa-pencil"></span></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="fin-table-footer">Showing {{ rateSchedules.length }} of 24 rate schedules</div>
+    </div>
+
+    <!-- Rate Detail Panel -->
+    <div class="fin-detail-panel" *ngIf="selectedRate">
+      <div class="fin-detail-header">
+        <div class="fin-detail-id">{{ selectedRate.id }}</div>
+        <span class="fin-status-badge" [style.color]="statusColor(selectedRate.status)" [style.border-color]="statusColor(selectedRate.status)">{{ selectedRate.status }}</span>
+      </div>
+      <div class="fin-detail-name">{{ selectedRate.utility }} &mdash; {{ selectedRate.site }}</div>
+      <div class="fin-detail-section">RATE SCHEDULE DETAILS</div>
+      <div class="fin-detail-row"><span>Rate Type</span><span class="type-badge" [style.color]="typeColor(selectedRate.type)" [style.border-color]="typeColor(selectedRate.type)">{{ selectedRate.type }}</span></div>
+      <div class="fin-detail-row"><span>Effective Date</span><span>{{ selectedRate.effective }}</span></div>
+      <div class="fin-detail-row"><span>Expiration Date</span><span>{{ selectedRate.expiry }}</span></div>
+      <div class="fin-detail-row"><span>Currency</span><span>{{ selectedRate.currency }}</span></div>
+      <div class="fin-detail-row"><span>Tariff</span><span style="font-size:10px;">{{ selectedRate.tariff || selectedRate.desc }}</span></div>
+      <div class="fin-detail-row"><span>Description</span><span style="font-size:10px;color:#8899a6;">{{ selectedRate.desc }}</span></div>
+      <div class="fin-detail-section" style="margin-top:14px;">RATE COMPONENTS</div>
+      <div class="fin-detail-row"><span>Blended Rate</span><span class="green">${{ selectedRate.blendedRate.toFixed(3) }}/kWh</span></div>
+      <div class="fin-detail-row"><span>On-Peak Rate</span><span>$0.176/kWh</span></div>
+      <div class="fin-detail-row"><span>Off-Peak Rate</span><span>$0.082/kWh</span></div>
+      <div class="fin-detail-row"><span>Demand Charge</span><span>${{ selectedRate.demandCharge.toFixed(2) }}/kW</span></div>
+      <div class="fin-detail-row"><span>PF Penalty Threshold</span><span>90%</span></div>
+      <div class="fin-detail-row"><span>PF Penalty</span><span>$0.012/kVARh</span></div>
+      <div class="fin-detail-section" style="margin-top:14px;">RATE DOCUMENTS</div>
+      <div class="rt-doc-row" *ngFor="let d of rateDocuments">
+        <span class="fa {{ d.icon }}" style="color:#546e7a;font-size:13px;"></span>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#e8edf5;">{{ d.name }}</div>
+          <div style="font-size:9px;color:#546e7a;">{{ d.date }}</div>
+        </div>
+        <button class="tbl-btn"><span class="fa fa-download"></span></button>
+      </div>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-top:12px;"><span class="fa fa-files-o"></span> View All Documents</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-top:6px;"><span class="fa fa-bar-chart"></span> View Rate Comparison</button>
+    </div>
+  </div>
+
+  <!-- Bottom Charts Row -->
+  <div class="rt-bottom-row">
+
+    <!-- TOU Periods -->
+    <div class="ecbs-card rt-bottom-card">
+      <div class="pay-chart-title">TIME-OF-USE PERIODS</div>
+      <div class="rt-tou-tabs">
+        <button class="rt-tou-tab active">Weekday</button>
+        <button class="rt-tou-tab">Weekend</button>
+      </div>
+      <table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:8px;">
+        <thead><tr>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:left;border-bottom:1px solid #1a2a3a;">Period</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;border-bottom:1px solid #1a2a3a;">Start</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;border-bottom:1px solid #1a2a3a;">End</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Rate ($/kWh)</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;border-bottom:1px solid #1a2a3a;"></th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let t of touPeriods" style="border-bottom:1px solid #0f1d2e;">
+            <td style="padding:7px 0;" [style.color]="t.color">{{ t.period }}</td>
+            <td style="color:#8899a6;">{{ t.start }}</td>
+            <td style="color:#8899a6;">{{ t.end }}</td>
+            <td style="text-align:right;font-weight:700;" [style.color]="t.color">${{ t.rate.toFixed(3) }}</td>
+            <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;" [style.background]="t.color"></span></td>
+          </tr>
+        </tbody>
+      </table>
+      <a class="pay-chart-link" href="#">View Full TOU Schedule &rarr;</a>
+    </div>
+
+    <!-- Demand Charge Structure -->
+    <div class="ecbs-card rt-bottom-card">
+      <div class="pay-chart-title">DEMAND CHARGE STRUCTURE</div>
+      <div class="fin-detail-row"><span>Demand Measurement</span><span>15-Minute</span></div>
+      <div class="fin-detail-row"><span>Demand Window</span><span>Monthly</span></div>
+      <div class="fin-detail-row"><span>Billing Determinant</span><span>Max kW</span></div>
+      <div class="fin-detail-row"><span>Coincident Factor</span><span>100%</span></div>
+      <div class="pay-chart-title" style="margin-top:12px;">Demand Charge Tiers ($/kW)</div>
+      <table style="width:100%;font-size:11px;border-collapse:collapse;">
+        <thead><tr>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:left;border-bottom:1px solid #1a2a3a;">Tier</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;border-bottom:1px solid #1a2a3a;">kW Range</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Rate</th>
+        </tr></thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #0f1d2e;"><td style="padding:7px 0;color:#e8edf5;">1</td><td style="color:#8899a6;">0 – 500</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$14.80</td></tr>
+          <tr style="border-bottom:1px solid #0f1d2e;"><td style="padding:7px 0;color:#e8edf5;">2</td><td style="color:#8899a6;">501 – 1,000</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$14.20</td></tr>
+          <tr><td style="padding:7px 0;color:#e8edf5;">3</td><td style="color:#8899a6;">1,001+</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$13.60</td></tr>
+        </tbody>
+      </table>
+      <a class="pay-chart-link" href="#">View Demand Details &rarr;</a>
+    </div>
+
+    <!-- Rate Impact Chart -->
+    <div class="ecbs-card rt-bottom-card">
+      <div class="pay-chart-title">RATE IMPACT (VS PRIOR PERIOD)</div>
+      <div style="font-size:10px;color:#546e7a;margin-bottom:8px;">Total Impact: <span style="color:#ef5350;">-$0.21M (-39.2%)</span></div>
+      <svg width="100%" height="120" viewBox="0 0 240 120">
+        <!-- Zero line -->
+        <line x1="0" y1="70" x2="240" y2="70" stroke="#1a2a3a" stroke-width="1"/>
+        <!-- Positive bars -->
+        <rect x="20" y="30" width="35" height="40" fill="#ffd740" rx="2"/>
+        <text x="37" y="26" text-anchor="middle" fill="#ffd740" font-size="9">$0.72M</text>
+        <rect x="155" y="55" width="35" height="15" fill="#ffd740" rx="2"/>
+        <text x="172" y="51" text-anchor="middle" fill="#ffd740" font-size="9">$0.03M</text>
+        <rect x="195" y="30" width="35" height="40" fill="#ffd740" rx="2"/>
+        <text x="212" y="26" text-anchor="middle" fill="#ffd740" font-size="9">$0.51M</text>
+        <!-- Negative bars -->
+        <rect x="65" y="70" width="35" height="30" fill="#ef5350" rx="2"/>
+        <text x="82" y="115" text-anchor="middle" fill="#ef5350" font-size="9">-$0.18M</text>
+        <rect x="110" y="70" width="35" height="25" fill="#ef5350" rx="2"/>
+        <text x="127" y="110" text-anchor="middle" fill="#ef5350" font-size="9">-$0.06M</text>
+        <!-- X labels -->
+        <text x="37" y="115" text-anchor="middle" fill="#546e7a" font-size="8">Prior</text>
+        <text x="82" y="85" text-anchor="middle" fill="#ef5350" font-size="8">Rate</text>
+        <text x="127" y="102" text-anchor="middle" fill="#ef5350" font-size="8">Usage</text>
+        <text x="172" y="115" text-anchor="middle" fill="#ffd740" font-size="8">PF</text>
+        <text x="212" y="115" text-anchor="middle" fill="#ffd740" font-size="8">Current</text>
+      </svg>
+      <a class="pay-chart-link" href="#">View Impact Analysis &rarr;</a>
+    </div>
+
+  </div>
+
+  <!-- Create Rate Modal -->
+  <div class="fin-modal-overlay" *ngIf="showCreateModal" (click)="showCreateModal=false">
+    <div class="fin-modal" (click)="$event.stopPropagation()">
+      <div class="fin-modal-header">
+        <span>Create Rate Schedule</span>
+        <button class="fin-modal-close" (click)="showCreateModal=false"><span class="fa fa-times"></span></button>
+      </div>
+      <div class="fin-modal-body">
+        <label class="fin-label">Rate Schedule ID</label>
+        <input class="fin-input" [(ngModel)]="newRate.id" placeholder="e.g. MY-RATE-2025"/>
+        <label class="fin-label">Utility</label>
+        <input class="fin-input" [(ngModel)]="newRate.utility" placeholder="Utility company name"/>
+        <label class="fin-label">Site</label>
+        <input class="fin-input" [(ngModel)]="newRate.site" placeholder="Site name"/>
+        <label class="fin-label">Rate Type</label>
+        <select class="fin-input" [(ngModel)]="newRate.type">
+          <option>TOU</option><option>Flat</option><option>Demand</option>
+        </select>
+        <div class="fin-row-2">
+          <div>
+            <label class="fin-label">Blended Rate ($/kWh)</label>
+            <input class="fin-input" type="number" [(ngModel)]="newRate.blendedRate" placeholder="0.128"/>
+          </div>
+          <div>
+            <label class="fin-label">Demand Charge ($/kW)</label>
+            <input class="fin-input" type="number" [(ngModel)]="newRate.demandCharge" placeholder="14.80"/>
+          </div>
+        </div>
+        <div class="fin-row-2">
+          <div>
+            <label class="fin-label">Effective Date</label>
+            <input class="fin-input" type="date" [(ngModel)]="newRate.effective"/>
+          </div>
+          <div>
+            <label class="fin-label">Expiration Date</label>
+            <input class="fin-input" type="date" [(ngModel)]="newRate.expiry"/>
+          </div>
+        </div>
+      </div>
+      <div class="fin-modal-footer">
+        <button class="btn-ecbs btn-outline" (click)="showCreateModal=false">Cancel</button>
+        <button class="btn-ecbs btn-primary" (click)="saveRate()"><span class="fa fa-save"></span> Create Rate</button>
+      </div>
+    </div>
+  </div>
+</div>

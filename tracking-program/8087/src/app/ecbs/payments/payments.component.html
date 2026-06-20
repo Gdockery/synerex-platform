@@ -1,0 +1,236 @@
+<div class="ecbs-page fin-page">
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Payments</h1>
+      <p>Track and manage all payments, reconcile transactions, and maintain cash flow accuracy.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Import Payments</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-primary" (click)="showRecordModal=true">
+        <span class="fa fa-plus"></span> Record Payment
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="fin-kpi-row">
+    <div class="fin-kpi-card" *ngFor="let k of kpis">
+      <div class="fin-kpi-icon" [style.background]="k.color + '22'">
+        <span class="fa" [ngClass]="k.icon" [style.color]="k.color"></span>
+      </div>
+      <div class="fin-kpi-body">
+        <div class="fin-kpi-label">{{ k.label }}</div>
+        <div class="fin-kpi-value">{{ k.value }}</div>
+        <div class="fin-kpi-change" [class.up]="k.dir==='up'" [class.down]="k.dir==='down'">
+          <span class="fa" [class.fa-arrow-up]="k.dir==='up'" [class.fa-arrow-down]="k.dir==='down'"></span>
+          {{ k.change }} vs Last Month
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="fin-tabs">
+    <button class="fin-tab" [class.active]="activeTab==='all'" (click)="activeTab='all'">All Payments</button>
+    <button class="fin-tab" [class.active]="activeTab==='matched'" (click)="activeTab='matched'">Matched</button>
+    <button class="fin-tab" [class.active]="activeTab==='unmatched'" (click)="activeTab='unmatched'">Unmatched</button>
+    <button class="fin-tab" [class.active]="activeTab==='partial'" (click)="activeTab='partial'">Partially Matched</button>
+  </div>
+
+  <!-- Main Split -->
+  <div class="fin-split-layout pay-layout">
+    <!-- Table -->
+    <div class="fin-table-panel">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Payment ID</th>
+            <th>Customer</th>
+            <th>Invoice #</th>
+            <th>Payment Date</th>
+            <th>Method</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Matched</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let p of filteredPayments" (click)="selectPayment(p)" [class.selected]="selectedPayment?.id===p.id">
+            <td class="mono">{{ p.id }}</td>
+            <td>{{ p.customer }}</td>
+            <td class="mono" style="font-size:10px;">{{ p.invoiceId }}</td>
+            <td>{{ p.date }}</td>
+            <td>
+              <span class="method-badge" [style.background]="methodColor(p.method) + '22'" [style.color]="methodColor(p.method)">{{ p.method }}</span>
+            </td>
+            <td class="num">${{ (p.amount | number) }}.00</td>
+            <td>
+              <span class="fin-status-badge" [style.color]="statusColor(p.status)" [style.border-color]="statusColor(p.status)">{{ p.status }}</span>
+            </td>
+            <td class="num" [style.color]="p.matchPct===100?'#00e676':p.matchPct>0?'#ffd740':'#ef5350'">{{ p.matchPct }}%</td>
+            <td>
+              <button class="tbl-btn" title="View"><span class="fa fa-eye"></span></button>
+              <button class="tbl-btn" title="Download"><span class="fa fa-download"></span></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="fin-table-footer">Showing {{ filteredPayments.length }} of 86 payments</div>
+    </div>
+
+    <!-- Detail panel -->
+    <div class="fin-detail-panel pay-detail" *ngIf="selectedPayment">
+      <div class="fin-detail-header">
+        <div class="fin-detail-id">{{ selectedPayment.id }}</div>
+        <span class="fin-status-badge" [style.color]="statusColor(selectedPayment.status)" [style.border-color]="statusColor(selectedPayment.status)">{{ selectedPayment.status }}</span>
+      </div>
+      <div class="fin-detail-section">PAYMENT DETAILS</div>
+      <div class="fin-detail-row"><span>Customer</span><span>{{ selectedPayment.customer }}</span></div>
+      <div class="fin-detail-row"><span>Invoice</span><span class="mono" style="font-size:10px;">{{ selectedPayment.invoiceId }}</span></div>
+      <div class="fin-detail-row"><span>Payment Date</span><span>{{ selectedPayment.date }}</span></div>
+      <div class="fin-detail-row"><span>Payment Method</span><span>{{ selectedPayment.method }}</span></div>
+      <div class="fin-detail-row"><span>Reference #</span><span class="mono" style="font-size:10px;">{{ selectedPayment.ref }}</span></div>
+      <div class="fin-detail-row"><span>Bank</span><span>{{ selectedPayment.bank }}</span></div>
+      <div class="fin-detail-row"><span>Amount</span><span class="green" style="font-size:15px;font-weight:700;">${{ (selectedPayment.amount | number) }}.00</span></div>
+      <div class="fin-detail-section" style="margin-top:12px;">MATCHING</div>
+      <div class="fin-detail-row"><span>Matched Amount</span><span class="green">${{ (selectedPayment.amount * selectedPayment.matchPct / 100 | number:'1.0-0') }}.00</span></div>
+      <div class="fin-detail-row"><span>Unmatched Amount</span><span>${{ (selectedPayment.amount * (1 - selectedPayment.matchPct/100) | number:'1.0-0') }}.00</span></div>
+      <div class="fin-detail-row"><span>Match Percentage</span><span [style.color]="selectedPayment.matchPct===100?'#00e676':selectedPayment.matchPct>0?'#ffd740':'#ef5350'">{{ selectedPayment.matchPct }}%</span></div>
+      <div *ngIf="selectedPayment.notes" class="pay-notes">{{ selectedPayment.notes }}</div>
+      <div class="fin-detail-section" style="margin-top:12px;">ACTIONS</div>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-link"></span> View Payment Matching</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-edit"></span> Edit Payment</button>
+      <button class="btn-ecbs btn-outline" style="width:100%;"><span class="fa fa-download"></span> Download Receipt</button>
+    </div>
+  </div>
+
+  <!-- Bottom Charts Row -->
+  <div class="pay-charts-row">
+
+    <!-- Payments by Method (Donut) -->
+    <div class="ecbs-card pay-chart-card">
+      <div class="pay-chart-title">PAYMENTS BY METHOD (MTD)</div>
+      <div class="pay-donut-wrap">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <path *ngFor="let seg of methodChartData" [attr.d]="describeArc(seg.pct, seg.offset)" [attr.fill]="seg.color" opacity="0.9"/>
+          <circle cx="60" cy="60" r="32" fill="#070d18"/>
+          <text x="60" y="56" text-anchor="middle" fill="#e8edf5" font-size="12" font-weight="bold">$4.12M</text>
+          <text x="60" y="70" text-anchor="middle" fill="#546e7a" font-size="9">Total</text>
+        </svg>
+        <div class="pay-donut-legend">
+          <div class="pay-legend-row" *ngFor="let seg of methodChartData">
+            <span class="pay-legend-dot" [style.background]="seg.color"></span>
+            <span class="pay-legend-label">{{ seg.label }}</span>
+            <span class="pay-legend-val">${{ (seg.amount / 1000000).toFixed(2) }}M ({{ seg.pct }}%)</span>
+          </div>
+        </div>
+      </div>
+      <a class="pay-chart-link" href="#">View Payment Methods Report &rarr;</a>
+    </div>
+
+    <!-- Payment Timeliness (Gauge) -->
+    <div class="ecbs-card pay-chart-card">
+      <div class="pay-chart-title">PAYMENT TIMELINESS</div>
+      <div class="pay-gauge-wrap">
+        <svg width="140" height="80" viewBox="0 0 140 80">
+          <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#1a2a3a" stroke-width="14" stroke-linecap="round"/>
+          <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#00e676" stroke-width="14" stroke-linecap="round"
+            stroke-dasharray="188" stroke-dashoffset="14"/>
+          <text x="70" y="68" text-anchor="middle" fill="#e8edf5" font-size="22" font-weight="bold">92.4%</text>
+        </svg>
+        <div class="pay-timeliness-list">
+          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#00e676;"></span><span>On Time</span><span class="pay-tl-val green">$3.81M (92.4%)</span></div>
+          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ffd740;"></span><span>Late</span><span class="pay-tl-val yellow">$230K (5.6%)</span></div>
+          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ef5350;"></span><span>Overdue</span><span class="pay-tl-val red">$80K (2.0%)</span></div>
+        </div>
+      </div>
+      <div class="pay-gauge-label" style="text-align:center;font-size:11px;color:#546e7a;margin-top:4px;">On-Time Rate</div>
+      <a class="pay-chart-link" href="#">View Timeliness Report &rarr;</a>
+    </div>
+
+    <!-- Payments Trend (Bar Chart) -->
+    <div class="ecbs-card pay-chart-card">
+      <div class="pay-chart-title">PAYMENTS TREND (MTD)</div>
+      <svg width="100%" height="120" viewBox="0 0 280 120">
+        <line x1="0" y1="100" x2="280" y2="100" stroke="#1a2a3a" stroke-width="1"/>
+        <!-- Bars for each day -->
+        <rect x="10" y="60" width="22" height="40" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="42" y="40" width="22" height="60" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="74" y="50" width="22" height="50" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="106" y="30" width="22" height="70" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="138" y="45" width="22" height="55" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="170" y="55" width="22" height="45" fill="#00e676" opacity="0.7" rx="2"/>
+        <rect x="202" y="20" width="22" height="80" fill="#00e676" opacity="0.8" rx="2"/>
+        <!-- Prior period line -->
+        <polyline points="21,75 53,65 85,70 117,55 149,68 181,72 213,50" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <!-- Labels -->
+        <text x="21" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 12</text>
+        <text x="53" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 13</text>
+        <text x="85" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 14</text>
+        <text x="117" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 15</text>
+        <text x="149" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 16</text>
+        <text x="181" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 17</text>
+        <text x="213" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 18</text>
+      </svg>
+      <div class="pay-trend-legend">
+        <span><span class="pay-legend-dot" style="background:#00e676;border-radius:2px;width:12px;height:8px;display:inline-block;"></span> Payments (MTD)</span>
+        <span><span style="display:inline-block;width:20px;height:2px;background:#29b6f6;vertical-align:middle;margin-right:4px;border-top:2px dashed #29b6f6;"></span> Payments (Prior MTD)</span>
+      </div>
+      <a class="pay-chart-link" href="#">View Payments Trend Analysis &rarr;</a>
+    </div>
+
+    <!-- Upcoming Payments -->
+    <div class="ecbs-card pay-chart-card">
+      <div class="pay-chart-title">UPCOMING PAYMENTS</div>
+      <table style="width:100%;font-size:11px;border-collapse:collapse;">
+        <thead><tr>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:left;border-bottom:1px solid #1a2a3a;">Customer</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:left;border-bottom:1px solid #1a2a3a;">Due Date</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Amount</th>
+          <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Days Left</th>
+        </tr></thead>
+        <tbody>
+          <tr *ngFor="let u of upcomingPayments" style="border-bottom:1px solid #0f1d2e;">
+            <td style="padding:7px 0;color:#e8edf5;">{{ u.customer }}</td>
+            <td style="color:#8899a6;">{{ u.due }}</td>
+            <td style="text-align:right;color:#e8edf5;font-weight:600;">${{ (u.amount | number) }}</td>
+            <td style="text-align:right;" [style.color]="u.daysLeft<=5?'#ef5350':u.daysLeft<=10?'#ffd740':'#00e676'">{{ u.daysLeft }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <a class="pay-chart-link" href="#">View Upcoming Payments &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Record Payment Modal -->
+  <div class="fin-modal-overlay" *ngIf="showRecordModal" (click)="showRecordModal=false">
+    <div class="fin-modal" (click)="$event.stopPropagation()">
+      <div class="fin-modal-header">
+        <span>Record Payment</span>
+        <button class="fin-modal-close" (click)="showRecordModal=false"><span class="fa fa-times"></span></button>
+      </div>
+      <div class="fin-modal-body">
+        <label class="fin-label">Customer</label>
+        <input class="fin-input" [(ngModel)]="newPayment.customer" placeholder="Customer name"/>
+        <label class="fin-label">Invoice # (optional)</label>
+        <input class="fin-input" [(ngModel)]="newPayment.invoiceId" placeholder="INV-1042"/>
+        <label class="fin-label">Amount ($)</label>
+        <input class="fin-input" type="number" [(ngModel)]="newPayment.amount" placeholder="100000"/>
+        <label class="fin-label">Payment Method</label>
+        <select class="fin-input" [(ngModel)]="newPayment.method">
+          <option>ACH</option><option>Wire</option><option>Check</option><option>Card</option>
+        </select>
+        <label class="fin-label">Payment Date</label>
+        <input class="fin-input" type="date" [(ngModel)]="newPayment.date"/>
+        <label class="fin-label">Notes</label>
+        <textarea class="fin-input" [(ngModel)]="newPayment.notes" rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+      <div class="fin-modal-footer">
+        <button class="btn-ecbs btn-outline" (click)="showRecordModal=false">Cancel</button>
+        <button class="btn-ecbs btn-primary" (click)="savePayment()"><span class="fa fa-save"></span> Record</button>
+      </div>
+    </div>
+  </div>
+</div>

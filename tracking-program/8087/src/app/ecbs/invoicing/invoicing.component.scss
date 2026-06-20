@@ -1,0 +1,24 @@
+.method-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: #1a2a3a;
+  color: #8899a6;
+  font-weight: 600;
+}
+.tbl-btn {
+  background: none;
+  border: none;
+  color: #546e7a;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 12px;
+  transition: color 0.15s;
+}
+.tbl-btn:hover { color: #00e676; }
+.fin-table-footer {
+  font-size: 11px;
+  color: #546e7a;
+  padding: 10px 12px;
+  border-top: 1px solid #1a2a3a;
+}
