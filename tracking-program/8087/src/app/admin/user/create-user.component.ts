@@ -159,9 +159,8 @@ export class CreateUserComponent implements OnInit {
     this.userRoles = this.userRoles.filter(r => {
       if (myRole === 8) return true;                                              // Platform Admin: all roles
       if (myRole === 9) return r.id !== 8 && r.id !== 9;                         // OEM Admin: all except Platform/OEM Admin
-      if (myRole === 10) return [1, 3, 4, 5, 6, 11, 12, 13].includes(r.id);     // OEM User: no Client Admin (2)
-      // Client Admin (2) and below: client-level roles only
-      return [1, 3, 4, 5, 6, 12, 13].includes(r.id);
+      if (myRole === 10) return [1, 3, 4, 5, 6, 11, 12, 13].indexOf(r.id) !== -1;
+      return [1, 3, 4, 5, 6, 12, 13].indexOf(r.id) !== -1;
     });
 
     this.clients = window['BOOTSTRAP_DATA'].clients;

@@ -137,7 +137,7 @@ import { DeploymentService } from '../deployment.service';
 })
 export class DeploymentDetailComponent implements OnInit {
 
-  @ViewChild('photoInput') photoInput: ElementRef<HTMLInputElement>;
+  @ViewChild('photoInput', { static: false }) photoInput: ElementRef<HTMLInputElement>;
 
   deployment: any = null;
   photos: any[] = [];
