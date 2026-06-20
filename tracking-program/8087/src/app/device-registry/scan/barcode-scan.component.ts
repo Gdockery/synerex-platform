@@ -123,8 +123,8 @@ import { DeviceRegistryService } from '../device-registry.service';
 })
 export class BarcodeScanComponent implements OnInit, OnDestroy {
 
-  @ViewChild('videoEl') videoEl: ElementRef<HTMLVideoElement>;
-  @ViewChild('canvasEl') canvasEl: ElementRef<HTMLCanvasElement>;
+  @ViewChild('videoEl', { static: false }) videoEl: ElementRef<HTMLVideoElement>;
+  @ViewChild('canvasEl', { static: false }) canvasEl: ElementRef<HTMLCanvasElement>;
 
   liveSupported = false;
   cameraActive = false;
