@@ -16,7 +16,7 @@ export class PaymentsComponent implements OnInit {
     { label: 'PAYMENTS COUNT (MTD)', value: '86', change: '+12.3%', dir: 'up', color: '#29b6f6', icon: 'fa-list' },
     { label: 'AVERAGE PAYMENT AMOUNT', value: '$47,930', change: '+9.6%', dir: 'up', color: '#ce93d8', icon: 'fa-bar-chart' },
     { label: 'ON-TIME PAYMENT RATE', value: '92.4%', change: '+6.1%', dir: 'up', color: '#ff7043', icon: 'fa-clock-o' },
-    { label: 'DAYS TO PROCESS', value: '1.8 Days', change: '-0.4', dir: 'up', color: '#ffd740', icon: 'fa-calendar' },
+    { label: 'DAYS TO PROCESS', value: '1.8 Days', change: '-0.4 Days Faster', dir: 'up', color: '#ffd740', icon: 'fa-calendar' },
     { label: 'PAYMENTS OUTSTANDING', value: '$1.24M', change: '-12.6%', dir: 'down', color: '#ef5350', icon: 'fa-exclamation-triangle' },
   ];
 
@@ -65,16 +65,21 @@ export class PaymentsComponent implements OnInit {
     this.newPayment = { customer: '', invoiceId: '', amount: null, method: 'ACH', date: '', notes: '' };
   }
 
-  // Chart helpers
+  // Chart helpers — MTD totals across all 86 payments (not just the 8 shown rows)
+  readonly methodMtdTotals = [
+    { label: 'ACH',   amount: 1920000, color: '#29b6f6' },
+    { label: 'Wire',  amount: 1260000, color: '#ce93d8' },
+    { label: 'Check', amount:  540000, color: '#ffd740' },
+    { label: 'Card',  amount:  210000, color: '#ff7043' },
+    { label: 'Other', amount:  190000, color: '#546e7a' },
+  ];
+
   get methodChartData() {
-    const totals: any = { ACH: 0, Wire: 0, Check: 0, Card: 0, Other: 0 };
-    this.payments.forEach(p => { if (totals[p.method] !== undefined) { totals[p.method] += p.amount; } else { totals['Other'] += p.amount; } });
-    const total = Object.keys(totals).reduce((a, k) => a + totals[k], 0) as number;
+    const total = 4120000;
     let offset = 0;
-    const colors = { ACH: '#29b6f6', Wire: '#ce93d8', Check: '#ffd740', Card: '#ff7043', Other: '#546e7a' };
-    return Object.keys(totals).map(k => {
-      const pct = (totals[k] / total) * 100;
-      const seg = { label: k, amount: totals[k], pct: Math.round(pct), offset, color: colors[k] };
+    return this.methodMtdTotals.map(m => {
+      const pct = (m.amount / total) * 100;
+      const seg = { label: m.label, amount: m.amount, pct: Math.round(pct), offset, color: m.color };
       offset += pct;
       return seg;
     });

@@ -36,7 +36,7 @@ export class ProfitabilityComponent implements OnInit {
     { rank: 3, name: 'Flex Juarez South', revenue: 1980000, netMargin: 16.2, ecbsSavings: 27310, profitImprovement: 20.8 },
     { rank: 4, name: 'Flex Hermosillo', revenue: 1760000, netMargin: 15.1, ecbsSavings: 23540, profitImprovement: 21.1 },
     { rank: 5, name: 'Flex Guadalajara', revenue: 1080000, netMargin: 13.2, ecbsSavings: 13920, profitImprovement: 18.9 },
-    { rank: 6, name: 'Flex Mexicali', revenue: 480000, netMargin: 12.4, ecbsSavings: 5980, profitImprovement: 17.2 },
+    { rank: 6, name: 'Flex Mexicali', revenue: 370000, netMargin: 12.4, ecbsSavings: 5980, profitImprovement: 17.2 },
   ];
 
   ecbsValue = {
