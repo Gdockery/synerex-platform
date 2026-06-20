@@ -36,7 +36,7 @@ export class InvoicingComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
     this.clientName = (p.client && typeof p.client === 'object')

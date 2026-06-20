@@ -26,7 +26,7 @@ export class FinancialDashboardComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
     this.projectName = p.name ? p.name.toString() : '';

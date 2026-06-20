@@ -24,7 +24,7 @@ export class RatesTariffsComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
 
@@ -80,12 +80,12 @@ export class RatesTariffsComponent implements OnInit {
   ];
 
   private _updateRateSchedule() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     if (this.rateSchedules.length) {
       this.rateSchedules[0].blendedRate = this.energyRate;
       this.rateSchedules[0].demandCharge = this.demandRate;
       this.rateSchedules[0].site = p ? p.name : '';
-      this.rateSchedules[0].effective = p && p.startDate ? p.startDate : '—';
+      this.rateSchedules[0].effective = (p as any).startDate ? (p as any).startDate : '—';
     }
     if (!this.selectedRate) { this.selectedRate = this.rateSchedules[0]; }
   }
@@ -118,7 +118,7 @@ export class RatesTariffsComponent implements OnInit {
   selectRate(r: any) { this.selectedRate = r; }
 
   saveRate() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     this.rateSchedules.unshift({
       ...this.newRate,
       site: p ? p.name : '',
