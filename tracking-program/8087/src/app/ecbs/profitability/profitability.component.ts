@@ -170,4 +170,11 @@ export class ProfitabilityComponent implements OnInit {
   barY(v: number): number { return 100 - this.barH(v); }
   lineY(v: number): number { return 100 - Math.round(((v - 10) / 30) * 80); }
   lineX(i: number): number { return 20 + i * 38; }
+
+  grossMarginPoints(): string {
+    return this.trendDays.map((d, i) => this.lineX(i) + ',' + this.lineY(this.grossMarginLine[i])).join(' ');
+  }
+  netMarginPoints(): string {
+    return this.trendDays.map((d, i) => this.lineX(i) + ',' + this.lineY(this.netMarginLine[i])).join(' ');
+  }
 }

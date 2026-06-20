@@ -142,11 +142,11 @@
             fill="#00e676" opacity="0.4" rx="2"/>
           <!-- Gross Margin line -->
           <polyline
-            [attr.points]="trendDays.map((d,i) => lineX(i)+','+lineY(grossMarginLine[i])).join(' ')"
+            [attr.points]="grossMarginPoints()"
             fill="none" stroke="#29b6f6" stroke-width="1.5"/>
           <!-- Net Margin line -->
           <polyline
-            [attr.points]="trendDays.map((d,i) => lineX(i)+','+lineY(netMarginLine[i])).join(' ')"
+            [attr.points]="netMarginPoints()"
             fill="none" stroke="#ce93d8" stroke-width="1.5"/>
           <!-- Labels -->
           <text *ngFor="let d of trendDays; let i=index" [attr.x]="lineX(i)" y="108" text-anchor="middle" fill="#546e7a" font-size="7">{{ d.split(' ')[1] }}</text>
