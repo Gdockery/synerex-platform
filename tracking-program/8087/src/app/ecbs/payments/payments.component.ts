@@ -1,9 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-
-// Real data — Ochsner Ortho Lafayette (project 13)
-// No payments have been received. Payment table is empty.
-// Donut and timeliness charts show "no data" state.
-// Upcoming payments = outstanding invoices (none yet).
+import { ApiRequestService } from '../../api/api-request.service';
+import { CurrentUserService } from '../../shared/user/currentUser.service';
 
 @Component({
   selector: 'ecbs-payments',
@@ -15,24 +12,63 @@ export class PaymentsComponent implements OnInit {
   activeTab = 'all';
   showRecordModal = false;
   selectedPayment: any = null;
+  loading = true;
+  projectId: number;
+  clientName = '';
 
-  // All $0 / 0 — no payments received.
-  kpis = [
-    { label: 'PAYMENTS THIS PERIOD (MTD)', value: '$0', change: 'No payments received', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
-    { label: 'PAYMENTS COUNT (MTD)', value: '0', change: '', dir: 'neutral', color: '#29b6f6', icon: 'fa-list' },
-    { label: 'AVERAGE PAYMENT AMOUNT', value: '—', change: 'No payments yet', dir: 'neutral', color: '#ce93d8', icon: 'fa-bar-chart' },
-    { label: 'ON-TIME PAYMENT RATE', value: '—', change: 'No payments yet', dir: 'neutral', color: '#ff7043', icon: 'fa-clock-o' },
-    { label: 'DAYS TO PROCESS', value: '—', change: '', dir: 'neutral', color: '#ffd740', icon: 'fa-calendar' },
-    { label: 'PAYMENTS OUTSTANDING', value: '$0', change: 'No invoices issued', dir: 'neutral', color: '#ef5350', icon: 'fa-exclamation-triangle' },
-  ];
-
-  // No payments recorded yet.
+  // No payments recorded yet — populated as payments are entered
   payments: any[] = [];
-
-  // No upcoming payments (no invoices issued).
   upcomingPayments: any[] = [];
 
-  newPayment = { customer: 'Ochsner Health System', invoiceId: '', amount: null, method: 'ACH', date: '', notes: '' };
+  newPayment = { customer: '', invoiceId: '', amount: null, method: 'ACH', date: '', notes: '' };
+
+  constructor(
+    private api: ApiRequestService,
+    private userService: CurrentUserService,
+  ) {}
+
+  ngOnInit() {
+    const p = this.userService.user?.selectedProject;
+    if (!p) { this.loading = false; return; }
+    this.projectId = p.id;
+    this.clientName = (p.client && typeof p.client === 'object')
+      ? p.client.name
+      : (p.clientName || p.client || p.name || '');
+    this.newPayment.customer = this.clientName;
+    this.loading = false;
+  }
+
+  // ── KPIs derived from actual payment records ────────────────────────────────
+
+  get totalPaymentsAmount(): number { return this.payments.reduce((s, p) => s + (p.amount || 0), 0); }
+  get onTimeCount(): number { return this.payments.filter(p => p.status === 'Matched').length; }
+  get onTimeRate(): string {
+    if (!this.payments.length) { return '—'; }
+    return ((this.onTimeCount / this.payments.length) * 100).toFixed(1) + '%';
+  }
+  get avgPaymentAmount(): string {
+    if (!this.payments.length) { return '—'; }
+    const avg = this.totalPaymentsAmount / this.payments.length;
+    return '$' + avg.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  private fmt(n: number): string {
+    if (!n) return '$0';
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000)    return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  get kpis() {
+    return [
+      { label: 'PAYMENTS THIS PERIOD (MTD)', value: this.fmt(this.totalPaymentsAmount), change: this.payments.length ? String(this.payments.length) + ' payments' : 'No payments received', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
+      { label: 'PAYMENTS COUNT (MTD)', value: String(this.payments.length), change: '', dir: 'neutral', color: '#29b6f6', icon: 'fa-list' },
+      { label: 'AVERAGE PAYMENT AMOUNT', value: this.avgPaymentAmount, change: '', dir: 'neutral', color: '#ce93d8', icon: 'fa-bar-chart' },
+      { label: 'ON-TIME PAYMENT RATE', value: this.onTimeRate, change: '', dir: this.payments.length ? 'up' : 'neutral', color: '#ff7043', icon: 'fa-clock-o' },
+      { label: 'DAYS TO PROCESS', value: '—', change: '', dir: 'neutral', color: '#ffd740', icon: 'fa-calendar' },
+      { label: 'PAYMENTS OUTSTANDING', value: '$0', change: 'No invoices issued', dir: 'neutral', color: '#ef5350', icon: 'fa-exclamation-triangle' },
+    ];
+  }
 
   get filteredPayments() {
     if (this.activeTab === 'all') { return this.payments; }
@@ -62,32 +98,28 @@ export class PaymentsComponent implements OnInit {
     };
     this.payments.unshift(p as any);
     this.showRecordModal = false;
-    this.newPayment = { customer: 'Ochsner Health System', invoiceId: '', amount: null, method: 'ACH', date: '', notes: '' };
+    this.newPayment = { customer: this.clientName, invoiceId: '', amount: null, method: 'ACH', date: '', notes: '' };
+    this.selectedPayment = this.payments[0];
   }
 
-  // Method chart: derived from actual payments array.
-  // Returns empty array when no payments recorded.
+  // Method breakdown donut — computed from actual payment records
   get methodChartData() {
-    if (this.payments.length === 0) { return []; }
-    const colors = { ACH: '#29b6f6', Wire: '#ce93d8', Check: '#ffd740', Card: '#ff7043', Other: '#546e7a' };
+    if (!this.payments.length) { return []; }
+    const colors: any = { ACH: '#29b6f6', Wire: '#ce93d8', Check: '#ffd740', Card: '#ff7043', Other: '#546e7a' };
     const totals: any = { ACH: 0, Wire: 0, Check: 0, Card: 0, Other: 0 };
     this.payments.forEach(p => {
       if (totals[p.method] !== undefined) { totals[p.method] += p.amount; }
       else { totals['Other'] += p.amount; }
     });
     const total = Object.keys(totals).reduce((a, k) => a + totals[k], 0) as number;
-    if (total === 0) { return []; }
+    if (!total) { return []; }
     let offset = 0;
-    return Object.keys(totals).map(k => {
+    return Object.keys(totals).filter(k => totals[k] > 0).map(k => {
       const pct = (totals[k] / total) * 100;
       const seg = { label: k, amount: totals[k], pct: Math.round(pct), offset, color: colors[k] };
       offset += pct;
       return seg;
     });
-  }
-
-  get totalPaymentsAmount(): number {
-    return this.payments.reduce((s, p) => s + (p.amount || 0), 0);
   }
 
   describeArc(pct: number, offset: number): string {
@@ -100,9 +132,5 @@ export class PaymentsComponent implements OnInit {
     const y2 = cy + r * Math.sin(endAngle * Math.PI / 180);
     const large = pct > 50 ? 1 : 0;
     return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
-  }
-
-  ngOnInit() {
-    this.selectedPayment = this.payments.length > 0 ? this.payments[0] : null;
   }
 }

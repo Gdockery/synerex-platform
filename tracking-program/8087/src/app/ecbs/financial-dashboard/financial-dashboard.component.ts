@@ -1,12 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-
-// Real data — Ochsner Ortho Lafayette (project 13)
-// Annual ECBS savings: $4,139 (EM&V verified, Apr on vs May off)
-// Monthly ECBS savings: $4,139 / 12 = $345
-// Project cost: not entered (totalCost = 0)
-// Invoices: none issued yet
-// Payments: none received
+import { ApiRequestService } from '../../api/api-request.service';
+import { CurrentUserService } from '../../shared/user/currentUser.service';
 
 @Component({
   selector: 'ecbs-financial-dashboard',
@@ -16,17 +11,95 @@ import { Router } from '@angular/router';
 export class FinancialDashboardComponent implements OnInit {
 
   activeTab = 'overview';
+  loading = true;
+  projectId: number;
+  projectName = '';
 
-  // Real KPIs — all financial values are $0 until invoices and payments are entered.
-  // ECBS savings is the one real number derived from EM&V analysis.
-  kpis = [
-    { label: 'REVENUE (MTD)', value: '$0', change: 'No invoices issued', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
-    { label: 'GROSS MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#29b6f6', icon: 'fa-percent' },
-    { label: 'NET MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#ce93d8', icon: 'fa-percent' },
-    { label: 'ECBS SAVINGS (MTD)', value: '$345', change: 'EM&V verified', dir: 'up', color: '#00e676', icon: 'fa-leaf' },
-    { label: 'OUTSTANDING INVOICES', value: '$0', change: 'No invoices created', dir: 'neutral', color: '#ffd740', icon: 'fa-file-text-o' },
-    { label: 'ON-TIME PAYMENTS', value: '—', change: 'No payments recorded', dir: 'neutral', color: '#ff7043', icon: 'fa-check-circle' },
-  ];
+  // Raw API responses — no hardcoded values
+  savingsData: any = null;
+  roiData: any = null;
+
+  constructor(
+    private router: Router,
+    private api: ApiRequestService,
+    private userService: CurrentUserService,
+  ) {}
+
+  ngOnInit() {
+    const p = this.userService.user?.selectedProject;
+    if (!p) { this.loading = false; return; }
+    this.projectId = p.id;
+    this.projectName = p.name ? p.name.toString() : '';
+    this.loadData();
+  }
+
+  loadData() {
+    this.loading = true;
+    this.api.get(`/api/savings/intelligence?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.savingsData = r; this.loading = false; },
+      error: () => { this.loading = false; },
+    });
+    this.api.get(`/api/roi?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.roiData = r?.data || r; },
+      error: () => {},
+    });
+  }
+
+  // ── Computed values from API ────────────────────────────────────────────────
+
+  get annualSavings(): number { return this.savingsData?.annual_savings || 0; }
+  get mtdSavings(): number   { return Math.round(this.annualSavings / 12); }
+  get projectCost(): number  { return this.roiData?.project_cost || 0; }
+  get roi(): number          { return this.roiData?.roi || 0; }
+  get payback(): number      { return this.roiData?.payback || 0; }
+
+  private fmt(n: number, prefix = '$'): string {
+    if (!n) return '—';
+    if (n >= 1000000) return prefix + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000)    return prefix + (n / 1000).toFixed(1) + 'K';
+    return prefix + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  get kpis() {
+    return [
+      {
+        label: 'REVENUE (MTD)',
+        value: '$0',
+        change: 'No invoices paid yet',
+        dir: 'neutral', color: '#4caf50', icon: 'fa-dollar',
+      },
+      {
+        label: 'PROJECT COST',
+        value: this.projectCost ? this.fmt(this.projectCost) : '—',
+        change: this.projectCost ? 'Contract value' : 'Not entered',
+        dir: 'neutral', color: '#29b6f6', icon: 'fa-percent',
+      },
+      {
+        label: 'ROI',
+        value: this.roi ? this.roi.toFixed(1) + '%' : '—',
+        change: this.payback ? 'Payback: ' + this.payback.toFixed(1) + ' yrs' : 'Enter project cost',
+        dir: this.roi > 0 ? 'up' : 'neutral', color: '#ce93d8', icon: 'fa-percent',
+      },
+      {
+        label: 'ECBS SAVINGS (MTD)',
+        value: this.mtdSavings ? this.fmt(this.mtdSavings) : '—',
+        change: this.annualSavings ? this.fmt(this.annualSavings) + '/yr — EM&V verified' : 'Loading…',
+        dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#00e676', icon: 'fa-leaf',
+      },
+      {
+        label: 'OUTSTANDING INVOICES',
+        value: '$0',
+        change: 'No invoices created',
+        dir: 'neutral', color: '#ffd740', icon: 'fa-file-text-o',
+      },
+      {
+        label: 'ON-TIME PAYMENTS',
+        value: '—',
+        change: 'No payments recorded',
+        dir: 'neutral', color: '#ff7043', icon: 'fa-check-circle',
+      },
+    ];
+  }
 
   quickLinks = [
     { label: 'Financial Dashboard', icon: 'fa-th-large', route: '/ecbs/financial-dashboard', desc: 'Overview of all financial metrics' },
@@ -37,11 +110,8 @@ export class FinancialDashboardComponent implements OnInit {
     { label: 'Profitability', icon: 'fa-line-chart', route: '/ecbs/profitability', desc: 'Margin and profitability analysis' },
   ];
 
-  // No activity yet — will populate as invoices, payments, and jobs are entered
+  // Populated as invoices / payments are created in the system
   recentActivity: any[] = [];
-
-  constructor(private router: Router) {}
-  ngOnInit() {}
 
   navigate(route: string) { this.router.navigate([route]); }
 }

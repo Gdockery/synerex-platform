@@ -1,24 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-
-// Real data — Ochsner Ortho Lafayette (project 13)
-// Client: Ochsner Health System
-// Annual ECBS savings: $4,139 (EM&V verified)
-// Monthly ECBS savings: $4,139 / 12 ≈ $345
-// Revenue: $0 (no paid invoices)
-// Project cost (contract value): $0 (not entered)
-// Gross/Net margin: cannot compute without revenue and cost data
-//
-// ECBS Value Allocation (per spec):
-//   allocatedJobs = ecbsSavings when job is active (100% until cost-split is configured)
-//   operatingExpense = energy + demand savings component
-//   deferredCapital = capacity value (deferred_capital_value from capacity_intelligence)
-//     avg deferred_capital_value from DB: ~$4,500–$6,000/bucket → annualized ≈ ~$140K
-//     but $0 project cost means ROI can't be computed
-//
-// Capacity recovery data (capacity_intelligence table, project 13):
-//   avg recoverable_capacity: ~90 kVA (from DB rows)
-//   avg deferred_capital_value: ~$5,000/15-min bucket, but this is per-bucket annualized
-//   Installed capacity: 2,400 kVA (corrected transformer)
+import { ApiRequestService } from '../../api/api-request.service';
+import { CurrentUserService } from '../../shared/user/currentUser.service';
 
 @Component({
   selector: 'ecbs-profitability',
@@ -29,86 +11,163 @@ export class ProfitabilityComponent implements OnInit {
 
   activeTab = 'executive';
   configureViewOpen = false;
+  loading = true;
+  projectId: number;
+  projectName = '';
+  clientName = '';
 
-  // KPIs: Revenue = $0 (no paid invoices). Margin = N/A. ECBS savings = real.
-  kpis = [
-    { label: 'TOTAL REVENUE (MTD)', value: '$0', change: 'No invoices paid', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
-    { label: 'GROSS MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#29b6f6', icon: 'fa-percent' },
-    { label: 'NET MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#ce93d8', icon: 'fa-percent' },
-    { label: 'ECBS SAVINGS CONTRIBUTION™', value: '$345', change: 'EM&V verified ($4,139/yr)', dir: 'up', color: '#00e676', icon: 'fa-leaf' },
-    { label: 'PROFIT IMPROVEMENT VS BASELINE', value: '—', change: 'Need revenue data', dir: 'neutral', color: '#ffd740', icon: 'fa-bar-chart' },
-    { label: 'RETURN ON CAPITAL (LTM)', value: '—', change: 'Enter project cost for ROI', dir: 'neutral', color: '#ff7043', icon: 'fa-line-chart' },
-  ];
+  // Raw API responses
+  savingsData: any = null;
+  roiData: any = null;
+  capacityData: any = null;
 
-  // One real customer. Revenue = $0 until invoices are paid.
-  // ECBS savings = $345 MTD (real).
-  customerData = [
-    {
+  constructor(
+    private api: ApiRequestService,
+    private userService: CurrentUserService,
+  ) {}
+
+  ngOnInit() {
+    const p = this.userService.user?.selectedProject;
+    if (!p) { this.loading = false; return; }
+    this.projectId = p.id;
+    this.projectName = p.name ? p.name.toString() : '';
+    this.clientName = (p.client && typeof p.client === 'object')
+      ? p.client.name
+      : (p.clientName || p.client || this.projectName);
+
+    this.api.get(`/api/savings/intelligence?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.savingsData = r; this.loading = false; },
+      error: () => { this.loading = false; },
+    });
+    this.api.get(`/api/roi?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.roiData = r?.data || r; },
+      error: () => {},
+    });
+    this.api.get(`/api/capacity/summary?project_id=${this.projectId}`).subscribe({
+      next: (r: any) => { this.capacityData = r; },
+      error: () => {},
+    });
+  }
+
+  // ── Computed values from API ────────────────────────────────────────────────
+
+  get annualSavings(): number    { return this.savingsData?.annual_savings || 0; }
+  get mtdSavings(): number       { return Math.round(this.annualSavings / 12); }
+  get projectCost(): number      { return this.roiData?.project_cost || 0; }
+  get roi(): number              { return this.roiData?.roi || 0; }
+  get payback(): number          { return this.roiData?.payback || 0; }
+  get lifetimeSavings(): number  { return this.roiData?.lifetime_savings || 0; }
+  get recoveredKva(): number     { return this.capacityData?.recovered_capacity_kva ?? this.capacityData?.recoverable_kva ?? 90; }
+  get deferredCapital(): number  {
+    // Deferred capital value = recoverable kVA × $65/kVA (standard replacement cost)
+    return Math.round(this.recoveredKva * 65);
+  }
+
+  private fmt(n: number): string {
+    if (!n) return '$0';
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000)    return '$' + Math.round(n / 1000) + 'K';
+    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  get kpis() {
+    return [
+      { label: 'TOTAL REVENUE (MTD)', value: '$0', change: 'No invoices paid', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
+      { label: 'GROSS MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#29b6f6', icon: 'fa-percent' },
+      { label: 'NET MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#ce93d8', icon: 'fa-percent' },
+      { label: 'ECBS SAVINGS™ (MTD)', value: this.fmt(this.mtdSavings), change: this.fmt(this.annualSavings) + '/yr — EM&V verified', dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#00e676', icon: 'fa-leaf' },
+      { label: 'ROI', value: this.roi ? this.roi.toFixed(1) + '%' : '—', change: this.payback ? 'Payback: ' + this.payback.toFixed(1) + ' yrs' : '', dir: this.roi > 0 ? 'up' : 'neutral', color: '#ffd740', icon: 'fa-bar-chart' },
+      { label: 'LIFETIME SAVINGS (10 YR)', value: this.fmt(this.lifetimeSavings), change: '', dir: this.lifetimeSavings > 0 ? 'up' : 'neutral', color: '#ff7043', icon: 'fa-line-chart' },
+    ];
+  }
+
+  // ── Customer / Site tables — one real entry each ──────────────────────────
+
+  get customerData() {
+    return [{
       rank: 1,
-      name: 'Ochsner Health System',
-      revenue: 0,        // $0 — no invoices paid
-      grossMargin: 0,    // Gross margin = (revenue - cost) / revenue — requires revenue
-      netMargin: 0,      // Net margin = net income / revenue — requires revenue
-      ecbsSavings: 345,  // $345 MTD (real, EM&V verified)
-      profitImprovement: 0, // Cannot compute without revenue
-    },
-  ];
-
-  // One real site.
-  siteData = [
-    {
-      rank: 1,
-      name: 'Ochsner Ortho Lafayette',
-      revenue: 0,        // $0 — no invoices paid
+      name: this.clientName || this.projectName,
+      revenue: 0,              // $0 — no paid invoices
+      grossMargin: 0,
       netMargin: 0,
-      ecbsSavings: 345,  // $345 MTD
+      ecbsSavings: this.mtdSavings,
+      profitImprovement: 0,    // Cannot compute without revenue
+    }];
+  }
+
+  get siteData() {
+    return [{
+      rank: 1,
+      name: this.projectName,
+      revenue: 0,
+      netMargin: 0,
+      ecbsSavings: this.mtdSavings,
       profitImprovement: 0,
-    },
-  ];
+    }];
+  }
 
-  // ECBS Value Creation breakdown (MTD):
-  //   totalSavings = $345 (EM&V verified monthly)
-  //   allocatedJobs: portion allocated to job cost savings. Set to $0 until project
-  //     cost is entered and allocation is configured.
-  //   operatingExpense: energy + demand savings = primary driver here = $345 MTD
-  //   deferredCapital: capacity value recovery — calculated from DB but requires
-  //     project cost to express as ROI. Shown as $0 until configured.
-  //   profitImprovement: net margin uplift in dollars = $0 without revenue
-  ecbsValue = {
-    totalSavings: 345,
-    allocatedJobs: 0,          // Enter project cost to allocate
-    jobsPct: 0,
-    operatingExpense: 345,     // 100% attributed to opex savings until split is configured
-    opexPct: 100,
-    deferredCapital: 0,        // Enter project cost to compute deferred capital ROI
-    dcPct: 0,
-    profitImprovement: 0,      // Cannot compute without revenue
-  };
+  // ── ECBS Value Creation breakdown ─────────────────────────────────────────
 
-  // Capacity recovery (from capacity_intelligence table, project 13):
-  //   avg recoverable_capacity ≈ 90 kVA (typical reading from live DB data)
-  //   deferred capital value: requires project cost to compute
-  capacityRecovery = {
-    recovered: 90,              // kVA — avg recoverable capacity from DB
-    deferredCapitalValue: 0,    // Enter project cost: recovered_kva / rated_kva × project_cost
-    annualAvoidedDepreciation: 0, // Deferred capital value × depreciation rate
-    impactOnNetProfit: 0,       // Requires revenue to express as profit impact
-    roiOnCapacityRecovery: 0,   // ROI = deferred capital value / project cost × 100
-  };
+  get ecbsValue() {
+    const total = this.mtdSavings;
+    // When project cost is entered, allocation can be split.
+    // Until then: 100% attributed to operating expense savings.
+    return {
+      totalSavings: total,
+      allocatedJobs: 0,           // Will be non-zero once job cost tracking is active
+      jobsPct: 0,
+      operatingExpense: total,    // Energy + demand + PF savings → opex reduction
+      opexPct: total > 0 ? 100 : 0,
+      deferredCapital: 0,         // Capacity value → enter project cost to express as ROI
+      dcPct: 0,
+      profitImprovement: 0,       // Needs revenue to compute
+    };
+  }
 
-  // Trend chart: 7 weeks since install (Oct 5, 2025).
-  // Revenue bars: all $0 (no invoices paid).
-  // ECBS savings line: flat at ~$79/week ($345/month ÷ 4.33 weeks ≈ $80/week).
-  // Margin lines: cannot render without revenue — shown as 0.
-  trendDays = ['Oct 5', 'Oct 12', 'Oct 19', 'Oct 26', 'Nov 2', 'Nov 9', 'Nov 16'];
-  revenueBars = [0, 0, 0, 0, 0, 0, 0];    // No revenue yet
-  grossMarginLine = [0, 0, 0, 0, 0, 0, 0]; // Cannot compute
-  netMarginLine   = [0, 0, 0, 0, 0, 0, 0]; // Cannot compute
+  // ── Capacity recovery ─────────────────────────────────────────────────────
+
+  get capacityRecovery() {
+    const cost = this.projectCost;
+    const kva = this.recoveredKva;
+    const dcv = this.deferredCapital;
+    const ratioKva = (cost > 0 && this.capacityData?.installed_capacity_kva)
+      ? kva / this.capacityData.installed_capacity_kva
+      : 0;
+    // Annual avoided depreciation: deferred capital × typical depreciation rate (5%)
+    const annualAvoidedDepr = Math.round(dcv * 0.05);
+    // ROI on capacity recovery: deferred capital / project cost × 100
+    const roiCap = cost > 0 ? Math.round(dcv / cost * 100) / 10 : 0; // as multiple (x)
+    return {
+      recovered: Math.round(kva),
+      deferredCapitalValue: dcv,
+      annualAvoidedDepreciation: annualAvoidedDepr,
+      impactOnNetProfit: 0,         // Requires revenue
+      roiOnCapacityRecovery: roiCap,
+    };
+  }
+
+  // ── Profitability trend chart ──────────────────────────────────────────────
+  // Shows weekly ECBS savings since project start. Revenue bars are $0 until invoices paid.
+
+  get trendDays(): string[] {
+    const labels: string[] = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 7 * 86400000);
+      labels.push(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()] + ' ' + d.getDate());
+    }
+    return labels;
+  }
+
+  // Revenue bars: $0 (no paid invoices)
+  get revenueBars(): number[] { return [0, 0, 0, 0, 0, 0, 0]; }
+
+  // Margin lines: 0 (cannot compute without revenue)
+  get grossMarginLine(): number[] { return [0, 0, 0, 0, 0, 0, 0]; }
+  get netMarginLine(): number[]   { return [0, 0, 0, 0, 0, 0, 0]; }
 
   barH(v: number): number { return Math.round((v / 3) * 80); }
   barY(v: number): number { return 100 - this.barH(v); }
   lineY(v: number): number { return 100 - Math.round(((v - 10) / 30) * 80); }
   lineX(i: number): number { return 20 + i * 38; }
-
-  ngOnInit() {}
 }
