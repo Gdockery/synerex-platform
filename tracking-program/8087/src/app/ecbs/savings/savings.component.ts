@@ -193,14 +193,14 @@ export class SavingsComponent implements OnInit {
     const byMonth: Record<string, any> = {};
     for (const row of this.trendsData) {
       const d = new Date(row.bucket_ts);
-      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      const mo = d.getMonth(); const key = `${d.getFullYear()}-${mo < 10 ? '0' + mo : mo}`;
       const label = d.toLocaleDateString('en', { month: 'short', year: '2-digit' });
       if (!byMonth[key]) byMonth[key] = { label, demand: 0, energy: 0, pf: 0, sort: key };
       byMonth[key].demand += (row.demand_savings  || 0) * frac;
       byMonth[key].energy += (row.energy_savings  || 0) * frac;
       byMonth[key].pf     += (row.pf_savings      || 0) * frac;
     }
-    return Object.values(byMonth)
+    return Object.keys(byMonth).map(k => byMonth[k])
       .sort((a, b) => a.sort.localeCompare(b.sort))
       .slice(-12)
       .map(m => ({ ...m, total: m.demand + m.energy + m.pf }));
