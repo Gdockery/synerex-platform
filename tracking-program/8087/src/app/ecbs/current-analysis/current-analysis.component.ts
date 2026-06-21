@@ -15,7 +15,7 @@ export class CurrentAnalysisComponent implements OnInit {
   summary: any    = null;
   timeseries: any[] = [];
   breakdown: any[]  = [];
-  timeRange = '7d';
+  timeRange = '90d'; // default to 90 days so historical data always shows
 
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
