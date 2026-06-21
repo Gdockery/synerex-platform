@@ -1,5 +1,7 @@
-<!-- ECBS OS™ Savings & Financials — Spec SS-11 + Utility Intelligence SS-10 -->
+<!-- Savings Intelligence™ — matches ECBS OS v4 spec layout -->
 <div class="ecbs-page">
+
+  <!-- Header -->
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Savings Intelligence™</h1>
@@ -12,181 +14,422 @@
   </div>
 
   <div *ngIf="loading" class="ecbs-spinner">
-    <span class="fa fa-spinner fa-spin"></span> Loading Savings Intelligence data...
+    <span class="fa fa-spinner fa-spin"></span> Loading Savings Intelligence data…
   </div>
 
   <ng-container *ngIf="!loading">
 
-    <!-- KPI Row — spec SS-11 -->
-    <div class="ecbs-kpi-row">
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
-        <div class="kpi-value">${{ ((intelligence?.annual_savings_est != null ? intelligence?.annual_savings_est : intelligence?.annual_savings) || 0) | number:'1.0-0' }}</div>
-        <div class="kpi-label">Annual Savings Est.</div>
-        <div class="kpi-delta">Verified by EM&amp;V baseline</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-blue">
-        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-        <div class="kpi-value">{{ (intelligence?.recoverable_kva || 0) | number:'1.0-0' }} kVA</div>
-        <div class="kpi-label">Capacity Recovered</div>
-        <div class="kpi-delta neutral">Deferred capital investment</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-purple">
-        <div class="kpi-icon"><span class="fa fa-percent"></span></div>
-        <div class="kpi-value">{{ (roi?.roi || 0) | number:'1.0-0' }}%</div>
-        <div class="kpi-label">Return on Investment</div>
-        <div class="kpi-delta" [class.negative]="(roi?.roi||0)<100">{{ (roi?.roi||0) >= 200 ? 'Excellent' : (roi?.roi||0)>=100 ? 'Good' : 'Developing' }}</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-clock-o"></span></div>
-        <div class="kpi-value">{{ (payback?.payback || 0) | number:'1.1-1' }} yr</div>
-        <div class="kpi-label">Payback Period</div>
-        <div class="kpi-delta" [class.negative]="(payback?.payback||0)>5" [class.neutral]="(payback?.payback||0)>3&&(payback?.payback||0)<=5">
-          Target: &lt; 3.0 Years
+    <!-- KPI Row: 6 cards -->
+    <div class="si-kpi-row">
+
+      <div class="si-kpi-card si-kpi-green">
+        <div class="si-kpi-icon"><span class="fa fa-dollar"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ fmt(annualSavings) }}</div>
+          <div class="si-kpi-label">ANNUAL SAVINGS</div>
+          <div class="si-kpi-delta up" *ngIf="annualCostReductionPct">▲ {{ annualCostReductionPct | number:"1.1-1" }}% vs prior year</div>
+          <div class="si-kpi-delta neutral" *ngIf="!annualCostReductionPct">Verified by EM&V baseline</div>
         </div>
       </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-leaf"></span></div>
-        <div class="kpi-value">{{ co2Tonnes | number:'1.0-0' }}</div>
-        <div class="kpi-label">CO₂ Reduced (T/yr)</div>
-        <div class="kpi-delta">Sustainability value</div>
+
+      <div class="si-kpi-card si-kpi-blue">
+        <div class="si-kpi-icon"><span class="fa fa-magic"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ recoveredKva >= 1000 ? ((recoveredKva/1000) | number:"1.2-2") + " MVA" : (recoveredKva | number:"1.0-0") + " kVA" }}</div>
+          <div class="si-kpi-label">CAPACITY RECOVERED</div>
+          <div class="si-kpi-delta neutral">▲ {{ recoveredKva | number:"1.0-0" }} kVA recovered</div>
+        </div>
       </div>
+
+      <div class="si-kpi-card si-kpi-teal">
+        <div class="si-kpi-icon"><span class="fa fa-bolt"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ energyReductionPct ? (energyReductionPct | number:"1.1-1") + "%" : "—" }}</div>
+          <div class="si-kpi-label">ENERGY REDUCTION</div>
+          <div class="si-kpi-delta up" *ngIf="intelligence?.baseline_kwh_year && intelligence?.current_kwh_year">
+            ▲ {{ (intelligence.baseline_kwh_year - intelligence.current_kwh_year) | number:"1.0-0" }} kWh
+          </div>
+          <div class="si-kpi-delta neutral" *ngIf="!intelligence?.baseline_kwh_year">kWh reduction vs baseline</div>
+        </div>
+      </div>
+
+      <div class="si-kpi-card si-kpi-amber">
+        <div class="si-kpi-icon"><span class="fa fa-tachometer"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ demandReductionPct ? (demandReductionPct | number:"1.1-1") + "%" : "—" }}</div>
+          <div class="si-kpi-label">DEMAND REDUCTION</div>
+          <div class="si-kpi-delta up" *ngIf="intelligence?.kw_reduction">▲ {{ intelligence.kw_reduction | number:"1.0-0" }} kW</div>
+          <div class="si-kpi-delta neutral" *ngIf="!intelligence?.kw_reduction">kW demand charge reduction</div>
+        </div>
+      </div>
+
+      <div class="si-kpi-card si-kpi-purple">
+        <div class="si-kpi-icon"><span class="fa fa-percent"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ roiValue ? (roiValue | number:"1.0-0") + "%" : "—" }}</div>
+          <div class="si-kpi-label">ROI</div>
+          <div class="si-kpi-delta" [class.up]="roiValue>=100" [class.neutral]="roiValue>0&&roiValue<100" [class.negative]="!roiValue">
+            {{ roiValue>=200 ? "Excellent" : roiValue>=100 ? "Good" : roiValue>0 ? "Developing" : "Enter project cost" }}
+          </div>
+        </div>
+      </div>
+
+      <div class="si-kpi-card si-kpi-orange">
+        <div class="si-kpi-icon"><span class="fa fa-clock-o"></span></div>
+        <div class="si-kpi-body">
+          <div class="si-kpi-value">{{ paybackValue ? (paybackValue | number:"1.1-1") + " Years" : "—" }}</div>
+          <div class="si-kpi-label">PAYBACK PERIOD</div>
+          <div class="si-kpi-delta" [class.up]="paybackValue>0&&paybackValue<=3" [class.neutral]="paybackValue>3&&paybackValue<=5" [class.negative]="paybackValue>5">
+            Target: &lt; 3.0 Years
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Two-column main layout -->
-    <div class="ecbs-grid-2">
+    <!-- Row 1: Baseline Table | Waterfall | Cumulative Chart -->
+    <div class="si-row-3" style="margin-bottom:16px;">
 
-      <!-- Left: Baseline vs Current comparison — spec SS-11 -->
-      <div style="display:flex;flex-direction:column;gap:16px;">
+      <!-- Baseline vs Current Performance -->
+      <div class="ecbs-card si-baseline-card">
+        <div class="ecbs-card-title"><span class="fa fa-table"></span> Baseline vs. Current Performance</div>
+        <div *ngIf="!intelligence" class="ecbs-empty" style="padding:40px 16px;">
+          <span class="fa fa-lock" style="font-size:32px;color:#546e7a;display:block;margin-bottom:8px;"></span>
+          <div class="empty-title">No Approved Baseline</div>
+          <p style="font-size:12px;color:#546e7a;">Lock an EM&V baseline to enable savings performance comparison.</p>
+        </div>
+        <table *ngIf="intelligence" class="si-table">
+          <thead>
+            <tr><th>METRIC</th><th>BASELINE</th><th>CURRENT</th><th>IMPROVEMENT</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Energy (kWh/yr)</td>
+              <td>{{ (intelligence.baseline_kwh_year || 0) | number:"1.0-0" }}</td>
+              <td>{{ (intelligence.current_kwh_year  || 0) | number:"1.0-0" }}</td>
+              <td class="si-impr" [class.impr-pos]="energyReductionPct>0">{{ energyReductionPct ? (energyReductionPct>0?"▼ ":"▲ ") + (energyReductionPct | number:"1.1-1") + "%" : "—" }}</td>
+            </tr>
+            <tr>
+              <td>Peak Demand (kW)</td>
+              <td>{{ (intelligence.baseline_avg_kw || 0) | number:"1.0-0" }}</td>
+              <td>{{ (intelligence.current_avg_kw  || 0) | number:"1.0-0" }}</td>
+              <td class="si-impr" [class.impr-pos]="demandReductionPct>0">{{ demandReductionPct ? (demandReductionPct>0?"▼ ":"▲ ") + (demandReductionPct | number:"1.1-1") + "%" : "—" }}</td>
+            </tr>
+            <tr>
+              <td>Power Factor (avg)</td>
+              <td>{{ intelligence.baseline_avg_pf ? (intelligence.baseline_avg_pf * 100 | number:"1.0-0") + "%" : "—" }}</td>
+              <td>{{ intelligence.current_avg_pf  ? (intelligence.current_avg_pf  * 100 | number:"1.0-0") + "%" : "—" }}</td>
+              <td class="si-impr" [class.impr-pos]="(intelligence.current_avg_pf||0)>(intelligence.baseline_avg_pf||0)">{{ intelligence.pf_improvement_pct ? "▲ " + (intelligence.pf_improvement_pct | number:"1.1-1") + "%" : "—" }}</td>
+            </tr>
+            <tr>
+              <td>Current Balance Index™</td>
+              <td>{{ cbiData?.baseline_cbi_score ? (cbiData.baseline_cbi_score | number:"1.0-0") : "—" }}</td>
+              <td>{{ cbiData?.cbi_score ? (cbiData.cbi_score | number:"1.0-0") : (cbiData?.score ? (cbiData.score | number:"1.0-0") : "—") }}</td>
+              <td class="si-impr impr-pos">—</td>
+            </tr>
+            <tr>
+              <td>Available Capacity</td>
+              <td>{{ (intelligence.baseline_avg_kva || 0) | number:"1.0-0" }} kVA</td>
+              <td>{{ (intelligence.current_avg_kva  || 0) | number:"1.0-0" }} kVA</td>
+              <td class="si-impr impr-pos">{{ recoveredKva ? "▲ " + (recoveredKva | number:"1.0-0") + " kVA" : "—" }}</td>
+            </tr>
+            <tr>
+              <td>Annual Energy Cost</td>
+              <td>{{ baselineAnnualCost ? fmt(baselineAnnualCost) : "—" }}</td>
+              <td>{{ currentAnnualCost  ? fmt(currentAnnualCost)  : "—" }}</td>
+              <td class="si-impr" [class.impr-pos]="annualSavings>0">{{ annualSavings ? "▼ " + fmt(annualSavings) + " (" + (annualCostReductionPct | number:"1.1-1") + "%)" : "—" }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="baselineLocked" class="si-baseline-lock-note">
+          <span class="fa fa-lock"></span> Baseline is locked and approved. Changes require administrative authorization.
+          <a class="si-link" style="margin-left:8px;">View Baseline Details →</a>
+        </div>
+      </div>
 
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-table"></span> Baseline vs. Current Performance</div>
-          <div *ngIf="!intelligence" class="ecbs-empty" style="padding:40px 20px;">
-            <span class="empty-icon fa fa-lock"></span>
-            <span class="empty-title">No Approved Baseline</span>
-            <p>Lock an EM&amp;V baseline to enable savings performance comparison.</p>
-            <a class="btn-ecbs btn-primary" routerLink="/project/emv-baseline">Create Baseline</a>
+      <!-- Savings Waterfall Chart -->
+      <div class="ecbs-card si-waterfall-card">
+        <div class="ecbs-card-title"><span class="fa fa-bar-chart"></span> Savings Waterfall (Annual)</div>
+        <div *ngIf="!waterfallBars.length" class="ecbs-empty" style="padding:32px 12px;">
+          <span class="fa fa-bar-chart" style="font-size:28px;color:#546e7a;display:block;margin-bottom:8px;"></span>
+          <div style="color:#546e7a;font-size:12px;">Run recalculate to generate waterfall data</div>
+        </div>
+        <div *ngIf="waterfallBars.length">
+          <svg width="100%" viewBox="0 0 320 180" style="overflow:visible;">
+            <line x1="28" y1="10" x2="28" y2="155" stroke="#1a2a3a" stroke-width="1"/>
+            <line x1="28" y1="155" x2="315" y2="155" stroke="#1a2a3a" stroke-width="1"/>
+            <line *ngFor="let g of [0.25,0.5,0.75]" [attr.x1]="28" [attr.y1]="155-g*145" x2="315" [attr.y2]="155-g*145" stroke="#1a2a3a" stroke-width="0.5" stroke-dasharray="3,3"/>
+            <g *ngFor="let bar of waterfallBars; let i=index">
+              <rect
+                [attr.x]="28 + i*(287/waterfallBars.length) + 2"
+                [attr.y]="wfBarY(bar)"
+                [attr.width]="287/waterfallBars.length - 6"
+                [attr.height]="wfBarH(bar)"
+                [attr.fill]="wfBarFill(bar.color)"
+                [attr.opacity]="wfBarOpacity(bar.color)"
+                rx="2"/>
+              <text
+                [attr.x]="28 + i*(287/waterfallBars.length) + (287/waterfallBars.length)/2"
+                [attr.y]="wfBarY(bar) - 3"
+                text-anchor="middle" fill="#e8edf5" font-size="6.5" font-weight="600">
+                {{ bar.isBaseline || bar.isTotal ? fmt(bar.value) : ("-" + fmt(bar.value)) }}
+              </text>
+              <text
+                [attr.x]="28 + i*(287/waterfallBars.length) + (287/waterfallBars.length)/2"
+                [attr.y]="169"
+                text-anchor="middle" fill="#546e7a" font-size="6">
+                {{ bar.label.split(" ").slice(0,2).join(" ") }}
+              </text>
+            </g>
+            <text x="26" y="157" text-anchor="end" fill="#546e7a" font-size="6.5">$0</text>
+            <text x="26" y="120" text-anchor="end" fill="#546e7a" font-size="6.5">{{ fmt(wfMax*0.25) }}</text>
+            <text x="26" y="83"  text-anchor="end" fill="#546e7a" font-size="6.5">{{ fmt(wfMax*0.5) }}</text>
+            <text x="26" y="46"  text-anchor="end" fill="#546e7a" font-size="6.5">{{ fmt(wfMax*0.75) }}</text>
+          </svg>
+          <div class="si-waterfall-footer">
+            <div>Total Annual Savings <strong class="text-green">{{ fmt(annualSavings) }}</strong></div>
+            <div>{{ annualCostReductionPct | number:"1.1-1" }}% Total Cost Reduction</div>
           </div>
-          <table *ngIf="intelligence" class="ecbs-table">
-            <thead>
-              <tr><th>Metric</th><th>Baseline</th><th>Current</th><th>Improvement</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Energy Usage (kWh/yr)</td>
-                <td>{{ (intelligence.baseline_kwh_year || 0) | number:'1.0-0' }}</td>
-                <td>{{ (intelligence.current_kwh_year || 0) | number:'1.0-0' }}</td>
-                <td style="color:#00e676;font-weight:700;">-{{ (intelligence.energy_savings_pct || 0) | number:'1.1-1' }}%</td>
-              </tr>
-              <tr>
-                <td>Peak Demand (kW)</td>
-                <td>{{ (intelligence.baseline_avg_kw || 0) | number:'1.0-0' }}</td>
-                <td>{{ (intelligence.current_avg_kw || 0) | number:'1.0-0' }}</td>
-                <td style="color:#00e676;font-weight:700;">-{{ (intelligence.demand_reduction_pct || 0) | number:'1.1-1' }}%</td>
-              </tr>
-              <tr>
-                <td>Power Factor</td>
-                <td>{{ (intelligence.baseline_avg_pf || 0) | number:'1.3-3' }}</td>
-                <td>{{ (intelligence.current_avg_pf || 0) | number:'1.3-3' }}</td>
-                <td style="color:#00e676;font-weight:700;">+{{ (intelligence.pf_improvement_pct || 0) | number:'1.1-1' }}%</td>
-              </tr>
-              <tr>
-                <td>Available Capacity</td>
-                <td>{{ (intelligence.baseline_avg_kva || 0) | number:'1.0-0' }} kVA</td>
-                <td>{{ (intelligence.current_avg_kva || 0) | number:'1.0-0' }} kVA</td>
-                <td style="color:#00e676;font-weight:700;">+{{ (intelligence.recoverable_kva || 0) | number:'1.0-0' }} kVA</td>
-              </tr>
-            </tbody>
-          </table>
+        </div>
+      </div>
+
+      <!-- Cumulative Savings Since Activation -->
+      <div class="ecbs-card si-cumulative-card">
+        <div class="ecbs-card-title"><span class="fa fa-line-chart"></span> Cumulative Savings Since Activation</div>
+        <div *ngIf="!cumulativeSeries.length" class="ecbs-empty" style="padding:32px 12px;">
+          <span class="fa fa-line-chart" style="font-size:28px;color:#546e7a;display:block;margin-bottom:8px;"></span>
+          <div style="color:#546e7a;font-size:12px;">No trend data — recalculate to populate</div>
+        </div>
+        <div *ngIf="cumulativeSeries.length">
+          <svg width="100%" viewBox="0 0 400 130" style="overflow:visible;">
+            <line x1="0" y1="110" x2="390" y2="110" stroke="#1a2a3a" stroke-width="1"/>
+            <line *ngFor="let g of [0.33,0.66]" x1="0" [attr.y1]="110-g*110" x2="390" [attr.y2]="110-g*110" stroke="#1a2a3a" stroke-width="0.5" stroke-dasharray="3,3"/>
+            <path [attr.d]="cumulativeAreaPath" fill="#00e676" opacity="0.1"/>
+            <polyline [attr.points]="cumulativePolyline" fill="none" stroke="#00e676" stroke-width="2" stroke-linejoin="round"/>
+            <text x="388" y="14" text-anchor="end" fill="#00e676" font-size="11" font-weight="700">{{ fmt(cumulativeTotal) }}</text>
+            <text *ngFor="let g of [0,1,2,3,4,5]; let i=index" [attr.x]="i*78" y="125" fill="#546e7a" font-size="7.5">{{ cumulativeXLabel(i) }}</text>
+          </svg>
+          <div class="si-trend-total">
+            TOTAL SAVINGS SINCE ACTIVATION &nbsp;<strong class="text-green">{{ fmt(cumulativeTotal) }}</strong>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Capacity Recovery | CBI Gauges | Financial Intelligence -->
+    <div class="si-row-3" style="margin-bottom:16px;">
+
+      <!-- Capacity Recovery Value™ -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title" style="font-size:10px;"><span class="fa fa-unlock"></span> Capacity Recovery Value™</div>
+        <div class="si-xfmr-section">
+          <div class="si-xfmr-top">
+            <span class="fa fa-bolt" style="font-size:32px;color:#ffd740;"></span>
+            <div style="margin-left:12px;">
+              <div class="si-bl-sub">Transformer Rating</div>
+              <div style="font-size:20px;font-weight:700;color:#e8edf5;">{{ installedKva | number:"1.0-0" }} kVA</div>
+            </div>
+          </div>
+          <div class="si-cap-compare">
+            <div class="si-cap-col">
+              <div class="si-cap-label">Baseline<br>Available</div>
+              <div class="si-cap-bar-wrap">
+                <div class="si-cap-bar-fill si-cap-bar-red" [style.height.%]="installedKva?(baselineAvailKva/installedKva*100):30"></div>
+              </div>
+              <div class="si-cap-val">{{ baselineAvailKva | number:"1.0-0" }} kVA</div>
+            </div>
+            <div class="si-cap-col">
+              <div class="si-cap-label">Current<br>Available</div>
+              <div class="si-cap-bar-wrap">
+                <div class="si-cap-bar-fill si-cap-bar-green" [style.height.%]="installedKva?((baselineAvailKva+recoveredKva)/installedKva*100):60"></div>
+              </div>
+              <div class="si-cap-val">{{ (baselineAvailKva + recoveredKva) | number:"1.0-0" }} kVA</div>
+            </div>
+            <div class="si-cap-col" style="text-align:center;">
+              <div class="si-cap-label">Recovered</div>
+              <div class="si-cap-hero">{{ recoveredKva | number:"1.0-0" }}</div>
+              <div class="si-cap-unit">kVA</div>
+            </div>
+          </div>
+          <div class="si-deferred-val">
+            <div class="si-deferred-label">EQUIVALENT DEFERRED CAPITAL VALUE</div>
+            <div class="si-deferred-amt">{{ fmt(deferredCapital) }}</div>
+            <div style="font-size:10px;color:#546e7a;">Avoided Transformer Upgrade</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Balance Improvement — 3 gauges -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title" style="font-size:10px;"><span class="fa fa-tachometer"></span> Current Balance Improvement</div>
+        <div class="si-cbi-gauges">
+
+          <div class="si-gauge-col">
+            <div class="si-gauge-label">Productive Current</div>
+            <svg viewBox="0 0 100 60" class="si-gauge-svg">
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="#1a2a3a" stroke-width="9" stroke-linecap="round"/>
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none"
+                [attr.stroke]="gaugeColor(productiveCurrent)"
+                stroke-width="9" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(productiveCurrent)"
+                stroke-dashoffset="0"/>
+              <text x="50" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="white">{{ productiveCurrent ? (productiveCurrent | number:"1.0-0") + "%" : "—" }}</text>
+            </svg>
+            <div class="si-gauge-compare" *ngIf="productiveBaseline && productiveCurrent">
+              <span class="si-gauge-old">{{ productiveBaseline | number:"1.0-0" }}%</span>
+              <span class="fa fa-arrow-right" style="color:#546e7a;margin:0 4px;font-size:8px;"></span>
+              <span class="si-gauge-new" [style.color]="gaugeColor(productiveCurrent)">{{ productiveCurrent | number:"1.0-0" }}%</span>
+            </div>
+            <div class="si-gauge-improvement" *ngIf="productiveImprovement" [style.color]="productiveImprovement>0?'#00e676':'#ef5350'">
+              {{ productiveImprovement > 0 ? "▲" : "▼" }} {{ (productiveImprovement | number:"1.1-1") }}% Improvement
+            </div>
+          </div>
+
+          <div class="si-gauge-col">
+            <div class="si-gauge-label">Harmonic Distortion (THD)</div>
+            <svg viewBox="0 0 100 60" class="si-gauge-svg">
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="#1a2a3a" stroke-width="9" stroke-linecap="round"/>
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none"
+                [attr.stroke]="gaugeColor(harmonicCurrent, false)"
+                stroke-width="9" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(harmonicCurrent < 20 ? harmonicCurrent : 20, 20)"
+                stroke-dashoffset="0"/>
+              <text x="50" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="white">{{ harmonicCurrent ? (harmonicCurrent | number:"1.1-1") + "%" : "—" }}</text>
+            </svg>
+            <div class="si-gauge-improvement" [style.color]="harmonicCurrent<=5?'#00e676':'#ffd740'">
+              {{ harmonicCurrent ? (harmonicCurrent<=5 ? "✓ Within IEEE 519" : "⚠ Above 5% limit") : "—" }}
+            </div>
+          </div>
+
+          <div class="si-gauge-col">
+            <div class="si-gauge-label">Current Imbalance</div>
+            <svg viewBox="0 0 100 60" class="si-gauge-svg">
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none" stroke="#1a2a3a" stroke-width="9" stroke-linecap="round"/>
+              <path d="M10 55 A40 40 0 0 1 90 55" fill="none"
+                [attr.stroke]="gaugeColor(imbalanceCurrent, false)"
+                stroke-width="9" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(imbalanceCurrent < 20 ? imbalanceCurrent : 20, 20)"
+                stroke-dashoffset="0"/>
+              <text x="50" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="white">{{ imbalanceCurrent ? (imbalanceCurrent | number:"1.1-1") + "%" : "—" }}</text>
+            </svg>
+            <div class="si-gauge-improvement" [style.color]="imbalanceCurrent<=2?'#00e676':imbalanceCurrent<=5?'#ffd740':'#ef5350'">
+              {{ imbalanceCurrent ? (imbalanceCurrent<=2 ? "✓ Balanced" : imbalanceCurrent<=5 ? "▼ Monitor" : "⚠ High imbalance") : "—" }}
+            </div>
+          </div>
+
+        </div>
+        <div class="si-cbi-note">
+          <span class="fa fa-info-circle"></span>
+          Improved current quality leads to lower losses, cooler equipment, and longer asset life.
+        </div>
+      </div>
+
+      <!-- Financial Intelligence -->
+      <div class="ecbs-card">
+        <div class="ecbs-card-title" style="font-size:10px;"><span class="fa fa-dollar"></span> Financial Intelligence</div>
+        <div class="si-fin-intel">
+          <div class="si-fin-row">
+            <span class="fa fa-sun-o si-fin-icon" style="color:#ffd740;"></span>
+            <span class="si-fin-label">Savings Today</span>
+            <span class="si-fin-val text-green">{{ fmt(savingsToday) }}</span>
+          </div>
+          <div class="si-fin-row">
+            <span class="fa fa-calendar si-fin-icon" style="color:#29b6f6;"></span>
+            <span class="si-fin-label">Savings This Month</span>
+            <span class="si-fin-val text-green">{{ fmt(savingsThisMonth) }}</span>
+          </div>
+          <div class="si-fin-row">
+            <span class="fa fa-dollar si-fin-icon" style="color:#00e676;"></span>
+            <span class="si-fin-label">Savings This Year</span>
+            <span class="si-fin-val text-green">{{ fmt(annualSavings) }}</span>
+          </div>
+          <div class="si-fin-row">
+            <span class="fa fa-line-chart si-fin-icon" style="color:#ce93d8;"></span>
+            <span class="si-fin-label">Lifetime Savings (10yr)</span>
+            <span class="si-fin-val text-green">{{ fmt(lifetimeSavings) }}</span>
+          </div>
+          <div class="si-fin-row">
+            <span class="fa fa-building si-fin-icon" style="color:#ff7043;"></span>
+            <span class="si-fin-label">Cost Avoidance (Capacity)</span>
+            <span class="si-fin-val text-green">{{ fmt(deferredCapital) }}</span>
+          </div>
+          <div class="si-fin-row">
+            <span class="fa fa-leaf si-fin-icon" style="color:#4caf50;"></span>
+            <span class="si-fin-label">CO₂ Reduction (T/yr)</span>
+            <span class="si-fin-val text-green">{{ co2Tonnes | number:"1.0-0" }}</span>
+          </div>
+        </div>
+        <div class="si-fin-breakdown" *ngIf="energySavings||demandSavings||pfSavings||capacityValue">
+          <div class="si-fin-cat-row"><span style="color:#00e676;">Energy Savings™</span><span>{{ fmt(energySavings) }}/yr</span></div>
+          <div class="si-fin-cat-row"><span style="color:#29b6f6;">Demand Savings™</span><span>{{ fmt(demandSavings) }}/yr</span></div>
+          <div class="si-fin-cat-row"><span style="color:#ce93d8;">Power Factor Savings™</span><span>{{ fmt(pfSavings) }}/yr</span></div>
+          <div class="si-fin-cat-row"><span style="color:#ffd740;">Capacity Value™</span><span>{{ fmt(capacityValue) }} DCF</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Baseline Information (Locked) -->
+    <div class="ecbs-card si-baseline-footer-card" *ngIf="baselineInfo || intelligence">
+      <div class="ecbs-card-title"><span class="fa fa-lock"></span> Baseline Information ({{ baselineLocked ? "LOCKED" : "DRAFT" }})</div>
+      <div class="si-bl-grid">
+
+        <div class="si-bl-item">
+          <span class="fa fa-lock" [style.color]="baselineLocked?'#00e676':'#ffd740'" style="font-size:24px;margin-right:12px;"></span>
+          <div>
+            <div class="si-bl-key">Baseline Created</div>
+            <div class="si-bl-val">{{ baselineCreatedDate }}</div>
+            <div class="si-bl-sub">Baseline Period</div>
+            <div class="si-bl-val">{{ baselinePeriod }}</div>
+          </div>
         </div>
 
-        <!-- Savings categories breakdown -->
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> Savings Category Breakdown</div>
-          <div *ngIf="!intelligence" class="ecbs-empty" style="padding:30px;"><span class="empty-icon fa fa-database"></span><span class="empty-title">No Data</span></div>
-          <div *ngIf="intelligence" class="savings-breakdown">
-            <div class="savings-category-row">
-              <div class="scr-icon" style="background:rgba(0,230,118,0.1);"><span class="fa fa-bolt" style="color:#00e676;"></span></div>
-              <div class="scr-info"><div class="scr-name">Energy Savings™</div><div class="scr-sub">kWh reduction vs. baseline</div></div>
-              <div class="scr-value">${{ (intelligence.energy_cost_savings || 0) | number:'1.0-0' }}/yr</div>
-              <div class="scr-pct">{{ energySavingsPct | number:'1.0-0' }}%</div>
-            </div>
-            <div class="savings-category-row">
-              <div class="scr-icon" style="background:rgba(41,182,246,0.1);"><span class="fa fa-tachometer" style="color:#29b6f6;"></span></div>
-              <div class="scr-info"><div class="scr-name">Demand Savings™</div><div class="scr-sub">Peak demand charge reduction</div></div>
-              <div class="scr-value">${{ (intelligence.demand_cost_savings || 0) | number:'1.0-0' }}/yr</div>
-              <div class="scr-pct">{{ demandSavingsPct | number:'1.0-0' }}%</div>
-            </div>
-            <div class="savings-category-row">
-              <div class="scr-icon" style="background:rgba(206,147,216,0.1);"><span class="fa fa-exchange" style="color:#ce93d8;"></span></div>
-              <div class="scr-info"><div class="scr-name">Power Factor Savings™</div><div class="scr-sub">PF penalty elimination</div></div>
-              <div class="scr-value">${{ (intelligence.pf_cost_savings || 0) | number:'1.0-0' }}/yr</div>
-              <div class="scr-pct">{{ pfSavingsPct | number:'1.0-0' }}%</div>
-            </div>
-            <div class="savings-category-row">
-              <div class="scr-icon" style="background:rgba(0,230,118,0.08);"><span class="fa fa-building-o" style="color:#00e676;"></span></div>
-              <div class="scr-info"><div class="scr-name">Capacity Value™</div><div class="scr-sub">Deferred infrastructure capital</div></div>
-              <div class="scr-value">${{ (intelligence.capacity_value || 0) | number:'1.0-0' }}</div>
-              <div class="scr-pct">DCF</div>
-            </div>
+        <div class="si-bl-item">
+          <span class="fa fa-shield" style="color:#29b6f6;font-size:24px;margin-right:12px;"></span>
+          <div>
+            <div class="si-bl-key">Test Type</div>
+            <div class="si-bl-val">{{ baselineInfo?.test_type || "—" }}</div>
+            <div class="si-bl-sub">EM&amp;V Analysis</div>
+            <div class="si-bl-val">{{ baselineInfo?.emv_analysis_id ? "Linked #" + baselineInfo.emv_analysis_id : "Standard" }}</div>
           </div>
+        </div>
+
+        <div class="si-bl-item">
+          <span class="fa fa-user-circle-o" style="color:#ce93d8;font-size:24px;margin-right:12px;"></span>
+          <div>
+            <div class="si-bl-key">Reviewer Notes</div>
+            <div class="si-bl-val" style="font-size:10px;max-width:200px;line-height:1.4;">{{ baselineInfo?.reviewer_notes || "—" }}</div>
+          </div>
+        </div>
+
+        <div class="si-bl-item">
+          <span class="fa fa-lock" [style.color]="baselineLocked?'#00e676':'#ffd740'" style="font-size:24px;margin-right:12px;"></span>
+          <div>
+            <div class="si-bl-key">Status</div>
+            <div class="si-bl-val" [style.color]="baselineLocked?'#00e676':'#ffd740'" style="font-weight:700;font-size:14px;letter-spacing:1px;">
+              {{ (baselineInfo?.status || "—") | uppercase }}
+            </div>
+            <div class="si-bl-sub" style="font-size:10px;">{{ baselineLocked ? "Locked on " + baselineCreatedDate : "Pending approval" }}</div>
+          </div>
+        </div>
+
+        <div class="si-bl-item" style="flex-direction:column;align-items:flex-start;">
+          <div style="color:#546e7a;font-size:10px;line-height:1.5;margin-bottom:6px;">
+            Baseline can only be modified with administrative authorization and documentation of significant operational changes.
+          </div>
+          <a class="si-link">View Audit Log →</a>
         </div>
 
       </div>
 
-      <!-- Right: ROI card + uBillTracker -->
-      <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="si-bl-note-text" *ngIf="baselineNotes && baselineNotes !== '—'">
+        <span class="fa fa-file-text-o"></span> {{ baselineNotes }}
+      </div>
 
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-line-chart"></span> ROI Engine™</div>
-          <div class="roi-gauge" *ngIf="roi">
-            <div class="roi-value">{{ (roi.roi || 0) | number:'1.0-0' }}%</div>
-            <div class="roi-label">Return on Investment</div>
-          </div>
-          <div *ngIf="roi" class="ecbs-kv-table">
-            <div class="kv-row"><span class="kv-key">Project Cost</span><span class="kv-val">${{ (roi.project_cost || 0) | number:'1.0-0' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Annual Savings</span><span class="kv-val kv-green">${{ (roi.annual_savings || 0) | number:'1.0-0' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Payback Period</span><span class="kv-val">{{ (payback?.payback || 0) | number:'1.1-1' }} years</span></div>
-            <div class="kv-row"><span class="kv-key">Lifetime Savings (10yr)</span><span class="kv-val kv-green">${{ (roi.lifetime_savings || 0) | number:'1.0-0' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Net Present Value</span><span class="kv-val kv-green">${{ (roi.npv || 0) | number:'1.0-0' }}</span></div>
-          </div>
-          <div *ngIf="!roi" class="ecbs-empty" style="padding:30px;">
-            <span class="empty-icon fa fa-calculator"></span>
-            <span class="empty-title">ROI Not Calculated</span>
-            <p>Enter project cost in Settings to enable ROI calculations.</p>
-          </div>
-        </div>
-
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-leaf"></span> Sustainability Engine™</div>
-          <div class="ecbs-kv-table">
-            <div class="kv-row"><span class="kv-key">CO₂ Reduction</span><span class="kv-val kv-green">{{ co2Tonnes | number:'1.0-0' }} T/yr</span></div>
-            <div class="kv-row"><span class="kv-key">Carbon Equivalent</span><span class="kv-val">{{ (co2Tonnes * 4.6) | number:'1.0-0' }} car-miles equiv.</span></div>
-            <div class="kv-row"><span class="kv-key">Energy Reduction</span><span class="kv-val kv-green">{{ (intelligence?.energy_savings_pct || 0) | number:'1.1-1' }}%</span></div>
-            <div class="kv-row"><span class="kv-key">Sustainability Score</span>
-              <span class="kv-val"><span class="health-score-pill" [class]="co2Tonnes>50?'hsp-excellent':co2Tonnes>20?'hsp-good':'hsp-fair'">{{ co2Tonnes>50?'A':co2Tonnes>20?'B':'C' }}</span></span>
-            </div>
-          </div>
-        </div>
-
-        <div class="ecbs-card">
-          <div class="ecbs-card-title"><span class="fa fa-file-text"></span> uBillTracker™ Summary</div>
-          <div *ngIf="!utilityData" class="ecbs-empty" style="padding:20px 10px;">
-            <span class="empty-icon fa fa-file-o" style="font-size:28px;"></span>
-            <span class="empty-title" style="font-size:12px;">No utility bills loaded</span>
-            <a class="btn-ecbs btn-outline btn-sm" routerLink="/billing">Go to Bill Analytics</a>
-          </div>
-          <div *ngIf="utilityData">
-            <div class="ecbs-kv-table">
-              <div class="kv-row"><span class="kv-key">Total Cost (Period)</span><span class="kv-val">${{ (utilityData.total_cost_period || 0) | number:'1.0-0' }}</span></div>
-              <div class="kv-row"><span class="kv-key">kWh Usage</span><span class="kv-val">{{ (utilityData.total_usage_kwh || 0) | number:'1.0-0' }}</span></div>
-              <div class="kv-row"><span class="kv-key">Avg Rate</span><span class="kv-val">${{ (utilityData.avg_rate_per_kwh || 0) | number:'1.3-3' }}/kWh</span></div>
-              <div class="kv-row"><span class="kv-key">Peak Demand</span><span class="kv-val">{{ (utilityData.peak_demand_kw || 0) | number:'1.0-0' }} kW</span></div>
-            </div>
-            <a class="btn-ecbs btn-outline btn-sm" style="margin-top:10px;" routerLink="/billing/savings-report/list">View Full Bill Analytics →</a>
-          </div>
-        </div>
-
+      <div class="si-bl-footer-line">
+        <span class="fa fa-info-circle"></span>
+        All savings are calculated using ANSI C12.20 Class 0.5 revenue grade meters and verified measurement methodology.
       </div>
     </div>
 
