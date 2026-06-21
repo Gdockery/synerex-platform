@@ -106,8 +106,8 @@
         <span>Invoice Total</span>
         <span class="green" style="font-size:16px;font-weight:700;">${{ (selectedInvoice.amount | number) }}</span>
       </div>
-      <div class="fin-detail-row"><span>Tax (8.25%)</span><span>${{ (selectedInvoice.amount * 0.0825 | number:'1.0-0') }}</span></div>
-      <div class="fin-detail-row"><span>Grand Total</span><span style="font-weight:700;color:#e8edf5;">${{ (selectedInvoice.amount * 1.0825 | number:'1.0-0') }}</span></div>
+      <div class="fin-detail-row"><span>Tax ({{ taxRate * 100 | number:'1.2-2' }}%)</span><span>${{ (selectedInvoice.amount * taxRate | number:'1.0-0') }}</span></div>
+      <div class="fin-detail-row"><span>Grand Total</span><span style="font-weight:700;color:#e8edf5;">${{ (selectedInvoice.amount * (1 + taxRate) | number:'1.0-0') }}</span></div>
       <div class="fin-detail-section" style="margin-top:16px;">ACTIONS</div>
       <button class="btn-ecbs btn-primary" style="width:100%;margin-bottom:6px;"><span class="fa fa-paper-plane"></span> Send Invoice</button>
       <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-edit"></span> Edit</button>

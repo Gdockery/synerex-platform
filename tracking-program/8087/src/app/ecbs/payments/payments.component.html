@@ -80,7 +80,7 @@
           </tr>
         </tbody>
       </table>
-      <div class="fin-table-footer">Showing {{ filteredPayments.length }} of 86 payments</div>
+      <div class="fin-table-footer">Showing {{ filteredPayments.length }} of {{ payments.length }} payments</div>
     </div>
 
     <!-- Detail panel -->
@@ -134,53 +134,43 @@
       <a class="pay-chart-link" href="#">View Payment Methods Report &rarr;</a>
     </div>
 
-    <!-- Payment Timeliness (Gauge) -->
+    <!-- Payment Timeliness (Gauge) — computed from recorded payments -->
     <div class="ecbs-card pay-chart-card">
       <div class="pay-chart-title">PAYMENT TIMELINESS</div>
-      <div class="pay-gauge-wrap">
-        <svg width="140" height="80" viewBox="0 0 140 80">
-          <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#1a2a3a" stroke-width="14" stroke-linecap="round"/>
-          <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#00e676" stroke-width="14" stroke-linecap="round"
-            stroke-dasharray="188" stroke-dashoffset="14"/>
-          <text x="70" y="68" text-anchor="middle" fill="#e8edf5" font-size="22" font-weight="bold">92.4%</text>
-        </svg>
-        <div class="pay-timeliness-list">
-          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#00e676;"></span><span>On Time</span><span class="pay-tl-val green">$3.81M (92.4%)</span></div>
-          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ffd740;"></span><span>Late</span><span class="pay-tl-val yellow">$230K (5.6%)</span></div>
-          <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ef5350;"></span><span>Overdue</span><span class="pay-tl-val red">$80K (2.0%)</span></div>
+      <ng-container *ngIf="payments.length === 0">
+        <div class="ecbs-empty" style="padding:32px 12px;">
+          <span class="fa fa-clock-o" style="font-size:28px;color:#546e7a;display:block;margin-bottom:8px;"></span>
+          <div style="color:#546e7a;font-size:12px;">Record payments to view timeliness analysis</div>
         </div>
-      </div>
-      <div class="pay-gauge-label" style="text-align:center;font-size:11px;color:#546e7a;margin-top:4px;">On-Time Rate</div>
+      </ng-container>
+      <ng-container *ngIf="payments.length > 0">
+        <div class="pay-gauge-wrap">
+          <svg width="140" height="80" viewBox="0 0 140 80">
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#1a2a3a" stroke-width="14" stroke-linecap="round"/>
+            <path d="M 10 75 A 60 60 0 0 1 130 75" fill="none" stroke="#00e676" stroke-width="14" stroke-linecap="round"
+              [attr.stroke-dasharray]="188" [attr.stroke-dashoffset]="gaugeOffset"/>
+            <text x="70" y="68" text-anchor="middle" fill="#e8edf5" font-size="22" font-weight="bold">{{ onTimePct | number:'1.1-1' }}%</text>
+          </svg>
+          <div class="pay-timeliness-list">
+            <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#00e676;"></span><span>Matched</span><span class="pay-tl-val green">${{ (onTimeAmt/1000 | number:'1.0-0') }}K ({{ onTimePct | number:'1.1-1' }}%)</span></div>
+            <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ffd740;"></span><span>Partial</span><span class="pay-tl-val yellow">${{ (lateAmt/1000 | number:'1.0-0') }}K ({{ latePct | number:'1.1-1' }}%)</span></div>
+            <div class="pay-tl-row"><span class="pay-tl-dot" style="background:#ef5350;"></span><span>Unmatched</span><span class="pay-tl-val red">${{ (unmatchedAmt/1000 | number:'1.0-0') }}K ({{ unmatchedPct | number:'1.1-1' }}%)</span></div>
+          </div>
+        </div>
+        <div class="pay-gauge-label" style="text-align:center;font-size:11px;color:#546e7a;margin-top:4px;">Match Rate</div>
+      </ng-container>
       <a class="pay-chart-link" href="#">View Timeliness Report &rarr;</a>
     </div>
 
-    <!-- Payments Trend (Bar Chart) -->
+    <!-- Payments Trend — requires payment history to render -->
     <div class="ecbs-card pay-chart-card">
       <div class="pay-chart-title">PAYMENTS TREND (MTD)</div>
-      <svg width="100%" height="120" viewBox="0 0 280 120">
-        <line x1="0" y1="100" x2="280" y2="100" stroke="#1a2a3a" stroke-width="1"/>
-        <!-- Bars for each day -->
-        <rect x="10" y="60" width="22" height="40" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="42" y="40" width="22" height="60" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="74" y="50" width="22" height="50" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="106" y="30" width="22" height="70" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="138" y="45" width="22" height="55" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="170" y="55" width="22" height="45" fill="#00e676" opacity="0.7" rx="2"/>
-        <rect x="202" y="20" width="22" height="80" fill="#00e676" opacity="0.8" rx="2"/>
-        <!-- Prior period line -->
-        <polyline points="21,75 53,65 85,70 117,55 149,68 181,72 213,50" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="4,2"/>
-        <!-- Labels -->
-        <text x="21" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 12</text>
-        <text x="53" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 13</text>
-        <text x="85" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 14</text>
-        <text x="117" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 15</text>
-        <text x="149" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 16</text>
-        <text x="181" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 17</text>
-        <text x="213" y="115" text-anchor="middle" fill="#546e7a" font-size="8">May 18</text>
-      </svg>
+      <div class="ecbs-empty" style="padding:32px 12px;">
+        <span class="fa fa-bar-chart" style="font-size:28px;color:#546e7a;display:block;margin-bottom:8px;"></span>
+        <div style="color:#546e7a;font-size:12px;">Record payments to view the daily trend</div>
+      </div>
       <div class="pay-trend-legend">
         <span><span class="pay-legend-dot" style="background:#00e676;border-radius:2px;width:12px;height:8px;display:inline-block;"></span> Payments (MTD)</span>
-        <span><span style="display:inline-block;width:20px;height:2px;background:#29b6f6;vertical-align:middle;margin-right:4px;border-top:2px dashed #29b6f6;"></span> Payments (Prior MTD)</span>
       </div>
       <a class="pay-chart-link" href="#">View Payments Trend Analysis &rarr;</a>
     </div>

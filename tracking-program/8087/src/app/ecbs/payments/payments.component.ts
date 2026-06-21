@@ -46,6 +46,18 @@ export class PaymentsComponent implements OnInit {
     if (!this.payments.length) { return '—'; }
     return ((this.onTimeCount / this.payments.length) * 100).toFixed(1) + '%';
   }
+  get onTimeRatePct(): number {
+    if (!this.payments.length) { return 0; }
+    return (this.onTimeCount / this.payments.length) * 100;
+  }
+  get onTimeAmt(): number { return this.payments.filter(p => p.status === 'Matched').reduce((s, p) => s + (p.amount || 0), 0); }
+  get lateAmt(): number  { return this.payments.filter(p => p.status === 'Partial').reduce((s, p) => s + (p.amount || 0), 0); }
+  get unmatchedAmt(): number { return this.payments.filter(p => p.status === 'Unmatched').reduce((s, p) => s + (p.amount || 0), 0); }
+  get onTimePct(): number { return this.totalPaymentsAmount ? (this.onTimeAmt / this.totalPaymentsAmount) * 100 : 0; }
+  get latePct(): number  { return this.totalPaymentsAmount ? (this.lateAmt / this.totalPaymentsAmount) * 100 : 0; }
+  get unmatchedPct(): number { return this.totalPaymentsAmount ? (this.unmatchedAmt / this.totalPaymentsAmount) * 100 : 0; }
+  // Gauge arc: 188px circumference, offset controls fill (0=full, 188=empty)
+  get gaugeOffset(): number { return 188 - (this.onTimePct / 100) * 188; }
   get avgPaymentAmount(): string {
     if (!this.payments.length) { return '—'; }
     const avg = this.totalPaymentsAmount / this.payments.length;
