@@ -70,7 +70,32 @@ export class CapacityComponent implements OnInit {
   get annualBenefit(): number {
     return this.savingsData?.annual_savings_est ?? this.savingsData?.annual_savings ?? 0;
   }
-  get co2Tons(): number { return Math.round(this.recovered * 0.092); }
+  // Use actual CO2 reduction from savings engine; fall back to 0 (not a fabricated estimate)
+  get co2Tons(): number {
+    return this.savingsData?.co2_reduction_tons
+      ? Math.round(this.savingsData.co2_reduction_tons)
+      : 0;
+  }
+
+  // ── Before / After Recovery Impact bar proportions ─────────────────────────
+  // Proportions for the column bar (flex = fraction of height, min 0.02 so bar is visible)
+  get beforeLoad(): number    { return this.load + (this.hidden || 0); }
+  get beforeOverFlex(): number {
+    if (!this.installed || this.beforeLoad <= this.installed) { return 0; }
+    return Math.max(0.02, (this.beforeLoad - this.installed) / this.beforeLoad);
+  }
+  get beforeUtilFlex(): number {
+    if (!this.installed || !this.beforeLoad) { return 0.5; }
+    return Math.max(0.02, Math.min(1, this.installed / Math.max(this.installed, this.beforeLoad)));
+  }
+  get afterRecovFlex(): number {
+    if (!this.installed || !this.recovered) { return 0.02; }
+    return Math.max(0.02, Math.min(0.95, this.recovered / this.installed));
+  }
+  get afterUtilFlex(): number {
+    if (!this.installed) { return 0.5; }
+    return Math.max(0.02, Math.min(0.95, this.load / this.installed));
+  }
 
   // Proportional slices of recovered kVA — these sum to recovered
   get motorKva(): number   { return Math.round(this.recovered * 0.35); }

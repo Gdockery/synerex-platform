@@ -114,23 +114,23 @@
           <div class="cap-section-title"><span class="fa fa-exchange"></span> Capacity Recovery Impact</div>
           <div class="cap-impact-body">
             <div class="cap-impact-col">
-              <div class="cap-impact-kva">{{ (load + hidden) | number:'1.0-0' }} kVA</div>
+              <div class="cap-impact-kva">{{ beforeLoad | number:'1.0-0' }} kVA</div>
               <div class="cap-before-bar">
-                <div style="flex:0.6;background:#f44336;border-radius:3px 3px 0 0;"></div>
-                <div style="flex:0.4;background:#546e7a;"></div>
+                <div *ngIf="beforeOverFlex > 0" [style.flex]="beforeOverFlex" style="background:#f44336;border-radius:3px 3px 0 0;"></div>
+                <div [style.flex]="beforeUtilFlex" style="background:#546e7a;"></div>
               </div>
               <div class="cap-impact-lbl">Before ECBS</div>
               <div class="cap-impact-legend">
                 <div><span class="cap-leg-dot" style="background:#546e7a;"></span> Utilized</div>
-                <div><span class="cap-leg-dot" style="background:#f44336;"></span> Over Capacity</div>
+                <div *ngIf="beforeOverFlex > 0"><span class="cap-leg-dot" style="background:#f44336;"></span> Over Capacity</div>
               </div>
             </div>
             <div class="cap-impact-arrow"><span class="fa fa-long-arrow-right"></span></div>
             <div class="cap-impact-col">
               <div class="cap-impact-kva" style="color:#00e676;">{{ load | number:'1.0-0' }} kVA</div>
               <div class="cap-after-bar">
-                <div style="flex:0.3;background:#00e676;border-radius:3px 3px 0 0;"></div>
-                <div style="flex:0.7;background:#546e7a;"></div>
+                <div [style.flex]="afterRecovFlex" style="background:#00e676;border-radius:3px 3px 0 0;"></div>
+                <div [style.flex]="afterUtilFlex" style="background:#546e7a;"></div>
               </div>
               <div class="cap-impact-lbl">After ECBS</div>
               <div class="cap-impact-legend" style="color:#00e676;">
