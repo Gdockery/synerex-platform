@@ -53,9 +53,9 @@ export class ProfitabilityComponent implements OnInit {
 
   get annualSavings(): number    { return this.savingsData?.annual_savings || 0; }
   get mtdSavings(): number       { return Math.round(this.annualSavings / 12); }
-  get projectCost(): number      { return this.roiData?.project_cost || 0; }
-  get roi(): number              { return this.roiData?.roi || 0; }
-  get payback(): number          { return this.roiData?.payback || 0; }
+  get projectCost(): number      { return this.savingsData?.project_cost || this.roiData?.project_cost || 0; }
+  get roi(): number              { return this.savingsData?.roi          || this.roiData?.roi          || 0; }
+  get payback(): number          { return this.savingsData?.payback      || this.roiData?.payback      || 0; }
   get lifetimeSavings(): number  { return this.roiData?.lifetime_savings || 0; }
   get recoveredKva(): number     { return this.savingsData?.recoverable_kva ?? this.capacityData?.recovered_capacity_kva ?? this.capacityData?.recoverable_kva ?? 0; }
   get deferredCapital(): number  {

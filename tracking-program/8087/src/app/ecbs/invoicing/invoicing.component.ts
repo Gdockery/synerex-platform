@@ -58,7 +58,7 @@ export class InvoicingComponent implements OnInit {
 
   // ── Computed invoice amounts from project cost ──────────────────────────────
 
-  get projectCost(): number  { return this.roiData?.project_cost || 0; }
+  get projectCost(): number  { return this.savingsData?.project_cost || this.roiData?.project_cost || 0; }
   get depositAmt(): number   { return Math.round(this.projectCost * 0.30); }
   get installAmt(): number   { return Math.round(this.projectCost * 0.30); }
   get finalAmt(): number     { return Math.round(this.projectCost * 0.40); }

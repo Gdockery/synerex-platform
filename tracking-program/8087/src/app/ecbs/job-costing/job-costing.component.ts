@@ -39,43 +39,56 @@ export class JobCostingComponent implements OnInit {
       next: (r: any) => {
         this.savingsData = r;
         this.loading = false;
-        this._buildJobsFromProject(p);
+        this._buildOrUpdateJobFromProject(p);
       },
-      error: () => { this.loading = false; this._buildJobsFromProject(p); },
+      error: () => { this.loading = false; this._buildOrUpdateJobFromProject(p); },
     });
     this.api.get(`/api/roi?project_id=${this.projectId}`).subscribe({
-      next: (r: any) => { this.roiData = r?.data || r; this._buildJobsFromProject(p); },
+      next: (r: any) => {
+        this.roiData = r?.data || r;
+        this._buildOrUpdateJobFromProject(p);
+      },
       error: () => {},
     });
   }
 
-  private _buildJobsFromProject(p: any) {
-    if (this.jobs.length) { return; } // Already built
+  private _buildOrUpdateJobFromProject(p: any) {
     const cost = this.projectCost;
-    this.jobs = [{
-      id: 'JOB-' + this.projectId + '-001',
-      name: this.projectName + ' — ECBS Install & EM&V',
-      customer: (p.client && typeof p.client === 'object') ? p.client.name : (p.client || 'Client'),
-      budget: cost || 0,
-      actual: 0,    // Actual costs — enter as incurred
-      margin: 0,    // Gross margin = (budget − actual) / budget
-      status: 'Active',
-      startDate: p.startDate || '—',
-      endDate: '—',
-      notes: this.annualSavings
-        ? ('EM&V verified. Annual savings: $' + Math.round(this.annualSavings).toLocaleString() + '/yr.')
-        : '',
-    }];
-    if (!this.selectedJob) { this.selectedJob = this.jobs[0]; }
+    const savings = this.annualSavings;
+    const customer = (p.client && typeof p.client === 'object') ? p.client.name : (p.client || 'Client');
+    const notes = savings ? ('EM&V verified. Annual savings: $' + Math.round(savings).toLocaleString() + '/yr.') : '';
+
+    if (this.jobs.length === 0) {
+      // First call — create the job entry
+      this.jobs = [{
+        id: 'JOB-' + this.projectId + '-001',
+        name: this.projectName + ' — ECBS Install & EM&V',
+        customer,
+        budget: cost || 0,
+        actual: 0,
+        margin: 0,
+        status: 'Active',
+        startDate: p.startDate || '—',
+        endDate: '—',
+        notes,
+      }];
+      this.selectedJob = this.jobs[0];
+    } else {
+      // Subsequent call (other API returned) — update live fields without rebuilding
+      const job = this.jobs[0];
+      if (cost)    { job.budget   = cost; }
+      if (savings) { job.notes    = notes; }
+      if (customer && customer !== 'Client') { job.customer = customer; }
+    }
   }
 
   // ── Computed values from API ────────────────────────────────────────────────
 
-  get annualSavings(): number { return this.savingsData?.annual_savings || 0; }
+  get annualSavings(): number { return this.savingsData?.annual_savings || this.roiData?.annual_savings || 0; }
   get mtdSavings(): number   { return Math.round(this.annualSavings / 12); }
-  get projectCost(): number  { return this.roiData?.project_cost || 0; }
-  get roi(): number          { return this.roiData?.roi || 0; }
-  get payback(): number      { return this.roiData?.payback || 0; }
+  get projectCost(): number  { return this.savingsData?.project_cost || this.roiData?.project_cost || 0; }
+  get roi(): number          { return this.savingsData?.roi || this.roiData?.roi || 0; }
+  get payback(): number      { return this.savingsData?.payback || this.roiData?.payback || 0; }
 
   get kpis() {
     const cost = this.projectCost;
