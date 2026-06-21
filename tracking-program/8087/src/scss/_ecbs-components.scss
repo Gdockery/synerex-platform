@@ -1938,3 +1938,90 @@ textarea.fin-input { resize: vertical; min-height: 60px; }
 .ca-insights-card {}
 .ca-insights-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .ca-insight-item  { display: flex; align-items: flex-start; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Savings & Financials — ECBS OS v4 Spec
+// ═══════════════════════════════════════════════════════════════════════════
+
+// KPI row
+.sf-kpi-row {
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.sf-kpi-card {
+  flex: 1; min-width: 140px; background: $ecbs-card-bg;
+  border: 1px solid $ecbs-border; border-radius: 8px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  border-top: 3px solid transparent;
+}
+.sf-kpi-green  { border-top-color: #00e676; }
+.sf-kpi-teal   { border-top-color: #26c6da; }
+.sf-kpi-blue   { border-top-color: #29b6f6; }
+.sf-kpi-purple { border-top-color: #ab47bc; }
+.sf-kpi-amber  { border-top-color: #ffd740; }
+
+.sf-kpi-icon {
+  font-size: 20px; opacity: 0.65;
+  .sf-kpi-green  & { color: #00e676; }
+  .sf-kpi-teal   & { color: #26c6da; }
+  .sf-kpi-blue   & { color: #29b6f6; }
+  .sf-kpi-purple & { color: #ab47bc; }
+  .sf-kpi-amber  & { color: #ffd740; }
+}
+.sf-kpi-big   { font-size: 20px; font-weight: 700; color: $ecbs-text-primary; line-height: 1.1; }
+.sf-kpi-label { font-size: 7.5px; letter-spacing: 0.7px; text-transform: uppercase; color: $ecbs-text-secondary; margin-bottom: 2px; }
+.sf-kpi-sub   { font-size: 10px; color: $ecbs-text-secondary; }
+
+// 3-column layout row
+.sf-row-3 {
+  display: grid; gap: 12px;
+  @media (max-width: 1100px) { grid-template-columns: 1fr 1fr !important; }
+  @media (max-width: 700px)  { grid-template-columns: 1fr !important; }
+}
+
+// Donut legend
+.sf-donut-legend  { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.sf-dleg-row      { display: flex; align-items: flex-start; gap: 6px; font-size: 10px; }
+.sf-dleg-dot      { width: 8px; height: 8px; border-radius: 50%; margin-top: 2px; flex-shrink: 0; }
+.sf-dleg-label    { color: $ecbs-text-secondary; line-height: 1.4; small { color: #8899a6; } }
+
+// Financial summary table
+.sf-fin-table { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+.sf-fin-row   {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px;
+}
+.sf-fin-sep { border-top: 1px solid $ecbs-border; margin-top: 4px; padding-top: 8px; }
+.sf-fin-key { color: $ecbs-text-secondary; }
+.sf-fin-val { font-weight: 600; color: $ecbs-text-primary; }
+.sf-green   { color: #00e676 !important; }
+
+// ROI callout
+.sf-roi-callout {
+  margin-top: 12px; padding: 8px 10px; background: rgba(0,230,118,0.06);
+  border: 1px solid rgba(0,230,118,0.15); border-radius: 6px;
+  font-size: 10px; color: #00e676; display: flex; align-items: center;
+}
+
+// 5-Year projection list
+.sf-proj-list  { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+.sf-proj-row   {
+  display: flex; align-items: center; padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 11px;
+}
+.sf-proj-sep   { border-top: 1px solid $ecbs-border; margin-top: 4px; padding-top: 8px; }
+.sf-proj-label { flex: 1; color: $ecbs-text-secondary; }
+.sf-proj-val   { font-weight: 600; color: $ecbs-text-primary; white-space: nowrap; }
+
+// Non-energy benefits
+.sf-ne-table  { display: flex; flex-direction: column; gap: 6px; }
+.sf-ne-row    { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; }
+.sf-ne-icon   { color: #00e676; font-size: 12px; margin-top: 1px; flex-shrink: 0; }
+.sf-ne-body   { flex: 1; }
+.sf-ne-label  { font-weight: 600; color: $ecbs-text-primary; font-size: 10px; }
+.sf-ne-desc   { color: $ecbs-text-secondary; font-size: 9px; }
+.sf-ne-val    { font-weight: 700; color: #00e676; white-space: nowrap; font-size: 11px; }
+.sf-ne-total  {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 8px; margin-top: 4px; border-top: 1px solid $ecbs-border;
+  font-size: 11px; color: $ecbs-text-secondary;
+}
