@@ -41,22 +41,24 @@ export class RatesTariffsComponent implements OnInit {
 
   // ── Computed rate values from API ───────────────────────────────────────────
 
-  // energy_rate and demand_rate are stored in savings_intelligence from the engine
   get energyRate(): number { return this.savingsData?.energy_rate || 0; }
-  get demandRate(): number { return this.savingsData?.demand_rate || 0; }
+  get demandRate(): number  { return this.savingsData?.demand_rate  || 0; }
+  get onPeakRate(): number  { return this.savingsData?.tou_on_peak  || 0; }
+  get offPeakRate(): number { return this.savingsData?.tou_off_peak || 0; }
+  get pfPenaltyThreshold(): number { return this.savingsData?.pf_penalty_threshold || 0; }
+  get pfPenaltyRate(): number      { return this.savingsData?.pf_penalty_rate      || 0; }
 
-  private fmt(n: number, decimals = 4): string {
-    if (!n) return '—';
-    return '$' + n.toFixed(decimals);
+  fmtRate(n: number, decimals = 3): string {
+    return n ? '$' + n.toFixed(decimals) + '/kWh' : '—';
   }
 
   get kpis() {
     return [
       { label: 'ENERGY RATE (BLENDED)', value: this.energyRate ? '$' + this.energyRate.toFixed(4) + '/kWh' : '—', change: 'From project utility bill', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
       { label: 'DEMAND CHARGE', value: this.demandRate ? '$' + this.demandRate.toFixed(2) + '/kW' : '—', change: 'From EM&V analysis', dir: 'neutral', color: '#29b6f6', icon: 'fa-bolt' },
-      { label: 'ON-PEAK RATE', value: '—', change: 'TOU not configured', dir: 'neutral', color: '#ffd740', icon: 'fa-sun-o' },
-      { label: 'OFF-PEAK RATE', value: '—', change: 'TOU not configured', dir: 'neutral', color: '#546e7a', icon: 'fa-moon-o' },
-      { label: 'PF PENALTY THRESHOLD', value: '90%', change: 'Standard Entergy Louisiana', dir: 'neutral', color: '#ff7043', icon: 'fa-tachometer' },
+      { label: 'ON-PEAK RATE', value: this.onPeakRate ? '$' + this.onPeakRate.toFixed(4) + '/kWh' : '—', change: this.onPeakRate ? 'From tariff data' : 'TOU not configured', dir: 'neutral', color: '#ffd740', icon: 'fa-sun-o' },
+      { label: 'OFF-PEAK RATE', value: this.offPeakRate ? '$' + this.offPeakRate.toFixed(4) + '/kWh' : '—', change: this.offPeakRate ? 'From tariff data' : 'TOU not configured', dir: 'neutral', color: '#546e7a', icon: 'fa-moon-o' },
+      { label: 'PF PENALTY THRESHOLD', value: this.pfPenaltyThreshold ? this.pfPenaltyThreshold + '%' : '—', change: this.pfPenaltyThreshold ? 'From tariff' : 'Not configured', dir: 'neutral', color: '#ff7043', icon: 'fa-tachometer' },
       { label: 'ANNUAL ENERGY COST (EST)', value: '—', change: 'Import utility bills to calculate', dir: 'neutral', color: '#ce93d8', icon: 'fa-line-chart' },
     ];
   }

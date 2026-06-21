@@ -47,10 +47,10 @@
         <span class="rt-section-label">ACTIVE RATE SCHEDULES</span>
         <div class="rt-filters">
           <select class="fin-input" style="width:140px;padding:5px 8px;font-size:11px;">
-            <option>All Utilities</option><option>Greenleaf SDG&E</option><option>CFE</option><option>Valley Electric Coop</option>
+            <option>All Utilities</option>
           </select>
           <select class="fin-input" style="width:120px;padding:5px 8px;font-size:11px;">
-            <option>All Sites</option><option>Flex Tijuana</option><option>Flex Mexicali</option>
+            <option>All Sites</option>
           </select>
           <input class="fin-input" style="width:180px;padding:5px 8px;font-size:11px;" placeholder="Search rate schedules..."/>
         </div>
@@ -90,7 +90,7 @@
           </tr>
         </tbody>
       </table>
-      <div class="fin-table-footer">Showing {{ rateSchedules.length }} of 24 rate schedules</div>
+      <div class="fin-table-footer">Showing {{ rateSchedules.length }} of {{ rateSchedules.length }} rate schedules</div>
     </div>
 
     <!-- Rate Detail Panel -->
@@ -108,12 +108,12 @@
       <div class="fin-detail-row"><span>Tariff</span><span style="font-size:10px;">{{ selectedRate.tariff || selectedRate.desc }}</span></div>
       <div class="fin-detail-row"><span>Description</span><span style="font-size:10px;color:#8899a6;">{{ selectedRate.desc }}</span></div>
       <div class="fin-detail-section" style="margin-top:14px;">RATE COMPONENTS</div>
-      <div class="fin-detail-row"><span>Blended Rate</span><span class="green">${{ selectedRate.blendedRate.toFixed(3) }}/kWh</span></div>
-      <div class="fin-detail-row"><span>On-Peak Rate</span><span>$0.176/kWh</span></div>
-      <div class="fin-detail-row"><span>Off-Peak Rate</span><span>$0.082/kWh</span></div>
-      <div class="fin-detail-row"><span>Demand Charge</span><span>${{ selectedRate.demandCharge.toFixed(2) }}/kW</span></div>
-      <div class="fin-detail-row"><span>PF Penalty Threshold</span><span>90%</span></div>
-      <div class="fin-detail-row"><span>PF Penalty</span><span>$0.012/kVARh</span></div>
+      <div class="fin-detail-row"><span>Blended Rate</span><span class="green">{{ selectedRate.blendedRate ? '$' + selectedRate.blendedRate.toFixed(4) + '/kWh' : '—' }}</span></div>
+      <div class="fin-detail-row"><span>On-Peak Rate</span><span>{{ fmtRate(onPeakRate) }}</span></div>
+      <div class="fin-detail-row"><span>Off-Peak Rate</span><span>{{ fmtRate(offPeakRate) }}</span></div>
+      <div class="fin-detail-row"><span>Demand Charge</span><span>{{ selectedRate.demandCharge ? '$' + selectedRate.demandCharge.toFixed(2) + '/kW' : '—' }}</span></div>
+      <div class="fin-detail-row"><span>PF Penalty Threshold</span><span>{{ pfPenaltyThreshold ? pfPenaltyThreshold + '%' : '—' }}</span></div>
+      <div class="fin-detail-row"><span>PF Penalty Rate</span><span>{{ pfPenaltyRate ? '$' + pfPenaltyRate.toFixed(4) + '/kVARh' : '—' }}</span></div>
       <div class="fin-detail-section" style="margin-top:14px;">RATE DOCUMENTS</div>
       <div class="rt-doc-row" *ngFor="let d of rateDocuments">
         <span class="fa {{ d.icon }}" style="color:#546e7a;font-size:13px;"></span>
@@ -175,9 +175,14 @@
           <th style="color:#546e7a;font-size:9px;padding:0 0 6px;text-align:right;border-bottom:1px solid #1a2a3a;">Rate</th>
         </tr></thead>
         <tbody>
-          <tr style="border-bottom:1px solid #0f1d2e;"><td style="padding:7px 0;color:#e8edf5;">1</td><td style="color:#8899a6;">0 – 500</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$14.80</td></tr>
-          <tr style="border-bottom:1px solid #0f1d2e;"><td style="padding:7px 0;color:#e8edf5;">2</td><td style="color:#8899a6;">501 – 1,000</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$14.20</td></tr>
-          <tr><td style="padding:7px 0;color:#e8edf5;">3</td><td style="color:#8899a6;">1,001+</td><td style="text-align:right;color:#e8edf5;font-weight:700;">$13.60</td></tr>
+          <tr *ngIf="demandRate; else noTiers">
+            <td style="padding:7px 0;color:#e8edf5;">1</td>
+            <td style="color:#8899a6;">All kW</td>
+            <td style="text-align:right;color:#e8edf5;font-weight:700;">${{ demandRate.toFixed(2) }}</td>
+          </tr>
+          <ng-template #noTiers>
+            <tr><td colspan="3" style="text-align:center;padding:16px;color:#546e7a;font-size:11px;">No demand tier data — configure tariff to add tiers.</td></tr>
+          </ng-template>
         </tbody>
       </table>
       <a class="pay-chart-link" href="#">View Demand Details &rarr;</a>
@@ -186,29 +191,10 @@
     <!-- Rate Impact Chart -->
     <div class="ecbs-card rt-bottom-card">
       <div class="pay-chart-title">RATE IMPACT (VS PRIOR PERIOD)</div>
-      <div style="font-size:10px;color:#546e7a;margin-bottom:8px;">Total Impact: <span style="color:#ef5350;">-$0.21M (-39.2%)</span></div>
-      <svg width="100%" height="120" viewBox="0 0 240 120">
-        <!-- Zero line -->
-        <line x1="0" y1="70" x2="240" y2="70" stroke="#1a2a3a" stroke-width="1"/>
-        <!-- Positive bars -->
-        <rect x="20" y="30" width="35" height="40" fill="#ffd740" rx="2"/>
-        <text x="37" y="26" text-anchor="middle" fill="#ffd740" font-size="9">$0.72M</text>
-        <rect x="155" y="55" width="35" height="15" fill="#ffd740" rx="2"/>
-        <text x="172" y="51" text-anchor="middle" fill="#ffd740" font-size="9">$0.03M</text>
-        <rect x="195" y="30" width="35" height="40" fill="#ffd740" rx="2"/>
-        <text x="212" y="26" text-anchor="middle" fill="#ffd740" font-size="9">$0.51M</text>
-        <!-- Negative bars -->
-        <rect x="65" y="70" width="35" height="30" fill="#ef5350" rx="2"/>
-        <text x="82" y="115" text-anchor="middle" fill="#ef5350" font-size="9">-$0.18M</text>
-        <rect x="110" y="70" width="35" height="25" fill="#ef5350" rx="2"/>
-        <text x="127" y="110" text-anchor="middle" fill="#ef5350" font-size="9">-$0.06M</text>
-        <!-- X labels -->
-        <text x="37" y="115" text-anchor="middle" fill="#546e7a" font-size="8">Prior</text>
-        <text x="82" y="85" text-anchor="middle" fill="#ef5350" font-size="8">Rate</text>
-        <text x="127" y="102" text-anchor="middle" fill="#ef5350" font-size="8">Usage</text>
-        <text x="172" y="115" text-anchor="middle" fill="#ffd740" font-size="8">PF</text>
-        <text x="212" y="115" text-anchor="middle" fill="#ffd740" font-size="8">Current</text>
-      </svg>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;gap:8px;">
+        <span class="fa fa-bar-chart" style="font-size:28px;color:#1e2d45;"></span>
+        <span style="font-size:11px;color:#546e7a;text-align:center;">Rate impact analysis available<br>when utility bill history is imported.</span>
+      </div>
       <a class="pay-chart-link" href="#">View Impact Analysis &rarr;</a>
     </div>
 
