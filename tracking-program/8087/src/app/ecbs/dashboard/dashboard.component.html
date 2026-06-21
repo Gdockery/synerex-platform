@@ -98,17 +98,17 @@
         <div id="site-leaflet-map" class="leaflet-map-div"></div>
 
         <div class="map-legend">
-          <div class="map-leg-item">
+          <div class="map-leg-item" [style.color]="mapHealthyCount>0?'':'rgba(255,255,255,0.3)'">
             <span class="map-leg-dot" style="background:#00e676;"></span>
-            <span>Healthy (1)</span>
+            <span>Healthy ({{ mapHealthyCount }})</span>
           </div>
-          <div class="map-leg-item" style="color:rgba(255,255,255,0.3);">
+          <div class="map-leg-item" [style.color]="mapWarningCount>0?'#ffd740':'rgba(255,255,255,0.3)'">
             <span class="map-leg-dot" style="background:#ffd740;"></span>
-            <span>Warning (0)</span>
+            <span>Warning ({{ mapWarningCount }})</span>
           </div>
-          <div class="map-leg-item" style="color:rgba(255,255,255,0.3);">
+          <div class="map-leg-item" [style.color]="mapCriticalCount>0?'#f44336':'rgba(255,255,255,0.3)'">
             <span class="map-leg-dot" style="background:#f44336;"></span>
-            <span>Critical (0)</span>
+            <span>Critical ({{ mapCriticalCount }})</span>
           </div>
         </div>
       </div>

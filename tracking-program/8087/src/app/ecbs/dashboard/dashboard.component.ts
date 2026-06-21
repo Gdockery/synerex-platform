@@ -10,6 +10,7 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
 export class DashboardComponent implements OnInit, AfterViewInit {
   projectId: number;
   siteName = '';
+  projectLocation = '';  // Street address from project record
   loading = true;
 
   alarmSummary: any  = null;
@@ -22,31 +23,66 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
   ngOnInit() {
-    const p = this.userService.user?.selectedProject;
+    const p = this.userService.user?.selectedProject as any;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
     this.siteName = p.name ? p.name.toString() : '';
+    this.projectLocation = p.location || '';
     this.loadData();
   }
 
   ngAfterViewInit() { this._initLeafletMap(); }
 
   private _leafletMap: any = null;
+  private _mapLat = 39.5;  // continental US center — overridden by geocode
+  private _mapLng = -98.35;
+  private _mapZoom = 4;
+
   private _initLeafletMap() {
+    const placeMarker = (L: any, lat: number, lng: number, zoom: number) => {
+      const el = document.getElementById('site-leaflet-map');
+      if (!el || this._leafletMap) return;
+      this._leafletMap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false })
+        .setView([lat, lng], zoom);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 })
+        .addTo(this._leafletMap);
+      const icon = L.divIcon({
+        className: '',
+        html: '<div style="width:14px;height:14px;border-radius:50%;background:#00e676;border:2px solid #fff;box-shadow:0 0 10px #00e676;"></div>',
+        iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      L.marker([lat, lng], { icon }).addTo(this._leafletMap)
+        .bindPopup('<b>' + (this.siteName || this.projectLocation || 'Site') + '</b><br/><small>' + (this.projectLocation || '') + '</small>');
+    };
+
     const init = () => {
       const L = (window as any).L;
       if (!L) return;
-      const el = document.getElementById('site-leaflet-map');
-      if (!el || this._leafletMap) return;
-      this._leafletMap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false }).setView([30.22, -92.02], 4);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this._leafletMap);
-      const icon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#00e676;border:2px solid #fff;box-shadow:0 0 10px #00e676;"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
-      L.marker([30.22, -92.02], { icon }).addTo(this._leafletMap).bindPopup('<b>' + (this.siteName || 'Lafayette, LA') + '</b>');
+      if (this.projectLocation) {
+        // Geocode address via Nominatim (OpenStreetMap, free, no key)
+        fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(this.projectLocation))
+          .then(r => r.json())
+          .then((results: any[]) => {
+            if (results && results.length) {
+              placeMarker(L, parseFloat(results[0].lat), parseFloat(results[0].lon), 14);
+            } else {
+              placeMarker(L, this._mapLat, this._mapLng, this._mapZoom);
+            }
+          })
+          .catch(() => placeMarker(L, this._mapLat, this._mapLng, this._mapZoom));
+      } else {
+        placeMarker(L, this._mapLat, this._mapLng, this._mapZoom);
+      }
     };
     if ((window as any).L) { init(); return; }
     const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
     const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = init; document.head.appendChild(s);
   }
+
+  // ── Map legend counts — from alarm API data ───────────────────────────────
+  get mapHealthyCount(): number  { return this.alarmSummary ? (this.activeAlarms === 0 ? 1 : 0) : 0; }
+  get mapWarningCount(): number  { return this.alarmSummary ? ((this.alarmSummary.high ?? 0) + (this.alarmSummary.medium ?? 0)) : 0; }
+  get mapCriticalCount(): number { return this.alarmSummary ? (this.alarmSummary.critical ?? 0) : 0; }
 
   loadData() {
     this.loading = true;
