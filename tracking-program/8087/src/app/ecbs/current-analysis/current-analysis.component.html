@@ -1,89 +1,365 @@
-<!-- ECBS OS™ Current Analysis — Spec SS-9 / Current Balance Intelligence™ -->
+<!-- Current Analysis — ECBS OS v4 Spec -->
 <div class="ecbs-page">
 
+  <!-- ── Header ── -->
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Current Balance Intelligence™</h1>
-      <p>Classify and quantify all current components — Productive, Reactive, Harmonic, Imbalance, Neutral.</p>
+      <h1>Current Analysis</h1>
+      <p>Comprehensive analysis of current components and their impact on your electrical system.</p>
     </div>
-    <div class="page-actions">
+    <div class="page-actions" style="gap:10px;align-items:center;">
+      <span style="font-size:11px;color:#546e7a;">Time Range</span>
+      <select class="fin-input" style="width:130px;height:30px;font-size:11px;" [(ngModel)]="timeRange" (change)="setTimeRange(timeRange)">
+        <option value="7d">Last 7 Days</option>
+        <option value="30d">Last 30 Days</option>
+        <option value="90d">Last 90 Days</option>
+      </select>
       <button class="btn-ecbs btn-outline" (click)="loadData()"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
     </div>
   </div>
 
-  <div *ngIf="loading" class="ecbs-spinner">
-    <span class="fa fa-spinner fa-spin"></span> Loading Current Balance data...
-  </div>
+  <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading current analysis…</div>
 
   <ng-container *ngIf="!loading">
 
-    <div class="ecbs-kpi-row">
-      <div class="ecbs-kpi-card" [class.kpi-green]="cbiScore>=90" [class.kpi-amber]="cbiScore>=70&&cbiScore<90" [class.kpi-red]="cbiScore<70">
-        <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
-        <div class="kpi-value" [style.color]="cbiGaugeColor">{{ cbiScore | number:'1.0-0' }}</div>
-        <div class="kpi-label">CBI Score™</div>
-        <div class="kpi-delta" [class.negative]="cbiScore<70" [class.neutral]="cbiScore>=70&&cbiScore<90">{{ cbiStatusLabel }}</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-purple">
-        <div class="kpi-icon"><span class="fa fa-random"></span></div>
-        <div class="kpi-value">{{ (cbi?.harmonic_current_pct || 0) | number:'1.1-1' }}%</div>
-        <div class="kpi-label">Harmonic Burden</div>
-        <div class="kpi-delta" [class.negative]="(cbi?.harmonic_current_pct||0)>15" [class.neutral]="(cbi?.harmonic_current_pct||0)<=15">
-          {{ (cbi?.harmonic_current_pct||0) > 15 ? 'Above threshold' : 'Normal' }}
+    <!-- ── KPI Row: 6 current-type cards ── -->
+    <div class="ca-kpi-row">
+
+      <div class="ca-kpi-card ca-kpi-total">
+        <div class="ca-kpi-icon"><span class="fa fa-bolt"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">TOTAL CURRENT</div>
+          <div class="ca-kpi-big">{{ hasData ? (totalCurrentAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">Avg.</div>
         </div>
       </div>
-      <div class="ecbs-kpi-card kpi-blue">
-        <div class="kpi-icon"><span class="fa fa-exchange"></span></div>
-        <div class="kpi-value">{{ (cbi?.reactive_current_pct || 0) | number:'1.1-1' }}%</div>
-        <div class="kpi-label">Reactive Burden</div>
-        <div class="kpi-delta neutral">{{ (cbi?.power_factor || 0) | number:'1.2-2' }} PF</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-compress"></span></div>
-        <div class="kpi-value">{{ (cbi?.neutral_current_pct || 0) | number:'1.1-1' }}%</div>
-        <div class="kpi-label">Neutral Loading</div>
-        <div class="kpi-delta" [class.negative]="(cbi?.neutral_current_pct||0)>20" [class.neutral]="(cbi?.neutral_current_pct||0)<=20">
-          {{ (cbi?.neutral_current_pct||0) > 20 ? 'High' : 'Normal' }}
+
+      <div class="ca-kpi-card ca-kpi-productive">
+        <div class="ca-kpi-icon"><span class="fa fa-check-circle"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">PRODUCTIVE CURRENT (kW)</div>
+          <div class="ca-kpi-big">{{ hasData ? (productiveAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">{{ hasData ? (productivePct | number:"1.1-1") + "% of Total" : "No data" }}</div>
         </div>
       </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-adjust"></span></div>
-        <div class="kpi-value">{{ (cbi?.imbalance_pct || 0) | number:'1.1-1' }}%</div>
-        <div class="kpi-label">Phase Imbalance</div>
-        <div class="kpi-delta" [class.negative]="(cbi?.imbalance_pct||0)>5" [class.neutral]="(cbi?.imbalance_pct||0)<=5">
-          {{ (cbi?.imbalance_pct||0) > 5 ? 'Out of spec' : 'Balanced' }}
+
+      <div class="ca-kpi-card ca-kpi-reactive">
+        <div class="ca-kpi-icon"><span class="fa fa-exchange"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">REACTIVE CURRENT (kVAR)</div>
+          <div class="ca-kpi-big">{{ hasData ? (reactiveAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">{{ hasData ? (reactivePct | number:"1.1-1") + "% of Total" : "No data" }}</div>
         </div>
       </div>
+
+      <div class="ca-kpi-card ca-kpi-harmonic">
+        <div class="ca-kpi-icon"><span class="fa fa-random"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">HARMONIC CURRENT (THD)</div>
+          <div class="ca-kpi-big">{{ hasData ? (harmonicAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">{{ hasData ? (harmonicPct | number:"1.1-1") + "% of Total" : "No data" }}</div>
+        </div>
+      </div>
+
+      <div class="ca-kpi-card ca-kpi-imbalance">
+        <div class="ca-kpi-icon"><span class="fa fa-adjust"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">IMBALANCE CURRENT</div>
+          <div class="ca-kpi-big">{{ hasData ? (imbalanceAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">{{ hasData ? (imbalancePct | number:"1.1-1") + "% of Total" : "No data" }}</div>
+        </div>
+      </div>
+
+      <div class="ca-kpi-card ca-kpi-neutral">
+        <div class="ca-kpi-icon"><span class="fa fa-minus-circle"></span></div>
+        <div class="ca-kpi-body">
+          <div class="ca-kpi-label">NEUTRAL CURRENT</div>
+          <div class="ca-kpi-big">{{ hasData ? (neutralAmp | number:"1.0-0") + " A" : "—" }}</div>
+          <div class="ca-kpi-sub">{{ hasData ? (neutralPct | number:"1.1-1") + "% of Phase Avg." : "No data" }}</div>
+        </div>
+      </div>
+
     </div>
 
-    <div class="ecbs-grid-2">
+    <!-- ── Row 1: Stacked Area Chart + Phase Balance Chart ── -->
+    <div class="ca-chart-row">
 
-      <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> Current Balance Index™ Gauge</div>
+      <!-- Current Components Over Time -->
+      <div class="ecbs-card ca-chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="ecbs-card-title" style="margin:0;"><span class="fa fa-area-chart"></span> CURRENT COMPONENTS OVER TIME</div>
+          <span style="font-size:10px;color:#546e7a;">15 Min Average</span>
+        </div>
+        <div class="ca-legend-row" style="margin-bottom:8px;">
+          <span class="ca-legend-dot" style="background:#00e676;"></span><span class="ca-legend-label">Productive (kW)</span>
+          <span class="ca-legend-dot" style="background:#29b6f6;"></span><span class="ca-legend-label">Reactive (kVAR)</span>
+          <span class="ca-legend-dot" style="background:#ce93d8;"></span><span class="ca-legend-label">Harmonic (THD)</span>
+          <span class="ca-legend-dot" style="background:#ffd740;"></span><span class="ca-legend-label">Imbalance</span>
+        </div>
 
-        <div class="cbi-panel">
-          <div class="ecbs-gauge-ring" style="width:160px;height:160px;">
-            <svg width="160" height="160" viewBox="0 0 160 160">
-              <circle class="gauge-track" cx="80" cy="80" r="62" stroke-width="10"/>
-              <circle class="gauge-fill" cx="80" cy="80" r="62" stroke-width="10"
-                [attr.stroke]="cbiGaugeColor"
-                stroke-dasharray="389.6"
-                [attr.stroke-dashoffset]="cbiDashoffset"/>
+        <ng-container *ngIf="!hasData">
+          <div class="ecbs-empty" style="height:140px;justify-content:center;">
+            <span class="fa fa-area-chart" style="font-size:32px;color:#1a2a3a;margin-bottom:8px;"></span>
+            <span class="empty-title">No Metering Data</span>
+            <p>PQ meter data required to render component trend.</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="hasData">
+          <svg [attr.width]="CA_W" [attr.height]="CA_H + 30" viewBox="0 0 {{CA_W}} {{CA_H + 30}}" style="overflow:visible;width:100%;max-width:{{CA_W}}px;">
+            <!-- Y gridlines -->
+            <line *ngFor="let pct of [0,25,50,75,100]" x1="0" [attr.y1]="CA_H * (1 - pct/100)" [attr.x2]="CA_W" [attr.y2]="CA_H * (1 - pct/100)" stroke="#1a2a3a" stroke-width="1"/>
+            <!-- Stacked area polygons -->
+            <polygon *ngFor="let s of stackedAreaData"
+              [attr.points]="s.polygon"
+              [attr.fill]="s.color" fill-opacity="0.75" stroke="none"/>
+            <!-- X labels -->
+            <text *ngFor="let l of caXLabels" [attr.x]="l.x" [attr.y]="CA_H + 18" font-size="9" fill="#546e7a" text-anchor="middle">{{ l.label }}</text>
+          </svg>
+        </ng-container>
+      </div>
+
+      <!-- Phase Current Balance -->
+      <div class="ecbs-card ca-chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="ecbs-card-title" style="margin:0;"><span class="fa fa-line-chart"></span> PHASE CURRENT BALANCE</div>
+          <span style="font-size:10px;color:#546e7a;">15 Min Average</span>
+        </div>
+        <div class="ca-legend-row" style="margin-bottom:8px;">
+          <span class="ca-legend-dash" style="background:#00e676;"></span><span class="ca-legend-label">A Phase</span>
+          <span class="ca-legend-dash" style="background:#29b6f6;"></span><span class="ca-legend-label">B Phase</span>
+          <span class="ca-legend-dash" style="background:#ef5350;"></span><span class="ca-legend-label">C Phase</span>
+          <span class="ca-legend-dash" style="background:#ffd740;border-style:dashed;"></span><span class="ca-legend-label">Average</span>
+        </div>
+
+        <ng-container *ngIf="!hasData">
+          <div class="ecbs-empty" style="height:140px;justify-content:center;">
+            <span class="fa fa-line-chart" style="font-size:32px;color:#1a2a3a;margin-bottom:8px;"></span>
+            <span class="empty-title">No Phase Data</span>
+            <p>Phase current readings required.</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="hasData">
+          <svg [attr.width]="PH_W" [attr.height]="PH_H + 30" viewBox="0 0 {{PH_W}} {{PH_H + 30}}" style="overflow:visible;width:100%;max-width:{{PH_W}}px;">
+            <line *ngFor="let pct of [0,25,50,75,100]" x1="0" [attr.y1]="PH_H * (1 - pct/100)" [attr.x2]="PH_W" [attr.y2]="PH_H * (1 - pct/100)" stroke="#1a2a3a" stroke-width="1"/>
+            <polyline *ngFor="let p of phaseLineData"
+              [attr.points]="p.points"
+              [attr.stroke]="p.color" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+            <polyline [attr.points]="phaseAvgLine"
+              stroke="#ffd740" stroke-width="1" fill="none" stroke-dasharray="4,2"/>
+            <text *ngFor="let l of caXLabels" [attr.x]="l.x" [attr.y]="PH_H + 18" font-size="9" fill="#546e7a" text-anchor="middle">{{ l.label }}</text>
+          </svg>
+        </ng-container>
+      </div>
+
+    </div>
+
+    <!-- ── Row 2: Donut + Harmonic THD + Neutral Trend ── -->
+    <div class="ca-lower-row">
+
+      <!-- Component Breakdown Donut -->
+      <div class="ecbs-card ca-breakdown-card">
+        <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> CURRENT COMPONENT BREAKDOWN</div>
+
+        <ng-container *ngIf="!hasData">
+          <div class="ecbs-empty" style="padding:30px 16px;">
+            <span class="fa fa-pie-chart" style="font-size:32px;color:#1a2a3a;margin-bottom:8px;"></span>
+            <span class="empty-title">No Breakdown Data</span>
+            <p>Active PQ metering required.</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="hasData">
+          <div style="display:flex;align-items:center;gap:16px;">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle cx="65" cy="65" r="54" fill="none" stroke="#1a2a3a" stroke-width="16"/>
+              <circle *ngFor="let seg of donutSegments"
+                cx="65" cy="65" r="54" fill="none"
+                [attr.stroke]="seg.color" stroke-width="16"
+                [attr.stroke-dasharray]="seg.dash + ' ' + (2 * 3.14159 * 54 - seg.dash)"
+                [attr.stroke-dashoffset]="seg.offset"
+                transform="rotate(-90 65 65)"/>
+              <text x="65" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#e8edf5">{{ totalCurrentAmp | number:"1.0-0" }}</text>
+              <text x="65" y="73" text-anchor="middle" font-size="8" fill="#546e7a">Total Current</text>
+              <text x="65" y="83" text-anchor="middle" font-size="8" fill="#546e7a">(Avg.)</text>
             </svg>
-            <div class="gauge-center">
-              <div class="gauge-value" [style.color]="cbiGaugeColor">{{ cbiScore | number:'1.0-0' }}</div>
-              <div class="gauge-grade" [style.color]="cbiGaugeColor">{{ cbiGrade }}</div>
-              <div class="gauge-label">CBI Score</div>
+            <div class="ca-donut-legend">
+              <div class="ca-donut-row">
+                <span class="ca-dot" style="background:#00e676;"></span>
+                <span class="ca-dlabel">Productive Current (kW)</span>
+                <span class="ca-dval" style="color:#00e676;">{{ productiveAmp | number:"1.0-0" }} A ({{ productivePct | number:"1.0-0" }}%)</span>
+              </div>
+              <div class="ca-donut-row">
+                <span class="ca-dot" style="background:#29b6f6;"></span>
+                <span class="ca-dlabel">Reactive Current (kVAR)</span>
+                <span class="ca-dval" style="color:#29b6f6;">{{ reactiveAmp | number:"1.0-0" }} A ({{ reactivePct | number:"1.0-0" }}%)</span>
+              </div>
+              <div class="ca-donut-row">
+                <span class="ca-dot" style="background:#ce93d8;"></span>
+                <span class="ca-dlabel">Harmonic Current (THD)</span>
+                <span class="ca-dval" style="color:#ce93d8;">{{ harmonicAmp | number:"1.0-0" }} A ({{ harmonicPct | number:"1.0-0" }}%)</span>
+              </div>
+              <div class="ca-donut-row">
+                <span class="ca-dot" style="background:#ffd740;"></span>
+                <span class="ca-dlabel">Imbalance Current</span>
+                <span class="ca-dval" style="color:#ffd740;">{{ imbalanceAmp | number:"1.0-0" }} A ({{ imbalancePct | number:"1.0-0" }}%)</span>
+              </div>
             </div>
           </div>
+          <div *ngIf="opportunities.length > 0" class="ca-insight-bar" style="margin-top:10px;padding:8px 10px;background:rgba(0,230,118,0.04);border-radius:6px;font-size:11px;color:#8899a6;border:1px solid rgba(0,230,118,0.1);">
+            <span class="fa fa-check-circle" style="color:#00e676;margin-right:6px;"></span>
+            XECO is reducing non-productive current, increasing your available capacity.
+          </div>
+        </ng-container>
+      </div>
 
-          <div class="cbi-status-label" [style.color]="cbiGaugeColor">{{ cbiStatusLabel }}</div>
-          <div class="cbi-descriptor" *ngIf="cbiScore >= 90">Current balance is excellent — all ECBS targets met.</div>
-          <div class="cbi-descriptor" *ngIf="cbiScore >= 70 && cbiScore < 90">Good — some optimization opportunities remain.</div>
-          <div class="cbi-descriptor" *ngIf="cbiScore < 70">Below target — review harmonic and reactive composition.</div>
+      <!-- Current Harmonic Distortion (THDi) -->
+      <div class="ecbs-card ca-thd-card">
+        <div class="ecbs-card-title"><span class="fa fa-bar-chart"></span> CURRENT HARMONIC DISTORTION (THDi)</div>
 
-          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+        <ng-container *ngIf="!hasData">
+          <div class="ecbs-empty" style="padding:30px 16px;">
+            <span class="fa fa-bar-chart" style="font-size:32px;color:#1a2a3a;margin-bottom:8px;"></span>
+            <span class="empty-title">No THD Data</span>
+            <p>Harmonic data requires PQ metering.</p>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="hasData">
+          <!-- THD summary -->
+          <div style="display:flex;justify-content:center;gap:20px;font-size:12px;margin-bottom:12px;">
+            <div style="text-align:center;">
+              <div style="font-size:20px;font-weight:700;color:#ce93d8;">{{ harmonicPct | number:"1.1-1" }}%</div>
+              <div style="color:#546e7a;font-size:9px;">Current THD</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:20px;font-weight:700;color:#ffd740;">15%</div>
+              <div style="color:#546e7a;font-size:9px;">IEEE 519 Limit</div>
+            </div>
+          </div>
+          <!-- THD indicator bar -->
+          <div style="margin-bottom:8px;">
+            <div style="font-size:9px;color:#546e7a;margin-bottom:4px;">THD vs IEEE 519 Limit</div>
+            <div style="background:#1a2a3a;border-radius:4px;height:8px;width:100%;position:relative;">
+              <div [style.width]="(harmonicPct / 25 * 100) + '%'" style="background:#ce93d8;height:8px;border-radius:4px;max-width:100%;transition:width 0.5s;"></div>
+              <div style="position:absolute;left:60%;top:-14px;font-size:8px;color:#ffd740;">│ IEEE 519</div>
+              <div style="position:absolute;left:60%;top:0;width:1px;height:8px;background:#ffd740;"></div>
+            </div>
+          </div>
+          <div class="ca-insight-bar" style="margin-top:10px;font-size:11px;color:#8899a6;">
+            <span class="fa fa-check-circle" [style.color]="harmonicPct < 15 ? '#00e676' : '#ffd740'"></span>
+            Current THD: {{ harmonicPct | number:"1.1-1" }}% — IEEE 519 Limit: 15%
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Neutral Current Trend -->
+      <div class="ecbs-card ca-neutral-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="ecbs-card-title" style="margin:0;"><span class="fa fa-line-chart"></span> NEUTRAL CURRENT TREND</div>
+          <span style="font-size:10px;color:#546e7a;">15 Min Average</span>
+        </div>
+
+        <ng-container *ngIf="!hasData">
+          <div class="ecbs-empty" style="height:120px;justify-content:center;">
+            <span class="fa fa-line-chart" style="font-size:28px;color:#1a2a3a;margin-bottom:8px;"></span>
+            <span class="empty-title">No Neutral Data</span>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="hasData">
+          <svg [attr.width]="NT_W" [attr.height]="NT_H + 20" style="overflow:visible;width:100%;max-width:{{NT_W}}px;">
+            <line *ngFor="let pct of [0,50,100]" x1="0" [attr.y1]="NT_H * (1 - pct/100)" [attr.x2]="NT_W" [attr.y2]="NT_H * (1 - pct/100)" stroke="#1a2a3a" stroke-width="1"/>
+            <polyline [attr.points]="neutralTrendLine" stroke="#29b6f6" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+          </svg>
+          <div class="ca-insight-bar" style="margin-top:6px;font-size:11px;color:#8899a6;">
+            <span class="fa fa-check-circle" style="color:#00e676;"></span>
+            Neutral current is {{ neutralPct | number:"1.1-1" }}% of phase average.
+          </div>
+        </ng-container>
+      </div>
+
+    </div>
+
+    <!-- ── Row 3: Asset Table + CBI Panel + Key Insights ── -->
+    <div class="ca-bottom-row">
+
+      <!-- Current Analysis by Asset -->
+      <div class="ecbs-card ca-asset-card">
+        <div class="ecbs-card-title"><span class="fa fa-table"></span> CURRENT ANALYSIS BY ASSET</div>
+
+        <div *ngIf="assetRows.length === 0" class="ecbs-empty" style="padding:30px 16px;">
+          <span class="fa fa-database" style="font-size:32px;color:#1a2a3a;margin-bottom:8px;"></span>
+          <span class="empty-title">No Per-Asset Data</span>
+          <p>Asset-level data requires metering per circuit.</p>
+        </div>
+
+        <table *ngIf="assetRows.length > 0" class="ecbs-table ca-asset-table">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Total Current (A)</th>
+              <th>Productive (kW)</th>
+              <th>Reactive (kVAR)</th>
+              <th>Harmonic (THD)</th>
+              <th>Imbalance</th>
+              <th>Neutral (A)</th>
+              <th>CBI™</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of assetRows">
+              <td style="font-weight:600;">{{ row.name }}</td>
+              <td>{{ row.totalAmp != null ? row.totalAmp : "—" }}</td>
+              <td style="color:#00e676;">{{ row.productiveAmp != null ? row.productiveAmp + " (" + row.productivePct + "%)" : "—" }}</td>
+              <td style="color:#29b6f6;">{{ row.reactiveAmp != null ? row.reactiveAmp + " (" + row.reactivePct + "%)" : "—" }}</td>
+              <td style="color:#ce93d8;">{{ row.harmonicAmp != null ? row.harmonicAmp + " (" + row.harmonicPct + "%)" : "—" }}</td>
+              <td>{{ row.imbalancePct != null ? row.imbalancePct + "%" : "—" }}</td>
+              <td>{{ row.neutralAmp != null ? row.neutralAmp : "—" }}</td>
+              <td style="font-weight:700;" [style.color]="cbiRowColor(row.cbi)">{{ row.cbi != null ? row.cbi : "—" }}</td>
+              <td>
+                <span *ngIf="row.cbi != null" class="alm-status-badge"
+                  [style.color]="row.cbi >= 90 ? '#00e676' : row.cbi >= 70 ? '#ffd740' : '#ef5350'"
+                  [style.border-color]="row.cbi >= 90 ? '#00e676' : row.cbi >= 70 ? '#ffd740' : '#ef5350'">
+                  {{ row.cbi >= 90 ? "Healthy" : row.cbi >= 70 ? "Fair" : "Needs Attention" }}
+                </span>
+                <span *ngIf="row.cbi == null" style="color:#546e7a;">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="assetRows.length > 0" style="font-size:10px;color:#546e7a;margin-top:6px;">
+          CBI™ = Current Balance Index
+        </div>
+      </div>
+
+      <!-- CBI Gauge + Phase Readings -->
+      <div class="ecbs-card ca-cbi-panel">
+        <div class="ecbs-card-title"><span class="fa fa-tachometer"></span> CBI™ GAUGE</div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <svg width="160" height="160" viewBox="0 0 160 160">
+            <circle cx="80" cy="80" r="54" fill="none" stroke="#1a2a3a" stroke-width="10"/>
+            <circle cx="80" cy="80" r="54" fill="none"
+              [attr.stroke]="cbiGaugeColor" stroke-width="10"
+              stroke-dasharray="339.3"
+              [attr.stroke-dashoffset]="cbiDashoffset"
+              transform="rotate(-90 80 80)" stroke-linecap="round"/>
+            <text x="80" y="74" text-anchor="middle" font-size="24" font-weight="700" [attr.fill]="cbiGaugeColor">{{ cbiScore | number:"1.0-0" }}</text>
+            <text x="80" y="88" text-anchor="middle" font-size="11" [attr.fill]="cbiGaugeColor">{{ cbiGrade }}</text>
+            <text x="80" y="100" text-anchor="middle" font-size="8" fill="#546e7a">CBI SCORE</text>
+          </svg>
+          <div style="font-size:14px;font-weight:700;margin-top:4px;" [style.color]="cbiGaugeColor">{{ cbiStatusLabel | uppercase }}</div>
+          <div style="font-size:10px;color:#546e7a;text-align:center;margin-top:4px;">
+            <ng-container *ngIf="cbiScore >= 90">Current balance is excellent — all ECBS targets met.</ng-container>
+            <ng-container *ngIf="cbiScore >= 70 && cbiScore < 90">Good — some optimization opportunities remain.</ng-container>
+            <ng-container *ngIf="cbiScore < 70 && cbiScore > 0">Below target — review harmonic and reactive composition.</ng-container>
+            <ng-container *ngIf="cbiScore === 0">Install PQ meters to compute CBI score.</ng-container>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
             <span class="health-score-pill hsp-excellent">90-100 Excellent</span>
             <span class="health-score-pill hsp-good">80-89 Good</span>
             <span class="health-score-pill hsp-fair">70-79 Fair</span>
@@ -91,104 +367,43 @@
           </div>
         </div>
 
-        <div *ngIf="cbi" style="margin-top:16px;">
-          <div class="ecbs-card-title" style="margin-top:8px;"><span class="fa fa-list"></span> Live Phase Readings</div>
+        <!-- Live Phase Readings -->
+        <div style="margin-top:16px;">
+          <div class="ecbs-card-title" style="margin-top:0;font-size:10px;"><span class="fa fa-list"></span> LIVE PHASE READINGS</div>
           <div class="ecbs-kv-table">
-            <div class="kv-row"><span class="kv-key">Phase A Current</span><span class="kv-val">{{ (cbi.phase_a_current || 0) | number:'1.0-0' }} A</span></div>
-            <div class="kv-row"><span class="kv-key">Phase B Current</span><span class="kv-val">{{ (cbi.phase_b_current || 0) | number:'1.0-0' }} A</span></div>
-            <div class="kv-row"><span class="kv-key">Phase C Current</span><span class="kv-val">{{ (cbi.phase_c_current || 0) | number:'1.0-0' }} A</span></div>
-            <div class="kv-row"><span class="kv-key">Neutral Current</span><span class="kv-val" [class.kv-amber]="(cbi.neutral_current||0)>20">{{ (cbi.neutral_current || 0) | number:'1.0-0' }} A</span></div>
-            <div class="kv-row"><span class="kv-key">THDi</span><span class="kv-val" [class.kv-amber]="(cbi.thdi||0)>15">{{ (cbi.thdi || 0) | number:'1.1-1' }}%</span></div>
-            <div class="kv-row"><span class="kv-key">Power Factor</span><span class="kv-val" [class.kv-green]="(cbi.power_factor||0)>=0.95">{{ (cbi.power_factor || 0) | number:'1.3-3' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Phase A</span><span class="kv-val">{{ hasData ? (phaseA | number:"1.0-0") + " A" : "—" }}</span></div>
+            <div class="kv-row"><span class="kv-key">Phase B</span><span class="kv-val">{{ hasData ? (phaseB | number:"1.0-0") + " A" : "—" }}</span></div>
+            <div class="kv-row"><span class="kv-key">Phase C</span><span class="kv-val">{{ hasData ? (phaseC | number:"1.0-0") + " A" : "—" }}</span></div>
+            <div class="kv-row"><span class="kv-key">Average</span><span class="kv-val">{{ hasData ? (phaseAvg | number:"1.0-0") + " A" : "—" }}</span></div>
+            <div class="kv-row"><span class="kv-key">Power Factor</span>
+              <span class="kv-val" [class.kv-green]="powerFactor >= 0.95">{{ powerFactor > 0 ? (powerFactor | number:"1.3-3") : "—" }}</span>
+            </div>
           </div>
         </div>
 
-        <div *ngIf="!cbi" class="ecbs-empty" style="padding:30px;">
-          <span class="empty-icon fa fa-database"></span>
-          <span class="empty-title">No PQ Meter Data</span>
-          <p>Active PQ meters required to compute Current Balance Index.</p>
-        </div>
-      </div>
-
-      <div class="ecbs-card">
-        <div class="ecbs-card-title"><span class="fa fa-bar-chart"></span> Current Component Breakdown</div>
-
-        <div *ngIf="!cbi" class="ecbs-empty" style="padding:40px 20px;">
-          <span class="empty-icon fa fa-bolt"></span>
-          <span class="empty-title">No Breakdown Available</span>
-          <p>Component data requires active PQ metering.</p>
-        </div>
-
-        <div *ngIf="cbi" class="cbi-components">
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-check" style="color:#00e676;margin-right:5px;"></span>Productive™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="cbi.productive_current_pct||0" style="background:#00e676;"></div></div>
-            <span class="ccc-pct" style="color:#00e676;">{{ (cbi.productive_current_pct||0) | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span class="badge-healthy">Useful Work</span></div>
-          </div>
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-exchange" style="color:#29b6f6;margin-right:5px;"></span>Reactive™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="cbi.reactive_current_pct||0" style="background:#29b6f6;"></div></div>
-            <span class="ccc-pct" style="color:#29b6f6;">{{ (cbi.reactive_current_pct||0) | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span [class]="(cbi.reactive_current_pct||0)>30?'badge-warning':'badge-info'">{{ (cbi.reactive_current_pct||0)>30?'High':'Normal' }}</span></div>
-          </div>
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-random" style="color:#ce93d8;margin-right:5px;"></span>Harmonic™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="cbi.harmonic_current_pct||0" style="background:#ce93d8;"></div></div>
-            <span class="ccc-pct" style="color:#ce93d8;">{{ (cbi.harmonic_current_pct||0) | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span [class]="(cbi.harmonic_current_pct||0)>15?'badge-warning':'badge-healthy'">{{ (cbi.harmonic_current_pct||0)>15?'High':'Low' }}</span></div>
-          </div>
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-adjust" style="color:#ffd740;margin-right:5px;"></span>Imbalance™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="(cbi.imbalance_pct||0)*4" style="background:#ffd740;"></div></div>
-            <span class="ccc-pct" style="color:#ffd740;">{{ (cbi.imbalance_pct||0) | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span [class]="(cbi.imbalance_pct||0)>5?'badge-warning':'badge-healthy'">{{ (cbi.imbalance_pct||0)>5?'Unbal.':'Bal.' }}</span></div>
-          </div>
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-minus-circle" style="color:#f44336;margin-right:5px;"></span>Neutral™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="cbi.neutral_current_pct||0" style="background:#f44336;"></div></div>
-            <span class="ccc-pct" style="color:#f44336;">{{ (cbi.neutral_current_pct||0) | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span [class]="(cbi.neutral_current_pct||0)>20?'badge-critical':'badge-healthy'">{{ (cbi.neutral_current_pct||0)>20?'High':'Normal' }}</span></div>
-          </div>
-          <div class="cbi-component-row">
-            <span class="ccc-label"><span class="fa fa-lock" style="color:#546e7a;margin-right:5px;"></span>Lost Capacity™</span>
-            <div class="ccc-bar"><div class="ccc-bar-fill" [style.width.%]="lostCapacityPct" style="background:#546e7a;"></div></div>
-            <span class="ccc-pct" style="color:#8899a6;">{{ lostCapacityPct | number:'1.1-1' }}%</span>
-            <div class="ccc-badge"><span [class]="lostCapacityPct>25?'badge-critical':'badge-offline'">{{ lostCapacityPct>25?'High':'Low' }}</span></div>
-          </div>
-        </div>
-
-        <div *ngIf="cbi" style="margin-top:20px;">
-          <div class="ecbs-card-title" style="margin-top:0;"><span class="fa fa-lightbulb-o"></span> ECBS Optimization Opportunities</div>
+        <!-- Optimization opportunities -->
+        <div *ngIf="opportunities.length > 0" style="margin-top:12px;">
+          <div class="ecbs-card-title" style="margin-top:0;font-size:10px;"><span class="fa fa-lightbulb-o"></span> ECBS OPTIMIZATION OPPORTUNITIES</div>
           <div class="ecbs-kv-table">
-            <div class="kv-row" *ngIf="(cbi.harmonic_current_pct||0)>15">
-              <span class="kv-key">Active Harmonic Filter (APF)</span>
-              <span class="kv-val kv-green">+{{ ((cbi.harmonic_current_pct||0)*0.6)|number:'1.0-0' }}% CBI</span>
-            </div>
-            <div class="kv-row" *ngIf="(cbi.reactive_current_pct||0)>25">
-              <span class="kv-key">Power Factor Correction</span>
-              <span class="kv-val kv-green">+{{ ((cbi.reactive_current_pct||0)*0.4)|number:'1.0-0' }}% CBI</span>
-            </div>
-            <div class="kv-row" *ngIf="(cbi.imbalance_pct||0)>5">
-              <span class="kv-key">Load Balancing</span>
-              <span class="kv-val kv-green">+{{ ((cbi.imbalance_pct||0)*0.5)|number:'1.0-0' }}% CBI</span>
-            </div>
-            <div class="kv-row" *ngIf="cbiScore>=90">
-              <span class="kv-key">All targets met</span>
-              <span class="kv-val kv-green">No action required</span>
+            <div *ngFor="let o of opportunities" class="kv-row">
+              <span class="kv-key">{{ o.label }}</span>
+              <span class="kv-val kv-green">{{ o.gain }}</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="ecbs-card" style="margin-top:16px;">
-      <div class="ecbs-card-title"><span class="fa fa-line-chart"></span> CBI Trend — 30 Days</div>
-      <div class="ecbs-empty" style="padding:30px;">
-        <span class="empty-icon fa fa-line-chart"></span>
-        <span class="empty-title">Historical Trend</span>
-        <p>30/60/90-day CBI trend data accumulates automatically as meters stream.</p>
+      <!-- Key Insights -->
+      <div class="ecbs-card ca-insights-card">
+        <div class="ecbs-card-title"><span class="fa fa-lightbulb-o"></span> KEY INSIGHTS</div>
+        <div class="ca-insights-list">
+          <div *ngFor="let ins of insights" class="ca-insight-item">
+            <span class="fa" [class]="ins.icon" [style.color]="ins.color" style="margin-right:8px;font-size:13px;flex-shrink:0;"></span>
+            <span style="font-size:11px;color:#8899a6;line-height:1.5;">{{ ins.text }}</span>
+          </div>
+        </div>
       </div>
+
     </div>
 
   </ng-container>
