@@ -1,204 +1,371 @@
-<!-- ECBS OS™ Alarms & Events — Spec SS-12 (Alarms) + SS-13 (Alert Rules) -->
+<!-- Alarms & Events — ECBS OS v4 spec SS-12 / SS-13 -->
 <div class="ecbs-page">
+
+  <!-- Header -->
   <div class="ecbs-page-header">
     <div class="page-title-block">
       <h1>Alarms &amp; Events</h1>
-      <p>Centralized alarm management — monitor, acknowledge, escalate, and resolve system alerts.</p>
+      <p>Real-time monitoring of system alerts, alarms and important events.</p>
     </div>
-    <div class="page-actions">
+    <div class="page-actions" style="align-items:center;gap:10px;">
+      <span style="font-size:11px;color:#546e7a;">Severity</span>
+      <select class="fin-input" style="width:110px;height:30px;font-size:11px;" [(ngModel)]="filterSeverity">
+        <option value="">All</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <span style="font-size:11px;color:#546e7a;">Status</span>
+      <select class="fin-input" style="width:130px;height:30px;font-size:11px;" [(ngModel)]="filterStatus">
+        <option value="">Active</option>
+        <option value="acknowledged">Acknowledged</option>
+        <option value="assigned">Assigned</option>
+        <option value="in_progress">In Progress</option>
+      </select>
       <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export Report</button>
     </div>
   </div>
 
-  <!-- Summary KPIs — spec SS-12 top banner -->
-  <div class="ecbs-kpi-row">
-    <div class="ecbs-kpi-card kpi-red">
-      <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
-      <div class="kpi-value">{{ summary?.critical || 0 }}</div>
-      <div class="kpi-label">Critical</div>
-      <div class="kpi-delta negative" *ngIf="(summary?.critical||0)>0">Immediate action required</div>
+  <!-- KPI Cards: Critical | Warning | Info Events | Alarm Rate | MTTR | System Health -->
+  <div class="alm-kpi-row">
+
+    <div class="alm-kpi-card" [class.alm-kpi-critical]="criticalCount>0" [class.alm-kpi-ok]="criticalCount===0">
+      <div class="alm-kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ criticalCount }}</div>
+        <div class="alm-kpi-label">CRITICAL ALARMS</div>
+        <div class="alm-kpi-sub">{{ criticalCount > 0 ? criticalCount + " Active" : "All Clear" }}</div>
+        <div class="alm-kpi-sub" *ngIf="criticalCount>0" style="color:#ef5350;">{{ criticalCount }} Unacknowledged</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card kpi-amber">
-      <div class="kpi-icon"><span class="fa fa-exclamation"></span></div>
-      <div class="kpi-value">{{ summary?.high || 0 }}</div>
-      <div class="kpi-label">High</div>
+
+    <div class="alm-kpi-card" [class.alm-kpi-warning]="warningCount>0" [class.alm-kpi-ok]="warningCount===0">
+      <div class="alm-kpi-icon"><span class="fa fa-exclamation"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ warningCount }}</div>
+        <div class="alm-kpi-label">WARNING ALARMS</div>
+        <div class="alm-kpi-sub">{{ warningCount > 0 ? warningCount + " Active" : "All Clear" }}</div>
+        <div class="alm-kpi-sub" *ngIf="warningCount>0" style="color:#ffd740;">{{ acknowledged }} Unacknowledged</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-info-circle"></span></div>
-      <div class="kpi-value">{{ summary?.medium || 0 }}</div>
-      <div class="kpi-label">Medium</div>
+
+    <div class="alm-kpi-card alm-kpi-info">
+      <div class="alm-kpi-icon"><span class="fa fa-info-circle"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ infoCount }}</div>
+        <div class="alm-kpi-label">INFO EVENTS</div>
+        <div class="alm-kpi-sub">Today</div>
+        <div class="alm-kpi-sub">{{ infoCount }} New</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-check-circle"></span></div>
-      <div class="kpi-value">{{ summary?.acknowledged || 0 }}</div>
-      <div class="kpi-label">Acknowledged</div>
+
+    <div class="alm-kpi-card alm-kpi-rate">
+      <div class="alm-kpi-icon"><span class="fa fa-line-chart"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ alarmRate7d }}</div>
+        <div class="alm-kpi-label">ALARM RATE</div>
+        <div class="alm-kpi-sub">Per Day (7 Day Avg)</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card kpi-purple">
-      <div class="kpi-icon"><span class="fa fa-history"></span></div>
-      <div class="kpi-value">{{ summary?.resolved_today || 0 }}</div>
-      <div class="kpi-label">Resolved Today</div>
+
+    <div class="alm-kpi-card alm-kpi-mttr">
+      <div class="alm-kpi-icon"><span class="fa fa-clock-o"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ mttrDisplay }}</div>
+        <div class="alm-kpi-label">MTTR</div>
+        <div class="alm-kpi-sub">7 Day Avg</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card">
-      <div class="kpi-icon"><span class="fa fa-minus-circle" style="color:#8899a6;"></span></div>
-      <div class="kpi-value">{{ summary?.low || 0 }}</div>
-      <div class="kpi-label">Low</div>
-      <div class="kpi-delta neutral">Low priority</div>
+
+    <div class="alm-kpi-card" [class.alm-kpi-health-good]="systemHealthPct>=85" [class.alm-kpi-health-warn]="systemHealthPct<85&&systemHealthPct>=70" [class.alm-kpi-health-bad]="systemHealthPct<70">
+      <div class="alm-kpi-icon"><span class="fa fa-shield"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ systemHealthPct }}%</div>
+        <div class="alm-kpi-label">SYSTEM HEALTH</div>
+        <div class="alm-kpi-sub">{{ systemHealthLabel }}</div>
+      </div>
     </div>
-    <div class="ecbs-kpi-card">
-      <div class="kpi-icon"><span class="fa fa-info" style="color:#546e7a;"></span></div>
-      <div class="kpi-value">{{ summary?.information || 0 }}</div>
-      <div class="kpi-label">Information</div>
-      <div class="kpi-delta neutral">Informational</div>
+
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
+    <div class="ecbs-tabs">
+      <button class="ecbs-tab" [class.active]="activeTab==='alarms'" (click)="activeTab='alarms'">
+        <span class="fa fa-bell"></span> Active Alarms
+        <span *ngIf="filteredAlarms.length" class="tab-count">{{ filteredAlarms.length }}</span>
+      </button>
+      <button class="ecbs-tab" [class.active]="activeTab==='history'" (click)="activeTab='history'">
+        <span class="fa fa-history"></span> Alarm History
+      </button>
+      <button class="ecbs-tab" [class.active]="activeTab='events'" (click)="activeTab='events'">
+        <span class="fa fa-list-alt"></span> Event Log
+      </button>
+      <button class="ecbs-tab" [class.active]="activeTab='rules'" (click)="activeTab='rules'">
+        <span class="fa fa-sliders"></span> Alert Rules
+      </button>
+    </div>
+    <div *ngIf="activeTab==='alarms' && alarms.length>0" style="display:flex;gap:10px;align-items:center;font-size:12px;">
+      <button class="btn-ecbs btn-outline btn-sm" (click)="acknowledgeAll()"><span class="fa fa-check-double"></span> Acknowledge All</button>
+      <a style="color:#29b6f6;cursor:pointer;">View All Alarms →</a>
     </div>
   </div>
 
-  <!-- Tabs — Alarms / Events / Alert Rules -->
-  <div class="ecbs-tabs">
-    <button class="ecbs-tab" [class.active]="activeTab === 'alarms'" (click)="activeTab = 'alarms'">
-      <span class="fa fa-bell"></span> Active Alarms
-      <span *ngIf="alarms.length" class="tab-count">{{ alarms.length }}</span>
-    </button>
-    <button class="ecbs-tab" [class.active]="activeTab === 'events'" (click)="activeTab = 'events'">
-      <span class="fa fa-list-alt"></span> Event Log
-    </button>
-    <button class="ecbs-tab" [class.active]="activeTab === 'rules'" (click)="activeTab = 'rules'">
-      <span class="fa fa-sliders"></span> Alert Rules
-    </button>
-  </div>
+  <!-- ACTIVE ALARMS TAB -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='alarms'">
 
-  <!-- ── ALARMS TAB ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'alarms'">
+    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading alarms…</div>
 
-    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading alarms...</div>
-
-    <div *ngIf="!loading && alarms.length === 0" class="ecbs-empty">
-      <span class="empty-icon fa fa-check-circle" style="color:#00e676;font-size:50px;opacity:0.5;"></span>
+    <div *ngIf="!loading && filteredAlarms.length===0" class="ecbs-empty" style="padding:48px 20px;">
+      <span class="fa fa-check-circle" style="color:#00e676;font-size:48px;opacity:0.5;display:block;margin-bottom:12px;"></span>
       <span class="empty-title">All Systems Clear™</span>
       <p>No active alarms. All monitored assets are within normal operating parameters.</p>
     </div>
 
-    <table *ngIf="!loading && alarms.length > 0" class="ecbs-table">
+    <table *ngIf="!loading && filteredAlarms.length>0" class="ecbs-table alm-table">
       <thead>
         <tr>
           <th>Severity</th>
-          <th>Source</th>
-          <th>Alarm Type</th>
-          <th>Asset</th>
-          <th>Value</th>
+          <th>Time</th>
+          <th>Asset / Location</th>
+          <th>Parameter</th>
+          <th>Condition</th>
+          <th>Current Value</th>
           <th>Threshold</th>
           <th>Status</th>
-          <th>Triggered</th>
-          <th></th>
+          <th>Duration</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let a of alarms" [class]="'alarm-row-' + a.severity">
-          <td><span [class]="severityClass(a.severity)">{{ a.severity | titlecase }}</span></td>
-          <td style="font-size:10px;color:#546e7a;">{{ a.source || 'System' }}</td>
-          <td style="font-weight:600;">{{ a.alarm_type }}</td>
-          <td style="color:#8899a6;">{{ a.meter_id || a.asset_id || '—' }}</td>
-          <td style="font-weight:600;">{{ a.value || '—' }}</td>
-          <td style="color:#546e7a;">{{ a.threshold || '—' }}</td>
+        <tr *ngFor="let a of filteredAlarms" class="alm-row">
           <td>
-            <span [class]="a.status === 'open' ? 'badge-critical' : a.status === 'acknowledged' ? 'badge-warning' : 'badge-healthy'">
-              {{ a.status | titlecase }}
+            <span class="alm-sev-badge" [style.color]="severityColor(a.severity)" [style.border-color]="severityColor(a.severity)">
+              {{ a.severity | titlecase }}
             </span>
           </td>
-          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ a.triggered_at | date:'MMM d, h:mm a' }}</td>
+          <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ a.triggered_at | date:"MMM d, h:mm a" }}</td>
+          <td style="font-weight:600;font-size:11px;">{{ a.asset_name || a.title || ("Asset #" + a.asset_id) || "System" }}</td>
+          <td style="color:#8899a6;font-size:11px;">{{ a.alarm_type }}</td>
+          <td style="color:#546e7a;font-size:11px;">{{ a.condition || "Greater Than" }}</td>
+          <td style="font-weight:600;" [style.color]="severityColor(a.severity)">{{ a.metric_value != null ? (a.metric_value | number:"1.0-2") + (a.unit ? " " + a.unit : "") : "—" }}</td>
+          <td style="color:#546e7a;">{{ a.threshold_value != null ? (a.threshold_value | number:"1.0-2") + (a.unit ? " " + a.unit : "") : "—" }}</td>
           <td>
-            <button *ngIf="a.status === 'open'" class="btn-ecbs btn-xs btn-outline" (click)="acknowledgeAlarm(a)">Ack</button>
-            <button *ngIf="a.status === 'acknowledged'" class="btn-ecbs btn-xs btn-outline" (click)="assignAlarm(a)">Assign</button>
-            <button *ngIf="a.status === 'assigned'" class="btn-ecbs btn-xs btn-outline" (click)="startAlarm(a)">Start</button>
-            <button *ngIf="a.status === 'in_progress'" class="btn-ecbs btn-xs btn-outline" (click)="resolveAlarm(a)">Resolve</button>
-            <button *ngIf="a.status === 'resolved'" class="btn-ecbs btn-xs btn-outline" (click)="closeAlarm(a)">Close</button>
+            <span class="alm-status-badge"
+              [style.color]="a.status==="new"?"#ef5350":a.status==='acknowledged'?'#ffd740':a.status==='in_progress'?'#29b6f6':'#00e676'"
+              [style.border-color]="a.status==='new'?'#ef5350':a.status==='acknowledged'?'#ffd740':a.status==='in_progress'?'#29b6f6':'#00e676'">
+              {{ a.status === "new" ? "Unacknowledged" : (a.status | titlecase) }}
+            </span>
           </td>
+          <td style="font-size:11px;color:#8899a6;">{{ alarmDuration(a) }}</td>
+          <td style="white-space:nowrap;">
+            <button class="tbl-btn" title="View details"><span class="fa fa-eye"></span></button>
+            <button *ngIf="a.status==='new'" class="tbl-btn" title="Acknowledge" (click)="acknowledgeAlarm(a)"><span class="fa fa-check"></span></button>
+            <button *ngIf="a.status==='acknowledged'" class="tbl-btn" title="Assign" (click)="assignAlarm(a)"><span class="fa fa-user-plus"></span></button>
+            <button *ngIf="a.status==='in_progress'" class="tbl-btn" title="Resolve" (click)="resolveAlarm(a)"><span class="fa fa-check-circle"></span></button>
+            <button *ngIf="a.status==='resolved'" class="tbl-btn" title="Close" (click)="closeAlarm(a)"><span class="fa fa-times-circle"></span></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div *ngIf="!loading && filteredAlarms.length>0" class="fin-table-footer">
+      Showing {{ filteredAlarms.length }} of {{ alarms.length }} active alarms
+    </div>
+  </div>
+
+  <!-- ALARM HISTORY TAB -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='history'">
+    <div *ngIf="historyAlarms.length===0" class="ecbs-empty" style="padding:48px 20px;">
+      <span class="fa fa-history" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
+      <span class="empty-title">No Historical Alarms</span>
+      <p>Resolved and closed alarms will appear here.</p>
+    </div>
+    <table *ngIf="historyAlarms.length>0" class="ecbs-table alm-table">
+      <thead>
+        <tr>
+          <th>Severity</th><th>Triggered</th><th>Asset / Location</th><th>Parameter</th>
+          <th>Value</th><th>Threshold</th><th>Status</th><th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let a of historyAlarms">
+          <td><span class="alm-sev-badge" [style.color]="severityColor(a.severity)" [style.border-color]="severityColor(a.severity)">{{ a.severity | titlecase }}</span></td>
+          <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ a.triggered_at | date:"MMM d, h:mm a" }}</td>
+          <td style="font-size:11px;">{{ a.asset_name || a.title || "System" }}</td>
+          <td style="color:#8899a6;font-size:11px;">{{ a.alarm_type }}</td>
+          <td>{{ a.metric_value != null ? (a.metric_value | number:"1.0-2") + (a.unit ? " "+a.unit : "") : "—" }}</td>
+          <td style="color:#546e7a;">{{ a.threshold_value != null ? (a.threshold_value | number:"1.0-2") : "—" }}</td>
+          <td>
+            <span style="font-size:10px;color:#00e676;font-weight:600;">{{ a.status | titlecase }}</span>
+          </td>
+          <td style="font-size:11px;color:#8899a6;">{{ alarmDuration(a) }}</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- ── EVENTS TAB ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'events'">
-    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading events...</div>
-    <div *ngIf="!loading && events.length === 0" class="ecbs-empty">
-      <span class="empty-icon fa fa-list"></span>
+  <!-- EVENT LOG TAB -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='events'">
+    <div *ngIf="events.length===0" class="ecbs-empty" style="padding:48px 20px;">
+      <span class="fa fa-list-alt" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
       <span class="empty-title">No Events Recorded</span>
       <p>System events will appear here as the platform operates.</p>
     </div>
-    <table *ngIf="!loading && events.length > 0" class="ecbs-table">
+    <table *ngIf="events.length>0" class="ecbs-table">
       <thead>
         <tr><th>Timestamp</th><th>Type</th><th>Severity</th><th>Source</th><th>Description</th><th>Asset</th><th>User</th></tr>
       </thead>
       <tbody>
         <tr *ngFor="let e of events">
-          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ e.occurred_at | date:'MMM d, y h:mm:ss a' }}</td>
+          <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ e.occurred_at | date:"MMM d, y h:mm:ss a" }}</td>
           <td><span class="badge-info">{{ e.event_type }}</span></td>
-          <td><span [class]="severityClass(e.severity||'info')">{{ (e.severity || 'info') | titlecase }}</span></td>
-          <td style="color:#8899a6;font-size:11px;">{{ e.source || '—' }}</td>
-          <td>{{ e.description }}</td>
-          <td style="color:#546e7a;">{{ e.asset_id || '—' }}</td>
-          <td style="color:#546e7a;font-size:11px;">{{ e.user || 'System' }}</td>
+          <td><span [class]="severityClass(e.severity||'info')">{{ (e.severity || "info") | titlecase }}</span></td>
+          <td style="color:#8899a6;font-size:11px;">{{ e.source || "—" }}</td>
+          <td style="font-size:11px;">{{ e.description }}</td>
+          <td style="color:#546e7a;">{{ e.asset_id || "—" }}</td>
+          <td style="color:#546e7a;font-size:11px;">{{ e.user || "System" }}</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- ── ALERT RULES TAB — Spec SS-13 ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab === 'rules'">
+  <!-- ALERT RULES TAB -->
+  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='rules'">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-size:12px;color:#8899a6;">Configure thresholds that trigger alarms — CBI, capacity, harmonic, and device health.</span>
-      <button class="btn-ecbs btn-primary btn-sm"><span class="fa fa-plus"></span> Add Rule</button>
+      <span style="font-size:11px;color:#8899a6;">Configure thresholds that trigger alarms — evaluated continuously using 1-minute data.</span>
+      <button class="btn-ecbs btn-primary btn-sm" (click)="openCreateRule()"><span class="fa fa-plus"></span> + Create Alert Rule</button>
     </div>
 
-    <table class="ecbs-table">
+    <div *ngIf="alertRules.length===0" class="ecbs-empty" style="padding:40px 20px;">
+      <span class="fa fa-sliders" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
+      <span class="empty-title">No Alert Rules Configured</span>
+      <p>Create alert rules to automatically detect anomalies in CBI score, capacity, harmonics, and device health.</p>
+      <button class="btn-ecbs btn-primary" (click)="openCreateRule()">Create First Rule</button>
+    </div>
+
+    <table *ngIf="alertRules.length>0" class="ecbs-table alm-table">
       <thead>
-        <tr><th>Rule Name</th><th>Metric</th><th>Condition</th><th>Threshold</th><th>Severity</th><th>Notify</th><th>Enabled</th></tr>
+        <tr>
+          <th>#</th><th>Rule Name</th><th>Category</th><th>Parameter</th>
+          <th>Condition</th><th>Threshold</th><th>Current Value</th>
+          <th>Status</th><th>Notifications</th><th>Actions</th>
+        </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let rule of alertRules" class="alert-rule-row" style="display:table-row;">
+        <tr *ngFor="let rule of alertRules; let i=index">
+          <td style="color:#546e7a;font-size:11px;">{{ i+1 }}</td>
           <td style="font-weight:600;">{{ rule.name }}</td>
-          <td style="color:#8899a6;">{{ rule.metric }}</td>
-          <td style="color:#546e7a;">{{ rule.condition }}</td>
-          <td style="font-weight:600;" [style.color]="rule.severity === 'critical' ? '#ef5350' : rule.severity === 'high' ? '#ffd740' : '#8899a6'">
-            {{ rule.threshold }}{{ rule.unit || '' }}
-          </td>
-          <td><span [class]="severityClass(rule.severity)">{{ rule.severity | titlecase }}</span></td>
-          <td style="font-size:11px;color:#8899a6;">{{ rule.notify || 'In-App' }}</td>
+          <td><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(41,182,246,0.15);color:#29b6f6;">{{ rule.category }}</span></td>
+          <td style="color:#8899a6;font-size:11px;">{{ rule.metric_key }}</td>
+          <td style="color:#546e7a;font-size:11px;">{{ rule.condition }}</td>
+          <td style="font-weight:600;" [style.color]="severityColor(rule.severity)">{{ rule.threshold }}{{ rule.unit ? " " + rule.unit : "" }}</td>
+          <td style="color:#546e7a;">—</td>
           <td>
-            <label class="rule-toggle">
-              <input type="checkbox" [checked]="rule.enabled" (change)="toggleRule(rule)">
-              <span class="rule-slider"></span>
-            </label>
+            <span class="fin-status-badge" [style.color]="rule.is_active?'#00e676':'#546e7a'" [style.border-color]="rule.is_active?'#00e676':'#546e7a'">
+              {{ rule.is_active ? "Normal" : "Disabled" }}
+            </span>
           </td>
-        </tr>
-        <tr *ngIf="alertRules.length === 0">
-          <td colspan="7" style="text-align:center;padding:40px;color:#546e7a;">
-            <div class="ecbs-empty" style="padding:20px;">
-              <span class="empty-icon fa fa-sliders"></span>
-              <span class="empty-title">No Alert Rules Configured</span>
-              <p>Create alert rules to automatically detect anomalies in CBI score, capacity, harmonics, and device health.</p>
-              <button class="btn-ecbs btn-primary">Add First Rule</button>
-            </div>
+          <td style="font-size:10px;color:#8899a6;">{{ ruleNotifyLabel(rule) }}</td>
+          <td style="white-space:nowrap;">
+            <button class="tbl-btn" title="Toggle" (click)="toggleRule(rule)"><span class="fa" [class.fa-toggle-on]="rule.is_active" [class.fa-toggle-off]="!rule.is_active" [style.color]="rule.is_active?'#00e676':'#546e7a'"></span></button>
+            <button class="tbl-btn" title="Edit" (click)="openEditRule(rule)"><span class="fa fa-pencil"></span></button>
+            <button class="tbl-btn" title="Delete" (click)="deleteRule(rule)"><span class="fa fa-trash" style="color:#ef5350;"></span></button>
           </td>
         </tr>
       </tbody>
     </table>
+    <div *ngIf="alertRules.length>0" style="font-size:10px;color:#546e7a;margin-top:8px;padding-top:6px;border-top:1px solid #1a2a3a;">
+      <span class="fa fa-info-circle"></span> Drag to reorder rules (top to bottom). Rules are evaluated from top to bottom.
+    </div>
+  </div>
 
-    <!-- Default rules suggestion -->
-    <div *ngIf="alertRules.length === 0" style="margin-top:16px;padding:12px 14px;background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.1);border-radius:8px;">
-      <div style="font-size:11px;font-weight:700;color:#00e676;margin-bottom:8px;"><span class="fa fa-lightbulb-o"></span> Recommended Default Rules</div>
-      <div style="font-size:11px;color:#8899a6;display:flex;flex-direction:column;gap:4px;">
-        <span>• CBI Score &lt; 70 → Critical alarm</span>
-        <span>• Harmonic Current &gt; 20% → High alarm</span>
-        <span>• Transformer Utilization &gt; 90% → Critical alarm</span>
-        <span>• Power Factor &lt; 0.85 → Medium alarm</span>
-        <span>• Device Offline &gt; 15 min → High alarm</span>
-        <span>• Phase Imbalance &gt; 10% → High alarm</span>
+  <!-- CREATE / EDIT ALERT RULE PANEL -->
+  <div class="alm-rule-overlay" *ngIf="showRuleModal" (click)="showRuleModal=false"></div>
+  <div class="alm-rule-panel" *ngIf="showRuleModal">
+    <div class="alm-rule-panel-header">
+      <span>{{ editingRule ? "Edit Alert Rule" : "Create / Edit Alert Rule" }}</span>
+      <button class="fin-modal-close" (click)="showRuleModal=false"><span class="fa fa-times"></span></button>
+    </div>
+    <div class="alm-rule-step">
+      <span class="alm-step-dot active">1</span><span class="alm-step-label">Define Rule</span>
+      <span class="alm-step-dot">2</span><span class="alm-step-label">Set Notifications</span>
+      <span class="alm-step-dot">3</span><span class="alm-step-label">Review</span>
+    </div>
+    <div class="alm-rule-body">
+      <label class="fin-label">Alert Name</label>
+      <input class="fin-input" [(ngModel)]="newRule.name" placeholder="e.g. Peak kW Demand Alert"/>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+        <div>
+          <label class="fin-label">Category</label>
+          <select class="fin-input" [(ngModel)]="newRule.category">
+            <option *ngFor="let c of ruleCategories" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="fin-label">Parameter</label>
+          <select class="fin-input" [(ngModel)]="newRule.metric_key">
+            <option value="">Select…</option>
+            <option *ngFor="let p of currentParameters" [value]="p">{{ p }}</option>
+          </select>
+        </div>
       </div>
-      <button class="btn-ecbs btn-outline btn-sm" style="margin-top:10px;" (click)="loadDefaultRules()">
-        <span class="fa fa-magic"></span> Load Default Rules
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+        <div>
+          <label class="fin-label">Condition</label>
+          <select class="fin-input" [(ngModel)]="newRule.condition">
+            <option *ngFor="let c of ruleConditions" [value]="c">{{ c }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="fin-label">Threshold Value</label>
+          <input class="fin-input" type="number" [(ngModel)]="newRule.threshold" placeholder="2500"/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+        <div>
+          <label class="fin-label">Unit</label>
+          <input class="fin-input" [(ngModel)]="newRule.unit" placeholder="kW, %, kVA…"/>
+        </div>
+        <div>
+          <label class="fin-label">Severity</label>
+          <select class="fin-input" [(ngModel)]="newRule.severity">
+            <option *ngFor="let s of ruleSeverities" [value]="s">{{ s | titlecase }}</option>
+          </select>
+        </div>
+      </div>
+
+      <label class="fin-label" style="margin-top:8px;">Description (Optional)</label>
+      <textarea class="fin-input" [(ngModel)]="newRule.description" rows="2" placeholder="Describe when this rule should fire…"></textarea>
+
+      <div style="margin-top:10px;">
+        <label class="fin-label">Notifications</label>
+        <div style="display:flex;gap:12px;margin-top:4px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:4px;color:#8899a6;cursor:pointer;">
+            <input type="checkbox" [(ngModel)]="newRule.notify_email"> Email
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;color:#8899a6;cursor:pointer;">
+            <input type="checkbox" [(ngModel)]="newRule.notify_push"> In-App
+          </label>
+          <label style="display:flex;align-items:center;gap:4px;color:#8899a6;cursor:pointer;">
+            <input type="checkbox" [(ngModel)]="newRule.notify_sms"> SMS
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="alm-rule-footer">
+      <button class="btn-ecbs btn-outline" (click)="showRuleModal=false">Cancel</button>
+      <button class="btn-ecbs btn-primary" (click)="saveRule()">
+        <span class="fa fa-save"></span> {{ editingRule ? "Save Changes" : "Next: Set Notifications →" }}
       </button>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1a2a3a;font-size:10px;color:#546e7a;line-height:1.5;">
+      <span class="fa fa-info-circle"></span> About Alert Rules<br>
+      Alert rules monitor specific parameters in real time and notify you when conditions are met. Rules are evaluated continuously using 1-minute data.
     </div>
   </div>
 
