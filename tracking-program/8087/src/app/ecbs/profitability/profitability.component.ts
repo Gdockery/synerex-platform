@@ -57,7 +57,7 @@ export class ProfitabilityComponent implements OnInit {
   get roi(): number              { return this.roiData?.roi || 0; }
   get payback(): number          { return this.roiData?.payback || 0; }
   get lifetimeSavings(): number  { return this.roiData?.lifetime_savings || 0; }
-  get recoveredKva(): number     { return this.capacityData?.recovered_capacity_kva ?? this.capacityData?.recoverable_kva ?? 90; }
+  get recoveredKva(): number     { return this.savingsData?.recoverable_kva ?? this.capacityData?.recovered_capacity_kva ?? this.capacityData?.recoverable_kva ?? 0; }
   get deferredCapital(): number  {
     // Deferred capital value = recoverable kVA × $65/kVA (standard replacement cost)
     return Math.round(this.recoveredKva * 65);
