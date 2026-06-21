@@ -236,7 +236,7 @@ export class CurrentAnalysisComponent implements OnInit {
     const series = this._sampleSeries(50);
     if (!series.length) return [];
     const W = this.PH_W, H = this.PH_H;
-    const vals = series.flatMap(r => [r.avg_l1_amp || 0, r.avg_l2_amp || 0, r.avg_l3_amp || 0]);
+    const vals = ([] as number[]).concat(...series.map(r => [r.avg_l1_amp || 0, r.avg_l2_amp || 0, r.avg_l3_amp || 0]));
     const maxVal = Math.max(...vals);
     if (!maxVal) return [];
 
