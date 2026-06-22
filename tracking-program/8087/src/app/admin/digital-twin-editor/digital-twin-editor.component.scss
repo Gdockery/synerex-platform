@@ -168,3 +168,17 @@
   color: #ffd740;
   margin-left: 10px;
 }
+
+.dte-project-select {
+  width: 100%;
+  background: #0a1628;
+  border: 1px solid #1e3a5f;
+  border-radius: 5px;
+  color: #c8d6e5;
+  font-size: 10px;
+  padding: 5px 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  &:focus { outline: none; border-color: #29b6f6; }
+  option { background: #0d1f2d; }
+}

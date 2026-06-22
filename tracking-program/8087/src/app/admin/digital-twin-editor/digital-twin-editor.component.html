@@ -1,0 +1,288 @@
+<!-- Digital Twin Editor — Admin Section -->
+<div class="dte-root">
+
+  <!-- Top bar -->
+  <div class="dte-topbar">
+    <div class="dte-topbar-left">
+      <span class="fa fa-share-alt dte-icon"></span>
+      <div>
+        <div class="dte-title">Twin Editor</div>
+        <div class="dte-subtitle">{{ selectedProjectName || "Select a project" }} &nbsp;&middot;&nbsp; One-Line Diagram</div>
+      </div>
+    </div>
+    <div class="dte-topbar-tabs">
+      <button *ngFor="let tab of tabs" class="dte-tab"
+        [class.active]="activeTab === tab.toLowerCase()"
+        (click)="activeTab = tab.toLowerCase()">{{ tab }}</button>
+    </div>
+    <div class="dte-topbar-right">
+      <div class="dte-model-status">
+        <span class="dte-status-dot" [class.valid]="isValid()"></span>
+        <span>{{ isValid() ? "Model Valid" : "Model Incomplete" }}</span>
+      </div>
+      <button class="dte-btn dte-btn-outline"><span class="fa fa-undo"></span> Undo</button>
+      <button class="dte-btn dte-btn-outline"><span class="fa fa-repeat"></span> Redo</button>
+      <button class="dte-btn dte-btn-primary" (click)="saveNode()">
+        <span class="fa" [class.fa-save]="!saving" [class.fa-spinner]="saving" [class.fa-spin]="saving"></span>
+        {{ saving ? "Saving..." : "Save" }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="dte-body">
+
+    <!-- Left tool palette -->
+    <div class="dte-toolpane">
+      <!-- Project picker (admin only — no selectedProject in admin context) -->
+      <div class="dte-tool-section">PROJECT</div>
+      <div *ngIf="loadingProjects" style="font-size:10px;color:#546e7a;padding:4px 8px;">Loading...</div>
+      <select *ngIf="!loadingProjects && projects.length > 0" class="dte-project-select"
+        [(ngModel)]="selectedProjectId" (ngModelChange)="onProjectChange($event)">
+        <option value="">-- Select Project --</option>
+        <option *ngFor="let p of projects" [value]="p.id">{{ p.name || p.id }}</option>
+      </select>
+
+      <div class="dte-tool-section" style="margin-top:12px;">TOOLS</div>
+      <button *ngFor="let t of tools" class="dte-tool"
+        [class.active]="activeTool===t.id" (click)="selectTool(t.id)"
+        [title]="t.label">
+        <span class="fa {{ t.icon }}"></span>
+        <span>{{ t.label }}</span>
+      </button>
+    </div>
+
+    <!-- Center canvas -->
+    <div class="dte-canvas">
+      <div class="dte-canvas-header">
+        <span class="dte-canvas-label">ONE-LINE DIAGRAM</span>
+        <span class="dte-canvas-badge">{{ twinNodes.length }} assets</span>
+        <span *ngIf="saving" style="font-size:10px;color:#ffd740;margin-left:8px;">
+          <span class="fa fa-spinner fa-spin"></span> Saving...
+        </span>
+      </div>
+
+      <!-- No project selected -->
+      <div *ngIf="!selectedProjectId && !loading" class="dte-empty">
+        <span class="fa fa-industry dte-empty-icon"></span>
+        <div class="dte-empty-title">No Project Selected</div>
+        <div class="dte-empty-sub">Choose a project from the panel on the left.</div>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="loading" class="dte-loading">
+        <span class="fa fa-spinner fa-spin"></span> Loading digital twin...
+      </div>
+
+      <!-- ONE-LINE SVG -->
+      <svg *ngIf="!loading && selectedProjectId && activeTab==='one-line view'" class="dte-svg" viewBox="0 0 800 560">
+        <defs>
+          <pattern id="dte-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2a3a" stroke-width="0.5"/>
+          </pattern>
+          <filter id="dte-glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <rect width="800" height="560" fill="url(#dte-grid)"/>
+
+        <ng-container *ngIf="svgLayout.length === 0">
+          <rect x="250" y="200" width="300" height="100" rx="8" fill="#0a1526" stroke="#1a2a3a" stroke-dasharray="6,4"/>
+          <text x="400" y="245" text-anchor="middle" fill="#546e7a" font-size="12">No assets found in digital twin</text>
+          <text x="400" y="265" text-anchor="middle" fill="#546e7a" font-size="10">Check that assets exist for this project</text>
+        </ng-container>
+
+        <ng-container *ngIf="svgLayout.length > 0">
+
+          <!-- UTILITY -->
+          <ng-container *ngFor="let n of svgLayout">
+            <ng-container *ngIf="n.type==='utility_service'">
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY-28" text-anchor="middle" fill="#8899a6" font-size="9" letter-spacing="0.08em">UTILITY FEED</text>
+              <g filter="url(#dte-glow)" style="cursor:pointer;" (click)="selectNode(n)">
+                <circle [attr.cx]="n.svgX" [attr.cy]="n.svgY" r="24"
+                  [attr.fill]="selectedNode && selectedNode.id===n.id ? '#0d2540' : '#071525'"
+                  stroke="#29b6f6" [attr.stroke-width]="selectedNode && selectedNode.id===n.id ? 3 : 1.5"/>
+                <text [attr.x]="n.svgX" [attr.y]="n.svgY+6" text-anchor="middle" fill="#29b6f6" font-size="16" font-weight="700">~</text>
+              </g>
+              <line [attr.x1]="n.svgX" [attr.y1]="n.svgY+24" [attr.x2]="n.svgX" y2="107" stroke="#29b6f6" stroke-width="2"/>
+            </ng-container>
+          </ng-container>
+
+          <!-- TRANSFORMER -->
+          <ng-container *ngFor="let n of svgLayout">
+            <ng-container *ngIf="n.type==='transformer'">
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY-18" text-anchor="middle" fill="#8899a6" font-size="9">{{ shortLabel(n.label, 22) }}</text>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY-8" text-anchor="middle" fill="#00e676" font-size="8">{{ n.kva_rating ? (n.kva_rating | number:'1.0-0') + ' kVA' : '' }}</text>
+              <g filter="url(#dte-glow)" style="cursor:pointer;" (click)="selectNode(n)">
+                <circle [attr.cx]="n.svgX" [attr.cy]="n.svgY+8"  r="16" [attr.fill]="selectedNode && selectedNode.id===n.id ? '#0d2a18' : '#071525'" stroke="#00e676" [attr.stroke-width]="selectedNode && selectedNode.id===n.id ? 3 : 1.5"/>
+                <circle [attr.cx]="n.svgX" [attr.cy]="n.svgY+24" r="16" [attr.fill]="selectedNode && selectedNode.id===n.id ? '#0d2a18' : '#071525'" stroke="#00e676" [attr.stroke-width]="selectedNode && selectedNode.id===n.id ? 3 : 1.5"/>
+              </g>
+              <line [attr.x1]="n.svgX" [attr.y1]="n.svgY+40" [attr.x2]="n.svgX" y2="183" stroke="#00e676" stroke-width="2"/>
+            </ng-container>
+          </ng-container>
+
+          <!-- 480V MAIN BUS -->
+          <text x="400" y="178" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700" letter-spacing="0.1em">480V MAIN BUS</text>
+          <rect x="48" y="183" width="704" height="7" rx="3" fill="#29b6f6" opacity="0.7" filter="url(#dte-glow)"/>
+
+          <!-- ECBS bus badges -->
+          <ng-container *ngFor="let badge of _busBadges; let bi = index">
+            <rect [attr.x]="320+bi*90" y="172" width="80" height="16" rx="4"
+              fill="rgba(0,230,118,0.15)" stroke="#00e676" stroke-width="1"
+              style="cursor:pointer;" (click)="selectNode(badge)"/>
+            <text [attr.x]="360+bi*90" y="183" text-anchor="middle" fill="#00e676" font-size="7" font-weight="700">
+              &#9889; {{ shortLabel(badge.label, 12) }}
+            </text>
+          </ng-container>
+
+          <!-- GEN + ATS -->
+          <ng-container *ngFor="let n of svgLayout">
+            <ng-container *ngIf="n.type==='generator'">
+              <line [attr.x1]="n.svgX" [attr.y1]="n.svgY+20" [attr.x2]="n.svgX" [attr.y2]="n.svgY+50" stroke="#ffd740" stroke-width="1.5"/>
+              <rect [attr.x]="n.svgX-40" [attr.y]="n.svgY-18" width="80" height="38" rx="5"
+                [attr.fill]="selectedNode && selectedNode.id===n.id ? '#1a1400' : '#071525'"
+                stroke="#ffd740" stroke-width="1.5" style="cursor:pointer;" (click)="selectNode(n)"/>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">GEN</text>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY+12" text-anchor="middle" fill="#8899a6" font-size="8">{{ n.kva_rating ? (n.kva_rating|number:'1.0-0')+' kVA' : shortLabel(n.label,12) }}</text>
+            </ng-container>
+            <ng-container *ngIf="n.type==='ats'">
+              <line [attr.x1]="n.svgX" [attr.y1]="n.svgY+16" x2="748" y2="185" stroke="#ffd740" stroke-width="1.5" stroke-dasharray="5 3"/>
+              <rect [attr.x]="n.svgX-40" [attr.y]="n.svgY-14" width="80" height="32" rx="5"
+                [attr.fill]="selectedNode && selectedNode.id===n.id ? '#1a1400' : '#071525'"
+                stroke="#ffd740" stroke-width="1.5" style="cursor:pointer;" (click)="selectNode(n)"/>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY+2" text-anchor="middle" fill="#ffd740" font-size="9" font-weight="700">ATS</text>
+            </ng-container>
+          </ng-container>
+
+          <!-- CIRCUITS (row 1) -->
+          <ng-container *ngFor="let n of svgLayout">
+            <ng-container *ngIf="n.type==='circuit'">
+              <line [attr.x1]="n.svgX" y1="190" [attr.x2]="n.svgX" [attr.y2]="n.svgY-20" stroke="#546e7a" stroke-width="1.5"/>
+              <rect [attr.x]="n.svgX-44" [attr.y]="n.svgY-20" width="90" height="50" rx="5"
+                [attr.fill]="selectedNode && selectedNode.id===n.id ? '#111f2a' : '#071525'"
+                [attr.stroke]="selectedNode && selectedNode.id===n.id ? '#00e676' : '#546e7a'"
+                [attr.stroke-width]="selectedNode && selectedNode.id===n.id ? 2.5 : 1.5"
+                style="cursor:pointer;" (click)="selectNode(n)"/>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY-3" text-anchor="middle" fill="#e0e6ed" font-size="8" font-weight="700">{{ shortLabel(n.label,14) }}</text>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY+9" text-anchor="middle" fill="#8899a6" font-size="8">{{ n.amp_rating ? (n.amp_rating|number:'1.0-0')+'A' : '--' }}</text>
+              <ng-container *ngFor="let badge of n.badges; let bi = index">
+                <rect [attr.x]="n.svgX-34+bi*36" [attr.y]="n.svgY+22" width="30" height="13" rx="3"
+                  fill="rgba(0,230,118,0.18)" stroke="#00e676" stroke-width="0.8"
+                  style="cursor:pointer;" (click)="selectNode(badge)"/>
+                <text [attr.x]="n.svgX-19+bi*36" [attr.y]="n.svgY+31" text-anchor="middle" fill="#00e676" font-size="6.5" font-weight="700">&#9889;APF</text>
+              </ng-container>
+            </ng-container>
+          </ng-container>
+
+          <!-- PANELS (row 2) -->
+          <ng-container *ngFor="let n of svgLayout">
+            <ng-container *ngIf="n.type==='panel'">
+              <line [attr.x1]="n.svgX" y1="190" [attr.x2]="n.svgX" [attr.y2]="n.svgY-14" stroke="#7b1fa2" stroke-width="1.5" stroke-dasharray="4 3"/>
+              <rect [attr.x]="n.svgX-42" [attr.y]="n.svgY-14" width="86" height="38" rx="5"
+                [attr.fill]="selectedNode && selectedNode.id===n.id ? '#180d1e' : 'rgba(71,0,80,0.3)'"
+                [attr.stroke]="selectedNode && selectedNode.id===n.id ? '#00e676' : '#ab47bc'"
+                [attr.stroke-width]="selectedNode && selectedNode.id===n.id ? 2.5 : 1.5"
+                style="cursor:pointer;" (click)="selectNode(n)"/>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY+2" text-anchor="middle" fill="#ce93d8" font-size="8" font-weight="700">{{ shortLabel(n.label,14) }}</text>
+              <text [attr.x]="n.svgX" [attr.y]="n.svgY+13" text-anchor="middle" fill="#8899a6" font-size="8">{{ n.amp_rating ? (n.amp_rating|number:'1.0-0')+'A' : '--' }}</text>
+            </ng-container>
+          </ng-container>
+
+          <!-- Legend -->
+          <circle cx="60"  cy="546" r="5" fill="#29b6f6"/><text x="70"  y="550" fill="#546e7a" font-size="8">Utility</text>
+          <circle cx="118" cy="546" r="5" fill="#00e676"/><text x="128" y="550" fill="#546e7a" font-size="8">Transformer</text>
+          <circle cx="210" cy="546" r="5" fill="#ffd740"/><text x="220" y="550" fill="#546e7a" font-size="8">Gen/ATS</text>
+          <circle cx="278" cy="546" r="5" fill="#00e676" opacity="0.5"/><text x="288" y="550" fill="#546e7a" font-size="8">ECBS/APF</text>
+          <circle cx="360" cy="546" r="5" fill="#ab47bc"/><text x="370" y="550" fill="#546e7a" font-size="8">Panel</text>
+          <circle cx="410" cy="546" r="5" fill="#546e7a"/><text x="420" y="550" fill="#546e7a" font-size="8">Circuit</text>
+          <text x="468" y="550" fill="#546e7a" font-size="8">Click node to select &amp; edit &rarr;</text>
+        </ng-container>
+      </svg>
+
+      <!-- ASSETS TABLE TAB -->
+      <div *ngIf="!loading && selectedProjectId && activeTab==='assets'" class="dte-asset-list-view">
+        <table class="dte-assets-table">
+          <thead>
+            <tr><th>Type</th><th>Label</th><th>kVA</th><th>Amps</th><th>Bus</th><th>Drawing</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let n of twinNodes"
+              [class.dte-row-selected]="selectedNode && selectedNode.id===n.id"
+              (click)="selectNode(n); activeTab='one-line view'" style="cursor:pointer;">
+              <td><span class="dte-type-chip" [style.borderColor]="nodeStroke(n)">{{ n.type }}</span></td>
+              <td>{{ n.label }}</td>
+              <td>{{ n.kva_rating ? (n.kva_rating | number:'1.0-0') : '--' }}</td>
+              <td>{{ n.amp_rating ? (n.amp_rating | number:'1.0-0') : '--' }}</td>
+              <td style="font-size:9px;font-family:monospace;">{{ n.bus_id || '--' }}</td>
+              <td style="font-size:9px;font-family:monospace;">{{ n.drawing_ref || '--' }}</td>
+              <td><span [style.color]="n.status==='active' ? '#00e676' : '#546e7a'">{{ n.status }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Other tabs placeholder -->
+      <div *ngIf="!loading && selectedProjectId && activeTab!=='one-line view' && activeTab!=='assets'"
+        class="dte-empty" style="margin:40px auto;">
+        <span class="fa fa-wrench dte-empty-icon" style="font-size:32px;"></span>
+        <div class="dte-empty-title" style="text-transform:capitalize;">{{ activeTab }}</div>
+        <div class="dte-empty-sub">This view is coming soon.</div>
+      </div>
+
+    </div><!-- /canvas -->
+
+    <!-- Right properties panel -->
+    <div class="dte-propspane">
+      <div class="dte-props-header">PROPERTIES</div>
+
+      <ng-container *ngIf="selectedNode; else noSelection">
+        <div class="dte-prop-type-row">
+          <span class="dte-type-chip" [style.borderColor]="nodeStroke(selectedNode)">{{ selectedNode.type }}</span>
+          <span style="font-size:9px;font-family:monospace;color:#546e7a;">{{ selectedNode.uid }}</span>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Label / Name</div>
+          <input class="dte-prop-input" [(ngModel)]="editLabel" placeholder="Label"/>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">kVA Rating</div>
+          <input class="dte-prop-input" type="number" [(ngModel)]="editKva" placeholder="kVA"/>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Amp Rating</div>
+          <input class="dte-prop-input" type="number" [(ngModel)]="editAmp" placeholder="A"/>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Bus / Connection</div>
+          <input class="dte-prop-input" [(ngModel)]="editBusId" placeholder="e.g. MAIN-SWG"/>
+        </div>
+        <div class="dte-prop-group" *ngIf="selectedNode.extra && selectedNode.extra.hostname">
+          <div class="dte-prop-label">Hostname (ECBS)</div>
+          <div class="dte-prop-val" style="color:#00e676;font-family:monospace;font-size:10px;">{{ selectedNode.extra.hostname }}</div>
+        </div>
+        <div class="dte-prop-group">
+          <div class="dte-prop-label">Notes</div>
+          <textarea class="dte-prop-input" [(ngModel)]="editNotes" rows="3" placeholder="Notes..." style="resize:none;"></textarea>
+        </div>
+        <button class="dte-btn dte-btn-primary" style="margin-top:12px;width:100%;" (click)="saveNode()">
+          <span class="fa fa-save"></span> Save Changes
+        </button>
+      </ng-container>
+
+      <ng-template #noSelection>
+        <div class="dte-props-empty">
+          <span class="fa fa-mouse-pointer"></span>
+          <div>Select an asset to edit<br>its properties</div>
+        </div>
+      </ng-template>
+
+      <div class="dte-props-header" style="margin-top:20px;">MODEL SUMMARY</div>
+      <div class="dte-summary-row"><span>Total Assets</span><span>{{ modelSummary.total }}</span></div>
+      <div class="dte-summary-row"><span>Measured</span><span>{{ modelSummary.measured }}</span></div>
+      <div class="dte-summary-row"><span>Spec Verified</span><span [style.color]="modelSummary.verified > 0 ? '#00e676' : '#546e7a'">{{ modelSummary.verified }}</span></div>
+      <div class="dte-summary-row"><span>Relationships</span><span>{{ relationships.length }}</span></div>
+    </div>
+
+  </div>
+</div>
