@@ -64,7 +64,7 @@ export class AlertRulesComponent implements OnInit, OnDestroy {
   // ── KPIs ─────────────────────────────────────────────────────────────────
 
   get criticalCount(): number { return this.alarmSummary?.critical     ?? this._activeAlarms.filter(a => (a.severity||'').toLowerCase()==='critical').length; }
-  get warningCount(): number  { return this.alarmSummary?.high         ?? this._activeAlarms.filter(a => ['high','warning','medium'].includes((a.severity||'').toLowerCase())).length; }
+  get warningCount(): number  { return this.alarmSummary?.high         ?? this._activeAlarms.filter(a => { var s = (a.severity||'').toLowerCase(); return s==='high'||s==='warning'||s==='medium'; }).length; }
   get unacknowledgedCount(): number { return this._activeAlarms.filter(a => a.status === 'new').length; }
   get acknowledgedCount(): number   { return this._activeAlarms.filter(a => a.status === 'acknowledged').length; }
 
