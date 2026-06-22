@@ -9,6 +9,7 @@ from sqlalchemy import or_
 
 from app.db.request_session import get_session
 from app.helpers.decorators import emv_api_key_or_login, license_required
+from app.helpers.org_context import is_customer_user
 from app.models.client import Client
 from app.models.project import Project, project_user
 from app.models.user import User
@@ -53,6 +54,29 @@ def _user_has_project_access(sess, project_id):
     return _shared_project_access(project_id)
 
 
+def _emv_customer_gate():
+    """
+    Return a 403 response tuple if the current browser-session user is a client (customer) user.
+    Client/customer org_type users must NOT access any EM&V Program endpoints.
+    EMV API key requests (server-to-server) are never blocked here.
+    Returns None if access should be allowed.
+    """
+    if _is_emv_api_key_request():
+        return None  # Server-to-server via API key — always allowed
+    if not current_user.is_authenticated:
+        return None  # @login_required will handle this
+    if is_customer_user():
+        return jsonify({
+            "error": "Access denied",
+            "code": "EMV_ACCESS_DENIED",
+            "message": (
+                "EM&V Program access is restricted to OEM and Synerex Admin users. "
+                "Client users receive approved results in the ECBS Operating System."
+            ),
+        }), 403
+    return None
+
+
 def _projects_for_user(sess, org_id=None, client_id=None):
     """
     Return project IDs the current user has access to, optionally filtered by org_id and client_id.
@@ -92,8 +116,11 @@ def emv_projects():
     Access rules:
     - Synerex Admin (org_id='admin'): all projects
     - OEM org: only projects whose client.sponsor_org_id == org_id (their own clients)
-    - Customer org: only projects where project.org_id == org_id (their own)
+    - Customer org: blocked (no EM&V access for clients)
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     sess = get_session()
     org_id = request.args.get("orgId", "").strip()
     client_id_arg = request.args.get("clientId")
@@ -168,6 +195,9 @@ def emv_project_bill_analytic():
     Return electricBillAnalysis for the specified project. EMV uses this to
     pre-fill its analysis form (only fields that exist in EMV UI should be mapped).
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     org_id = request.args.get("orgId", "").strip()
     client_id_arg = request.args.get("clientId")
     project_id_arg = request.args.get("projectId")
@@ -297,6 +327,9 @@ def emv_save_prefill():
     so the EMV dropdown import can retrieve them without URL parameters.
     Body: { orgId, projectId, clientId, fields: { company, cp_address, ... } }
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     data = request.get_json() or {}
     org_id = (data.get("orgId") or "").strip()
     project_id_arg = data.get("projectId")
@@ -354,6 +387,9 @@ def emv_push_baseline():
     Body: orgId, clientId, projectId, kwhSavings, kwPeakSavings, pfSavings,
           kvarSavings, kvaSavings, reportHtml, analysisDate, offPeriod, onPeriod
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     import secrets
 
     from app.models.emv_analysis import EmvAnalysis
@@ -467,6 +503,9 @@ def emv_list_analyses(project_id):
     GET /api/project/:id/emv-analyses
     List all EM&V analyses for the project (for test selection dropdown).
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     if not _user_has_project_access(get_session(), project_id):
         return jsonify({"error": "Unauthorized"}), 403
     from app.models.emv_analysis import EmvAnalysis
@@ -502,6 +541,9 @@ def emv_set_active_analysis(project_id):
     Set which EM&V analysis is the active baseline. Body: { analysisId: int }.
     Copies that analysis's savings to project and uses it for report when no analysisId given.
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     if not _user_has_project_access(get_session(), project_id):
         return jsonify({"error": "Unauthorized"}), 403
     from app.models.emv_analysis import EmvAnalysis
@@ -552,6 +594,9 @@ def emv_report_project(project_id):
     GET /api/project/:id/emv-report?analysisId=X
     Serve EM&V HTML report. If analysisId given, use that analysis; else use active one; else latest.
     """
+    gate = _emv_customer_gate()
+    if gate:
+        return gate
     if not _user_has_project_access(get_session(), project_id):
         return jsonify({"error": "Unauthorized"}), 404
     from app.models.emv_analysis import EmvAnalysis

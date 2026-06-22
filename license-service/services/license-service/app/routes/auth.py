@@ -241,6 +241,8 @@ def client_login_submit(
                 email=user.email,
                 org_type=org_type,
                 user_role=getattr(user, "role", None),
+                sponsor_org_id=getattr(org, "sponsor_org_id", None) if org else None,
+                user_id=str(user.id) if hasattr(user, "id") else None,
             )
             request.session["user_token"] = user_token
             request.session["user_jwt"] = user_token
@@ -635,6 +637,8 @@ def get_user_jwt(request: Request, db: Session = Depends(db_session)):
             email=getattr(user, "email", None),
             org_type=org_type,
             user_role=getattr(user, "role", None),
+            sponsor_org_id=getattr(org, "sponsor_org_id", None) if org else None,
+            user_id=str(user.id) if hasattr(user, "id") else None,
         )
         request.session["user_token"] = token
     return {"token": token}
@@ -726,7 +730,15 @@ def login_jwt(
     org = db.get(Organization, user.org_id)
     if org and org.org_type:
         user_roles = [org.org_type]
-    token = generate_user_token(username=user.username, org_id=user.org_id, roles=user_roles)
+    token = generate_user_token(
+        username=user.username,
+        org_id=user.org_id,
+        roles=user_roles,
+        org_type=org.org_type if org else None,
+        user_role=getattr(user, "role", None),
+        sponsor_org_id=getattr(org, "sponsor_org_id", None) if org else None,
+        user_id=str(user.id) if hasattr(user, "id") else None,
+    )
     return {"token": token, "org_id": user.org_id, "roles": user_roles}
 
 @router.post("/api/validate-jwt")

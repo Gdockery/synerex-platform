@@ -257,6 +257,17 @@ def login():
         if oem_org:
             session["orgId"] = oem_org
             session.setdefault("user", {})["orgId"] = oem_org
+    # Store org_type and sponsor_org_id from License Service claims (or derive from role)
+    if claims:
+        session["orgType"] = (
+            claims.get("org_type")
+            or (claims.get("roles") or [None])[0]
+            or ("admin" if user.role == 8 else "oem" if user.role in (9, 10) else "customer")
+        )
+        session["sponsorOrgId"] = claims.get("sponsor_org_id")
+    else:
+        session["orgType"] = "admin" if user.role == 8 else "oem" if user.role in (9, 10) else "customer"
+        session["sponsorOrgId"] = None
 
     # Enforce seat limit — non-admin users consume a seat on the org's active license
     if getattr(user, "role", None) != 8:
@@ -531,6 +542,12 @@ def sso_login():
 
     login_user(user, remember=True)
     session["userId"] = user.id
+    # Derive org_type from JWT claims (preferred) or fall back to role mapping
+    sso_org_type = (
+        claims.get("org_type")
+        or (claims.get("roles") or [None])[0]
+        or ("admin" if user.role == 8 else "oem" if user.role in (9, 10) else "customer")
+    )
     session["user"] = {
         "id": user.id,
         "firstName": user.firstName,
@@ -542,6 +559,8 @@ def sso_login():
     }
     session["userRole"] = user.role
     session["orgId"] = org_id
+    session["orgType"] = sso_org_type
+    session["sponsorOrgId"] = claims.get("sponsor_org_id")
     if session["orgId"]:
         session.setdefault("user", {})["orgId"] = session["orgId"]
     else:

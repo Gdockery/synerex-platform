@@ -41,6 +41,8 @@ def generate_user_token(
     email: Optional[str] = None,
     org_type: Optional[str] = None,
     user_role: Optional[str] = None,
+    sponsor_org_id: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> str:
     """Generate a short-lived JWT for user SSO across EM&V, Tracking, and Website."""
     now = int(time.time())
@@ -58,6 +60,10 @@ def generate_user_token(
         claims["org_type"] = org_type
     if user_role is not None:
         claims["user_role"] = user_role
+    if sponsor_org_id:
+        claims["sponsor_org_id"] = sponsor_org_id
+    if user_id is not None:
+        claims["user_id"] = str(user_id)
     return jwt.encode(claims, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
