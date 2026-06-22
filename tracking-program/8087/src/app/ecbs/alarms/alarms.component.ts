@@ -150,8 +150,8 @@ export class AlarmsComponent implements OnInit {
       result.push({
         label,
         critical: dayA.filter(a => (a.severity || '').toLowerCase() === 'critical').length,
-        warning:  dayA.filter(a => ['high', 'warning', 'medium'].includes((a.severity || '').toLowerCase())).length,
-        info:     dayA.filter(a => ['low', 'information', 'info'].includes((a.severity || '').toLowerCase())).length,
+        warning:  dayA.filter(a => { const s = (a.severity || '').toLowerCase(); return s === 'high' || s === 'warning' || s === 'medium'; }).length,
+        info:     dayA.filter(a => { const s = (a.severity || '').toLowerCase(); return s === 'low' || s === 'information' || s === 'info'; }).length,
       });
     }
     return result;
