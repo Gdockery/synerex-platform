@@ -2158,3 +2158,167 @@ textarea.fin-input { resize: vertical; min-height: 60px; }
   background: rgba(41,182,246,0.15);
   color: #29b6f6;
 }
+
+// ═════════════════════════════════════════════════════════════
+// ALARM CONFIGURATION & NOTIFICATION RULES — new tabs
+// ═════════════════════════════════════════════════════════════
+
+.alm-config-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid #1e3a5f;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.alm-config-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8899a6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  .fa { margin-right: 5px; }
+}
+.alm-config-table {
+  td, th { font-size: 11px; }
+  td:first-child { font-weight: 500; color: #c8d6e5; }
+}
+
+// Threshold value chips
+.alm-thresh-val {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  &.alm-warn  { color: #ffd740; background: rgba(255,215,64,0.08); }
+  &.alm-crit  { color: #ef5350; background: rgba(239,83,80,0.08); }
+}
+.alm-thresh-input {
+  width: 120px;
+  background: #0a1628;
+  border: 1px solid #29b6f6;
+  border-radius: 4px;
+  color: #e0e6ed;
+  font-size: 10px;
+  padding: 3px 7px;
+  &:focus { outline: none; }
+  &.alm-thresh-crit { border-color: #ef5350; }
+}
+.alm-action-icon {
+  color: #546e7a;
+  cursor: pointer;
+  font-size: 12px;
+  &:hover { color: #29b6f6; }
+}
+
+// Toggle switch
+.alm-toggle {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  input { opacity: 0; width: 0; height: 0; }
+  &.alm-toggle-sm { width: 28px; height: 15px; }
+}
+.alm-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #1a2a3a;
+  border-radius: 18px;
+  border: 1px solid #2e4a6a;
+  transition: 0.2s;
+  &:before {
+    content: '';
+    position: absolute;
+    height: 12px; width: 12px;
+    left: 2px; bottom: 2px;
+    background: #546e7a;
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+}
+.alm-toggle input:checked + .alm-toggle-slider {
+  background: rgba(0,230,118,0.15);
+  border-color: #00e676;
+  &:before { background: #00e676; transform: translateX(16px); }
+}
+.alm-toggle.alm-toggle-sm input:checked + .alm-toggle-slider:before {
+  transform: translateX(13px);
+}
+
+// Notification matrix
+.alm-matrix-check { color: #00e676; font-size: 14px; }
+
+// Escalation ladder
+.alm-escalation-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.alm-esc-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.alm-esc-time {
+  font-size: 10px;
+  color: #8899a6;
+  font-weight: 600;
+  background: rgba(41,182,246,0.08);
+  padding: 3px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(41,182,246,0.2);
+}
+.alm-esc-arrow {
+  color: #546e7a;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 0;
+}
+.alm-esc-team {
+  font-size: 11px;
+  color: #e0e6ed;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+// Alert sources list
+.alm-source-list { display: flex; flex-direction: column; gap: 6px; }
+.alm-source-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+.alm-source-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.alm-source-label { flex: 1; color: #c8d6e5; }
+.alm-source-status { font-size: 9px; font-weight: 700; }
+
+// Test alarm grid
+.alm-test-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.alm-test-btn {
+  font-size: 10px;
+  padding: 6px 14px;
+}
+.alm-test-result {
+  margin-top: 12px;
+  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: rgba(0,230,118,0.06);
+  border: 1px solid rgba(0,230,118,0.2);
+  color: #8899a6;
+  .fa { margin-right: 6px; }
+  &.alm-test-ok { color: #00e676; }
+}

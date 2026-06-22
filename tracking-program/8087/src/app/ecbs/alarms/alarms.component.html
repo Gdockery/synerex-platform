@@ -399,9 +399,9 @@
 
   </div><!-- /bottom row -->
 
-  <!-- Management Tabs: Alert Rules / Event Log / Alarm History -->
+  <!-- Alarms & Events: Management Tabs -->
   <div class="ecbs-card" style="margin-top:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
       <div class="ecbs-tabs">
         <button class="ecbs-tab" [class.active]="activeTab==='rules'" (click)="activeTab='rules'">
           <span class="fa fa-sliders"></span> Alert Rules
@@ -412,9 +412,21 @@
         <button class="ecbs-tab" [class.active]="activeTab==='history'" (click)="activeTab='history'">
           <span class="fa fa-history"></span> Alarm History
         </button>
+        <button class="ecbs-tab" [class.active]="activeTab==='config'" (click)="activeTab='config'">
+          <span class="fa fa-cog"></span> Configuration
+        </button>
+        <button class="ecbs-tab" [class.active]="activeTab==='notify'" (click)="activeTab='notify'">
+          <span class="fa fa-bell"></span> Notifications
+        </button>
       </div>
       <button *ngIf="activeTab==='rules'" class="btn-ecbs btn-primary btn-sm" (click)="openCreateRule()">
         <span class="fa fa-plus"></span> Create Alert Rule
+      </button>
+      <button *ngIf="activeTab==='config'" class="btn-ecbs btn-outline btn-sm" (click)="saveAlarmConfig()">
+        <span class="fa fa-save"></span> Save Configuration
+      </button>
+      <button *ngIf="activeTab==='notify'" class="btn-ecbs btn-outline btn-sm" (click)="saveNotifyConfig()">
+        <span class="fa fa-save"></span> Save Rules
       </button>
     </div>
 
@@ -606,5 +618,216 @@
       </button>
     </div>
   </div>
+
+    <!-- ══ ALARM CONFIGURATION TAB ══ -->
+    <div *ngIf="activeTab==='config'">
+
+      <!-- Category Enable/Disable -->
+      <div class="alm-config-section">
+        <div class="alm-config-section-title"><span class="fa fa-th-list"></span> Alarm Categories</div>
+        <table class="ecbs-table alm-config-table">
+          <thead><tr><th>Category</th><th style="width:80px;text-align:center;">Enabled</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let cat of alarmCategories">
+              <td>{{ cat.label }}</td>
+              <td style="text-align:center;">
+                <label class="alm-toggle">
+                  <input type="checkbox" [(ngModel)]="cat.enabled">
+                  <span class="alm-toggle-slider"></span>
+                </label>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Electrical Parameters -->
+      <div class="alm-config-section" style="margin-top:20px;">
+        <div class="alm-config-section-title"><span class="fa fa-bolt"></span> Electrical Parameters</div>
+        <table class="ecbs-table alm-config-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th style="width:160px;">Warning Threshold</th>
+              <th style="width:160px;">Critical Threshold</th>
+              <th style="width:60px;text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of electricalParams">
+              <td>{{ p.label }}</td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input" [(ngModel)]="p.warning" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-warn">{{ p.warning }}</span>
+              </td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input alm-thresh-crit" [(ngModel)]="p.critical" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-crit">{{ p.critical }}</span>
+              </td>
+              <td style="text-align:center;">
+                <span class="fa fa-pencil alm-action-icon" (click)="p.editing=!p.editing" title="Edit"></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Transformer Alerts -->
+      <div class="alm-config-section" style="margin-top:20px;">
+        <div class="alm-config-section-title"><span class="fa fa-exchange"></span> Transformer Alerts</div>
+        <table class="ecbs-table alm-config-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th style="width:160px;">Warning</th>
+              <th style="width:160px;">Critical</th>
+              <th style="width:60px;text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of transformerParams">
+              <td>{{ p.label }}</td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input" [(ngModel)]="p.warning" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-warn">{{ p.warning }}</span>
+              </td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input alm-thresh-crit" [(ngModel)]="p.critical" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-crit">{{ p.critical }}</span>
+              </td>
+              <td style="text-align:center;">
+                <span class="fa fa-pencil alm-action-icon" (click)="p.editing=!p.editing" title="Edit"></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ECBS-Specific Alerts -->
+      <div class="alm-config-section" style="margin-top:20px;">
+        <div class="alm-config-section-title" style="color:#00e676;"><span class="fa fa-bolt"></span> ECBS-Specific Alerts</div>
+        <table class="ecbs-table alm-config-table">
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th style="width:160px;">Warning</th>
+              <th style="width:160px;">Critical</th>
+              <th style="width:60px;text-align:center;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of ecbsParams">
+              <td><span style="color:#00e676;margin-right:4px;">⚡</span> {{ p.label }}</td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input" [(ngModel)]="p.warning" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-warn">{{ p.warning }}</span>
+              </td>
+              <td>
+                <input *ngIf="p.editing" class="alm-thresh-input alm-thresh-crit" [(ngModel)]="p.critical" (blur)="p.editing=false"/>
+                <span *ngIf="!p.editing" (click)="p.editing=true" class="alm-thresh-val alm-crit">{{ p.critical }}</span>
+              </td>
+              <td style="text-align:center;">
+                <span class="fa fa-pencil alm-action-icon" (click)="p.editing=!p.editing" title="Edit"></span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /config -->
+
+    <!-- ══ NOTIFICATION RULES TAB ══ -->
+    <div *ngIf="activeTab==='notify'">
+
+      <!-- Notification Matrix -->
+      <div class="alm-config-section">
+        <div class="alm-config-section-title"><span class="fa fa-table"></span> Notification Matrix</div>
+        <table class="ecbs-table alm-config-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th style="width:70px;text-align:center;">Email</th>
+              <th style="width:70px;text-align:center;">SMS</th>
+              <th style="width:70px;text-align:center;">Portal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of notifyMatrix">
+              <td>{{ r.event }}</td>
+              <td style="text-align:center;">
+                <label class="alm-toggle alm-toggle-sm">
+                  <input type="checkbox" [(ngModel)]="r.email">
+                  <span class="alm-toggle-slider"></span>
+                </label>
+              </td>
+              <td style="text-align:center;">
+                <label class="alm-toggle alm-toggle-sm">
+                  <input type="checkbox" [(ngModel)]="r.sms">
+                  <span class="alm-toggle-slider"></span>
+                </label>
+              </td>
+              <td style="text-align:center;">
+                <label class="alm-toggle alm-toggle-sm">
+                  <input type="checkbox" [(ngModel)]="r.portal">
+                  <span class="alm-toggle-slider"></span>
+                </label>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Escalation Ladder + Alert Sources side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;">
+
+        <!-- Escalation Ladder -->
+        <div class="alm-config-section">
+          <div class="alm-config-section-title"><span class="fa fa-level-up"></span> Escalation Rules</div>
+          <div class="alm-escalation-ladder">
+            <div class="alm-esc-step" *ngFor="let step of escalationSteps">
+              <div class="alm-esc-time">{{ step.delay }}</div>
+              <div class="alm-esc-arrow"><span class="fa fa-arrow-down"></span></div>
+              <div class="alm-esc-team">{{ step.team }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Sources -->
+        <div class="alm-config-section">
+          <div class="alm-config-section-title"><span class="fa fa-rss"></span> Alert Sources</div>
+          <p style="font-size:10px;color:#546e7a;margin-bottom:10px;">
+            The system continuously evaluates these data sources for alarm conditions.
+          </p>
+          <div class="alm-source-list">
+            <div class="alm-source-item" *ngFor="let src of alertSources">
+              <span class="alm-source-dot" [style.background]="src.active ? '#00e676' : '#546e7a'"></span>
+              <span class="alm-source-label">{{ src.label }}</span>
+              <span class="alm-source-status" [style.color]="src.active ? '#00e676' : '#546e7a'">
+                {{ src.active ? 'Active' : 'Inactive' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Test Alarms -->
+      <div class="alm-config-section" style="margin-top:20px;">
+        <div class="alm-config-section-title"><span class="fa fa-flask"></span> Test Alarms</div>
+        <p style="font-size:10px;color:#546e7a;margin-bottom:12px;">
+          Send a test alarm to verify email, SMS, and portal delivery before a real event occurs.
+        </p>
+        <div class="alm-test-grid">
+          <button class="btn-ecbs btn-outline alm-test-btn" *ngFor="let t of testAlarmTypes" (click)="fireTestAlarm(t)">
+            <span class="fa fa-bell-o"></span> {{ t.label }}
+          </button>
+        </div>
+        <div *ngIf="testAlarmResult" class="alm-test-result" [class.alm-test-ok]="testAlarmResult==='sent'">
+          <span class="fa" [class.fa-check-circle]="testAlarmResult==='sent'" [class.fa-exclamation-circle]="testAlarmResult!=='sent'"></span>
+          {{ testAlarmResult==='sent' ? 'Test alarm sent successfully — check your email and SMS.' : testAlarmResult }}
+        </div>
+      </div>
+
+    </div><!-- /notify -->
 
 </div>

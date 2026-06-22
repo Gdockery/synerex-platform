@@ -437,3 +437,85 @@
   gap: 6px;
   padding: 6px 12px;
 }
+
+// ── Node detail / edit slide-in panel ───────────────────────────────
+.dt-node-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 200px;
+  background: #0d1f2d;
+  border: 1px solid #29b6f6;
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 20;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+
+  .dt-node-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .dt-node-type-badge {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #546e7a;
+    background: rgba(255,255,255,0.05);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .dt-node-close {
+    color: #546e7a;
+    cursor: pointer;
+    font-size: 13px;
+    &:hover { color: #ef5350; }
+  }
+  .dt-node-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #e0e6ed;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  .dt-node-kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 9px;
+    padding: 3px 0;
+    border-bottom: 1px solid #1a2a3a;
+    color: #8899a6;
+    span:last-child {
+      color: #c8d6e5;
+      text-align: right;
+      max-width: 110px;
+      word-break: break-word;
+    }
+  }
+  .dt-node-divider {
+    height: 1px;
+    background: #1a2a3a;
+    margin: 10px 0 8px;
+  }
+  .dt-node-field-label {
+    font-size: 8px;
+    color: #546e7a;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 3px;
+  }
+  .dt-node-input {
+    width: 100%;
+    background: #0a1628;
+    border: 1px solid #1e3a5f;
+    border-radius: 4px;
+    color: #e0e6ed;
+    font-size: 10px;
+    padding: 5px 7px;
+    box-sizing: border-box;
+    resize: none;
+    &:focus { outline: none; border-color: #29b6f6; }
+  }
+}
