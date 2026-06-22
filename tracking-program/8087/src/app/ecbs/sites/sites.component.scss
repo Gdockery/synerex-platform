@@ -1,27 +1,280 @@
 @import "../../../scss/_vars";
 
-.site-health-banner {
-  display: flex; align-items: center; gap: 20px;
-  background: $ecbs-card-bg; border: 1px solid; border-radius: 10px;
-  padding: 14px 20px; margin-bottom: 16px;
+// ── Loading ────────────────────────────────────────────────────────────────
+.sv-loading {
+  display: flex; align-items: center; gap: 10px;
+  padding: 40px 0; color: $ecbs-text-secondary; font-size: 14px;
+  .fa { color: $ecbs-green; }
 }
-.shb-status { display: flex; align-items: center; gap: 8px; }
-.shb-dot    { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
-.shb-label  { font-size: 14px; font-weight: 700; }
-.shb-meta   { display: flex; gap: 16px; font-size: 12px; color: $ecbs-text-secondary;
-              span strong { color: $ecbs-text-primary; margin-right: 4px; } }
 
-.site-module-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 4px;
+// ── Aggregate KPI row ──────────────────────────────────────────────────────
+.sv-agg-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.site-module-tile {
+
+.sv-agg-card {
+  display: flex; align-items: center; gap: 14px;
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 16px 18px;
+  transition: border-color 0.15s;
+  &:hover { border-color: rgba(0,230,118,0.2); }
+}
+
+.sv-agg-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  .fa { font-size: 20px; }
+}
+
+.sv-agg-teal  .sv-agg-icon { background: rgba(0,230,118,0.12); .fa { color: #00e676; } }
+.sv-agg-blue  .sv-agg-icon { background: rgba(41,182,246,0.12); .fa { color: #29b6f6; } }
+.sv-agg-green .sv-agg-icon { background: rgba(0,230,118,0.10); .fa { color: #00e676; } }
+.sv-agg-purple .sv-agg-icon { background: rgba(206,147,216,0.12); .fa { color: #ce93d8; } }
+.sv-agg-amber .sv-agg-icon { background: rgba(255,215,64,0.10); .fa { color: #ffd740; } }
+
+.sv-agg-body { min-width: 0; }
+.sv-agg-value {
+  font-size: 22px; font-weight: 700; color: $ecbs-text-primary; line-height: 1.1;
+}
+.sv-agg-unit { font-size: 13px; font-weight: 400; color: $ecbs-text-secondary; }
+.sv-agg-label { font-size: 11px; color: $ecbs-text-secondary; margin-top: 2px; }
+.sv-agg-sub { font-size: 11px; color: $ecbs-text-label; margin-top: 1px; }
+.sv-agg-link {
+  font-size: 11px; color: $ecbs-green; cursor: pointer; margin-top: 2px; display: block;
+  &:hover { text-decoration: underline; }
+}
+
+// ── Filter row ─────────────────────────────────────────────────────────────
+.sv-filter-row {
   display: flex; align-items: center; gap: 12px;
-  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border; border-radius: 10px;
-  padding: 14px 16px; text-decoration: none; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-  &:hover { background: $ecbs-hover; border-color: rgba(0,230,118,0.25); }
+  margin-bottom: 14px; flex-wrap: wrap;
 }
-.smt-icon  { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; .fa { font-size: 18px; } }
-.smt-title { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; flex: 1; }
-.smt-sub   { font-size: 11px; color: $ecbs-text-secondary; margin-top: 1px; }
-.smt-arrow { color: $ecbs-text-secondary; font-size: 11px; flex-shrink: 0; margin-left: auto; }
+.sv-search-wrap {
+  position: relative; flex: 1; min-width: 180px;
+}
+.sv-search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: $ecbs-text-secondary; font-size: 12px; pointer-events: none;
+}
+.sv-search-input {
+  width: 100%; background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 8px; padding: 8px 12px 8px 32px;
+  color: $ecbs-text-primary; font-size: 13px; outline: none;
+  &::placeholder { color: $ecbs-text-label; }
+  &:focus { border-color: rgba(0,230,118,0.4); }
+}
+.sv-filter-group {
+  display: flex; align-items: center; gap: 6px;
+}
+.sv-filter-label { font-size: 12px; color: $ecbs-text-secondary; white-space: nowrap; }
+.sv-filter-select {
+  background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 8px; padding: 7px 10px; color: $ecbs-text-primary;
+  font-size: 13px; outline: none; cursor: pointer;
+  &:focus { border-color: rgba(0,230,118,0.4); }
+}
+.sv-view-btn {
+  padding: 7px 14px; font-size: 12px;
+  &.active { border-color: $ecbs-green; color: $ecbs-green; }
+}
+
+// ── Main layout ────────────────────────────────────────────────────────────
+.sv-main-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+// ── Table card ─────────────────────────────────────────────────────────────
+.sv-table-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; overflow: hidden;
+}
+.sv-table-header {
+  padding: 14px 18px 10px;
+}
+.sv-table-title {
+  font-size: 11px; font-weight: 600; color: $ecbs-text-secondary;
+  letter-spacing: 0.06em;
+}
+.sv-table-wrap { overflow-x: auto; }
+
+.sv-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.sv-th {
+  padding: 9px 14px; text-align: left; font-size: 11px; font-weight: 600;
+  color: $ecbs-text-secondary; background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid $ecbs-card-border; white-space: nowrap;
+}
+.sv-th-sortable {
+  cursor: pointer; user-select: none;
+  &:hover { color: $ecbs-text-primary; }
+  .fa { margin-left: 4px; font-size: 10px; }
+}
+.sv-row {
+  border-bottom: 1px solid rgba(30,45,69,0.6);
+  transition: background 0.1s;
+  &:last-child { border-bottom: none; }
+  &:hover { background: $ecbs-hover; }
+}
+.sv-td { padding: 11px 14px; vertical-align: middle; }
+.sv-empty {
+  padding: 32px; text-align: center; color: $ecbs-text-secondary; font-size: 13px;
+}
+
+// Site name cell
+.sv-td-name {
+  display: flex; align-items: center; gap: 10px; min-width: 160px;
+}
+.sv-site-icon {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  background: rgba(0,230,118,0.1); display: flex; align-items: center;
+  justify-content: center;
+  .fa { font-size: 14px; color: $ecbs-green; }
+}
+.sv-site-name { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; }
+.sv-site-type { font-size: 11px; color: $ecbs-text-secondary; margin-top: 1px; }
+
+.sv-td-loc { color: $ecbs-text-secondary; font-size: 12px; white-space: nowrap; }
+
+// Health cell
+.sv-health-cell {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sv-health-score { font-size: 14px; font-weight: 700; }
+.sv-health-label { font-size: 10px; font-weight: 600; }
+
+.sv-td-num { color: $ecbs-text-primary; white-space: nowrap; }
+
+// Utilization bar
+.sv-td-util { min-width: 110px; }
+.sv-util-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.sv-util-bar {
+  flex: 1; height: 6px; background: $ecbs-card-border; border-radius: 3px; overflow: hidden;
+}
+.sv-util-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.sv-util-pct { font-size: 11px; color: $ecbs-text-secondary; white-space: nowrap; min-width: 30px; }
+
+// Status badge
+.sv-status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.sv-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.sv-status-active { background: rgba(0,230,118,0.1); color: $ecbs-green;
+  .sv-status-dot { background: $ecbs-green; } }
+.sv-status-demo   { background: rgba(41,182,246,0.1); color: #29b6f6;
+  .sv-status-dot { background: #29b6f6; } }
+.sv-status-inactive { background: rgba(84,110,122,0.1); color: $ecbs-text-secondary;
+  .sv-status-dot { background: $ecbs-text-label; } }
+
+.sv-td-date { color: $ecbs-text-secondary; font-size: 11px; white-space: nowrap; }
+
+// ── Pagination ─────────────────────────────────────────────────────────────
+.sv-pagination {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-top: 1px solid $ecbs-card-border;
+  flex-wrap: wrap;
+}
+.sv-page-info { font-size: 12px; color: $ecbs-text-secondary; flex: 1; }
+.sv-page-controls { display: flex; gap: 4px; }
+.sv-page-btn {
+  width: 30px; height: 30px; border-radius: 6px;
+  background: $ecbs-input-bg; border: 1px solid $ecbs-card-border;
+  color: $ecbs-text-secondary; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  &:hover:not(:disabled) { border-color: $ecbs-green; color: $ecbs-green; }
+  &.active { background: $ecbs-green; border-color: $ecbs-green; color: #000; font-weight: 700; }
+  &:disabled { opacity: 0.35; cursor: not-allowed; }
+}
+.sv-view-all { font-size: 12px; color: $ecbs-green; cursor: pointer; &:hover { text-decoration: underline; } }
+
+// ── Sidebar cards ──────────────────────────────────────────────────────────
+.sv-sidebar { display: flex; flex-direction: column; gap: 14px; }
+.sv-sidebar-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 16px;
+}
+.sv-card-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: $ecbs-text-secondary; margin-bottom: 14px;
+}
+
+// Donut
+.sv-donut-wrap {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.sv-donut-legend { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.sv-donut-item { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.sv-donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sv-donut-name { color: $ecbs-text-secondary; flex: 1; }
+.sv-donut-count { color: $ecbs-text-primary; font-weight: 600; white-space: nowrap; }
+
+// Location list
+.sv-loc-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+.sv-loc-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid rgba(30,45,69,0.5);
+  &:last-child { border-bottom: none; }
+}
+.sv-loc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.sv-loc-info { flex: 1; min-width: 0; }
+.sv-loc-name { font-size: 12px; font-weight: 600; color: $ecbs-text-primary;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sv-loc-place { font-size: 11px; color: $ecbs-text-secondary; }
+.sv-loc-score { font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.sv-loc-empty { font-size: 12px; color: $ecbs-text-secondary; padding: 8px 0; }
+
+// ── Top Performers ─────────────────────────────────────────────────────────
+.sv-top-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 16px 18px; margin-bottom: 0;
+}
+.sv-top-row {
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+.sv-top-tile {
+  flex: 1; min-width: 180px;
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.02); border: 1px solid $ecbs-card-border;
+  border-radius: 10px; padding: 14px;
+}
+.sv-top-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  .fa { font-size: 18px; }
+}
+.sv-top-gold   { background: rgba(255,215,64,0.12); .fa { color: #ffd740; } }
+.sv-top-blue   { background: rgba(41,182,246,0.12); .fa { color: #29b6f6; } }
+.sv-top-green  { background: rgba(0,230,118,0.12);  .fa { color: #00e676; } }
+.sv-top-amber  { background: rgba(255,152,0,0.12);  .fa { color: #ff9800; } }
+
+.sv-top-cat  { font-size: 10px; color: $ecbs-text-secondary; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.sv-top-name { font-size: 13px; font-weight: 700; color: $ecbs-text-primary; margin-top: 2px; }
+.sv-top-val  { font-size: 15px; font-weight: 700; margin-top: 2px; }
+
+.sv-top-empty {
+  flex: 1; text-align: center; padding: 20px;
+  color: $ecbs-text-secondary; font-size: 13px;
+  .fa { margin-right: 8px; }
+}
+
+// ── Responsive ─────────────────────────────────────────────────────────────
+@media (max-width: 1200px) {
+  .sv-agg-row { grid-template-columns: repeat(3, 1fr); }
+  .sv-main-layout { grid-template-columns: 1fr; }
+  .sv-sidebar { flex-direction: row; flex-wrap: wrap;
+    .sv-sidebar-card { flex: 1; min-width: 260px; }
+  }
+}
+@media (max-width: 768px) {
+  .sv-agg-row { grid-template-columns: repeat(2, 1fr); }
+  .sv-top-row { flex-direction: column; }
+}

@@ -1,108 +1,333 @@
-<!-- ECBS OS™ Site Dashboard — Spec SS-6 / Figure A-6 -->
+<!-- ECBS OS™ Sites Overview — Spec SS-6 / Multi-Site Dashboard -->
 <div class="ecbs-page">
 
+  <!-- Page Header -->
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>{{ project?.name || 'Site Dashboard' }}</h1>
-      <p>Site-level health, capacity, savings, and quick actions.</p>
+      <h1>Sites</h1>
+      <p>Real-time overview of your sites and performance.</p>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
+      <button class="btn-ecbs btn-outline sv-view-btn" [class.active]="viewMode==='list'" (click)="setViewMode('list')">
+        <span class="fa fa-th-list"></span> Grid
+      </button>
+      <button class="btn-ecbs btn-outline sv-view-btn" [class.active]="viewMode==='grid'" (click)="setViewMode('grid')">
+        <span class="fa fa-table"></span> Report
+      </button>
     </div>
   </div>
 
-  <!-- Site Health Banner — spec SS-6 -->
-  <div class="site-health-banner" [style.border-color]="siteHealthStatus.color">
-    <div class="shb-status">
-      <div class="shb-dot" [style.background]="siteHealthStatus.color" [style.box-shadow]="'0 0 10px ' + siteHealthStatus.color"></div>
-      <span class="shb-label" [style.color]="siteHealthStatus.color">{{ siteHealthStatus.label }}</span>
-    </div>
-    <div class="shb-meta">
-      <span><strong>Site:</strong> {{ project?.name }}</span>
-      <span *ngIf="project?.timezoneAbbreviation"><strong>TZ:</strong> {{ project.timezoneAbbreviation }}</span>
-      <span *ngIf="project?.currencyCode"><strong>Currency:</strong> {{ project.currencyCode }}</span>
-    </div>
+  <!-- Loading skeleton -->
+  <div *ngIf="loading" class="sv-loading">
+    <span class="fa fa-circle-o-notch fa-spin"></span> Loading sites&#8230;
   </div>
 
-  <!-- KPI row -->
-  <div class="ecbs-kpi-row">
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-      <div class="kpi-value" [style.color]="cbiScore >= 90 ? '#00e676' : cbiScore >= 75 ? '#ffd740' : '#f44336'">{{ cbiScore | number:'1.0-0' }}</div>
-      <div class="kpi-label">CBI Score</div>
-      <div class="kpi-delta">Target: 90+</div>
-    </div>
-    <div class="ecbs-kpi-card" [class.kpi-red]="(alarmSummary?.critical||0)>0" [class.kpi-amber]="(alarmSummary?.critical||0)===0">
-      <div class="kpi-icon"><span class="fa fa-bell"></span></div>
-      <div class="kpi-value">{{ alarmSummary?.active_alarms != null ? alarmSummary?.active_alarms : '—' }}</div>
-      <div class="kpi-label">Active Alarms</div>
-      <div class="kpi-delta" [class.negative]="(alarmSummary?.critical||0)>0">{{ alarmSummary?.critical || 0 }} Critical</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-plug"></span></div>
-      <div class="kpi-value">{{ (capacityData?.installed_capacity_kva||0) | number:'1.0-0' }}</div>
-      <div class="kpi-label">Installed kVA</div>
-      <div class="kpi-delta neutral">{{ capacityData?.utilization_pct | number:'1.0-0' }}% utilized</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-magic"></span></div>
-      <div class="kpi-value">{{ (capacityData?.recovered_capacity_kva||0) | number:'1.0-0' }}</div>
-      <div class="kpi-label">kVA Recovered</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
-      <div class="kpi-value">${{ (savingsData?.annual_savings || 0) | number:'1.0-0' }}</div>
-      <div class="kpi-label">Annual Savings</div>
-      <div class="kpi-delta">EM&amp;V verified</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-microchip"></span></div>
-      <div class="kpi-value">{{ deviceCount || 0 }}</div>
-      <div class="kpi-label">Device Count</div>
-      <div class="kpi-delta neutral">Active ECBS devices</div>
-    </div>
-  </div>
+  <ng-container *ngIf="!loading">
 
-  <!-- Quick actions grid — spec SS-6 module tiles -->
-  <div class="site-module-grid">
-    <a class="site-module-tile" routerLink="/ecbs/capacity">
-      <div class="smt-icon" style="background:rgba(41,182,246,0.12);"><span class="fa fa-tachometer" style="color:#29b6f6;"></span></div>
-      <div class="smt-title">Capacity Intelligence</div>
-      <div class="smt-sub">{{ (capacityData?.recovered_capacity_kva||0) | number:'1.0-0' }} kVA recovered</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-    <a class="site-module-tile" routerLink="/ecbs/digital-twin">
-      <div class="smt-icon" style="background:rgba(206,147,216,0.12);"><span class="fa fa-share-alt" style="color:#ce93d8;"></span></div>
-      <div class="smt-title">Digital Twin</div>
-      <div class="smt-sub">One-line diagram</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-    <a class="site-module-tile" routerLink="/ecbs/current-analysis">
-      <div class="smt-icon" style="background:rgba(0,230,118,0.12);"><span class="fa fa-bolt" style="color:#00e676;"></span></div>
-      <div class="smt-title">Current Analysis</div>
-      <div class="smt-sub">CBI Score: {{ cbiScore | number:'1.0-0' }}</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-    <a class="site-module-tile" routerLink="/ecbs/savings">
-      <div class="smt-icon" style="background:rgba(0,230,118,0.12);"><span class="fa fa-dollar" style="color:#00e676;"></span></div>
-      <div class="smt-title">Savings & Financials</div>
-      <div class="smt-sub">View ROI and payback</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-    <a class="site-module-tile" routerLink="/ecbs/alarms">
-      <div class="smt-icon" [style.background]="(alarmSummary?.critical||0)>0 ? 'rgba(244,67,54,0.12)' : 'rgba(0,230,118,0.08)'">
-        <span class="fa fa-bell" [style.color]="(alarmSummary?.critical||0)>0 ? '#f44336' : '#00e676'"></span>
+    <!-- Aggregate KPI Cards -->
+    <div class="sv-agg-row">
+
+      <div class="sv-agg-card sv-agg-teal">
+        <div class="sv-agg-icon"><span class="fa fa-building"></span></div>
+        <div class="sv-agg-body">
+          <div class="sv-agg-value">{{ totalSites }}</div>
+          <div class="sv-agg-label">Total Sites</div>
+          <div class="sv-agg-sub">Active Sites</div>
+        </div>
       </div>
-      <div class="smt-title">Alarms &amp; Events</div>
-      <div class="smt-sub" [style.color]="(alarmSummary?.critical||0)>0 ? '#f44336' : '#8899a6'">{{ alarmSummary?.active_alarms || 0 }} active</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-    <a class="site-module-tile" routerLink="/ecbs/reports">
-      <div class="smt-icon" style="background:rgba(41,182,246,0.08);"><span class="fa fa-file-text" style="color:#29b6f6;"></span></div>
-      <div class="smt-title">Reports</div>
-      <div class="smt-sub">Generate and download</div>
-      <span class="smt-arrow fa fa-chevron-right"></span>
-    </a>
-  </div>
+
+      <div class="sv-agg-card sv-agg-blue">
+        <div class="sv-agg-icon"><span class="fa fa-heartbeat"></span></div>
+        <div class="sv-agg-body">
+          <div class="sv-agg-value">{{ avgHealthScore | number:'1.0-0' }}<span class="sv-agg-unit"> /100</span></div>
+          <div class="sv-agg-label">Average Health Score</div>
+          <div class="sv-agg-sub" [style.color]="scoreColor(avgHealthScore)">
+            {{ avgHealthScore >= 90 ? 'Excellent' : avgHealthScore >= 80 ? 'Very Good' : avgHealthScore >= 70 ? 'Good' : avgHealthScore > 0 ? 'Needs Attention' : 'Loading&#8230;' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="sv-agg-card sv-agg-green">
+        <div class="sv-agg-icon"><span class="fa fa-bolt"></span></div>
+        <div class="sv-agg-body">
+          <div class="sv-agg-value">{{ totalCapacityRecovered | number:'1.0-0' }}<span class="sv-agg-unit"> kVA</span></div>
+          <div class="sv-agg-label">Total Capacity Recovered</div>
+          <div class="sv-agg-sub">Across All Sites</div>
+        </div>
+      </div>
+
+      <div class="sv-agg-card sv-agg-purple">
+        <div class="sv-agg-icon"><span class="fa fa-dollar"></span></div>
+        <div class="sv-agg-body">
+          <div class="sv-agg-value">{{ formatSavings(totalAnnualSavings) }}</div>
+          <div class="sv-agg-label">Total Annual Savings</div>
+          <div class="sv-agg-sub">Across All Sites</div>
+        </div>
+      </div>
+
+      <div class="sv-agg-card sv-agg-amber">
+        <div class="sv-agg-icon"><span class="fa fa-leaf"></span></div>
+        <div class="sv-agg-body">
+          <div class="sv-agg-value">{{ totalCarbonReduced | number:'1.0-0' }}<span class="sv-agg-unit"> tons</span></div>
+          <div class="sv-agg-label">Total Carbon Reduction</div>
+          <div class="sv-agg-sub">CO&#8322;e Avoided Annually</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Search + Filter Row -->
+    <div class="sv-filter-row">
+      <div class="sv-search-wrap">
+        <span class="fa fa-search sv-search-icon"></span>
+        <input class="sv-search-input" type="text" placeholder="Search sites&#8230;"
+               [(ngModel)]="searchQuery" (ngModelChange)="onFilterChange()" />
+      </div>
+      <div class="sv-filter-group">
+        <label class="sv-filter-label">Status</label>
+        <select class="sv-filter-select" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="demo">Demo</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="sv-filter-group">
+        <label class="sv-filter-label">Health</label>
+        <select class="sv-filter-select" [(ngModel)]="healthFilter" (ngModelChange)="onFilterChange()">
+          <option value="all">All</option>
+          <option value="excellent">Excellent (90+)</option>
+          <option value="good">Good (70-89)</option>
+          <option value="attention">Needs Attention (&lt;70)</option>
+          <option value="nodata">No Data</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Content: Table + Sidebar -->
+    <div class="sv-main-layout">
+
+      <!-- Sites Table -->
+      <div class="sv-table-card">
+        <div class="sv-table-header">
+          <span class="sv-table-title">SITES ({{ filteredSites.length }})</span>
+        </div>
+        <div class="sv-table-wrap">
+          <table class="sv-table">
+            <thead>
+              <tr>
+                <th class="sv-th sv-th-sortable" (click)="setSort('name')">
+                  Site Name
+                  <span class="fa" [ngClass]="sortCol==='name' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th">Location</th>
+                <th class="sv-th sv-th-sortable" (click)="setSort('healthScore')">
+                  Health Score
+                  <span class="fa" [ngClass]="sortCol==='healthScore' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th sv-th-sortable" (click)="setSort('cbiScore')">
+                  CBI&#8482;
+                  <span class="fa" [ngClass]="sortCol==='cbiScore' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th sv-th-sortable" (click)="setSort('utilization')">
+                  Utilization
+                  <span class="fa" [ngClass]="sortCol==='utilization' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th sv-th-sortable" (click)="setSort('capacityRecovered')">
+                  Capacity Recovered
+                  <span class="fa" [ngClass]="sortCol==='capacityRecovered' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th sv-th-sortable" (click)="setSort('annualSavings')">
+                  Annual Savings
+                  <span class="fa" [ngClass]="sortCol==='annualSavings' ? (sortDir==='asc' ? 'fa-sort-asc' : 'fa-sort-desc') : 'fa-sort'"></span>
+                </th>
+                <th class="sv-th">Status</th>
+                <th class="sv-th">Last Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="pagedSites.length === 0">
+                <td colspan="9" class="sv-empty">No sites match your filters.</td>
+              </tr>
+              <tr *ngFor="let s of pagedSites" class="sv-row">
+                <!-- Site Name -->
+                <td class="sv-td sv-td-name">
+                  <div class="sv-site-icon">
+                    <span class="fa fa-building"></span>
+                  </div>
+                  <div>
+                    <div class="sv-site-name">{{ s.name }}</div>
+                    <div class="sv-site-type">{{ s.facilityType }}</div>
+                  </div>
+                </td>
+                <!-- Location -->
+                <td class="sv-td sv-td-loc">{{ s.location || '&#8212;' }}</td>
+                <!-- Health Score -->
+                <td class="sv-td sv-td-health">
+                  <div class="sv-health-cell">
+                    <span class="sv-health-score" [style.color]="s.healthColor">
+                      {{ s.healthScore > 0 ? (s.healthScore | number:'1.0-0') : '&#8212;' }}
+                    </span>
+                    <span class="sv-health-label" [style.color]="s.healthColor">{{ s.healthLabel }}</span>
+                  </div>
+                </td>
+                <!-- CBI -->
+                <td class="sv-td sv-td-num">
+                  <span [style.color]="scoreColor(s.cbiScore)">{{ s.cbiScore > 0 ? (s.cbiScore | number:'1.0-0') : '&#8212;' }}</span>
+                </td>
+                <!-- Utilization -->
+                <td class="sv-td sv-td-util">
+                  <div class="sv-util-bar-wrap">
+                    <div class="sv-util-bar">
+                      <div class="sv-util-fill"
+                           [style.width.%]="s.utilization"
+                           [style.background]="s.utilization > 90 ? '#f44336' : s.utilization > 75 ? '#ffd740' : '#00e676'"></div>
+                    </div>
+                    <span class="sv-util-pct">{{ s.utilization > 0 ? (s.utilization | number:'1.0-0') + '%' : '&#8212;' }}</span>
+                  </div>
+                </td>
+                <!-- Capacity Recovered -->
+                <td class="sv-td sv-td-num">
+                  <span class="fa fa-circle" [style.color]="s.capacityRecovered > 0 ? '#00e676' : '#546e7a'" style="font-size:7px;margin-right:4px;"></span>
+                  {{ s.capacityRecovered > 0 ? (s.capacityRecovered | number:'1.0-0') + ' kVA' : '&#8212;' }}
+                </td>
+                <!-- Annual Savings -->
+                <td class="sv-td sv-td-num">
+                  {{ s.annualSavings > 0 ? formatSavings(s.annualSavings) : '&#8212;' }}
+                </td>
+                <!-- Status -->
+                <td class="sv-td sv-td-status">
+                  <span class="sv-status-badge"
+                        [class.sv-status-active]="s.status === 'Active'"
+                        [class.sv-status-demo]="s.status === 'Demo'"
+                        [class.sv-status-inactive]="s.status === 'Inactive'">
+                    <span class="sv-status-dot"></span> {{ s.status }}
+                  </span>
+                </td>
+                <!-- Last Updated -->
+                <td class="sv-td sv-td-date">
+                  <span *ngIf="s.lastUpdated">{{ s.lastUpdated | date:'MMM d, h:mm a' }}</span>
+                  <span *ngIf="!s.lastUpdated" style="color:#546e7a;">&#8212;</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="sv-pagination" *ngIf="filteredSites.length > 0">
+          <span class="sv-page-info">Showing {{ showingFrom }} to {{ showingTo }} of {{ filteredSites.length }} sites</span>
+          <div class="sv-page-controls">
+            <button class="sv-page-btn" [disabled]="currentPage === 1" (click)="goPage(currentPage - 1)">
+              <span class="fa fa-chevron-left"></span>
+            </button>
+            <button *ngFor="let p of pageNumbers" class="sv-page-btn"
+                    [class.active]="p === currentPage" (click)="goPage(p)">{{ p }}</button>
+            <button class="sv-page-btn" [disabled]="currentPage === totalPages" (click)="goPage(currentPage + 1)">
+              <span class="fa fa-chevron-right"></span>
+            </button>
+          </div>
+          <button class="btn-ecbs btn-outline" (click)="refresh()" style="padding:6px 14px;font-size:12px;">
+            <span class="fa fa-refresh"></span> Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Sidebar -->
+      <div class="sv-sidebar">
+
+        <!-- Health Score Distribution Donut -->
+        <div class="sv-sidebar-card">
+          <div class="sv-card-title">HEALTH SCORE DISTRIBUTION</div>
+          <div class="sv-donut-wrap">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="42" fill="none" stroke="#1e2d45" stroke-width="14"/>
+              <ng-container *ngFor="let seg of donutSegments">
+                <circle *ngIf="seg.dash > 0"
+                        cx="55" cy="55" r="42"
+                        fill="none"
+                        [attr.stroke]="seg.color"
+                        stroke-width="14"
+                        [attr.stroke-dasharray]="seg.dash + ' ' + (seg.total - seg.dash)"
+                        [attr.stroke-dashoffset]="seg.offset"
+                        style="transform:rotate(-90deg);transform-origin:55px 55px;"></circle>
+              </ng-container>
+              <text x="55" y="50" text-anchor="middle" font-size="20" font-weight="700" fill="#e8edf5">{{ totalSites }}</text>
+              <text x="55" y="64" text-anchor="middle" font-size="9" fill="#8899a6">Sites</text>
+            </svg>
+            <div class="sv-donut-legend">
+              <div class="sv-donut-item" *ngFor="let b of healthBuckets">
+                <span class="sv-donut-dot" [style.background]="b.color"></span>
+                <span class="sv-donut-name">{{ b.label }}</span>
+                <span class="sv-donut-count">{{ b.count }} ({{ b.pct }}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sites by Location -->
+        <div class="sv-sidebar-card">
+          <div class="sv-card-title">SITES BY LOCATION</div>
+          <div class="sv-loc-list">
+            <div class="sv-loc-row" *ngFor="let s of sites">
+              <span class="sv-loc-dot" [style.background]="s.healthColor"></span>
+              <div class="sv-loc-info">
+                <div class="sv-loc-name">{{ s.name }}</div>
+                <div class="sv-loc-place">{{ s.location || s.country || 'Unknown' }}</div>
+              </div>
+              <span class="sv-loc-score" [style.color]="s.healthColor">
+                {{ s.healthScore > 0 ? (s.healthScore | number:'1.0-0') : '&#8212;' }}
+              </span>
+            </div>
+            <div *ngIf="sites.length === 0" class="sv-loc-empty">No sites loaded.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Top Performing Sites -->
+    <div class="sv-top-card">
+      <div class="sv-card-title">TOP PERFORMING SITES</div>
+      <div class="sv-top-row">
+        <div class="sv-top-tile" *ngIf="topHealthSite">
+          <div class="sv-top-icon sv-top-gold"><span class="fa fa-trophy"></span></div>
+          <div class="sv-top-meta">
+            <div class="sv-top-cat">Highest Health Score</div>
+            <div class="sv-top-name">{{ topHealthSite.name }}</div>
+            <div class="sv-top-val" [style.color]="topHealthSite.healthColor">{{ topHealthSite.healthScore | number:'1.0-0' }}/100</div>
+          </div>
+        </div>
+        <div class="sv-top-tile" *ngIf="topCapacitySite">
+          <div class="sv-top-icon sv-top-blue"><span class="fa fa-bolt"></span></div>
+          <div class="sv-top-meta">
+            <div class="sv-top-cat">Most Capacity Recovered</div>
+            <div class="sv-top-name">{{ topCapacitySite.name }}</div>
+            <div class="sv-top-val" style="color:#29b6f6;">{{ topCapacitySite.capacityRecovered | number:'1.0-0' }} kVA</div>
+          </div>
+        </div>
+        <div class="sv-top-tile" *ngIf="topSavingsSite">
+          <div class="sv-top-icon sv-top-green"><span class="fa fa-dollar"></span></div>
+          <div class="sv-top-meta">
+            <div class="sv-top-cat">Highest Annual Savings</div>
+            <div class="sv-top-name">{{ topSavingsSite.name }}</div>
+            <div class="sv-top-val" style="color:#00e676;">{{ formatSavings(topSavingsSite.annualSavings) }}</div>
+          </div>
+        </div>
+        <div class="sv-top-tile" *ngIf="topCarbonSite">
+          <div class="sv-top-icon sv-top-amber"><span class="fa fa-leaf"></span></div>
+          <div class="sv-top-meta">
+            <div class="sv-top-cat">Most Carbon Reduced</div>
+            <div class="sv-top-name">{{ topCarbonSite.name }}</div>
+            <div class="sv-top-val" style="color:#ffd740;">{{ topCarbonSite.carbonReduced | number:'1.0-0' }} tons</div>
+          </div>
+        </div>
+        <div class="sv-top-empty" *ngIf="!topHealthSite && !topCapacitySite && !topSavingsSite && !topCarbonSite">
+          <span class="fa fa-hourglass-half"></span> Loading site metrics&#8230;
+        </div>
+      </div>
+    </div>
+
+  </ng-container>
 
 </div>
