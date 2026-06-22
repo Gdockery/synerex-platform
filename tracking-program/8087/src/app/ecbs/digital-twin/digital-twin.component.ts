@@ -72,12 +72,10 @@ export class DigitalTwinComponent implements OnInit {
     { id: 'weld',   name: 'Welding Station',   category: 'Process', kw: 60,  kva: 75,  voltage: '480V', phase: '3Ø', icon: 'fa-wrench' },
   ];
 
-  // SLD upload / GPU analysis
+  // SLD upload / Qwen analysis
   sldUploading  = false;
-  sldJobId: number|null = null;
-  sldJobStatus  = '';          // 'pending' | 'processing' | 'done' | 'error'
+  sldJobStatus  = '';          // 'processing' | 'done' | 'error'
   sldError      = '';
-  sldPollTimer: any = null;
   showSldUpload = false;
   topoMeters: any[] = [];
 
@@ -175,72 +173,25 @@ export class DigitalTwinComponent implements OnInit {
   uploadSld(file: File) {
     this.sldUploading = true;
     this.sldError     = '';
-    this.sldJobStatus = 'pending';
+    this.sldJobStatus = 'processing';
 
     const fd = new FormData();
     fd.append('file', file, file.name);
-    if (this.currentLoadKw > 0) {
-      fd.append('bill_peak_kw', String(Math.round(this.currentLoadKw)));
-    }
 
-    this.api.postFormData('/api/sld/analyze', fd).subscribe({
+    // Use the synchronous Ollama route — analyze + seed in one request (~2–5 min)
+    this.api.postFormData(`/api/project/${this.projectId}/sld/analyze-and-seed`, fd).subscribe({
       next: (r: any) => {
         this.sldUploading = false;
-        this.sldJobId     = r?.job_id;
-        this.sldJobStatus = 'processing';
-        this.startSldPoll();
+        this.sldJobStatus = 'done';
+        this.topoMeters   = r?.topo_meters || [];
+        this.showSldUpload = false;
+        this.loadTwinData(); // Reload with newly seeded topology
       },
       error: (e: any) => {
         this.sldUploading = false;
         this.sldJobStatus = 'error';
-        this.sldError     = e?.error?.error || 'Upload failed';
+        this.sldError = e?.error?.error || 'Analysis failed — check GPU server connectivity';
       }
-    });
-  }
-
-  startSldPoll() {
-    if (this.sldPollTimer) { clearInterval(this.sldPollTimer); }
-    this.sldPollTimer = setInterval(() => { this.checkSldStatus(); }, 20000);
-  }
-
-  checkSldStatus() {
-    if (!this.sldJobId) { return; }
-    this.api.get(`/api/sld/analyze/${this.sldJobId}`).subscribe({
-      next: (r: any) => {
-        if (r?.status === 'done') {
-          clearInterval(this.sldPollTimer);
-          this.sldJobStatus = 'done';
-          this.applySldResult(r?.result || {});
-        } else if (r?.status === 'error') {
-          clearInterval(this.sldPollTimer);
-          this.sldJobStatus = 'error';
-          this.sldError = r?.error || 'GPU analysis failed';
-        }
-      },
-      error: () => {}
-    });
-  }
-
-  applySldResult(result: any) {
-    // Fetch the topology format from the dedicated endpoint
-    this.api.get(`/api/sld/${this.sldJobId}/topology`).subscribe({
-      next: (r: any) => {
-        this.topoMeters = r?.topo_meters || [];
-        // Now seed the digital twin
-        this.seedTwinFromSld();
-      },
-      error: () => {}
-    });
-  }
-
-  seedTwinFromSld() {
-    if (!this.sldJobId) { return; }
-    this.api.post(`/api/project/${this.projectId}/sld/seed-twin`, { gpu_id: this.sldJobId }).subscribe({
-      next: (r: any) => {
-        this.showSldUpload = false;
-        this.loadTwinData(); // Reload topology after seeding
-      },
-      error: () => {}
     });
   }
 

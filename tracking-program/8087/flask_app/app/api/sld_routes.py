@@ -458,3 +458,267 @@ def seed_twin_from_sld(project_id: int):
         "status":      twin.status,
         "topo_meters": topo_meters,
     }), 201
+
+
+# ─── Ollama / Qwen 2.5 VL direct analysis ─────────────────────────────────────
+
+OLLAMA_URL   = os.environ.get("OLLAMA_LOCAL_URL",  "http://100.106.19.30:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_SLD_MODEL",  "qwen2.5vl:32b")
+
+_SLD_QWEN_PROMPT = """You are an expert electrical engineer analyzing a single-line diagram for a commercial facility.
+Read every label, breaker rating, transformer kVA, and bus ampacity shown on the drawing.
+Return ONLY valid JSON — no markdown — matching this schema exactly:
+{
+  "facility_name": "",
+  "facility_type": "",
+  "drawing_number": "",
+  "service_voltage": "",
+  "distribution_voltage": "",
+  "phases": 3,
+  "utility_service": {"label": "", "amps": null, "voltage": null},
+  "main_switchgear": [
+    {
+      "label": "",
+      "bus_amps": null,
+      "kva_rating": null,
+      "drawing_ref": "",
+      "circuits": [{"name": "", "amps": null, "poles": 3, "load_type": ""}]
+    }
+  ],
+  "transformers": [{"label": "", "kva": null, "primary_v": null, "secondary_v": null, "location": ""}],
+  "generators": [{"label": "", "kw": null, "voltage": null}],
+  "ats_units": [{"label": "", "amps": null}],
+  "ecbs_locations": [{"bus": "", "ct_amps": null, "note": ""}],
+  "meter_id": "",
+  "notes": ""
+}"""
+
+
+def _pdf_to_png_bytes(pdf_bytes: bytes) -> bytes:
+    """Convert first page of PDF to PNG bytes using pdftoppm."""
+    import subprocess, tempfile
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(pdf_bytes)
+        tmp_path = tmp.name
+    out_prefix = tmp_path.replace(".pdf", "_p")
+    try:
+        subprocess.run(
+            ["pdftoppm", "-r", "200", "-png", "-singlefile", tmp_path, out_prefix],
+            check=True, capture_output=True, timeout=60
+        )
+        import os as _os
+        for suffix in (".png", "-1.png"):
+            p = out_prefix + suffix
+            if _os.path.exists(p):
+                with open(p, "rb") as f:
+                    data = f.read()
+                _os.unlink(p)
+                return data
+    finally:
+        import os as _os
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+    raise RuntimeError("pdftoppm produced no output")
+
+
+def _analyze_with_ollama(img_bytes: bytes, content_type: str) -> dict:
+    """
+    Send image bytes to Qwen 2.5 VL 32B via Ollama and return parsed topology dict.
+    content_type: 'image/png', 'image/jpeg', 'application/pdf' (auto-converted)
+    """
+    import base64, json as _json, threading
+
+    if content_type == "application/pdf":
+        img_bytes    = _pdf_to_png_bytes(img_bytes)
+        content_type = "image/png"
+
+    img_b64 = base64.b64encode(img_bytes).decode()
+    payload = {
+        "model": OLLAMA_MODEL,
+        "messages": [
+            {"role": "user", "content": _SLD_QWEN_PROMPT, "images": [img_b64]}
+        ],
+        "stream": False,
+        "options": {"temperature": 0.1},
+    }
+
+    resp = _requests.post(
+        f"{OLLAMA_URL}/api/chat",
+        json=payload,
+        timeout=600,
+    )
+    resp.raise_for_status()
+    content = resp.json().get("message", {}).get("content", "").strip()
+
+    # Strip markdown fences
+    if content.startswith("```"):
+        lines = content.split("\n")
+        content = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+    try:
+        return _json.loads(content)
+    except Exception:
+        return {"raw_response": content}
+
+
+@sld_bp.route("/api/sld/analyze-ollama", methods=["POST"])
+@login_required
+@license_required
+def analyze_sld_ollama():
+    """
+    POST /api/sld/analyze-ollama
+    Synchronous SLD analysis via Ollama/Qwen 2.5 VL 32B.
+    Returns topology JSON directly (no polling needed).
+    This is the preferred route — bypasses the GPU FastAPI parse_sld bug.
+
+    Slower than async (2–5 min), but reliable.
+    Accepts same multipart/form-data as /api/sld/analyze.
+    """
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    ext  = (file.filename or "").rsplit(".", 1)[-1].lower()
+    ct_map = {
+        "pdf": "application/pdf", "png": "image/png",
+        "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp",
+    }
+    if ext not in ct_map:
+        return jsonify({"success": False, "error": "File must be PDF, PNG, JPG, or WebP"}), 400
+
+    file_bytes = file.read()
+    ct         = ct_map[ext]
+
+    try:
+        topo = _analyze_with_ollama(file_bytes, ct)
+    except _requests.ConnectionError:
+        return jsonify({"success": False, "error": "Cannot connect to Ollama GPU server"}), 503
+    except Exception as e:
+        logger.exception("Ollama SLD analysis failed")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    # Convert to topoMeters
+    topo_meters = _gpu_result_to_topo_meters(topo)
+
+    return jsonify({
+        "success":     True,
+        "topology":    topo,
+        "topo_meters": topo_meters,
+        "model":       OLLAMA_MODEL,
+    }), 200
+
+
+@sld_bp.route("/api/project/<int:project_id>/sld/analyze-and-seed", methods=["POST"])
+@login_required
+@license_required
+def analyze_and_seed(project_id: int):
+    """
+    POST /api/project/<id>/sld/analyze-and-seed  (multipart/form-data with 'file')
+    One-shot: analyze SLD with Qwen → save to project → seed digital twin.
+    Returns { twin_id, created, status, topology, topo_meters }.
+    """
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    ext  = (file.filename or "").rsplit(".", 1)[-1].lower()
+    ct_map = {
+        "pdf": "application/pdf", "png": "image/png",
+        "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    }
+    if ext not in ct_map:
+        return jsonify({"error": "File must be PDF, PNG, or JPG"}), 400
+
+    file_bytes = file.read()
+    ct         = ct_map[ext]
+
+    # ── Analyze with Qwen
+    try:
+        topo = _analyze_with_ollama(file_bytes, ct)
+    except Exception as e:
+        return jsonify({"error": f"Qwen analysis failed: {e}"}), 500
+
+    topo_meters = _gpu_result_to_topo_meters(topo)
+
+    # ── Save to project
+    sess = get_session()
+    p    = sess.query(Project).filter_by(id=project_id, isDeleted=False).first()
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+
+    p.sldAnalysis  = topo
+    p.placements   = topo_meters
+    proposal       = dict(p.proposalData or {})
+    proposal["topoMeters"] = topo_meters
+    p.proposalData = proposal
+    sess.add(p)
+    sess.commit()
+
+    # ── Seed Digital Twin
+    from app.models.digital_twin import DigitalTwin
+    from app.models.site import Site
+    from app.api.digital_twin_routes import _create_assets_from_topo, _now
+
+    existing = sess.query(DigitalTwin).filter_by(project_id=project_id, is_deleted=False).first()
+    if existing:
+        return jsonify({
+            "twin_id":     existing.id,
+            "created":     False,
+            "status":      existing.status,
+            "topology":    topo,
+            "topo_meters": topo_meters,
+        }), 200
+
+    now  = _now()
+    site = sess.query(Site).filter_by(project_id=project_id, is_deleted=False).first()
+    if not site:
+        pd   = p.proposalData or {}
+        site = Site(
+            org_id     = p.org_id,
+            client_id  = p.client,
+            project_id = p.id,
+            name       = pd.get("facility_name") or p.name,
+            address    = pd.get("facility_address") or p.location,
+            status     = "active",
+            createdAt  = now,
+            updatedAt  = now,
+        )
+        sess.add(site)
+        sess.flush()
+
+    from app.models.digital_twin import DigitalTwin as DT
+    twin = DT(
+        site_id        = site.id,
+        org_id         = p.org_id,
+        project_id     = project_id,
+        status         = "draft",
+        version_number = 1,
+        source         = "ollama_qwen",
+        label          = f"Auto-seeded from SLD via Qwen 2.5 VL 32B",
+        createdAt      = now,
+        updatedAt      = now,
+    )
+    sess.add(twin)
+    sess.flush()
+
+    _create_assets_from_topo(sess, site.id, twin.id, p.org_id, topo_meters, now)
+    sess.commit()
+
+    return jsonify({
+        "twin_id":     twin.id,
+        "created":     True,
+        "status":      twin.status,
+        "topology":    topo,
+        "topo_meters": topo_meters,
+        "model":       OLLAMA_MODEL,
+    }), 201
