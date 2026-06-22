@@ -117,3 +117,54 @@
   border-bottom: 1px solid #0f1d2e;
 }
 .dte-summary-row span:last-child { color: #e8edf5; font-weight: 600; }
+
+// ── additional editor styles ──────────────────────────────────────────
+.dte-prop-type-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dte-type-chip {
+  font-size: 9px;
+  border: 1px solid #546e7a;
+  border-radius: 4px;
+  padding: 2px 7px;
+  color: #8899a6;
+  font-family: monospace;
+  text-transform: uppercase;
+}
+.dte-asset-list-view {
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(100% - 40px);
+}
+.dte-assets-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  th {
+    background: #0d1f2d;
+    color: #546e7a;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    padding: 6px 10px;
+    border-bottom: 1px solid #1e3a5f;
+    text-align: left;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #0d1f2d;
+    color: #c8d6e5;
+    vertical-align: middle;
+  }
+  tr:hover td { background: rgba(41,182,246,0.04); }
+}
+.dte-row-selected td { background: rgba(0,230,118,0.05) !important; }
+.dte-saving {
+  font-size: 10px;
+  color: #ffd740;
+  margin-left: 10px;
+}
