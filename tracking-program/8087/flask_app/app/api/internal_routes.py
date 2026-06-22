@@ -192,6 +192,90 @@ def list_projects():
     } for p, c in rows])
 
 
+# ── Seed Digital Twin from project topoMeters ────────────────────────────────
+
+@internal_bp.post("/api/internal/project/<int:project_id>/seed-twin")
+def seed_twin(project_id):
+    """
+    Called by sld_to_digital_twin.py CLI and the Ollama SLD pipeline.
+    Triggers digital twin seeding from proposalData.topoMeters — no user session needed.
+    Returns existing twin id if already seeded.
+    """
+    err = _auth()
+    if err:
+        return err
+
+    # Reuse the same logic as /api/digital-twin/from-project/<id>
+    from app.api.digital_twin_routes import twin_from_project as _seed_fn
+    import flask
+    # Create a fake authenticated context by temporarily monkeypatching
+    # current_user so @login_required doesn't block us
+    from flask_login import login_user
+    from app.models.user import User
+
+    sess = get_session()
+
+    # Seed twin — call the underlying function directly (bypasses login_required)
+    from app.models.project import Project
+    from app.models.digital_twin import DigitalTwin
+    from app.models.site import Site
+    from app.api.digital_twin_routes import _create_assets_from_topo, _now, _twin_dict
+
+    sess = get_session()
+    existing = sess.query(DigitalTwin).filter_by(project_id=project_id, is_deleted=False).first()
+    if existing:
+        return jsonify({"twin_id": existing.id, "created": False, "status": existing.status})
+
+    proj = sess.query(Project).filter_by(id=project_id, isDeleted=False).first()
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+
+    topo_meters = (proj.proposalData or {}).get("topoMeters") or proj.placements or []
+    if not topo_meters:
+        return jsonify({"error": "No topoMeters on project — upload an SLD first"}), 400
+
+    try:
+        now  = _now()
+        site = sess.query(Site).filter_by(project_id=project_id, is_deleted=False).first()
+        if not site:
+            pd   = proj.proposalData or {}
+            site = Site(
+                org_id     = proj.org_id,
+                client_id  = proj.client,
+                project_id = proj.id,
+                name       = pd.get("facility_name") or proj.name,
+                address    = pd.get("facility_address") or proj.location,
+                status     = "active",
+                createdAt  = now,
+                updatedAt  = now,
+            )
+            sess.add(site)
+            sess.flush()
+
+        twin = DigitalTwin(
+            site_id        = site.id,
+            org_id         = proj.org_id,
+            project_id     = project_id,
+            status         = "draft",
+            version_number = 1,
+            source         = "internal_seed",
+            label          = f"Auto-seeded from topoMeters",
+            createdAt      = now,
+            updatedAt      = now,
+        )
+        sess.add(twin)
+        sess.flush()
+
+        _create_assets_from_topo(sess, site.id, twin.id, proj.org_id, topo_meters, now)
+        sess.commit()
+
+        return jsonify({"twin_id": twin.id, "created": True, "status": twin.status,
+                        "site_id": site.id})
+    except Exception as e:
+        sess.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Mark installation confirmed ───────────────────────────────────────────────
 
 @internal_bp.post("/api/internal/project/<int:project_id>/installation-confirmed")
