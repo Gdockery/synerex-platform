@@ -2025,3 +2025,136 @@ textarea.fin-input { resize: vertical; min-height: 60px; }
   padding-top: 8px; margin-top: 4px; border-top: 1px solid $ecbs-card-border;
   font-size: 11px; color: $ecbs-text-secondary;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Alarms & Events — dashboard layout (ECBS OS v4 SS-12/SS-13)
+// ════════════════════════════════════════════════════════════════════════════
+
+// Filter bar labels/selects
+.alm-filter-label  { font-size: 11px; color: $ecbs-text-secondary; white-space: nowrap; }
+.alm-filter-select { width: 120px; height: 30px; font-size: 11px; }
+
+// Analytics three-column row
+.alm-analytics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  @media (max-width: 1100px) { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 700px)  { grid-template-columns: 1fr; }
+}
+
+// Bottom three-column row
+.alm-bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+  @media (max-width: 1100px) { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 700px)  { grid-template-columns: 1fr; }
+}
+
+// Chart card shared header
+.alm-chart-card  { }
+.alm-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.alm-card-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: $ecbs-text-secondary;
+}
+.alm-view-link {
+  font-size: 10px;
+  color: #29b6f6;
+  cursor: pointer;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+// Bar chart legend
+.alm-chart-legend { display: flex; align-items: center; }
+.alm-leg-dot      { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.alm-leg-label    { font-size: 9px; color: $ecbs-text-secondary; margin-left: 4px; }
+
+// Donut chart legend
+.alm-donut-legend { display: flex; flex-direction: column; gap: 6px; }
+.alm-don-row      { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.alm-don-dot      { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.alm-don-name     { flex: 1; color: $ecbs-text-secondary; }
+.alm-don-val      { font-weight: 700; }
+.alm-don-pct      { color: $ecbs-text-secondary; font-size: 10px; }
+
+// Alarm summary stats table
+.alm-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  td {
+    font-size: 11px;
+    padding: 4px 0;
+    color: $ecbs-text-secondary;
+    &:last-child { text-align: right; font-weight: 600; color: $ecbs-text-primary; }
+  }
+  .alm-sum-divider td { border-top: 1px solid $ecbs-card-border; padding-top: 6px; }
+  .alm-sum-pct { font-size: 9px; color: $ecbs-text-secondary; font-weight: 400; }
+}
+
+// Timeline
+.alm-timeline    { display: flex; flex-direction: column; gap: 0; }
+.alm-tl-row      {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.alm-tl-time     { font-size: 9px; color: $ecbs-text-secondary; white-space: nowrap; width: 44px; padding-top: 2px; }
+.alm-tl-dot      { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+.alm-tl-content  { flex: 1; }
+.alm-tl-title    { font-size: 11px; color: $ecbs-text-primary; line-height: 1.3; }
+.alm-tl-meta     { font-size: 9px; color: $ecbs-text-secondary; }
+.alm-tl-badge    {
+  font-size: 9px; font-weight: 600; padding: 1px 5px;
+  border-radius: 3px; border: 1px solid; white-space: nowrap;
+}
+
+// Top alarms list
+.alm-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 11px;
+}
+.alm-top-name  { color: $ecbs-text-secondary; flex: 1; }
+.alm-top-count { font-weight: 700; color: $ecbs-text-primary; }
+
+// Alarm management links
+.alm-mgmt-list { display: flex; flex-direction: column; gap: 8px; }
+.alm-mgmt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+  &:hover { background: rgba(41,182,246,0.06); }
+}
+.alm-mgmt-icon  { font-size: 14px; color: #29b6f6; margin-top: 2px; width: 16px; text-align: center; }
+.alm-mgmt-title { font-size: 11px; font-weight: 600; color: $ecbs-text-primary; }
+.alm-mgmt-sub   { font-size: 9px; color: $ecbs-text-secondary; }
+
+// Category badge in alert rules table
+.alm-cat-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(41,182,246,0.15);
+  color: #29b6f6;
+}

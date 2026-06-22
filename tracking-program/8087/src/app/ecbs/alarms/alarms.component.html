@@ -7,17 +7,21 @@
       <h1>Alarms &amp; Events</h1>
       <p>Real-time monitoring of system alerts, alarms and important events.</p>
     </div>
-    <div class="page-actions" style="align-items:center;gap:10px;">
-      <span style="font-size:11px;color:#546e7a;">Severity</span>
-      <select class="fin-input" style="width:110px;height:30px;font-size:11px;" [(ngModel)]="filterSeverity">
+    <div class="page-actions" style="align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="alm-filter-label">Asset Scope</span>
+      <select class="fin-input alm-filter-select">
+        <option>Entire Site</option>
+      </select>
+      <span class="alm-filter-label">Severity</span>
+      <select class="fin-input alm-filter-select" [(ngModel)]="filterSeverity">
         <option value="">All</option>
         <option value="critical">Critical</option>
         <option value="high">High</option>
         <option value="medium">Medium</option>
         <option value="low">Low</option>
       </select>
-      <span style="font-size:11px;color:#546e7a;">Status</span>
-      <select class="fin-input" style="width:130px;height:30px;font-size:11px;" [(ngModel)]="filterStatus">
+      <span class="alm-filter-label">Status</span>
+      <select class="fin-input alm-filter-select" [(ngModel)]="filterStatus">
         <option value="">Active</option>
         <option value="acknowledged">Acknowledged</option>
         <option value="assigned">Assigned</option>
@@ -28,31 +32,31 @@
     </div>
   </div>
 
-  <!-- KPI Cards: Critical | Warning | Info Events | Alarm Rate | MTTR | System Health -->
+  <!-- KPI Cards -->
   <div class="alm-kpi-row">
 
     <div class="alm-kpi-card" [class.alm-kpi-critical]="criticalCount>0" [class.alm-kpi-ok]="criticalCount===0">
-      <div class="alm-kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="alm-kpi-icon"><span class="fa fa-bell"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ criticalCount }}</div>
         <div class="alm-kpi-label">CRITICAL ALARMS</div>
-        <div class="alm-kpi-sub">{{ criticalCount > 0 ? criticalCount + " Active" : "All Clear" }}</div>
-        <div class="alm-kpi-sub" *ngIf="criticalCount>0" style="color:#ef5350;">{{ criticalCount }} Unacknowledged</div>
+        <div class="alm-kpi-sub">{{ criticalCount > 0 ? (criticalCount + " Active") : "All Clear" }}</div>
+        <div class="alm-kpi-sub" *ngIf="criticalCount > 0" style="color:#ef5350;">{{ unacknowledgedCount }} Unacknowledged</div>
       </div>
     </div>
 
     <div class="alm-kpi-card" [class.alm-kpi-warning]="warningCount>0" [class.alm-kpi-ok]="warningCount===0">
-      <div class="alm-kpi-icon"><span class="fa fa-exclamation"></span></div>
+      <div class="alm-kpi-icon" style="color:#ffd740;"><span class="fa fa-exclamation-triangle"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ warningCount }}</div>
         <div class="alm-kpi-label">WARNING ALARMS</div>
-        <div class="alm-kpi-sub">{{ warningCount > 0 ? warningCount + " Active" : "All Clear" }}</div>
-        <div class="alm-kpi-sub" *ngIf="warningCount>0" style="color:#ffd740;">{{ acknowledged }} Unacknowledged</div>
+        <div class="alm-kpi-sub">{{ warningCount > 0 ? (warningCount + " Active") : "All Clear" }}</div>
+        <div class="alm-kpi-sub" *ngIf="warningCount > 0" style="color:#ffd740;">{{ acknowledgedCount }} Acknowledged</div>
       </div>
     </div>
 
     <div class="alm-kpi-card alm-kpi-info">
-      <div class="alm-kpi-icon"><span class="fa fa-info-circle"></span></div>
+      <div class="alm-kpi-icon" style="color:#29b6f6;"><span class="fa fa-info-circle"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ infoCount }}</div>
         <div class="alm-kpi-label">INFO EVENTS</div>
@@ -62,7 +66,7 @@
     </div>
 
     <div class="alm-kpi-card alm-kpi-rate">
-      <div class="alm-kpi-icon"><span class="fa fa-line-chart"></span></div>
+      <div class="alm-kpi-icon" style="color:#ab47bc;"><span class="fa fa-line-chart"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ alarmRate7d }}</div>
         <div class="alm-kpi-label">ALARM RATE</div>
@@ -71,16 +75,19 @@
     </div>
 
     <div class="alm-kpi-card alm-kpi-mttr">
-      <div class="alm-kpi-icon"><span class="fa fa-clock-o"></span></div>
+      <div class="alm-kpi-icon" style="color:#26c6da;"><span class="fa fa-clock-o"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ mttrDisplay }}</div>
         <div class="alm-kpi-label">MTTR</div>
-        <div class="alm-kpi-sub">7 Day Avg</div>
+        <div class="alm-kpi-sub">(7 Day Avg)</div>
       </div>
     </div>
 
-    <div class="alm-kpi-card" [class.alm-kpi-health-good]="systemHealthPct>=85" [class.alm-kpi-health-warn]="systemHealthPct<85&&systemHealthPct>=70" [class.alm-kpi-health-bad]="systemHealthPct<70">
-      <div class="alm-kpi-icon"><span class="fa fa-shield"></span></div>
+    <div class="alm-kpi-card"
+      [class.alm-kpi-health-good]="systemHealthPct>=85"
+      [class.alm-kpi-health-warn]="systemHealthPct<85&&systemHealthPct>=70"
+      [class.alm-kpi-health-bad]="systemHealthPct<70">
+      <div class="alm-kpi-icon" style="color:#00e676;"><span class="fa fa-shield"></span></div>
       <div class="alm-kpi-body">
         <div class="alm-kpi-big">{{ systemHealthPct }}%</div>
         <div class="alm-kpi-label">SYSTEM HEALTH</div>
@@ -90,36 +97,131 @@
 
   </div>
 
-  <!-- Tabs -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0;">
-    <div class="ecbs-tabs">
-      <button class="ecbs-tab" [class.active]="activeTab==='alarms'" (click)="activeTab='alarms'">
-        <span class="fa fa-bell"></span> Active Alarms
-        <span *ngIf="filteredAlarms.length" class="tab-count">{{ filteredAlarms.length }}</span>
-      </button>
-      <button class="ecbs-tab" [class.active]="activeTab==='history'" (click)="activeTab='history'">
-        <span class="fa fa-history"></span> Alarm History
-      </button>
-      <button class="ecbs-tab" [class.active]="activeTab==='events'" (click)="activeTab='events'">
-        <span class="fa fa-list-alt"></span> Event Log
-      </button>
-      <button class="ecbs-tab" [class.active]="activeTab==='rules'" (click)="activeTab='rules'">
-        <span class="fa fa-sliders"></span> Alert Rules
-      </button>
-    </div>
-    <div *ngIf="activeTab==='alarms' && alarms.length>0" style="display:flex;gap:10px;align-items:center;font-size:12px;">
-      <button class="btn-ecbs btn-outline btn-sm" (click)="acknowledgeAll()"><span class="fa fa-check-double"></span> Acknowledge All</button>
-      <a style="color:#29b6f6;cursor:pointer;">View All Alarms →</a>
-    </div>
-  </div>
+  <!-- Analytics Row: History Chart | Severity Donut | Alarm Summary -->
+  <div class="alm-analytics-row">
 
-  <!-- ACTIVE ALARMS TAB -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='alarms'">
+    <!-- Alarm History (last 7 days) stacked bar chart -->
+    <div class="ecbs-card alm-chart-card">
+      <div class="alm-card-header">
+        <span class="alm-card-title">ALARM HISTORY (LAST 7 DAYS)</span>
+        <a class="alm-view-link">View Details →</a>
+      </div>
+      <div class="alm-chart-legend" style="margin-bottom:6px;">
+        <span class="alm-leg-dot" style="background:#ef5350;"></span><span class="alm-leg-label">Critical</span>
+        <span class="alm-leg-dot" style="background:#ffd740;margin-left:10px;"></span><span class="alm-leg-label">Warning</span>
+        <span class="alm-leg-dot" style="background:#29b6f6;margin-left:10px;"></span><span class="alm-leg-label">Info</span>
+      </div>
+
+      <!-- no data empty state -->
+      <div *ngIf="!historyHasData" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;color:#546e7a;font-size:11px;">
+        <span class="fa fa-bar-chart" style="font-size:28px;margin-bottom:8px;opacity:0.4;"></span>
+        No alarm history in the last 7 days
+      </div>
+
+      <svg *ngIf="historyHasData" [attr.width]="HC_W" [attr.height]="HC_H" style="width:100%;height:auto;overflow:visible;">
+        <!-- Y-axis labels -->
+        <text *ngFor="let y of yAxisLabels" [attr.x]="4" [attr.y]="y.y+4" style="font-size:8px;fill:#546e7a;">{{ y.val }}</text>
+        <!-- Stacked bars -->
+        <g *ngFor="let b of historyChartBars">
+          <!-- Info (bottom) -->
+          <rect *ngIf="b.infoH>0" [attr.x]="b.x" [attr.y]="b.infoY" [attr.width]="b.barW" [attr.height]="b.infoH" fill="#29b6f6" rx="1"></rect>
+          <!-- Warning (middle) -->
+          <rect *ngIf="b.warnH>0" [attr.x]="b.x" [attr.y]="b.warnY" [attr.width]="b.barW" [attr.height]="b.warnH" fill="#ffd740" rx="1"></rect>
+          <!-- Critical (top) -->
+          <rect *ngIf="b.critH>0" [attr.x]="b.x" [attr.y]="b.critY" [attr.width]="b.barW" [attr.height]="b.critH" fill="#ef5350" rx="1"></rect>
+          <!-- X-axis label -->
+          <text [attr.x]="b.x + b.barW/2" [attr.y]="HC_H - 4" text-anchor="middle" style="font-size:8px;fill:#546e7a;">{{ b.label }}</text>
+        </g>
+        <!-- Baseline -->
+        <line x1="0" [attr.y1]="HC_H - 22" [attr.x2]="HC_W" [attr.y2]="HC_H - 22" stroke="#1a2a3a" stroke-width="1"></line>
+      </svg>
+    </div>
+
+    <!-- Alarms by Severity (donut) -->
+    <div class="ecbs-card alm-chart-card">
+      <div class="alm-card-header">
+        <span class="alm-card-title">ALARMS BY SEVERITY (ACTIVE)</span>
+      </div>
+
+      <div *ngIf="severityDonutTotal===0" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;color:#546e7a;font-size:11px;">
+        <span class="fa fa-check-circle" style="font-size:28px;margin-bottom:8px;color:#00e676;opacity:0.6;"></span>
+        No active alarms
+      </div>
+
+      <div *ngIf="severityDonutTotal>0" style="display:flex;align-items:center;gap:16px;justify-content:center;padding-top:8px;">
+        <svg width="120" height="120">
+          <!-- background ring -->
+          <circle cx="60" cy="60" [attr.r]="DON_R" fill="none" stroke="#1a2a3a" stroke-width="18"></circle>
+          <!-- segments -->
+          <circle *ngFor="let s of severitySegments"
+            [attr.cx]="DON_CX" [attr.cy]="DON_CY" [attr.r]="DON_R"
+            fill="none"
+            [attr.stroke]="s.color"
+            stroke-width="18"
+            [attr.stroke-dasharray]="s.dash + ' ' + (s.gap)"
+            [attr.stroke-dashoffset]="s.offset"
+            transform="rotate(-90 60 60)">
+          </circle>
+          <!-- center text -->
+          <text x="60" y="56" text-anchor="middle" style="font-size:20px;font-weight:700;fill:#e0e6ed;">{{ severityDonutTotal }}</text>
+          <text x="60" y="72" text-anchor="middle" style="font-size:9px;fill:#546e7a;">Total</text>
+        </svg>
+        <div class="alm-donut-legend">
+          <div *ngFor="let s of severitySegments" class="alm-don-row">
+            <span class="alm-don-dot" [style.background]="s.color"></span>
+            <span class="alm-don-name">{{ s.label }}</span>
+            <span class="alm-don-val" [style.color]="s.color">{{ s.val }}</span>
+            <span class="alm-don-pct">({{ s.pct }}%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alarm Summary Stats -->
+    <div class="ecbs-card alm-chart-card">
+      <div class="alm-card-header">
+        <span class="alm-card-title">ALARM SUMMARY (LAST 7 DAYS)</span>
+      </div>
+      <table class="alm-summary-table">
+        <tbody>
+          <tr><td>Total Alarms</td><td>{{ totalAlarms7d }}</td></tr>
+          <tr><td style="color:#ef5350;">Critical Alarms</td><td style="color:#ef5350;">{{ criticalAlarms7d }}</td></tr>
+          <tr><td style="color:#ffd740;">Warning Alarms</td><td style="color:#ffd740;">{{ warningAlarms7d }}</td></tr>
+          <tr><td style="color:#29b6f6;">Info Events</td><td style="color:#29b6f6;">{{ infoEvents7d }}</td></tr>
+          <tr class="alm-sum-divider"><td></td><td></td></tr>
+          <tr><td>Acknowledged</td><td>{{ acknowledgedCount }} <span class="alm-sum-pct">({{ acknowledgedPct }}%)</span></td></tr>
+          <tr><td>Unacknowledged</td><td>{{ unacknowledgedCount }} <span class="alm-sum-pct">({{ unacknowledgedPct }}%)</span></td></tr>
+          <tr><td>Shelved</td><td>{{ shelvedCount }}</td></tr>
+          <tr class="alm-sum-divider"><td></td><td></td></tr>
+          <tr><td>MTTR (Avg)</td><td>{{ mttrDisplay }}</td></tr>
+          <tr><td>Longest Alarm</td><td>{{ longestAlarmDisplay }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /analytics row -->
+
+  <!-- Active Alarms Table -->
+  <div class="ecbs-card" style="margin-top:16px;">
+    <div class="alm-card-header" style="margin-bottom:12px;">
+      <span class="alm-card-title">ACTIVE ALARMS</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span *ngIf="alarms.length>0" style="font-size:11px;color:#546e7a;">
+          Showing {{ visibleAlarms.length }} of {{ filteredAlarms.length }} active alarms
+        </span>
+        <button *ngIf="alarms.length>0" class="btn-ecbs btn-outline btn-sm" (click)="acknowledgeAll()">
+          <span class="fa fa-check-double"></span> Acknowledge All
+        </button>
+        <a *ngIf="filteredAlarms.length>5" class="alm-view-link" style="cursor:pointer;" (click)="showAllAlarms=!showAllAlarms">
+          {{ showAllAlarms ? "Show Top 5 ↑" : "View All Alarms →" }}
+        </a>
+      </div>
+    </div>
 
     <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading alarms…</div>
 
-    <div *ngIf="!loading && filteredAlarms.length===0" class="ecbs-empty" style="padding:48px 20px;">
-      <span class="fa fa-check-circle" style="color:#00e676;font-size:48px;opacity:0.5;display:block;margin-bottom:12px;"></span>
+    <div *ngIf="!loading && filteredAlarms.length===0" class="ecbs-empty" style="padding:40px 20px;">
+      <span class="fa fa-check-circle" style="color:#00e676;font-size:44px;opacity:0.5;display:block;margin-bottom:12px;"></span>
       <span class="empty-title">All Systems Clear™</span>
       <p>No active alarms. All monitored assets are within normal operating parameters.</p>
     </div>
@@ -127,31 +229,26 @@
     <table *ngIf="!loading && filteredAlarms.length>0" class="ecbs-table alm-table">
       <thead>
         <tr>
-          <th>Severity</th>
-          <th>Time</th>
-          <th>Asset / Location</th>
-          <th>Parameter</th>
-          <th>Condition</th>
-          <th>Current Value</th>
-          <th>Threshold</th>
-          <th>Status</th>
-          <th>Duration</th>
-          <th>Actions</th>
+          <th>Severity</th><th>Time</th><th>Asset</th><th>Alarm / Event</th>
+          <th>Description</th><th>Value</th><th>Status</th><th>Duration</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let a of filteredAlarms" class="alm-row">
+        <tr *ngFor="let a of visibleAlarms" class="alm-row">
           <td>
-            <span class="alm-sev-badge" [style.color]="severityColor(a.severity)" [style.border-color]="severityColor(a.severity)">
+            <span class="alm-sev-badge"
+              [style.color]="severityColor(a.severity)"
+              [style.border-color]="severityColor(a.severity)">
               {{ a.severity | titlecase }}
             </span>
           </td>
           <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ a.triggered_at | date:"MMM d, h:mm a" }}</td>
-          <td style="font-weight:600;font-size:11px;">{{ a.asset_name || a.title || ("Asset #" + a.asset_id) || "System" }}</td>
+          <td style="font-weight:600;font-size:11px;">{{ a.asset_name || a.title || "Asset #" + a.asset_id || "System" }}</td>
           <td style="color:#8899a6;font-size:11px;">{{ a.alarm_type }}</td>
-          <td style="color:#546e7a;font-size:11px;">{{ a.condition || "Greater Than" }}</td>
-          <td style="font-weight:600;" [style.color]="severityColor(a.severity)">{{ a.metric_value != null ? (a.metric_value | number:"1.0-2") + (a.unit ? " " + a.unit : "") : "—" }}</td>
-          <td style="color:#546e7a;">{{ a.threshold_value != null ? (a.threshold_value | number:"1.0-2") + (a.unit ? " " + a.unit : "") : "—" }}</td>
+          <td style="font-size:11px;max-width:180px;">{{ a.description || "—" }}</td>
+          <td style="font-weight:600;" [style.color]="severityColor(a.severity)">
+            {{ a.metric_value != null ? ((a.metric_value | number:"1.0-2") + (a.unit ? " " + a.unit : "")) : "—" }}
+          </td>
           <td>
             <span class="alm-status-badge"
               [style.color]="a.status==='new'?'#ef5350':a.status==='acknowledged'?'#ffd740':a.status==='in_progress'?'#29b6f6':'#00e676'"
@@ -170,122 +267,267 @@
         </tr>
       </tbody>
     </table>
-    <div *ngIf="!loading && filteredAlarms.length>0" class="fin-table-footer">
-      Showing {{ filteredAlarms.length }} of {{ alarms.length }} active alarms
-    </div>
   </div>
 
-  <!-- ALARM HISTORY TAB -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='history'">
-    <div *ngIf="historyAlarms.length===0" class="ecbs-empty" style="padding:48px 20px;">
-      <span class="fa fa-history" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
-      <span class="empty-title">No Historical Alarms</span>
-      <p>Resolved and closed alarms will appear here.</p>
-    </div>
-    <table *ngIf="historyAlarms.length>0" class="ecbs-table alm-table">
-      <thead>
-        <tr>
-          <th>Severity</th><th>Triggered</th><th>Asset / Location</th><th>Parameter</th>
-          <th>Value</th><th>Threshold</th><th>Status</th><th>Duration</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let a of historyAlarms">
-          <td><span class="alm-sev-badge" [style.color]="severityColor(a.severity)" [style.border-color]="severityColor(a.severity)">{{ a.severity | titlecase }}</span></td>
-          <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ a.triggered_at | date:"MMM d, h:mm a" }}</td>
-          <td style="font-size:11px;">{{ a.asset_name || a.title || "System" }}</td>
-          <td style="color:#8899a6;font-size:11px;">{{ a.alarm_type }}</td>
-          <td>{{ a.metric_value != null ? (a.metric_value | number:"1.0-2") + (a.unit ? " "+a.unit : "") : "—" }}</td>
-          <td style="color:#546e7a;">{{ a.threshold_value != null ? (a.threshold_value | number:"1.0-2") : "—" }}</td>
-          <td>
-            <span style="font-size:10px;color:#00e676;font-weight:600;">{{ a.status | titlecase }}</span>
-          </td>
-          <td style="font-size:11px;color:#8899a6;">{{ alarmDuration(a) }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <!-- Bottom Row: Alarm Sources | Alarm Timeline | Top Alarms + Management -->
+  <div class="alm-bottom-row">
 
-  <!-- EVENT LOG TAB -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='events'">
-    <div *ngIf="events.length===0" class="ecbs-empty" style="padding:48px 20px;">
-      <span class="fa fa-list-alt" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
-      <span class="empty-title">No Events Recorded</span>
-      <p>System events will appear here as the platform operates.</p>
-    </div>
-    <table *ngIf="events.length>0" class="ecbs-table">
-      <thead>
-        <tr><th>Timestamp</th><th>Type</th><th>Severity</th><th>Source</th><th>Description</th><th>Asset</th><th>User</th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let e of events">
-          <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ e.occurred_at | date:"MMM d, y h:mm:ss a" }}</td>
-          <td><span class="badge-info">{{ e.event_type }}</span></td>
-          <td><span [class]="severityClass(e.severity||'info')">{{ (e.severity || "info") | titlecase }}</span></td>
-          <td style="color:#8899a6;font-size:11px;">{{ e.source || "—" }}</td>
-          <td style="font-size:11px;">{{ e.description }}</td>
-          <td style="color:#546e7a;">{{ e.asset_id || "—" }}</td>
-          <td style="color:#546e7a;font-size:11px;">{{ e.user || "System" }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <!-- Alarm Sources donut -->
+    <div class="ecbs-card">
+      <div class="alm-card-header">
+        <span class="alm-card-title">ALARM SOURCES</span>
+        <span style="font-size:9px;color:#546e7a;">(Last 7 Days)</span>
+      </div>
 
-  <!-- ALERT RULES TAB -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='rules'">
+      <div *ngIf="alarmSourceGroups.length===0" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;color:#546e7a;font-size:11px;">
+        <span class="fa fa-pie-chart" style="font-size:28px;margin-bottom:8px;opacity:0.4;"></span>
+        No alarm sources available
+      </div>
+
+      <div *ngIf="alarmSourceGroups.length>0" style="display:flex;align-items:center;gap:14px;justify-content:center;padding-top:8px;">
+        <svg width="100" height="100">
+          <circle cx="50" cy="50" [attr.r]="DON_R" fill="none" stroke="#1a2a3a" stroke-width="18"></circle>
+          <circle *ngFor="let s of sourceSegments"
+            cx="50" cy="50" [attr.r]="DON_R"
+            fill="none"
+            [attr.stroke]="s.color"
+            stroke-width="18"
+            [attr.stroke-dasharray]="s.dash + ' ' + (s.gap)"
+            [attr.stroke-dashoffset]="s.offset"
+            transform="rotate(-90 50 50)">
+          </circle>
+          <text x="50" y="46" text-anchor="middle" style="font-size:16px;font-weight:700;fill:#e0e6ed;">{{ sourceDonutTotal }}</text>
+          <text x="50" y="60" text-anchor="middle" style="font-size:8px;fill:#546e7a;">Total</text>
+        </svg>
+        <div class="alm-donut-legend">
+          <div *ngFor="let s of alarmSourceGroups" class="alm-don-row">
+            <span class="alm-don-dot" [style.background]="s.color"></span>
+            <span class="alm-don-name">{{ s.label }}</span>
+            <span class="alm-don-val" [style.color]="s.color">{{ s.count }}</span>
+            <span class="alm-don-pct">({{ ((s.count / sourceDonutTotal) * 100 | number:"1.0-0") }}%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alarm Timeline (today) -->
+    <div class="ecbs-card">
+      <div class="alm-card-header">
+        <span class="alm-card-title">ALARM TIMELINE (TODAY)</span>
+      </div>
+
+      <div *ngIf="todayTimeline.length===0" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;color:#546e7a;font-size:11px;">
+        <span class="fa fa-clock-o" style="font-size:28px;margin-bottom:8px;opacity:0.4;"></span>
+        No events recorded today
+      </div>
+
+      <div class="alm-timeline" *ngIf="todayTimeline.length>0">
+        <div *ngFor="let e of todayTimeline" class="alm-tl-row">
+          <div class="alm-tl-time">{{ timelineTime(e) }}</div>
+          <div class="alm-tl-dot" [style.background]="timelineSeverityColor(e.severity)"></div>
+          <div class="alm-tl-content">
+            <div class="alm-tl-title">{{ e.description || e.event_type }}</div>
+            <div class="alm-tl-meta">{{ e.asset_name || e.source || "System" }}</div>
+          </div>
+          <div class="alm-tl-badge"
+            [style.color]="timelineSeverityColor(e.severity)"
+            [style.border-color]="timelineSeverityColor(e.severity)">
+            {{ e.severity | titlecase }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Alarms + Alarm Management -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Top Alarms (Last 30 Days) -->
+      <div class="ecbs-card" style="flex:1;">
+        <div class="alm-card-header">
+          <span class="alm-card-title">TOP ALARMS (LAST 30 DAYS)</span>
+          <a class="alm-view-link">View All →</a>
+        </div>
+
+        <div *ngIf="topAlarmTypes.length===0" style="color:#546e7a;font-size:11px;text-align:center;padding:16px 0;">
+          No alarm data available
+        </div>
+
+        <div *ngFor="let t of topAlarmTypes" class="alm-top-row">
+          <span class="alm-top-name">{{ t.type }}</span>
+          <span class="alm-top-count">{{ t.count }}</span>
+        </div>
+      </div>
+
+      <!-- Alarm Management -->
+      <div class="ecbs-card" style="flex:0;">
+        <div class="alm-card-header" style="margin-bottom:8px;">
+          <span class="alm-card-title">ALARM MANAGEMENT</span>
+        </div>
+        <div class="alm-mgmt-list">
+          <a class="alm-mgmt-item" (click)="activeTab='rules'">
+            <span class="fa fa-ban alm-mgmt-icon"></span>
+            <div>
+              <div class="alm-mgmt-title">Shelve Alarm</div>
+              <div class="alm-mgmt-sub">Temporarily disable alarms for maintenance</div>
+            </div>
+          </a>
+          <a class="alm-mgmt-item" (click)="activeTab='rules'">
+            <span class="fa fa-cog alm-mgmt-icon"></span>
+            <div>
+              <div class="alm-mgmt-title">Alarm Settings</div>
+              <div class="alm-mgmt-sub">Configure thresholds and notifications</div>
+            </div>
+          </a>
+          <a class="alm-mgmt-item" (click)="activeTab='rules'">
+            <span class="fa fa-bell alm-mgmt-icon"></span>
+            <div>
+              <div class="alm-mgmt-title">Notification Rules</div>
+              <div class="alm-mgmt-sub">Manage email and SMS notifications</div>
+            </div>
+          </a>
+          <a class="alm-mgmt-item" (click)="activeTab='rules'">
+            <span class="fa fa-sitemap alm-mgmt-icon"></span>
+            <div>
+              <div class="alm-mgmt-title">Escalation Policies</div>
+              <div class="alm-mgmt-sub">Configure on-call schedules</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /top alarms + mgmt col -->
+
+  </div><!-- /bottom row -->
+
+  <!-- Management Tabs: Alert Rules / Event Log / Alarm History -->
+  <div class="ecbs-card" style="margin-top:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-size:11px;color:#8899a6;">Configure thresholds that trigger alarms — evaluated continuously using 1-minute data.</span>
-      <button class="btn-ecbs btn-primary btn-sm" (click)="openCreateRule()"><span class="fa fa-plus"></span> + Create Alert Rule</button>
+      <div class="ecbs-tabs">
+        <button class="ecbs-tab" [class.active]="activeTab==='rules'" (click)="activeTab='rules'">
+          <span class="fa fa-sliders"></span> Alert Rules
+        </button>
+        <button class="ecbs-tab" [class.active]="activeTab==='events'" (click)="activeTab='events'">
+          <span class="fa fa-list-alt"></span> Event Log
+        </button>
+        <button class="ecbs-tab" [class.active]="activeTab==='history'" (click)="activeTab='history'">
+          <span class="fa fa-history"></span> Alarm History
+        </button>
+      </div>
+      <button *ngIf="activeTab==='rules'" class="btn-ecbs btn-primary btn-sm" (click)="openCreateRule()">
+        <span class="fa fa-plus"></span> Create Alert Rule
+      </button>
     </div>
 
-    <div *ngIf="alertRules.length===0" class="ecbs-empty" style="padding:40px 20px;">
-      <span class="fa fa-sliders" style="font-size:40px;color:#546e7a;display:block;margin-bottom:12px;"></span>
-      <span class="empty-title">No Alert Rules Configured</span>
-      <p>Create alert rules to automatically detect anomalies in CBI score, capacity, harmonics, and device health.</p>
-      <button class="btn-ecbs btn-primary" (click)="openCreateRule()">Create First Rule</button>
+    <!-- Alert Rules tab -->
+    <div *ngIf="activeTab==='rules'">
+      <div style="font-size:11px;color:#546e7a;margin-bottom:10px;">
+        Configure thresholds that trigger alarms — evaluated continuously using 1-minute data.
+      </div>
+      <div *ngIf="alertRules.length===0" class="ecbs-empty" style="padding:32px 20px;">
+        <span class="fa fa-sliders" style="font-size:36px;color:#546e7a;display:block;margin-bottom:10px;"></span>
+        <span class="empty-title">No Alert Rules Configured</span>
+        <p>Create alert rules to automatically detect anomalies in CBI score, capacity, harmonics, and device health.</p>
+        <button class="btn-ecbs btn-primary" (click)="openCreateRule()">Create First Rule</button>
+      </div>
+      <table *ngIf="alertRules.length>0" class="ecbs-table alm-table">
+        <thead>
+          <tr>
+            <th>#</th><th>Rule Name</th><th>Category</th><th>Parameter</th>
+            <th>Condition</th><th>Threshold</th><th>Current Value</th>
+            <th>Status</th><th>Notifications</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let rule of alertRules; let i=index">
+            <td style="color:#546e7a;font-size:11px;">{{ i+1 }}</td>
+            <td style="font-weight:600;">{{ rule.name }}</td>
+            <td><span class="alm-cat-badge">{{ rule.category }}</span></td>
+            <td style="color:#8899a6;font-size:11px;">{{ rule.metric_key }}</td>
+            <td style="color:#546e7a;font-size:11px;">{{ rule.condition }}</td>
+            <td style="font-weight:600;" [style.color]="severityColor(rule.severity)">{{ rule.threshold }}{{ rule.unit ? " " + rule.unit : "" }}</td>
+            <td style="color:#546e7a;">—</td>
+            <td>
+              <span class="fin-status-badge"
+                [style.color]="rule.is_active?'#00e676':'#546e7a'"
+                [style.border-color]="rule.is_active?'#00e676':'#546e7a'">
+                {{ rule.is_active ? "Normal" : "Disabled" }}
+              </span>
+            </td>
+            <td style="font-size:10px;color:#8899a6;">{{ ruleNotifyLabel(rule) }}</td>
+            <td style="white-space:nowrap;">
+              <button class="tbl-btn" title="Toggle" (click)="toggleRule(rule)">
+                <span class="fa" [class.fa-toggle-on]="rule.is_active" [class.fa-toggle-off]="!rule.is_active"
+                  [style.color]="rule.is_active?'#00e676':'#546e7a'"></span>
+              </button>
+              <button class="tbl-btn" title="Edit" (click)="openEditRule(rule)"><span class="fa fa-pencil"></span></button>
+              <button class="tbl-btn" title="Delete" (click)="deleteRule(rule)"><span class="fa fa-trash" style="color:#ef5350;"></span></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <table *ngIf="alertRules.length>0" class="ecbs-table alm-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Rule Name</th><th>Category</th><th>Parameter</th>
-          <th>Condition</th><th>Threshold</th><th>Current Value</th>
-          <th>Status</th><th>Notifications</th><th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let rule of alertRules; let i=index">
-          <td style="color:#546e7a;font-size:11px;">{{ i+1 }}</td>
-          <td style="font-weight:600;">{{ rule.name }}</td>
-          <td><span style="font-size:10px;padding:2px 6px;border-radius:3px;background:rgba(41,182,246,0.15);color:#29b6f6;">{{ rule.category }}</span></td>
-          <td style="color:#8899a6;font-size:11px;">{{ rule.metric_key }}</td>
-          <td style="color:#546e7a;font-size:11px;">{{ rule.condition }}</td>
-          <td style="font-weight:600;" [style.color]="severityColor(rule.severity)">{{ rule.threshold }}{{ rule.unit ? " " + rule.unit : "" }}</td>
-          <td style="color:#546e7a;">—</td>
-          <td>
-            <span class="fin-status-badge" [style.color]="rule.is_active?'#00e676':'#546e7a'" [style.border-color]="rule.is_active?'#00e676':'#546e7a'">
-              {{ rule.is_active ? "Normal" : "Disabled" }}
-            </span>
-          </td>
-          <td style="font-size:10px;color:#8899a6;">{{ ruleNotifyLabel(rule) }}</td>
-          <td style="white-space:nowrap;">
-            <button class="tbl-btn" title="Toggle" (click)="toggleRule(rule)"><span class="fa" [class.fa-toggle-on]="rule.is_active" [class.fa-toggle-off]="!rule.is_active" [style.color]="rule.is_active?'#00e676':'#546e7a'"></span></button>
-            <button class="tbl-btn" title="Edit" (click)="openEditRule(rule)"><span class="fa fa-pencil"></span></button>
-            <button class="tbl-btn" title="Delete" (click)="deleteRule(rule)"><span class="fa fa-trash" style="color:#ef5350;"></span></button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div *ngIf="alertRules.length>0" style="font-size:10px;color:#546e7a;margin-top:8px;padding-top:6px;border-top:1px solid #1a2a3a;">
-      <span class="fa fa-info-circle"></span> Drag to reorder rules (top to bottom). Rules are evaluated from top to bottom.
+    <!-- Event Log tab -->
+    <div *ngIf="activeTab==='events'">
+      <div *ngIf="events.length===0" class="ecbs-empty" style="padding:32px 20px;">
+        <span class="fa fa-list-alt" style="font-size:36px;color:#546e7a;display:block;margin-bottom:10px;"></span>
+        <span class="empty-title">No Events Recorded</span>
+        <p>System events will appear here as the platform operates.</p>
+      </div>
+      <table *ngIf="events.length>0" class="ecbs-table">
+        <thead>
+          <tr><th>Timestamp</th><th>Type</th><th>Severity</th><th>Source</th><th>Description</th><th>Asset</th><th>User</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of events">
+            <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ e.occurred_at | date:"MMM d, y h:mm:ss a" }}</td>
+            <td><span class="badge-info">{{ e.event_type }}</span></td>
+            <td><span [class]="severityClass(e.severity||'info')">{{ (e.severity || "info") | titlecase }}</span></td>
+            <td style="color:#8899a6;font-size:11px;">{{ e.source || "—" }}</td>
+            <td style="font-size:11px;">{{ e.description }}</td>
+            <td style="color:#546e7a;">{{ e.asset_id || "—" }}</td>
+            <td style="color:#546e7a;font-size:11px;">{{ e.user || "System" }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </div>
 
-  <!-- CREATE / EDIT ALERT RULE PANEL -->
+    <!-- Alarm History tab -->
+    <div *ngIf="activeTab==='history'">
+      <div *ngIf="historyAlarms.length===0" class="ecbs-empty" style="padding:32px 20px;">
+        <span class="fa fa-history" style="font-size:36px;color:#546e7a;display:block;margin-bottom:10px;"></span>
+        <span class="empty-title">No Historical Alarms</span>
+        <p>Resolved and closed alarms will appear here.</p>
+      </div>
+      <table *ngIf="historyAlarms.length>0" class="ecbs-table alm-table">
+        <thead>
+          <tr>
+            <th>Severity</th><th>Triggered</th><th>Asset</th><th>Parameter</th>
+            <th>Value</th><th>Threshold</th><th>Status</th><th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of historyAlarms">
+            <td><span class="alm-sev-badge" [style.color]="severityColor(a.severity)" [style.border-color]="severityColor(a.severity)">{{ a.severity | titlecase }}</span></td>
+            <td style="font-size:10px;color:#8899a6;white-space:nowrap;">{{ a.triggered_at | date:"MMM d, h:mm a" }}</td>
+            <td style="font-size:11px;">{{ a.asset_name || a.title || "System" }}</td>
+            <td style="color:#8899a6;font-size:11px;">{{ a.alarm_type }}</td>
+            <td>{{ a.metric_value != null ? ((a.metric_value | number:"1.0-2") + (a.unit ? " "+a.unit : "")) : "—" }}</td>
+            <td style="color:#546e7a;">{{ a.threshold_value != null ? (a.threshold_value | number:"1.0-2") : "—" }}</td>
+            <td><span style="font-size:10px;color:#00e676;font-weight:600;">{{ a.status | titlecase }}</span></td>
+            <td style="font-size:11px;color:#8899a6;">{{ alarmDuration(a) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /management tabs card -->
+
+  <!-- CREATE / EDIT ALERT RULE SLIDE-IN PANEL -->
   <div class="alm-rule-overlay" *ngIf="showRuleModal" (click)="showRuleModal=false"></div>
   <div class="alm-rule-panel" *ngIf="showRuleModal">
     <div class="alm-rule-panel-header">
-      <span>{{ editingRule ? "Edit Alert Rule" : "Create / Edit Alert Rule" }}</span>
+      <span>{{ editingRule ? "Edit Alert Rule" : "Create Alert Rule" }}</span>
       <button class="fin-modal-close" (click)="showRuleModal=false"><span class="fa fa-times"></span></button>
     </div>
     <div class="alm-rule-step">
@@ -360,12 +602,8 @@
     <div class="alm-rule-footer">
       <button class="btn-ecbs btn-outline" (click)="showRuleModal=false">Cancel</button>
       <button class="btn-ecbs btn-primary" (click)="saveRule()">
-        <span class="fa fa-save"></span> {{ editingRule ? "Save Changes" : "Next: Set Notifications →" }}
+        <span class="fa fa-save"></span> {{ editingRule ? "Save Changes" : "Save Rule" }}
       </button>
-    </div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #1a2a3a;font-size:10px;color:#546e7a;line-height:1.5;">
-      <span class="fa fa-info-circle"></span> About Alert Rules<br>
-      Alert rules monitor specific parameters in real time and notify you when conditions are met. Rules are evaluated continuously using 1-minute data.
     </div>
   </div>
 
