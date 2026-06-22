@@ -201,12 +201,33 @@
           </a>
         </li>
 
-        <!-- Alarms & Events (SS-12 + SS-13 / A-12 + A-13) -->
-        <li>
-          <a [routerLink]="['/ecbs/alarms']" [routerLinkActive]="['router-link-active']">
+        <!-- Alarms & Events group (SS-12 / SS-13) -->
+        <li class="nav-group" [class.open]="alarmsOpen">
+          <a class="nav-group-toggle" (click)="alarmsOpen = !alarmsOpen">
             <span class="icon fa fa-bell"></span>
             <span class="text">Alarms &amp; Events</span>
+            <span class="nav-caret fa" [class.fa-angle-down]="alarmsOpen" [class.fa-angle-right]="!alarmsOpen"></span>
           </a>
+          <ul class="submenu" *ngIf="alarmsOpen">
+            <li>
+              <a [routerLink]="['/ecbs/alarms']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-bell-o"></span>
+                <span class="text">Alarms &amp; Events</span>
+              </a>
+            </li>
+            <li>
+              <a [routerLink]="['/ecbs/alarm-config']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-sliders"></span>
+                <span class="text">Alarm Configuration</span>
+              </a>
+            </li>
+            <li>
+              <a [routerLink]="['/ecbs/alert-rules']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-shield"></span>
+                <span class="text">Alert Rule Monitor</span>
+              </a>
+            </li>
+          </ul>
         </li>
 
         <!-- Reports (SS-14 / A-14) -->

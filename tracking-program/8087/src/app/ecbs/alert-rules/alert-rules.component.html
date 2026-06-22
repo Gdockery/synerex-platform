@@ -1,0 +1,267 @@
+<!-- Alert Rule Monitor — ECBS OS v4 -->
+<div class="ecbs-page arl-page">
+
+  <!-- Header -->
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Alert Rule Monitor <span class="fa fa-info-circle arl-info-icon"></span></h1>
+      <p>Real-time monitoring of all configured alert rules and their current status.</p>
+    </div>
+    <div class="page-actions">
+      <select class="fin-input arl-select">
+        <option>All Sites</option>
+      </select>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-filter"></span> Filter</button>
+      <div class="arl-refresh-badge">
+        <span class="fa fa-refresh" style="color:#00e676;"></span>
+        <span>Auto Refresh: {{ autoRefreshSec }} sec</span>
+      </div>
+      <button class="btn-ecbs btn-icon" (click)="loadAll()"><span class="fa fa-ellipsis-v"></span></button>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="alm-kpi-row">
+    <div class="alm-kpi-card" [class.alm-kpi-critical]="criticalCount>0" [class.alm-kpi-ok]="criticalCount===0">
+      <div class="alm-kpi-icon"><span class="fa fa-bell"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ criticalCount }}</div>
+        <div class="alm-kpi-label">CRITICAL ALARMS</div>
+        <div class="alm-kpi-sub">Active</div>
+        <div class="alm-kpi-sub" style="color:#ef5350;">{{ unacknowledgedCount }} Unacknowledged</div>
+      </div>
+    </div>
+    <div class="alm-kpi-card" [class.alm-kpi-warning]="warningCount>0">
+      <div class="alm-kpi-icon" style="color:#ffd740;"><span class="fa fa-exclamation-triangle"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ warningCount }}</div>
+        <div class="alm-kpi-label">WARNING ALARMS</div>
+        <div class="alm-kpi-sub">Active</div>
+        <div class="alm-kpi-sub" style="color:#ffd740;">{{ acknowledgedCount }} Acknowledged</div>
+      </div>
+    </div>
+    <div class="alm-kpi-card alm-kpi-ok">
+      <div class="alm-kpi-icon" style="color:#00e676;"><span class="fa fa-check-circle"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ normalRules }}</div>
+        <div class="alm-kpi-label">RULES NORMAL</div>
+        <div class="alm-kpi-sub">Active</div>
+        <div class="alm-kpi-sub" style="color:#00e676;">All Good</div>
+      </div>
+    </div>
+    <div class="alm-kpi-card alm-kpi-rate">
+      <div class="alm-kpi-icon" style="color:#ab47bc;"><span class="fa fa-clock-o"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ totalRules }}</div>
+        <div class="alm-kpi-label">TOTAL RULES</div>
+        <div class="alm-kpi-sub">{{ enabledRules }} Enabled</div>
+        <div class="alm-kpi-sub">{{ disabledRules }} Disabled</div>
+      </div>
+    </div>
+    <div class="alm-kpi-card" [class.alm-kpi-health-good]="compliancePct>=90" [class.alm-kpi-health-warn]="compliancePct<90&&compliancePct>=70">
+      <div class="alm-kpi-icon" style="color:#00e676;"><span class="fa fa-shield"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ compliancePct }}%</div>
+        <div class="alm-kpi-label">COMPLIANCE</div>
+        <div class="alm-kpi-sub">All Rules Healthy</div>
+      </div>
+    </div>
+    <div class="alm-kpi-card" [class.alm-kpi-warning]="escalationCount>0">
+      <div class="alm-kpi-icon" style="color:#ff7043;"><span class="fa fa-sitemap"></span></div>
+      <div class="alm-kpi-body">
+        <div class="alm-kpi-big">{{ escalationCount }}</div>
+        <div class="alm-kpi-label">ESCALATIONS</div>
+        <div class="alm-kpi-sub" *ngIf="escalationCount>0">In Progress</div>
+        <div class="alm-kpi-sub" *ngIf="escalationCount===0" style="color:#00e676;">None Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main grid: Table + Sidebar -->
+  <div class="arl-grid">
+
+    <!-- Rules Table -->
+    <div class="ecbs-card arl-table-card">
+      <div class="arl-table-header">
+        <span class="arl-table-title">ALERT RULE STATUS (REAL-TIME)</span>
+        <div class="arl-search-wrap">
+          <input class="fin-input arl-search" [(ngModel)]="searchQuery" (ngModelChange)="currentPage=1" placeholder="Search rules..." />
+          <span class="fa fa-search arl-search-icon"></span>
+        </div>
+        <button class="btn-ecbs btn-icon" (click)="loadAll()"><span class="fa fa-th-large"></span></button>
+      </div>
+
+      <!-- Loading state -->
+      <div *ngIf="loading" class="arl-loading">
+        <span class="fa fa-spinner fa-spin"></span> Loading rules...
+      </div>
+
+      <!-- Empty state -->
+      <div *ngIf="!loading && filteredRules.length===0" class="arl-empty">
+        <span class="fa fa-shield" style="font-size:32px;color:#546e7a;margin-bottom:8px;display:block;"></span>
+        <div>No alert rules configured</div>
+      </div>
+
+      <!-- Table -->
+      <div *ngIf="!loading && filteredRules.length>0" style="overflow-x:auto;">
+        <table class="arl-table">
+          <thead>
+            <tr>
+              <th>Alert Rule</th>
+              <th>Category</th>
+              <th>Metric</th>
+              <th>Setpoint<br><small>Warning / Critical</small></th>
+              <th>Current Value</th>
+              <th>Status</th>
+              <th>Trend</th>
+              <th>Last Triggered</th>
+              <th>Duration</th>
+              <th>Ack</th>
+              <th>Escalation</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let rule of visibleRules" [class.arl-row-critical]="ruleStatusLabel(rule)==='Critical'" [class.arl-row-warning]="ruleStatusLabel(rule)==='Warning'">
+              <td class="arl-rule-name">
+                <div class="arl-name">{{ rule.name }}</div>
+                <div class="arl-cat-sub">{{ rule.asset_name || rule.category }}</div>
+              </td>
+              <td>
+                <span class="arl-cat-badge">{{ rule.category || '—' }}</span>
+              </td>
+              <td class="arl-metric">{{ rule.metric_key || rule.unit || '—' }}</td>
+              <td class="arl-setpoint">
+                <span class="arl-set-warn">{{ rule.warning_threshold || rule.threshold || '—' }}</span>
+                <span class="arl-set-sep"> / </span>
+                <span class="arl-set-crit">{{ rule.critical_threshold || '—' }}</span>
+              </td>
+              <td class="arl-value">{{ rule.current_value ?? '—' }}</td>
+              <td>
+                <span class="arl-status-badge" [class]="ruleStatusClass(rule)">{{ ruleStatusLabel(rule) }}</span>
+              </td>
+              <td class="arl-trend">
+                <svg width="50" height="20" style="overflow:visible;">
+                  <polyline points="0,14 8,10 16,12 24,8 32,11 40,7 48,9" fill="none" stroke="#00e676" stroke-width="1.5"/>
+                </svg>
+              </td>
+              <td class="arl-triggered">{{ ruleLastTriggered(rule) }}</td>
+              <td class="arl-duration">{{ ruleDuration(rule) }}</td>
+              <td>
+                <span *ngIf="rule.acknowledged" class="fa fa-check-circle" style="color:#00e676;"></span>
+                <span *ngIf="!rule.acknowledged" class="fa fa-circle-o" style="color:#546e7a;cursor:pointer;" (click)="acknowledgeRule(rule)"></span>
+              </td>
+              <td>
+                <span *ngIf="rule.escalation_level" class="arl-esc-badge">Level {{ rule.escalation_level }}</span>
+                <span *ngIf="!rule.escalation_level" class="arl-no-esc">—</span>
+              </td>
+              <td>
+                <button class="acfg-icon-btn" (click)="toggleRule(rule)" [title]="rule.is_active!==false ? 'Disable' : 'Enable'">
+                  <span class="fa fa-ellipsis-v"></span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="arl-pagination" *ngIf="totalPages>1">
+        <span class="arl-pag-info">Showing {{ (currentPage-1)*pageSize+1 }} to {{ currentPage*pageSize > filteredRules.length ? filteredRules.length : currentPage*pageSize }} of {{ filteredRules.length }} rules</span>
+        <div class="arl-pag-btns">
+          <button class="arl-pag-btn" [disabled]="currentPage===1" (click)="currentPage=currentPage-1">‹</button>
+          <button *ngFor="let p of pageNumbers" class="arl-pag-btn" [class.active]="p===currentPage" (click)="currentPage=p">{{ p }}</button>
+          <button class="arl-pag-btn" [disabled]="currentPage===totalPages" (click)="currentPage=currentPage+1">›</button>
+        </div>
+      </div>
+    </div><!-- /rules table card -->
+
+    <!-- Sidebar -->
+    <div class="arl-sidebar">
+
+      <!-- Alert Overview donut -->
+      <div class="ecbs-card arl-sb-card">
+        <div class="arl-sb-title">ALERT OVERVIEW</div>
+        <div class="arl-donut-wrap">
+          <svg [attr.width]="DON_CX*2" [attr.height]="DON_CY*2" [attr.viewBox]="'0 0 ' + (DON_CX*2) + ' ' + (DON_CY*2)">
+            <circle [attr.cx]="DON_CX" [attr.cy]="DON_CY" [attr.r]="DON_R" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
+            <circle *ngFor="let seg of overviewDonutSegments"
+              [attr.cx]="DON_CX" [attr.cy]="DON_CY" [attr.r]="DON_R"
+              fill="none" [attr.stroke]="seg.color" stroke-width="14"
+              [attr.stroke-dasharray]="seg.dash + ' ' + seg.gap"
+              [attr.stroke-dashoffset]="seg.offset"
+              stroke-linecap="round"
+              style="transform:rotate(-90deg);transform-origin:center;"/>
+            <text [attr.x]="DON_CX" [attr.y]="DON_CY" text-anchor="middle" dy="6" fill="#cfd8dc" font-size="16" font-weight="700">{{ totalRules }}</text>
+            <text [attr.x]="DON_CX" [attr.y]="DON_CY+16" text-anchor="middle" fill="#546e7a" font-size="9">Total Rules</text>
+          </svg>
+          <div class="arl-donut-legend">
+            <div *ngFor="let seg of overviewDonutSegments" class="arl-legend-row">
+              <span class="arl-legend-dot" [style.background]="seg.color"></span>
+              <span class="arl-legend-label">{{ seg.label }}</span>
+              <span class="arl-legend-pct" [style.color]="seg.color">{{ seg.count }} ({{ seg.pct }}%)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Active Alerts -->
+      <div class="ecbs-card arl-sb-card">
+        <div class="arl-sb-title">TOP ACTIVE ALERTS</div>
+        <div *ngIf="topActiveAlerts.length===0" class="arl-sb-empty">No active alerts</div>
+        <div *ngFor="let alarm of topActiveAlerts" class="arl-top-alert-row">
+          <div class="arl-top-icon" [style.background]="alertSeverityColor(alarm.severity) + '22'" [style.color]="alertSeverityColor(alarm.severity)">
+            <span class="fa fa-exclamation"></span>
+          </div>
+          <div class="arl-top-info">
+            <div class="arl-top-name">{{ alarm.alarm_type || alarm.title || 'Unknown' }}</div>
+            <div class="arl-top-asset">{{ alarm.asset_name || alarm.asset || '—' }}</div>
+          </div>
+          <div class="arl-top-right">
+            <div class="arl-top-value" [style.color]="alertSeverityColor(alarm.severity)">{{ alarm.current_value ?? '—' }}</div>
+            <div class="arl-top-level" [style.color]="alertSeverityColor(alarm.severity)">{{ alarm.severity }}</div>
+          </div>
+        </div>
+        <a class="acfg-view-all" [routerLink]="['/ecbs/alarms']">View All Active Alarms →</a>
+      </div>
+
+      <!-- Notification Status -->
+      <div class="ecbs-card arl-sb-card">
+        <div class="arl-sb-title">NOTIFICATION STATUS</div>
+        <div class="arl-notif-list">
+          <div class="arl-notif-row">
+            <span class="fa fa-envelope-o arl-notif-icon"></span>
+            <span class="arl-notif-label">Email</span>
+            <div class="arl-notif-bar-wrap">
+              <div class="arl-notif-bar" [style.width]="notifEmailPct + '%'"></div>
+            </div>
+            <span class="arl-notif-pct">{{ notifEmailPct }}%</span>
+          </div>
+          <div class="arl-notif-row">
+            <span class="fa fa-mobile arl-notif-icon"></span>
+            <span class="arl-notif-label">SMS</span>
+            <div class="arl-notif-bar-wrap">
+              <div class="arl-notif-bar" [style.width]="notifSmsPct + '%'"></div>
+            </div>
+            <span class="arl-notif-pct">{{ notifSmsPct }}%</span>
+          </div>
+          <div class="arl-notif-row">
+            <span class="fa fa-bell-o arl-notif-icon"></span>
+            <span class="arl-notif-label">Portal</span>
+            <div class="arl-notif-bar-wrap">
+              <div class="arl-notif-bar" [style.width]="notifPortalPct + '%'"></div>
+            </div>
+            <span class="arl-notif-pct">{{ notifPortalPct }}%</span>
+          </div>
+        </div>
+        <a class="acfg-view-all" [routerLink]="['/ecbs/alarm-config']">View Notification Log →</a>
+      </div>
+
+    </div><!-- /arl-sidebar -->
+
+  </div><!-- /arl-grid -->
+
+  <!-- Data timestamp -->
+  <div class="arl-timestamp" *ngIf="lastUpdated">Data updated: {{ lastUpdated }} &nbsp;•&nbsp; <span class="arl-live-dot"></span> Live</div>
+
+</div><!-- /ecbs-page -->

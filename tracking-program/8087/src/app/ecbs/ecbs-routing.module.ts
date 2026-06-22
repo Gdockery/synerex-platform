@@ -10,6 +10,8 @@ import { ElectricalNetworkComponent }   from './electrical-network/electrical-ne
 import { CurrentAnalysisComponent }     from './current-analysis/current-analysis.component';
 import { SavingsComponent }             from './savings/savings.component';
 import { AlarmsComponent }              from './alarms/alarms.component';
+import { AlarmConfigComponent }         from './alarm-config/alarm-config.component';
+import { AlertRulesComponent }          from './alert-rules/alert-rules.component';
 import { ReportsComponent }             from './reports/reports.component';
 import { DevicesComponent }             from './devices/devices.component';
 import { SettingsComponent }            from './settings/settings.component';
@@ -31,6 +33,8 @@ const routes: Routes = [
   { path: 'current-analysis',     component: CurrentAnalysisComponent,    data: { title: 'Current Analysis' } },
   { path: 'savings',              component: SavingsComponent,            data: { title: 'Savings & Financials' } },
   { path: 'alarms',               component: AlarmsComponent,             data: { title: 'Alarms & Events' } },
+  { path: 'alarm-config',         component: AlarmConfigComponent,        data: { title: 'Alarm Configuration' } },
+  { path: 'alert-rules',          component: AlertRulesComponent,         data: { title: 'Alert Rule Monitor' } },
   { path: 'reports',              component: ReportsComponent,            data: { title: 'Reports' } },
   { path: 'devices',              component: DevicesComponent,            data: { title: 'Devices' } },
   { path: 'settings',             component: SettingsComponent,           data: { title: 'Settings' } },

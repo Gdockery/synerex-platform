@@ -1,0 +1,287 @@
+<!-- Alarm Configuration — ECBS OS v4 spec SS-13 -->
+<div class="ecbs-page alarm-config-page">
+
+  <!-- Header -->
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>Alarm Configuration</h1>
+      <p>Configure power quality and operational limits to trigger alerts when thresholds are exceeded.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-outline" (click)="saveThresholds()">
+        <span class="fa fa-download"></span> Import Configuration
+      </button>
+      <button class="btn-ecbs btn-primary" [disabled]="saving" (click)="saveThresholds()">
+        <span class="fa" [class.fa-save]="!saving" [class.fa-spinner]="saving" [class.fa-spin]="saving"></span>
+        Save Configuration
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="ecbs-tabs acfg-tabs">
+    <button class="ecbs-tab" [class.active]="activeTab==='thresholds'"  (click)="activeTab='thresholds'">Alarm Thresholds</button>
+    <button class="ecbs-tab" [class.active]="activeTab==='notification'" (click)="activeTab='notification'">Notification Rules</button>
+    <button class="ecbs-tab" [class.active]="activeTab==='escalation'"   (click)="activeTab='escalation'">Escalation Rules</button>
+    <button class="ecbs-tab" [class.active]="activeTab==='templates'"    (click)="activeTab='templates'">Alarm Templates</button>
+    <button class="ecbs-tab" [class.active]="activeTab==='test'"         (click)="activeTab='test'">Test Alarms</button>
+    <button class="ecbs-tab" [class.active]="activeTab==='sources'"      (click)="activeTab='sources'">Alarm Sources</button>
+  </div>
+
+  <!-- Main content + sidebar -->
+  <div class="acfg-layout">
+
+    <!-- Left content -->
+    <div class="acfg-main">
+
+      <!-- THRESHOLDS TAB -->
+      <ng-container *ngIf="activeTab==='thresholds'">
+
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ALARM CATEGORIES</span>
+            <span class="acfg-section-sub">Enable/disable alarm monitoring by category.</span>
+          </div>
+          <div class="acfg-category-pills">
+            <div *ngFor="let cat of alarmCategories" class="acfg-cat-pill" [class.disabled]="!cat.enabled" (click)="cat.enabled=!cat.enabled">
+              <div class="acfg-cat-icon" [style.background]="cat.enabled ? cat.color + '22' : 'rgba(84,110,122,0.1)'" [style.color]="cat.enabled ? cat.color : '#546e7a'">
+                <span class="fa" [class]="cat.icon"></span>
+              </div>
+              <div class="acfg-cat-label">{{ cat.label }}</div>
+              <div class="acfg-cat-status" [style.color]="cat.enabled ? '#00e676' : '#546e7a'">{{ cat.enabled ? 'Enabled' : 'Disabled' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ELECTRICAL PARAMETERS <span class="fa fa-info-circle acfg-info"></span></span>
+          </div>
+          <table class="acfg-table">
+            <thead><tr><th>Parameter</th><th>Description</th><th class="col-warn">Warning (Yellow)</th><th class="col-crit">Critical (Red)</th><th>Enable</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let p of electricalParams">
+                <td><strong>{{ p.label }}</strong></td>
+                <td class="col-desc">{{ p.desc }}</td>
+                <td class="col-warn">
+                  <span *ngIf="!p.editing">{{ p.warning }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.warning" />
+                </td>
+                <td class="col-crit">
+                  <span *ngIf="!p.editing">{{ p.critical }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.critical" />
+                </td>
+                <td><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="p.enabled" /><span class="acfg-slider"></span></label></td>
+                <td><button class="acfg-icon-btn" (click)="p.editing=!p.editing"><span class="fa" [class.fa-pencil]="!p.editing" [class.fa-check]="p.editing"></span></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">TRANSFORMER PARAMETERS <span class="fa fa-info-circle acfg-info"></span></span>
+          </div>
+          <table class="acfg-table">
+            <thead><tr><th>Parameter</th><th>Description</th><th class="col-warn">Warning (Yellow)</th><th class="col-crit">Critical (Red)</th><th>Enable</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let p of transformerParams">
+                <td><strong>{{ p.label }}</strong></td>
+                <td class="col-desc">{{ p.desc }}</td>
+                <td class="col-warn">
+                  <span *ngIf="!p.editing">{{ p.warning }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.warning" />
+                </td>
+                <td class="col-crit">
+                  <span *ngIf="!p.editing">{{ p.critical }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.critical" />
+                </td>
+                <td><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="p.enabled" /><span class="acfg-slider"></span></label></td>
+                <td><button class="acfg-icon-btn" (click)="p.editing=!p.editing"><span class="fa" [class.fa-pencil]="!p.editing" [class.fa-check]="p.editing"></span></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ECBS &amp; OPERATIONAL PARAMETERS <span class="fa fa-info-circle acfg-info"></span></span>
+          </div>
+          <table class="acfg-table">
+            <thead><tr><th>Parameter</th><th>Description</th><th class="col-warn">Warning (Yellow)</th><th class="col-crit">Critical (Red)</th><th>Enable</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let p of ecbsParams">
+                <td><strong>{{ p.label }}</strong></td>
+                <td class="col-desc">{{ p.desc }}</td>
+                <td class="col-warn">
+                  <span *ngIf="!p.editing">{{ p.warning }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.warning" />
+                </td>
+                <td class="col-crit">
+                  <span *ngIf="!p.editing">{{ p.critical }}</span>
+                  <input *ngIf="p.editing" class="acfg-inline-input" [(ngModel)]="p.critical" />
+                </td>
+                <td><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="p.enabled" /><span class="acfg-slider"></span></label></td>
+                <td><button class="acfg-icon-btn" (click)="p.editing=!p.editing"><span class="fa" [class.fa-pencil]="!p.editing" [class.fa-check]="p.editing"></span></button></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="acfg-footer-note">Thresholds are evaluated every 60 seconds. All values are based on 1-min rolling average unless otherwise specified.</p>
+        </div>
+      </ng-container>
+
+      <!-- NOTIFICATION RULES TAB -->
+      <ng-container *ngIf="activeTab==='notification'">
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">NOTIFICATION MATRIX</span>
+          </div>
+          <table class="acfg-table">
+            <thead><tr><th>Alarm / Event</th><th style="text-align:center;">Email</th><th style="text-align:center;">SMS</th><th style="text-align:center;">Portal</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let m of notifyMatrix">
+                <td>{{ m.event }}</td>
+                <td style="text-align:center;"><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="m.email" /><span class="acfg-slider"></span></label></td>
+                <td style="text-align:center;"><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="m.sms" /><span class="acfg-slider"></span></label></td>
+                <td style="text-align:center;"><label class="acfg-toggle"><input type="checkbox" [(ngModel)]="m.portal" /><span class="acfg-slider"></span></label></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="margin-top:16px;text-align:right;">
+            <button class="btn-ecbs btn-primary" (click)="saveNotifyConfig()"><span class="fa fa-save"></span> Save Notification Rules</button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ESCALATION RULES TAB -->
+      <ng-container *ngIf="activeTab==='escalation'">
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ESCALATION RULES</span>
+            <span class="acfg-section-sub">Configure escalation paths for unacknowledged critical alarms.</span>
+          </div>
+          <div class="acfg-escalation-list">
+            <div *ngFor="let step of escalationSteps; let i = index" class="acfg-esc-step" [class.inactive]="!step.active">
+              <div class="acfg-esc-dot" [style.background]="step.active ? '#00e676' : '#546e7a'">{{ i + 1 }}</div>
+              <div class="acfg-esc-body">
+                <div class="acfg-esc-delay">{{ step.delay }}</div>
+                <div class="acfg-esc-team">{{ step.team }}</div>
+              </div>
+              <label class="acfg-toggle"><input type="checkbox" [(ngModel)]="step.active" /><span class="acfg-slider"></span></label>
+            </div>
+          </div>
+          <div style="margin-top:16px;text-align:right;">
+            <button class="btn-ecbs btn-primary" (click)="saveNotifyConfig()"><span class="fa fa-save"></span> Save Escalation Rules</button>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ALARM TEMPLATES TAB -->
+      <ng-container *ngIf="activeTab==='templates'">
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ALARM TEMPLATES</span>
+            <span class="acfg-section-sub">Pre-configured threshold sets based on industry standards.</span>
+          </div>
+          <div class="acfg-templates-list">
+            <div *ngFor="let t of alarmTemplates" class="acfg-template-card" [class.tmpl-active]="t.active">
+              <div class="acfg-tmpl-header">
+                <div class="acfg-tmpl-name">{{ t.name }}</div>
+                <label class="acfg-toggle"><input type="checkbox" [(ngModel)]="t.active" /><span class="acfg-slider"></span></label>
+              </div>
+              <div class="acfg-tmpl-desc">{{ t.desc }}</div>
+              <div class="acfg-tmpl-tags">
+                <span *ngFor="let tag of t.tags" class="acfg-tag">{{ tag }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- TEST ALARMS TAB -->
+      <ng-container *ngIf="activeTab==='test'">
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">TEST ALARMS</span>
+            <span class="acfg-section-sub">Send test notifications to verify delivery across all configured channels.</span>
+          </div>
+          <div class="acfg-test-list">
+            <div *ngFor="let t of testAlarmTypes" class="acfg-test-row">
+              <div class="acfg-test-label"><span class="fa fa-bell-o" style="color:#ffd740;margin-right:8px;"></span>{{ t.label }}</div>
+              <div class="acfg-test-actions">
+                <span *ngIf="testResultFor(t.key)" class="acfg-test-sent"><span class="fa fa-check"></span> Sent</span>
+                <button class="btn-ecbs btn-outline btn-sm" (click)="fireTestAlarm(t)"><span class="fa fa-paper-plane-o"></span> Send Test</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ALARM SOURCES TAB -->
+      <ng-container *ngIf="activeTab==='sources'">
+        <div class="ecbs-card acfg-section">
+          <div class="acfg-section-header">
+            <span class="acfg-section-title">ALARM SOURCES</span>
+            <span class="acfg-section-sub">Enable or disable alarm generation from each data source.</span>
+          </div>
+          <div class="acfg-sources-list">
+            <div *ngFor="let src of alertSources" class="acfg-source-row">
+              <div class="acfg-source-icon" [style.color]="src.active ? '#00e676' : '#546e7a'"><span class="fa" [class]="src.icon"></span></div>
+              <div class="acfg-source-label">{{ src.label }}</div>
+              <div class="acfg-source-status" [style.color]="src.active ? '#00e676' : '#546e7a'">{{ src.active ? 'Active' : 'Disabled' }}</div>
+              <label class="acfg-toggle"><input type="checkbox" [(ngModel)]="src.active" /><span class="acfg-slider"></span></label>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+    </div><!-- /acfg-main -->
+
+    <!-- Right sidebar -->
+    <div class="acfg-sidebar">
+
+      <div class="ecbs-card acfg-sb-card">
+        <div class="acfg-sb-title">ALARM CONFIGURATION</div>
+        <p class="acfg-sb-sub">Manage how alarms are detected and triggered.</p>
+        <div class="acfg-sb-links">
+          <a class="acfg-sb-link" (click)="activeTab='thresholds'"><span class="fa fa-sliders acfg-sb-icon"></span> Configure Thresholds</a>
+          <a class="acfg-sb-link" (click)="activeTab='notification'"><span class="fa fa-envelope-o acfg-sb-icon"></span> Notification Rules</a>
+          <a class="acfg-sb-link" (click)="activeTab='escalation'"><span class="fa fa-sitemap acfg-sb-icon"></span> Escalation Rules</a>
+          <a class="acfg-sb-link" (click)="activeTab='templates'"><span class="fa fa-file-text-o acfg-sb-icon"></span> Alarm Templates</a>
+        </div>
+      </div>
+
+      <div class="ecbs-card acfg-sb-card">
+        <div class="acfg-sb-title">TEST ALARMS</div>
+        <p class="acfg-sb-sub">Test notifications to verify delivery.</p>
+        <div class="acfg-sb-links">
+          <a *ngFor="let t of testAlarmTypes.slice(0,3)" class="acfg-sb-link" (click)="fireTestAlarm(t)">
+            <span class="fa fa-bell-o acfg-sb-icon" style="color:#ffd740;"></span> {{ t.label }}
+          </a>
+        </div>
+        <a class="acfg-view-all" (click)="activeTab='test'">View all test alarms →</a>
+      </div>
+
+      <div class="ecbs-card acfg-sb-card">
+        <div class="acfg-sb-title">ESCALATION PREVIEW</div>
+        <p class="acfg-sb-sub">Critical alarms escalation path.</p>
+        <div class="acfg-esc-preview">
+          <div *ngFor="let step of escalationSteps; let last = last" class="acfg-esc-prev-row">
+            <div class="acfg-esc-prev-left">
+              <div class="acfg-esc-prev-dot" [style.background]="step.active ? '#00e676' : '#546e7a'"></div>
+              <div *ngIf="!last" class="acfg-esc-prev-line"></div>
+            </div>
+            <div class="acfg-esc-prev-info">
+              <div class="acfg-esc-prev-delay">{{ step.delay }}</div>
+              <div class="acfg-esc-prev-team">{{ step.team }}</div>
+            </div>
+          </div>
+        </div>
+        <a class="acfg-view-all" (click)="activeTab='escalation'">View Full Escalation Rules →</a>
+      </div>
+
+    </div><!-- /acfg-sidebar -->
+
+  </div><!-- /acfg-layout -->
+
+</div><!-- /ecbs-page -->

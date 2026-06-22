@@ -14,6 +14,8 @@ import { ElectricalNetworkComponent } from './electrical-network/electrical-netw
 import { CurrentAnalysisComponent }   from './current-analysis/current-analysis.component';
 import { SavingsComponent }           from './savings/savings.component';
 import { AlarmsComponent }            from './alarms/alarms.component';
+import { AlarmConfigComponent }      from './alarm-config/alarm-config.component';
+import { AlertRulesComponent }       from './alert-rules/alert-rules.component';
 import { ReportsComponent }           from './reports/reports.component';
 import { DevicesComponent }           from './devices/devices.component';
 import { SettingsComponent }          from './settings/settings.component';
@@ -42,6 +44,8 @@ import { ProfitabilityComponent }       from './profitability/profitability.comp
     CurrentAnalysisComponent,
     SavingsComponent,
     AlarmsComponent,
+    AlarmConfigComponent,
+    AlertRulesComponent,
     ReportsComponent,
     DevicesComponent,
     SettingsComponent,

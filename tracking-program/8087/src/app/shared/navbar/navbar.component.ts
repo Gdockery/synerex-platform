@@ -33,6 +33,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   public logoFailed: boolean = false;
 
   cbiScore: number = 0;
+  alarmsOpen: boolean = false;
   private _routerSub: Subscription;
 
   constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService, private api: ApiRequestService, private router: Router) {
@@ -79,11 +80,16 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    this.alarmsOpen = this.router.url.includes('/ecbs/alarm');
     this.refreshCbi();
-    // Re-fetch CBI whenever the route changes so project switches are reflected
     this._routerSub = this.router.events
       .pipe(filter(e => e instanceof NavigationEnd))
-      .subscribe(() => this.refreshCbi());
+      .subscribe((e: any) => {
+        this.refreshCbi();
+        if (e.url && e.url.includes('/ecbs/alarm')) {
+          this.alarmsOpen = true;
+        }
+      });
   }
 
   ngOnDestroy() {

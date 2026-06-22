@@ -1,0 +1,337 @@
+// ── Alert Rule Monitor ───────────────────────────────────────────────────────
+
+.arl-page {
+  // inherits ecbs-page base
+}
+
+.arl-info-icon {
+  font-size: 14px;
+  color: #546e7a;
+  margin-left: 6px;
+  cursor: pointer;
+}
+
+.arl-refresh-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 16px;
+  background: rgba(0,230,118,0.08);
+  border: 1px solid rgba(0,230,118,0.2);
+  font-size: 11px;
+  color: #b0bec5;
+}
+
+.arl-select {
+  min-width: 120px;
+}
+
+// ── Main grid ────────────────────────────────────────────────────────────────
+
+.arl-grid {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.arl-table-card {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 18px 20px;
+}
+
+.arl-sidebar {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// ── Table header row ─────────────────────────────────────────────────────────
+
+.arl-table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.arl-table-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #b0bec5;
+  flex: 1;
+}
+
+.arl-search-wrap {
+  position: relative;
+}
+
+.arl-search {
+  padding-right: 28px;
+  width: 180px;
+  font-size: 12px;
+}
+
+.arl-search-icon {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #546e7a;
+  font-size: 11px;
+}
+
+// ── Table ────────────────────────────────────────────────────────────────────
+
+.arl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+
+  th {
+    padding: 6px 10px;
+    text-align: left;
+    color: #546e7a;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    white-space: nowrap;
+
+    small { font-size: 9px; color: #37474f; }
+  }
+
+  td {
+    padding: 9px 10px;
+    color: #cfd8dc;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  &.arl-row-critical td { background: rgba(239,83,80,0.04); }
+  &.arl-row-warning  td { background: rgba(255,215,64,0.04); }
+}
+
+.arl-rule-name { min-width: 140px; }
+.arl-name { font-weight: 600; color: #cfd8dc; font-size: 12px; }
+.arl-cat-sub { font-size: 10px; color: #546e7a; margin-top: 2px; }
+
+.arl-cat-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.07);
+  font-size: 10px;
+  color: #b0bec5;
+  white-space: nowrap;
+}
+
+.arl-metric { color: #78909c; font-size: 11px; }
+
+.arl-setpoint { white-space: nowrap; }
+.arl-set-warn { color: #ffd740; font-weight: 600; }
+.arl-set-crit { color: #ef5350; font-weight: 600; }
+.arl-set-sep  { color: #546e7a; }
+
+.arl-value { font-weight: 700; font-size: 12px; }
+
+// ── Status badges ────────────────────────────────────────────────────────────
+
+.arl-status-badge {
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+
+  &.status-critical { background: rgba(239,83,80,0.18); color: #ef5350; border: 1px solid rgba(239,83,80,0.3); }
+  &.status-warning  { background: rgba(255,215,64,0.15); color: #ffd740; border: 1px solid rgba(255,215,64,0.3); }
+  &.status-normal   { background: rgba(0,230,118,0.12); color: #00e676; border: 1px solid rgba(0,230,118,0.25); }
+  &.status-disabled { background: rgba(84,110,122,0.15); color: #546e7a; border: 1px solid rgba(84,110,122,0.2); }
+}
+
+.arl-trend { color: #546e7a; }
+.arl-triggered { color: #78909c; font-size: 10px; white-space: nowrap; }
+.arl-duration  { color: #78909c; font-size: 11px; font-family: monospace; white-space: nowrap; }
+
+.arl-esc-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255,112,67,0.15);
+  color: #ff7043;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.arl-no-esc { color: #37474f; }
+
+// ── Loading / empty ──────────────────────────────────────────────────────────
+
+.arl-loading,
+.arl-empty {
+  padding: 40px;
+  text-align: center;
+  color: #546e7a;
+  font-size: 13px;
+
+  .fa { margin-right: 6px; }
+}
+
+// ── Pagination ───────────────────────────────────────────────────────────────
+
+.arl-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: 10px;
+}
+
+.arl-pag-info { font-size: 10px; color: #546e7a; }
+
+.arl-pag-btns { display: flex; gap: 4px; }
+
+.arl-pag-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #78909c;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover   { background: rgba(0,230,118,0.1); color: #00e676; }
+  &.active  { background: rgba(0,230,118,0.18); color: #00e676; border-color: rgba(0,230,118,0.3); }
+  &:disabled{ opacity: 0.35; cursor: default; }
+}
+
+// ── Sidebar cards ────────────────────────────────────────────────────────────
+
+.arl-sb-card { padding: 14px 16px; }
+
+.arl-sb-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #b0bec5;
+  margin-bottom: 10px;
+}
+
+.arl-sb-empty { font-size: 11px; color: #546e7a; padding: 12px 0; text-align: center; }
+
+// ── Donut ────────────────────────────────────────────────────────────────────
+
+.arl-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.arl-donut-legend { flex: 1; min-width: 100px; display: flex; flex-direction: column; gap: 6px; }
+
+.arl-legend-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+
+.arl-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.arl-legend-label { flex: 1; color: #78909c; }
+
+.arl-legend-pct { font-weight: 700; white-space: nowrap; }
+
+// ── Top Active Alerts ────────────────────────────────────────────────────────
+
+.arl-top-alert-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+
+  &:last-of-type { border-bottom: none; }
+}
+
+.arl-top-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.arl-top-info { flex: 1; min-width: 0; }
+.arl-top-name  { font-size: 11px; font-weight: 600; color: #cfd8dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arl-top-asset { font-size: 10px; color: #546e7a; }
+
+.arl-top-right { text-align: right; flex-shrink: 0; }
+.arl-top-value { font-size: 12px; font-weight: 700; }
+.arl-top-level { font-size: 10px; font-weight: 700; text-transform: capitalize; }
+
+// ── Notification Status ──────────────────────────────────────────────────────
+
+.arl-notif-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+.arl-notif-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.arl-notif-icon { color: #546e7a; width: 14px; text-align: center; }
+.arl-notif-label { width: 38px; color: #78909c; }
+
+.arl-notif-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.arl-notif-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #00e676, #00c853);
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+
+.arl-notif-pct { width: 32px; text-align: right; font-weight: 700; color: #00e676; }
+
+// ── Timestamp ────────────────────────────────────────────────────────────────
+
+.arl-timestamp {
+  font-size: 10px;
+  color: #37474f;
+  text-align: right;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.arl-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00e676;
+  display: inline-block;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
