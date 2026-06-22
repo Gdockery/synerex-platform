@@ -95,7 +95,7 @@ export class DigitalTwinComponent implements OnInit {
     const pid = this.projectId;
 
     // Load digital twin assets
-    this.api.get(`/api/digital-twin/?site_id=${pid}`).subscribe({
+    this.api.get(`/api/digital-twin/?project_id=${pid}`).subscribe({
       next: (r: any) => {
         const twins: any[] = r?.data || [];
         if (twins.length > 0) {

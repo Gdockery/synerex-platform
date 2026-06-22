@@ -87,7 +87,7 @@ def _build_snapshot(sess, twin_id: int) -> dict:
             {k: getattr(a, k) for k in
              ("id", "asset_type", "name", "asset_uid", "kva_rating",
               "voltage_primary", "voltage_secondary", "amp_rating",
-              "bus_id", "drawing_ref", "meter_id", "status")}
+              "bus_id", "drawing_ref", "meter_id", "status", "notes", "extra")}
             for a in assets
         ],
         "relationships": [
@@ -102,12 +102,19 @@ def _build_snapshot(sess, twin_id: int) -> dict:
 @dt_bp.route("/", methods=["GET"])
 @login_required
 def list_twins():
-    site_id = request.args.get("site_id", type=int)
-    if not site_id:
-        return {"error": "site_id query param required"}, 400
+    site_id    = request.args.get("site_id",    type=int)
+    project_id = request.args.get("project_id", type=int)
     sess = get_session()
-    q = sess.query(DigitalTwin).filter_by(site_id=site_id, is_deleted=False)
-    rows = q.order_by(DigitalTwin.version_number.desc()).all()
+    if project_id:
+        rows = sess.query(DigitalTwin).filter_by(
+            project_id=project_id, is_deleted=False
+        ).order_by(DigitalTwin.version_number.desc()).all()
+    elif site_id:
+        rows = sess.query(DigitalTwin).filter_by(
+            site_id=site_id, is_deleted=False
+        ).order_by(DigitalTwin.version_number.desc()).all()
+    else:
+        return {"error": "site_id or project_id query param required"}, 400
     return {"data": [_twin_dict(t) for t in rows]}
 
 
