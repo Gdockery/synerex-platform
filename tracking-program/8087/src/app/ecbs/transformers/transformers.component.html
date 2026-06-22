@@ -1,154 +1,439 @@
-<!-- ECBS OS™ Transformers — Spec SS-7 + Transformer Intelligence™ -->
+<!-- ECBS OS™ Transformer Intelligence™ — Spec SS-7 -->
 <div class="ecbs-page">
+
+  <!-- Page Header with breadcrumb -->
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Transformer Intelligence™</h1>
-      <p>Monitor transformer health, loading, capacity utilization, and electrical analytics — spec SS-7.</p>
+      <div class="xt-breadcrumb">
+        <span class="xt-bc-parent">Transformers</span>
+        <span class="fa fa-chevron-right xt-bc-sep"></span>
+        <span class="xt-bc-current">{{ selectedName }}</span>
+      </div>
+      <h1 class="xt-main-title">
+        {{ selectedName }}
+        <span class="xt-status-badge" *ngIf="selected" [style.background]="healthColor + '22'" [style.color]="healthColor">
+          <span class="fa fa-circle" style="font-size:7px;"></span> {{ healthLabel }}
+        </span>
+      </h1>
+      <!-- Metadata bar -->
+      <div class="xt-meta-bar" *ngIf="selected || detail">
+        <span *ngIf="nameplateId !== '&#8212;'"><strong>ID:</strong> {{ nameplateId }}</span>
+        <span *ngIf="nameplateType"><strong>Type:</strong> {{ nameplateType }}</span>
+        <span *ngIf="nameplateManufacturer !== '&#8212;'"><strong>Manufacturer:</strong> {{ nameplateManufacturer }}</span>
+        <span *ngIf="ratedKva"><strong>Rating:</strong> {{ ratedKva | number:'1.0-0' }} kVA</span>
+        <span *ngIf="nameplateVoltageIn !== '&#8212;'"><strong>Voltage:</strong> {{ nameplateVoltageIn }}/{{ nameplateVoltageOut }} V</span>
+      </div>
     </div>
     <div class="page-actions">
-      <button class="btn-ecbs btn-outline" (click)="loadAssets()"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Download Report</button>
+      <button class="btn-ecbs btn-outline" (click)="refresh()"><span class="fa fa-refresh"></span> Refresh</button>
     </div>
   </div>
 
-  <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading transformers...</div>
+  <!-- Transformer selector (if multiple) -->
+  <div class="xt-selector-row" *ngIf="assets.length > 1 && !loading">
+    <button *ngFor="let a of assets" class="xt-sel-btn"
+            [class.active]="selected?.asset_id === a.asset_id || selected?.id === a.id"
+            (click)="selectAsset(a)">
+      <span class="fa fa-plug"></span>
+      {{ a.label || a.name || a.asset_id }}
+      <span class="xt-sel-badge"
+            [style.background]="utilizationColor(a.utilization_pct||0) + '22'"
+            [style.color]="utilizationColor(a.utilization_pct||0)">
+        {{ (a.utilization_pct||0) | number:'1.0-0' }}%
+      </span>
+    </button>
+  </div>
 
-  <div *ngIf="!loading && assets.length === 0" class="ecbs-card">
-    <div class="ecbs-empty">
-      <span class="empty-icon fa fa-plug"></span>
-      <span class="empty-title">No Transformer Assets Configured</span>
-      <p>Configure transformer assets in the Devices module to see Transformer Intelligence data.</p>
-      <a class="btn-ecbs btn-primary" routerLink="/ecbs/devices">Go to Devices</a>
-    </div>
+  <!-- Loading -->
+  <div *ngIf="loading" class="xt-loading">
+    <span class="fa fa-circle-o-notch fa-spin"></span> Loading transformer data&#8230;
+  </div>
+
+  <!-- No assets -->
+  <div *ngIf="!loading && assets.length === 0" class="ecbs-card xt-empty-card">
+    <span class="fa fa-plug xt-empty-icon"></span>
+    <div class="xt-empty-title">No Transformer Assets Configured</div>
+    <p>A Digital Twin with an approved transformer asset is required.</p>
+    <a class="btn-ecbs btn-primary" routerLink="/ecbs/digital-twin">View Digital Twin</a>
   </div>
 
   <ng-container *ngIf="!loading && assets.length > 0">
 
-    <!-- Summary KPIs across all transformers -->
-    <div class="ecbs-kpi-row">
-      <div class="ecbs-kpi-card kpi-blue">
-        <div class="kpi-icon"><span class="fa fa-plug"></span></div>
-        <div class="kpi-value">{{ assets.length }}</div>
-        <div class="kpi-label">Transformers</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-blue">
-        <div class="kpi-icon"><span class="fa fa-tachometer"></span></div>
-        <div class="kpi-value">{{ totalInstalledKva | number:'1.0-0' }}</div>
-        <div class="kpi-label">Total Installed kVA</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-amber">
-        <div class="kpi-icon"><span class="fa fa-bar-chart"></span></div>
-        <div class="kpi-value">{{ avgUtilization | number:'1.0-0' }}%</div>
-        <div class="kpi-label">Avg. Utilization</div>
-        <div class="kpi-delta" [class.negative]="avgUtilization>85" [class.neutral]="avgUtilization<=85">{{ avgUtilization>85?'Near Capacity':'Normal' }}</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-magic"></span></div>
-        <div class="kpi-value" style="color:#00e676;">{{ totalRecoveredKva | number:'1.0-0' }}</div>
-        <div class="kpi-label">Total Recovered kVA</div>
-        <div class="kpi-delta">By ECBS</div>
-      </div>
-      <div class="ecbs-kpi-card kpi-green">
-        <div class="kpi-icon"><span class="fa fa-exchange"></span></div>
-        <div class="kpi-value">{{ avgPowerFactor | number:'1.2-2' }}</div>
-        <div class="kpi-label">Avg Power Factor</div>
-        <div class="kpi-delta" [class.negative]="avgPowerFactor<0.9">{{ avgPowerFactor>=0.95?'Excellent':avgPowerFactor>=0.9?'Good':'Needs improvement' }}</div>
-      </div>
+    <!-- Tab Navigation -->
+    <div class="xt-tabs">
+      <button class="xt-tab" [class.active]="activeTab==='overview'"     (click)="setTab('overview')">Overview</button>
+      <button class="xt-tab" [class.active]="activeTab==='performance'"  (click)="setTab('performance')">Performance</button>
+      <button class="xt-tab" [class.active]="activeTab==='loadprofile'"  (click)="setTab('loadprofile')">Load Profile</button>
+      <button class="xt-tab" [class.active]="activeTab==='powerquality'" (click)="setTab('powerquality')">Power Quality</button>
+      <button class="xt-tab" [class.active]="activeTab==='capacity'"     (click)="setTab('capacity')">Capacity &amp; Savings</button>
+      <button class="xt-tab" [class.active]="activeTab==='alarms'"       (click)="setTab('alarms')">Alarms &amp; Events</button>
+      <button class="xt-tab" [class.active]="activeTab==='maintenance'"  (click)="setTab('maintenance')">Maintenance</button>
     </div>
 
-    <!-- Transformer cards grid -->
-    <div class="ecbs-grid-auto" style="margin-bottom:16px;">
-      <div *ngFor="let a of assets" class="xfmr-detail-card"
-        [class.xfmr-critical]="(a.utilization_pct||0)>=90"
-        [class.xfmr-warning]="(a.utilization_pct||0)>=75&&(a.utilization_pct||0)<90"
-        [class.xfmr-healthy]="(a.utilization_pct||0)<75"
-        (click)="selectAsset(a)">
+    <!-- ═══════════════ OVERVIEW TAB ════════════════════════════════ -->
+    <div *ngIf="activeTab==='overview'">
 
-        <div class="xfmr-header">
-          <div>
-            <div class="xfmr-name">{{ a.name || a.asset_id }}</div>
-            <div class="xfmr-mfr">{{ a.manufacturer || 'ECBS Monitored' }} · {{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</div>
+      <!-- 6 KPI Cards -->
+      <div class="xt-kpi-row">
+
+        <!-- Utilization Donut -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">UTILIZATION</div>
+          <div class="xt-util-wrap">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#1e2d45" stroke-width="10"/>
+              <circle cx="40" cy="40" r="32" fill="none"
+                      [attr.stroke]="utilizationColor(utilPct)"
+                      stroke-width="10"
+                      [attr.stroke-dasharray]="donutDash(utilPct, 32)"
+                      stroke-dashoffset="50.3"
+                      style="transform:rotate(-90deg);transform-origin:40px 40px;"/>
+              <text x="40" y="44" text-anchor="middle" font-size="14" font-weight="700"
+                    [attr.fill]="utilizationColor(utilPct)">{{ utilPct | number:'1.0-0' }}%</text>
+            </svg>
+            <div class="xt-util-meta">
+              <div class="xt-util-kva" [style.color]="utilizationColor(utilPct)">{{ usedKva | number:'1.0-0' }} kVA</div>
+              <div class="xt-util-sub">Current Load</div>
+              <div class="xt-util-sub">of {{ ratedKva | number:'1.0-0' }} kVA Rated Capacity</div>
+            </div>
           </div>
-          <span [class]="healthClass(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
         </div>
 
-        <div class="xfmr-body">
-          <div class="xfmr-load-gauge">
-            <div class="xlg-label">
-              <span>Load: {{ (a.current_load_kva||0) | number:'1.0-0' }} / {{ (a.capacity_kva||0) | number:'1.0-0' }} kVA</span>
-              <span [style.color]="barColor(a.utilization_pct||0)">{{ (a.utilization_pct||0) | number:'1.0-0' }}%</span>
-            </div>
-            <div class="xlg-track">
-              <div class="xlg-fill" [style.width.%]="a.utilization_pct||0" [style.background]="barColor(a.utilization_pct||0)"></div>
+        <!-- Capacity Recovered -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">CAPACITY RECOVERED</div>
+          <div class="xt-kpi-value" style="color:#00e676;">{{ recoveredKva | number:'1.0-0' }}</div>
+          <div class="xt-kpi-unit">kVA</div>
+          <div class="xt-kpi-sub">{{ recoveredPct | number:'1.0-0' }}% of Rated Capacity</div>
+          <div class="xt-kpi-detail" *ngIf="usedKva > 0 && recoveredKva > 0">
+            <div>Before XECO: <strong>{{ (usedKva + recoveredKva) | number:'1.0-0' }} kVA</strong></div>
+            <div>After XECO: <strong style="color:#00e676;">{{ usedKva | number:'1.0-0' }} kVA</strong></div>
+          </div>
+        </div>
+
+        <!-- Available Capacity -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">AVAILABLE CAPACITY</div>
+          <div class="xt-kpi-value" style="color:#29b6f6;">{{ availableKva | number:'1.0-0' }}</div>
+          <div class="xt-kpi-unit">kVA</div>
+          <div class="xt-kpi-sub">{{ availablePct | number:'1.0-0' }}% of Rated Capacity</div>
+          <div class="xt-kpi-detail" *ngIf="availableKva > 0">
+            <div>Equivalent to:</div>
+            <div><span class="fa fa-cube"></span> {{ (availableKva / 37) | number:'1.0-0' }}&#215; 50 HP Motors</div>
+          </div>
+        </div>
+
+        <!-- CBI Gauge -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">CURRENT BALANCE INDEX&#8482;</div>
+          <div class="xt-cbi-wrap">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#1e2d45" stroke-width="10"/>
+              <circle cx="40" cy="40" r="32" fill="none"
+                      [attr.stroke]="cbiScore>=90?'#00e676':cbiScore>=75?'#ffd740':'#f44336'"
+                      stroke-width="10"
+                      [attr.stroke-dasharray]="donutDash(cbiScore, 32)"
+                      stroke-dashoffset="50.3"
+                      style="transform:rotate(-90deg);transform-origin:40px 40px;"/>
+              <text x="40" y="38" text-anchor="middle" font-size="16" font-weight="700"
+                    [attr.fill]="cbiScore>=90?'#00e676':cbiScore>=75?'#ffd740':'#f44336'">{{ cbiScore | number:'1.0-0' }}</text>
+              <text x="40" y="52" text-anchor="middle" font-size="9" fill="#8899a6">{{ cbiRating }}</text>
+            </svg>
+            <div class="xt-cbi-meta">
+              <div class="xt-cbi-rating" [style.color]="cbiScore>=90?'#00e676':cbiScore>=75?'#ffd740':'#f44336'">{{ cbiRating }} Rating</div>
+              <div class="xt-util-sub">{{ cbiLabel }}</div>
             </div>
           </div>
+        </div>
 
-          <div class="xfmr-specs">
-            <div class="xs-item">
-              <div class="xs-val" style="color:#00e676;">+{{ (a.recovered_kva||0) | number:'1.0-0' }}</div>
-              <div class="xs-lbl">kVA Recovered</div>
+        <!-- Transformer Health -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">TRANSFORMER HEALTH</div>
+          <div class="xt-health-wrap">
+            <div class="xt-health-icon" [style.background]="healthColor + '22'">
+              <span class="fa fa-check" [style.color]="healthColor" *ngIf="healthScore>=70"></span>
+              <span class="fa fa-warning" style="color:#ffd740;" *ngIf="healthScore>=50&&healthScore<70"></span>
+              <span class="fa fa-times" style="color:#f44336;" *ngIf="healthScore<50&&healthScore>0"></span>
+              <span class="fa fa-question" style="color:#546e7a;" *ngIf="healthScore===0"></span>
             </div>
-            <div class="xs-item">
-              <div class="xs-val">{{ (a.power_factor||0) | number:'1.3-3' }}</div>
-              <div class="xs-lbl">Power Factor</div>
-            </div>
-            <div class="xs-item">
-              <div class="xs-val">{{ (a.harmonic_burden_pct||0) | number:'1.1-1' }}%</div>
-              <div class="xs-lbl">Harmonic Burden</div>
-            </div>
-            <div class="xs-item">
-              <div class="xs-val" [style.color]="(a.temperature_c||0)>80?'#f44336':(a.temperature_c||0)>65?'#ffd740':'#00e676'">
-                {{ (a.temperature_c||0) | number:'1.0-0' }}°C
-              </div>
-              <div class="xs-lbl">Temperature</div>
+            <div>
+              <div class="xt-health-label" [style.color]="healthColor">{{ healthLabel }}</div>
+              <div class="xt-util-sub">From active issues</div>
             </div>
           </div>
+          <div class="xt-health-metrics" *ngIf="detail?.summary">
+            <div>Harmonic Burden: <strong>{{ (detail.summary.harmonic_burden_pct||0) | number:'1.1-1' }}%</strong></div>
+            <div>Imbalance: <strong>{{ (detail.summary.imbalance_burden_pct||0) | number:'1.1-1' }}%</strong></div>
+          </div>
+        </div>
 
-          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:10px;color:#546e7a;">
-              <span class="fa fa-circle" [style.color]="(a.utilization_pct||0)<75?'#00e676':(a.utilization_pct||0)<90?'#ffd740':'#f44336'"></span>
-              {{ (a.utilization_pct||0) < 75 ? 'Normal' : (a.utilization_pct||0) < 90 ? 'High Load' : 'Critical' }}
-            </span>
-            <span style="font-size:10px;color:#546e7a;">Deferred Cap: <strong style="color:#00e676;">${{ (a.deferred_capital_value||0) | number:'1.0-0' }}</strong></span>
+        <!-- Annual Savings -->
+        <div class="xt-kpi-card">
+          <div class="xt-kpi-label">TOTAL ANNUAL SAVINGS</div>
+          <div class="xt-savings-icon"><span class="fa fa-dollar"></span></div>
+          <div class="xt-kpi-value" style="color:#ce93d8;">{{ formatCurrency(annualSavings) }}</div>
+          <div class="xt-kpi-sub">From This Transformer</div>
+          <div class="xt-kpi-detail" *ngIf="annualSavings > 0">
+            <div>Energy: <strong style="color:#00e676;">{{ formatCurrency(energySavings) }}</strong></div>
+            <div>Demand: <strong style="color:#29b6f6;">{{ formatCurrency(demandSavings) }}</strong></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Charts Row -->
+      <div class="xt-charts-row">
+
+        <!-- kVA Load Trend -->
+        <div class="xt-chart-card">
+          <div class="xt-chart-header">
+            <span class="xt-chart-title">kVA LOAD TREND</span>
+            <div class="xt-chart-legend">
+              <span class="xt-leg-dot" style="background:#8899a6;"></span> Before XECO
+              <span class="xt-leg-dot" style="background:#00e676;margin-left:8px;"></span> After XECO
+              <span class="xt-leg-dash" style="border-color:#29b6f6;margin-left:8px;"></span> Rated Capacity
+            </div>
+          </div>
+          <div class="xt-chart-body" *ngIf="capTrends.length > 0; else noTrendData">
+            <svg [attr.width]="CHART_W" [attr.height]="CHART_H + 30" style="width:100%;overflow:visible;">
+              <!-- Grid lines -->
+              <line *ngFor="let y of trendYLabels" x1="0" [attr.y1]="y.y" [attr.x2]="CHART_W" [attr.y2]="y.y"
+                    stroke="#1e2d45" stroke-width="1"/>
+              <!-- Y labels -->
+              <text *ngFor="let y of trendYLabels" x="-4" [attr.y]="y.y + 4" text-anchor="end"
+                    font-size="9" fill="#546e7a">{{ y.label }}</text>
+              <!-- Area fill -->
+              <path [attr.d]="afterXecoAreaPath" fill="rgba(0,230,118,0.08)" stroke="none"/>
+              <!-- Before XECO line -->
+              <path *ngIf="beforeXecoPath" [attr.d]="beforeXecoPath"
+                    fill="none" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 2"/>
+              <!-- After XECO line -->
+              <path *ngIf="afterXecoPath" [attr.d]="afterXecoPath"
+                    fill="none" stroke="#00e676" stroke-width="2"/>
+              <!-- Rated capacity line -->
+              <line *ngIf="ratedKva > 0" x1="0" [attr.y1]="ratedCapacityY"
+                    [attr.x2]="CHART_W" [attr.y2]="ratedCapacityY"
+                    stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="6 3"/>
+              <!-- X labels -->
+              <text *ngFor="let lbl of trendXLabels" [attr.x]="lbl.x" [attr.y]="CHART_H + 18"
+                    text-anchor="middle" font-size="9" fill="#546e7a">{{ lbl.label }}</text>
+            </svg>
+          </div>
+          <ng-template #noTrendData>
+            <div class="xt-chart-empty">
+              <span class="fa fa-bar-chart"></span> No trend data available yet.
+            </div>
+          </ng-template>
+        </div>
+
+        <!-- Capacity Recovery Over Time -->
+        <div class="xt-chart-card">
+          <div class="xt-chart-header">
+            <span class="xt-chart-title">CAPACITY RECOVERY OVER TIME</span>
+          </div>
+          <div class="xt-chart-body" *ngIf="monthlyBars.length > 0; else noBarData">
+            <svg [attr.width]="BAR_W" [attr.height]="BAR_H + 26" style="width:100%;overflow:visible;">
+              <g *ngFor="let b of monthlyBars">
+                <rect [attr.x]="b.x" [attr.y]="BAR_H - b.height" [attr.width]="barWidth" [attr.height]="b.height"
+                      fill="#00e676" rx="2" opacity="0.85"/>
+                <text [attr.x]="b.x + barWidth/2" [attr.y]="BAR_H + 14" text-anchor="middle"
+                      font-size="8" fill="#546e7a">{{ b.label }}</text>
+              </g>
+            </svg>
+          </div>
+          <ng-template #noBarData>
+            <div class="xt-chart-empty"><span class="fa fa-bar-chart"></span> No recovery history yet.</div>
+          </ng-template>
+        </div>
+
+      </div>
+
+      <!-- Bottom Panels Row -->
+      <div class="xt-bottom-row">
+
+        <!-- Capacity & Utilization Donut -->
+        <div class="xt-bottom-card">
+          <div class="xt-card-title">CAPACITY &amp; UTILIZATION</div>
+          <div class="xt-cap-wrap">
+            <div class="xt-cap-donut-wrap">
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#1e2d45" stroke-width="16"/>
+                <!-- Used capacity segment -->
+                <circle cx="60" cy="60" r="46" fill="none"
+                        [attr.stroke]="utilizationColor(utilPct)" stroke-width="16"
+                        [attr.stroke-dasharray]="donutDash(utilPct, 46)"
+                        stroke-dashoffset="72.3"
+                        style="transform:rotate(-90deg);transform-origin:60px 60px;"/>
+                <!-- Recoverable segment -->
+                <circle cx="60" cy="60" r="46" fill="none"
+                        stroke="#00e676" stroke-width="16" opacity="0.4"
+                        [attr.stroke-dasharray]="donutDash(recoveredPct, 46)"
+                        [attr.stroke-dashoffset]="72.3 - (utilPct/100)*(2*3.14159*46)"
+                        style="transform:rotate(-90deg);transform-origin:60px 60px;"/>
+                <text x="60" y="55" text-anchor="middle" font-size="18" font-weight="700" fill="#e8edf5">{{ usedKva | number:'1.0-0' }}</text>
+                <text x="60" y="68" text-anchor="middle" font-size="9" fill="#8899a6">kVA</text>
+                <text x="60" y="78" text-anchor="middle" font-size="9" fill="#8899a6">{{ utilPct | number:'1.0-0' }}% Utilized</text>
+              </svg>
+            </div>
+            <div class="xt-cap-metrics">
+              <div class="xt-cap-row"><span class="xt-cap-dot" [style.background]="utilizationColor(utilPct)"></span>Current Load<span class="xt-cap-val">{{ usedKva | number:'1.0-0' }} kVA ({{ utilPct | number:'1.0-0' }}%)</span></div>
+              <div class="xt-cap-row"><span class="xt-cap-dot" style="background:#00e676;opacity:0.5;"></span>Available Capacity<span class="xt-cap-val">{{ availableKva | number:'1.0-0' }} kVA ({{ availablePct | number:'1.0-0' }}%)</span></div>
+              <div class="xt-cap-row"><span class="xt-cap-dot" style="background:#1e2d45;border:1px solid #546e7a;"></span>Rated Capacity<span class="xt-cap-val">{{ ratedKva | number:'1.0-0' }} kVA (100%)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase Summary -->
+        <div class="xt-bottom-card">
+          <div class="xt-card-title">PHASE SUMMARY</div>
+          <table class="xt-phase-table">
+            <thead>
+              <tr>
+                <th>Phase</th><th>Voltage (V)</th><th>Current (A)</th><th>kVA</th><th>% Imbalance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let p of phases">
+                <td class="xt-phase-name">{{ p.phase }}</td>
+                <td>{{ p.voltage > 0 ? (p.voltage | number:'1.0-0') : '&#8212;' }}</td>
+                <td>{{ p.current > 0 ? (p.current | number:'1.0-0') : '&#8212;' }}</td>
+                <td>{{ p.kva > 0 ? (p.kva | number:'1.0-0') : '&#8212;' }}</td>
+                <td [style.color]="p.imbalPct > 5 ? '#ffd740' : '#00e676'">
+                  {{ p.current > 0 ? (p.imbalPct | number:'1.1-1') + '%' : '&#8212;' }}
+                </td>
+              </tr>
+              <tr class="xt-phase-avg">
+                <td class="xt-phase-name">Average</td>
+                <td>{{ phaseAvg.voltage > 0 ? (phaseAvg.voltage | number:'1.0-0') : '&#8212;' }}</td>
+                <td>{{ phaseAvg.current > 0 ? (phaseAvg.current | number:'1.0-0') : '&#8212;' }}</td>
+                <td>{{ phaseAvg.kva > 0 ? (phaseAvg.kva | number:'1.0-0') : '&#8212;' }}</td>
+                <td [style.color]="phaseAvg.imbalPct > 5 ? '#ffd740' : '#00e676'">
+                  {{ phaseAvg.current > 0 ? (phaseAvg.imbalPct | number:'1.1-1') + '%' : '&#8212;' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="xt-phase-note" *ngIf="phases[0]?.current === 0">
+            Per-phase data requires a multi-phase meter on this circuit.
+          </div>
+        </div>
+
+        <!-- Power Quality Snapshot -->
+        <div class="xt-bottom-card">
+          <div class="xt-card-title">POWER QUALITY SNAPSHOT</div>
+          <table class="xt-pq-table">
+            <thead><tr><th>Metric</th><th>Value</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>THD Voltage (Avg)</td>
+                <td>{{ thdVoltage > 0 ? (thdVoltage | number:'1.1-1') + '%' : '&#8212;' }}</td>
+                <td><span class="xt-pq-dot" [ngClass]="'xt-pq-' + pqStatus(thdVoltage, 8, 5)"></span>{{ pqLabel(pqStatus(thdVoltage, 8, 5)) }}</td>
+              </tr>
+              <tr>
+                <td>THD Current (Avg)</td>
+                <td>{{ thdCurrent > 0 ? (thdCurrent | number:'1.1-1') + '%' : '&#8212;' }}</td>
+                <td><span class="xt-pq-dot" [ngClass]="'xt-pq-' + pqStatus(thdCurrent, 20, 10)"></span>{{ pqLabel(pqStatus(thdCurrent, 20, 10)) }}</td>
+              </tr>
+              <tr>
+                <td>Power Factor (Avg)</td>
+                <td>{{ avgPowerFactor > 0 ? (avgPowerFactor | number:'1.2-2') : '&#8212;' }}</td>
+                <td><span class="xt-pq-dot" [ngClass]="'xt-pq-' + pfStatus(avgPowerFactor)"></span>{{ pqLabel(pfStatus(avgPowerFactor)) }}</td>
+              </tr>
+              <tr>
+                <td>Frequency</td>
+                <td>{{ frequency }} Hz</td>
+                <td><span class="xt-pq-dot xt-pq-good"></span>Good</td>
+              </tr>
+              <tr>
+                <td>Voltage Unbalance</td>
+                <td>{{ voltageImbalance > 0 ? (voltageImbalance | number:'1.1-1') + '%' : '&#8212;' }}</td>
+                <td><span class="xt-pq-dot" [ngClass]="'xt-pq-' + pqStatus(voltageImbalance, 5, 2)"></span>{{ pqLabel(pqStatus(voltageImbalance, 5, 2)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Transformer Details -->
+        <div class="xt-bottom-card">
+          <div class="xt-card-title">TRANSFORMER DETAILS</div>
+          <div class="xt-details-table">
+            <div class="xt-det-row"><span class="xt-det-key">Transformer ID</span><span class="xt-det-val">{{ nameplateId }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Type</span><span class="xt-det-val">{{ nameplateType }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Manufacturer</span><span class="xt-det-val">{{ nameplateManufacturer }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Model</span><span class="xt-det-val">{{ nameplateModel }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Rating</span><span class="xt-det-val">{{ nameplateRating }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Primary Voltage</span><span class="xt-det-val">{{ nameplateVoltageIn }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Secondary Voltage</span><span class="xt-det-val">{{ nameplateVoltageOut }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Impedance</span><span class="xt-det-val">{{ nameplateImpedance }}</span></div>
+            <div class="xt-det-row"><span class="xt-det-key">Serial Number</span><span class="xt-det-val">{{ nameplateSerial }}</span></div>
+            <div class="xt-det-row" *ngIf="nameplateInstall"><span class="xt-det-key">Install Date</span><span class="xt-det-val">{{ nameplateInstall | date:'MMM d, yyyy' }}</span></div>
+            <div class="xt-det-row" *ngIf="nameplateWarranty"><span class="xt-det-key">Warranty Expiration</span><span class="xt-det-val">{{ nameplateWarranty | date:'MMM d, yyyy' }}</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Savings from this transformer -->
+      <div class="xt-savings-row" *ngIf="annualSavings > 0">
+        <div class="xt-card-title">SAVINGS FROM THIS TRANSFORMER (ANNUAL)</div>
+        <div class="xt-sav-items">
+          <div class="xt-sav-item">
+            <span>Energy Cost Savings</span>
+            <span class="xt-sav-val" style="color:#00e676;">{{ formatCurrency(energySavings) }}</span>
+          </div>
+          <div class="xt-sav-item">
+            <span>Demand Cost Savings</span>
+            <span class="xt-sav-val" style="color:#29b6f6;">{{ formatCurrency(demandSavings) }}</span>
+          </div>
+          <div class="xt-sav-item xt-sav-total">
+            <span>Total Annual Savings</span>
+            <span class="xt-sav-val" style="color:#ce93d8;">{{ formatCurrency(annualSavings) }}</span>
           </div>
         </div>
       </div>
+
+    </div><!-- /overview -->
+
+    <!-- ═══════════════ PERFORMANCE TAB ══════════════════════════════ -->
+    <div *ngIf="activeTab==='performance'" class="xt-tab-stub">
+      <span class="fa fa-bar-chart"></span>
+      <div>Performance analytics — historical load and efficiency trends.</div>
+      <div class="xt-stub-sub">CBI trends, harmonic reduction over time, and efficiency scoring coming soon.</div>
     </div>
 
-    <!-- Selected transformer detail panel -->
-    <div class="ecbs-card" *ngIf="selected" style="margin-top:0;">
-      <div class="ecbs-card-title"><span class="fa fa-info-circle"></span> Transformer Details — {{ selected.name || selected.asset_id }}</div>
+    <!-- ═══════════════ LOAD PROFILE TAB ═════════════════════════════ -->
+    <div *ngIf="activeTab==='loadprofile'" class="xt-tab-stub">
+      <span class="fa fa-line-chart"></span>
+      <div>Load Profile — intraday kVA curve for today.</div>
+      <div class="xt-stub-sub">Requires 15-min interval meterdata to be available.</div>
+    </div>
 
-      <div class="ecbs-grid-2">
-        <div>
-          <div class="ecbs-section-title">Nameplate Data</div>
-          <div class="ecbs-kv-table">
-            <div class="kv-row"><span class="kv-key">Asset ID</span><span class="kv-val">{{ selected.asset_id }}</span></div>
-            <div class="kv-row"><span class="kv-key">Manufacturer</span><span class="kv-val">{{ selected.manufacturer || '—' }}</span></div>
-            <div class="kv-row"><span class="kv-key">kVA Rating</span><span class="kv-val">{{ (selected.capacity_kva||0) | number:'1.0-0' }} kVA</span></div>
-            <div class="kv-row"><span class="kv-key">Voltage Ratio</span><span class="kv-val">{{ selected.voltage_ratio || '—' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Serial Number</span><span class="kv-val">{{ selected.serial_number || '—' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Install Date</span><span class="kv-val">{{ selected.install_date | date:'MMM y' }}</span></div>
-          </div>
-        </div>
-        <div>
-          <div class="ecbs-section-title">Live Analytics</div>
-          <div class="ecbs-kv-table">
-            <div class="kv-row"><span class="kv-key">Current Load</span><span class="kv-val">{{ (selected.current_load_kva||0) | number:'1.0-0' }} kVA</span></div>
-            <div class="kv-row"><span class="kv-key">Utilization</span><span class="kv-val" [style.color]="barColor(selected.utilization_pct||0)">{{ (selected.utilization_pct||0) | number:'1.1-1' }}%</span></div>
-            <div class="kv-row"><span class="kv-key">Power Factor</span><span class="kv-val" [class.kv-green]="(selected.power_factor||0)>=0.95">{{ (selected.power_factor||0) | number:'1.3-3' }}</span></div>
-            <div class="kv-row"><span class="kv-key">Harmonic Burden</span><span class="kv-val" [class.kv-amber]="(selected.harmonic_burden_pct||0)>15">{{ (selected.harmonic_burden_pct||0) | number:'1.1-1' }}%</span></div>
-            <div class="kv-row"><span class="kv-key">Capacity Recovered</span><span class="kv-val kv-green">+{{ (selected.recovered_kva||0) | number:'1.0-0' }} kVA</span></div>
-            <div class="kv-row"><span class="kv-key">Health Score</span>
-              <span class="kv-val">
-                <span class="health-score-pill" [class]="(selected.utilization_pct||0)<75?'hsp-excellent':(selected.utilization_pct||0)<85?'hsp-good':(selected.utilization_pct||0)<90?'hsp-fair':'hsp-poor'">
-                  {{ (selected.utilization_pct||0)<75?'Excellent':(selected.utilization_pct||0)<85?'Good':(selected.utilization_pct||0)<90?'Fair':'Critical' }}
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+    <!-- ═══════════════ POWER QUALITY TAB ════════════════════════════ -->
+    <div *ngIf="activeTab==='powerquality'" class="xt-tab-stub">
+      <span class="fa fa-bolt"></span>
+      <div>Power Quality — THD, PF, frequency, and imbalance in detail.</div>
+      <div class="xt-stub-sub">Drill into harmonic spectrum, waveform capture, and trend analysis.</div>
+    </div>
+
+    <!-- ═══════════════ CAPACITY & SAVINGS TAB ═══════════════════════ -->
+    <div *ngIf="activeTab==='capacity'" class="xt-tab-stub">
+      <span class="fa fa-magic"></span>
+      <div>Capacity &amp; Savings — Deferred upgrade value and savings breakdown.</div>
+      <div class="xt-stub-sub">Detailed EM&amp;V reporting and ROI analysis available in Reports.</div>
+    </div>
+
+    <!-- ═══════════════ ALARMS TAB ════════════════════════════════════ -->
+    <div *ngIf="activeTab==='alarms'" class="xt-tab-stub">
+      <span class="fa fa-bell"></span>
+      <div>Alarms &amp; Events — transformer-specific alarm history.</div>
+      <a class="btn-ecbs btn-outline" routerLink="/ecbs/alarms" style="margin-top:14px;">View All Alarms</a>
+    </div>
+
+    <!-- ═══════════════ MAINTENANCE TAB ══════════════════════════════ -->
+    <div *ngIf="activeTab==='maintenance'" class="xt-tab-stub">
+      <span class="fa fa-wrench"></span>
+      <div>Maintenance log, inspection records, and scheduled service.</div>
     </div>
 
   </ng-container>

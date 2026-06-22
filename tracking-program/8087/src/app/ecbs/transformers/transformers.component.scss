@@ -1,28 +1,242 @@
 @import "../../../scss/_vars";
 
-.transformer-layout {
-  display: grid; grid-template-columns: 260px 1fr; gap: 16px;
-  @media (max-width: 800px) { grid-template-columns: 1fr; }
+// ── Breadcrumb & header ────────────────────────────────────────────────────
+.xt-breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: $ecbs-text-secondary; margin-bottom: 4px;
+}
+.xt-bc-parent { color: $ecbs-text-secondary; }
+.xt-bc-sep    { font-size: 9px; color: $ecbs-text-label; }
+.xt-bc-current { color: $ecbs-text-primary; font-weight: 600; }
+
+.xt-main-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 22px; font-weight: 700; color: $ecbs-text-primary; margin: 0;
+}
+.xt-status-badge {
+  font-size: 11px; font-weight: 600; padding: 3px 8px;
+  border-radius: 12px; display: inline-flex; align-items: center; gap: 5px;
 }
 
-.transformer-list-panel { }
-.t-asset-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 8px; cursor: pointer;
-  border: 1px solid transparent; background: $ecbs-card-bg;
-  transition: all 0.15s; margin-bottom: 6px;
-  &.active { border-color: rgba(0,230,118,0.3); background: $ecbs-hover; }
+.xt-meta-bar {
+  display: flex; gap: 16px; margin-top: 6px;
+  font-size: 11px; color: $ecbs-text-secondary;
+  flex-wrap: wrap;
+  strong { color: $ecbs-text-primary; margin-right: 2px; }
+}
+
+// ── Transformer selector ───────────────────────────────────────────────────
+.xt-selector-row {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.xt-sel-btn {
+  display: flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 8px;
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  color: $ecbs-text-secondary; font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+  .fa { font-size: 12px; }
+  &.active { border-color: rgba(0,230,118,0.4); color: $ecbs-text-primary; background: $ecbs-hover; }
   &:hover:not(.active) { background: $ecbs-hover; }
 }
-.t-asset-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(41,182,246,0.12); display: flex; align-items: center; justify-content: center; .fa { color: #29b6f6; } }
-.t-asset-name { font-size: 13px; font-weight: 600; color: $ecbs-text-primary; }
-.t-asset-sub  { font-size: 11px; color: $ecbs-text-secondary; }
-.t-asset-info { flex: 1; }
+.xt-sel-badge {
+  padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 700;
+}
 
-.transformer-detail-panel {}
-.td-header { }
-.td-title { font-size: 18px; font-weight: 700; color: $ecbs-text-primary; }
-.td-sub   { font-size: 12px; color: $ecbs-text-secondary; margin-top: 2px; }
+// ── Loading / empty ────────────────────────────────────────────────────────
+.xt-loading {
+  display: flex; align-items: center; gap: 10px;
+  padding: 40px 0; color: $ecbs-text-secondary; font-size: 14px;
+  .fa { color: $ecbs-green; }
+}
+.xt-empty-card {
+  text-align: center; padding: 48px 24px; background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border; border-radius: 12px;
+}
+.xt-empty-icon { font-size: 36px; color: $ecbs-text-label; display: block; margin-bottom: 12px; }
+.xt-empty-title { font-size: 16px; font-weight: 600; color: $ecbs-text-primary; margin-bottom: 8px; }
 
-.t-load-bar-track { height: 12px; background: $ecbs-card-border; border-radius: 6px; overflow: hidden; }
-.t-load-bar-fill  { height: 100%; border-radius: 6px; transition: width 0.5s; }
+// ── Tabs ───────────────────────────────────────────────────────────────────
+.xt-tabs {
+  display: flex; gap: 0; margin-bottom: 16px;
+  border-bottom: 1px solid $ecbs-card-border; overflow-x: auto;
+}
+.xt-tab {
+  padding: 10px 18px; background: none; border: none; cursor: pointer;
+  color: $ecbs-text-secondary; font-size: 13px; font-weight: 500;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s; white-space: nowrap;
+  &:hover { color: $ecbs-text-primary; }
+  &.active { color: $ecbs-green; border-bottom-color: $ecbs-green; font-weight: 600; }
+}
+
+// ── Tab stub (placeholder) ─────────────────────────────────────────────────
+.xt-tab-stub {
+  background: $ecbs-card-bg; border: 1px dashed $ecbs-card-border;
+  border-radius: 12px; padding: 48px 24px; text-align: center;
+  color: $ecbs-text-secondary; font-size: 14px;
+  .fa { font-size: 32px; margin-bottom: 12px; display: block; color: $ecbs-text-label; }
+}
+.xt-stub-sub { font-size: 12px; color: $ecbs-text-label; margin-top: 6px; }
+
+// ── KPI cards row ─────────────────────────────────────────────────────────
+.xt-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.xt-kpi-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 14px 16px;
+}
+.xt-kpi-label { font-size: 9px; font-weight: 700; color: $ecbs-text-secondary; letter-spacing: 0.06em; margin-bottom: 8px; }
+.xt-kpi-value { font-size: 28px; font-weight: 700; color: $ecbs-text-primary; line-height: 1; }
+.xt-kpi-unit  { font-size: 12px; color: $ecbs-text-secondary; margin-top: 2px; }
+.xt-kpi-sub   { font-size: 11px; color: $ecbs-text-secondary; margin-top: 4px; }
+.xt-kpi-detail { font-size: 11px; color: $ecbs-text-secondary; margin-top: 6px; line-height: 1.6; }
+
+// Utilization
+.xt-util-wrap  { display: flex; align-items: center; gap: 10px; }
+.xt-util-meta  { flex: 1; }
+.xt-util-kva   { font-size: 16px; font-weight: 700; }
+.xt-util-sub   { font-size: 10px; color: $ecbs-text-secondary; }
+
+// CBI
+.xt-cbi-wrap  { display: flex; align-items: center; gap: 10px; }
+.xt-cbi-meta  { flex: 1; }
+.xt-cbi-rating { font-size: 14px; font-weight: 700; }
+
+// Health
+.xt-health-wrap {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.xt-health-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  .fa { font-size: 16px; }
+}
+.xt-health-label { font-size: 15px; font-weight: 700; }
+.xt-health-metrics { font-size: 10px; color: $ecbs-text-secondary; line-height: 1.7; }
+
+// Savings
+.xt-savings-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(206,147,216,0.15); display: flex; align-items: center; justify-content: center;
+  margin-bottom: 6px; .fa { font-size: 18px; color: #ce93d8; }
+}
+
+// ── Charts row ─────────────────────────────────────────────────────────────
+.xt-charts-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
+}
+.xt-chart-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 14px 16px; overflow: hidden;
+}
+.xt-chart-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; gap: 8px; flex-wrap: wrap;
+}
+.xt-chart-title { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: $ecbs-text-secondary; }
+.xt-chart-legend {
+  display: flex; align-items: center; gap: 4px; font-size: 10px; color: $ecbs-text-secondary;
+}
+.xt-leg-dot  { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.xt-leg-dash { width: 14px; height: 0; border-top: 2px dashed; display: inline-block; vertical-align: middle; }
+.xt-chart-body { width: 100%; overflow: hidden; }
+.xt-chart-empty {
+  padding: 30px 0; text-align: center; color: $ecbs-text-secondary; font-size: 12px;
+  .fa { font-size: 22px; margin-right: 8px; color: $ecbs-text-label; }
+}
+
+// ── Bottom panels row ──────────────────────────────────────────────────────
+.xt-bottom-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px;
+}
+.xt-bottom-card {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 14px 16px;
+}
+.xt-card-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  color: $ecbs-text-secondary; margin-bottom: 12px;
+}
+
+// Capacity donut
+.xt-cap-wrap         { display: flex; align-items: center; gap: 12px; }
+.xt-cap-donut-wrap   { flex-shrink: 0; }
+.xt-cap-metrics      { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.xt-cap-row          { display: flex; align-items: center; gap: 6px; font-size: 11px; color: $ecbs-text-secondary; }
+.xt-cap-dot          { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.xt-cap-val          { margin-left: auto; font-weight: 600; color: $ecbs-text-primary; }
+
+// Phase table
+.xt-phase-table {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+  th { text-align: left; padding: 5px 6px; font-size: 10px; font-weight: 600;
+       color: $ecbs-text-secondary; border-bottom: 1px solid $ecbs-card-border; }
+  td { padding: 6px 6px; border-bottom: 1px solid rgba(30,45,69,0.4);
+       color: $ecbs-text-primary; }
+  tr:last-child td { border-bottom: none; }
+}
+.xt-phase-name { font-weight: 700; color: $ecbs-green; }
+.xt-phase-avg  { background: rgba(255,255,255,0.02);
+  td { color: $ecbs-text-secondary; font-style: italic; } }
+.xt-phase-note {
+  font-size: 10px; color: $ecbs-text-label; margin-top: 8px; font-style: italic;
+}
+
+// Power quality table
+.xt-pq-table {
+  width: 100%; border-collapse: collapse; font-size: 11px;
+  th { text-align: left; padding: 5px 6px; font-size: 10px; font-weight: 600;
+       color: $ecbs-text-secondary; border-bottom: 1px solid $ecbs-card-border; }
+  td { padding: 7px 6px; border-bottom: 1px solid rgba(30,45,69,0.4);
+       color: $ecbs-text-primary; }
+  tr:last-child td { border-bottom: none; }
+}
+.xt-pq-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px;
+  vertical-align: middle;
+}
+.xt-pq-good     { background: #00e676; }
+.xt-pq-warning  { background: #ffd740; }
+.xt-pq-critical { background: #f44336; }
+
+// Transformer details
+.xt-details-table { display: flex; flex-direction: column; gap: 4px; }
+.xt-det-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; padding: 4px 0;
+  border-bottom: 1px solid rgba(30,45,69,0.4);
+  &:last-child { border-bottom: none; }
+}
+.xt-det-key { color: $ecbs-text-secondary; }
+.xt-det-val { color: $ecbs-text-primary; font-weight: 600; text-align: right; }
+
+// Savings row
+.xt-savings-row {
+  background: $ecbs-card-bg; border: 1px solid $ecbs-card-border;
+  border-radius: 12px; padding: 14px 18px; margin-bottom: 0;
+}
+.xt-sav-items { display: flex; flex-direction: column; gap: 6px; }
+.xt-sav-item {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; color: $ecbs-text-secondary;
+  padding: 6px 0; border-bottom: 1px solid rgba(30,45,69,0.4);
+  &:last-child { border-bottom: none; }
+}
+.xt-sav-total { .xt-sav-val { font-size: 16px; } font-weight: 600; color: $ecbs-text-primary; }
+.xt-sav-val   { font-weight: 700; font-size: 14px; }
+
+// ── Responsive ─────────────────────────────────────────────────────────────
+@media (max-width: 1400px) {
+  .xt-kpi-row    { grid-template-columns: repeat(3, 1fr); }
+  .xt-bottom-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .xt-kpi-row    { grid-template-columns: repeat(2, 1fr); }
+  .xt-charts-row { grid-template-columns: 1fr; }
+  .xt-bottom-row { grid-template-columns: 1fr; }
+}
