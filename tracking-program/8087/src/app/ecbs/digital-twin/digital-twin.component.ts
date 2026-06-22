@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 
@@ -81,8 +81,6 @@ export class DigitalTwinComponent implements OnInit {
   showSldUpload = false;
   topoMeters: any[] = [];
 
-  @ViewChild('sldFileInput') sldFileInput: ElementRef;
-
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
   ngOnInit() {
@@ -162,6 +160,11 @@ export class DigitalTwinComponent implements OnInit {
   }
 
   // ── SLD upload & GPU analysis ──────────────────────────────────────────────
+
+  triggerSldInput() {
+    const el = document.getElementById('sldFileInputEl') as HTMLInputElement;
+    if (el) { el.click(); }
+  }
 
   onSldFileSelected(event: any) {
     const file = event?.target?.files?.[0];

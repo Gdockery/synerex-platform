@@ -48,11 +48,11 @@
             to extract the electrical topology and automatically seed the Digital Twin.
           </p>
           <div *ngIf="!sldUploading && sldJobStatus!=='processing' && sldJobStatus!=='done' && sldJobStatus!=='error'" class="ncs-sld-dropzone"
-            (click)="sldFileInput.click()">
+            (click)="triggerSldInput()">
             <span class="fa fa-file-pdf-o" style="font-size:28px;color:#546e7a;display:block;margin-bottom:8px;"></span>
             <div style="font-size:12px;font-weight:600;color:#e0e6ed;">Drop one-line PDF here or click to browse</div>
             <div style="font-size:10px;color:#546e7a;margin-top:4px;">PDF, PNG, JPG or WebP · Max 50MB</div>
-            <input #sldFileInput type="file" accept=".pdf,.png,.jpg,.jpeg,.webp"
+            <input id="sldFileInputEl" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp"
               style="display:none;" (change)="onSldFileSelected($event)">
           </div>
           <div *ngIf="sldUploading" style="text-align:center;padding:20px;color:#ffd740;">
