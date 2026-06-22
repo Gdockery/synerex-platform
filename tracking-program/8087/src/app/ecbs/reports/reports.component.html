@@ -1,155 +1,260 @@
 <!-- ECBS OS™ Reports — Spec SS-14 / Reporting Engine™ -->
-<div class="ecbs-page">
-  <div class="ecbs-page-header">
-    <div class="page-title-block">
-      <h1>Reporting Engine™</h1>
-      <p>Generate, schedule, and download engineering-grade ECBS intelligence reports — PDF, Excel, CSV, JSON.</p>
+<div class="reports-page">
+
+  <!-- ── Page Header ── -->
+  <div class="reports-header">
+    <div class="reports-header-left">
+      <h1>Reports</h1>
+      <p>Generate, schedule, and export reports to share insights and prove impact.</p>
     </div>
-    <div class="page-actions">
-      <button class="btn-ecbs btn-outline" (click)="loadReports()"><span class="fa fa-refresh"></span> Refresh</button>
+    <div class="reports-header-right">
+      <div class="search-box">
+        <span class="fa fa-search"></span>
+        <input type="text" placeholder="Search reports..." [(ngModel)]="searchQuery">
+      </div>
+      <button class="btn-create-report" disabled title="Report generation coming soon">
+        <span class="fa fa-plus"></span> Create Custom Report
+      </button>
     </div>
   </div>
 
-  <!-- Generate new report row -->
-  <div class="ecbs-grid-2" style="margin-bottom:20px;">
+  <!-- ── Tab Bar ── -->
+  <div class="reports-tabs">
+    <button class="reports-tab" [class.active]="activeTab==='all'"       (click)="setTab('all')">All Reports</button>
+    <button class="reports-tab" [class.active]="activeTab==='scheduled'" (click)="setTab('scheduled')">Scheduled Reports</button>
+    <button class="reports-tab" [class.active]="activeTab==='custom'"    (click)="setTab('custom')">Custom Reports</button>
+    <button class="reports-tab" [class.active]="activeTab==='history'"   (click)="setTab('history')">Report History</button>
+  </div>
 
-    <div class="ecbs-card">
-      <div class="ecbs-card-title"><span class="fa fa-magic"></span> Generate Report</div>
-      <div class="report-form">
-        <label class="form-label">Report Type</label>
-        <select class="ecbs-select" [(ngModel)]="reportType">
-          <option value="executive">Executive Summary</option>
-          <option value="savings">Savings Intelligence™</option>
-          <option value="capacity">Capacity Intelligence™</option>
-          <option value="current_balance">Current Balance Intelligence™</option>
-          <option value="utility">Utility Intelligence™ (uBillTracker)</option>
-          <option value="alarms">Alarms &amp; Events</option>
-          <option value="devices">Device Health</option>
-          <option value="deployment">Deployment Status</option>
-          <option value="oem">OEM Reports™</option>
-          <option value="royalty">Royalty Reports™</option>
-          <option value="full">Full ECBS Report (All Modules)</option>
-        </select>
+  <!-- ── Main Content ── -->
+  <div class="reports-body">
+    <!-- Left / Center -->
+    <div class="reports-main">
 
-        <label class="form-label" style="margin-top:12px;">Export Format</label>
-        <select class="ecbs-select" [(ngModel)]="format">
-          <option value="excel">Excel (.xlsx)</option>
-          <option value="pdf">PDF (.pdf)</option>
-          <option value="csv">CSV (.csv)</option>
-          <option value="json">JSON (API)</option>
-        </select>
-
-        <label class="form-label" style="margin-top:12px;">Date Range</label>
-        <select class="ecbs-select" [(ngModel)]="dateRange">
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-          <option value="90d">Last 90 Days</option>
-          <option value="12mo">Last 12 Months</option>
-          <option value="ytd">Year to Date</option>
-          <option value="lifetime">Lifetime</option>
-        </select>
-
-        <button class="btn-ecbs btn-primary" style="margin-top:16px;width:100%;"
-          (click)="generateReport()" [disabled]="generating">
-          <span class="fa" [class.fa-file-text]="!generating" [class.fa-spinner]="generating" [class.fa-spin]="generating"></span>
-          {{ generating ? 'Generating...' : 'Generate Report' }}
-        </button>
-        <div *ngIf="generateMsg" style="margin-top:8px;font-size:11px;color:#00e676;text-align:center;">
-          <span class="fa fa-check-circle"></span> {{ generateMsg }}
+      <!-- Category Cards (only on All Reports tab) -->
+      <div class="category-cards" *ngIf="activeTab==='all' || activeTab==='history'">
+        <div class="cat-card" *ngFor="let c of categoryCards"
+             [class.active]="filterCategory===c.key"
+             (click)="selectCategory(c.key)">
+          <div class="cat-icon">
+            <span class="fa" [ngClass]="c.icon"></span>
+          </div>
+          <div class="cat-info">
+            <div class="cat-label">{{ c.label }}</div>
+            <div class="cat-desc">{{ c.description }}</div>
+            <div class="cat-count">{{ c.count }} Report{{ c.count !== 1 ? 's' : '' }}</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="ecbs-card">
-      <div class="ecbs-card-title"><span class="fa fa-list-alt"></span> Available Report Types</div>
-      <div class="report-type-list">
-        <div class="report-type-item">
-          <span class="fa fa-briefcase"></span>
-          <div><strong>Executive Summary</strong><p>High-level KPIs for management — annual savings, ROI, payback, capacity, alarms.</p></div>
+      <!-- ── All Reports Table ── -->
+      <div class="reports-card" *ngIf="activeTab==='all' || activeTab==='custom' || activeTab==='history'">
+        <div class="reports-card-header">
+          <div class="reports-card-title">AVAILABLE REPORTS</div>
+          <div class="reports-card-filters">
+            <select class="filter-select" [(ngModel)]="filterCategory" (change)="applyFilters()">
+              <option value="">All Categories</option>
+              <option value="executive_summary">Executive Summary</option>
+              <option value="capacity_performance">Capacity &amp; Performance</option>
+              <option value="power_quality">Power Quality</option>
+              <option value="savings_financials">Savings &amp; Financials</option>
+              <option value="environmental_impact">Environmental Impact</option>
+              <option value="alarms_events">Alerts &amp; Events</option>
+              <option value="custom">Custom</option>
+            </select>
+            <select class="filter-select" [(ngModel)]="filterFormat" (change)="applyFilters()">
+              <option value="">All Formats</option>
+              <option value="pdf">PDF</option>
+              <option value="excel">Excel</option>
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+            </select>
+            <button class="filter-btn" (click)="clearFilters()">
+              <span class="fa fa-times"></span> Clear
+            </button>
+          </div>
         </div>
-        <div class="report-type-item">
-          <span class="fa fa-dollar"></span>
-          <div><strong>Savings Intelligence™</strong><p>Full baseline vs. current comparison — energy, demand, PF savings, ROI engine.</p></div>
+
+        <!-- Loading -->
+        <div class="reports-loading" *ngIf="loading">
+          <span class="fa fa-spinner fa-spin"></span> Loading reports...
         </div>
-        <div class="report-type-item">
-          <span class="fa fa-tachometer"></span>
-          <div><strong>Capacity Intelligence™</strong><p>Transformer utilization, hidden capacity, recovered kVA, deferred capital.</p></div>
+
+        <!-- Empty state -->
+        <div class="reports-empty" *ngIf="!loading && visibleReports.length===0">
+          <span class="fa fa-folder-open-o"></span>
+          <div class="empty-title">No Reports Found</div>
+          <p>{{ filterCategory || filterFormat ? 'Try clearing filters.' : 'No reports have been generated yet. Report generation is coming soon.' }}</p>
+          <button class="btn-outline-sm" *ngIf="filterCategory || filterFormat" (click)="clearFilters()">Clear Filters</button>
         </div>
-        <div class="report-type-item">
-          <span class="fa fa-bolt"></span>
-          <div><strong>Current Balance Intelligence™</strong><p>CBI Score history, harmonic burden, reactive burden, neutral loading.</p></div>
-        </div>
-        <div class="report-type-item">
-          <span class="fa fa-file-text-o"></span>
-          <div><strong>Full ECBS Report</strong><p>All intelligence modules in one comprehensive engineering-grade document.</p></div>
+
+        <!-- Table -->
+        <table class="reports-table" *ngIf="!loading && visibleReports.length>0">
+          <thead>
+            <tr>
+              <th>Report Name</th>
+              <th>Category</th>
+              <th>Description</th>
+              <th>Format</th>
+              <th>Last Generated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of visibleReports">
+              <td class="report-name-cell">
+                <span class="report-icon fa" [ngClass]="formatIcon(r.format)" [style.color]="r.format==='pdf'?'#e53935':r.format==='excel'?'#388e3c':r.format==='csv'?'#0288d1':'#8899a6'"></span>
+                <span>{{ r.name || categoryLabel(r.category) }}</span>
+              </td>
+              <td class="category-cell">{{ categoryLabel(r.category) }}</td>
+              <td class="desc-cell">{{ r.description || '—' }}</td>
+              <td class="format-cell">
+                <span class="format-badge" [ngClass]="'fmt-'+r.format">{{ formatLabel(r.format) }}</span>
+              </td>
+              <td class="date-cell">{{ formatDate(r.generated_at) }}</td>
+              <td class="actions-cell">
+                <button class="action-btn" title="Download" (click)="downloadReport(r)"
+                        [disabled]="r.status!=='complete'">
+                  <span class="fa fa-download"></span>
+                </button>
+                <span class="status-badge" [ngClass]="statusClass(r.status)">{{ r.status }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div class="reports-pagination" *ngIf="!loading && totalPages > 1">
+          <button class="page-btn" (click)="goPage(currentPage-1)" [disabled]="currentPage===1">
+            <span class="fa fa-chevron-left"></span>
+          </button>
+          <button class="page-btn" *ngFor="let n of pageNumbers"
+                  [class.active]="n===currentPage" (click)="goPage(n)">{{ n }}</button>
+          <button class="page-btn" (click)="goPage(currentPage+1)" [disabled]="currentPage===totalPages">
+            <span class="fa fa-chevron-right"></span>
+          </button>
         </div>
       </div>
-    </div>
 
-  </div>
+      <!-- ── Scheduled Reports Tab ── -->
+      <div class="reports-card" *ngIf="activeTab==='scheduled'">
+        <div class="reports-card-header">
+          <div class="reports-card-title">SCHEDULED REPORTS</div>
+          <button class="btn-outline-sm" disabled title="Coming soon">
+            <span class="fa fa-plus"></span> Add Schedule
+          </button>
+        </div>
 
-  <!-- Scheduled Reports -->
-  <div class="ecbs-card" style="margin-bottom:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <div class="ecbs-card-title" style="margin-bottom:0;border:none;padding-bottom:0;"><span class="fa fa-clock-o"></span> Scheduled Reports</div>
-      <button class="btn-ecbs btn-outline btn-sm"><span class="fa fa-plus"></span> Schedule Report</button>
-    </div>
-    <div *ngIf="scheduledReports.length===0" style="padding:16px 0;font-size:12px;color:#546e7a;">
-      No scheduled reports configured. Set up automated weekly or monthly reports.
-      <button class="btn-ecbs btn-outline btn-xs" style="margin-left:10px;" (click)="addSampleSchedules()">Load Example Schedules</button>
-    </div>
-    <table *ngIf="scheduledReports.length>0" class="ecbs-table">
-      <thead><tr><th>Report</th><th>Frequency</th><th>Format</th><th>Next Run</th><th>Recipients</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr *ngFor="let sr of scheduledReports">
-          <td style="font-weight:600;">{{ sr.name }}</td>
-          <td>{{ sr.frequency }}</td>
-          <td><span class="fa" [class.fa-file-excel-o]="sr.format==='excel'" [class.fa-file-pdf-o]="sr.format==='pdf'"></span> {{ sr.format | uppercase }}</td>
-          <td style="font-size:11px;color:#8899a6;">{{ sr.nextRun }}</td>
-          <td style="font-size:11px;color:#546e7a;">{{ sr.recipients }}</td>
-          <td><span [class]="sr.enabled?'badge-healthy':'badge-offline'">{{ sr.enabled?'Active':'Paused' }}</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+        <div class="reports-empty" *ngIf="scheduledReports.length===0">
+          <span class="fa fa-clock-o"></span>
+          <div class="empty-title">No Scheduled Reports</div>
+          <p>Set up automated weekly or monthly reports to keep stakeholders informed.</p>
+        </div>
 
-  <!-- Report Catalog -->
-  <div class="ecbs-card">
-    <div class="ecbs-card-title"><span class="fa fa-folder-open-o"></span> Report Catalog</div>
+        <table class="reports-table" *ngIf="scheduledReports.length>0">
+          <thead>
+            <tr>
+              <th>Report</th>
+              <th>Frequency</th>
+              <th>Format</th>
+              <th>Next Run</th>
+              <th>Recipients</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of scheduledReports">
+              <td class="report-name-cell"><span class="fa fa-clock-o"></span> {{ s.name }}</td>
+              <td>{{ frequencyLabel(s.frequency) }}</td>
+              <td>
+                <span class="format-badge" [ngClass]="'fmt-'+(s.format||'pdf')">{{ formatLabel(s.format) }}</span>
+              </td>
+              <td class="date-cell">{{ nextRunLabel(s.next_run_at) }}</td>
+              <td class="desc-cell">{{ s.notify_emails || '—' }}</td>
+              <td>
+                <span class="schedule-status" [class.active]="s.is_active">{{ s.is_active ? 'Active' : 'Paused' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-    <div *ngIf="loading" class="ecbs-spinner" style="padding:30px;"><span class="fa fa-spinner fa-spin"></span> Loading reports...</div>
+    </div><!-- /reports-main -->
 
-    <div *ngIf="!loading && reports.length===0" class="ecbs-empty">
-      <span class="empty-icon fa fa-file-o"></span>
-      <span class="empty-title">No Reports Generated Yet</span>
-      <p>Use the generator above to create your first ECBS intelligence report.</p>
-    </div>
+    <!-- ── Right Sidebar ── -->
+    <div class="reports-sidebar">
 
-    <table *ngIf="!loading && reports.length>0" class="ecbs-table">
-      <thead>
-        <tr><th>Report Name</th><th>Type</th><th>Format</th><th>Date Range</th><th>Status</th><th>Generated</th><th>Size</th><th>Action</th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let r of reports">
-          <td style="font-weight:600;">{{ r.title || r.report_type }}</td>
-          <td style="color:#8899a6;">{{ r.report_type | titlecase }}</td>
-          <td>
-            <span class="fa" [class.fa-file-excel-o]="r.format==='excel'" [class.fa-file-pdf-o]="r.format==='pdf'" [class.fa-file-code-o]="r.format==='json'" style="margin-right:4px;"></span>
-            {{ (r.format||'excel') | uppercase }}
-          </td>
-          <td style="font-size:11px;color:#8899a6;">{{ r.date_range || '—' }}</td>
-          <td><span [class]="statusClass(r.status)">{{ r.status | titlecase }}</span></td>
-          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ r.created_at | date:'MMM d, yyyy h:mm a' }}</td>
-          <td style="font-size:11px;color:#546e7a;">{{ r.file_size || '—' }}</td>
-          <td>
-            <a *ngIf="r.download_url" [href]="r.download_url" target="_blank" class="btn-ecbs btn-xs btn-primary">
-              <span class="fa fa-download"></span> Download
-            </a>
-            <span *ngIf="!r.download_url && r.status==='processing'" class="badge-warning">Processing</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+      <!-- Report Summary -->
+      <div class="sidebar-card">
+        <div class="sidebar-card-title">REPORT SUMMARY <span class="period-label">This Period</span></div>
+        <div class="summary-grid">
+          <div class="summary-stat">
+            <span class="fa fa-file-text-o stat-icon blue"></span>
+            <div class="stat-val">{{ summaryLoading ? '—' : totalGenerated }}</div>
+            <div class="stat-lbl">Reports Generated</div>
+          </div>
+          <div class="summary-stat">
+            <span class="fa fa-calendar stat-icon green"></span>
+            <div class="stat-val">{{ summaryLoading ? '—' : activeScheduleCount }}</div>
+            <div class="stat-lbl">Scheduled Reports</div>
+          </div>
+          <div class="summary-stat">
+            <span class="fa fa-download stat-icon purple"></span>
+            <div class="stat-val">{{ summaryLoading ? '—' : totalDownloaded }}</div>
+            <div class="stat-lbl">Reports Downloaded</div>
+          </div>
+          <div class="summary-stat">
+            <span class="fa fa-clock-o stat-icon orange"></span>
+            <div class="stat-val">{{ summaryLoading ? '—' : totalViews }}</div>
+            <div class="stat-lbl">Total Report Views</div>
+          </div>
+        </div>
+      </div>
 
+      <!-- Scheduled Reports sidebar list -->
+      <div class="sidebar-card" *ngIf="scheduledReports.length>0">
+        <div class="sidebar-card-title">
+          SCHEDULED REPORTS
+          <a class="sidebar-view-all" (click)="setTab('scheduled')">View All →</a>
+        </div>
+        <div class="sched-list">
+          <div class="sched-row" *ngFor="let s of scheduledReports | slice:0:5">
+            <div class="sched-info">
+              <div class="sched-name">{{ s.name }}</div>
+              <div class="sched-freq">{{ frequencyLabel(s.frequency) }} &bull; {{ nextRunLabel(s.next_run_at) }}</div>
+            </div>
+            <span class="schedule-status small" [class.active]="s.is_active">{{ s.is_active ? 'Active' : 'Paused' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recently Generated -->
+      <div class="sidebar-card" *ngIf="recentlyGenerated.length>0">
+        <div class="sidebar-card-title">
+          RECENTLY GENERATED
+          <a class="sidebar-view-all" (click)="setTab('history')">View All →</a>
+        </div>
+        <div class="recent-list">
+          <div class="recent-row" *ngFor="let r of recentlyGenerated | slice:0:5">
+            <span class="fa recent-icon" [ngClass]="formatIcon(r.format)" [style.color]="r.format==='pdf'?'#e53935':r.format==='excel'?'#388e3c':'#0288d1'"></span>
+            <div class="recent-info">
+              <div class="recent-name">{{ r.name || categoryLabel(r.category) }}</div>
+              <div class="recent-date">{{ formatDate(r.generated_at) }}</div>
+            </div>
+            <span class="format-badge small" [ngClass]="'fmt-'+r.format">{{ formatLabel(r.format) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty sidebar state -->
+      <div class="sidebar-card" *ngIf="!summaryLoading && recentlyGenerated.length===0 && scheduledReports.length===0">
+        <div class="sidebar-card-title">RECENTLY GENERATED</div>
+        <div class="sidebar-empty">
+          <span class="fa fa-file-o"></span>
+          <p>No reports generated yet.</p>
+        </div>
+      </div>
+
+    </div><!-- /reports-sidebar -->
+  </div><!-- /reports-body -->
 </div>
