@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 
@@ -72,6 +72,17 @@ export class DigitalTwinComponent implements OnInit {
     { id: 'weld',   name: 'Welding Station',   category: 'Process', kw: 60,  kva: 75,  voltage: '480V', phase: '3Ø', icon: 'fa-wrench' },
   ];
 
+  // SLD upload / GPU analysis
+  sldUploading  = false;
+  sldJobId: number|null = null;
+  sldJobStatus  = '';          // 'pending' | 'processing' | 'done' | 'error'
+  sldError      = '';
+  sldPollTimer: any = null;
+  showSldUpload = false;
+  topoMeters: any[] = [];
+
+  @ViewChild('sldFileInput') sldFileInput: ElementRef;
+
   constructor(private api: ApiRequestService, private userService: CurrentUserService) {}
 
   ngOnInit() {
@@ -80,27 +91,153 @@ export class DigitalTwinComponent implements OnInit {
     this.projectId = p.id;
     this.projectName = p.name ? p.name.toString() : '';
 
-    this.api.get(`/api/capacity/assets?project_id=${this.projectId}`).subscribe({
+    this.loadTwinData();
+  }
+
+  loadTwinData() {
+    this.loading = true;
+    const pid = this.projectId;
+
+    // Load digital twin assets
+    this.api.get(`/api/digital-twin/?site_id=${pid}`).subscribe({
       next: (r: any) => {
-        const raw: any[] = r?.data || r?.assets || [];
-        this.twinNodes = raw.map(a => ({
-          id:              a.asset_id || a.id,
-          type:            a.asset_type || a.type || 'unknown',
-          label:           a.label || a.name || a.asset_id,
-          rated_kva:       a.rated_kva || a.kva_rating || null,
-          voltage_in:      a.voltage_in || null,
-          voltage_out:     a.voltage_out || null,
-          used_kva:        a.used_kva || 0,
-          utilization_pct: a.utilization_pct || null,
-          status:          a.status || 'unknown',
-        }));
+        const twins: any[] = r?.data || [];
+        if (twins.length > 0) {
+          const twin = twins[0];
+          this.loadTwinSnapshot(twin.id);
+        } else {
+          // Fall back to capacity assets
+          this.api.get(`/api/capacity/assets?project_id=${pid}`).subscribe({
+            next: (r2: any) => {
+              const raw: any[] = r2?.data || r2?.assets || [];
+              this.twinNodes = raw.map(a => this._mapAsset(a));
+              this.loading = false;
+            },
+            error: () => { this.loading = false; }
+          });
+        }
+      },
+      error: () => {
+        this.api.get(`/api/capacity/assets?project_id=${pid}`).subscribe({
+          next: (r2: any) => {
+            const raw: any[] = r2?.data || r2?.assets || [];
+            this.twinNodes = raw.map(a => this._mapAsset(a));
+            this.loading = false;
+          },
+          error: () => { this.loading = false; }
+        });
+      }
+    });
+
+    this.api.get(`/api/current-balance/summary?project_id=${pid}`).subscribe({
+      next: (r: any) => { this.cbi = r; }, error: () => {}
+    });
+  }
+
+  loadTwinSnapshot(twinId: number) {
+    this.api.get(`/api/digital-twin/${twinId}`).subscribe({
+      next: (r: any) => {
+        const snap = r?.data?.snapshot || {};
+        const assets: any[] = snap.assets || [];
+        this.relationships  = snap.relationships || [];
+        this.twinNodes = assets.map(a => this._mapAsset(a));
         this.loading = false;
       },
       error: () => { this.loading = false; }
     });
+  }
 
-    this.api.get(`/api/current-balance/summary?project_id=${this.projectId}`).subscribe({
-      next: (r: any) => { this.cbi = r; }, error: () => {}
+  _mapAsset(a: any): TwinNode {
+    return {
+      id:              a.asset_uid || a.id,
+      type:            a.asset_type || a.type || 'unknown',
+      label:           a.name || a.label || a.asset_uid || 'Asset',
+      rated_kva:       a.kva_rating || a.rated_kva || null,
+      voltage_in:      a.voltage_primary || a.voltage_in || null,
+      voltage_out:     a.voltage_secondary || a.voltage_out || null,
+      used_kva:        a.used_kva || 0,
+      utilization_pct: a.utilization_pct || null,
+      status:          a.status || 'active',
+    };
+  }
+
+  // ── SLD upload & GPU analysis ──────────────────────────────────────────────
+
+  onSldFileSelected(event: any) {
+    const file = event?.target?.files?.[0];
+    if (!file) { return; }
+    this.uploadSld(file);
+  }
+
+  uploadSld(file: File) {
+    this.sldUploading = true;
+    this.sldError     = '';
+    this.sldJobStatus = 'pending';
+
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    if (this.currentLoadKw > 0) {
+      fd.append('bill_peak_kw', String(Math.round(this.currentLoadKw)));
+    }
+
+    this.api.postFormData('/api/sld/analyze', fd).subscribe({
+      next: (r: any) => {
+        this.sldUploading = false;
+        this.sldJobId     = r?.job_id;
+        this.sldJobStatus = 'processing';
+        this.startSldPoll();
+      },
+      error: (e: any) => {
+        this.sldUploading = false;
+        this.sldJobStatus = 'error';
+        this.sldError     = e?.error?.error || 'Upload failed';
+      }
+    });
+  }
+
+  startSldPoll() {
+    if (this.sldPollTimer) { clearInterval(this.sldPollTimer); }
+    this.sldPollTimer = setInterval(() => { this.checkSldStatus(); }, 20000);
+  }
+
+  checkSldStatus() {
+    if (!this.sldJobId) { return; }
+    this.api.get(`/api/sld/analyze/${this.sldJobId}`).subscribe({
+      next: (r: any) => {
+        if (r?.status === 'done') {
+          clearInterval(this.sldPollTimer);
+          this.sldJobStatus = 'done';
+          this.applySldResult(r?.result || {});
+        } else if (r?.status === 'error') {
+          clearInterval(this.sldPollTimer);
+          this.sldJobStatus = 'error';
+          this.sldError = r?.error || 'GPU analysis failed';
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  applySldResult(result: any) {
+    // Fetch the topology format from the dedicated endpoint
+    this.api.get(`/api/sld/${this.sldJobId}/topology`).subscribe({
+      next: (r: any) => {
+        this.topoMeters = r?.topo_meters || [];
+        // Now seed the digital twin
+        this.seedTwinFromSld();
+      },
+      error: () => {}
+    });
+  }
+
+  seedTwinFromSld() {
+    if (!this.sldJobId) { return; }
+    this.api.post(`/api/project/${this.projectId}/sld/seed-twin`, { gpu_id: this.sldJobId }).subscribe({
+      next: (r: any) => {
+        this.showSldUpload = false;
+        this.loadTwinData(); // Reload topology after seeding
+      },
+      error: () => {}
     });
   }
 

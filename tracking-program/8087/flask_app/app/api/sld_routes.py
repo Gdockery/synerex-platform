@@ -1,10 +1,12 @@
 """
 SLD (Single-Line Drawing) routes.
 
-POST /api/sld/analyze              — submit file to GPU, return GPU job ID immediately
-GET  /api/sld/analyze/<gpu_id>     — pure GPU proxy
-POST /api/project/<id>/sld/accept  — save placements + sldAnalysis to project
-POST /api/project/<id>/sld/dismiss — front-end only acknowledgment
+POST /api/sld/analyze                  — submit file to GPU, return GPU job ID immediately
+GET  /api/sld/analyze/<gpu_id>         — pure GPU proxy
+POST /api/project/<id>/sld/accept      — save placements + sldAnalysis to project
+POST /api/project/<id>/sld/dismiss     — front-end only acknowledgment
+POST /api/project/<id>/sld/seed-twin   — accept SLD result AND seed the Digital Twin in one call
+GET  /api/sld/<gpu_id>/topology        — return GPU result formatted as topoMeters JSON
 """
 import logging
 import os
@@ -83,6 +85,31 @@ def analyze_sld():
     extra_data = {}
     if bill_peak_kw is not None:
         extra_data["bill_peak_kw"] = str(bill_peak_kw)
+
+    # If PDF, pre-convert to PNG locally to work around GPU server's pdf→image bug.
+    # Falls back to sending PDF directly if conversion is unavailable.
+    if ext == "pdf":
+        try:
+            import subprocess, tempfile, os as _os
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp_pdf:
+                tmp_pdf.write(file_bytes)
+                tmp_pdf_path = tmp_pdf.name
+            tmp_png_prefix = tmp_pdf_path.replace(".pdf", "_page")
+            result = subprocess.run(
+                ["pdftoppm", "-r", "200", "-png", "-singlefile", tmp_pdf_path, tmp_png_prefix],
+                capture_output=True, timeout=60
+            )
+            _os.unlink(tmp_pdf_path)
+            png_path = tmp_png_prefix + ".png"
+            if result.returncode == 0 and _os.path.exists(png_path):
+                with open(png_path, "rb") as png_fh:
+                    file_bytes = png_fh.read()
+                _os.unlink(png_path)
+                filename = filename.replace(".pdf", ".png").replace(".PDF", ".png")
+                ct = "image/png"
+                logger.info("PDF pre-converted to PNG before GPU submission: %s", filename)
+        except Exception as conv_err:
+            logger.warning("PDF→PNG conversion failed (%s) — sending PDF directly", conv_err)
 
     try:
         resp = _requests.post(
@@ -235,3 +262,199 @@ def accept_sld(project_id: int):
 def dismiss_sld(project_id: int):
     """POST /api/project/<id>/sld/dismiss — front-end only acknowledgment."""
     return jsonify({"success": True})
+
+
+def _gpu_result_to_topo_meters(result: dict) -> list:
+    """
+    Convert raw Qwen 2.5 VL GPU result → topoMeters list for digital-twin seeding.
+    Handles both direct topoMeters format and the nested bus/panel structure.
+    """
+    if isinstance(result, list):
+        return result  # Already topoMeters format
+
+    meter_id = (
+        result.get("meter_id") or
+        result.get("utility_account") or
+        result.get("meter_no") or
+        "MAIN"
+    )
+    buses_raw = result.get("buses") or []
+
+    buses = []
+    for b in buses_raw:
+        circuits = []
+        for p in (b.get("panels") or b.get("circuits") or []):
+            circuits.append({
+                "name":    p.get("name") or p.get("label") or "Panel",
+                "amps":    p.get("amps") or p.get("amp_rating"),
+                "nEcbs":   p.get("n_ecbs", 0),
+                "nApf50":  p.get("n_apf50", 0),
+                "nApf100": p.get("n_apf100", 0),
+                "note":    p.get("description") or p.get("note", ""),
+            })
+        buses.append({
+            "badge":    b.get("label") or b.get("badge") or "MAIN-SWG",
+            "dwg":      b.get("drawing_ref") or b.get("dwg") or "SLD-01",
+            "xfKva":    b.get("transformer_kva") or b.get("kva_rating"),
+            "mainA":    b.get("main_amps") or b.get("amp_rating"),
+            "pctLoad":  b.get("load_pct") or b.get("pct_load"),
+            "circuits": circuits,
+        })
+
+    return [{"meterNo": meter_id, "buses": buses}]
+
+
+@sld_bp.route("/api/sld/<int:gpu_id>/topology", methods=["GET"])
+@login_required
+def sld_topology(gpu_id: int):
+    """
+    GET /api/sld/<gpu_id>/topology
+    Returns the GPU result formatted as a topoMeters array, ready for digital twin seeding.
+    Returns {status: "pending"} if analysis is still running.
+    """
+    try:
+        poll = _requests.get(f"{SLD_PLATFORM_URL}/slds/{gpu_id}", timeout=15)
+    except _requests.ConnectionError:
+        return jsonify({"status": "error", "error": "Cannot reach GPU server"}), 503
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+    if poll.status_code == 404:
+        return jsonify({"status": "pending"}), 200
+
+    try:
+        poll.raise_for_status()
+    except _requests.HTTPError:
+        return jsonify({"status": "error", "error": f"GPU error {poll.status_code}"}), 200
+
+    data   = poll.json()
+    status = data.get("status", "")
+
+    if status == "pending_review":
+        result      = data.get("result") or {}
+        topo_meters = _gpu_result_to_topo_meters(result)
+        return jsonify({
+            "status":      "done",
+            "gpu_id":      gpu_id,
+            "topo_meters": topo_meters,
+            "raw_result":  result,
+        }), 200
+
+    elif status == "failed":
+        return jsonify({
+            "status": "error",
+            "error":  data.get("error_notes") or "SLD analysis failed",
+        }), 200
+
+    return jsonify({"status": "pending"}), 200
+
+
+@sld_bp.route("/api/project/<int:project_id>/sld/seed-twin", methods=["POST"])
+@login_required
+@license_required
+def seed_twin_from_sld(project_id: int):
+    """
+    POST /api/project/<id>/sld/seed-twin
+    Body: { "gpu_id": <int>, "sld_analysis": <optional override> }
+
+    1. Fetches the GPU result for the given gpu_id.
+    2. Saves sldAnalysis + placements to the project.
+    3. Calls /api/digital-twin/from-project/<id> to materialise assets.
+    Returns { twin_id, created, status }.
+    """
+    role = getattr(current_user, "role", None)
+    if role not in (8, 9, 10):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    body   = request.get_json() or {}
+    gpu_id = body.get("gpu_id")
+    if not gpu_id:
+        return jsonify({"error": "gpu_id required"}), 400
+
+    sess = get_session()
+    p    = sess.query(Project).filter_by(id=project_id, isDeleted=False).first()
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+
+    # ── Fetch GPU result
+    try:
+        poll = _requests.get(f"{SLD_PLATFORM_URL}/slds/{gpu_id}", timeout=20)
+        poll.raise_for_status()
+    except Exception as e:
+        return jsonify({"error": f"Cannot reach GPU: {e}"}), 503
+
+    data   = poll.json()
+    status = data.get("status", "")
+    if status != "pending_review":
+        return jsonify({"error": f"GPU job not ready (status={status}). Poll again later."}), 409
+
+    result      = data.get("result") or body.get("sld_analysis") or {}
+    topo_meters = _gpu_result_to_topo_meters(result)
+
+    # ── Save to project
+    p.sldAnalysis = result
+    p.placements  = topo_meters
+    # Also store topoMeters in proposalData so digital-twin/from-project can seed it
+    proposal = dict(p.proposalData or {})
+    proposal["topoMeters"] = topo_meters
+    p.proposalData = proposal
+    sess.add(p)
+    sess.commit()
+
+    # ── Seed digital twin (inline, same session)
+    from app.models.digital_twin import DigitalTwin
+    from app.models.site import Site
+    from app.api.digital_twin_routes import (
+        _create_assets_from_topo, _twin_dict, _now
+    )
+
+    existing = sess.query(DigitalTwin).filter_by(project_id=project_id, is_deleted=False).first()
+    if existing:
+        return jsonify({
+            "twin_id": existing.id,
+            "created": False,
+            "status":  existing.status,
+            "topo_meters": topo_meters,
+        }), 200
+
+    now  = _now()
+    site = sess.query(Site).filter_by(project_id=project_id, is_deleted=False).first()
+    if not site:
+        pd   = p.proposalData or {}
+        site = Site(
+            org_id    = p.org_id,
+            client_id = p.client,
+            project_id= p.id,
+            name      = pd.get("facility_name") or p.name,
+            address   = pd.get("facility_address") or p.location,
+            status    = "active",
+            createdAt = now,
+            updatedAt = now,
+        )
+        sess.add(site)
+        sess.flush()
+
+    from app.models.digital_twin import DigitalTwin as DT
+    twin = DT(
+        site_id        = site.id,
+        org_id         = p.org_id,
+        project_id     = project_id,
+        status         = "draft",
+        version_number = 1,
+        source         = "sld_gpu",
+        label          = f"Auto-seeded from SLD (GPU job {gpu_id})",
+        createdAt      = now,
+        updatedAt      = now,
+    )
+    sess.add(twin)
+    sess.flush()
+
+    _create_assets_from_topo(sess, site.id, twin.id, p.org_id, topo_meters, now)
+    sess.commit()
+
+    return jsonify({
+        "twin_id":     twin.id,
+        "created":     True,
+        "status":      twin.status,
+        "topo_meters": topo_meters,
+    }), 201
