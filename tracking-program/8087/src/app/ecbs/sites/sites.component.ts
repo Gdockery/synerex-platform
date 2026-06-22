@@ -71,7 +71,7 @@ export class SitesComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.api.get('/api/project/?page=1&pageSize=200').subscribe({
       next: (r: any) => {
-        const items: any[] = Array.isArray(r) ? r : (r?.data || r?.projects || r?.items || []);
+        const items: any[] = Array.isArray(r) ? r : (r?.response || r?.data || r?.projects || r?.items || []);
         this.sites = items.map(p => this.projectToRow(p));
         this.loading = false;
         // Load metrics for each site asynchronously
@@ -86,8 +86,9 @@ export class SitesComponent implements OnInit, OnDestroy {
   private projectToRow(p: any): SiteRow {
     const city    = p.city || p.facilityCity || '';
     const state   = p.state || p.facilityState || p.stateAbbreviation || '';
-    const country = p.country || p.facilityCountry || 'USA';
-    const loc     = [city, state].filter(Boolean).join(', ') || country;
+    const country = p.country || p.facilityCountry || '';
+    const clientName = p.client?.name || '';
+    const loc     = [city, state].filter(Boolean).join(', ') || country || clientName;
 
     return {
       id: p.id,
@@ -96,7 +97,7 @@ export class SitesComponent implements OnInit, OnDestroy {
       state,
       country,
       location: loc,
-      facilityType: p.facilityType || p.buildingType || 'Facility',
+      facilityType: p.facilityType || p.buildingType || p.type || 'Facility',
       healthScore: 0,
       healthLabel: 'No Data',
       healthColor: '#546e7a',
