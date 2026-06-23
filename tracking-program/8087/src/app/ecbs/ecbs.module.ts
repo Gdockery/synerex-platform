@@ -25,6 +25,8 @@ import { JobCostingComponent }          from './job-costing/job-costing.componen
 import { InvoicingComponent }           from './invoicing/invoicing.component';
 import { PaymentsComponent }            from './payments/payments.component';
 import { RatesTariffsComponent }        from './rates-tariffs/rates-tariffs.component';
+import { UBillTrackerComponent }  from './ubill-tracker/ubill-tracker.component';
+import { UBillForecastComponent } from './ubill-forecast/ubill-forecast.component';
 import { ProfitabilityComponent }       from './profitability/profitability.component';
 
 @NgModule({
@@ -56,6 +58,8 @@ import { ProfitabilityComponent }       from './profitability/profitability.comp
     PaymentsComponent,
     RatesTariffsComponent,
     ProfitabilityComponent,
+    UBillTrackerComponent,
+    UBillForecastComponent,
   ],
 })
 export class EcbsModule {}

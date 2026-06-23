@@ -1,0 +1,315 @@
+<!-- uBillForecast™ — Forecast future utility costs, demand, and usage -->
+<div class="ecbs-page ubf-page">
+
+  <!-- Header -->
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>uBillForecast&#x2122;</h1>
+      <p>Forecast future utility costs, demand, and usage based on historical data, operational schedules, and rate structures.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-primary"><span class="fa fa-plus"></span> Create Forecast</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Import Data</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading forecast data…</div>
+
+  <ng-container *ngIf="!loading">
+
+    <!-- KPI Row -->
+    <div class="ubf-kpi-row">
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" style="background:rgba(76,175,80,0.12);color:#4caf50;"><span class="fa fa-dollar"></span></div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECASTED COST (THIS MONTH)</div>
+          <div class="ubf-kpi-big">${{ fmtNum(forecastedCost) }}</div>
+          <div class="ubf-kpi-delta ubf-delta-up" *ngIf="forecastVsActualPct">
+            <span class="fa fa-arrow-up"></span>{{ pctSign(forecastVsActualPct) }} vs Last Month (Actual)
+          </div>
+          <div class="ubf-kpi-delta" *ngIf="!forecastVsActualPct">—</div>
+        </div>
+      </div>
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" style="background:rgba(41,182,246,0.12);color:#29b6f6;"><span class="fa fa-bolt"></span></div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECASTED USAGE (THIS MONTH)</div>
+          <div class="ubf-kpi-big">{{ fmtNum(forecastedKwh) }} <span class="ubf-kpi-unit">kWh</span></div>
+          <div class="ubf-kpi-delta">vs Last Month (Actual)</div>
+        </div>
+      </div>
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" style="background:rgba(171,71,188,0.12);color:#ab47bc;"><span class="fa fa-tachometer"></span></div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECASTED DEMAND (PEAK)</div>
+          <div class="ubf-kpi-big">{{ fmtNum(forecastedDemand) }} <span class="ubf-kpi-unit">kW</span></div>
+          <div class="ubf-kpi-delta">vs Last Month (Actual)</div>
+        </div>
+      </div>
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" style="background:rgba(255,152,0,0.12);color:#ffa726;"><span class="fa fa-calendar"></span></div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECASTED DAYS THIS PERIOD</div>
+          <div class="ubf-kpi-big">{{ forecastedDays }} <span class="ubf-kpi-unit">Days</span></div>
+          <div class="ubf-kpi-delta">No Change vs Last Month</div>
+        </div>
+      </div>
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" [style.background]="forecastVsBudget<0?'rgba(0,230,118,0.12)':'rgba(244,67,54,0.12)'" [style.color]="forecastVsBudget<0?'#00e676':'#ef5350'">
+          <span class="fa fa-balance-scale"></span>
+        </div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECAST VS BUDGET</div>
+          <div class="ubf-kpi-big" [style.color]="forecastVsBudget<0?'#00e676':'#ef5350'">
+            {{ forecastVsBudget ? (forecastVsBudget > 0 ? '+$' : '-$') + fmtNum(forecastVsBudget < 0 ? -forecastVsBudget : forecastVsBudget) : '—' }}
+          </div>
+          <div class="ubf-kpi-delta" [class.ubf-delta-warn]="forecastVsBudget>0">{{ forecastVsBudget > 0 ? 'Over Budget' : forecastVsBudget < 0 ? 'Under Budget' : '—' }}</div>
+        </div>
+      </div>
+
+      <div class="ubf-kpi-card">
+        <div class="ubf-kpi-icon" style="background:rgba(0,230,118,0.12);color:#00e676;"><span class="fa fa-leaf"></span></div>
+        <div class="ubf-kpi-body">
+          <div class="ubf-kpi-label">FORECAST ACCURACY (YTD)</div>
+          <div class="ubf-kpi-big" style="color:#00e676;">{{ forecastAccuracyYtd > 0 ? (forecastAccuracyYtd | number:'1.1-1') + '%' : '—' }}</div>
+          <div class="ubf-kpi-delta ubf-delta-down">{{ forecastAccuracyVsLastMonth ? pctSign(forecastAccuracyVsLastMonth) + ' vs Last Month' : 'ML-enhanced model' }}</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Grid -->
+    <div class="ubf-main-grid">
+
+      <!-- Left column -->
+      <div class="ubf-left-col">
+
+        <!-- Forecast Configuration -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-sliders"></span> FORECAST CONFIGURATION</div>
+          <div class="ubf-config-grid">
+            <div class="ubf-config-field">
+              <label>Forecast Name</label>
+              <input class="fin-input" type="text" [value]="forecastName" readonly/>
+            </div>
+            <div class="ubf-config-field">
+              <label>Site</label>
+              <select class="fin-input">
+                <option>{{ forecastSite }}</option>
+              </select>
+            </div>
+            <div class="ubf-config-field">
+              <label>Utility</label>
+              <select class="fin-input">
+                <option>{{ forecastUtility }}</option>
+              </select>
+            </div>
+            <div class="ubf-config-field">
+              <label>Forecast Period</label>
+              <input class="fin-input" type="text" [value]="forecastPeriod" readonly/>
+            </div>
+            <div class="ubf-config-field">
+              <label>Model <span class="fa fa-info-circle" style="color:#546e7a;font-size:10px;margin-left:3px;"></span></label>
+              <select class="fin-input">
+                <option>{{ forecastModel }}</option>
+                <option>Linear Regression</option>
+                <option>Machine Learning</option>
+                <option>Weather-Adjusted</option>
+              </select>
+            </div>
+            <div class="ubf-config-field">
+              <label>Baseline</label>
+              <select class="fin-input">
+                <option>{{ baselineId }}</option>
+              </select>
+            </div>
+            <div class="ubf-config-field">
+              <label>Weather Source</label>
+              <select class="fin-input">
+                <option>{{ weatherSource }}</option>
+                <option>NOAA (30-Day)</option>
+                <option>Weather.com API</option>
+              </select>
+            </div>
+            <div class="ubf-config-field ubf-config-btn-col">
+              <button class="btn-ecbs btn-outline" style="margin-top:18px;"><span class="fa fa-cog"></span> Edit Configuration</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Forecast Chart -->
+        <div class="ecbs-card" style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div class="ecbs-card-title" style="margin:0;"><span class="fa fa-line-chart"></span> UTILITY COST FORECAST</div>
+            <select class="fin-input" style="width:200px;height:28px;font-size:11px;">
+              <option>Last 12 Months + Forecast</option>
+              <option>Last 6 Months + Forecast</option>
+              <option>Forecast Only</option>
+            </select>
+          </div>
+
+          <ng-container *ngIf="chartMonths.length >= 2">
+            <svg [attr.width]="CW" [attr.height]="CH+30" [attr.viewBox]="'0 0 '+CW+' '+(CH+30)" style="width:100%;overflow:visible;">
+              <defs>
+                <linearGradient id="ubfActualGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00e676" stop-opacity="0.2"/>
+                  <stop offset="100%" stop-color="#00e676" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line *ngFor="let l of chartYLabels" x1="35" [attr.y1]="l.y" [attr.x2]="CW" [attr.y2]="l.y" stroke="#1a2a3a" stroke-width="1"/>
+              <text *ngFor="let l of chartYLabels" x="33" [attr.y]="l.y+4" font-size="9" fill="#546e7a" text-anchor="end">{{ l.label }}</text>
+              <polyline [attr.points]="trendPolyBaseline(CW, CH)" fill="none" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4,3"/>
+              <polyline [attr.points]="trendPolyActual(CW, CH)" fill="none" stroke="#00e676" stroke-width="2"/>
+              <polyline [attr.points]="trendPolyForecast(CW, CH)" fill="none" stroke="#29b6f6" stroke-width="2" stroke-dasharray="6,3"/>
+              <text *ngFor="let l of chartXLabels" [attr.x]="l.x" [attr.y]="CH+18" font-size="9" fill="#546e7a" text-anchor="middle">{{ l.label }}</text>
+            </svg>
+            <div class="ubf-chart-legend">
+              <span><span class="ubf-leg-dot" style="background:#00e676;"></span>Actual Cost</span>
+              <span><span class="ubf-leg-dot" style="background:#29b6f6;border-radius:0;height:2px;width:18px;display:inline-block;vertical-align:middle;margin-right:4px;margin-bottom:1px;border-top:2px dashed #29b6f6;background:transparent;"></span>Forecasted Cost</span>
+              <span><span class="ubf-leg-dot" style="background:#546e7a;border-radius:0;height:2px;width:18px;display:inline-block;vertical-align:middle;margin-right:4px;margin-bottom:1px;border-top:2px dashed #546e7a;background:transparent;"></span>Baseline Cost</span>
+            </div>
+          </ng-container>
+
+          <div *ngIf="chartMonths.length < 2" class="ecbs-empty" style="height:120px;justify-content:center;">
+            <span class="fa fa-area-chart" style="font-size:32px;color:#1a2a3a;"></span>
+            <span class="empty-title" style="font-size:11px;">No forecast data — configure forecast model to begin</span>
+          </div>
+        </div>
+
+        <!-- Bottom row: Donut + Monthly Table + Drivers -->
+        <div class="ubf-bottom-row">
+
+          <!-- Forecasted Breakdown Donut -->
+          <div class="ecbs-card ubf-breakdown-card">
+            <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> FORECASTED COST BREAKDOWN</div>
+            <div class="ubf-donut-wrap">
+              <svg width="130" height="130" viewBox="0 0 130 130">
+                <circle cx="65" cy="65" r="50" fill="none" stroke="#1a2a3a" stroke-width="16"/>
+                <ng-container *ngFor="let s of donutSegs">
+                  <circle *ngIf="s.pct > 0"
+                    cx="65" cy="65" r="50" fill="none"
+                    [attr.stroke]="s.color" stroke-width="16"
+                    [attr.stroke-dasharray]="s.dash.toFixed(2)+' '+donutCirc"
+                    [attr.stroke-dashoffset]="s.offset.toFixed(2)"
+                    transform="rotate(-90 65 65)"/>
+                </ng-container>
+                <text x="65" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#e8edf5">${{ fmtNum(forecastedCost) }}</text>
+                <text x="65" y="75" text-anchor="middle" font-size="8" fill="#546e7a">Total Forecast</text>
+              </svg>
+              <div class="ubf-breakdown-legend">
+                <div class="ubf-bleg-row" *ngFor="let s of donutSegs">
+                  <span class="ubf-bleg-dot" [style.background]="s.color"></span>
+                  <span class="ubf-bleg-label">{{ s.label }}</span>
+                  <span class="ubf-bleg-amt">${{ s.amt | number:'1.0-0' }}</span>
+                  <span class="ubf-bleg-pct">({{ s.pct }}%)</span>
+                </div>
+              </div>
+            </div>
+            <a class="ubf-link" routerLink="/ecbs/utility">View Rate Details →</a>
+          </div>
+
+          <!-- Monthly Forecast Table -->
+          <div class="ecbs-card ubf-monthly-card">
+            <div class="ecbs-card-title"><span class="fa fa-table"></span> MONTHLY FORECAST TABLE</div>
+
+            <div *ngIf="monthlyRows.length === 0" class="ecbs-empty" style="padding:18px;">
+              <span class="fa fa-table empty-icon" style="font-size:22px;"></span>
+              <span class="empty-title" style="font-size:11px;">No monthly forecast rows</span>
+            </div>
+
+            <table *ngIf="monthlyRows.length > 0" class="ubf-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Total Cost</th>
+                  <th>Energy (kWh)</th>
+                  <th>Peak (kW)</th>
+                  <th>Cost vs Baseline</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of monthlyRows">
+                  <td style="font-weight:600;white-space:nowrap;">{{ r.forecast_month }}</td>
+                  <td style="font-weight:700;">${{ (r.forecast_total_cost || 0) | number:'1.0-0' }}</td>
+                  <td>{{ (r.forecast_energy_kwh || 0) | number:'1.0-0' }}</td>
+                  <td>{{ (r.forecast_demand_kw || 0) | number:'1.0-0' }}</td>
+                  <td [style.color]="rowVarianceColor(rowVsBaseline(r))">
+                    {{ rowVsBaseline(r) !== 0 ? (rowVsBaseline(r) > 0 ? '+$' : '-$') + (rowVsBaseline(r) < 0 ? -rowVsBaseline(r) : rowVsBaseline(r) | number:'1.0-0') : '—' }}
+                    {{ rowVsBaselinePct(r) !== 0 ? '(' + pctSign(rowVsBaselinePct(r)) + ')' : '' }}
+                  </td>
+                  <td>
+                    <span class="ubf-conf-pill" [style.background]="(r.confidence||0)>=90?'rgba(0,230,118,0.15)':(r.confidence||0)>=80?'rgba(255,215,64,0.15)':'rgba(244,67,54,0.15)'" [style.color]="(r.confidence||0)>=90?'#00e676':(r.confidence||0)>=80?'#ffd740':'#ef5350'">
+                      {{ (r.confidence || 0) }}%
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <a class="ubf-link" style="margin-top:8px;">View Full Forecast Report →</a>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Column -->
+      <div class="ubf-right-col">
+
+        <!-- Forecast Summary -->
+        <div class="ecbs-card ubf-summary-card">
+          <div class="ecbs-card-title"><span class="fa fa-list-alt"></span> FORECAST SUMMARY</div>
+          <div class="ubf-summary-period" *ngIf="forecastPeriod !== '—'">{{ forecastPeriod }}</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Total Cost (Forecast)</span><span class="kv-val" style="color:#e8edf5;font-weight:800;">${{ forecastedCost | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Total Cost (Baseline)</span><span class="kv-val">${{ baselineCost | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Variance</span><span class="kv-val" [style.color]="forecastVariance<0?'#00e676':'#ef5350'">${{ (forecastVariance < 0 ? -forecastVariance : forecastVariance) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Variance %</span><span class="kv-val" [style.color]="forecastVariancePct<0?'#00e676':'#ef5350'">{{ forecastVariancePct ? pctSign(forecastVariancePct) : '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Forecast Method</span><span class="kv-val" style="font-size:11px;">{{ forecastModel }}</span></div>
+            <div class="kv-row"><span class="kv-key">Confidence Level</span>
+              <span class="kv-val" [style.color]="confidenceLevel>=90?'#00e676':confidenceLevel>=75?'#ffd740':'#546e7a'">
+                {{ confidenceLevel > 0 ? (confidenceLevel | number:'1.0-0') + '% (' + (confidenceLevel>=90?'High':confidenceLevel>=75?'Medium':'Low') + ')' : '—' }}
+              </span>
+            </div>
+            <div class="kv-row"><span class="kv-key">Weather Impact</span><span class="kv-val" [style.color]="weatherImpact>0?'#ef5350':'#00e676'">{{ weatherImpact ? (weatherImpact > 0 ? '+$' : '-$') + (weatherImpact < 0 ? -weatherImpact : weatherImpact | number:'1.0-0') : '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Rate Impact</span><span class="kv-val" [style.color]="rateImpact>0?'#ef5350':'#00e676'">{{ rateImpact ? (rateImpact > 0 ? '+$' : '-$') + (rateImpact < 0 ? -rateImpact : rateImpact | number:'1.0-0') : '—' }}</span></div>
+          </div>
+        </div>
+
+        <!-- Key Forecast Drivers -->
+        <div class="ecbs-card ubf-drivers-card">
+          <div class="ecbs-card-title"><span class="fa fa-key"></span> KEY FORECAST DRIVERS</div>
+
+          <div *ngIf="forecastDrivers.length === 0" class="ecbs-empty" style="padding:20px;">
+            <span class="fa fa-key empty-icon" style="font-size:24px;"></span>
+            <span class="empty-title" style="font-size:11px;">No driver data available</span>
+            <p style="font-size:10px;">Configure forecast model to enable driver analysis.</p>
+          </div>
+
+          <div class="ubf-driver-row" *ngFor="let d of forecastDrivers">
+            <div class="ubf-driver-icon" [style.background]="d.impact<0?'rgba(0,230,118,0.1)':'rgba(244,67,54,0.1)'">
+              <span class="fa" [class]="d.icon" [style.color]="d.color"></span>
+            </div>
+            <div class="ubf-driver-body">
+              <div class="ubf-driver-label">{{ d.label }}</div>
+              <div class="ubf-driver-desc">{{ d.desc }}</div>
+            </div>
+            <div class="ubf-driver-impact" [style.color]="d.impact<0?'#00e676':'#ef5350'">
+              {{ d.impact >= 0 ? '+$' : '-$' }}{{ (d.impact < 0 ? -d.impact : d.impact) | number:'1.0-0' }}
+            </div>
+          </div>
+          <a class="ubf-link">View Driver Analysis →</a>
+        </div>
+
+      </div>
+
+    </div>
+
+  </ng-container>
+</div>

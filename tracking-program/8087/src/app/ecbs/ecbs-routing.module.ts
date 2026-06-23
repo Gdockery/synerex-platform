@@ -22,6 +22,8 @@ import { InvoicingComponent }           from './invoicing/invoicing.component';
 import { PaymentsComponent }            from './payments/payments.component';
 import { RatesTariffsComponent }        from './rates-tariffs/rates-tariffs.component';
 import { ProfitabilityComponent }       from './profitability/profitability.component';
+import { UBillTrackerComponent }        from './ubill-tracker/ubill-tracker.component';
+import { UBillForecastComponent }       from './ubill-forecast/ubill-forecast.component';
 
 const routes: Routes = [
   { path: 'dashboard',            component: DashboardComponent,          data: { title: 'Enterprise Dashboard' } },
@@ -45,6 +47,8 @@ const routes: Routes = [
   { path: 'payments',             component: PaymentsComponent,           data: { title: 'Payments' } },
   { path: 'rates-tariffs',        component: RatesTariffsComponent,       data: { title: 'Rates & Tariffs' } },
   { path: 'profitability',        component: ProfitabilityComponent,      data: { title: 'Profitability' } },
+  { path: 'ubill-tracker',         component: UBillTrackerComponent,       data: { title: 'uBillTracker' } },
+  { path: 'ubill-forecast',        component: UBillForecastComponent,      data: { title: 'uBillForecast' } },
   { path: '',                     redirectTo: 'dashboard', pathMatch: 'full' },
 ];
 

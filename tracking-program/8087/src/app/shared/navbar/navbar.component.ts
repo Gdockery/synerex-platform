@@ -34,6 +34,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   cbiScore: number = 0;
   alarmsOpen: boolean = false;
+  savingsOpen: boolean = false;
   private _routerSub: Subscription;
 
   constructor(private userService: CurrentUserService, private whitelabelService: WhitelabelService, private api: ApiRequestService, private router: Router) {
@@ -88,6 +89,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
         this.refreshCbi();
         if (e.url && e.url.includes('/ecbs/alarm')) {
           this.alarmsOpen = true;
+        }
+        if (e.url && (e.url.includes('/ecbs/savings') || e.url.includes('/ecbs/ubill'))) {
+          this.savingsOpen = true;
         }
       });
   }

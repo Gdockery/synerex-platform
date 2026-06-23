@@ -185,12 +185,33 @@
           </a>
         </li>
 
-        <!-- Savings & Financials (SS-11) -->
-        <li>
-          <a [routerLink]="['/ecbs/savings']" [routerLinkActive]="['router-link-active']">
+        <!-- Savings & Financials group (SS-11) -->
+        <li class="nav-group" [class.open]="savingsOpen">
+          <a class="nav-group-toggle" (click)="savingsOpen = !savingsOpen">
             <span class="icon fa fa-dollar"></span>
             <span class="text">Savings &amp; Financials</span>
+            <span class="nav-caret fa" [class.fa-angle-down]="savingsOpen" [class.fa-angle-right]="!savingsOpen"></span>
           </a>
+          <ul class="submenu" *ngIf="savingsOpen">
+            <li>
+              <a [routerLink]="['/ecbs/savings']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-dollar"></span>
+                <span class="text">Savings &amp; Financials</span>
+              </a>
+            </li>
+            <li>
+              <a [routerLink]="['/ecbs/ubill-tracker']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-file-text-o"></span>
+                <span class="text">uBillTracker&#x2122;</span>
+              </a>
+            </li>
+            <li>
+              <a [routerLink]="['/ecbs/ubill-forecast']" [routerLinkActive]="['router-link-active']">
+                <span class="icon fa fa-area-chart"></span>
+                <span class="text">uBillForecast&#x2122;</span>
+              </a>
+            </li>
+          </ul>
         </li>
 
         <!-- Utility Intelligence (SS-10) -->

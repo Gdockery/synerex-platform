@@ -1,0 +1,347 @@
+<!-- uBillTracker™ — Track, analyze, and understand your utility bills -->
+<div class="ecbs-page ubt-page">
+
+  <!-- Header -->
+  <div class="ecbs-page-header">
+    <div class="page-title-block">
+      <h1>uBillTracker&#x2122;</h1>
+      <p>Track, analyze, and understand your utility bills. Compare actual costs to baseline and identify cost drivers.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn-ecbs btn-primary"><span class="fa fa-plus"></span> Add Utility Account</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-upload"></span> Import Bills</button>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-download"></span> Export</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading bill data…</div>
+
+  <ng-container *ngIf="!loading">
+
+    <!-- KPI Row -->
+    <div class="ubt-kpi-row">
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" style="background:rgba(76,175,80,0.12);color:#4caf50;"><span class="fa fa-dollar"></span></div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">CURRENT UTILITY COST (MTD)</div>
+          <div class="ubt-kpi-big">${{ fmtNum(currentMonthCost) }}</div>
+          <div class="ubt-kpi-delta" [class.ubt-delta-up]="momVariancePct>0" [class.ubt-delta-down]="momVariancePct<=0">
+            <span class="fa" [class.fa-arrow-up]="momVariancePct>0" [class.fa-arrow-down]="momVariancePct<=0"></span>
+            {{ pctSign(momVariancePct) }} vs Last Month
+          </div>
+        </div>
+      </div>
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" style="background:rgba(41,182,246,0.12);color:#29b6f6;"><span class="fa fa-bolt"></span></div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">ENERGY USAGE (MTD)</div>
+          <div class="ubt-kpi-big">{{ fmtNum(currentMonthKwh) }} <span class="ubt-kpi-unit">kWh</span></div>
+          <div class="ubt-kpi-delta" [class.ubt-delta-up]="momKwhVariancePct>0" [class.ubt-delta-down]="momKwhVariancePct<=0">
+            <span class="fa" [class.fa-arrow-up]="momKwhVariancePct>0" [class.fa-arrow-down]="momKwhVariancePct<=0"></span>
+            {{ momKwhVariancePct ? pctSign(momKwhVariancePct) + ' vs Last Month' : '—' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" style="background:rgba(171,71,188,0.12);color:#ab47bc;"><span class="fa fa-tachometer"></span></div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">PEAK DEMAND (MTD)</div>
+          <div class="ubt-kpi-big">{{ fmtNum(peakDemandKw) }} <span class="ubt-kpi-unit">kW</span></div>
+          <div class="ubt-kpi-delta">{{ momDemandVariancePct ? pctSign(momDemandVariancePct) + ' vs Last Month' : 'Demand charges apply' }}</div>
+        </div>
+      </div>
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" style="background:rgba(255,112,67,0.12);color:#ff7043;"><span class="fa fa-circle-o"></span></div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">AVG POWER FACTOR</div>
+          <div class="ubt-kpi-big">{{ avgPowerFactor > 0 ? (avgPowerFactor | number:'1.2-2') : '—' }}</div>
+          <div class="ubt-kpi-delta">{{ avgPowerFactor >= 0.95 ? 'Excellent' : avgPowerFactor > 0 ? 'Needs improvement' : '—' }}</div>
+        </div>
+      </div>
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" [style.background]="costVsBaseline<0?'rgba(0,230,118,0.12)':'rgba(244,67,54,0.12)'" [style.color]="costVsBaseline<0?'#00e676':'#ef5350'">
+          <span class="fa fa-balance-scale"></span>
+        </div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">COST VS BASELINE</div>
+          <div class="ubt-kpi-big" [style.color]="costVsBaseline<0?'#00e676':'#ef5350'">{{ costVsBaseline ? pctSign(costVsBaseline) : '—' }}</div>
+          <div class="ubt-kpi-delta">{{ baselineCost ? ('Baseline: ' + fmt(baselineCost)) : '—' }}</div>
+        </div>
+      </div>
+
+      <div class="ubt-kpi-card">
+        <div class="ubt-kpi-icon" style="background:rgba(0,230,118,0.12);color:#00e676;"><span class="fa fa-leaf"></span></div>
+        <div class="ubt-kpi-body">
+          <div class="ubt-kpi-label">SAVINGS THIS MONTH</div>
+          <div class="ubt-kpi-big" style="color:#00e676;">{{ monthlySavings > 0 ? fmt(monthlySavings) : '—' }}</div>
+          <div class="ubt-kpi-delta ubt-delta-up">EM&amp;V verified</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Grid -->
+    <div class="ubt-main-grid">
+
+      <!-- Left Column -->
+      <div class="ubt-left-col">
+
+        <!-- Bill Table -->
+        <div class="ecbs-card">
+          <div class="ecbs-card-title"><span class="fa fa-list"></span> RECENT UTILITY BILLS</div>
+
+          <div *ngIf="bills.length === 0" class="ecbs-empty" style="padding:28px;">
+            <span class="fa fa-file-o empty-icon"></span>
+            <span class="empty-title">No Utility Bills Loaded</span>
+            <p>Import utility bills to begin tracking costs, demand, and savings.</p>
+          </div>
+
+          <table *ngIf="bills.length > 0" class="ubt-table">
+            <thead>
+              <tr>
+                <th>Bill Period</th>
+                <th>Utility</th>
+                <th>Cost</th>
+                <th>kWh</th>
+                <th>kW</th>
+                <th>PF</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let b of pagedBills" (click)="selectBill(b)" [class.ubt-row-selected]="selectedBill===b">
+                <td style="font-weight:600;">{{ b.bill_month }}</td>
+                <td style="color:#8899a6;">{{ b.utility_name || b.utility || summary?.utility_provider || '—' }}</td>
+                <td style="font-weight:700;">${{ (b.total_cost || 0) | number:'1.0-0' }}</td>
+                <td>{{ (b.energy_kwh || 0) | number:'1.0-0' }}</td>
+                <td>{{ (b.demand_kw || 0) | number:'1.0-0' }}</td>
+                <td>{{ b.power_factor ? (b.power_factor | number:'1.2-2') : '—' }}</td>
+                <td>
+                  <span class="ubt-status-pill" [style.color]="statusColor(billStatus(b))" [style.border-color]="statusColor(billStatus(b))">
+                    {{ billStatus(b) }}
+                  </span>
+                </td>
+                <td>
+                  <button class="tbl-btn" title="View"><span class="fa fa-eye"></span></button>
+                  <button class="tbl-btn" title="Download"><span class="fa fa-download"></span></button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="ubt-table-footer" *ngIf="bills.length > pageSize">
+            <span>Showing {{ (currentPage-1)*pageSize+1 }}–{{ currentPage*pageSize > bills.length ? bills.length : currentPage*pageSize }} of {{ bills.length }} bills</span>
+            <div class="ubt-pagination">
+              <button class="ubt-page-btn" [disabled]="currentPage===1" (click)="currentPage=currentPage-1"><span class="fa fa-angle-left"></span></button>
+              <button *ngFor="let p of pageNumbers" class="ubt-page-btn" [class.active]="p===currentPage" (click)="currentPage=p">{{ p }}</button>
+              <button class="ubt-page-btn" [disabled]="currentPage===totalPages" (click)="currentPage=currentPage+1"><span class="fa fa-angle-right"></span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Trend Chart -->
+        <div class="ecbs-card" style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="ecbs-card-title" style="margin:0;"><span class="fa fa-line-chart"></span> UTILITY COST TREND</div>
+            <select class="fin-input" style="width:170px;height:28px;font-size:11px;" [(ngModel)]="timeRange">
+              <option value="6m">Last 6 Months</option>
+              <option value="12m">Last 12 Months</option>
+              <option value="24m">Last 24 Months</option>
+            </select>
+          </div>
+
+          <ng-container *ngIf="trendBills.length >= 2">
+            <svg [attr.width]="CW" [attr.height]="CH+30" [attr.viewBox]="'0 0 '+CW+' '+(CH+30)" style="width:100%;overflow:visible;">
+              <defs>
+                <linearGradient id="ubtGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00e676" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="#00e676" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line *ngFor="let l of trendYLabels" x1="30" [attr.y1]="l.y" [attr.x2]="CW" [attr.y2]="l.y" stroke="#1a2a3a" stroke-width="1"/>
+              <text *ngFor="let l of trendYLabels" x="28" [attr.y]="l.y+4" font-size="9" fill="#546e7a" text-anchor="end">{{ l.label }}</text>
+              <polyline [attr.points]="trendPolyline('baseline_cost', CW, CH)" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-dasharray="5,3"/>
+              <polyline [attr.points]="'20,'+(CH-10)+' '+trendPolyline('total_cost',CW,CH)+' '+(CW-20)+','+(CH-10)" fill="url(#ubtGrad)" stroke="none"/>
+              <polyline [attr.points]="trendPolyline('total_cost', CW, CH)" fill="none" stroke="#00e676" stroke-width="2"/>
+              <ng-container *ngFor="let b of trendBills; let i=index">
+                <circle
+                  [attr.cx]="(i/(trendBills.length-1||1))*(CW-40)+20"
+                  [attr.cy]="CH - (b.total_cost||0)/trendYMax*(CH-20) - 10"
+                  r="3" fill="#00e676"/>
+              </ng-container>
+              <text *ngFor="let l of trendXLabels" [attr.x]="l.x" [attr.y]="CH+18" font-size="9" fill="#546e7a" text-anchor="middle">{{ l.label }}</text>
+            </svg>
+            <div class="ubt-chart-legend">
+              <span><span class="ubt-leg-dot" style="background:#00e676;"></span>Actual Utility Cost</span>
+              <span><span class="ubt-leg-dash" style="border-top:2px dashed #29b6f6;width:20px;display:inline-block;vertical-align:middle;margin-right:4px;"></span>Baseline Cost</span>
+            </div>
+            <div class="ubt-savings-bar">
+              <div class="ubt-sbar-item">
+                <div class="ubt-sbar-label">BASELINE COST (MTD)</div>
+                <div class="ubt-sbar-val" style="color:#29b6f6;">${{ baselineCost | number:'1.0-0' }}</div>
+              </div>
+              <div class="ubt-sbar-item">
+                <div class="ubt-sbar-label">ACTUAL COST (MTD)</div>
+                <div class="ubt-sbar-val">${{ currentMonthCost | number:'1.0-0' }}</div>
+              </div>
+              <div class="ubt-sbar-item">
+                <div class="ubt-sbar-label">SAVINGS (MTD)</div>
+                <div class="ubt-sbar-val" style="color:#00e676;">${{ monthlySavings | number:'1.0-0' }}
+                  <span style="font-size:11px;margin-left:4px;" [style.color]="costVsBaseline<0?'#00e676':'#ef5350'">{{ costVsBaseline ? pctSign(costVsBaseline) : '' }}</span>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+
+          <div *ngIf="trendBills.length < 2" class="ecbs-empty" style="height:100px;justify-content:center;">
+            <span class="fa fa-line-chart" style="font-size:28px;color:#1a2a3a;"></span>
+            <span class="empty-title" style="font-size:11px;">No trend data — import bills to enable chart</span>
+          </div>
+        </div>
+
+        <!-- Bottom row -->
+        <div class="ubt-bottom-row">
+
+          <!-- Donut -->
+          <div class="ecbs-card ubt-breakdown-card">
+            <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> UTILITY COST BREAKDOWN (MTD)</div>
+            <div class="ubt-donut-wrap">
+              <svg width="130" height="130" viewBox="0 0 130 130">
+                <circle cx="65" cy="65" r="50" fill="none" stroke="#1a2a3a" stroke-width="16"/>
+                <ng-container *ngFor="let s of donutSegs">
+                  <circle *ngIf="s.pct > 0"
+                    cx="65" cy="65" r="50" fill="none"
+                    [attr.stroke]="s.color" stroke-width="16"
+                    [attr.stroke-dasharray]="s.dash.toFixed(2)+' '+donutCirc"
+                    [attr.stroke-dashoffset]="s.offset.toFixed(2)"
+                    transform="rotate(-90 65 65)"/>
+                </ng-container>
+                <text x="65" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#e8edf5">${{ fmtNum(breakdownTotal) }}</text>
+                <text x="65" y="75" text-anchor="middle" font-size="8" fill="#546e7a">Total Cost</text>
+              </svg>
+              <div class="ubt-breakdown-legend">
+                <div class="ubt-bleg-row" *ngFor="let s of donutSegs">
+                  <span class="ubt-bleg-dot" [style.background]="s.color"></span>
+                  <span class="ubt-bleg-label">{{ s.label }}</span>
+                  <span class="ubt-bleg-amt">${{ s.amt | number:'1.0-0' }}</span>
+                  <span class="ubt-bleg-pct">({{ s.pct }}%)</span>
+                </div>
+              </div>
+            </div>
+            <a class="ubt-link" routerLink="/ecbs/utility">View Rate Details →</a>
+          </div>
+
+          <!-- Cost Drivers -->
+          <div class="ecbs-card ubt-drivers-card">
+            <div class="ecbs-card-title"><span class="fa fa-exchange"></span> COST DRIVERS (VS LAST MONTH)</div>
+            <div *ngIf="costDrivers.length === 0" class="ecbs-empty" style="padding:18px 12px;">
+              <span class="fa fa-exchange empty-icon" style="font-size:22px;"></span>
+              <span class="empty-title" style="font-size:11px;">No driver data</span>
+            </div>
+            <div class="ubt-driver-row" *ngFor="let d of costDrivers">
+              <div class="ubt-driver-icon" [style.background]="d.type==='savings'?'rgba(0,230,118,0.1)':'rgba(244,67,54,0.1)'">
+                <span class="fa" [class]="d.icon" [style.color]="d.color"></span>
+              </div>
+              <div class="ubt-driver-body">
+                <div class="ubt-driver-label">{{ d.label }}</div>
+                <div class="ubt-driver-desc">{{ d.desc }}</div>
+              </div>
+              <div class="ubt-driver-impact" [style.color]="d.type==='savings'?'#00e676':'#ef5350'">
+                {{ d.type === 'savings' ? '+' : '' }}${{ d.impact | number:'1.0-0' }}
+                <div class="ubt-driver-type">{{ d.type === 'savings' ? 'Savings' : 'Impact' }}</div>
+              </div>
+            </div>
+            <a class="ubt-link" routerLink="/ecbs/current-analysis">View Cost Driver Analysis →</a>
+          </div>
+
+          <!-- Baseline Status -->
+          <div class="ecbs-card ubt-baseline-card">
+            <div class="ecbs-card-title"><span class="fa fa-check-circle"></span> BASELINE STATUS</div>
+            <div class="ecbs-kv-table">
+              <div class="kv-row"><span class="kv-key">Baseline ID</span><span class="kv-val" style="font-size:10px;font-family:monospace;">{{ baselineId }}</span></div>
+              <div class="kv-row"><span class="kv-key">Method</span><span class="kv-val" style="font-size:10px;">{{ baselineMethod }}</span></div>
+              <div class="kv-row"><span class="kv-key">Created</span><span class="kv-val">{{ baselineCreated }}</span></div>
+              <div class="kv-row"><span class="kv-key">Last Updated</span><span class="kv-val">{{ baselineUpdated }}</span></div>
+              <div class="kv-row">
+                <span class="kv-key">Status</span>
+                <span class="kv-val"><span class="ubt-status-pill" style="color:#ffd740;border-color:#ffd740;"><span class="fa fa-lock" style="margin-right:3px;"></span>{{ baselineStatus }}</span></span>
+              </div>
+            </div>
+            <a class="ubt-link" routerLink="/ecbs/savings">View Baseline Details →</a>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Right Column -->
+      <div class="ubt-right-col">
+
+        <!-- Selected Bill Detail -->
+        <div class="ecbs-card ubt-detail-card" *ngIf="selectedBill">
+          <div class="ubt-detail-header">
+            <div>
+              <div class="ubt-detail-period">{{ selectedBill.bill_month }}</div>
+              <div style="color:#8899a6;font-size:11px;margin-top:2px;">{{ selectedBill.utility_name || summary?.utility_provider || '—' }}</div>
+            </div>
+            <span class="ubt-status-pill" [style.color]="statusColor(billStatus(selectedBill))" [style.border-color]="statusColor(billStatus(selectedBill))">{{ billStatus(selectedBill) }}</span>
+          </div>
+          <div class="ubt-detail-section">BILL DETAILS</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Bill Number</span><span class="kv-val" style="font-size:10px;font-family:monospace;">{{ selectedBill.bill_number || '—' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Billing Period</span><span class="kv-val">{{ selectedBill.bill_month }}</span></div>
+            <div class="kv-row"><span class="kv-key">Utility</span><span class="kv-val">{{ selectedBill.utility_name || summary?.utility_provider || '—' }}</span></div>
+          </div>
+          <div class="ubt-detail-section" style="margin-top:12px;">COST</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Total Cost</span><span class="kv-val" style="font-size:18px;font-weight:800;color:#00e676;">${{ (selectedBill.total_cost || 0) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Energy Cost</span><span class="kv-val">${{ (selectedBill.energy_cost || 0) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Demand Cost</span><span class="kv-val">${{ (selectedBill.demand_cost || 0) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">PF Penalty</span><span class="kv-val">${{ (selectedBill.pf_penalty || 0) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Taxes &amp; Fees</span><span class="kv-val">${{ billTaxesTotal(selectedBill) | number:'1.0-0' }}</span></div>
+          </div>
+          <div class="ubt-detail-section" style="margin-top:12px;">USAGE</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Total kWh</span><span class="kv-val">{{ (selectedBill.energy_kwh || 0) | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Peak Demand</span><span class="kv-val">{{ (selectedBill.demand_kw || 0) | number:'1.0-0' }} kW</span></div>
+            <div class="kv-row"><span class="kv-key">Power Factor</span><span class="kv-val">{{ selectedBill.power_factor ? (selectedBill.power_factor | number:'1.2-2') : '—' }}</span></div>
+          </div>
+          <div style="margin-top:14px;">
+            <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-file-pdf-o"></span> View PDF</button>
+            <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-download"></span> Download CSV</button>
+            <button class="btn-ecbs btn-outline" style="width:100%;margin-bottom:6px;"><span class="fa fa-database"></span> Export EM&amp;V Data</button>
+            <button class="btn-ecbs btn-outline" style="width:100%;"><span class="fa fa-balance-scale"></span> Compare To Baseline</button>
+          </div>
+        </div>
+
+        <div class="ecbs-card" *ngIf="!selectedBill" style="padding:32px;text-align:center;color:#546e7a;">
+          <span class="fa fa-hand-pointer-o" style="font-size:28px;display:block;margin-bottom:8px;"></span>
+          Click a bill row to view details
+        </div>
+
+        <!-- Utility Account Summary -->
+        <div class="ecbs-card ubt-acct-card">
+          <div class="ecbs-card-title"><span class="fa fa-building-o"></span> UTILITY ACCOUNT SUMMARY</div>
+          <div class="ecbs-kv-table">
+            <div class="kv-row"><span class="kv-key">Total Utility Accounts</span><span class="kv-val">{{ totalAccounts }}</span></div>
+            <div class="kv-row"><span class="kv-key">Average Monthly Cost</span><span class="kv-val">${{ avgMonthlyCost | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Highest Cost Site</span><span class="kv-val">{{ highestCostSite }}<br><span style="color:#ef5350;font-weight:700;">${{ highestCostAmt | number:'1.0-0' }}</span></span></div>
+            <div class="kv-row"><span class="kv-key">Lowest Cost Site</span><span class="kv-val">{{ lowestCostSite }}<br><span style="color:#00e676;font-weight:700;">${{ lowestCostAmt | number:'1.0-0' }}</span></span></div>
+            <div class="kv-row"><span class="kv-key">Annual Utility Spend (YTD)</span><span class="kv-val">${{ annualSpendYtd | number:'1.0-0' }}</span></div>
+            <div class="kv-row"><span class="kv-key">Forecasted Annual Spend</span><span class="kv-val">${{ forecastedAnnual | number:'1.0-0' }}</span></div>
+          </div>
+          <a class="ubt-link" routerLink="/ecbs/ubill-forecast">View All Accounts →</a>
+        </div>
+
+      </div>
+
+    </div>
+
+  </ng-container>
+</div>
